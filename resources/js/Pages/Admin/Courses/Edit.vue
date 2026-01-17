@@ -4,6 +4,8 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 import CourseForm from '@/Components/Admin/CourseForm.vue'
 import { computed } from 'vue'
 
+defineOptions({ layout: AdminLayout })
+
 const props = defineProps({
   course: {
     type: Object,
@@ -41,8 +43,7 @@ const unpublish = () => {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div class="flex items-center space-x-3">
@@ -96,6 +97,5 @@ const unpublish = () => {
         :submit-url="`/admin/courses/${course.id}`"
         method="put"
       />
-    </div>
-  </AdminLayout>
+  </div>
 </template>

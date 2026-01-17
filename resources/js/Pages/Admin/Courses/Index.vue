@@ -3,6 +3,8 @@ import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { ref } from 'vue'
 
+defineOptions({ layout: AdminLayout })
+
 defineProps({
   courses: {
     type: Array,
@@ -37,8 +39,7 @@ const formatPrice = (price) => {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="px-4 sm:px-6 lg:px-8">
+  <div class="px-4 sm:px-6 lg:px-8">
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
           <h1 class="text-2xl font-semibold text-gray-900">課程管理</h1>
@@ -172,6 +173,5 @@ const formatPrice = (price) => {
           </div>
         </div>
       </div>
-    </div>
-  </AdminLayout>
+  </div>
 </template>

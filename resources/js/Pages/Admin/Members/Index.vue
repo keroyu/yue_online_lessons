@@ -5,6 +5,8 @@ import MemberDetailModal from '@/Components/MemberDetailModal.vue'
 import BatchEmailModal from '@/Components/BatchEmailModal.vue'
 import { ref, watch, computed, nextTick } from 'vue'
 
+defineOptions({ layout: AdminLayout })
+
 const props = defineProps({
   members: {
     type: Object,
@@ -315,8 +317,7 @@ const selectedMemberIdsArray = computed(() => {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="px-4 sm:px-6 lg:px-8">
+  <div class="px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
@@ -702,5 +703,4 @@ const selectedMemberIdsArray = computed(() => {
       @close="closeBatchEmailModal"
       @sent="handleBatchEmailSent"
     />
-  </AdminLayout>
 </template>

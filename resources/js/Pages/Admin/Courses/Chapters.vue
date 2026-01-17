@@ -3,6 +3,8 @@ import { Link } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ChapterList from '@/Components/Admin/ChapterList.vue'
 
+defineOptions({ layout: AdminLayout })
+
 defineProps({
   course: {
     type: Object,
@@ -20,8 +22,7 @@ defineProps({
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="px-4 sm:px-6 lg:px-8">
+  <div class="px-4 sm:px-6 lg:px-8">
       <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <nav class="flex" aria-label="Breadcrumb">
@@ -67,6 +68,5 @@ defineProps({
         :chapters="chapters"
         :standalone-lessons="standaloneLessons"
       />
-    </div>
-  </AdminLayout>
+  </div>
 </template>

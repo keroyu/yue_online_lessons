@@ -3,6 +3,8 @@ import { Link, router, useForm } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { ref } from 'vue'
 
+defineOptions({ layout: AdminLayout })
+
 const props = defineProps({
   course: {
     type: Object,
@@ -74,8 +76,7 @@ const deleteImage = (image) => {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="px-4 sm:px-6 lg:px-8">
+  <div class="px-4 sm:px-6 lg:px-8">
       <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <nav class="flex" aria-label="Breadcrumb">
@@ -220,6 +221,5 @@ const deleteImage = (image) => {
           </ol>
         </div>
       </div>
-    </div>
-  </AdminLayout>
+  </div>
 </template>
