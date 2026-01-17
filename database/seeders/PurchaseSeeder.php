@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Course;
-use App\Models\CourseProgress;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -32,12 +31,6 @@ class PurchaseSeeder extends Seeder
             'status' => 'paid',
         ]);
 
-        CourseProgress::create([
-            'user_id' => $member1->id,
-            'course_id' => $course1->id,
-            'progress_percent' => 0,
-        ]);
-
         Purchase::create([
             'user_id' => $member1->id,
             'course_id' => $course2->id,
@@ -45,12 +38,6 @@ class PurchaseSeeder extends Seeder
             'amount' => $course2->price,
             'currency' => 'TWD',
             'status' => 'paid',
-        ]);
-
-        CourseProgress::create([
-            'user_id' => $member1->id,
-            'course_id' => $course2->id,
-            'progress_percent' => 0,
         ]);
 
         // Member 2 purchased course 3
@@ -63,12 +50,6 @@ class PurchaseSeeder extends Seeder
             'coupon_code' => 'WELCOME10',
             'discount_amount' => 499,
             'status' => 'paid',
-        ]);
-
-        CourseProgress::create([
-            'user_id' => $member2->id,
-            'course_id' => $course3->id,
-            'progress_percent' => 0,
         ]);
     }
 }

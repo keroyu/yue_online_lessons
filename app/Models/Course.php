@@ -39,11 +39,6 @@ class Course extends Model
         return $this->hasMany(Purchase::class);
     }
 
-    public function courseProgress(): HasMany
-    {
-        return $this->hasMany(CourseProgress::class);
-    }
-
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('is_published', true);

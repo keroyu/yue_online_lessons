@@ -21,18 +21,13 @@ class LearningController extends Controller
             ->get();
 
         // Map to MyCourse format for frontend
-        $courses = $purchases->map(function ($purchase) use ($user) {
-            // Get or create progress record (MVP: default 0%)
-            $progress = $user->courseProgress()
-                ->where('course_id', $purchase->course_id)
-                ->first();
-
+        $courses = $purchases->map(function ($purchase) {
             return [
                 'id' => $purchase->course->id,
                 'name' => $purchase->course->name,
                 'thumbnail' => $purchase->course->thumbnail,
                 'instructor_name' => $purchase->course->instructor_name,
-                'progress_percent' => $progress?->progress_percent ?? 0,
+                'progress_percent' => 0,
                 'purchased_at' => $purchase->created_at->toIso8601String(),
             ];
         });

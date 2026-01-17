@@ -43,11 +43,6 @@ class User extends Authenticatable
         return $this->hasMany(Purchase::class);
     }
 
-    public function courseProgress(): HasMany
-    {
-        return $this->hasMany(CourseProgress::class);
-    }
-
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
