@@ -1,4 +1,18 @@
 <script setup>
+import { ref } from 'vue'
+import LegalPolicyModal from '../Legal/LegalPolicyModal.vue'
+
+const showModal = ref(false)
+const modalType = ref('terms')
+
+const openModal = (type) => {
+  modalType.value = type
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+}
 </script>
 
 <template>
@@ -11,17 +25,35 @@
           </p>
         </div>
         <div class="flex justify-center md:justify-end space-x-6">
-          <a href="#" class="text-gray-400 hover:text-gray-600 text-sm">
+          <button
+            type="button"
+            class="text-gray-400 hover:text-gray-600 text-sm transition-colors"
+            @click="openModal('terms')"
+          >
             服務條款
-          </a>
-          <a href="#" class="text-gray-400 hover:text-gray-600 text-sm">
+          </button>
+          <button
+            type="button"
+            class="text-gray-400 hover:text-gray-600 text-sm transition-colors"
+            @click="openModal('purchase')"
+          >
+            購買須知
+          </button>
+          <button
+            type="button"
+            class="text-gray-400 hover:text-gray-600 text-sm transition-colors"
+            @click="openModal('privacy')"
+          >
             隱私政策
-          </a>
-          <a href="#" class="text-gray-400 hover:text-gray-600 text-sm">
-            聯絡我們
-          </a>
+          </button>
         </div>
       </div>
     </div>
   </footer>
+
+  <LegalPolicyModal
+    :show="showModal"
+    :type="modalType"
+    @close="closeModal"
+  />
 </template>

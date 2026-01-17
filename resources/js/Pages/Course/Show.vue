@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
+import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 
 const props = defineProps({
   course: {
@@ -33,6 +34,19 @@ const openPortaly = () => {
   if (portalyUrl.value && agreed.value) {
     window.open(portalyUrl.value, '_blank')
   }
+}
+
+// Legal Policy Modal
+const showLegalModal = ref(false)
+const legalModalType = ref('terms')
+
+const openLegalModal = (type) => {
+  legalModalType.value = type
+  showLegalModal.value = true
+}
+
+const closeLegalModal = () => {
+  showLegalModal.value = false
 }
 </script>
 
@@ -141,9 +155,17 @@ const openPortaly = () => {
                   />
                   <span class="text-sm text-gray-600">
                     我已閱讀並同意
-                    <a href="#" class="text-indigo-600 hover:underline">服務條款</a>
+                    <button
+                      type="button"
+                      class="text-indigo-600 hover:underline"
+                      @click.prevent="openLegalModal('terms')"
+                    >服務條款</button>
                     和
-                    <a href="#" class="text-indigo-600 hover:underline">購買須知</a>
+                    <button
+                      type="button"
+                      class="text-indigo-600 hover:underline"
+                      @click.prevent="openLegalModal('purchase')"
+                    >購買須知</button>
                   </span>
                 </label>
 
@@ -166,4 +188,11 @@ const openPortaly = () => {
       </div>
     </div>
   </div>
+
+  <!-- Legal Policy Modal -->
+  <LegalPolicyModal
+    :show="showLegalModal"
+    :type="legalModalType"
+    @close="closeLegalModal"
+  />
 </template>
