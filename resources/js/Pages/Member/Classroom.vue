@@ -61,6 +61,12 @@ const updateLessonCompletion = (lessonId, isCompleted) => {
 
 // Handle lesson selection
 const handleSelectLesson = async (lesson) => {
+  // Skip if already selected
+  if (selectedLesson.value?.id === lesson.id) {
+    sidebarOpen.value = false
+    return
+  }
+
   // Mark as complete when clicked
   if (!lesson.is_completed) {
     try {
@@ -77,16 +83,10 @@ const handleSelectLesson = async (lesson) => {
     }
   }
 
-  // Fetch full lesson data
-  selectedLesson.value = {
-    ...lesson,
-    is_completed: true, // Just clicked, so it's completed
-  }
-
   // Close sidebar on mobile
   sidebarOpen.value = false
 
-  // Reload page to get full lesson content
+  // Reload page to get full lesson content (don't update selectedLesson until we have full data)
   router.visit(`/member/classroom/${props.course.id}`, {
     only: ['currentLesson'],
     data: { lesson_id: lesson.id },

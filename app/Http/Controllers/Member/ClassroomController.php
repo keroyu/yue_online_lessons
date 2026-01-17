@@ -60,10 +60,18 @@ class ClassroomController extends Controller
             ->get()
             ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds));
 
-        // Find first uncompleted lesson or first lesson
+        // Find the requested lesson, or first uncompleted, or first lesson
         $allLessons = $course->lessons()->orderBy('sort_order')->get();
-        $currentLesson = $allLessons->first(fn ($lesson) => !in_array($lesson->id, $completedLessonIds))
-            ?? $allLessons->first();
+        $requestedLessonId = $request->input('lesson_id');
+
+        if ($requestedLessonId) {
+            $currentLesson = $allLessons->first(fn ($lesson) => $lesson->id == $requestedLessonId);
+        }
+
+        if (!isset($currentLesson) || !$currentLesson) {
+            $currentLesson = $allLessons->first(fn ($lesson) => !in_array($lesson->id, $completedLessonIds))
+                ?? $allLessons->first();
+        }
 
         return Inertia::render('Member/Classroom', [
             'course' => [
