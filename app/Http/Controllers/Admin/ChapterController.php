@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreChapterRequest;
 use App\Models\Chapter;
 use App\Models\Course;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -117,7 +116,7 @@ class ChapterController extends Controller
     /**
      * Reorder chapters for a course.
      */
-    public function reorder(Request $request, Course $course): JsonResponse
+    public function reorder(Request $request, Course $course): RedirectResponse
     {
         $request->validate([
             'items' => ['required', 'array'],
@@ -131,6 +130,6 @@ class ChapterController extends Controller
                 ->update(['sort_order' => $item['sort_order']]);
         }
 
-        return response()->json(['success' => true]);
+        return back();
     }
 }

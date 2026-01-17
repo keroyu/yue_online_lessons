@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\StoreLessonRequest;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Services\VideoEmbedService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -96,7 +95,7 @@ class LessonController extends Controller
     /**
      * Reorder lessons for a course.
      */
-    public function reorder(Request $request, Course $course): JsonResponse
+    public function reorder(Request $request, Course $course): RedirectResponse
     {
         $request->validate([
             'items' => ['required', 'array'],
@@ -114,6 +113,6 @@ class LessonController extends Controller
                 ]);
         }
 
-        return response()->json(['success' => true]);
+        return back();
     }
 }

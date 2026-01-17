@@ -134,6 +134,9 @@ class CourseController extends Controller
                 Storage::disk('public')->delete($course->thumbnail);
             }
             $data['thumbnail'] = $request->file('thumbnail')->store('thumbnails', 'public');
+        } else {
+            // Don't overwrite existing thumbnail if no new file uploaded
+            unset($data['thumbnail']);
         }
 
         $course->update($data);

@@ -176,6 +176,13 @@ const handleBackdropClick = (e) => {
     emit('close')
   }
 }
+
+// Consistent styling classes (matching CourseForm/LessonForm)
+const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500'
+const inputErrorClasses = 'border-red-300 focus:border-red-500 focus:ring-red-500'
+const labelClasses = 'block text-sm font-semibold text-gray-900'
+const helpTextClasses = 'mt-2 text-sm text-gray-500'
+const errorTextClasses = 'mt-2 text-sm text-red-600'
 </script>
 
 <template>
@@ -194,7 +201,7 @@ const handleBackdropClick = (e) => {
         @click="handleBackdropClick"
       >
         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-black/50" aria-hidden="true" />
+        <div class="fixed inset-0 bg-black/50 transition-opacity" aria-hidden="true" />
 
         <!-- Modal container -->
         <div class="flex min-h-full items-center justify-center p-4">
@@ -208,96 +215,118 @@ const handleBackdropClick = (e) => {
           >
             <div
               v-if="show"
-              class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full flex flex-col"
+              class="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full flex flex-col transform transition-all"
               @click.stop
             >
               <!-- Header -->
-              <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-lg">
-                <h2 class="text-xl font-bold text-gray-900">
-                  發送批次郵件
-                </h2>
-                <button
-                  type="button"
-                  class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                  @click="emit('close')"
-                >
-                  <span class="sr-only">關閉</span>
-                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              <div class="px-6 py-5 border-b border-gray-200">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h2 class="text-xl font-semibold text-gray-900">
+                      發送批次郵件
+                    </h2>
+                    <p class="mt-1 text-sm text-gray-500">
+                      編輯郵件內容並發送給選取的會員
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                    @click="emit('close')"
+                  >
+                    <span class="sr-only">關閉</span>
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <!-- Content -->
-              <div class="px-6 py-4 space-y-4">
-                <!-- Recipient info -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p class="text-sm text-blue-800">
-                    將發送郵件給 <strong>{{ selectedCount }}</strong> 位會員
-                  </p>
-                </div>
-
-                <!-- General error -->
-                <div v-if="errors.general" class="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p class="text-sm text-red-600">{{ errors.general }}</p>
-                </div>
-
-                <!-- Subject field -->
-                <div>
-                  <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">
-                    郵件主旨 <span class="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="subject"
-                    v-model="subject"
-                    type="text"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    :class="{ 'border-red-500': errors.subject }"
-                    placeholder="請輸入郵件主旨"
-                    :disabled="sending"
-                  />
-                  <div class="mt-1 flex justify-between">
-                    <span v-if="errors.subject" class="text-xs text-red-600">
-                      {{ errors.subject }}
-                    </span>
-                    <span v-else></span>
-                    <span class="text-xs" :class="subjectLength > subjectMaxLength ? 'text-red-600' : 'text-gray-500'">
-                      {{ subjectLength }} / {{ subjectMaxLength }}
-                    </span>
+              <div class="px-6 py-6">
+                <div class="space-y-6">
+                  <!-- Recipient info -->
+                  <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <p class="text-sm text-indigo-800">
+                        將發送郵件給 <strong class="font-semibold">{{ selectedCount }}</strong> 位會員
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <!-- Body field -->
-                <div>
-                  <label for="body" class="block text-sm font-medium text-gray-700 mb-1">
-                    郵件內容 <span class="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="body"
-                    v-model="body"
-                    rows="10"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    :class="{ 'border-red-500': errors.body }"
-                    placeholder="請輸入郵件內容..."
-                    :disabled="sending"
-                  ></textarea>
-                  <div class="mt-1 flex justify-between">
-                    <span v-if="errors.body" class="text-xs text-red-600">
-                      {{ errors.body }}
-                    </span>
-                    <span v-else></span>
-                    <span class="text-xs" :class="bodyLength > bodyMaxLength ? 'text-red-600' : 'text-gray-500'">
-                      {{ bodyLength }} / {{ bodyMaxLength }}
-                    </span>
+                  <!-- General error -->
+                  <div v-if="errors.general" class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-3">
+                      <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p class="text-sm text-red-600">{{ errors.general }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Subject field -->
+                  <div>
+                    <label for="subject" :class="labelClasses">
+                      郵件主旨 <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="subject"
+                      v-model="subject"
+                      type="text"
+                      placeholder="請輸入郵件主旨"
+                      :disabled="sending"
+                      :class="[inputClasses, errors.subject ? inputErrorClasses : '']"
+                    />
+                    <div class="mt-2 flex justify-between items-center">
+                      <span v-if="errors.subject" class="text-sm text-red-600">
+                        {{ errors.subject }}
+                      </span>
+                      <span v-else></span>
+                      <span class="text-sm" :class="subjectLength > subjectMaxLength ? 'text-red-600' : 'text-gray-500'">
+                        {{ subjectLength }} / {{ subjectMaxLength }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Body field -->
+                  <div>
+                    <label for="body" :class="labelClasses">
+                      郵件內容 <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="body"
+                      v-model="body"
+                      rows="10"
+                      placeholder="請輸入郵件內容..."
+                      :disabled="sending"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 leading-relaxed"
+                      :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': errors.body }"
+                    ></textarea>
+                    <div class="mt-2 flex justify-between items-center">
+                      <span v-if="errors.body" class="text-sm text-red-600">
+                        {{ errors.body }}
+                      </span>
+                      <span v-else :class="helpTextClasses">支援純文字格式</span>
+                      <span class="text-sm" :class="bodyLength > bodyMaxLength ? 'text-red-600' : 'text-gray-500'">
+                        {{ bodyLength }} / {{ bodyMaxLength }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- Footer -->
-              <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+              <div class="mt-2 flex items-center justify-end gap-3 px-6 py-5 border-t border-gray-200">
                 <button
                   type="button"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
                   @click="emit('close')"
                   :disabled="sending"
                 >
@@ -305,18 +334,23 @@ const handleBackdropClick = (e) => {
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                   @click="sendEmail"
                   :disabled="sending || fetchingIds"
                 >
-                  <span v-if="sending || fetchingIds" class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <template v-if="sending || fetchingIds">
+                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     處理中...
-                  </span>
-                  <span v-else>發送郵件</span>
+                  </template>
+                  <template v-else>
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    發送郵件
+                  </template>
                 </button>
               </div>
             </div>
