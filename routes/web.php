@@ -5,6 +5,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
+use App\Http\Controllers\Admin\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -30,4 +31,9 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::get('/learning', [LearningController::class, 'index'])->name('learning');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+});
+
+// Admin routes (Admin only)
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 });
