@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
-import axios from 'axios'
+
+// Use the globally configured axios with CSRF token
+const axios = window.axios
 
 const props = defineProps({
   show: {

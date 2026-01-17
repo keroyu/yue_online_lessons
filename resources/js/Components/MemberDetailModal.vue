@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
-import axios from 'axios'
+
+// Use the globally configured axios with CSRF token
+const axios = window.axios
 
 const props = defineProps({
   show: {
@@ -101,6 +103,8 @@ const saveEdit = async () => {
     await axios.patch(`/admin/members/${props.memberId}`, {
       nickname: editForm.value.nickname || null,
       birth_date: editForm.value.birth_date || null
+    }, {
+      headers: { 'Accept': 'application/json' }
     })
 
     // Update local member data

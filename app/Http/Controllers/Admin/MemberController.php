@@ -147,6 +147,14 @@ class MemberController extends Controller
 
         $member->update($request->validated());
 
+        // Return JSON for AJAX requests (modal), redirect for Inertia requests (inline edit)
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => '會員資料更新成功',
+            ]);
+        }
+
         return back()->with('success', '會員資料更新成功');
     }
 
