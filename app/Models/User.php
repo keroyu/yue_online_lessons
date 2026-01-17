@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\LessonProgress;
+use App\Models\Course;
 
 class User extends Authenticatable
 {
@@ -51,5 +53,27 @@ class User extends Authenticatable
     public function isEditor(): bool
     {
         return $this->role === 'editor';
+    }
+
+    public function lessonProgress(): HasMany
+    {
+        return $this->hasMany(LessonProgress::class);
+    }
+
+    /**
+     * Get the course completion progress percentage for a specific course.
+     */
+    public function getCourseProgress(Course $course): int
+    {
+        $totalLessons = $course->lessons()->count();
+        if ($totalLessons === 0) {
+            return 0;
+        }
+
+        $completedLessons = $this->lessonProgress()
+            ->whereIn('lesson_id', $course->lessons()->pluck('id'))
+            ->count();
+
+        return (int) round($completedLessons / $totalLessons * 100);
     }
 }

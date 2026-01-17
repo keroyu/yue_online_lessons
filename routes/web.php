@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\ChapterController;
 use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
+use App\Http\Controllers\Admin\MemberController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -69,4 +70,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
     Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
     Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
+
+    // Members
+    Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');
+    Route::get('/members', [MemberController::class, 'index'])->name('members.index');
+    Route::patch('/members/{member}', [MemberController::class, 'update'])->name('members.update');
+    Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
+    Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])->name('members.batch-email');
 });
