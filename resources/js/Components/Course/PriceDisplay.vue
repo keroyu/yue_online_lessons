@@ -20,10 +20,10 @@ const now = ref(new Date())
 let timer = null
 
 onMounted(() => {
-  // Update every minute
+  // Update every second for countdown effect
   timer = setInterval(() => {
     now.value = new Date()
-  }, 60000)
+  }, 1000)
 })
 
 onUnmounted(() => {
@@ -46,8 +46,9 @@ const countdown = computed(() => {
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
 
-  return { days, hours, minutes }
+  return { days, hours, minutes, seconds }
 })
 
 const displayPrice = computed(() => {
@@ -81,13 +82,13 @@ const formatPrice = (price) => {
 
       <!-- Countdown -->
       <div v-if="countdown" class="inline-flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-sm">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span class="font-medium">
           優惠剩餘
           <span v-if="countdown.days > 0">{{ countdown.days }} 天 </span>
-          {{ countdown.hours }} 小時 {{ countdown.minutes }} 分鐘
+          <span class="tabular-nums">{{ String(countdown.hours).padStart(2, '0') }}:{{ String(countdown.minutes).padStart(2, '0') }}:{{ String(countdown.seconds).padStart(2, '0') }}</span>
         </span>
       </div>
     </div>

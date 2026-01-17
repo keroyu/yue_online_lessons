@@ -97,19 +97,33 @@ const closeLegalModal = () => {
             {{ course.tagline }}
           </p>
 
-          <div class="flex items-center mt-4 text-gray-500">
-            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {{ course.instructor_name }}
-          </div>
+          <!-- Instructor, Duration & Price Row -->
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-4">
+            <!-- Left: Instructor & Duration -->
+            <div class="space-y-2">
+              <div class="flex items-center text-gray-500">
+                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {{ course.instructor_name }}
+              </div>
 
-          <!-- Course Info -->
-          <div v-if="course.duration_formatted" class="flex items-center mt-2 text-gray-500">
-            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {{ course.duration_formatted }}
+              <div v-if="course.duration_formatted" class="flex items-center text-gray-500">
+                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ course.duration_formatted }}
+              </div>
+            </div>
+
+            <!-- Right: Price Block -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl px-5 py-4 sm:min-w-[180px]">
+              <PriceDisplay
+                :price="course.price"
+                :original-price="course.original_price"
+                :promo-ends-at="course.promo_ends_at"
+              />
+            </div>
           </div>
 
           <!-- Status Badge -->
@@ -136,15 +150,7 @@ const closeLegalModal = () => {
 
           <!-- Purchase section -->
           <div class="mt-8 pt-8 border-t border-gray-100">
-            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-              <div>
-                <PriceDisplay
-                  :price="course.price"
-                  :original-price="course.original_price"
-                  :promo-ends-at="course.promo_ends_at"
-                />
-              </div>
-
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
               <div class="flex flex-col gap-3">
                 <!-- Consent checkbox -->
                 <label class="flex items-start gap-2 cursor-pointer">
