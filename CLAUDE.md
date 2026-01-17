@@ -54,6 +54,7 @@ php artisan test
 ## Active Technologies
 - PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS (001-course-platform-mvp)
 - MySQL (Latest stable) (001-course-platform-mvp)
+- MySQL (Latest stable), Local filesystem for images (storage/app/public) (002-classroom-admin)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS
