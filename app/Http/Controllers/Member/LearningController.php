@@ -48,7 +48,7 @@ class LearningController extends Controller
             return [
                 'id' => $course->id,
                 'name' => $course->name,
-                'thumbnail' => $course->thumbnail ? "/storage/{$course->thumbnail}" : null,
+                'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
                 'progress_percent' => $progressPercent,
                 'purchased_at' => $purchase->created_at->toIso8601String(),

@@ -30,7 +30,7 @@ class CourseController extends Controller
                 'original_price' => $course->original_price,
                 'promo_ends_at' => $course->promo_ends_at?->toISOString(),
                 'is_promo_active' => $course->is_promo_active,
-                'thumbnail' => $course->thumbnail,
+                'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
                 'status' => $course->status,

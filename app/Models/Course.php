@@ -174,4 +174,14 @@ class Course extends Model
         return $query->whereNotNull('original_price')
             ->where('promo_ends_at', '>', now());
     }
+
+    /**
+     * Get full thumbnail URL for frontend use
+     */
+    protected function thumbnailUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->thumbnail ? "/storage/{$this->thumbnail}" : null
+        );
+    }
 }
