@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- **Backend:** Laravel 12 + MySQL
+- **Backend:** Laravel 12 + MySQL (本機從官網 .pkg 安裝，port 3306)
 - **Frontend:** Inertia.js + Vue 3 + Tailwind CSS
 - **Email:** Resend.com
 - **Video:** Vimeo Embed
