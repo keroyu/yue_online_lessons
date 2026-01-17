@@ -22,6 +22,8 @@ class CourseImage extends Model
         'course_id',
         'path',
         'filename',
+        'width',
+        'height',
     ];
 
     protected function casts(): array

@@ -119,8 +119,14 @@ const formatPrice = (price) => {
                         {{ statusBadge(course.status).text }}
                       </span>
                     </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {{ formatPrice(course.price) }}
+                    <td class="whitespace-nowrap px-3 py-4 text-sm">
+                      <div class="text-gray-900">{{ formatPrice(course.price) }}</div>
+                      <div v-if="course.original_price" class="text-xs text-gray-400 line-through">
+                        {{ formatPrice(course.original_price) }}
+                      </div>
+                      <div v-if="course.is_promo_active" class="text-xs text-red-600">
+                        優惠中
+                      </div>
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {{ course.duration_formatted || '-' }}

@@ -19,12 +19,14 @@ class Course extends Model
         'description',
         'description_html',
         'price',
+        'original_price',
         'thumbnail',
         'instructor_name',
         'type',
         'is_published',
         'status',
         'sale_at',
+        'promo_ends_at',
         'sort_order',
         'portaly_product_id',
         'duration_minutes',
@@ -34,9 +36,11 @@ class Course extends Model
     {
         return [
             'price' => 'decimal:2',
+            'original_price' => 'integer',
             'is_published' => 'boolean',
             'sort_order' => 'integer',
             'sale_at' => 'datetime',
+            'promo_ends_at' => 'datetime',
             'duration_minutes' => 'integer',
         ];
     }
@@ -128,5 +132,46 @@ class Course extends Model
                 return "https://portaly.cc/kyontw/product/{$this->portaly_product_id}";
             }
         );
+    }
+
+    /**
+     * Check if promo is currently active
+     */
+    protected function isPromoActive(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (!$this->original_price || !$this->promo_ends_at) {
+                    return false;
+                }
+
+                return $this->promo_ends_at->isFuture();
+            }
+        );
+    }
+
+    /**
+     * Get display price (promo price if active, otherwise original_price or price)
+     */
+    protected function displayPrice(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if ($this->is_promo_active) {
+                    return $this->price;
+                }
+
+                return $this->original_price ?? $this->price;
+            }
+        );
+    }
+
+    /**
+     * Scope for courses with active promotions
+     */
+    public function scopeHasActivePromo(Builder $query): Builder
+    {
+        return $query->whereNotNull('original_price')
+            ->where('promo_ends_at', '>', now());
     }
 }

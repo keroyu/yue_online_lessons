@@ -27,6 +27,8 @@ class UpdateCourseRequest extends FormRequest
             'description' => ['required', 'string'],
             'description_html' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
+            'original_price' => ['nullable', 'integer', 'min:0'],
+            'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
             'type' => ['required', 'in:lecture,mini,full'],
@@ -55,6 +57,9 @@ class UpdateCourseRequest extends FormRequest
             'type.in' => '課程類型無效',
             'duration_minutes.integer' => '時間總長必須是整數',
             'duration_minutes.min' => '時間總長不能為負數',
+            'original_price.integer' => '原價必須是整數',
+            'original_price.min' => '原價不能為負數',
+            'promo_ends_at.date' => '優惠到期時間格式不正確',
         ];
     }
 }

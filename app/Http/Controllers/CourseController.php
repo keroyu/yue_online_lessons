@@ -27,12 +27,16 @@ class CourseController extends Controller
                 'description' => $course->description,
                 'description_html' => $course->description_html,
                 'price' => $course->price,
+                'original_price' => $course->original_price,
+                'promo_ends_at' => $course->promo_ends_at?->toISOString(),
+                'is_promo_active' => $course->is_promo_active,
                 'thumbnail' => $course->thumbnail,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
                 'status' => $course->status,
                 'duration_formatted' => $course->duration_formatted,
                 'portaly_url' => $course->portaly_url,
+                'portaly_product_id' => $course->portaly_product_id,
             ],
         ]);
     }

@@ -9,6 +9,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  images: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const statusBadge = computed(() => {
@@ -88,6 +92,7 @@ const unpublish = () => {
 
       <CourseForm
         :course="course"
+        :images="images"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"
       />

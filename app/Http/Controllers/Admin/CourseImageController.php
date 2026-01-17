@@ -25,6 +25,8 @@ class CourseImageController extends Controller
                 'id' => $image->id,
                 'filename' => $image->filename,
                 'url' => $image->url,
+                'width' => $image->width,
+                'height' => $image->height,
                 'created_at' => $image->created_at->format('Y-m-d H:i'),
             ]);
 
@@ -54,9 +56,16 @@ class CourseImageController extends Controller
         $file = $request->file('image');
         $path = $file->store("course-images/{$course->id}", 'public');
 
+        // Get image dimensions
+        $dimensions = getimagesize($file->getPathname());
+        $width = $dimensions[0] ?? null;
+        $height = $dimensions[1] ?? null;
+
         $course->images()->create([
             'path' => $path,
             'filename' => $file->getClientOriginalName(),
+            'width' => $width,
+            'height' => $height,
         ]);
 
         return redirect()

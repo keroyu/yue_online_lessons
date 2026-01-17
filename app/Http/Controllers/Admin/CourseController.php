@@ -29,6 +29,9 @@ class CourseController extends Controller
                 'status' => $course->status,
                 'is_published' => $course->is_published,
                 'price' => $course->price,
+                'original_price' => $course->original_price,
+                'promo_ends_at' => $course->promo_ends_at?->format('Y-m-d H:i'),
+                'is_promo_active' => $course->is_promo_active,
                 'thumbnail' => $course->thumbnail,
                 'sale_at' => $course->sale_at?->format('Y-m-d H:i'),
                 'deleted_at' => $course->deleted_at,
@@ -65,6 +68,11 @@ class CourseController extends Controller
         $data['is_published'] = false;
         $data['sort_order'] = Course::max('sort_order') + 1;
 
+        // Set default promo_ends_at to 30 days from now if original_price is provided
+        if (!empty($data['original_price']) && empty($data['promo_ends_at'])) {
+            $data['promo_ends_at'] = now()->addDays(30);
+        }
+
         Course::create($data);
 
         return redirect()
@@ -85,6 +93,9 @@ class CourseController extends Controller
                 'description' => $course->description,
                 'description_html' => $course->description_html,
                 'price' => $course->price,
+                'original_price' => $course->original_price,
+                'promo_ends_at' => $course->promo_ends_at?->format('Y-m-d\TH:i'),
+                'is_promo_active' => $course->is_promo_active,
                 'thumbnail' => $course->thumbnail,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
@@ -96,6 +107,16 @@ class CourseController extends Controller
                 'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
             ],
+            'images' => $course->images()
+                ->latest()
+                ->get()
+                ->map(fn ($image) => [
+                    'id' => $image->id,
+                    'filename' => $image->filename,
+                    'url' => $image->url,
+                    'width' => $image->width,
+                    'height' => $image->height,
+                ]),
         ]);
     }
 

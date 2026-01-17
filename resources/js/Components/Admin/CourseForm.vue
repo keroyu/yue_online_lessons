@@ -1,11 +1,16 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3'
+import { useForm, router } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
+import ImageGalleryModal from './ImageGalleryModal.vue'
 
 const props = defineProps({
   course: {
     type: Object,
     default: null,
+  },
+  images: {
+    type: Array,
+    default: () => [],
   },
   submitUrl: {
     type: String,
@@ -25,6 +30,8 @@ const form = useForm({
   description: props.course?.description || '',
   description_html: props.course?.description_html || '',
   price: props.course?.price || '',
+  original_price: props.course?.original_price || '',
+  promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
   type: props.course?.type || 'lecture',
@@ -32,6 +39,38 @@ const form = useForm({
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
 })
+
+// Image gallery modal
+const showImageGallery = ref(false)
+const descriptionHtmlTextarea = ref(null)
+
+const openImageGallery = () => {
+  showImageGallery.value = true
+}
+
+const closeImageGallery = () => {
+  showImageGallery.value = false
+}
+
+const insertImageHtml = (html) => {
+  const textarea = descriptionHtmlTextarea.value
+  if (!textarea) {
+    form.description_html += html
+    return
+  }
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = form.description_html
+
+  form.description_html = text.substring(0, start) + html + text.substring(end)
+
+  // Move cursor after inserted HTML
+  setTimeout(() => {
+    textarea.focus()
+    textarea.selectionStart = textarea.selectionEnd = start + html.length
+  }, 0)
+}
 
 const thumbnailPreview = ref(props.course?.thumbnail ? `/storage/${props.course.thumbnail}` : null)
 
@@ -51,8 +90,10 @@ const handleThumbnailChange = (event) => {
 
 const submit = () => {
   if (props.method === 'put') {
-    form.post(props.submitUrl, {
+    form.transform((data) => ({
+      ...data,
       _method: 'put',
+    })).post(props.submitUrl, {
       forceFormData: true,
       preserveScroll: true,
     })
@@ -205,12 +246,12 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
         </div>
 
         <div class="space-y-8">
-          <!-- Two columns for Price & Duration -->
+          <!-- Promotional Pricing -->
           <div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <!-- Price -->
+            <!-- Price (優惠價) -->
             <div>
               <label for="price" :class="labelClasses">
-                價格 (TWD) <span class="text-red-500">*</span>
+                優惠價 (TWD) <span class="text-red-500">*</span>
               </label>
               <div class="mt-2 relative">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -227,7 +268,46 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.price }"
                 />
               </div>
+              <p :class="helpTextClasses">實際售價（Portaly 上須手動同步）</p>
               <p v-if="form.errors.price" :class="errorTextClasses">{{ form.errors.price }}</p>
+            </div>
+
+            <!-- Original Price (原價) -->
+            <div>
+              <label for="original_price" :class="labelClasses">原價 (TWD)</label>
+              <div class="mt-2 relative">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <span class="text-gray-500 text-base">$</span>
+                </div>
+                <input
+                  id="original_price"
+                  v-model="form.original_price"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="0"
+                  class="pl-8 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500"
+                  :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.original_price }"
+                />
+              </div>
+              <p :class="helpTextClasses">留空則不顯示優惠倒數</p>
+              <p v-if="form.errors.original_price" :class="errorTextClasses">{{ form.errors.original_price }}</p>
+            </div>
+          </div>
+
+          <!-- Promo Ends At & Duration -->
+          <div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <!-- Promo Ends At -->
+            <div>
+              <label for="promo_ends_at" :class="labelClasses">優惠到期時間</label>
+              <input
+                id="promo_ends_at"
+                v-model="form.promo_ends_at"
+                type="datetime-local"
+                :class="[inputClasses, form.errors.promo_ends_at ? inputErrorClasses : '']"
+              />
+              <p :class="helpTextClasses">新增時若填原價但未填到期時間，預設為 30 天後</p>
+              <p v-if="form.errors.promo_ends_at" :class="errorTextClasses">{{ form.errors.promo_ends_at }}</p>
             </div>
 
             <!-- Duration -->
@@ -269,16 +349,32 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <h3 class="text-xl font-semibold text-gray-900">課程介紹 HTML</h3>
           <p class="mt-1 text-sm text-gray-500">
             自定義 HTML 內容，將顯示於課程販售頁面。
-            <span v-if="course" class="inline-flex items-center gap-1 ml-2">
-              <a :href="`/admin/courses/${course.id}/images`" class="text-indigo-600 hover:text-indigo-500 font-medium">
-                前往相簿管理 →
-              </a>
-            </span>
           </p>
         </div>
 
         <div>
+          <!-- Toolbar -->
+          <div v-if="course" class="flex items-center gap-3 mb-3">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              @click="openImageGallery"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              插入圖片
+            </button>
+            <a
+              :href="`/admin/courses/${course.id}/images`"
+              class="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              前往相簿管理 →
+            </a>
+          </div>
+
           <textarea
+            ref="descriptionHtmlTextarea"
             v-model="form.description_html"
             rows="12"
             placeholder="<h2>課程特色</h2>&#10;<p>這是一門精心設計的課程...</p>"
@@ -289,6 +385,16 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
         </div>
       </div>
     </div>
+
+    <!-- Image Gallery Modal -->
+    <ImageGalleryModal
+      v-if="course"
+      :course-id="course.id"
+      :images="images"
+      :show="showImageGallery"
+      @close="closeImageGallery"
+      @insert="insertImageHtml"
+    />
 
     <!-- Portaly Integration -->
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">

@@ -27,6 +27,8 @@ class StoreCourseRequest extends FormRequest
             'description' => ['required', 'string'],
             'description_html' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
+            'original_price' => ['nullable', 'integer', 'min:0'],
+            'promo_ends_at' => ['nullable', 'date', 'after:now'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
             'type' => ['required', 'in:lecture,mini,full'],
@@ -56,6 +58,10 @@ class StoreCourseRequest extends FormRequest
             'duration_minutes.integer' => '時間總長必須是整數',
             'duration_minutes.min' => '時間總長不能為負數',
             'sale_at.after' => '開賣時間必須在未來',
+            'original_price.integer' => '原價必須是整數',
+            'original_price.min' => '原價不能為負數',
+            'promo_ends_at.date' => '優惠到期時間格式不正確',
+            'promo_ends_at.after' => '優惠到期時間必須在未來',
         ];
     }
 }

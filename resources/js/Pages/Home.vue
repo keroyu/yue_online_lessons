@@ -21,7 +21,7 @@ defineProps({
           經營者時間銀行
         </h1>
         <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-          提升你的經營者思維，讓時間成為你最好的投資
+          省去摸索、試錯，高效經營你的人生，朝著健康、快樂、富足前進。
         </p>
       </div>
 

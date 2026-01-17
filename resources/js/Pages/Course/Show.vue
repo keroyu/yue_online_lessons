@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
+import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 
 const props = defineProps({
   course: {
@@ -10,14 +11,6 @@ const props = defineProps({
 })
 
 const agreed = ref(false)
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('zh-TW', {
-    style: 'currency',
-    currency: 'TWD',
-    minimumFractionDigits: 0,
-  }).format(price)
-}
 
 const getTypeLabel = (type) => {
   const labels = {
@@ -129,11 +122,13 @@ const openPortaly = () => {
 
           <!-- Purchase section -->
           <div class="mt-8 pt-8 border-t border-gray-100">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
               <div>
-                <span class="text-3xl font-bold text-indigo-600">
-                  {{ formatPrice(course.price) }}
-                </span>
+                <PriceDisplay
+                  :price="course.price"
+                  :original-price="course.original_price"
+                  :promo-ends-at="course.promo_ends_at"
+                />
               </div>
 
               <div class="flex flex-col gap-3">
