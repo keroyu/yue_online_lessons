@@ -10,3 +10,119 @@
     --font-sans: 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Course Description Content Styles */
+.course-content {
+    color: #374151;
+    font-size: 1rem;
+    line-height: 1.85;
+}
+
+.course-content p {
+    margin-bottom: 1.25em;
+}
+
+.course-content h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-top: 2em;
+    margin-bottom: 0.75em;
+    padding-bottom: 0.5em;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.course-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-top: 1.75em;
+    margin-bottom: 0.6em;
+}
+
+.course-content h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.course-content ul,
+.course-content ol {
+    margin-top: 0.75em;
+    margin-bottom: 1.25em;
+    padding-left: 1.5em;
+}
+
+.course-content ul {
+    list-style-type: disc;
+}
+
+.course-content ol {
+    list-style-type: decimal;
+}
+
+.course-content li {
+    margin-bottom: 0.5em;
+    padding-left: 0.25em;
+}
+
+.course-content li::marker {
+    color: #6366f1;
+}
+
+.course-content strong,
+.course-content b {
+    font-weight: 600;
+    color: #111827;
+}
+
+.course-content a {
+    color: #4f46e5;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+}
+
+.course-content a:hover {
+    border-bottom-color: #4f46e5;
+}
+
+.course-content blockquote {
+    margin: 1.5em 0;
+    padding: 1em 1.25em;
+    border-left: 4px solid #6366f1;
+    background-color: #f5f3ff;
+    border-radius: 0 0.5rem 0.5rem 0;
+    color: #4b5563;
+}
+
+.course-content code {
+    background-color: #f3f4f6;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+    color: #4f46e5;
+}
+
+.course-content pre {
+    background-color: #1f2937;
+    color: #f9fafb;
+    padding: 1em;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 1.25em 0;
+}
+
+.course-content img {
+    border-radius: 0.5rem;
+    margin: 1.5em 0;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.course-content hr {
+    margin: 2em 0;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+}

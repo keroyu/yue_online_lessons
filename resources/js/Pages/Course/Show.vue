@@ -125,12 +125,12 @@ const closeLegalModal = () => {
             <!-- HTML content (if available) -->
             <div
               v-if="course.description_html"
-              class="prose prose-gray max-w-none prose-img:rounded-lg"
+              class="course-content"
               v-html="course.description_html"
             />
             <!-- Plain text fallback -->
-            <div v-else class="prose prose-gray max-w-none">
-              <p class="whitespace-pre-line text-gray-700">{{ course.description }}</p>
+            <div v-else class="course-content">
+              <p class="whitespace-pre-line">{{ course.description }}</p>
             </div>
           </div>
 
