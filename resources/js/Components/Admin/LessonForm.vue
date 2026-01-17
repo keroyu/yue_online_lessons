@@ -74,17 +74,18 @@ const close = () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 overflow-y-auto">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+  <Teleport to="body">
+    <div class="fixed inset-0 z-50 overflow-y-auto">
       <!-- Backdrop -->
-      <div
-        class="fixed inset-0 z-10 bg-gray-500 bg-opacity-75 transition-opacity"
-        @click="close"
-      />
+      <div class="fixed inset-0 bg-black/50" @click="close" />
 
-      <!-- Modal -->
-      <div class="relative z-20 inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-        <div>
+      <!-- Modal container -->
+      <div class="flex min-h-full items-center justify-center p-4">
+        <!-- Modal -->
+        <div
+          class="relative bg-white rounded-lg shadow-xl w-full max-w-lg p-6"
+          @click.stop
+        >
           <h3 class="text-lg leading-6 font-medium text-gray-900">
             {{ isEditing ? '編輯小節' : '新增小節' }}
           </h3>
@@ -176,5 +177,5 @@ const close = () => {
         </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
