@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
+use App\Jobs\SendBatchEmailJob;
 use App\Models\Course;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -89,10 +90,48 @@ class MemberController extends Controller
      */
     public function show(User $member): JsonResponse
     {
-        // TODO: Implement in T022
+        // Ensure we're only showing members (not admins/editors)
+        if ($member->role !== 'member') {
+            abort(404, '找不到該會員');
+        }
+
+        // Load courses with progress calculation
+        $courses = $member->purchases()
+            ->with(['course.lessons'])
+            ->where('status', 'completed')
+            ->get()
+            ->map(function ($purchase) use ($member) {
+                $course = $purchase->course;
+                $totalLessons = $course->lessons->count();
+                $completedLessons = $member->lessonProgress()
+                    ->whereIn('lesson_id', $course->lessons->pluck('id'))
+                    ->count();
+
+                return [
+                    'id' => $course->id,
+                    'name' => $course->name,
+                    'purchased_at' => $purchase->created_at->toIso8601String(),
+                    'total_lessons' => $totalLessons,
+                    'completed_lessons' => $completedLessons,
+                    'progress_percent' => $totalLessons > 0
+                        ? (int) round($completedLessons / $totalLessons * 100)
+                        : 0,
+                ];
+            });
+
         return response()->json([
-            'member' => $member,
-            'courses' => [],
+            'member' => [
+                'id' => $member->id,
+                'email' => $member->email,
+                'nickname' => $member->nickname,
+                'real_name' => $member->real_name,
+                'phone' => $member->phone,
+                'birth_date' => $member->birth_date?->format('Y-m-d'),
+                'last_login_ip' => $member->last_login_ip,
+                'last_login_at' => $member->last_login_at?->toIso8601String(),
+                'created_at' => $member->created_at->toIso8601String(),
+            ],
+            'courses' => $courses,
         ]);
     }
 
@@ -101,7 +140,13 @@ class MemberController extends Controller
      */
     public function update(UpdateMemberRequest $request, User $member)
     {
-        // TODO: Implement in T014
+        // Ensure we're only updating members (not admins/editors)
+        if ($member->role !== 'member') {
+            abort(403, '只能編輯會員資料');
+        }
+
+        $member->update($request->validated());
+
         return back()->with('success', '會員資料更新成功');
     }
 
@@ -110,12 +155,41 @@ class MemberController extends Controller
      */
     public function sendBatchEmail(SendBatchEmailRequest $request): JsonResponse
     {
-        // TODO: Implement in T038
+        $memberIds = $request->input('member_ids');
+        $subject = $request->input('subject');
+        $body = $request->input('body');
+
+        // Get members with valid emails (members only)
+        $validMembers = User::whereIn('id', $memberIds)
+            ->where('role', 'member')
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->pluck('id')
+            ->toArray();
+
+        $skippedCount = count($memberIds) - count($validMembers);
+
+        if (empty($validMembers)) {
+            return response()->json([
+                'success' => false,
+                'message' => '沒有可發送郵件的會員',
+                'queued_count' => 0,
+                'skipped_count' => $skippedCount,
+            ], 422);
+        }
+
+        // Dispatch jobs in chunks of 50
+        collect($validMembers)->chunk(50)->each(function ($chunk) use ($subject, $body) {
+            SendBatchEmailJob::dispatch($chunk->values()->toArray(), $subject, $body);
+        });
+
+        $queuedCount = count($validMembers);
+
         return response()->json([
             'success' => true,
-            'message' => '已排程發送 0 封郵件',
-            'queued_count' => 0,
-            'skipped_count' => 0,
+            'message' => "已排程發送 {$queuedCount} 封郵件" . ($skippedCount > 0 ? "（{$skippedCount} 位會員無有效 Email）" : ''),
+            'queued_count' => $queuedCount,
+            'skipped_count' => $skippedCount,
         ]);
     }
 
@@ -124,9 +198,31 @@ class MemberController extends Controller
      */
     public function count(Request $request): JsonResponse
     {
-        // TODO: Implement in T029
+        $search = $request->input('search');
+        $courseId = $request->input('course_id');
+
+        $query = User::query()
+            ->where('role', 'member');
+
+        // Apply search filter
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('email', 'like', "%{$search}%")
+                  ->orWhere('real_name', 'like', "%{$search}%")
+                  ->orWhere('nickname', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply course ownership filter
+        if ($courseId) {
+            $query->whereHas('purchases', function ($q) use ($courseId) {
+                $q->where('course_id', $courseId)
+                  ->where('status', 'completed');
+            });
+        }
+
         return response()->json([
-            'count' => 0,
+            'count' => $query->count(),
         ]);
     }
 }

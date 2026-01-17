@@ -76,5 +76,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/members', [MemberController::class, 'index'])->name('members.index');
     Route::patch('/members/{member}', [MemberController::class, 'update'])->name('members.update');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
-    Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])->name('members.batch-email');
+    Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])
+        ->middleware('throttle:10,1')
+        ->name('members.batch-email');
 });
