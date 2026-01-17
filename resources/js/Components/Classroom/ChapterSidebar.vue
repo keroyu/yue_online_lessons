@@ -15,7 +15,16 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  localCompletedLessons: {
+    type: Set,
+    default: () => new Set(),
+  },
 })
+
+// Check if lesson is locally completed (optimistic UI state)
+const isLocallyCompleted = (lessonId) => {
+  return props.localCompletedLessons.has(lessonId)
+}
 
 const emit = defineEmits(['selectLesson', 'toggleComplete'])
 
@@ -38,10 +47,10 @@ const handleToggleComplete = (lesson) => {
   emit('toggleComplete', lesson)
 }
 
-// Calculate chapter progress
+// Calculate chapter progress (includes optimistic local state)
 const getChapterProgress = (chapter) => {
   const total = chapter.lessons.length
-  const completed = chapter.lessons.filter(l => l.is_completed).length
+  const completed = chapter.lessons.filter(l => l.is_completed || isLocallyCompleted(l.id)).length
   return { total, completed }
 }
 </script>
@@ -90,6 +99,7 @@ const getChapterProgress = (chapter) => {
             :key="lesson.id"
             :lesson="lesson"
             :is-active="lesson.id === currentLessonId"
+            :is-locally-completed="isLocallyCompleted(lesson.id)"
             @select="handleSelectLesson"
             @toggle-complete="handleToggleComplete"
           />
@@ -106,6 +116,7 @@ const getChapterProgress = (chapter) => {
           :key="lesson.id"
           :lesson="lesson"
           :is-active="lesson.id === currentLessonId"
+          :is-locally-completed="isLocallyCompleted(lesson.id)"
           @select="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />

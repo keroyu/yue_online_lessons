@@ -10,9 +10,23 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isLocallyCompleted: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['select', 'toggleComplete'])
+
+// Check if lesson appears completed (server state OR optimistic local state)
+const showAsCompleted = computed(() => {
+  return props.lesson.is_completed || props.isLocallyCompleted
+})
+
+// Check if this is a pending optimistic state (not yet saved to server)
+const isPendingCompletion = computed(() => {
+  return props.isLocallyCompleted && !props.lesson.is_completed
+})
 
 const handleClick = () => {
   emit('select', props.lesson)
@@ -32,10 +46,11 @@ const handleToggleComplete = (e) => {
   >
     <!-- Completion/Play Icon -->
     <button
-      v-if="lesson.is_completed"
+      v-if="showAsCompleted"
       type="button"
-      class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-green-500 hover:text-green-600"
-      title="點擊標記為未完成"
+      class="flex-shrink-0 w-5 h-5 flex items-center justify-center hover:text-green-600"
+      :class="isPendingCompletion ? 'text-green-400' : 'text-green-500'"
+      :title="isPendingCompletion ? '等待儲存中（5分鐘後）' : '點擊標記為未完成'"
       @click="handleToggleComplete"
     >
       <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

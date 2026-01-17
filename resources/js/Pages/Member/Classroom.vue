@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
+
+// Throttling: 5-minute threshold before marking lesson as complete on server
+const COMPLETION_THRESHOLD_MS = 5 * 60 * 1000
 
 const props = defineProps({
   course: {
@@ -32,9 +35,37 @@ const props = defineProps({
 const selectedLesson = ref(props.currentLesson)
 const sidebarOpen = ref(false)
 
+// Throttling state
+const completionTimers = ref({}) // Track setTimeout handles per lesson ID
+const localCompletedLessons = ref(new Set()) // Optimistic UI state
+
 // Update chapters and standaloneLessons with local completion state
 const localChapters = ref(JSON.parse(JSON.stringify(props.chapters)))
 const localStandaloneLessons = ref(JSON.parse(JSON.stringify(props.standaloneLessons)))
+
+// Check if lesson is completed (server state OR optimistic local state)
+const isLessonCompleted = (lessonId) => {
+  // Check local optimistic state first
+  if (localCompletedLessons.value.has(lessonId)) {
+    return true
+  }
+
+  // Check in chapters
+  for (const chapter of localChapters.value) {
+    const lesson = chapter.lessons.find(l => l.id === lessonId)
+    if (lesson) {
+      return lesson.is_completed
+    }
+  }
+
+  // Check in standalone lessons
+  const standaloneLesson = localStandaloneLessons.value.find(l => l.id === lessonId)
+  if (standaloneLesson) {
+    return standaloneLesson.is_completed
+  }
+
+  return false
+}
 
 // Find and update lesson completion status locally
 const updateLessonCompletion = (lessonId, isCompleted) => {
@@ -59,7 +90,28 @@ const updateLessonCompletion = (lessonId, isCompleted) => {
   }
 }
 
-// Handle lesson selection
+// Cancel timer for a specific lesson
+const cancelLessonTimer = (lessonId) => {
+  if (completionTimers.value[lessonId]) {
+    clearTimeout(completionTimers.value[lessonId])
+    delete completionTimers.value[lessonId]
+  }
+}
+
+// Cancel all pending timers
+const cancelAllTimers = () => {
+  Object.keys(completionTimers.value).forEach(lessonId => {
+    clearTimeout(completionTimers.value[lessonId])
+  })
+  completionTimers.value = {}
+}
+
+// Clear all timers on component unmount
+onUnmounted(() => {
+  cancelAllTimers()
+})
+
+// Handle lesson selection with throttling
 const handleSelectLesson = async (lesson) => {
   // Skip if already selected
   if (selectedLesson.value?.id === lesson.id) {
@@ -67,20 +119,42 @@ const handleSelectLesson = async (lesson) => {
     return
   }
 
-  // Mark as complete when clicked
-  if (!lesson.is_completed) {
-    try {
-      await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
-        method: 'POST',
-        headers: {
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-          'Accept': 'application/json',
-        },
-      })
-      updateLessonCompletion(lesson.id, true)
-    } catch (error) {
-      console.error('Failed to mark lesson complete:', error)
+  // Cancel timer for previous lesson (if switching before 5 minutes)
+  if (selectedLesson.value) {
+    cancelLessonTimer(selectedLesson.value.id)
+    // Remove from local optimistic state if not yet persisted
+    if (!selectedLesson.value.is_completed) {
+      localCompletedLessons.value.delete(selectedLesson.value.id)
     }
+  }
+
+  // Optimistic update: add to local completed set immediately
+  // Only if not already completed on server
+  if (!lesson.is_completed && !localCompletedLessons.value.has(lesson.id)) {
+    localCompletedLessons.value.add(lesson.id)
+  }
+
+  // Start 5-minute timer for new lesson (if not already completed on server)
+  if (!lesson.is_completed) {
+    // Cancel existing timer for this lesson (in case of rapid re-selection)
+    cancelLessonTimer(lesson.id)
+
+    completionTimers.value[lesson.id] = setTimeout(async () => {
+      try {
+        await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+          },
+        })
+        // Update server state after successful POST
+        updateLessonCompletion(lesson.id, true)
+        delete completionTimers.value[lesson.id]
+      } catch (error) {
+        console.error('Failed to mark lesson complete:', error)
+      }
+    }, COMPLETION_THRESHOLD_MS)
   }
 
   // Close sidebar on mobile
@@ -100,22 +174,54 @@ const handleSelectLesson = async (lesson) => {
   })
 }
 
-// Handle toggle complete
+// Handle toggle complete (mark as incomplete is immediate, no throttling)
 const handleToggleComplete = async (lesson) => {
-  const newStatus = !lesson.is_completed
+  const isCurrentlyCompleted = lesson.is_completed || localCompletedLessons.value.has(lesson.id)
+  const newStatus = !isCurrentlyCompleted
 
-  try {
-    const method = newStatus ? 'POST' : 'DELETE'
-    await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
-      method,
-      headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-        'Accept': 'application/json',
-      },
-    })
-    updateLessonCompletion(lesson.id, newStatus)
-  } catch (error) {
-    console.error('Failed to toggle lesson completion:', error)
+  if (!newStatus) {
+    // Marking as incomplete: immediate, no throttling
+    // Cancel any pending timer for this lesson
+    cancelLessonTimer(lesson.id)
+    // Remove from local optimistic state
+    localCompletedLessons.value.delete(lesson.id)
+
+    try {
+      await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+          'Accept': 'application/json',
+        },
+      })
+      updateLessonCompletion(lesson.id, false)
+    } catch (error) {
+      console.error('Failed to mark lesson incomplete:', error)
+    }
+  } else {
+    // Marking as complete: add to local state, start timer
+    localCompletedLessons.value.add(lesson.id)
+
+    // Start 5-minute timer if not already completed on server
+    if (!lesson.is_completed) {
+      cancelLessonTimer(lesson.id)
+
+      completionTimers.value[lesson.id] = setTimeout(async () => {
+        try {
+          await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
+            method: 'POST',
+            headers: {
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+              'Accept': 'application/json',
+            },
+          })
+          updateLessonCompletion(lesson.id, true)
+          delete completionTimers.value[lesson.id]
+        } catch (error) {
+          console.error('Failed to mark lesson complete:', error)
+        }
+      }, COMPLETION_THRESHOLD_MS)
+    }
   }
 }
 
@@ -166,6 +272,7 @@ const toggleSidebar = () => {
           :chapters="localChapters"
           :standalone-lessons="localStandaloneLessons"
           :current-lesson-id="selectedLesson?.id"
+          :local-completed-lessons="localCompletedLessons"
           @select-lesson="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />
@@ -201,6 +308,7 @@ const toggleSidebar = () => {
               :chapters="localChapters"
               :standalone-lessons="localStandaloneLessons"
               :current-lesson-id="selectedLesson?.id"
+              :local-completed-lessons="localCompletedLessons"
               @select-lesson="handleSelectLesson"
               @toggle-complete="handleToggleComplete"
             />
