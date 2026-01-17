@@ -26,7 +26,6 @@ class Course extends Model
         'status',
         'sale_at',
         'sort_order',
-        'portaly_url',
         'portaly_product_id',
         'duration_minutes',
     ];
@@ -111,6 +110,22 @@ class Course extends Model
                 } else {
                     return "{$minutes}分鐘";
                 }
+            }
+        );
+    }
+
+    /**
+     * Generate Portaly URL from product_id
+     */
+    protected function portalyUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (!$this->portaly_product_id) {
+                    return null;
+                }
+
+                return "https://portaly.cc/kyontw/product/{$this->portaly_product_id}";
             }
         );
     }

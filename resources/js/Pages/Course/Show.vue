@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   course: {
@@ -28,9 +28,17 @@ const getTypeLabel = (type) => {
   return labels[type] || type
 }
 
+// Generate Portaly URL from product_id
+const portalyUrl = computed(() => {
+  if (!props.course.portaly_product_id) {
+    return null
+  }
+  return `https://portaly.cc/kyontw/product/${props.course.portaly_product_id}`
+})
+
 const openPortaly = () => {
-  if (props.course.portaly_url && agreed.value) {
-    window.open(props.course.portaly_url, '_blank')
+  if (portalyUrl.value && agreed.value) {
+    window.open(portalyUrl.value, '_blank')
   }
 }
 </script>
@@ -89,10 +97,32 @@ const openPortaly = () => {
             {{ course.instructor_name }}
           </div>
 
+          <!-- Course Info -->
+          <div v-if="course.duration_formatted" class="flex items-center mt-2 text-gray-500">
+            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ course.duration_formatted }}
+          </div>
+
+          <!-- Status Badge -->
+          <div v-if="course.status === 'preorder'" class="mt-4">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+              預購中
+            </span>
+          </div>
+
           <!-- Description -->
           <div class="mt-8">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">課程介紹</h2>
-            <div class="prose prose-gray max-w-none">
+            <!-- HTML content (if available) -->
+            <div
+              v-if="course.description_html"
+              class="prose prose-gray max-w-none prose-img:rounded-lg"
+              v-html="course.description_html"
+            />
+            <!-- Plain text fallback -->
+            <div v-else class="prose prose-gray max-w-none">
               <p class="whitespace-pre-line text-gray-700">{{ course.description }}</p>
             </div>
           </div>
@@ -124,10 +154,10 @@ const openPortaly = () => {
 
                 <button
                   @click="openPortaly"
-                  :disabled="!agreed || !course.portaly_url"
+                  :disabled="!agreed || !portalyUrl"
                   :class="[
                     'w-full sm:w-auto px-8 py-3 rounded-lg font-semibold text-white transition-colors',
-                    agreed && course.portaly_url
+                    agreed && portalyUrl
                       ? 'bg-indigo-600 hover:bg-indigo-700'
                       : 'bg-gray-300 cursor-not-allowed'
                   ]"

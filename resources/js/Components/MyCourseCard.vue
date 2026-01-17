@@ -1,4 +1,6 @@
 <script setup>
+import { Link } from '@inertiajs/vue3'
+
 defineProps({
   course: {
     type: Object,
@@ -63,13 +65,13 @@ const formatDate = (dateString) => {
         <span>購買日期：{{ formatDate(course.purchased_at) }}</span>
       </div>
 
-      <!-- Action Button (placeholder for future classroom link) -->
-      <button
-        class="mt-3 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-        disabled
+      <!-- Action Button -->
+      <Link
+        :href="`/member/classroom/${course.id}`"
+        class="mt-3 block w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium text-center"
       >
-        開始上課（即將推出）
-      </button>
+        開始上課
+      </Link>
     </div>
   </div>
 </template>

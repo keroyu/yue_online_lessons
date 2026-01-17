@@ -25,10 +25,13 @@ class CourseController extends Controller
                 'name' => $course->name,
                 'tagline' => $course->tagline,
                 'description' => $course->description,
+                'description_html' => $course->description_html,
                 'price' => $course->price,
                 'thumbnail' => $course->thumbnail,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
+                'status' => $course->status,
+                'duration_formatted' => $course->duration_formatted,
                 'portaly_url' => $course->portaly_url,
             ],
         ]);

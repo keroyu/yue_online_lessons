@@ -32,7 +32,6 @@ class StoreCourseRequest extends FormRequest
             'type' => ['required', 'in:lecture,mini,full'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
-            'portaly_url' => ['nullable', 'url', 'max:500'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
         ];
     }
@@ -57,7 +56,6 @@ class StoreCourseRequest extends FormRequest
             'duration_minutes.integer' => '時間總長必須是整數',
             'duration_minutes.min' => '時間總長不能為負數',
             'sale_at.after' => '開賣時間必須在未來',
-            'portaly_url.url' => 'Portaly 連結格式無效',
         ];
     }
 }

@@ -10,9 +10,9 @@ class HomeController extends Controller
 {
     public function index(): Response
     {
-        $courses = Course::published()
+        $courses = Course::visible()
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type'])
+            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status'])
             ->get();
 
         return Inertia::render('Home', [

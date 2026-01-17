@@ -5,6 +5,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
+use App\Http\Controllers\Member\ClassroomController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\ChapterController;
@@ -35,6 +36,11 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::get('/learning', [LearningController::class, 'index'])->name('learning');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+
+    // Classroom
+    Route::get('/classroom/{course}', [ClassroomController::class, 'show'])->name('classroom');
+    Route::post('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markComplete'])->name('progress.store');
+    Route::delete('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markIncomplete'])->name('progress.destroy');
 });
 
 // Admin routes (Admin only)
