@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GiftCourseRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
+use App\Jobs\GiftCourseJob;
 use App\Jobs\SendBatchEmailJob;
 use App\Models\Course;
+use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,8 +69,8 @@ class MemberController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        // Get all courses for the filter dropdown
-        $courses = Course::select('id', 'name')
+        // Get all courses for the filter dropdown and gift course modal
+        $courses = Course::select('id', 'name', 'description')
             ->orderBy('name')
             ->get();
 
@@ -231,6 +234,95 @@ class MemberController extends Controller
 
         return response()->json([
             'count' => $query->count(),
+        ]);
+    }
+
+    /**
+     * Gift a course to selected members.
+     */
+    public function giftCourse(GiftCourseRequest $request): JsonResponse
+    {
+        $memberIds = $request->input('member_ids');
+        $courseId = $request->input('course_id');
+
+        // Get valid members (members only)
+        $validMembers = User::whereIn('id', $memberIds)
+            ->where('role', 'member')
+            ->get();
+
+        if ($validMembers->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => '沒有有效的會員可以贈送課程',
+                'gifted_count' => 0,
+                'already_owned_count' => 0,
+                'email_queued_count' => 0,
+                'skipped_no_email_count' => 0,
+            ], 422);
+        }
+
+        // Check which members already own the course
+        $alreadyOwnedIds = Purchase::whereIn('user_id', $validMembers->pluck('id'))
+            ->where('course_id', $courseId)
+            ->pluck('user_id')
+            ->toArray();
+
+        // Filter out members who already own the course
+        $membersToGift = $validMembers->filter(function ($member) use ($alreadyOwnedIds) {
+            return !in_array($member->id, $alreadyOwnedIds);
+        });
+
+        $alreadyOwnedCount = count($alreadyOwnedIds);
+
+        // Edge case: All selected members already own the course
+        if ($membersToGift->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => '所有選取的會員都已擁有此課程',
+                'gifted_count' => 0,
+                'already_owned_count' => $alreadyOwnedCount,
+                'email_queued_count' => 0,
+                'skipped_no_email_count' => 0,
+            ]);
+        }
+
+        // Count members without email (will receive course but no notification)
+        $membersWithEmail = $membersToGift->filter(function ($member) {
+            return !empty($member->email);
+        });
+        $skippedNoEmailCount = $membersToGift->count() - $membersWithEmail->count();
+
+        // Dispatch jobs in chunks of 50
+        $giftedMemberIds = $membersToGift->pluck('id')->toArray();
+        collect($giftedMemberIds)->chunk(50)->each(function ($chunk) use ($courseId) {
+            GiftCourseJob::dispatch($chunk->values()->toArray(), $courseId);
+        });
+
+        $giftedCount = count($giftedMemberIds);
+        $emailQueuedCount = $membersWithEmail->count();
+
+        // Build result message
+        $message = "已成功贈送課程給 {$giftedCount} 位會員";
+        $warnings = [];
+
+        if ($alreadyOwnedCount > 0) {
+            $warnings[] = "{$alreadyOwnedCount} 位已擁有課程";
+        }
+        if ($skippedNoEmailCount > 0) {
+            $warnings[] = "{$skippedNoEmailCount} 位無 Email 未發送通知";
+        }
+
+        if (!empty($warnings)) {
+            $message .= '（' . implode('、', $warnings) . '）';
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'gifted_count' => $giftedCount,
+            'already_owned_count' => $alreadyOwnedCount,
+            'email_queued_count' => $emailQueuedCount,
+            'skipped_no_email_count' => $skippedNoEmailCount,
         ]);
     }
 }

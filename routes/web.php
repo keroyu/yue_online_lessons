@@ -79,4 +79,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])
         ->middleware('throttle:10,1')
         ->name('members.batch-email');
+    Route::post('/members/gift-course', [MemberController::class, 'giftCourse'])
+        ->middleware('throttle:10,1')
+        ->name('members.gift-course');
 });
