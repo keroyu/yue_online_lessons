@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import draggable from 'vuedraggable'
 import LessonForm from './LessonForm.vue'
@@ -21,8 +21,20 @@ const props = defineProps({
 
 const emit = defineEmits(['update:chapters', 'update:standaloneLessons'])
 
-const localChapters = ref([...props.chapters])
+// Deep clone to avoid mutating props
+const cloneChapters = (chapters) => chapters.map(ch => ({ ...ch, lessons: [...ch.lessons] }))
+
+const localChapters = ref(cloneChapters(props.chapters))
 const localStandaloneLessons = ref([...props.standaloneLessons])
+
+// Sync local state with props when Inertia updates
+watch(() => props.chapters, (newChapters) => {
+  localChapters.value = cloneChapters(newChapters)
+}, { deep: true })
+
+watch(() => props.standaloneLessons, (newLessons) => {
+  localStandaloneLessons.value = [...newLessons]
+}, { deep: true })
 
 // Chapter editing
 const editingChapterId = ref(null)
