@@ -6,6 +6,10 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Admin\ChapterController;
+use App\Http\Controllers\Admin\LessonController;
+use App\Http\Controllers\Admin\CourseImageController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -36,4 +40,27 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
 // Admin routes (Admin only)
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Courses
+    Route::resource('courses', AdminCourseController::class);
+    Route::post('/courses/{course}/publish', [AdminCourseController::class, 'publish'])->name('courses.publish');
+    Route::post('/courses/{course}/unpublish', [AdminCourseController::class, 'unpublish'])->name('courses.unpublish');
+
+    // Chapters
+    Route::get('/courses/{course}/chapters', [ChapterController::class, 'index'])->name('chapters.index');
+    Route::post('/courses/{course}/chapters', [ChapterController::class, 'store'])->name('chapters.store');
+    Route::put('/chapters/{chapter}', [ChapterController::class, 'update'])->name('chapters.update');
+    Route::delete('/chapters/{chapter}', [ChapterController::class, 'destroy'])->name('chapters.destroy');
+    Route::post('/courses/{course}/chapters/reorder', [ChapterController::class, 'reorder'])->name('chapters.reorder');
+
+    // Lessons
+    Route::post('/courses/{course}/lessons', [LessonController::class, 'store'])->name('lessons.store');
+    Route::put('/lessons/{lesson}', [LessonController::class, 'update'])->name('lessons.update');
+    Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy'])->name('lessons.destroy');
+    Route::post('/courses/{course}/lessons/reorder', [LessonController::class, 'reorder'])->name('lessons.reorder');
+
+    // Course Images
+    Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
+    Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
+    Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
 });
