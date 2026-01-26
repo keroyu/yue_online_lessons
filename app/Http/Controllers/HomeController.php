@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Services\SubstackRssService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class HomeController extends Controller
 {
+    public function __construct(
+        private SubstackRssService $substackRssService
+    ) {}
+
     public function index(): Response
     {
         $courses = Course::visible()
@@ -27,6 +32,7 @@ class HomeController extends Controller
 
         return Inertia::render('Home', [
             'courses' => $courses,
+            'substackArticles' => $this->substackRssService->getArticles(),
         ]);
     }
 }

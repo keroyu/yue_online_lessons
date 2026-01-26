@@ -85,7 +85,7 @@
       如對本隱私政策有任何疑問，請透過以下方式聯繫：
     </p>
     <ul class="list-disc pl-5 text-gray-600 space-y-2 mb-4">
-      <li>客服信箱：themustbig+tb@gmail.com</li>
+      <li>客服信箱：themustbig+learn@gmail.com</li>
     </ul>
 
     <p class="text-gray-500 text-sm mt-8">

@@ -74,7 +74,7 @@
       如有任何問題，歡迎透過以下方式聯繫我們：
     </p>
     <ul class="list-disc pl-5 text-gray-600 space-y-2 mb-4">
-      <li>客服信箱：themustbig+tb@gmail.com</li>
+      <li>客服信箱：themustbig+learn@gmail.com</li>
       <li>服務時間：週一至週五 10:00-18:00</li>
     </ul>
 
