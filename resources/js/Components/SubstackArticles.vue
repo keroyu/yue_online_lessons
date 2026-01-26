@@ -32,10 +32,10 @@ const formatDate = (dateString) => {
           rel="noopener noreferrer"
           class="block hover:bg-gray-50 rounded-md p-2 -mx-2 transition-colors"
         >
-          <p class="text-sm font-medium text-gray-900 group-hover:text-orange-600 line-clamp-2">
+          <p class="text-base font-medium text-gray-900 group-hover:text-orange-600 line-clamp-2 leading-snug">
             {{ article.title }}
           </p>
-          <p class="text-xs text-gray-500 mt-1">
+          <p class="text-sm text-gray-500 mt-1">
             {{ formatDate(article.published_at) }}
           </p>
         </a>
