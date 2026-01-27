@@ -27,6 +27,8 @@ class SettingsController extends Controller
                     'amount' => $purchase->amount,
                     'currency' => $purchase->currency,
                     'status' => $purchase->status,
+                    'type' => $purchase->type,
+                    'type_label' => $purchase->type_label,
                     'created_at' => $purchase->created_at->toIso8601String(),
                 ];
             });

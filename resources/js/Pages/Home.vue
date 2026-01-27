@@ -13,6 +13,10 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
 })
 </script>
 
@@ -45,6 +49,7 @@ defineProps({
                 v-for="course in courses"
                 :key="course.id"
                 :course="course"
+                :show-status-badge="isAdmin"
               />
             </div>
           </div>

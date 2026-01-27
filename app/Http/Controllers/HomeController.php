@@ -15,9 +15,12 @@ class HomeController extends Controller
 
     public function index(): Response
     {
-        $courses = Course::visible()
+        $user = auth()->user();
+        $isAdmin = $user && $user->isAdmin();
+
+        $courses = Course::visibleToUser($user)
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status'])
+            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status', 'is_published'])
             ->get()
             ->map(fn ($course) => [
                 'id' => $course->id,
@@ -28,11 +31,13 @@ class HomeController extends Controller
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
                 'status' => $course->status,
+                'is_published' => $course->is_published,
             ]);
 
         return Inertia::render('Home', [
             'courses' => $courses,
             'substackArticles' => $this->substackRssService->getArticles(),
+            'isAdmin' => $isAdmin,
         ]);
     }
 }

@@ -45,12 +45,25 @@ const formatAmount = (amount, currency) => {
   }).format(amount)
 }
 
-const getStatusText = (status) => {
-  return status === 'paid' ? '已付款' : '已退款'
+const getStatusText = (order) => {
+  // For system_assigned or gift, show type label instead of status
+  if (order.type === 'system_assigned') {
+    return '系統指派'
+  }
+  if (order.type === 'gift') {
+    return '贈送'
+  }
+  return order.status === 'paid' ? '已付款' : '已退款'
 }
 
-const getStatusClass = (status) => {
-  return status === 'paid'
+const getStatusClass = (order) => {
+  if (order.type === 'system_assigned') {
+    return 'bg-gray-100 text-gray-800'
+  }
+  if (order.type === 'gift') {
+    return 'bg-purple-100 text-purple-800'
+  }
+  return order.status === 'paid'
     ? 'bg-green-100 text-green-800'
     : 'bg-red-100 text-red-800'
 }
@@ -203,9 +216,9 @@ const getStatusClass = (status) => {
               <td class="py-3 px-2 text-center">
                 <span
                   class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                  :class="getStatusClass(order.status)"
+                  :class="getStatusClass(order)"
                 >
-                  {{ getStatusText(order.status) }}
+                  {{ getStatusText(order) }}
                 </span>
               </td>
             </tr>

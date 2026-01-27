@@ -56,6 +56,9 @@ php artisan test
 - MySQL (Latest stable) (001-course-platform-mvp)
 - MySQL (Latest stable), Local filesystem for images (storage/app/public) (002-classroom-admin)
 - PHP 8.2+ / Laravel 12.x + Inertia.js, Vue 3, Tailwind CSS, vuedraggable@nex (002-classroom-admin)
+- PHP 8.2+ / Laravel 12.x + Inertia.js, Vue 3, Tailwind CSS, Resend (email) (003-member-management)
+- MySQL (existing database with users, purchases, lesson_progress tables) (003-member-management)
+- Laravel Cache (file-based) for RSS feed caching (004-homepage-enhancement)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

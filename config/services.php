@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'portaly' => [
+        'webhook_secret' => env('PORTALY_WEBHOOK_SECRET'),
+    ],
+
 ];

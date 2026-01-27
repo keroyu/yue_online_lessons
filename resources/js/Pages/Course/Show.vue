@@ -9,9 +9,18 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  isPreviewMode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const agreed = ref(false)
+const showPreviewAlert = ref(false)
 
 const getTypeLabel = (type) => {
   const labels = {
@@ -31,9 +40,19 @@ const portalyUrl = computed(() => {
 })
 
 const openPortaly = () => {
+  // If in preview mode (draft course), show alert instead of redirecting
+  if (props.isPreviewMode) {
+    showPreviewAlert.value = true
+    return
+  }
+
   if (portalyUrl.value && agreed.value) {
     window.open(portalyUrl.value, '_blank')
   }
+}
+
+const closePreviewAlert = () => {
+  showPreviewAlert.value = false
 }
 
 // Legal Policy Modal
@@ -52,6 +71,20 @@ const closeLegalModal = () => {
 
 <template>
   <Head :title="course.name" />
+
+  <!-- Preview Mode Banner -->
+  <div
+    v-if="isPreviewMode"
+    class="bg-blue-600 text-white text-center py-3 px-4"
+  >
+    <div class="max-w-4xl mx-auto flex items-center justify-center gap-2">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+      <span class="font-medium">預覽模式 - 此課程尚未上架，僅管理員可見</span>
+    </div>
+  </div>
 
   <div class="py-8 sm:py-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,6 +117,14 @@ const closeLegalModal = () => {
           <!-- Type badge -->
           <span class="absolute top-4 left-4 bg-indigo-600 text-white text-sm px-3 py-1 rounded">
             {{ getTypeLabel(course.type) }}
+          </span>
+
+          <!-- Draft badge (preview mode) -->
+          <span
+            v-if="isPreviewMode"
+            class="absolute top-4 right-4 bg-gray-500 text-white text-sm px-3 py-1 rounded font-medium"
+          >
+            草稿
           </span>
         </div>
 
@@ -152,8 +193,13 @@ const closeLegalModal = () => {
           <div class="mt-8 pt-8 border-t border-gray-100">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
               <div class="flex flex-col gap-3">
+                <!-- Preview mode notice -->
+                <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded">
+                  草稿課程，僅供預覽
+                </div>
+
                 <!-- Consent checkbox -->
-                <label class="flex items-start gap-2 cursor-pointer">
+                <label v-if="!isPreviewMode" class="flex items-start gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     v-model="agreed"
@@ -177,15 +223,17 @@ const closeLegalModal = () => {
 
                 <button
                   @click="openPortaly"
-                  :disabled="!agreed || !portalyUrl"
+                  :disabled="!isPreviewMode && (!agreed || !portalyUrl)"
                   :class="[
                     'w-full sm:w-auto px-8 py-3 rounded-lg font-semibold text-white transition-colors',
-                    agreed && portalyUrl
-                      ? 'bg-indigo-600 hover:bg-indigo-700'
-                      : 'bg-gray-300 cursor-not-allowed'
+                    isPreviewMode
+                      ? 'bg-gray-400 hover:bg-gray-500'
+                      : (agreed && portalyUrl
+                          ? 'bg-indigo-600 hover:bg-indigo-700'
+                          : 'bg-gray-300 cursor-not-allowed')
                   ]"
                 >
-                  立即購買
+                  {{ isPreviewMode ? '預覽購買按鈕' : '立即購買' }}
                 </button>
               </div>
             </div>
@@ -201,4 +249,41 @@ const closeLegalModal = () => {
     :type="legalModalType"
     @close="closeLegalModal"
   />
+
+  <!-- Preview Alert Modal -->
+  <Teleport to="body">
+    <div
+      v-if="showPreviewAlert"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <!-- Backdrop -->
+      <div
+        class="absolute inset-0 bg-black/50"
+        @click="closePreviewAlert"
+      />
+
+      <!-- Modal -->
+      <div class="relative bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+        <div class="text-center">
+          <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            草稿課程
+          </h3>
+          <p class="text-gray-600 mb-6">
+            此為草稿課程，僅供預覽。正式上架後才能進行購買。
+          </p>
+          <button
+            @click="closePreviewAlert"
+            class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          >
+            我知道了
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>

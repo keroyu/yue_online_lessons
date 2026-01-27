@@ -1,10 +1,15 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   course: {
     type: Object,
     required: true,
+  },
+  showStatusBadge: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -24,6 +29,36 @@ const getTypeLabel = (type) => {
   }
   return labels[type] || type
 }
+
+// Status badge configuration
+const statusBadge = computed(() => {
+  if (!props.showStatusBadge) return null
+
+  const isDraft = props.course.status === 'draft' || !props.course.is_published
+
+  if (isDraft) {
+    return {
+      label: '草稿',
+      class: 'bg-gray-500 text-white',
+    }
+  }
+
+  if (props.course.status === 'preorder') {
+    return {
+      label: '預購中',
+      class: 'bg-yellow-500 text-white',
+    }
+  }
+
+  if (props.course.status === 'selling') {
+    return {
+      label: '熱賣中',
+      class: 'bg-green-500 text-white',
+    }
+  }
+
+  return null
+})
 </script>
 
 <template>
@@ -51,6 +86,15 @@ const getTypeLabel = (type) => {
       <!-- Type badge -->
       <span class="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded">
         {{ getTypeLabel(course.type) }}
+      </span>
+
+      <!-- Status badge (admin only) -->
+      <span
+        v-if="statusBadge"
+        class="absolute top-2 right-2 text-xs px-2 py-1 rounded font-medium"
+        :class="statusBadge.class"
+      >
+        {{ statusBadge.label }}
       </span>
     </div>
 
