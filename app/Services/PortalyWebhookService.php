@@ -140,6 +140,7 @@ class PortalyWebhookService
             'coupon_code' => !empty($data['couponCode']) ? $data['couponCode'] : null,
             'discount_amount' => $data['discount'] ?? 0,
             'status' => 'paid',
+            'type' => 'paid',
             'webhook_received_at' => now(),
         ]);
     }

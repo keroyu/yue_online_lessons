@@ -78,7 +78,7 @@ class GiftCourseJob implements ShouldQueue
                     'amount' => 0,
                     'currency' => 'TWD',
                     'status' => 'paid',
-                    'source' => 'gift',
+                    'type' => 'gift',
                 ]);
 
                 // Send notification email if member has email

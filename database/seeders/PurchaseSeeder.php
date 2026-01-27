@@ -29,6 +29,7 @@ class PurchaseSeeder extends Seeder
             'amount' => $course1->price,
             'currency' => 'TWD',
             'status' => 'paid',
+            'type' => 'paid',
         ]);
 
         Purchase::create([
@@ -38,6 +39,7 @@ class PurchaseSeeder extends Seeder
             'amount' => $course2->price,
             'currency' => 'TWD',
             'status' => 'paid',
+            'type' => 'paid',
         ]);
 
         // Member 2 purchased course 3
@@ -50,6 +52,7 @@ class PurchaseSeeder extends Seeder
             'coupon_code' => 'WELCOME10',
             'discount_amount' => 499,
             'status' => 'paid',
+            'type' => 'paid',
         ]);
     }
 }
