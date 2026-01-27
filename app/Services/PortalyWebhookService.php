@@ -19,13 +19,27 @@ class PortalyWebhookService
         $secret = config('services.portaly.webhook_secret');
 
         if (!$signature || !$secret) {
+            Log::warning('Webhook: Missing signature or secret', [
+                'has_signature' => !empty($signature),
+                'has_secret' => !empty($secret),
+            ]);
             return false;
         }
 
-        $data = json_encode($request->input('data'));
+        // Use JSON_UNESCAPED flags to match Portaly's JSON encoding
+        $data = json_encode($request->input('data'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $expectedSignature = hash_hmac('sha256', $data, $secret);
 
-        return hash_equals($expectedSignature, $signature);
+        $isValid = hash_equals($expectedSignature, $signature);
+
+        if (!$isValid) {
+            Log::warning('Webhook: Signature mismatch', [
+                'received' => $signature,
+                'expected' => $expectedSignature,
+            ]);
+        }
+
+        return $isValid;
     }
 
     /**
@@ -173,8 +187,20 @@ class PortalyWebhookService
     {
         $customerData = $data['customerData'] ?? [];
 
+        Log::info('Webhook: Processing paid event', [
+            'order_id' => $data['id'] ?? 'unknown',
+            'email' => $customerData['email'] ?? 'unknown',
+            'product_id' => $data['productId'] ?? 'unknown',
+        ]);
+
         try {
             $user = $this->getOrCreateUser($customerData);
+            Log::info('Webhook: User resolved', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'is_new' => $user->wasRecentlyCreated,
+            ]);
+
             $purchase = $this->createPurchase($user, $data);
 
             if ($purchase) {
@@ -191,6 +217,7 @@ class PortalyWebhookService
                 ];
             }
 
+            Log::info('Webhook: Duplicate order skipped', ['order_id' => $data['id']]);
             return [
                 'success' => true,
                 'message' => 'Duplicate order, skipped',
@@ -202,6 +229,13 @@ class PortalyWebhookService
                 'success' => true,
                 'message' => $e->getMessage(),
             ];
+        } catch (\Exception $e) {
+            Log::error('Webhook: Unexpected error in handlePaidEvent', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $data,
+            ]);
+            throw $e;
         }
     }
 }
