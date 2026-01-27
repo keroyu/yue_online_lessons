@@ -57,7 +57,7 @@ class MemberController extends Controller
         if ($courseId) {
             $query->whereHas('purchases', function ($q) use ($courseId) {
                 $q->where('course_id', $courseId)
-                  ->where('status', 'completed');
+                  ->where('status', 'paid');
             });
         }
 
@@ -101,7 +101,7 @@ class MemberController extends Controller
         // Load courses with progress calculation
         $courses = $member->purchases()
             ->with(['course.lessons'])
-            ->where('status', 'completed')
+            ->where('status', 'paid')
             ->get()
             ->map(function ($purchase) use ($member) {
                 $course = $purchase->course;
@@ -228,7 +228,7 @@ class MemberController extends Controller
         if ($courseId) {
             $query->whereHas('purchases', function ($q) use ($courseId) {
                 $q->where('course_id', $courseId)
-                  ->where('status', 'completed');
+                  ->where('status', 'paid');
             });
         }
 
