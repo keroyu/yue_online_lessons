@@ -16,12 +16,14 @@ class Purchase extends Model
         'user_id',
         'course_id',
         'portaly_order_id',
+        'buyer_email',
         'amount',
         'currency',
         'coupon_code',
         'discount_amount',
         'status',
         'type',
+        'webhook_received_at',
     ];
 
     protected function casts(): array
