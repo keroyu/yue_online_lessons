@@ -57,6 +57,7 @@ class PortalyWebhookService
     /**
      * Get or create user by email
      * If user doesn't exist, create with name and phone from customerData
+     * If user exists but missing name/phone, update with Portaly data
      */
     public function getOrCreateUser(array $customerData): User
     {
@@ -69,6 +70,25 @@ class PortalyWebhookService
         $user = User::where('email', $email)->first();
 
         if ($user) {
+            // Update name and phone if currently empty and Portaly provides them
+            $updates = [];
+
+            if (empty($user->real_name) && !empty($customerData['name'])) {
+                $updates['real_name'] = $customerData['name'];
+            }
+
+            if (empty($user->phone) && !empty($customerData['phone'])) {
+                $updates['phone'] = $customerData['phone'];
+            }
+
+            if (!empty($updates)) {
+                $user->update($updates);
+                Log::info('Webhook: Updated existing user with Portaly data', [
+                    'user_id' => $user->id,
+                    'updates' => $updates,
+                ]);
+            }
+
             return $user;
         }
 
@@ -190,6 +210,8 @@ class PortalyWebhookService
         Log::info('Webhook: Processing paid event', [
             'order_id' => $data['id'] ?? 'unknown',
             'email' => $customerData['email'] ?? 'unknown',
+            'name' => $customerData['name'] ?? 'not provided',
+            'phone' => $customerData['phone'] ?? 'not provided',
             'product_id' => $data['productId'] ?? 'unknown',
         ]);
 
