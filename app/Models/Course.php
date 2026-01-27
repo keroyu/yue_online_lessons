@@ -176,6 +176,20 @@ class Course extends Model
     }
 
     /**
+     * Scope for courses visible to a specific user
+     * Admin: all courses (including drafts)
+     * Member/Guest: only visible courses (preorder/selling + published)
+     */
+    public function scopeVisibleToUser(Builder $query, ?User $user = null): Builder
+    {
+        if ($user && $user->isAdmin()) {
+            return $query; // Admin sees all courses
+        }
+
+        return $query->visible(); // Non-admin sees only visible courses
+    }
+
+    /**
      * Get full thumbnail URL for frontend use
      */
     protected function thumbnailUrl(): Attribute

@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\Course;
+use App\Models\Purchase;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -73,7 +76,23 @@ class CourseController extends Controller
             $data['promo_ends_at'] = now()->addDays(30);
         }
 
-        Course::create($data);
+        // Create course and auto-assign ownership to admin within a transaction
+        $course = DB::transaction(function () use ($data) {
+            $course = Course::create($data);
+
+            // Auto-assign course ownership to the creating admin
+            Purchase::create([
+                'user_id' => auth()->id(),
+                'course_id' => $course->id,
+                'portaly_order_id' => 'SYSTEM-' . Str::uuid(),
+                'amount' => 0,
+                'currency' => 'TWD',
+                'status' => 'paid',
+                'type' => 'system_assigned',
+            ]);
+
+            return $course;
+        });
 
         return redirect()
             ->route('admin.courses.index')
@@ -148,14 +167,21 @@ class CourseController extends Controller
      */
     public function destroy(Course $course): RedirectResponse
     {
-        // Check if course has any purchases
-        if ($course->purchases()->exists()) {
+        // Check if course has any paid purchases (exclude system_assigned and gift)
+        if ($course->purchases()->paid()->exists()) {
             return redirect()
                 ->route('admin.courses.index')
                 ->with('error', '此課程已有學員購買，無法刪除');
         }
 
-        $course->delete();
+        // Delete course and system-assigned purchases in a transaction
+        DB::transaction(function () use ($course) {
+            // Delete system-assigned purchases for this course
+            $course->purchases()->systemAssigned()->delete();
+
+            // Soft delete the course
+            $course->delete();
+        });
 
         return redirect()
             ->route('admin.courses.index')

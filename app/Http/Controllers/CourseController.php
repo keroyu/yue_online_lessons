@@ -11,13 +11,18 @@ class CourseController extends Controller
 {
     public function show(Course $course): Response
     {
-        // Return 404 if course is not published (unless user can view unpublished)
-        if (!$course->is_published) {
-            $user = auth()->user();
-            if (!$user || (!$user->isAdmin() && !$user->isEditor())) {
-                throw new NotFoundHttpException('Course not found');
-            }
+        $user = auth()->user();
+        $isAdmin = $user && $user->isAdmin();
+
+        // Draft courses: only admin can view
+        $isDraft = $course->status === 'draft' || !$course->is_published;
+
+        if ($isDraft && !$isAdmin) {
+            throw new NotFoundHttpException('Course not found');
         }
+
+        // Preview mode: draft course being viewed by admin
+        $isPreviewMode = $isDraft && $isAdmin;
 
         return Inertia::render('Course/Show', [
             'course' => [
@@ -34,10 +39,13 @@ class CourseController extends Controller
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
                 'status' => $course->status,
+                'is_published' => $course->is_published,
                 'duration_formatted' => $course->duration_formatted,
                 'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
             ],
+            'isAdmin' => $isAdmin,
+            'isPreviewMode' => $isPreviewMode,
         ]);
     }
 }
