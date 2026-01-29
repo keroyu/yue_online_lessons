@@ -31,15 +31,18 @@ class VerificationCodeService
                 ];
             }
 
-            // Check rate limit
-            $secondsSinceLastCode = now()->diffInSeconds($lastCode->created_at);
-            if ($secondsSinceLastCode < self::RATE_LIMIT_SECONDS) {
-                $waitSeconds = self::RATE_LIMIT_SECONDS - $secondsSinceLastCode;
-                return [
-                    'success' => false,
-                    'error' => "請等待 {$waitSeconds} 秒後再發送驗證碼",
-                    'wait_seconds' => $waitSeconds,
-                ];
+            // Skip rate limit check if code has expired (allow sending new code)
+            if (!$lastCode->isExpired()) {
+                // Check rate limit
+                $secondsSinceLastCode = now()->diffInSeconds($lastCode->created_at, true);
+                if ($secondsSinceLastCode < self::RATE_LIMIT_SECONDS) {
+                    $waitSeconds = self::RATE_LIMIT_SECONDS - $secondsSinceLastCode;
+                    return [
+                        'success' => false,
+                        'error' => "請等待 {$waitSeconds} 秒後再發送驗證碼",
+                        'wait_seconds' => $waitSeconds,
+                    ];
+                }
             }
         }
 
