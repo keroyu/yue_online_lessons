@@ -15,12 +15,23 @@ class VerificationCodeService
 
     public function generate(string $email): array
     {
-        // Check rate limit
+        // Check if locked or rate limited
         $lastCode = VerificationCode::where('email', $email)
             ->orderBy('created_at', 'desc')
             ->first();
 
         if ($lastCode) {
+            // Check lockout first (security: prevent bypassing lockout by requesting new code)
+            if ($lastCode->isLocked()) {
+                $waitMinutes = now()->diffInMinutes($lastCode->locked_until) + 1;
+                return [
+                    'success' => false,
+                    'error' => "嘗試次數過多，請 {$waitMinutes} 分鐘後再試",
+                    'locked' => true,
+                ];
+            }
+
+            // Check rate limit
             $secondsSinceLastCode = now()->diffInSeconds($lastCode->created_at);
             if ($secondsSinceLastCode < self::RATE_LIMIT_SECONDS) {
                 $waitSeconds = self::RATE_LIMIT_SECONDS - $secondsSinceLastCode;
