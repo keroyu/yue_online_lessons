@@ -124,7 +124,17 @@ const isHidden = computed(() => {
         <span class="text-sm text-gray-400">
           {{ course.instructor_name }}
         </span>
-        <span class="font-semibold text-brand-teal">
+        <!-- Promo pricing: show original (strikethrough) + promo price (red, larger) -->
+        <div v-if="course.is_promo_active" class="text-right">
+          <span class="text-sm text-gray-400 line-through">
+            {{ formatPrice(course.original_price) }}
+          </span>
+          <span class="ml-1 text-lg font-bold text-red-600">
+            {{ formatPrice(course.price) }}
+          </span>
+        </div>
+        <!-- Regular pricing -->
+        <span v-else class="font-semibold text-brand-teal">
           {{ formatPrice(course.price) }}
         </span>
       </div>

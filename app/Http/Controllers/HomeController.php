@@ -20,13 +20,15 @@ class HomeController extends Controller
 
         $courses = Course::visibleToUser($user)
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status', 'is_published', 'is_visible'])
+            ->select(['id', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'status', 'is_published', 'is_visible'])
             ->get()
             ->map(fn ($course) => [
                 'id' => $course->id,
                 'name' => $course->name,
                 'tagline' => $course->tagline,
                 'price' => $course->price,
+                'original_price' => $course->original_price,
+                'is_promo_active' => $course->is_promo_active,
                 'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
