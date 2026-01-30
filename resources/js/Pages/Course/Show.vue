@@ -115,7 +115,7 @@ const closeLegalModal = () => {
           </div>
 
           <!-- Type badge -->
-          <span class="absolute top-4 left-4 bg-indigo-600 text-white text-sm px-3 py-1 rounded">
+          <span class="absolute top-4 left-4 bg-brand-teal text-white text-sm px-3 py-1 rounded">
             {{ getTypeLabel(course.type) }}
           </span>
 
@@ -130,7 +130,7 @@ const closeLegalModal = () => {
 
         <!-- Content -->
         <div class="p-6 sm:p-8">
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h1 class="text-2xl sm:text-3xl font-bold text-brand-navy">
             {{ course.name }}
           </h1>
 
@@ -157,8 +157,8 @@ const closeLegalModal = () => {
               </div>
             </div>
 
-            <!-- Right: Price Block -->
-            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl px-5 py-4 sm:min-w-[180px]">
+            <!-- Right: Price Block (Header) -->
+            <div class="bg-gradient-to-br from-brand-cream to-white border border-brand-teal/20 rounded-xl px-5 py-4 sm:min-w-[180px]">
               <PriceDisplay
                 :price="course.price"
                 :original-price="course.original_price"
@@ -176,7 +176,7 @@ const closeLegalModal = () => {
 
           <!-- Description -->
           <div class="mt-8">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">課程介紹</h2>
+            <h2 class="text-lg font-semibold text-brand-navy mb-4">課程介紹</h2>
             <!-- HTML content (if available) -->
             <div
               v-if="course.description_html"
@@ -191,8 +191,18 @@ const closeLegalModal = () => {
 
           <!-- Purchase section -->
           <div class="mt-8 pt-8 border-t border-gray-100">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
-              <div class="flex flex-col gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+              <!-- Left: Price Block -->
+              <div class="bg-gradient-to-br from-brand-cream to-white border border-brand-teal/20 rounded-xl px-5 py-4">
+                <PriceDisplay
+                  :price="course.price"
+                  :original-price="course.original_price"
+                  :promo-ends-at="course.promo_ends_at"
+                />
+              </div>
+
+              <!-- Right: Consent & Purchase Button -->
+              <div class="flex flex-col gap-3 sm:items-end">
                 <!-- Preview mode notice -->
                 <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded">
                   草稿課程，僅供預覽
@@ -203,19 +213,19 @@ const closeLegalModal = () => {
                   <input
                     type="checkbox"
                     v-model="agreed"
-                    class="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    class="mt-1 h-4 w-4 text-brand-teal border-gray-300 rounded focus:ring-brand-teal"
                   />
                   <span class="text-sm text-gray-600">
                     我已閱讀並同意
                     <button
                       type="button"
-                      class="text-indigo-600 hover:underline"
+                      class="text-brand-teal hover:underline"
                       @click.prevent="openLegalModal('terms')"
                     >服務條款</button>
                     和
                     <button
                       type="button"
-                      class="text-indigo-600 hover:underline"
+                      class="text-brand-teal hover:underline"
                       @click.prevent="openLegalModal('purchase')"
                     >購買須知</button>
                   </span>
@@ -229,7 +239,7 @@ const closeLegalModal = () => {
                     isPreviewMode
                       ? 'bg-gray-400 hover:bg-gray-500'
                       : (agreed && portalyUrl
-                          ? 'bg-indigo-600 hover:bg-indigo-700'
+                          ? 'bg-brand-teal hover:bg-brand-teal/80'
                           : 'bg-gray-300 cursor-not-allowed')
                   ]"
                 >
@@ -278,7 +288,7 @@ const closeLegalModal = () => {
           </p>
           <button
             @click="closePreviewAlert"
-            class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+            class="w-full px-4 py-2 bg-brand-teal text-white rounded-lg hover:bg-brand-teal/80 transition-colors font-medium"
           >
             我知道了
           </button>

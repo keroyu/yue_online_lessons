@@ -17,7 +17,7 @@ defineProps({
 
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+    <h1 class="text-2xl sm:text-3xl font-bold text-brand-navy mb-6">
       我的課程
     </h1>
 
@@ -38,9 +38,9 @@ defineProps({
       v-else
       class="text-center py-16"
     >
-      <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+      <div class="mx-auto w-24 h-24 bg-brand-cream rounded-full flex items-center justify-center mb-4">
         <svg
-          class="w-12 h-12 text-gray-400"
+          class="w-12 h-12 text-brand-navy/40"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -53,7 +53,7 @@ defineProps({
           />
         </svg>
       </div>
-      <h2 class="text-xl font-semibold text-gray-900 mb-2">
+      <h2 class="text-xl font-semibold text-brand-navy mb-2">
         尚無課程
       </h2>
       <p class="text-gray-500 mb-6">
@@ -61,7 +61,7 @@ defineProps({
       </p>
       <Link
         href="/"
-        class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+        class="inline-flex items-center px-6 py-3 bg-brand-teal text-white font-medium rounded-lg hover:bg-brand-teal/80 transition-colors"
       >
         瀏覽課程
       </Link>

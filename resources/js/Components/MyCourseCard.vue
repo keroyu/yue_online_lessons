@@ -43,7 +43,7 @@ const formatDate = (dateString) => {
 
     <!-- Content -->
     <div class="p-4">
-      <h3 class="font-semibold text-gray-900 mb-1 line-clamp-2">
+      <h3 class="font-semibold text-brand-navy mb-1 line-clamp-2">
         {{ course.name }}
       </h3>
       <p class="text-sm text-gray-500 mb-3">
@@ -54,7 +54,7 @@ const formatDate = (dateString) => {
       <div class="mb-3">
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div
-            class="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+            class="bg-brand-teal h-2 rounded-full transition-all duration-300"
             :style="{ width: `${course.progress_percent}%` }"
           ></div>
         </div>
@@ -68,7 +68,7 @@ const formatDate = (dateString) => {
       <!-- Action Button -->
       <Link
         :href="`/member/classroom/${course.id}`"
-        class="mt-3 block w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium text-center"
+        class="mt-3 block w-full bg-brand-teal text-white py-2 px-4 rounded-lg hover:bg-brand-teal/80 transition-colors text-sm font-medium text-center"
       >
         開始上課
       </Link>

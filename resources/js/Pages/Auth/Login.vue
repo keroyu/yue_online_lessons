@@ -75,7 +75,7 @@ const onCodeComplete = (code) => {
       <div class="bg-white rounded-lg shadow-sm p-8">
         <!-- Logo -->
         <div class="text-center mb-8">
-          <h1 class="text-2xl font-bold text-gray-900">
+          <h1 class="text-2xl font-bold text-brand-navy">
             歡迎回來
           </h1>
           <p class="mt-2 text-gray-600">
@@ -100,7 +100,7 @@ const onCodeComplete = (code) => {
               v-model="emailForm.email"
               :disabled="loading"
               placeholder="your@email.com"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 disabled:bg-gray-100"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal disabled:bg-gray-100"
             />
             <p v-if="emailForm.errors.email" class="mt-1 text-sm text-red-600">
               {{ emailForm.errors.email }}
@@ -110,7 +110,7 @@ const onCodeComplete = (code) => {
           <button
             type="submit"
             :disabled="loading || !emailForm.email"
-            class="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            class="w-full py-3 px-4 bg-brand-teal text-white font-semibold rounded-lg hover:bg-brand-teal/80 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             <span v-if="loading" class="flex items-center justify-center">
               <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -148,13 +148,13 @@ const onCodeComplete = (code) => {
                 type="checkbox"
                 v-model="codeForm.agree_terms"
                 :disabled="loading"
-                class="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                class="mt-1 h-4 w-4 text-brand-teal border-gray-300 rounded focus:ring-brand-teal"
               />
               <span class="text-sm text-gray-600">
                 我已閱讀並同意
-                <a href="#" class="text-indigo-600 hover:underline">服務條款</a>
+                <a href="#" class="text-brand-teal hover:underline">服務條款</a>
                 和
-                <a href="#" class="text-indigo-600 hover:underline">隱私政策</a>
+                <a href="#" class="text-brand-teal hover:underline">隱私政策</a>
               </span>
             </label>
             <p v-if="codeForm.errors.agree_terms" class="mt-1 text-sm text-red-600">
@@ -165,7 +165,7 @@ const onCodeComplete = (code) => {
           <button
             type="submit"
             :disabled="loading || codeForm.code.length !== 6 || (isNewUser && !codeForm.agree_terms)"
-            class="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            class="w-full py-3 px-4 bg-brand-teal text-white font-semibold rounded-lg hover:bg-brand-teal/80 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             <span v-if="loading" class="flex items-center justify-center">
               <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -190,7 +190,7 @@ const onCodeComplete = (code) => {
               type="button"
               @click="resendCode"
               :disabled="loading"
-              class="text-indigo-600 hover:text-indigo-800"
+              class="text-brand-teal hover:text-brand-teal/80"
             >
               重新發送驗證碼
             </button>

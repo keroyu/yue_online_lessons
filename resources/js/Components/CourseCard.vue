@@ -84,7 +84,7 @@ const statusBadge = computed(() => {
       </div>
 
       <!-- Type badge -->
-      <span class="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded">
+      <span class="absolute top-2 left-2 bg-brand-teal text-white text-xs px-2 py-1 rounded">
         {{ getTypeLabel(course.type) }}
       </span>
 
@@ -100,7 +100,7 @@ const statusBadge = computed(() => {
 
     <!-- Content -->
     <div class="p-4">
-      <h3 class="font-semibold text-gray-900 line-clamp-1">
+      <h3 class="font-semibold text-brand-navy line-clamp-1">
         {{ course.name }}
       </h3>
       <p class="text-sm text-gray-500 mt-1 line-clamp-2">
@@ -110,7 +110,7 @@ const statusBadge = computed(() => {
         <span class="text-sm text-gray-400">
           {{ course.instructor_name }}
         </span>
-        <span class="font-semibold text-indigo-600">
+        <span class="font-semibold text-brand-teal">
           {{ formatPrice(course.price) }}
         </span>
       </div>

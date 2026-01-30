@@ -27,7 +27,7 @@ defineProps({
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Hero section -->
       <div class="text-center mb-10 sm:mb-16">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">
+        <h1 class="text-3xl sm:text-4xl font-bold text-brand-navy">
           經營者時間銀行
         </h1>
         <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -41,7 +41,7 @@ defineProps({
         <div>
           <!-- Course grid -->
           <div v-if="courses.length > 0">
-            <h2 class="text-xl font-semibold text-gray-900 mb-6">
+            <h2 class="text-xl font-semibold text-brand-navy mb-6">
               所有課程
             </h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">

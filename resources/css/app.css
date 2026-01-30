@@ -9,6 +9,16 @@
 @theme {
     --font-sans: 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-brand-cream: #F6F1E9;
+    --color-brand-orange: #FAA45E;
+    --color-brand-red: #FF4438;
+    --color-brand-navy: #373557;
+    --color-brand-teal: #3F83A3;
+}
+
+/* Page background */
+body {
+    background-color: #F6F1E9;
 }
 
 /* Course Description Content Styles */
@@ -69,7 +79,7 @@
 }
 
 .course-content li::marker {
-    color: #6366f1;
+    color: #3F83A3;
 }
 
 .course-content strong,
@@ -79,23 +89,23 @@
 }
 
 .course-content a {
-    color: #4f46e5;
+    color: #3F83A3;
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.15s;
 }
 
 .course-content a:hover {
-    border-bottom-color: #4f46e5;
+    border-bottom-color: #3F83A3;
 }
 
 .course-content blockquote {
     margin: 1.5em 0;
     padding: 1em 1.25em;
-    border-left: 4px solid #6366f1;
-    background-color: #f5f3ff;
+    border-left: 4px solid #3F83A3;
+    background-color: #F6F1E9;
     border-radius: 0 0.5rem 0.5rem 0;
-    color: #4b5563;
+    color: #373557;
 }
 
 .course-content code {
@@ -103,7 +113,7 @@
     padding: 0.2em 0.4em;
     border-radius: 0.25rem;
     font-size: 0.9em;
-    color: #4f46e5;
+    color: #3F83A3;
 }
 
 .course-content pre {

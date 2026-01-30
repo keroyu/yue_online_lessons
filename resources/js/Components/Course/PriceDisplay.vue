@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 const props = defineProps({
   price: {
@@ -19,8 +19,13 @@ const props = defineProps({
 const now = ref(new Date())
 let timer = null
 
+// Animation state
+const animatingSeconds = ref(false)
+const animatingMinutes = ref(false)
+const animatingHours = ref(false)
+const animatingDays = ref(false)
+
 onMounted(() => {
-  // Update every second for countdown effect
   timer = setInterval(() => {
     now.value = new Date()
   }, 1000)
@@ -51,6 +56,28 @@ const countdown = computed(() => {
   return { days, hours, minutes, seconds }
 })
 
+// Watch for countdown changes to trigger animations
+watch(countdown, (newVal, oldVal) => {
+  if (!newVal || !oldVal) return
+
+  if (newVal.seconds !== oldVal.seconds) {
+    animatingSeconds.value = true
+    setTimeout(() => { animatingSeconds.value = false }, 300)
+  }
+  if (newVal.minutes !== oldVal.minutes) {
+    animatingMinutes.value = true
+    setTimeout(() => { animatingMinutes.value = false }, 300)
+  }
+  if (newVal.hours !== oldVal.hours) {
+    animatingHours.value = true
+    setTimeout(() => { animatingHours.value = false }, 300)
+  }
+  if (newVal.days !== oldVal.days) {
+    animatingDays.value = true
+    setTimeout(() => { animatingDays.value = false }, 300)
+  }
+}, { deep: true })
+
 const displayPrice = computed(() => {
   if (isPromoActive.value) {
     return props.price
@@ -70,34 +97,75 @@ const formatPrice = (price) => {
 <template>
   <div>
     <!-- Active Promo: Show original price (strikethrough) + promo price + countdown -->
-    <div v-if="isPromoActive" class="space-y-2">
+    <div v-if="isPromoActive" class="space-y-3">
       <div class="flex items-baseline gap-3 flex-wrap">
         <span class="text-lg text-gray-400 line-through">
           {{ formatPrice(originalPrice) }}
         </span>
-        <span class="text-3xl font-bold text-red-600">
+        <span class="text-3xl font-bold text-brand-red">
           {{ formatPrice(price) }}
         </span>
       </div>
 
-      <!-- Countdown -->
-      <div v-if="countdown" class="inline-flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-sm">
-        <svg class="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span class="font-medium">
-          優惠剩餘
-          <span v-if="countdown.days > 0">{{ countdown.days }} 天 </span>
-          <span class="tabular-nums">{{ String(countdown.hours).padStart(2, '0') }}:{{ String(countdown.minutes).padStart(2, '0') }}:{{ String(countdown.seconds).padStart(2, '0') }}</span>
-        </span>
+      <!-- Countdown Timer (simplified) -->
+      <div v-if="countdown" class="inline-block">
+        <div class="text-brand-navy/70 text-xs mb-1.5 tracking-wide">優惠倒數</div>
+        <div class="flex items-baseline gap-0.5">
+          <!-- Days -->
+          <span
+            class="text-xl font-bold text-brand-orange tabular-nums"
+            :class="{ 'animate-pulse-once': animatingDays }"
+          >{{ countdown.days }}</span>
+          <span class="text-brand-navy/60 text-sm mx-0.5">天</span>
+
+          <!-- Hours -->
+          <span
+            class="text-xl font-bold text-brand-orange tabular-nums"
+            :class="{ 'animate-pulse-once': animatingHours }"
+          >{{ String(countdown.hours).padStart(2, '0') }}</span>
+          <span class="text-brand-navy/60 text-sm mx-0.5">時</span>
+
+          <!-- Minutes -->
+          <span
+            class="text-xl font-bold text-brand-orange tabular-nums"
+            :class="{ 'animate-pulse-once': animatingMinutes }"
+          >{{ String(countdown.minutes).padStart(2, '0') }}</span>
+          <span class="text-brand-navy/60 text-sm mx-0.5">分</span>
+
+          <!-- Seconds -->
+          <span
+            class="text-xl font-bold text-brand-orange tabular-nums"
+            :class="{ 'animate-pulse-once': animatingSeconds }"
+          >{{ String(countdown.seconds).padStart(2, '0') }}</span>
+          <span class="text-brand-navy/60 text-sm ml-0.5">秒</span>
+        </div>
       </div>
     </div>
 
     <!-- No active promo: Just show the price -->
     <div v-else>
-      <span class="text-3xl font-bold text-indigo-600">
+      <span class="text-3xl font-bold text-brand-teal">
         {{ formatPrice(displayPrice) }}
       </span>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Subtle pulse animation when digit changes */
+.animate-pulse-once {
+  animation: pulseOnce 0.3s ease-in-out;
+}
+
+@keyframes pulseOnce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+</style>

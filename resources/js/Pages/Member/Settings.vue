@@ -71,13 +71,13 @@ const getStatusClass = (order) => {
 
 <template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">
+    <h1 class="text-2xl sm:text-3xl font-bold text-brand-navy mb-8">
       帳號設定
     </h1>
 
     <!-- Profile Form -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg font-semibold text-brand-navy mb-4">
         個人資料
       </h2>
 
@@ -106,7 +106,7 @@ const getStatusClass = (order) => {
             v-model="form.nickname"
             type="text"
             maxlength="100"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal"
             :class="{ 'border-red-500': form.errors.nickname }"
           />
           <p v-if="form.errors.nickname" class="mt-1 text-sm text-red-600">
@@ -124,7 +124,7 @@ const getStatusClass = (order) => {
             v-model="form.real_name"
             type="text"
             maxlength="100"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal"
             :class="{ 'border-red-500': form.errors.real_name }"
           />
           <p v-if="form.errors.real_name" class="mt-1 text-sm text-red-600">
@@ -142,7 +142,7 @@ const getStatusClass = (order) => {
             v-model="form.phone"
             type="tel"
             maxlength="20"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal"
             :class="{ 'border-red-500': form.errors.phone }"
           />
           <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600">
@@ -159,7 +159,7 @@ const getStatusClass = (order) => {
             id="birth_date"
             v-model="form.birth_date"
             type="date"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal"
             :class="{ 'border-red-500': form.errors.birth_date }"
           />
           <p v-if="form.errors.birth_date" class="mt-1 text-sm text-red-600">
@@ -172,7 +172,7 @@ const getStatusClass = (order) => {
           <button
             type="submit"
             :disabled="form.processing"
-            class="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full sm:w-auto px-6 py-2 bg-brand-teal text-white font-medium rounded-lg hover:bg-brand-teal/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span v-if="form.processing">儲存中...</span>
             <span v-else>儲存變更</span>
@@ -183,7 +183,7 @@ const getStatusClass = (order) => {
 
     <!-- Order History -->
     <div class="bg-white rounded-lg shadow-md p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      <h2 class="text-lg font-semibold text-brand-navy mb-4">
         訂單紀錄
       </h2>
 
