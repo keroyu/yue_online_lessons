@@ -6,7 +6,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import AppLayout from './Components/Layout/AppLayout.vue'
 
 createInertiaApp({
-  title: (title) => title ? `${title} - YUE Lessons` : 'YUE Lessons',
+  title: (title) => title ? `${title} - Your Time Bank` : 'Your Time Bank',
   resolve: (name) => {
     const pages = import.meta.glob('./Pages/**/*.vue', { eager: true })
     const page = pages[`./Pages/${name}.vue`]

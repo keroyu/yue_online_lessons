@@ -35,6 +35,7 @@ class UpdateCourseRequest extends FormRequest
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
+            'is_visible' => ['nullable', 'boolean'],
         ];
     }
 

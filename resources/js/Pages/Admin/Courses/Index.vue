@@ -113,12 +113,21 @@ const formatPrice = (price) => {
                       {{ course.instructor_name }}
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
-                      <span
-                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                        :class="statusBadge(course.status).class"
-                      >
-                        {{ statusBadge(course.status).text }}
-                      </span>
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                          :class="statusBadge(course.status).class"
+                        >
+                          {{ statusBadge(course.status).text }}
+                        </span>
+                        <span
+                          v-if="!course.is_visible"
+                          class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-purple-100 text-purple-800"
+                          title="此課程已隱藏，不會顯示於首頁"
+                        >
+                          隱藏
+                        </span>
+                      </div>
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
                       <div class="text-gray-900">{{ formatPrice(course.price) }}</div>

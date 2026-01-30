@@ -20,7 +20,7 @@ class HomeController extends Controller
 
         $courses = Course::visibleToUser($user)
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status', 'is_published'])
+            ->select(['id', 'name', 'tagline', 'price', 'thumbnail', 'instructor_name', 'type', 'status', 'is_published', 'is_visible'])
             ->get()
             ->map(fn ($course) => [
                 'id' => $course->id,
@@ -32,6 +32,7 @@ class HomeController extends Controller
                 'type' => $course->type,
                 'status' => $course->status,
                 'is_published' => $course->is_published,
+                'is_visible' => $course->is_visible,
             ]);
 
         return Inertia::render('Home', [

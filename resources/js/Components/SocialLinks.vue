@@ -42,7 +42,7 @@ const socialLinks = [
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
     <h3 class="text-lg font-semibold text-gray-900 mb-4">追蹤站長</h3>
-    <div class="flex flex-wrap gap-2">
+    <div class="grid grid-cols-2 gap-2">
       <a
         v-for="link in socialLinks"
         :key="link.platform"
@@ -50,7 +50,7 @@ const socialLinks = [
         target="_blank"
         rel="noopener noreferrer"
         :aria-label="link.label"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition-colors"
+        class="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition-colors"
       >
         <span class="w-5 h-5" v-html="link.icon"></span>
         <span>{{ link.label }}</span>

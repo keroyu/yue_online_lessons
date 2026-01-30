@@ -31,6 +31,7 @@ class CourseController extends Controller
                 'instructor_name' => $course->instructor_name,
                 'status' => $course->status,
                 'is_published' => $course->is_published,
+                'is_visible' => $course->is_visible,
                 'price' => $course->price,
                 'original_price' => $course->original_price,
                 'promo_ends_at' => $course->promo_ends_at?->format('Y-m-d H:i'),
@@ -69,6 +70,7 @@ class CourseController extends Controller
         // Set default values
         $data['status'] = 'draft';
         $data['is_published'] = false;
+        $data['is_visible'] = $data['is_visible'] ?? true;
         $data['sort_order'] = Course::max('sort_order') + 1;
 
         // Set default promo_ends_at to 30 days from now if original_price is provided
@@ -125,6 +127,7 @@ class CourseController extends Controller
                 'duration_formatted' => $course->duration_formatted,
                 'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
+                'is_visible' => $course->is_visible,
             ],
             'images' => $course->images()
                 ->latest()

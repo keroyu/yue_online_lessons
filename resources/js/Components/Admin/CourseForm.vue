@@ -38,6 +38,7 @@ const form = useForm({
   duration_minutes: props.course?.duration_minutes || '',
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
+  is_visible: props.course?.is_visible ?? true,
 })
 
 // Image gallery modal
@@ -418,6 +419,35 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">https://portaly.cc/kyontw/product/{ID}</code>
           </p>
           <p v-if="form.errors.portaly_product_id" :class="errorTextClasses">{{ form.errors.portaly_product_id }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visibility Settings -->
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+      <div class="px-6 py-6 sm:p-8">
+        <div class="border-b border-gray-200 pb-6 mb-8">
+          <h3 class="text-xl font-semibold text-gray-900">顯示設定</h3>
+          <p class="mt-1 text-sm text-gray-500">控制課程在首頁的顯示狀態。</p>
+        </div>
+
+        <div class="flex items-start">
+          <div class="flex items-center h-6">
+            <input
+              id="is_visible"
+              v-model="form.is_visible"
+              type="checkbox"
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+          </div>
+          <div class="ml-3">
+            <label for="is_visible" class="text-sm font-semibold text-gray-900 cursor-pointer">
+              是否顯示於首頁
+            </label>
+            <p class="text-sm text-gray-500 mt-1">
+              關閉後課程不會出現在首頁，但仍可透過網址存取和購買
+            </p>
+          </div>
         </div>
       </div>
     </div>

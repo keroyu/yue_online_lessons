@@ -19,7 +19,7 @@ const logout = () => {
         <!-- Logo -->
         <div class="flex items-center">
           <Link href="/" class="text-xl font-bold text-white">
-            YUE Lessons
+            Your Time Bank
           </Link>
         </div>
 

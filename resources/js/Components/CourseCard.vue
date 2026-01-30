@@ -59,6 +59,11 @@ const statusBadge = computed(() => {
 
   return null
 })
+
+// Hidden badge (admin only)
+const isHidden = computed(() => {
+  return props.showStatusBadge && props.course.is_visible === false
+})
 </script>
 
 <template>
@@ -95,6 +100,15 @@ const statusBadge = computed(() => {
         :class="statusBadge.class"
       >
         {{ statusBadge.label }}
+      </span>
+
+      <!-- Hidden badge (admin only) -->
+      <span
+        v-if="isHidden"
+        class="absolute top-10 right-2 text-xs px-2 py-1 rounded font-medium bg-purple-500 text-white"
+        title="此課程已隱藏，不會顯示於首頁"
+      >
+        隱藏
       </span>
     </div>
 

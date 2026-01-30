@@ -25,6 +25,7 @@ class Course extends Model
         'type',
         'is_published',
         'status',
+        'is_visible',
         'sale_at',
         'promo_ends_at',
         'sort_order',
@@ -38,6 +39,7 @@ class Course extends Model
             'price' => 'decimal:2',
             'original_price' => 'integer',
             'is_published' => 'boolean',
+            'is_visible' => 'boolean',
             'sort_order' => 'integer',
             'sale_at' => 'datetime',
             'promo_ends_at' => 'datetime',
@@ -76,12 +78,23 @@ class Course extends Model
     }
 
     /**
-     * Scope for visible courses (preorder or selling, and published)
+     * Scope for visible courses (preorder or selling, published, and is_visible)
      */
     public function scopeVisible(Builder $query): Builder
     {
         return $query->whereIn('status', ['preorder', 'selling'])
-            ->where('is_published', true);
+            ->where('is_published', true)
+            ->where('is_visible', true);
+    }
+
+    /**
+     * Check if the course is hidden
+     */
+    protected function isHidden(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => !$this->is_visible
+        );
     }
 
     /**
