@@ -239,7 +239,7 @@ const closeLegalModal = () => {
                     isPreviewMode
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : (agreed && portalyUrl
-                          ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98]'
+                          ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer'
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
                   ]"
                 >
