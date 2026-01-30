@@ -14,6 +14,8 @@ export default {
           red: '#FF4438',
           navy: '#373557',
           teal: '#3F83A3',
+          gold: '#F0C14B',
+          'gold-dark': '#C7A33B',
         },
       },
     },

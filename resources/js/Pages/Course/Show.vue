@@ -235,12 +235,12 @@ const closeLegalModal = () => {
                   @click="openPortaly"
                   :disabled="!isPreviewMode && (!agreed || !portalyUrl)"
                   :class="[
-                    'w-full sm:w-auto px-8 py-3 rounded-lg font-semibold text-white transition-colors',
+                    'w-full sm:w-auto px-10 py-3 rounded-full font-semibold transition-all shadow-sm',
                     isPreviewMode
-                      ? 'bg-gray-400 hover:bg-gray-500'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : (agreed && portalyUrl
-                          ? 'bg-brand-teal hover:bg-brand-teal/80'
-                          : 'bg-gray-300 cursor-not-allowed')
+                          ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98]'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
                   ]"
                 >
                   {{ isPreviewMode ? '預覽購買按鈕' : '立即購買' }}
