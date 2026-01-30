@@ -5,8 +5,8 @@ import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 
-// Throttling: 5-minute threshold before marking lesson as complete on server
-const COMPLETION_THRESHOLD_MS = 5 * 60 * 1000
+// Throttling: 2-minute threshold before marking lesson as complete on server
+const COMPLETION_THRESHOLD_MS = 2 * 60 * 1000
 
 const props = defineProps({
   course: {
