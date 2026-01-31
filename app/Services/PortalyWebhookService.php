@@ -125,8 +125,10 @@ class PortalyWebhookService
         $course = Course::where('portaly_product_id', $productId)->first();
 
         if (!$course) {
-            Log::error('Webhook: Course not found for productId', ['productId' => $productId]);
-            throw new \RuntimeException("Course not found for productId: {$productId}");
+            // Product not associated with any course - silently ignore
+            // This happens when Portaly sends webhooks for unrelated products
+            Log::info('Webhook: Ignoring unrelated product', ['productId' => $productId]);
+            return null;
         }
 
         // Create purchase record
@@ -207,13 +209,25 @@ class PortalyWebhookService
     protected function handlePaidEvent(array $data): array
     {
         $customerData = $data['customerData'] ?? [];
+        $productId = $data['productId'] ?? null;
+
+        // Check if this product is associated with a course first
+        // to avoid creating users for unrelated Portaly products
+        $course = Course::where('portaly_product_id', $productId)->first();
+
+        if (!$course) {
+            // Silently ignore unrelated products - no need to log every time
+            return [
+                'success' => true,
+                'message' => 'Unrelated product, ignored',
+            ];
+        }
 
         Log::info('Webhook: Processing paid event', [
             'order_id' => $data['id'] ?? 'unknown',
             'email' => $customerData['email'] ?? 'unknown',
-            'name' => $customerData['name'] ?? 'not provided',
-            'phone' => $customerData['phone'] ?? 'not provided',
-            'product_id' => $data['productId'] ?? 'unknown',
+            'product_id' => $productId,
+            'course_id' => $course->id,
         ]);
 
         try {
@@ -244,13 +258,6 @@ class PortalyWebhookService
             return [
                 'success' => true,
                 'message' => 'Duplicate order, skipped',
-            ];
-        } catch (\RuntimeException $e) {
-            // Course not found - log but don't fail (prevent retry loops)
-            Log::error('Webhook: ' . $e->getMessage(), ['data' => $data]);
-            return [
-                'success' => true,
-                'message' => $e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('Webhook: Unexpected error in handlePaidEvent', [
