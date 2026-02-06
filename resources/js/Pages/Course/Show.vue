@@ -5,6 +5,11 @@ import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 
+// Disable default layout - this page manages its own AppLayout with hideNav prop
+defineOptions({
+  layout: false
+})
+
 const props = defineProps({
   course: {
     type: Object,
