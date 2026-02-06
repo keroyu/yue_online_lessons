@@ -496,32 +496,35 @@ Task: T018 "Create VerificationCode model"
 
 ### App.js 預設 Layout 修正
 
-- [x] T100 [US7] 修改 app.js 預設 layout 邏輯
+- [x] T100 [US7] 修改 app.js 預設 layout 邏輯 in `resources/js/app.js`
   - 改為 `if (page.default.layout === undefined)` 判斷
   - 支援頁面設定 `layout: false` 停用預設 layout
+  - **重要**：原本 `page.default.layout || AppLayout` 會導致 `false || AppLayout = AppLayout`
 
-### Course/Show.vue Landing Mode
+### AppLayout Props Extension
 
-- [x] T101 [US7] 加入 `defineOptions({ layout: false })` 停用預設 layout
-  - 頁面自行管理 AppLayout 以傳遞 hideNav prop
-
-- [x] T102 [US7] 實作 Landing Page mode 偵測
-  - `const isLandingMode = computed(() => new URLSearchParams(window.location.search).get("lp") === "1")`
-
-- [x] T103 [US7] 傳遞 hideNav 和 hideBreadcrumb props 給 AppLayout
-  - `<AppLayout :hide-nav="isLandingMode" :hide-breadcrumb="isLandingMode">`
-
-### AppLayout Props
-
-- [x] T104 [P] [US7] 新增 `hideNav` prop 到 AppLayout
+- [x] T101 [P] [US7] Add `hideNav` prop to AppLayout in `resources/js/Components/Layout/AppLayout.vue`
   - Type: Boolean, Default: false
-  - 控制 Navigation 顯示：`<Navigation v-if="!hideNav" />`
+  - Conditionally render Navigation: `<Navigation v-if="!hideNav" />`
 
-- [x] T105 [P] [US7] 新增 `hideBreadcrumb` prop 到 AppLayout
+- [x] T102 [P] [US7] Add `hideBreadcrumb` prop to AppLayout in `resources/js/Components/Layout/AppLayout.vue`
   - Type: Boolean, Default: false
   - 預留給未來 Breadcrumb 元件使用
 
-### 隱藏返回連結
+### Course Page Landing Mode
+
+- [x] T103 [US7] 加入 `defineOptions({ layout: false })` in `resources/js/Pages/Course/Show.vue`
+  - 停用預設 layout，避免 Navigation 被渲染兩次
+  - 頁面自行管理 AppLayout 以傳遞 hideNav prop
+
+- [x] T104 [US7] Implement Landing Page mode detection in `resources/js/Pages/Course/Show.vue`
+  - Parse URL query string to detect `?lp=1` parameter
+  - Use `computed()` to create `isLandingMode` reactive property
+  - Implementation: `const isLandingMode = computed(() => new URLSearchParams(window.location.search).get("lp") === "1")`
+
+- [x] T105 [US7] Pass hideNav and hideBreadcrumb props to AppLayout based on landing mode
+  - `<AppLayout :hide-nav="isLandingMode" :hide-breadcrumb="isLandingMode">`
+  - Ensure Footer remains visible (not affected by landing mode)
 
 - [x] T106 [US7] 在 landing mode 隱藏「返回課程列表」連結
   - `<Link v-if="!isLandingMode" href="/" ...>返回課程列表</Link>`
@@ -532,6 +535,7 @@ Task: T018 "Create VerificationCode model"
 - [x] T108 [US7] 測試 `/course/1` 正常顯示 Navigation
 - [x] T109 [US7] 測試 UTM 參數相容性 `?lp=1&utm_source=facebook`
 - [x] T110 [US7] 測試購買流程在 landing mode 正常運作
+- [x] T111 [US7] Build verification - `npm run build` passes
 
 **Checkpoint**: Landing Page mode fully functional for external marketing links ✅
 
@@ -552,8 +556,8 @@ Task: T018 "Create VerificationCode model"
 | Phase 9: 縮圖 URL | 8 | 4 |
 | Phase 10: Webhook 購買 | 17 | 2 |
 | Phase 11: 全站配色優化 | 16 | 12 |
-| Phase 12: Landing Page 模式 | 11 | 2 |
-| **Total** | **116** | **46** |
+| Phase 12: Landing Page 模式 | 12 | 2 |
+| **Total** | **117** | **46** |
 
 ---
 

@@ -148,6 +148,7 @@ tests/
 | **Webhook** | 簽章驗證 + 冪等處理 | 確保安全性和可靠性 |
 | **Guest Purchase** | Email 輸入 + 自動註冊 | 降低購買門檻，購買即註冊 |
 | **Countdown Timer** | 簡化設計，無深色背景 | 減少視覺層級複雜度，融入頁面風格 |
+| **Landing Page Mode** | 前端參數控制 UI 顯示 | 純前端實作，不需後端變更，提升外部連結轉換率 |
 
 ---
 
@@ -301,7 +302,7 @@ protected function thumbnailUrl(): Attribute
 
 **功能描述**：
 - 透過 URL 參數 `?lp=1` 啟用 Landing Page 模式
-- 隱藏頂部導覽列（Navigation）和返回連結
+- 隱藏頂部導覽列（NavBar）和導航麵包屑（Breadcrumb）
 - 保留完整的課程資訊、價格、購買功能和頁尾
 - 支援與 UTM 參數並用（如 `?lp=1&utm_source=facebook`）
 
@@ -311,6 +312,8 @@ protected function thumbnailUrl(): Attribute
 - **登入功能保留**：透過購買區塊的「建議先登入」連結進入登入流程
 
 **實作方式**：
+
+**重要**：由於 `app.js` 會自動為所有頁面套用 `AppLayout` 作為預設 layout，Course/Show.vue 必須停用預設 layout 以避免 Navigation 被渲染兩次。
 
 ```javascript
 // resources/js/app.js - 修改預設 layout 邏輯
@@ -328,6 +331,7 @@ resolve: (name) => {
 ```vue
 // resources/js/Pages/Course/Show.vue
 <script setup>
+import { computed } from 'vue'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 
 // Disable default layout - this page manages its own AppLayout with hideNav prop
@@ -344,6 +348,8 @@ const isLandingMode = computed(() => {
 <template>
   <AppLayout :hide-nav="isLandingMode" :hide-breadcrumb="isLandingMode">
     <!-- 課程內容 -->
+    <!-- 返回連結也要隱藏 -->
+    <Link v-if="!isLandingMode" href="/">返回課程列表</Link>
   </AppLayout>
 </template>
 ```
@@ -360,7 +366,9 @@ defineProps({
 <template>
   <div>
     <Navigation v-if="!hideNav" />
-    <main><slot /></main>
+    <main>
+      <slot />
+    </main>
     <Footer />
   </div>
 </template>
