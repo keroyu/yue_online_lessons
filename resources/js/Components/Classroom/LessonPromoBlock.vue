@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   lessonId: { type: Number, required: true },
-  delayMinutes: { type: Number, required: true },
+  delaySeconds: { type: Number, required: true },
   promoHtml: { type: String, required: true },
 })
 
@@ -20,7 +20,7 @@ onMounted(() => {
     return
   }
 
-  if (props.delayMinutes === 0) {
+  if (props.delaySeconds === 0) {
     unlock()
     return
   }
@@ -29,7 +29,7 @@ onMounted(() => {
   const savedElapsed = parseInt(localStorage.getItem(ELAPSED_KEY.value) || '0', 10)
   elapsedSeconds.value = savedElapsed
 
-  if (savedElapsed >= props.delayMinutes * 60) {
+  if (savedElapsed >= props.delaySeconds) {
     unlock()
     return
   }
@@ -40,7 +40,7 @@ onMounted(() => {
     if (elapsedSeconds.value % 5 === 0) {
       localStorage.setItem(ELAPSED_KEY.value, String(elapsedSeconds.value))
     }
-    if (elapsedSeconds.value >= props.delayMinutes * 60) {
+    if (elapsedSeconds.value >= props.delaySeconds) {
       unlock()
     }
   }, 1000)
@@ -65,7 +65,7 @@ const unlock = () => {
 }
 
 const remainingSeconds = computed(() =>
-  Math.max(0, props.delayMinutes * 60 - elapsedSeconds.value)
+  Math.max(0, props.delaySeconds - elapsedSeconds.value)
 )
 
 const formattedTime = computed(() => {

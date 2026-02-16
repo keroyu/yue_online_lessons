@@ -14,7 +14,7 @@
 
 ### Session 2026-02-05 (促銷區塊)
 
-- Q: 促銷區塊需要哪些欄位？ → A: **只需 2 個欄位**：`promo_delay_minutes`（延遲分鐘數）+ `promo_html`（自訂 HTML）。不需要建立多個欄位（如 promo_type、promo_title 等），自訂 HTML 可滿足所有需求。
+- Q: 促銷區塊需要哪些欄位？ → A: **只需 2 個欄位**：`promo_delay_seconds`（延遲秒數）+ `promo_html`（自訂 HTML）。不需要建立多個欄位（如 promo_type、promo_title 等），自訂 HTML 可滿足所有需求。
 - Q: 功能適用範圍？ → A: **所有課程**（standard + drip）
 - Q: 每個 Lesson 可以有幾個促銷區塊？ → A: **1 個**
 - Q: 達標後是否永久顯示？ → A: **是**，使用 localStorage 記錄，永久顯示
@@ -158,11 +158,11 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** Lesson 設定 `promo_delay_minutes = 5`，**When** 使用者剛進入 Lesson 頁面，**Then** 顯示「請先觀看課程」提示和「4:59」倒數計時
-2. **Given** 使用者已觀看 5 分鐘，**When** 倒數歸零，**Then** 促銷區塊內容（自訂 HTML）顯示
+1. **Given** Lesson 設定 `promo_delay_seconds = 300`，**When** 使用者剛進入 Lesson 頁面，**Then** 顯示「請先觀看課程」提示和「4:59」倒數計時
+2. **Given** 使用者已觀看 300 秒，**When** 倒數歸零，**Then** 促銷區塊內容（自訂 HTML）顯示
 3. **Given** 使用者已達標，**When** 重新整理頁面或隔天再訪，**Then** 促銷區塊直接顯示（無需再次等待）
-4. **Given** Lesson 設定 `promo_delay_minutes = 0`，**When** 使用者進入 Lesson，**Then** 促銷區塊立即顯示
-5. **Given** Lesson 未設定促銷區塊（`promo_delay_minutes = null`），**When** 使用者進入 Lesson，**Then** 不顯示任何促銷區塊
+4. **Given** Lesson 設定 `promo_delay_seconds = 0`，**When** 使用者進入 Lesson，**Then** 促銷區塊立即顯示
+5. **Given** Lesson 未設定促銷區塊（`promo_delay_seconds = null`），**When** 使用者進入 Lesson，**Then** 不顯示任何促銷區塊
 
 ---
 
@@ -176,8 +176,8 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** 管理員在 Lesson 編輯頁，**When** 輸入延遲分鐘數和 HTML 內容並儲存，**Then** 設定正確保存
-2. **Given** 管理員清空延遲分鐘數，**When** 儲存，**Then** 促銷區塊功能停用
+1. **Given** 管理員在 Lesson 編輯頁，**When** 輸入延遲秒數和 HTML 內容並儲存，**Then** 設定正確保存
+2. **Given** 管理員清空延遲秒數，**When** 儲存，**Then** 促銷區塊功能停用
 3. **Given** 管理員輸入 HTML 包含按鈕和連結，**When** 前台顯示，**Then** HTML 正確渲染且連結可點擊
 
 ---
@@ -245,11 +245,11 @@
 - **FR-026**: 管理員 MUST 可透過調整 Lesson 的 sort_order 來控制發送順序
 
 **Lesson 促銷區塊（適用所有課程）**
-- **FR-027**: 每個 Lesson MAY 設定促銷區塊延遲時間（promo_delay_minutes）
+- **FR-027**: 每個 Lesson MAY 設定促銷區塊延遲時間（promo_delay_seconds）
 - **FR-028**: 每個 Lesson MAY 設定促銷區塊自訂 HTML 內容（promo_html）
-- **FR-029**: 當 promo_delay_minutes 為 null 或 promo_html 為空時，MUST 不顯示促銷區塊
-- **FR-030**: 當 promo_delay_minutes = 0 時，MUST 立即顯示促銷區塊
-- **FR-031**: 當 promo_delay_minutes > 0 時，MUST 顯示倒數計時，達標後才顯示促銷內容
+- **FR-029**: 當 promo_delay_seconds 為 null 或 promo_html 為空時，MUST 不顯示促銷區塊
+- **FR-030**: 當 promo_delay_seconds = 0 時，MUST 立即顯示促銷區塊
+- **FR-031**: 當 promo_delay_seconds > 0 時，MUST 顯示倒數計時，達標後才顯示促銷內容
 - **FR-032**: 系統 MUST 追蹤使用者觀看時間（累積計算，支援中斷後繼續）
 - **FR-033**: 使用者達標後，系統 MUST 永久記錄（使用本地儲存），再次訪問時直接顯示
 - **FR-034**: 管理員 MUST 可在 Lesson 編輯頁設定促銷區塊（延遲時間 + HTML）
@@ -269,7 +269,7 @@
   - status_changed_at（狀態變更時間）
   - unsubscribe_token（退訂連結用）
 - **Lesson（擴充）**: 新增促銷區塊相關屬性
-  - promo_delay_minutes（延遲分鐘數，null=停用、0=立即、>0=延遲）
+  - promo_delay_seconds（延遲秒數，null=停用、0=立即、>0=延遲）
   - promo_html（自訂 HTML 內容）
 
 ## Success Criteria *(mandatory)*
@@ -330,7 +330,7 @@
 
 - **Lesson 促銷區塊**：在 Lesson 內可建立延遲顯示的促銷區塊。
   - 目的：建立價值感和過濾精準名單
-  - 只需 2 個欄位：`promo_delay_minutes` + `promo_html`
+  - 只需 2 個欄位：`promo_delay_seconds` + `promo_html`
   - 使用自訂 HTML 滿足所有需求（購買課程、預約顧問等）
   - 適用於所有課程類型（standard + drip）
   - 達標後永久顯示（localStorage 記錄）

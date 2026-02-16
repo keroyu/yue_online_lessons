@@ -15,7 +15,7 @@ const form = ref({
   video_url: '',
   html_content: '',
   duration_seconds: '',
-  promo_delay_minutes: '',
+  promo_delay_seconds: '',
   promo_html: '',
 })
 
@@ -28,7 +28,7 @@ onMounted(() => {
       video_url: props.lesson.video_url || '',
       html_content: props.lesson.html_content || '',
       duration_seconds: props.lesson.duration_seconds || '',
-      promo_delay_minutes: props.lesson.promo_delay_minutes ?? '',
+      promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
     }
   }
@@ -69,7 +69,7 @@ const submit = () => {
     video_url: form.value.video_url || null,
     html_content: form.value.html_content || null,
     duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
-    promo_delay_minutes: form.value.promo_delay_minutes !== '' ? parseInt(form.value.promo_delay_minutes) : null,
+    promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
   })
 }
@@ -188,13 +188,13 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
 
                 <div class="space-y-4">
                   <div>
-                    <label for="promo_delay_minutes" :class="labelClasses">延遲顯示（分鐘）</label>
+                    <label for="promo_delay_seconds" :class="labelClasses">延遲顯示（秒）</label>
                     <input
-                      id="promo_delay_minutes"
-                      v-model="form.promo_delay_minutes"
+                      id="promo_delay_seconds"
+                      v-model="form.promo_delay_seconds"
                       type="number"
                       min="0"
-                      max="120"
+                      max="7200"
                       placeholder="留空則不顯示促銷區塊"
                       :class="inputClasses"
                     />

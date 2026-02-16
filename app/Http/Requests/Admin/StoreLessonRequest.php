@@ -28,7 +28,7 @@ class StoreLessonRequest extends FormRequest
             'video_url' => ['nullable', 'url', 'max:500'],
             'html_content' => ['nullable', 'string'],
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
-            'promo_delay_minutes' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
             'promo_html' => ['nullable', 'string', 'max:10000'],
         ];
     }
@@ -46,9 +46,9 @@ class StoreLessonRequest extends FormRequest
             'video_url.max' => '影片連結太長',
             'duration_seconds.integer' => '時長必須是整數',
             'duration_seconds.min' => '時長不能為負數',
-            'promo_delay_minutes.integer' => '延遲時間必須是整數',
-            'promo_delay_minutes.min' => '延遲時間不能為負數',
-            'promo_delay_minutes.max' => '延遲時間不能超過 120 分鐘',
+            'promo_delay_seconds.integer' => '延遲時間必須是整數',
+            'promo_delay_seconds.min' => '延遲時間不能為負數',
+            'promo_delay_seconds.max' => '延遲時間不能超過 7200 秒',
             'promo_html.max' => '促銷內容太長',
         ];
     }

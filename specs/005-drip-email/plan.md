@@ -107,7 +107,7 @@ resources/
 ├── js/
 │   ├── Components/
 │   │   ├── Admin/
-│   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_minutes, promo_html 欄位
+│   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_seconds, promo_html 欄位
 │   │   ├── Classroom/
 │   │   │   └── LessonPromoBlock.vue        # NEW: 促銷區塊組件（含倒數計時 + localStorage）
 │   │   └── Course/
@@ -265,7 +265,7 @@ private function formatLessonFull(Lesson $lesson, array $completedLessonIds): ar
 {
     return [
         // ... existing fields ...
-        'promo_delay_minutes' => $lesson->promo_delay_minutes,
+        'promo_delay_seconds' => $lesson->promo_delay_seconds,
         'promo_html' => $lesson->promo_html,
     ];
 }
@@ -280,9 +280,9 @@ private function formatLessonFull(Lesson $lesson, array $completedLessonIds): ar
 
   <div class="space-y-4">
     <div>
-      <label :class="labelClasses">延遲顯示（分鐘）</label>
+      <label :class="labelClasses">延遲顯示（秒）</label>
       <input
-        v-model="form.promo_delay_minutes"
+        v-model="form.promo_delay_seconds"
         type="number"
         min="0"
         :class="inputClasses"
@@ -312,7 +312,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   lessonId: { type: Number, required: true },
-  delayMinutes: { type: Number, required: true },
+  delaySeconds: { type: Number, required: true },
   promoHtml: { type: String, required: true },
 })
 
@@ -329,7 +329,7 @@ onMounted(() => {
     return
   }
 
-  if (props.delayMinutes === 0) {
+  if (props.delaySeconds === 0) {
     unlock()
     return
   }
@@ -338,7 +338,7 @@ onMounted(() => {
   const savedElapsed = parseInt(localStorage.getItem(ELAPSED_KEY) || '0', 10)
   elapsedSeconds.value = savedElapsed
 
-  if (savedElapsed >= props.delayMinutes * 60) {
+  if (savedElapsed >= props.delaySeconds) {
     unlock()
     return
   }
@@ -349,7 +349,7 @@ onMounted(() => {
     if (elapsedSeconds.value % 5 === 0) {
       localStorage.setItem(ELAPSED_KEY, String(elapsedSeconds.value))
     }
-    if (elapsedSeconds.value >= props.delayMinutes * 60) {
+    if (elapsedSeconds.value >= props.delaySeconds) {
       unlock()
     }
   }, 1000)
@@ -371,7 +371,7 @@ const unlock = () => {
 }
 
 const remainingSeconds = computed(() =>
-  Math.max(0, props.delayMinutes * 60 - elapsedSeconds.value)
+  Math.max(0, props.delaySeconds - elapsedSeconds.value)
 )
 
 const formattedTime = computed(() => {

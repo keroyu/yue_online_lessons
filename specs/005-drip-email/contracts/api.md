@@ -153,7 +153,7 @@
     is_unlocked: boolean;
     unlock_in_days: number | null; // null if already unlocked
     // Promo block fields (all courses)
-    promo_delay_minutes: number | null; // null=disabled, 0=immediate, >0=delay
+    promo_delay_seconds: number | null; // null=disabled, 0=immediate, >0=delay
     promo_html: string | null;
   }>;
   subscription: {
@@ -333,16 +333,16 @@
   currentLesson: {
     // ... existing fields ...
     // Promo block (NEW)
-    promo_delay_minutes: number | null;
+    promo_delay_seconds: number | null;
     promo_html: string | null;
   };
 }
 ```
 
 **Frontend Behavior** (in `Classroom.vue`):
-- `promo_delay_minutes = null` 或 `promo_html` 為空 → 不顯示促銷區塊
-- `promo_delay_minutes = 0` → 立即顯示 `promo_html`
-- `promo_delay_minutes > 0` → 顯示倒數計時，達標後顯示 `promo_html`
+- `promo_delay_seconds = null` 或 `promo_html` 為空 → 不顯示促銷區塊
+- `promo_delay_seconds = 0` → 立即顯示 `promo_html`
+- `promo_delay_seconds > 0` → 顯示倒數計時，達標後顯示 `promo_html`
 - 達標狀態存於 localStorage（key: `promo_unlocked_lesson_{lesson_id}`），永久有效
 
 ---
@@ -358,7 +358,7 @@
 **Additional Request Fields**:
 ```json
 {
-  "promo_delay_minutes": 5,
+  "promo_delay_seconds": 5,
   "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>"
 }
 ```

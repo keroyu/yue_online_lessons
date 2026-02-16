@@ -20,7 +20,7 @@ class Lesson extends Model
         'video_id',
         'video_url',
         'html_content',
-        'promo_delay_minutes',
+        'promo_delay_seconds',
         'promo_html',
         'duration_seconds',
         'sort_order',
@@ -31,7 +31,7 @@ class Lesson extends Model
         return [
             'duration_seconds' => 'integer',
             'sort_order' => 'integer',
-            'promo_delay_minutes' => 'integer',
+            'promo_delay_seconds' => 'integer',
         ];
     }
 
@@ -100,7 +100,7 @@ class Lesson extends Model
     protected function hasPromoBlock(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->promo_delay_minutes !== null && !empty($this->promo_html)
+            get: fn () => $this->promo_delay_seconds !== null && !empty($this->promo_html)
         );
     }
 
@@ -110,7 +110,7 @@ class Lesson extends Model
     protected function isPromoImmediate(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->promo_delay_minutes === 0
+            get: fn () => $this->promo_delay_seconds === 0
         );
     }
 }

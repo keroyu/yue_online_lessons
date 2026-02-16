@@ -6,24 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('lessons', function (Blueprint $table) {
-            $table->unsignedInteger('promo_delay_seconds')->nullable()->after('html_content');
-            $table->text('promo_html')->nullable()->after('promo_delay_seconds');
+            $table->renameColumn('promo_delay_minutes', 'promo_delay_seconds');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('lessons', function (Blueprint $table) {
-            $table->dropColumn(['promo_delay_seconds', 'promo_html']);
+            $table->renameColumn('promo_delay_seconds', 'promo_delay_minutes');
         });
     }
 };

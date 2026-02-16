@@ -61,7 +61,7 @@
 ## Clarifications (2026-02-05 - 促銷區塊)
 
 11. **Lesson 促銷區塊**：只需 2 個欄位
-    - `promo_delay_minutes`：null=停用、0=立即、>0=延遲
+    - `promo_delay_seconds`（秒）：null=停用、0=立即、>0=延遲
     - `promo_html`：自訂 HTML 內容
 12. **適用範圍**：所有課程類型（standard + drip）
 13. **每個 Lesson 一個促銷區塊**

@@ -291,14 +291,14 @@ class DripConversionTarget extends Model
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
-| promo_delay_minutes | INT UNSIGNED | NULLABLE | 促銷區塊延遲分鐘數（null=停用、0=立即、>0=延遲）|
+| promo_delay_seconds | INT UNSIGNED | NULLABLE | 促銷區塊延遲秒數（null=停用、0=立即、>0=延遲）|
 | promo_html | TEXT | NULLABLE | 促銷區塊自訂 HTML 內容 |
 
 **Migration**:
 ```php
 Schema::table('lessons', function (Blueprint $table) {
-    $table->unsignedInteger('promo_delay_minutes')->nullable()->after('html_content');
-    $table->text('promo_html')->nullable()->after('promo_delay_minutes');
+    $table->unsignedInteger('promo_delay_seconds')->nullable()->after('html_content');
+    $table->text('promo_html')->nullable()->after('promo_delay_seconds');
 });
 ```
 
@@ -307,7 +307,7 @@ Schema::table('lessons', function (Blueprint $table) {
 // Lesson.php - 新增到 $fillable
 protected $fillable = [
     // ... existing fields ...
-    'promo_delay_minutes',
+    'promo_delay_seconds',
     'promo_html',
 ];
 
@@ -316,7 +316,7 @@ protected function casts(): array
 {
     return [
         // ... existing casts ...
-        'promo_delay_minutes' => 'integer',
+        'promo_delay_seconds' => 'integer',
     ];
 }
 
@@ -324,14 +324,14 @@ protected function casts(): array
 protected function hasPromoBlock(): Attribute
 {
     return Attribute::make(
-        get: fn () => $this->promo_delay_minutes !== null && !empty($this->promo_html)
+        get: fn () => $this->promo_delay_seconds !== null && !empty($this->promo_html)
     );
 }
 
 protected function isPromoImmediate(): Attribute
 {
     return Attribute::make(
-        get: fn () => $this->promo_delay_minutes === 0
+        get: fn () => $this->promo_delay_seconds === 0
     );
 }
 ```
@@ -389,7 +389,7 @@ public function rules(): array
 {
     return [
         // ... existing rules ...
-        'promo_delay_minutes' => ['nullable', 'integer', 'min:0', 'max:120'],
+        'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
         'promo_html' => ['nullable', 'string', 'max:10000'],
     ];
 }
@@ -399,9 +399,9 @@ public function messages(): array
 {
     return [
         // ... existing messages ...
-        'promo_delay_minutes.integer' => '延遲時間必須是整數',
-        'promo_delay_minutes.min' => '延遲時間不能為負數',
-        'promo_delay_minutes.max' => '延遲時間不能超過 120 分鐘',
+        'promo_delay_seconds.integer' => '延遲時間必須是整數',
+        'promo_delay_seconds.min' => '延遲時間不能為負數',
+        'promo_delay_seconds.max' => '延遲時間不能超過 7200 秒',
         'promo_html.max' => '促銷內容太長',
     ];
 }

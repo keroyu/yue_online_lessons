@@ -387,10 +387,10 @@ const toggleSidebar = () => {
 
             <!-- Promo Block -->
             <LessonPromoBlock
-              v-if="selectedLesson.promo_delay_minutes !== null && selectedLesson.promo_delay_minutes !== undefined && selectedLesson.promo_html"
+              v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
               :key="selectedLesson.id"
               :lesson-id="selectedLesson.id"
-              :delay-minutes="selectedLesson.promo_delay_minutes"
+              :delay-seconds="selectedLesson.promo_delay_seconds"
               :promo-html="selectedLesson.promo_html"
             />
           </div>

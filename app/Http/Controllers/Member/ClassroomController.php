@@ -249,7 +249,7 @@ class ClassroomController extends Controller
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_unlocked' => $isLocked ? false : true,
             'unlock_in_days' => $lessonUnlockMap[$lesson->id]['unlock_in_days'] ?? 0,
-            'promo_delay_minutes' => $isLocked ? null : $lesson->promo_delay_minutes,
+            'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
             'promo_html' => $isLocked ? null : $lesson->promo_html,
         ];
     }

@@ -135,7 +135,7 @@ php artisan tinker
 ### H. Test Lesson Promo Block
 
 1. Admin: 進入課程 → 章節編輯 → 編輯某個 Lesson
-2. 在 LessonForm 中設定 `promo_delay_minutes` = 1（測試用 1 分鐘）
+2. 在 LessonForm 中設定 `promo_delay_seconds` = 60（測試用 60 秒）
 3. 設定 `promo_html` = `<div class="bg-yellow-100 p-4"><a href="/course/123">立即購買</a></div>`
 4. 儲存後以會員身份進入教室（Classroom），選擇該 Lesson
 5. 驗證：
@@ -184,7 +184,7 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 | `add_drip_fields_to_courses` | course_type, drip_interval_days |
 | `create_drip_subscriptions` | Subscription tracking |
 | `create_drip_conversion_targets` | Conversion goal mapping |
-| `add_promo_fields_to_lessons` | promo_delay_minutes, promo_html |
+| `add_promo_fields_to_lessons` | promo_delay_seconds, promo_html |
 
 ---
 
@@ -243,7 +243,7 @@ php artisan schedule:list
 
 ### Promo block not showing
 
-1. Check `promo_delay_minutes` is not null
+1. Check `promo_delay_seconds` is not null
 2. Check `promo_html` is not empty
 3. Check localStorage for `promo_unlocked_lesson_{id}`
 4. Clear localStorage and refresh to reset

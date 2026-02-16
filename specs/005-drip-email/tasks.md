@@ -21,7 +21,7 @@
 - [x] T001 Create migration to add `course_type` (enum: standard/drip, default standard) and `drip_interval_days` (unsigned int, nullable) columns to courses table in `database/migrations/`
 - [x] T002 [P] Create migration for `drip_subscriptions` table (user_id FK, course_id FK, subscribed_at, emails_sent, status enum, status_changed_at, unsubscribe_token UUID unique, unique user_id+course_id, index course_id+status) in `database/migrations/`
 - [x] T003 [P] Create migration for `drip_conversion_targets` table (drip_course_id FK, target_course_id FK, unique drip_course_id+target_course_id, index target_course_id) in `database/migrations/`
-- [x] T004 [P] Create migration to add `promo_delay_minutes` (unsigned int, nullable) and `promo_html` (text, nullable) columns to lessons table after `html_content` in `database/migrations/`
+- [x] T004 [P] Create migration to add `promo_delay_seconds` (unsigned int, nullable) and `promo_html` (text, nullable) columns to lessons table after `html_content` in `database/migrations/`
 
 ---
 
@@ -34,7 +34,7 @@
 - [x] T005 [P] Create DripSubscription model with $fillable, casts (subscribed_at datetime, status_changed_at datetime, emails_sent integer), booted() for auto UUID, user()/course() relationships, scopeActive(), isActive accessor in `app/Models/DripSubscription.php`
 - [x] T006 [P] Create DripConversionTarget model with $fillable (drip_course_id, target_course_id), dripCourse()/targetCourse() BelongsTo relationships in `app/Models/DripConversionTarget.php`
 - [x] T007 [P] Modify Course model: add course_type and drip_interval_days to $fillable, add drip_interval_days integer cast, add isDrip accessor, add scopeDrip, add dripConversionTargets() and dripSubscriptions() HasMany relationships in `app/Models/Course.php`
-- [x] T008 [P] Modify Lesson model: add promo_delay_minutes and promo_html to $fillable, add promo_delay_minutes integer cast, add hasPromoBlock and isPromoImmediate accessors in `app/Models/Lesson.php`
+- [x] T008 [P] Modify Lesson model: add promo_delay_seconds and promo_html to $fillable, add promo_delay_seconds integer cast, add hasPromoBlock and isPromoImmediate accessors in `app/Models/Lesson.php`
 - [x] T009 [P] Modify User model: add dripSubscriptions() HasMany and activeDripSubscriptions() (filtered by status=active) relationships in `app/Models/User.php`
 - [x] T010 [P] Create DripLessonMail mailable (implements ShouldQueue, uses Queueable+SerializesModels) with envelope() (subject: lesson title) and content() referencing drip-lesson blade template in `app/Mail/DripLessonMail.php`
 - [x] T011 [P] Create drip lesson email Blade template with lesson title, full html_content, video notice (if has_video), classroom link (`/member/classroom/{course_id}`), and unsubscribe link (`/drip/unsubscribe/{token}`) in `resources/views/emails/drip-lesson.blade.php`
@@ -143,11 +143,11 @@
 
 ### Implementation
 
-- [x] T033 [P] [US8] Modify StoreLessonRequest: add validation rules for promo_delay_minutes (nullable, integer, min:0, max:120) and promo_html (nullable, string, max:10000) with Chinese error messages in `app/Http/Requests/Admin/StoreLessonRequest.php`
-- [x] T034 [P] [US8] Modify LessonForm.vue: add "促銷區塊設定" section with promo_delay_minutes number input (placeholder: 留空則不顯示) and promo_html textarea, add fields to form data in `resources/js/Components/Admin/LessonForm.vue`
-- [x] T035 [US8] Create LessonPromoBlock.vue component: props (lessonId, delayMinutes, promoHtml), localStorage persistence for both unlock status (`promo_unlocked_lesson_{id}`) AND elapsed seconds (`promo_elapsed_lesson_{id}`) to support mid-session interruption resume, countdown timer (restore elapsed on mount, persist every 5s + on unmount, formatted MM:SS display), v-html render when unlocked, "請先觀看課程" placeholder when locked, clean up elapsed key on unlock in `resources/js/Components/Classroom/LessonPromoBlock.vue`
-- [x] T036 [US8] Modify ClassroomController.formatLessonFull(): add promo_delay_minutes and promo_html to returned array in `app/Http/Controllers/Member/ClassroomController.php`
-- [x] T037 [US8] Modify Classroom.vue: import and render LessonPromoBlock below lesson content when currentLesson has promo settings (promo_delay_minutes !== null && promo_html not empty) in `resources/js/Pages/Member/Classroom.vue`
+- [x] T033 [P] [US8] Modify StoreLessonRequest: add validation rules for promo_delay_seconds (nullable, integer, min:0, max:7200) and promo_html (nullable, string, max:10000) with Chinese error messages in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [x] T034 [P] [US8] Modify LessonForm.vue: add "促銷區塊設定" section with promo_delay_seconds number input (placeholder: 留空則不顯示) and promo_html textarea, add fields to form data in `resources/js/Components/Admin/LessonForm.vue`
+- [x] T035 [US8] Create LessonPromoBlock.vue component: props (lessonId, delaySeconds, promoHtml), localStorage persistence for both unlock status (`promo_unlocked_lesson_{id}`) AND elapsed seconds (`promo_elapsed_lesson_{id}`) to support mid-session interruption resume, countdown timer (restore elapsed on mount, persist every 5s + on unmount, formatted MM:SS display), v-html render when unlocked, "請先觀看課程" placeholder when locked, clean up elapsed key on unlock in `resources/js/Components/Classroom/LessonPromoBlock.vue`
+- [x] T036 [US8] Modify ClassroomController.formatLessonFull(): add promo_delay_seconds and promo_html to returned array in `app/Http/Controllers/Member/ClassroomController.php`
+- [x] T037 [US8] Modify Classroom.vue: import and render LessonPromoBlock below lesson content when currentLesson has promo settings (promo_delay_seconds !== null && promo_html not empty) in `resources/js/Pages/Member/Classroom.vue`
 
 **Checkpoint**: 促銷區塊在倒數完成後顯示，重整後永久顯示，admin 可設定
 
