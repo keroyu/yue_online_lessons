@@ -61,14 +61,11 @@ class ClassroomController extends Controller
         if ($isDrip && $dripSubscription) {
             $allOrderedLessons = $course->lessons()->orderBy('sort_order')->get();
             foreach ($allOrderedLessons as $lesson) {
-                $lessonUnlockMap[$lesson->id] = [
-                    'is_unlocked' => $this->dripService->isLessonUnlocked($dripSubscription, $lesson),
-                    'unlock_in_days' => $this->dripService->daysUntilUnlock($dripSubscription, $lesson),
-                ];
+                $lessonUnlockMap[$lesson->id] = $this->dripService->isLessonUnlocked($dripSubscription, $lesson);
             }
         }
 
-        // Load chapters with their lessons
+        // Load chapters with their lessons (filter out locked drip lessons)
         $chapters = $course->chapters()
             ->with(['lessons' => fn ($q) => $q->orderBy('sort_order')])
             ->orderBy('sort_order')
@@ -76,15 +73,22 @@ class ClassroomController extends Controller
             ->map(fn ($chapter) => [
                 'id' => $chapter->id,
                 'title' => $chapter->title,
-                'lessons' => $chapter->lessons->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds, $lessonUnlockMap)),
-            ]);
+                'lessons' => $chapter->lessons
+                    ->filter(fn ($lesson) => !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                    ->values()
+                    ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds)),
+            ])
+            ->filter(fn ($chapter) => $chapter['lessons']->isNotEmpty())
+            ->values();
 
-        // Get standalone lessons (no chapter)
+        // Get standalone lessons (no chapter, filter out locked drip lessons)
         $standaloneLessons = $course->lessons()
             ->whereNull('chapter_id')
             ->orderBy('sort_order')
             ->get()
-            ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds, $lessonUnlockMap));
+            ->filter(fn ($lesson) => !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+            ->values()
+            ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds));
 
         // Find the requested lesson, or first uncompleted, or first lesson
         $allLessons = $course->lessons()->orderBy('sort_order')->get();
@@ -93,7 +97,7 @@ class ClassroomController extends Controller
         if ($requestedLessonId) {
             $currentLesson = $allLessons->first(fn ($lesson) => $lesson->id == $requestedLessonId);
             // For drip courses, block access to locked lessons
-            if ($isDrip && $currentLesson && isset($lessonUnlockMap[$currentLesson->id]) && !$lessonUnlockMap[$currentLesson->id]['is_unlocked']) {
+            if ($isDrip && $currentLesson && isset($lessonUnlockMap[$currentLesson->id]) && !$lessonUnlockMap[$currentLesson->id]) {
                 $currentLesson = null;
             }
         }
@@ -102,10 +106,10 @@ class ClassroomController extends Controller
             // For drip courses, find first unlocked uncompleted lesson
             if ($isDrip) {
                 $currentLesson = $allLessons->first(fn ($lesson) =>
-                    (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id]['is_unlocked'])
+                    (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
                     && !in_array($lesson->id, $completedLessonIds)
                 ) ?? $allLessons->first(fn ($lesson) =>
-                    !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id]['is_unlocked']
+                    !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id]
                 );
             } else {
                 $currentLesson = $allLessons->first(fn ($lesson) => !in_array($lesson->id, $completedLessonIds))
@@ -212,22 +216,15 @@ class ClassroomController extends Controller
     /**
      * Format lesson for list display.
      */
-    private function formatLesson(Lesson $lesson, array $completedLessonIds, array $lessonUnlockMap = []): array
+    private function formatLesson(Lesson $lesson, array $completedLessonIds): array
     {
-        $data = [
+        return [
             'id' => $lesson->id,
             'title' => $lesson->title,
             'duration_formatted' => $lesson->duration_formatted,
             'has_video' => $lesson->has_video,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
         ];
-
-        if (isset($lessonUnlockMap[$lesson->id])) {
-            $data['is_unlocked'] = $lessonUnlockMap[$lesson->id]['is_unlocked'];
-            $data['unlock_in_days'] = $lessonUnlockMap[$lesson->id]['unlock_in_days'];
-        }
-
-        return $data;
     }
 
     /**
@@ -235,11 +232,11 @@ class ClassroomController extends Controller
      */
     private function formatLessonFull(Lesson $lesson, array $completedLessonIds, array $lessonUnlockMap = []): array
     {
-        $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id]['is_unlocked'];
+        $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id];
 
         return [
             'id' => $lesson->id,
-            'title' => $lesson->title,
+            'title' => $isLocked ? null : $lesson->title,
             'duration_formatted' => $lesson->duration_formatted,
             'has_video' => $isLocked ? false : $lesson->has_video,
             'video_platform' => $isLocked ? null : $lesson->video_platform,
@@ -247,8 +244,7 @@ class ClassroomController extends Controller
             'embed_url' => $isLocked ? null : $lesson->embed_url,
             'html_content' => $isLocked ? null : $lesson->html_content,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
-            'is_unlocked' => $isLocked ? false : true,
-            'unlock_in_days' => $lessonUnlockMap[$lesson->id]['unlock_in_days'] ?? 0,
+            'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
             'promo_html' => $isLocked ? null : $lesson->promo_html,
         ];
