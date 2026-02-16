@@ -49,7 +49,7 @@ class DripService
         $firstLesson = $course->lessons()->orderBy('sort_order')->first();
 
         if ($firstLesson) {
-            SendDripEmailJob::dispatchSync(
+            SendDripEmailJob::dispatchAfterResponse(
                 $user->id,
                 $firstLesson->id,
                 $subscription->id
