@@ -7,7 +7,10 @@
 <p><strong>{{ $courseName }}</strong> — {{ $lessonTitle }}</p>
 
 @if($hasVideo)
-<p>* 本課程包含教學影片，請至網站觀看</p>
+<p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+@if(config('drip.video_access_hours'))
+<p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+@endif
 @endif
 
 @if($htmlContent)

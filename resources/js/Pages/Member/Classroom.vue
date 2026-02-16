@@ -5,6 +5,7 @@ import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
+import VideoAccessNotice from '@/Components/Classroom/VideoAccessNotice.vue'
 
 // Throttling: 2-minute threshold before marking lesson as complete on server
 const COMPLETION_THRESHOLD_MS = 2 * 60 * 1000
@@ -33,6 +34,10 @@ const props = defineProps({
   dripSubscription: {
     type: Object,
     default: null,
+  },
+  videoAccessTargetCourses: {
+    type: Array,
+    default: () => [],
   },
 })
 
@@ -367,6 +372,18 @@ const toggleSidebar = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
+
+            <!-- Video Access Notice (drip courses only) -->
+            <VideoAccessNotice
+              v-if="course.is_drip
+                && selectedLesson?.video_id
+                && dripSubscription?.status !== 'converted'
+                && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
+              :key="'video-access-' + selectedLesson.id"
+              :expired="selectedLesson.video_access_expired"
+              :remaining-seconds="selectedLesson.video_access_remaining_seconds"
+              :target-courses="videoAccessTargetCourses"
+            />
 
             <!-- Promo Block -->
             <LessonPromoBlock

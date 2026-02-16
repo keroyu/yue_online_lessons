@@ -79,7 +79,7 @@ const formattedTime = computed(() => {
   <div class="mt-6 border-t pt-6">
     <div v-if="isUnlocked" v-html="promoHtml" />
     <div v-else class="bg-gray-100 rounded-lg p-6 text-center">
-      <p class="text-gray-600 mb-2">請先觀看課程</p>
+      <p class="text-gray-600 mb-2">解鎖進階資訊，請先完成學習</p>
       <p class="text-2xl font-mono text-gray-800">{{ formattedTime }}</p>
     </div>
   </div>

@@ -8,6 +8,7 @@ use App\Models\DripConversionTarget;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class DripService
@@ -164,6 +165,45 @@ class DripService
                 'purchased_course_id' => $purchasedCourse->id,
             ]);
         }
+    }
+
+    /**
+     * Calculate when the video free viewing window expires for a lesson.
+     */
+    public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+    {
+        $hours = config('drip.video_access_hours');
+        if ($hours === null) {
+            return null;
+        }
+
+        $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
+        $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+
+        return $unlockAt->addHours($hours);
+    }
+
+    /**
+     * Check if the video free viewing window has expired.
+     */
+    public function isVideoAccessExpired(DripSubscription $subscription, Lesson $lesson): bool
+    {
+        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+
+        return $expiresAt !== null && now()->greaterThan($expiresAt);
+    }
+
+    /**
+     * Get remaining seconds in the video free viewing window.
+     */
+    public function getVideoAccessRemainingSeconds(DripSubscription $subscription, Lesson $lesson): ?int
+    {
+        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+        if ($expiresAt === null || now()->greaterThan($expiresAt)) {
+            return null;
+        }
+
+        return (int) now()->diffInSeconds($expiresAt);
     }
 
     /**

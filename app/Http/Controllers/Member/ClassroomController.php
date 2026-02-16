@@ -125,7 +125,7 @@ class ClassroomController extends Controller
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,
-            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap) : null,
+            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription) : null,
             'hasContent' => $allLessons->count() > 0,
         ];
 
@@ -136,6 +136,15 @@ class ClassroomController extends Controller
                 'subscribed_at' => $dripSubscription->subscribed_at->toDateString(),
                 'emails_sent' => $dripSubscription->emails_sent,
             ];
+
+            $pageProps['videoAccessTargetCourses'] = $course->dripConversionTargets()
+                ->with('targetCourse:id,name')
+                ->get()
+                ->map(fn ($target) => [
+                    'id' => $target->targetCourse->id,
+                    'name' => $target->targetCourse->name,
+                    'url' => route('course.show', $target->targetCourse->id),
+                ]);
         }
 
         return Inertia::render('Member/Classroom', $pageProps);
@@ -230,9 +239,11 @@ class ClassroomController extends Controller
     /**
      * Format lesson with full content for display.
      */
-    private function formatLessonFull(Lesson $lesson, array $completedLessonIds, array $lessonUnlockMap = []): array
+    private function formatLessonFull(Lesson $lesson, array $completedLessonIds, array $lessonUnlockMap = [], ?DripSubscription $dripSubscription = null): array
     {
         $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id];
+        $isConverted = $dripSubscription?->status === 'converted';
+        $hasVideo = !empty($lesson->video_id);
 
         return [
             'id' => $lesson->id,
@@ -247,6 +258,12 @@ class ClassroomController extends Controller
             'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
             'promo_html' => $isLocked ? null : $lesson->promo_html,
+            'video_access_expired' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+                ? $this->dripService->isVideoAccessExpired($dripSubscription, $lesson)
+                : false,
+            'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+                ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson)
+                : null,
         ];
     }
 }
