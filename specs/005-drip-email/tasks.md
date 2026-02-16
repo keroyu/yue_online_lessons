@@ -53,7 +53,7 @@
 
 ### Implementation
 
-- [x] T014 [US1] Create DripService with subscribe() method: check re-subscription prevention (unsubscribed users blocked), create DripSubscription record, dispatch welcome email (first lesson) via SendDripEmailJob, increment emails_sent to 1 in `app/Services/DripService.php`
+- [x] T014 [US1] Create DripService with subscribe() method: check re-subscription prevention (unsubscribed users blocked), create DripSubscription record, **dispatchSync** welcome email (first lesson) via SendDripEmailJob (immediate send, not queued), increment emails_sent to 1 in `app/Services/DripService.php`
 - [x] T015 [P] [US1] Create StoreDripSubscriptionRequest Form Request with validation rules: course_id (required, exists:courses,id), email (required_without:user_id, email) for guest flow; code (required) for verify flow. Add Chinese error messages in `app/Http/Requests/StoreDripSubscriptionRequest.php`
 - [x] T016 [US1] Create DripSubscriptionController with: subscribe() sends verification code via VerificationCodeService, verify() completes subscription via DripService and auto-creates/logs-in user, memberSubscribe() for logged-in one-click subscribe. Use StoreDripSubscriptionRequest for validation in `app/Http/Controllers/DripSubscriptionController.php`
 - [x] T017 [P] [US1] Create DripSubscribeForm.vue component: email input field, verification code input, two-step form (enter email → enter code), uses Inertia router.post for /drip/subscribe and /drip/verify in `resources/js/Components/Course/DripSubscribeForm.vue`
@@ -77,9 +77,9 @@
 
 ### Implementation
 
-- [x] T023 [US6] Add isLessonUnlocked(subscription, lesson) and daysUntilUnlock(subscription, lesson) helper methods to DripService: use formula `unlockDay = (sort_order - 1) × drip_interval_days`, compare with days since subscribed_at in `app/Services/DripService.php`
+- [x] T023 [US6] Add isLessonUnlocked(subscription, lesson) and daysUntilUnlock(subscription, lesson) helper methods to DripService: use formula `unlockDay = sort_order × drip_interval_days` (sort_order 0-based), compare with `sort_order < unlockedCount` in `app/Services/DripService.php`
 - [x] T024 [US6] Modify ClassroomController.show(): for drip courses, load user's DripSubscription, calculate per-lesson is_unlocked and unlock_in_days, pass subscription data as Inertia prop, block access to locked lesson content in formatLessonFull() in `app/Http/Controllers/Member/ClassroomController.php`
-- [x] T025 [US6] Modify Classroom.vue: for drip courses, show lock overlay with "X 天後解鎖" text on locked lessons in sidebar, prevent selecting locked lessons, display subscription status in `resources/js/Pages/Member/Classroom.vue`
+- [x] T025 [US6] Modify Classroom.vue: for drip courses, show lock overlay with "X 天後解鎖" text on locked lessons in sidebar, hide locked lesson titles as "******", prevent selecting locked lessons, display subscription status in `resources/js/Pages/Member/Classroom.vue`
 
 **Checkpoint**: 教室頁面正確顯示解鎖狀態，已解鎖可觀看，未解鎖顯示倒數
 

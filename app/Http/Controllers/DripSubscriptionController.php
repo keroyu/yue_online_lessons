@@ -138,8 +138,7 @@ class DripSubscriptionController extends Controller
                 ->withErrors(['email' => $subscribeResult['error']]);
         }
 
-        return redirect()->route('member.classroom', $course)
-            ->with('success', '訂閱成功！歡迎信已發送至您的信箱');
+        return back()->with('success', '訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。');
     }
 
     /**
@@ -155,8 +154,7 @@ class DripSubscriptionController extends Controller
             return back()->withErrors(['subscribe' => $result['error']]);
         }
 
-        return redirect()->route('member.classroom', $course)
-            ->with('success', '訂閱成功！歡迎信已發送至您的信箱');
+        return back()->with('success', '訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。');
     }
 
     /**

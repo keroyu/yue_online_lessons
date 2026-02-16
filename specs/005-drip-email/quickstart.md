@@ -234,7 +234,7 @@ php artisan schedule:list
 
 1. Check `subscribed_at` timestamp
 2. Check `drip_interval_days` on course
-3. Check `sort_order` on lessons (should start from 1)
+3. Check `sort_order` on lessons (starts from 0)
 
 ### Conversion not triggering
 

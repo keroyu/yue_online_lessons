@@ -163,7 +163,7 @@ class DripService
     {
         // 檢查是否已退訂過
         // 建立訂閱記錄
-        // 發送歡迎信
+        // 發送歡迎信（dispatchSync，立即同步發送）
     }
 
     /**
@@ -171,7 +171,7 @@ class DripService
      */
     public function getUnlockedLessonCount(DripSubscription $subscription): int
     {
-        // 公式：floor(daysSince / interval) + 1
+        // 公式：floor(daysSince / interval) + 1，比較用 sort_order < count（sort_order 從 0 開始）
     }
 
     /**

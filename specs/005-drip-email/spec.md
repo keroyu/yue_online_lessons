@@ -10,7 +10,7 @@
 ### Session 2026-02-05
 
 - Q: 發信單位是「Chapter」還是「Lesson」？ → A: **Lesson 層級**。每個 Lesson 一封信，內容精簡易消化，更適合行銷加溫目的。
-- Q: 是否需要為每個 Lesson 設定 release_day？ → A: **不需要**。解鎖日由 Lesson 排序和課程間隔天數自動計算：`解鎖日 = (sort_order - 1) × drip_interval_days`
+- Q: 是否需要為每個 Lesson 設定 release_day？ → A: **不需要**。解鎖日由 Lesson 排序和課程間隔天數自動計算：`解鎖日 = sort_order × drip_interval_days`（sort_order 從 0 開始）
 
 ### Session 2026-02-05 (促銷區塊)
 
@@ -205,7 +205,7 @@
 - **FR-003**: 連鎖課程 MAY 設定一個或多個目標課程（購買任一個即觸發轉換）
 
 **Lesson 解鎖計算（自動）**
-- **FR-004**: 系統 MUST 使用公式自動計算每個 Lesson 的解鎖日：`解鎖日 = (Lesson.sort_order - 1) × Course.drip_interval_days`
+- **FR-004**: 系統 MUST 使用公式自動計算每個 Lesson 的解鎖日：`解鎖日 = Lesson.sort_order × Course.drip_interval_days`（sort_order 從 0 開始）
 - **FR-005**: 系統 MUST 根據 `subscribed_at + 解鎖日` 判斷該 Lesson 是否已對該訂閱者解鎖
 
 **訂閱機制（統一會員管理）**
@@ -218,11 +218,11 @@
 - **FR-009**: 系統 MUST 防止已退訂使用者再次訂閱同一課程
 
 **教室頁面**
-- **FR-010**: 教室頁面 MUST 對未解鎖 Lesson 顯示「X 天後解鎖」倒數
+- **FR-010**: 教室頁面 MUST 對未解鎖 Lesson 顯示「X 天後解鎖」倒數，且標題 MUST 隱藏為「******」
 - **FR-011**: 系統 MUST 阻止使用者存取未解鎖的 Lesson 內容
 
 **Email 發送**
-- **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即發送**
+- **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即同步發送**（不經由佇列）
 - **FR-013**: 後續通知信 MUST 由每天早上 9 點的排程任務發送
 - **FR-014**: 排程任務 MUST 比較 emails_sent 和應解鎖 Lesson 數，發送差額的信件
 - **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的連結、退訂連結。若 Lesson 包含影片，MUST 顯示提示「本課程包含教學影片，請至網站觀看」。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
@@ -324,7 +324,7 @@
   - 連鎖課程不使用 Chapter 層級（扁平結構）
 
 - **自動計算解鎖日**：不需要為每個 Lesson 設定 release_day。
-  - 公式：`解鎖日 = (sort_order - 1) × drip_interval_days`
+  - 公式：`解鎖日 = sort_order × drip_interval_days`（sort_order 從 0 開始）
   - 管理員只需設定課程的間隔天數和調整 Lesson 排序
   - 簡化後台操作，減少設定錯誤
 

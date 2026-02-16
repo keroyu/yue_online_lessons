@@ -49,7 +49,7 @@ class DripService
         $firstLesson = $course->lessons()->orderBy('sort_order')->first();
 
         if ($firstLesson) {
-            SendDripEmailJob::dispatch(
+            SendDripEmailJob::dispatchSync(
                 $user->id,
                 $firstLesson->id,
                 $subscription->id
@@ -108,10 +108,10 @@ class DripService
 
         // Unsubscribed users: only show lessons unlocked up to unsubscription (based on emails_sent)
         if ($subscription->status === 'unsubscribed') {
-            return $lesson->sort_order <= $subscription->emails_sent;
+            return $lesson->sort_order < $subscription->emails_sent;
         }
 
-        return $lesson->sort_order <= $this->getUnlockedLessonCount($subscription);
+        return $lesson->sort_order < $this->getUnlockedLessonCount($subscription);
     }
 
     /**
@@ -130,7 +130,7 @@ class DripService
         }
 
         $interval = $subscription->course->drip_interval_days;
-        $unlockDay = ($lesson->sort_order - 1) * $interval;
+        $unlockDay = $lesson->sort_order * $interval;
         $daysSince = (int) $subscription->subscribed_at->diffInDays(now());
 
         return max(0, $unlockDay - $daysSince);

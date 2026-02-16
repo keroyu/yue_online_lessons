@@ -420,9 +420,9 @@ public function getUnlockedLessonCount(DripSubscription $subscription): int
     $daysSince = $subscription->subscribed_at->diffInDays(now());
     $interval = $subscription->course->drip_interval_days;
 
-    // sort_order 從 1 開始
-    // Day 0: lesson 1 (sort_order 1)
-    // Day interval: lesson 2 (sort_order 2)
+    // sort_order 從 0 開始
+    // Day 0: lesson 1 (sort_order 0)
+    // Day interval: lesson 2 (sort_order 1)
     return min(
         floor($daysSince / $interval) + 1,
         $subscription->course->lessons()->count()
@@ -431,7 +431,7 @@ public function getUnlockedLessonCount(DripSubscription $subscription): int
 
 public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson): bool
 {
-    return $lesson->sort_order <= $this->getUnlockedLessonCount($subscription);
+    return $lesson->sort_order < $this->getUnlockedLessonCount($subscription);
 }
 ```
 

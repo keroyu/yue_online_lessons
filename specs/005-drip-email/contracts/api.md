@@ -57,9 +57,9 @@
 }
 ```
 
-**Response (Success - Inertia Redirect)**:
-- 重導向至 `/member/classroom/{course_id}`
-- Flash message: "訂閱成功！第一封信已寄出。"
+**Response (Success - Inertia Back)**:
+- 停留在原頁面（back）
+- Flash message: "訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。"
 
 **Response (Error - 422)**:
 ```json
@@ -114,9 +114,9 @@
 
 **Request**: Empty body
 
-**Response (Success - Inertia Redirect)**:
-- 重導向至 `/member/classroom/{course_id}`
-- Flash message: "訂閱成功！第一封信已寄出。"
+**Response (Success - Inertia Back)**:
+- 停留在原頁面（back）
+- Flash message: "訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。"
 
 **Response (Error - 422)**:
 ```json
@@ -144,8 +144,8 @@
   };
   lessons: Array<{
     id: number;
-    title: string;
-    sort_order: number;
+    title: string; // locked lessons: frontend displays as "******"
+    sort_order: number; // 0-based
     video_platform: string | null;
     video_id: string | null;
     html_content: string | null;

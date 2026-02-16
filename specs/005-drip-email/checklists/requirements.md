@@ -54,7 +54,7 @@
 
 8. **Lesson 層級發信**：每個 Lesson 一封 Email，內容精簡易消化，適合行銷加溫
 9. **自動計算解鎖日**：不需要 release_day 欄位
-   - 公式：`解鎖日 = (sort_order - 1) × drip_interval_days`
+   - 公式：`解鎖日 = sort_order × drip_interval_days`（sort_order 從 0 開始）
    - 管理員只需設定間隔天數和調整 Lesson 排序
 10. **連鎖課程不使用 Chapter 層級**：扁平結構，直接以 Lesson 為單位
 

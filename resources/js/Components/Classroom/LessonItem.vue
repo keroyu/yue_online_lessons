@@ -90,7 +90,7 @@ const handleToggleComplete = (e) => {
     </div>
 
     <!-- Title -->
-    <span class="flex-1 text-sm truncate">{{ lesson.title }}</span>
+    <span class="flex-1 text-sm truncate">{{ isLocked ? '******' : lesson.title }}</span>
 
     <!-- Unlock countdown (drip locked) -->
     <span v-if="isLocked && lesson.unlock_in_days === -1" class="flex-shrink-0 text-xs text-gray-400 font-medium">

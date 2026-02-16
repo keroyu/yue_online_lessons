@@ -88,7 +88,7 @@ $this->dripService->checkAndConvert($user, $course);
 **Decision**: 純計算方式，不儲存解鎖狀態
 
 **Rationale**:
-- 解鎖日公式：`(sort_order - 1) × drip_interval_days`
+- 解鎖日公式：`sort_order × drip_interval_days`（sort_order 從 0 開始）
 - 每次請求時計算，不需要額外資料表
 - 符合 "Simplicity Over Complexity" 原則
 
@@ -97,7 +97,7 @@ $this->dripService->checkAndConvert($user, $course);
 public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson): bool
 {
     $daysSinceSubscription = $subscription->subscribed_at->diffInDays(now());
-    $unlockDay = ($lesson->sort_order - 1) * $subscription->course->drip_interval_days;
+    $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
     return $daysSinceSubscription >= $unlockDay;
 }
 ```
