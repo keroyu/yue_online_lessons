@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-05 (新增 Lesson 促銷區塊)
+**Updated**: 2026-02-16 (新增影片免費觀看期限)
 
 ## Prerequisites
 
@@ -150,6 +150,46 @@ php artisan tinker
 localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson ID
 ```
 
+### I. Test Video Access Window (Drip Courses)
+
+1. 確保有一個 drip 課程，其中 Lesson 有影片
+2. 訂閱該課程，進入教室觀看第一個 Lesson
+3. 驗證：
+   - 影片正常播放
+   - 影片下方顯示「免費公開中，剩餘 47:59:xx」倒數
+4. 使用 tinker 模擬超過 48 小時：
+
+```bash
+php artisan tinker
+
+>>> $sub = App\Models\DripSubscription::first();
+>>> $sub->subscribed_at = now()->subHours(50);
+>>> $sub->save();
+```
+
+5. 重新整理教室頁面，驗證：
+   - 影片仍可正常播放（不鎖定）
+   - 影片下方顯示加強版促銷區塊
+   - 促銷區塊包含「免費觀看期已結束，但我們為你保留了存取權」
+   - 若有設定目標課程 → 顯示「推薦購買：XXX 課程」按鈕
+   - 若無目標課程 → 顯示「探索更多課程」按鈕
+
+6. 以 converted 使用者測試：
+```bash
+>>> $sub->status = 'converted';
+>>> $sub->save();
+```
+   - 重新整理 → 不應顯示任何觀看期限 UI
+
+7. 測試純文字 Lesson（無影片）：
+   - 進入無影片的 Lesson → 不應顯示觀看期限 UI
+
+修改 config 值（測試用）：
+```bash
+# 在 .env 加入（覆蓋預設 48 小時）
+DRIP_VIDEO_ACCESS_HOURS=1
+```
+
 ---
 
 ## Key Files
@@ -166,6 +206,7 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 | `app/Mail/DripLessonMail.php` | Email template |
 | `app/Http/Controllers/Admin/ChapterController.php` | MODIFY: Lesson map 加入 promo 欄位 |
 | `app/Http/Controllers/DripSubscriptionController.php` | Subscribe/unsubscribe |
+| `config/drip.php` | Video access hours config |
 
 ### Frontend
 
@@ -175,7 +216,8 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 | `resources/js/Components/Classroom/LessonPromoBlock.vue` | Promo block with countdown |
 | `resources/js/Components/Admin/LessonForm.vue` | MODIFY: Add promo fields |
 | `resources/js/Pages/Admin/Courses/Edit.vue` | MODIFY: Add drip settings section |
-| `resources/js/Pages/Member/Classroom.vue` | MODIFY: Show promo block |
+| `resources/js/Components/Classroom/VideoAccessNotice.vue` | Video access countdown + urgency promo |
+| `resources/js/Pages/Member/Classroom.vue` | MODIFY: Show promo block + video access |
 | `resources/js/Pages/Drip/Unsubscribe.vue` | Unsubscribe confirmation |
 
 ### Database
@@ -261,6 +303,20 @@ php artisan schedule:list
 2. Check page timer is running (for non-video lessons)
 3. Verify localStorage is accessible (not in incognito with cookies blocked)
 
+### Video access notice not showing
+
+1. Check `config('drip.video_access_hours')` is not null
+2. Check lesson has `video_id` (not a text-only lesson)
+3. Check subscription status is NOT `converted`
+4. Check course is `drip` type (not `standard`)
+5. Verify `subscribed_at` + unlock delay + access hours is in the future
+
+### Video access urgency promo not showing after expiry
+
+1. Confirm `subscribed_at` + unlock time + 48 hours has passed
+2. Check `videoAccessTargetCourses` prop is being passed to page
+3. For "探索更多課程" fallback, verify no target courses are set
+
 ---
 
 ## Environment Variables
@@ -271,4 +327,7 @@ RESEND_API_KEY=re_xxxx
 
 # Optional: Override default send time (for testing)
 DRIP_SEND_HOUR=9
+
+# Optional: Override video free viewing window (default: 48 hours)
+DRIP_VIDEO_ACCESS_HOURS=48
 ```

@@ -19,6 +19,15 @@
 - Q: 每個 Lesson 可以有幾個促銷區塊？ → A: **1 個**
 - Q: 達標後是否永久顯示？ → A: **是**，使用 localStorage 記錄，永久顯示
 
+### Session 2026-02-16 (影片免費觀看期限)
+
+- Q: 影片過期後的處理方式？ → A: **方案 A：倒數提醒但不鎖定**。過期後影片仍可觀看，但在影片下方顯示加強版促銷區塊（「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」+ 推薦購買目標課程連結）
+- Q: 免費觀看期設定方式？ → A: **config 檔案**（`config/drip.php`），非資料庫欄位。全站統一預設 48 小時
+- Q: 已轉換使用者是否受限？ → A: **不受限**。converted 狀態的使用者不顯示過期促銷區塊
+- Q: 此功能適用範圍？ → A: **僅限 drip 課程**。standard 課程不受影響
+- Q: Drip 信件是否提及免費觀看期？ → A: **是**。有影片的 Lesson 信件加入「影片 48 小時內免費觀看，把握時間！」提示，強化緊迫感
+- Q: 免費觀看倒數顯示在哪裡？ → A: **僅在 Lesson 內容區域**。側邊欄不顯示倒數，保持簡潔
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 訪客免費訂閱連鎖課程 (Priority: P1)
@@ -182,6 +191,25 @@
 
 ---
 
+### User Story 10 - Drip 課程影片免費觀看期限提醒 (Priority: P2)
+
+訂閱者在 Lesson 解鎖後有一段免費觀看期（預設 48 小時，由 config 設定）。在免費觀看期內，Lesson 正常顯示影片和內容。過期後影片**仍可觀看**，但在影片下方顯示加強版促銷區塊，推薦購買目標課程。此機制透過軟性提醒製造緊迫感，而非限制存取，以避免負面觀感。
+
+**Why this priority**: 此功能是行銷漏斗的加速器，透過時間窗口的緊迫感提高潛在購買者的行動力。與現有促銷區塊互補，但觸發條件不同（時間經過 vs 觀看時間）。
+
+**Independent Test**: 設定一個 drip 課程，訂閱後修改 subscribed_at 使 Lesson 超過 48 小時，驗證影片仍可觀看且促銷區塊出現。
+
+**Acceptance Scenarios**:
+
+1. **Given** Lesson 剛解鎖（未超過 48 小時），**When** 使用者進入教室觀看，**Then** 影片正常播放，顯示「免費公開中，剩餘 XX:XX:XX」倒數提示
+2. **Given** Lesson 解鎖已超過 48 小時，**When** 使用者進入教室觀看，**Then** 影片仍可播放，但在影片下方顯示加強促銷區塊：「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
+3. **Given** 使用者已轉換（status=converted），**When** 進入任何 Lesson，**Then** 不顯示免費觀看期相關提示和促銷區塊
+4. **Given** Drip 課程未設定目標課程，**When** 影片過期後顯示促銷區塊，**Then** 顯示通用文案「想要完整學習體驗？探索更多課程」附帶課程列表連結
+5. **Given** Lesson 為純文字（無影片），**When** 使用者進入 Lesson，**Then** 不顯示免費觀看期相關 UI（免費觀看期僅適用於有影片的 Lesson）
+6. **Given** 使用者已完成全部課程（status=completed），**When** 進入過期 Lesson，**Then** 仍顯示過期促銷區塊（因尚未購買目標課程）
+
+---
+
 ### Edge Cases
 
 - **重複訂閱**：已退訂的使用者嘗試再次訂閱同一課程 → 顯示「此課程已無法再次訂閱」訊息
@@ -194,6 +222,11 @@
 - **促銷區塊計時中斷**：使用者觀看中途離開頁面 → 累積時間保存於 localStorage，下次繼續計時
 - **促銷區塊 HTML 為空**：設定了延遲時間但 HTML 為空 → 不顯示促銷區塊（視為未啟用）
 - **促銷區塊 XSS 風險**：管理員輸入惡意腳本 → 因只有管理員可編輯，視為可信內容，但建議限制在 iframe sandbox 內
+- **免費觀看期與自訂促銷區塊共存**：同一 Lesson 同時有 promo_delay_seconds 和影片過期促銷 → 兩者獨立顯示，自訂促銷在上、過期促銷在下
+- **converted 使用者與免費觀看期**：已轉換的使用者 → 不顯示過期促銷區塊（已購買目標課程）
+- **純文字 Lesson 無影片**：Lesson 沒有影片（video_id 為空）→ 不顯示免費觀看期相關 UI
+- **免費觀看期 config 變更**：部署後修改 config 值 → 立即生效，影響所有使用者的計算結果
+- **第一個 Lesson（Day 0）**：訂閱後立即解鎖 → 免費觀看期從 subscribed_at 開始計算
 
 ## Requirements *(mandatory)*
 
@@ -225,7 +258,7 @@
 - **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即同步發送**（不經由佇列）
 - **FR-013**: 後續通知信 MUST 由每天早上 9 點的排程任務發送
 - **FR-014**: 排程任務 MUST 比較 emails_sent 和應解鎖 Lesson 數，發送差額的信件
-- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的連結、退訂連結。若 Lesson 包含影片，MUST 顯示提示「本課程包含教學影片，請至網站觀看」。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
+- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的連結、退訂連結。若 Lesson 包含影片，MUST 顯示提示「本課程包含教學影片，請至網站觀看」以及「影片 48 小時內免費觀看，把握時間！」免費觀看期提示。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
 - **FR-016**: 當 emails_sent 等於課程總 Lesson 數時，MUST 將狀態標記為 completed
 
 **轉換機制**
@@ -254,11 +287,23 @@
 - **FR-033**: 使用者達標後，系統 MUST 永久記錄（使用本地儲存），再次訪問時直接顯示
 - **FR-034**: 管理員 MUST 可在 Lesson 編輯頁設定促銷區塊（延遲時間 + HTML）
 
+**Drip 課程影片免費觀看期限**
+- **FR-035**: 系統 MUST 提供免費觀看期設定，儲存於 config 檔案（非資料庫），預設 48 小時
+- **FR-036**: 系統 MUST 為每個已解鎖的 drip Lesson 計算免費觀看期截止時間：`Lesson 解鎖時間 + config 設定時數`
+- **FR-037**: 在免費觀看期內，教室頁面 MUST 在當前觀看的 Lesson 內容區域（影片下方）顯示「免費公開中，剩餘 XX:XX:XX」倒數提示，側邊欄 Lesson 列表不顯示倒數
+- **FR-038**: 免費觀看期過後，影片 MUST 仍然可以觀看（不鎖定）
+- **FR-039**: 免費觀看期過後，系統 MUST 在影片下方顯示加強版促銷區塊，內容為「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
+- **FR-040**: 若 drip 課程未設定目標課程，過期促銷區塊 MUST 顯示通用文案並附帶課程列表連結
+- **FR-041**: 已轉換（converted）的訂閱者 MUST NOT 看到免費觀看期相關 UI（倒數提示和過期促銷區塊）
+- **FR-042**: 免費觀看期限 MUST 僅適用於有影片的 Lesson（video_id 不為空），純文字 Lesson 不受影響
+
 ### Key Entities
 
 - **User（現有，維持不變）**: 統一的客戶名單。訪客訂閱時自動建立帳號（僅需 email，nickname 可為空）。所有訂閱者都是 User。
 - **Course（擴充）**: 新增 course_type（standard/drip）、drip_interval_days 屬性
-- **Lesson（現有，維持不變）**: 使用現有的 sort_order 欄位決定發送順序。不需要新增 release_day。
+- **Lesson（擴充）**: 使用現有的 sort_order 欄位決定發送順序（不需要新增 release_day）。新增促銷區塊相關屬性：
+  - promo_delay_seconds（延遲秒數，null=停用、0=立即、>0=延遲）
+  - promo_html（自訂 HTML 內容）
 - **DripConversionTarget（新增）**: 記錄連鎖課程與目標課程的關聯（一對多）。包含 drip_course_id、target_course_id
 - **DripSubscription（新增）**: 記錄使用者對連鎖課程的訂閱。包含：
   - user_id（必填，外鍵指向 users.id）
@@ -268,9 +313,6 @@
   - status（active / converted / completed / unsubscribed）
   - status_changed_at（狀態變更時間）
   - unsubscribe_token（退訂連結用）
-- **Lesson（擴充）**: 新增促銷區塊相關屬性
-  - promo_delay_seconds（延遲秒數，null=停用、0=立即、>0=延遲）
-  - promo_html（自訂 HTML 內容）
 
 ## Success Criteria *(mandatory)*
 
@@ -284,6 +326,9 @@
 - **SC-006**: 購買目標課程後，轉換狀態在 1 分鐘內更新
 - **SC-007**: 促銷區塊在達標後 1 秒內顯示
 - **SC-008**: 促銷區塊達標狀態在重新整理後仍保持（永久顯示）
+- **SC-009**: 免費觀看期倒數計時準確顯示並即時更新
+- **SC-010**: 過期後加強促銷區塊在頁面載入後 1 秒內顯示
+- **SC-011**: converted 使用者在任何情況下都不會看到過期促銷區塊
 
 ## Assumptions
 
@@ -292,6 +337,8 @@
 - Portaly webhook 整合已穩定運作
 - 連鎖課程不使用 Chapter 層級，直接以 Lesson 為發信單位
 - 所有 Lesson 在開放訂閱前已建立完成（可事後新增）
+- 免費觀看期為全站統一設定（config），不按個別課程設定
+- 免費觀看期僅影響 UI 顯示（促銷區塊），不影響影片存取權限
 
 ## Migration Notes
 
@@ -335,3 +382,12 @@
   - 適用於所有課程類型（standard + drip）
   - 達標後永久顯示（localStorage 記錄）
   - 延遲時間 null=停用、0=立即、>0=延遲
+
+- **Drip 影片免費觀看期（方案 A：軟性提醒）**：過期後不鎖定影片，僅顯示加強促銷區塊。
+  - 避免懲罰忙碌使用者造成負面觀感
+  - 透過「我們為你保留了存取權」建立善意和信任
+  - 仍然製造緊迫感：倒數計時提醒使用者把握免費期
+  - 設定值存在 config 而非 DB：全站統一管理，部署即生效，減少 DB schema 變更
+  - 與自訂促銷區塊（promo_delay_seconds）互不影響，兩者可共存
+  - 僅對有影片的 Lesson 生效，純文字 Lesson 不受影響
+  - 計算公式：`過期時間 = subscribed_at + (sort_order × drip_interval_days) 天 + video_access_hours 小時`

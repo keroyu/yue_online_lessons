@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-02-04
-**Updated**: 2026-02-05 (新增 Lesson 促銷區塊)
+**Updated**: 2026-02-16 (新增 Drip 影片免費觀看期限)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -34,6 +34,7 @@
 
 - All checklist items passed validation
 - Spec is ready for `/speckit.plan`
+- 2026-02-16: 新增 Drip 影片免費觀看期限（US10, FR-035~042, SC-009~011），所有項目通過驗證
 
 ## User Decisions Captured
 
@@ -66,3 +67,11 @@
 12. **適用範圍**：所有課程類型（standard + drip）
 13. **每個 Lesson 一個促銷區塊**
 14. **達標後永久顯示**：使用 localStorage 記錄
+
+## Clarifications (2026-02-16 - 影片免費觀看期限)
+
+15. **方案 A：軟性提醒**：過期後影片不鎖定，僅顯示加強促銷區塊
+16. **Config 設定**：免費觀看期寫在 config 檔案（非 DB），全站統一，預設 48 小時
+17. **converted 使用者豁免**：已轉換的使用者不顯示過期促銷區塊
+18. **僅限 drip 課程**：standard 課程不受影響
+19. **僅限有影片的 Lesson**：純文字 Lesson 不顯示觀看期限 UI

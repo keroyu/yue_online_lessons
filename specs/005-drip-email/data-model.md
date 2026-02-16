@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-05 (新增 Lesson 促銷區塊)
+**Updated**: 2026-02-16 (新增影片免費觀看期限)
 
 ## Entity Overview
 
@@ -409,6 +409,32 @@ public function messages(): array
 
 ---
 
+## Config-Based Settings (not stored in DB)
+
+### Video Access Window (`config/drip.php`)
+
+```php
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | 影片免費觀看期限（小時）
+    |--------------------------------------------------------------------------
+    |
+    | Drip 課程 Lesson 解鎖後，影片的免費觀看期限。
+    | 過期後影片仍可觀看，但會顯示加強版促銷區塊。
+    | 設為 null 可停用此功能。
+    |
+    */
+    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+];
+```
+
+**Usage**: `config('drip.video_access_hours')` — 全站統一，部署後修改 `.env` 即生效。
+
+---
+
 ## Computed Properties (not stored)
 
 ### Lesson Unlock Status
@@ -434,6 +460,46 @@ public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson)
     return $lesson->sort_order < $this->getUnlockedLessonCount($subscription);
 }
 ```
+
+### Video Access Window Status
+
+```php
+// DripService
+public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+{
+    $hours = config('drip.video_access_hours');
+    if ($hours === null) {
+        return null; // feature disabled
+    }
+
+    $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
+    $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+    return $unlockAt->addHours($hours);
+}
+
+public function isVideoAccessExpired(DripSubscription $subscription, Lesson $lesson): bool
+{
+    $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+    if ($expiresAt === null) {
+        return false; // feature disabled = never expired
+    }
+    return now()->greaterThan($expiresAt);
+}
+
+public function getVideoAccessRemainingSeconds(DripSubscription $subscription, Lesson $lesson): ?int
+{
+    $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+    if ($expiresAt === null || now()->greaterThan($expiresAt)) {
+        return null;
+    }
+    return (int) now()->diffInSeconds($expiresAt);
+}
+```
+
+**Rules**:
+- `video_access_hours = null` → 功能停用，永不過期
+- `subscription.status = 'converted'` → 不計算，前端不顯示（Controller 層處理）
+- `lesson.video_id = null`（純文字）→ 不計算，前端不顯示（Controller 層處理）
 
 ---
 
@@ -476,6 +542,8 @@ $subscription = DripSubscription::where('user_id', $userId)
     ->where('course_id', $courseId)
     ->firstOrFail();
 
+$isConverted = $subscription->status === 'converted';
+
 $lessons = $course->lessons()
     ->orderBy('sort_order')
     ->get()
@@ -483,5 +551,26 @@ $lessons = $course->lessons()
         ...$lesson->toArray(),
         'is_unlocked' => $this->dripService->isLessonUnlocked($subscription, $lesson),
         'unlock_in_days' => $this->dripService->daysUntilUnlock($subscription, $lesson),
+        // Video access window (only for unlocked lessons with video, non-converted users)
+        'video_access_expired' => (!$isConverted && $lesson->video_id)
+            ? $this->dripService->isVideoAccessExpired($subscription, $lesson)
+            : false,
+        'video_access_remaining_seconds' => (!$isConverted && $lesson->video_id)
+            ? $this->dripService->getVideoAccessRemainingSeconds($subscription, $lesson)
+            : null,
+    ]);
+```
+
+### 4. 取得目標課程資訊（過期促銷區塊用）
+
+```php
+// ClassroomController — 為過期促銷區塊提供目標課程資訊
+$targetCourses = $course->dripConversionTargets()
+    ->with('targetCourse:id,name,slug')
+    ->get()
+    ->map(fn($target) => [
+        'id' => $target->targetCourse->id,
+        'name' => $target->targetCourse->name,
+        'url' => route('course.show', $target->targetCourse),
     ]);
 ```

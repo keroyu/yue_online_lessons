@@ -8,6 +8,8 @@
 
 **新增功能（2026-02-05）**：Lesson 促銷區塊 - 在 Lesson 內可設定延遲顯示的促銷區塊（自訂 HTML），用於建立價值感和過濾精準名單。適用於所有課程類型。
 
+**新增功能（2026-02-16）**：影片免費觀看期限 - Drip 課程 Lesson 解鎖後 48 小時內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒）。設定值存於 config 檔案。
+
 ## Technical Context
 
 **Language/Version**: PHP 8.2+ / Laravel 12.x
@@ -72,7 +74,7 @@ app/
 │   │   │   ├── CourseController.php        # MODIFY: 新增 drip 設定相關 methods
 │   │   │   └── ChapterController.php      # MODIFY: index() lesson map 加入 promo 欄位
 │   │   ├── Member/
-│   │   │   └── ClassroomController.php     # MODIFY: 加入解鎖邏輯 + promo 欄位
+│   │   │   └── ClassroomController.php     # MODIFY: 加入解鎖邏輯 + promo 欄位 + 影片觀看期限
 │   │   ├── DripSubscriptionController.php  # NEW: 訂閱/退訂處理
 │   │   └── Webhook/
 │   │       └── PortalyController.php       # (不變，Service 層處理)
@@ -96,7 +98,10 @@ app/
 │
 └── Services/
     ├── PortalyWebhookService.php           # MODIFY: handlePaidEvent 加入轉換檢測
-    └── DripService.php                     # NEW: 核心業務邏輯
+    └── DripService.php                     # NEW: 核心業務邏輯 + 影片觀看期限計算
+
+config/
+└── drip.php                                # NEW: video_access_hours 設定
 
 database/migrations/
 ├── YYYY_MM_DD_add_drip_fields_to_courses.php
@@ -110,7 +115,8 @@ resources/
 │   │   ├── Admin/
 │   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_seconds, promo_html 欄位
 │   │   ├── Classroom/
-│   │   │   └── LessonPromoBlock.vue        # NEW: 促銷區塊組件（含倒數計時 + localStorage）
+│   │   │   ├── LessonPromoBlock.vue        # NEW: 促銷區塊組件（含倒數計時 + localStorage）
+│   │   │   └── VideoAccessNotice.vue       # NEW: 影片免費觀看期限組件（倒數 + 過期促銷）
 │   │   └── Course/
 │   │       └── DripSubscribeForm.vue       # NEW: Email 輸入 + 驗證碼表單
 │   │
@@ -124,11 +130,11 @@ resources/
 │       ├── Drip/
 │       │   └── Unsubscribe.vue             # NEW: 退訂確認頁面
 │       └── Member/
-│           └── Classroom.vue               # MODIFY: 顯示解鎖狀態 + 促銷區塊
+│           └── Classroom.vue               # MODIFY: 顯示解鎖狀態 + 促銷區塊 + 影片觀看期限
 │
 └── views/
     └── emails/
-        └── drip-lesson.blade.php           # NEW: Email 模板
+        └── drip-lesson.blade.php           # NEW: Email 模板 + 免費觀看期提示
 
 routes/
 ├── web.php                                 # MODIFY: 新增路由
@@ -406,6 +412,201 @@ const formattedTime = computed(() => {
 </template>
 ```
 
+### 10. config/drip.php（新設定檔）
+
+```php
+<?php
+
+return [
+    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+];
+```
+
+### 11. DripService 新增影片觀看期限方法
+
+```php
+// app/Services/DripService.php — 新增方法
+
+/**
+ * 計算 Lesson 的影片免費觀看截止時間
+ */
+public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+{
+    $hours = config('drip.video_access_hours');
+    if ($hours === null) {
+        return null;
+    }
+    $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
+    $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+    return $unlockAt->addHours($hours);
+}
+
+/**
+ * 檢查影片免費觀看期是否已過期
+ */
+public function isVideoAccessExpired(DripSubscription $subscription, Lesson $lesson): bool
+{
+    $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+    return $expiresAt !== null && now()->greaterThan($expiresAt);
+}
+
+/**
+ * 取得影片免費觀看剩餘秒數
+ */
+public function getVideoAccessRemainingSeconds(DripSubscription $subscription, Lesson $lesson): ?int
+{
+    $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+    if ($expiresAt === null || now()->greaterThan($expiresAt)) {
+        return null;
+    }
+    return (int) now()->diffInSeconds($expiresAt);
+}
+```
+
+### 12. ClassroomController 修改（影片觀看期限）
+
+```php
+// formatLessonFull() 加入影片觀看期限欄位
+private function formatLessonFull(Lesson $lesson, ...): array
+{
+    $isConverted = $subscription?->status === 'converted';
+    $hasVideo = !empty($lesson->video_id);
+
+    return [
+        // ... existing fields ...
+        'video_access_expired' => (!$isConverted && $hasVideo)
+            ? $this->dripService->isVideoAccessExpired($subscription, $lesson)
+            : false,
+        'video_access_remaining_seconds' => (!$isConverted && $hasVideo)
+            ? $this->dripService->getVideoAccessRemainingSeconds($subscription, $lesson)
+            : null,
+    ];
+}
+
+// show() 方法新增 videoAccessTargetCourses prop
+$targetCourses = $course->dripConversionTargets()
+    ->with('targetCourse:id,name')
+    ->get()
+    ->map(fn($t) => [
+        'id' => $t->targetCourse->id,
+        'name' => $t->targetCourse->name,
+        'url' => route('course.show', $t->targetCourse),
+    ]);
+
+return Inertia::render('Member/Classroom', [
+    // ... existing props ...
+    'videoAccessTargetCourses' => $course->is_drip ? $targetCourses : [],
+]);
+```
+
+### 13. VideoAccessNotice.vue（新組件）
+
+```vue
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+const props = defineProps({
+  expired: { type: Boolean, required: true },
+  remainingSeconds: { type: Number, default: null },
+  targetCourses: { type: Array, default: () => [] },
+})
+
+const countdown = ref(props.remainingSeconds)
+let timer = null
+
+onMounted(() => {
+  if (!props.expired && countdown.value > 0) {
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        clearInterval(timer)
+        // Force page reload to get updated server state
+        window.location.reload()
+      }
+    }, 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+const formattedCountdown = computed(() => {
+  if (!countdown.value || countdown.value <= 0) return null
+  const h = Math.floor(countdown.value / 3600)
+  const m = Math.floor((countdown.value % 3600) / 60)
+  const s = countdown.value % 60
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+})
+</script>
+
+<template>
+  <!-- 免費觀看期內：倒數提示 -->
+  <div v-if="!expired && formattedCountdown"
+       class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+    <p class="text-sm text-green-700">免費公開中，剩餘</p>
+    <p class="text-xl font-mono font-bold text-green-800">{{ formattedCountdown }}</p>
+  </div>
+
+  <!-- 過期後：加強版促銷區塊 -->
+  <div v-else-if="expired"
+       class="mt-4 bg-amber-50 border border-amber-300 rounded-lg p-6">
+    <p class="text-amber-800 font-semibold mb-2">
+      免費觀看期已結束，但我們為你保留了存取權。
+    </p>
+    <p class="text-amber-700 mb-4">想要完整學習體驗？</p>
+    <div v-if="targetCourses.length > 0" class="space-y-2">
+      <a v-for="course in targetCourses" :key="course.id"
+         :href="course.url"
+         class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+        推薦購買：{{ course.name }}
+      </a>
+    </div>
+    <a v-else href="/"
+       class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+      探索更多課程
+    </a>
+  </div>
+</template>
+```
+
+### 14. Classroom.vue 修改（影片觀看期限）
+
+```vue
+<!-- 在影片播放器下方、促銷區塊上方 -->
+<VideoAccessNotice
+  v-if="course.course_type === 'drip'
+    && currentLesson?.video_id
+    && subscription?.status !== 'converted'
+    && (currentLesson.video_access_expired || currentLesson.video_access_remaining_seconds > 0)"
+  :expired="currentLesson.video_access_expired"
+  :remaining-seconds="currentLesson.video_access_remaining_seconds"
+  :target-courses="videoAccessTargetCourses"
+/>
+```
+
+**⚠️ 顯示順序**：影片 → VideoAccessNotice（觀看期限）→ LessonPromoBlock（自訂促銷）→ 文字內容
+
+### 15. drip-lesson.blade.php 修改（免費觀看期提示）
+
+```blade
+{{-- 在影片提示區塊修改 --}}
+@if($lesson->video_id)
+  <tr>
+    <td style="padding: 16px 24px; background-color: #f0f9ff; border-radius: 8px;">
+      <p style="margin: 0; color: #1e40af;">
+        🎬 本課程包含教學影片，請至網站觀看
+      </p>
+      @if(config('drip.video_access_hours'))
+      <p style="margin: 8px 0 0; color: #b45309; font-weight: 600;">
+        ⏰ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！
+      </p>
+      @endif
+    </td>
+  </tr>
+@endif
+```
+
 ---
 
 ## Migration Notes
@@ -421,12 +622,12 @@ const formattedTime = computed(() => {
 |-------|--------|--------|
 | Phase 0: Research | ✅ Complete | [research.md](./research.md) |
 | Phase 1: Design | ✅ Complete | [data-model.md](./data-model.md), [contracts/](./contracts/), [quickstart.md](./quickstart.md) |
-| Phase 2: Tasks | ⏳ Pending | Run `/speckit.tasks` to generate |
+| Phase 2: Tasks | ✅ Complete | [tasks.md](./tasks.md) |
 
 ---
 
 ## Next Steps
 
-1. Run `/speckit.tasks` to generate implementation tasks
-2. Review and prioritize tasks
-3. Begin implementation following task order
+1. Implement Phase 11 (US10 — 影片免費觀看期限) tasks T047-T052
+2. Complete Phase 12 verification tasks (T045, T053)
+3. Run end-to-end quickstart validation

@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-05 (新增 Lesson 促銷區塊)
+**Updated**: 2026-02-16 (新增影片免費觀看期限)
 
 ## Overview
 
@@ -155,6 +155,9 @@
     // Promo block fields (all courses)
     promo_delay_seconds: number | null; // null=disabled, 0=immediate, >0=delay
     promo_html: string | null;
+    // Video access window (drip courses only, unlocked lessons with video)
+    video_access_expired: boolean; // true if free viewing window has passed
+    video_access_remaining_seconds: number | null; // null if expired or no video, seconds remaining otherwise
   }>;
   subscription: {
     id: number;
@@ -162,6 +165,12 @@
     emails_sent: number;
     status: 'active' | 'converted' | 'completed' | 'unsubscribed';
   } | null; // null if not subscribed (shouldn't happen for drip courses)
+  // Video access urgency promo (drip courses only)
+  videoAccessTargetCourses: Array<{
+    id: number;
+    name: string;
+    url: string;
+  }>; // empty array if no target courses set
 }
 ```
 
@@ -169,44 +178,33 @@
 
 ## Admin Routes (requires auth + admin role)
 
-### GET /admin/courses/{course}/drip
+### GET /admin/courses/{course}/edit (modified — drip settings integrated)
 
-**Description**: 連鎖課程設定頁面
+**Description**: 課程編輯頁面（已修改，包含連鎖課程設定區塊）
 
-**Inertia Page**: `Admin/Courses/DripSettings`
+**Inertia Page**: `Admin/Courses/Edit`
 
-**Props**:
+**Additional Props for drip settings**:
 ```typescript
 {
-  course: {
-    id: number;
-    name: string;
-    course_type: 'standard' | 'drip';
-    drip_interval_days: number | null;
-  };
-  targetCourses: Array<{
-    id: number;
-    name: string;
-  }>;
+  // ... existing course edit props ...
   availableCourses: Array<{
     id: number;
     name: string;
   }>; // courses that can be set as targets (excluding self)
-  lessonCount: number;
-  previewSchedule: Array<{
-    lesson_number: number;
-    unlock_day: number;
-  }>;
+  targetCourseIds: number[]; // current target course IDs
 }
 ```
 
+**Frontend Behavior**: When `course.course_type === 'drip'`, the edit page shows an additional drip settings section with interval days input, target course multi-select, and lesson schedule preview.
+
 ---
 
-### PUT /admin/courses/{course}/drip
+### PUT /admin/courses/{course} (modified — drip fields added)
 
-**Description**: 更新連鎖課程設定
+**Description**: 更新課程（已修改，支援連鎖課程設定欄位）
 
-**Request**:
+**Additional Request Fields**:
 ```json
 {
   "course_type": "drip",
@@ -215,20 +213,12 @@
 }
 ```
 
-**Response (Success - Inertia Redirect)**:
-- 重導向至 `/admin/courses/{course}/edit`
-- Flash message: "連鎖課程設定已更新"
+**Validation** (added to `UpdateCourseRequest`):
+- `course_type`: required, in:standard,drip
+- `drip_interval_days`: required_if:course_type,drip, integer, min:1, max:30
+- `target_course_ids`: nullable array, each exists:courses,id
 
-**Validation Errors (422)**:
-```json
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "drip_interval_days": ["發信間隔天數必須在 1-30 之間"],
-    "target_course_ids.0": ["目標課程不存在"]
-  }
-}
-```
+**Response**: Same as existing course update (redirect to edit page with flash)
 
 ---
 
@@ -347,6 +337,45 @@
 
 ---
 
+## Classroom Page - Video Access Window (drip courses only)
+
+**Note**: 影片免費觀看期限資料透過 `lessons` prop 中的 `video_access_expired` 和 `video_access_remaining_seconds` 傳遞。目標課程資訊透過 `videoAccessTargetCourses` prop 傳遞。
+
+### GET /member/classroom/{course}
+
+**Description**: 教室頁面（已修改，新增影片免費觀看期限欄位）
+
+**Additional fields in lesson prop** (drip courses, unlocked lessons with video only):
+```typescript
+{
+  // Per-lesson video access status
+  video_access_expired: boolean;        // false if within window or no video
+  video_access_remaining_seconds: number | null; // null if expired/no video
+}
+```
+
+**Additional page-level prop**:
+```typescript
+{
+  videoAccessTargetCourses: Array<{
+    id: number;
+    name: string;
+    url: string;   // e.g. "/course/123"
+  }>;
+}
+```
+
+**Frontend Behavior** (in `Classroom.vue`):
+- `video_access_expired = false` 且 `video_access_remaining_seconds > 0` → 影片下方顯示「免費公開中，剩餘 XX:XX:XX」倒數
+- `video_access_expired = true` → 影片下方顯示加強版促銷區塊（系統生成，非自訂 HTML）
+- `subscription.status = 'converted'` → 不顯示任何觀看期限 UI（Controller 已設 `video_access_expired = false`）
+- `lesson.video_id = null`（純文字）→ 不顯示（Controller 已設 `video_access_expired = false`）
+- 促銷區塊內容根據 `videoAccessTargetCourses` 動態生成：
+  - 有目標課程：「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」+ 目標課程連結
+  - 無目標課程：「想要完整學習體驗？探索更多課程」+ 課程列表連結
+
+---
+
 ## Admin Chapters Page (existing route, modified)
 
 **Note**: 章節管理頁面載入 lesson 資料供 `LessonForm.vue` 編輯使用。
@@ -386,3 +415,22 @@
   "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>"
 }
 ```
+
+---
+
+## Drip Email Template (modified)
+
+### Email: drip-lesson.blade.php
+
+**Description**: Drip Lesson 通知信（已修改，新增免費觀看期提示）
+
+**Additional Template Content** (for lessons with video):
+```html
+<!-- 在影片提示後方加入 -->
+@if($lesson->video_id)
+  <p style="...">🎬 本課程包含教學影片，請至網站觀看</p>
+  <p style="...">⏰ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+@endif
+```
+
+**Note**: 此提示僅在 `config('drip.video_access_hours')` 不為 null 時顯示。

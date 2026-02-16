@@ -37,8 +37,8 @@
 - [x] T008 [P] Modify Lesson model: add promo_delay_seconds and promo_html to $fillable, add promo_delay_seconds integer cast, add hasPromoBlock and isPromoImmediate accessors in `app/Models/Lesson.php`
 - [x] T009 [P] Modify User model: add dripSubscriptions() HasMany and activeDripSubscriptions() (filtered by status=active) relationships in `app/Models/User.php`
 - [x] T010 [P] Create DripLessonMail mailable (implements ShouldQueue, uses Queueable+SerializesModels) with envelope() (subject: lesson title) and content() referencing drip-lesson blade template in `app/Mail/DripLessonMail.php`
-- [x] T011 [P] Create drip lesson email Blade template with lesson title, full html_content, video notice (if has_video), classroom link (`/member/classroom/{course_id}`), and unsubscribe link (`/drip/unsubscribe/{token}`) in `resources/views/emails/drip-lesson.blade.php`
-- [x] T012 [P] Create SendDripEmailJob (implements ShouldQueue, $tries=3, $backoff=[60,300,900]) that accepts user, lesson, subscription and dispatches DripLessonMail in `app/Jobs/SendDripEmailJob.php`
+- [x] T011 [P] Create drip lesson email Blade template with lesson title, full html_content (when present), video notice (if has_video), fallback text for pure-video lessons without html_content ("本課程包含教學影片，請至網站觀看完整內容" with classroom link), classroom link (`/member/classroom/{course_id}`), and unsubscribe link (`/drip/unsubscribe/{token}`) in `resources/views/emails/drip-lesson.blade.php`
+- [x] T012 [P] Create SendDripEmailJob (implements ShouldQueue, $tries=3, $backoff=[60,300,900]) that accepts userId (int), lessonId (int), subscriptionId (int) as primitive constructor params, loads models in handle(), and dispatches DripLessonMail in `app/Jobs/SendDripEmailJob.php`
 - [x] T013 Register all drip routes in `routes/web.php`: public drip group (POST subscribe, POST verify, GET/POST unsubscribe/{token}), member auth group (POST drip/subscribe/{course}), admin group (GET courses/{course}/subscribers)
 
 **Checkpoint**: Foundation ready - all models exist, email infrastructure ready, routes registered
@@ -185,14 +185,36 @@
 
 ---
 
-## Phase 11: Polish & Cross-Cutting Concerns
+## Phase 11: US10 - Drip 影片免費觀看期限提醒 (Priority: P2)
+
+**Goal**: Drip 課程 Lesson 解鎖後 48 小時內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒，不鎖定影片）
+
+**Independent Test**: 訂閱 drip 課程 → 修改 subscribed_at 使 Lesson 超過 48 小時 → 驗證影片仍可播放、過期促銷區塊出現、converted 使用者不顯示
+
+**Depends on**: Phase 4 (US6 - ClassroomController drip 支援), Phase 7 (US4 - conversion targets 用於促銷區塊)
+
+### Implementation
+
+- [ ] T047 [P] [US10] Create config file with `video_access_hours` setting (default 48, env override `DRIP_VIDEO_ACCESS_HOURS`) in `config/drip.php`
+- [ ] T048 [US10] Add getVideoAccessExpiresAt(subscription, lesson), isVideoAccessExpired(subscription, lesson), getVideoAccessRemainingSeconds(subscription, lesson) methods to DripService: calculate expiry as `subscribed_at + (sort_order × interval) days + config hours`, return null if config is null (feature disabled) in `app/Services/DripService.php`
+- [ ] T049 [US10] Modify ClassroomController.formatLessonFull(): for drip courses add video_access_expired (bool) and video_access_remaining_seconds (int|null) per lesson (skip for converted users and lessons without video); in show() add videoAccessTargetCourses prop with target course id/name/url from DripConversionTarget in `app/Http/Controllers/Member/ClassroomController.php`
+- [ ] T050 [P] [US10] Create VideoAccessNotice.vue component: props (expired bool, remainingSeconds number|null, targetCourses array), countdown timer with HH:MM:SS format (reload page when reaches 0), green "免費公開中" notice when within window, amber urgency promo block when expired with target course purchase buttons or generic "探索更多課程" fallback in `resources/js/Components/Classroom/VideoAccessNotice.vue`
+- [ ] T051 [US10] Modify Classroom.vue: import VideoAccessNotice, render below video player (above LessonPromoBlock) when course is drip + lesson has video + subscription not converted + (expired or remaining > 0), pass videoAccessTargetCourses prop in `resources/js/Pages/Member/Classroom.vue`
+- [ ] T052 [P] [US10] Modify drip-lesson email template: for lessons with video_id, add "⏰ 影片 {hours} 小時內免費觀看，把握時間！" notice below the video prompt, only show when config('drip.video_access_hours') is not null in `resources/views/emails/drip-lesson.blade.php`
+
+**Checkpoint**: 免費觀看期內顯示倒數、過期後顯示促銷區塊、converted 使用者不顯示、Email 包含免費觀看提示
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns
 
 **Purpose**: Final validation and refinements across all stories
 
 - [x] T043 Verify re-subscription prevention: unsubscribed users see "此課程已無法再次訂閱" when attempting to subscribe again
 - [x] T044 Verify email retry mechanism: SendDripEmailJob retries up to 3 times with backoff [60, 300, 900] seconds
-- [ ] T045 Run quickstart.md validation scenarios end-to-end (sections A through H)
+- [ ] T045 Run quickstart.md validation scenarios end-to-end (sections A through I)
 - [x] T046 Verify all new/modified pages are responsive (mobile-first RWD per project conventions)
+- [ ] T053 Verify VideoAccessNotice responsive design: countdown and urgency promo block display correctly on mobile
 
 ---
 
@@ -210,7 +232,8 @@
 - **US8+US9 (Phase 8)**: Depends on Phase 2 only (independent of drip subscription flow)
 - **US5 (Phase 9)**: Depends on Phase 3 (subscription + email infrastructure)
 - **US7 (Phase 10)**: Depends on Phase 2 (can parallel with any story)
-- **Polish (Phase 11)**: Depends on all phases complete
+- **US10 (Phase 11)**: Depends on Phase 4 (US6 classroom) + Phase 7 (US4 conversion targets for urgency promo)
+- **Polish (Phase 12)**: Depends on all phases complete
 
 ### User Story Dependencies
 
@@ -220,6 +243,7 @@
 - **US2 (P2)**: After US1 → reuses subscribe()
 - **US4 (P2)**: After US3 + US2 → needs conversion targets + webhook
 - **US8+US9 (P2)**: After Phase 2 → fully independent (all course types)
+- **US10 (P2)**: After US6 + US4 → needs classroom drip support + conversion targets
 - **US5 (P3)**: After US1 → uses subscription + email
 - **US7 (P3)**: After Phase 2 → independent (read-only)
 
@@ -233,6 +257,9 @@
 
 **After US1 completes**:
 - US6 (classroom) and US5 (unsubscribe) can run in parallel
+
+**After US4 completes**:
+- US10 (video access window) can start — needs classroom + conversion targets
 
 ---
 
@@ -260,6 +287,20 @@ Phase 8:  US8+US9   → LessonForm.vue + LessonPromoBlock.vue
 Phase 10: US7       → Admin CourseController subscribers + Subscribers.vue
 ```
 
+## Parallel Example: Phase 11 (US10)
+
+```bash
+# These tasks can run in parallel (different files):
+T047: config/drip.php           → NEW config file
+T050: VideoAccessNotice.vue     → NEW Vue component
+T052: drip-lesson.blade.php     → MODIFY email template
+
+# Then sequential:
+T048: DripService methods       → depends on config
+T049: ClassroomController       → depends on T048
+T051: Classroom.vue             → depends on T049 + T050
+```
+
 ---
 
 ## Implementation Strategy
@@ -283,7 +324,8 @@ Phase 10: US7       → Admin CourseController subscribers + Subscribers.vue
 7. US8+US9 → 促銷區塊 → Deploy
 8. US5 → 退訂 → Deploy
 9. US7 → 訂閱者清單 → Deploy
-10. Polish → Final validation
+10. US10 → 影片免費觀看期限 → Deploy
+11. Polish → Final validation
 
 ---
 
@@ -297,3 +339,5 @@ Phase 10: US7       → Admin CourseController subscribers + Subscribers.vue
 - Course model already has a `type` field (lecture/mini/full) — the new `course_type` field is separate
 - Commit after each task or logical group
 - Stop at any checkpoint to validate independently
+- US10 has no DB migrations — config-based setting only (`config/drip.php`)
+- US10 urgency promo content is system-generated (not custom HTML like promo blocks)

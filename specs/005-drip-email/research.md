@@ -131,6 +131,48 @@ $subscription->unsubscribe_token = Str::uuid()->toString();
 
 ---
 
+### 8. 影片免費觀看期限（Video Access Window）
+
+**Decision**: Config 檔案儲存 + 後端計算 + 前端倒數
+
+**Rationale**:
+- 全站統一設定，不需要 per-course 彈性 → config 最簡單
+- 後端計算過期時間並傳給前端（`video_access_expires_at`），避免前端自行計算造成時間不一致
+- 前端只負責倒數顯示和過期 UI 切換
+- 不需要新增 DB 欄位或 migration
+
+**Config Structure**:
+```php
+// config/drip.php
+return [
+    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+];
+```
+
+**Calculation**:
+```php
+// DripService
+public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+{
+    $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
+    $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+    $hours = config('drip.video_access_hours');
+    return $unlockAt->addHours($hours);
+}
+```
+
+**Urgency Promo Content**: 系統自動生成（非自訂 HTML），包含：
+- 固定文案：「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」
+- 動態內容：目標課程名稱和連結（從 DripConversionTarget 讀取）
+- 無目標課程時：通用文案 + 課程列表連結
+
+**Alternatives Considered**:
+- DB 欄位 per-course：過度設計，目前不需要 per-course 彈性
+- 前端純計算：時間計算依賴 subscription 和 lesson 資料，後端計算更可靠
+- 完全鎖定影片（方案 B）：風險過高，可能造成負面觀感
+
+---
+
 ## Technology Decisions Summary
 
 | Area | Decision | Key Reason |
@@ -142,6 +184,7 @@ $subscription->unsubscribe_token = Str::uuid()->toString();
 | Unlock Logic | 純計算，不儲存 | 簡單、無狀態 |
 | Token | UUID v4 | 安全、簡單 |
 | Frontend | Inertia props | 符合現有模式 |
+| Video Access Window | Config + 後端計算 | 簡單、全站統一 |
 
 ## No Unresolved Clarifications
 
