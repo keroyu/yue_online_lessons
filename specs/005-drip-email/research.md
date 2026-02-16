@@ -1,0 +1,148 @@
+# Research: Email 連鎖加溫系統
+
+**Feature**: 005-drip-email
+**Date**: 2026-02-05
+
+## Research Tasks
+
+### 1. Laravel Scheduler Best Practices
+
+**Decision**: 使用 Laravel 原生 Scheduler + Queue 系統
+
+**Rationale**:
+- 專案已在 `routes/console.php` 配置排程（已有 `courses:update-status` 指令）
+- Laravel Forge 已支援 cron 執行 `schedule:run`
+- 使用 database queue driver（已配置在 `config/queue.php`）
+
+**Alternatives Considered**:
+- Supervisor + dedicated queue worker: 過於複雜，不符合 "Simplicity Over Complexity" 原則
+- 外部排程服務（如 AWS EventBridge）: 增加基礎設施複雜度
+
+**Implementation**:
+```php
+// routes/console.php
+Schedule::command('drip:process-emails')->dailyAt('09:00');
+```
+
+---
+
+### 2. Email 發送策略
+
+**Decision**: 使用現有 Resend.com 整合 + Laravel Queue
+
+**Rationale**:
+- 專案已有 `app/Mail/` 下的 Mailable 類別模式
+- 已配置 Resend driver 在 `config/mail.php`
+- 使用 `ShouldQueue` 確保不阻塞排程執行
+
+**Implementation Pattern**:
+```php
+// 參考現有 CourseGiftedMail.php 模式
+class DripLessonMail extends Mailable implements ShouldQueue
+{
+    use Queueable, SerializesModels;
+}
+```
+
+**Retry Strategy**:
+- 最多 3 次重試（`$tries = 3`）
+- 指數退避（`$backoff = [60, 300, 900]`）
+
+---
+
+### 3. 訂閱者身份處理（訪客 vs 會員）
+
+**Decision**: 複用現有 VerificationCodeService 進行 Email 驗證
+
+**Rationale**:
+- 專案已有完整的驗證碼流程（`app/Services/VerificationCodeService.php`）
+- 統一會員管理，不另建訂閱者表
+
+**Flow**:
+1. 訪客輸入 Email → 發送驗證碼
+2. 驗證成功 → 檢查 User 是否存在
+3. 不存在 → 建立 User（僅 email）
+4. 存在 → 使用現有 User
+5. 建立 DripSubscription 關聯
+
+---
+
+### 4. Portaly Webhook 整合
+
+**Decision**: 擴充現有 `PortalyWebhookService`
+
+**Rationale**:
+- 專案已有完整的 webhook 處理邏輯
+- 只需在 `handlePaidEvent` 後加入轉換檢測
+
+**Implementation**:
+```php
+// 在 PortalyWebhookService::handlePaidEvent 後
+$this->dripService->checkAndConvert($user, $course);
+```
+
+---
+
+### 5. 解鎖邏輯計算
+
+**Decision**: 純計算方式，不儲存解鎖狀態
+
+**Rationale**:
+- 解鎖日公式：`(sort_order - 1) × drip_interval_days`
+- 每次請求時計算，不需要額外資料表
+- 符合 "Simplicity Over Complexity" 原則
+
+**Implementation**:
+```php
+public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson): bool
+{
+    $daysSinceSubscription = $subscription->subscribed_at->diffInDays(now());
+    $unlockDay = ($lesson->sort_order - 1) * $subscription->course->drip_interval_days;
+    return $daysSinceSubscription >= $unlockDay;
+}
+```
+
+---
+
+### 6. 退訂 Token 安全性
+
+**Decision**: 使用 UUID v4 作為 unsubscribe_token
+
+**Rationale**:
+- 64 位元熵，足夠防止猜測
+- Laravel 內建 `Str::uuid()`
+- 不需要額外加密
+
+**Implementation**:
+```php
+$subscription->unsubscribe_token = Str::uuid()->toString();
+```
+
+---
+
+### 7. 前端狀態管理
+
+**Decision**: 使用 Inertia.js props 傳遞狀態，不需額外狀態管理
+
+**Rationale**:
+- 符合專案現有模式
+- 訂閱狀態在頁面載入時由後端計算並傳入
+- 訂閱操作後重新載入頁面（Inertia reload）
+
+---
+
+## Technology Decisions Summary
+
+| Area | Decision | Key Reason |
+|------|----------|------------|
+| Scheduler | Laravel native + Queue | 已有配置，簡單 |
+| Email | Resend + ShouldQueue | 複用現有整合 |
+| Auth | VerificationCodeService | 統一驗證流程 |
+| Webhook | 擴充 PortalyWebhookService | 最小變更 |
+| Unlock Logic | 純計算，不儲存 | 簡單、無狀態 |
+| Token | UUID v4 | 安全、簡單 |
+| Frontend | Inertia props | 符合現有模式 |
+
+## No Unresolved Clarifications
+
+All technical decisions have been made based on existing project patterns and constitution principles.

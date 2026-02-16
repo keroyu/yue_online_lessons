@@ -1,6 +1,3 @@
-# Specifications (local development artifacts)
-/specs/
-
 # Laravel
 *.log
 .env
