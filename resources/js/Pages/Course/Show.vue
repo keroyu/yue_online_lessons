@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
@@ -84,10 +84,6 @@ const closeLegalModal = () => {
 // Drip subscription
 const subscribing = ref(false)
 const subscribeErrors = ref({})
-
-// Drip subscription success modal
-const page = usePage()
-const showSubscribedModal = ref(!!page.props.flash?.drip_subscribed)
 
 const memberSubscribe = () => {
   subscribing.value = true
@@ -234,8 +230,21 @@ const subscriptionStatusLabel = computed(() => {
 
           <!-- Drip subscription section -->
           <div v-if="isDrip" class="mt-8 pt-8 border-t border-gray-100">
+            <!-- Subscription success (inline) -->
+            <div v-if="$page.props.flash?.drip_subscribed" class="text-center py-6">
+              <div class="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">訂閱成功</h3>
+              <p class="text-gray-600">
+                請到信箱收取歡迎信。<br>如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。
+              </p>
+            </div>
+
             <!-- Already subscribed -->
-            <div v-if="userSubscription" class="text-center py-6">
+            <div v-else-if="userSubscription" class="text-center py-6">
               <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
                 :class="{
                   'bg-green-100 text-green-800': userSubscription === 'active',
@@ -344,35 +353,6 @@ const subscriptionStatusLabel = computed(() => {
     :type="legalModalType"
     @close="closeLegalModal"
   />
-
-  <!-- Drip Subscription Success Modal -->
-  <Teleport to="body">
-    <div
-      v-if="showSubscribedModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      <div class="absolute inset-0 bg-black/50" />
-      <div class="relative bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-        <div class="text-center">
-          <div class="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">訂閱成功</h3>
-          <p class="text-gray-600 mb-6">
-            請到信箱收取歡迎信。<br>如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。
-          </p>
-          <button
-            @click="showSubscribedModal = false"
-            class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-          >
-            我知道了
-          </button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
 
   <!-- Preview Alert Modal -->
   <Teleport to="body">

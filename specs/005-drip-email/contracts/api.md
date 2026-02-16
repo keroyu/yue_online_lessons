@@ -58,8 +58,8 @@
 ```
 
 **Response (Success - Inertia Back)**:
-- 停留在原頁面（back）
-- Flash message: "訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。"
+- 停留在原頁面（back），不跳轉、不彈出 Modal
+- Flash `drip_subscribed: true` → 前端在訂閱區塊內 inline 顯示成功訊息（綠色勾勾 + 「訂閱成功」 + 信箱提示）
 
 **Response (Error - 422)**:
 ```json
@@ -115,8 +115,8 @@
 **Request**: Empty body
 
 **Response (Success - Inertia Back)**:
-- 停留在原頁面（back）
-- Flash message: "訂閱成功！請到信箱收取歡迎信。如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。"
+- 停留在原頁面（back），不跳轉、不彈出 Modal
+- Flash `drip_subscribed: true` → 前端在訂閱區塊內 inline 顯示成功訊息（綠色勾勾 + 「訂閱成功」 + 信箱提示）
 
 **Response (Error - 422)**:
 ```json
