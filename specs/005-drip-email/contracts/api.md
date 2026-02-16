@@ -347,6 +347,30 @@
 
 ---
 
+## Admin Chapters Page (existing route, modified)
+
+**Note**: 章節管理頁面載入 lesson 資料供 `LessonForm.vue` 編輯使用。
+
+### GET /admin/courses/{course}/chapters
+
+**Description**: 章節管理頁面（已修改，lesson map 新增促銷區塊欄位）
+
+**Additional fields in lesson map** (章節內小節 + 獨立小節皆需包含):
+```typescript
+{
+  lessons: Array<{
+    // ... existing fields (id, title, duration_formatted, etc.) ...
+    // Promo block (NEW)
+    promo_delay_seconds: number | null;
+    promo_html: string | null;
+  }>;
+}
+```
+
+**⚠️ 重要**: 此 lesson map 是 `ChapterList.vue` → `LessonForm.vue` 的資料來源。若缺少 promo 欄位，編輯表單開啟時促銷區塊設定會顯示空白。
+
+---
+
 ## Admin Lesson Update (existing route, modified)
 
 **Note**: Lesson 編輯使用 `LessonForm.vue` 組件（Modal 形式），不是獨立頁面。

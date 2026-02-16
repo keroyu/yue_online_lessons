@@ -164,6 +164,7 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 | `app/Console/Commands/ProcessDripEmails.php` | Daily scheduler command |
 | `app/Jobs/SendDripEmailJob.php` | Email sending job |
 | `app/Mail/DripLessonMail.php` | Email template |
+| `app/Http/Controllers/Admin/ChapterController.php` | MODIFY: Lesson map 加入 promo 欄位 |
 | `app/Http/Controllers/DripSubscriptionController.php` | Subscribe/unsubscribe |
 
 ### Frontend
@@ -240,6 +241,12 @@ php artisan schedule:list
 1. Verify target course is set in `drip_conversion_targets`
 2. Check Portaly webhook is calling the updated handler
 3. Check user has active subscription to the drip course
+
+### Promo block settings blank after save (admin)
+
+1. Check `ChapterController@index` lesson map includes `promo_delay_seconds` and `promo_html`
+2. Both chapter lessons AND standalone lessons maps must include these fields
+3. This data feeds `ChapterList.vue` → `LessonForm.vue` via `editingLesson` prop
 
 ### Promo block not showing
 

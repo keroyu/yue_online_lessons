@@ -69,7 +69,8 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Admin/
-│   │   │   └── CourseController.php        # MODIFY: 新增 drip 設定相關 methods
+│   │   │   ├── CourseController.php        # MODIFY: 新增 drip 設定相關 methods
+│   │   │   └── ChapterController.php      # MODIFY: index() lesson map 加入 promo 欄位
 │   │   ├── Member/
 │   │   │   └── ClassroomController.php     # MODIFY: 加入解鎖邏輯 + promo 欄位
 │   │   ├── DripSubscriptionController.php  # NEW: 訂閱/退訂處理
@@ -257,7 +258,20 @@ protected function handlePaidEvent(array $data): array
 }
 ```
 
-### 5. ClassroomController 修改
+### 5. ChapterController 修改（Admin 章節頁）
+
+```php
+// index() 中 lesson map 加入 promo 欄位（章節內小節 + 獨立小節皆需加入）
+->map(fn ($lesson) => [
+    // ... existing fields ...
+    'promo_delay_seconds' => $lesson->promo_delay_seconds,
+    'promo_html' => $lesson->promo_html,
+])
+```
+
+**⚠️ 重要**：`ChapterController@index` 提供 lesson 資料給 `LessonForm.vue`（透過 `ChapterList.vue` 的 `editingLesson`），若未包含 promo 欄位，編輯表單開啟時會顯示空白。
+
+### 7. ClassroomController 修改
 
 ```php
 // formatLessonFull() 加入 promo 欄位
@@ -271,7 +285,7 @@ private function formatLessonFull(Lesson $lesson, array $completedLessonIds): ar
 }
 ```
 
-### 6. LessonForm.vue 修改
+### 8. LessonForm.vue 修改
 
 ```vue
 <!-- 在現有欄位後加入促銷區塊設定 -->
@@ -304,7 +318,7 @@ private function formatLessonFull(Lesson $lesson, array $completedLessonIds): ar
 </div>
 ```
 
-### 7. LessonPromoBlock.vue（新組件）
+### 9. LessonPromoBlock.vue（新組件）
 
 ```vue
 <script setup>

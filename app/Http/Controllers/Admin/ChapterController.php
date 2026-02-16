@@ -36,6 +36,8 @@ class ChapterController extends Controller
                     'video_platform' => $lesson->video_platform,
                     'html_content' => $lesson->html_content,
                     'sort_order' => $lesson->sort_order,
+                    'promo_delay_seconds' => $lesson->promo_delay_seconds,
+                    'promo_html' => $lesson->promo_html,
                 ]),
             ]);
 
@@ -54,6 +56,8 @@ class ChapterController extends Controller
                 'video_platform' => $lesson->video_platform,
                 'html_content' => $lesson->html_content,
                 'sort_order' => $lesson->sort_order,
+                'promo_delay_seconds' => $lesson->promo_delay_seconds,
+                'promo_html' => $lesson->promo_html,
             ]);
 
         return Inertia::render('Admin/Courses/Chapters', [
