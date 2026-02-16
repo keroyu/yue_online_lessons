@@ -40,8 +40,10 @@ const handleToggleComplete = (e) => {
 
 <template>
   <div
-    class="flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-colors"
-    :class="isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700'"
+    class="flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer"
+    :class="[
+      isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700',
+    ]"
     @click="handleClick"
   >
     <!-- Completion/Play Icon -->

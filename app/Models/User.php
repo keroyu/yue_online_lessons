@@ -60,6 +60,16 @@ class User extends Authenticatable
         return $this->hasMany(LessonProgress::class);
     }
 
+    public function dripSubscriptions(): HasMany
+    {
+        return $this->hasMany(DripSubscription::class);
+    }
+
+    public function activeDripSubscriptions(): HasMany
+    {
+        return $this->dripSubscriptions()->where('status', 'active');
+    }
+
     /**
      * Get the course completion progress percentage for a specific course.
      */

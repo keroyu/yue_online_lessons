@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
+import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
 
 // Throttling: 2-minute threshold before marking lesson as complete on server
 const COMPLETION_THRESHOLD_MS = 2 * 60 * 1000
@@ -28,6 +29,10 @@ const props = defineProps({
   hasContent: {
     type: Boolean,
     default: false,
+  },
+  dripSubscription: {
+    type: Object,
+    default: null,
   },
 })
 
@@ -362,6 +367,15 @@ const toggleSidebar = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
+
+            <!-- Promo Block -->
+            <LessonPromoBlock
+              v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+              :key="selectedLesson.id"
+              :lesson-id="selectedLesson.id"
+              :delay-seconds="selectedLesson.promo_delay_seconds"
+              :promo-html="selectedLesson.promo_html"
+            />
           </div>
         </div>
       </main>

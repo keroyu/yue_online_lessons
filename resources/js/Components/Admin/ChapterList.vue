@@ -186,6 +186,7 @@ const onLessonDragEnd = (chapterId = null) => {
       item-key="id"
       handle=".chapter-handle"
       ghost-class="opacity-50"
+      class="space-y-4"
       @end="onChapterDragEnd"
     >
       <template #item="{ element: chapter }">
@@ -336,8 +337,8 @@ const onLessonDragEnd = (chapterId = null) => {
       </template>
     </draggable>
 
-    <!-- Standalone Lessons -->
-    <div v-if="localStandaloneLessons.length > 0" class="bg-white shadow rounded-lg overflow-hidden">
+    <!-- Standalone Lessons (always visible as drop target) -->
+    <div class="bg-white shadow rounded-lg overflow-hidden border-2 border-dashed" :class="localStandaloneLessons.length > 0 ? 'border-transparent' : 'border-gray-200'">
       <div class="bg-gray-50 px-4 py-3">
         <h3 class="text-sm font-medium text-gray-900">獨立小節（無章節分類）</h3>
       </div>
@@ -349,6 +350,7 @@ const onLessonDragEnd = (chapterId = null) => {
         group="lessons"
         ghost-class="opacity-50"
         class="divide-y divide-gray-200"
+        :class="{ 'min-h-[48px]': localStandaloneLessons.length === 0 }"
         @end="onLessonDragEnd(null)"
       >
         <template #item="{ element: lesson }">
@@ -405,6 +407,10 @@ const onLessonDragEnd = (chapterId = null) => {
           </div>
         </template>
       </draggable>
+
+      <div v-if="localStandaloneLessons.length === 0" class="px-4 py-3 text-center text-sm text-gray-400">
+        將小節拖曳至此處可移出章節
+      </div>
     </div>
 
     <!-- Add Chapter Form -->

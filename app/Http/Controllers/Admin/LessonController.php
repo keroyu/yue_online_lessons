@@ -23,6 +23,9 @@ class LessonController extends Controller
     {
         $data = $request->validated();
 
+        // Ensure duration_seconds is never null (DB NOT NULL constraint)
+        $data['duration_seconds'] = $data['duration_seconds'] ?? 0;
+
         // Parse video URL if provided
         if (!empty($data['video_url'])) {
             $videoInfo = $this->videoEmbedService->parse($data['video_url']);
@@ -55,6 +58,9 @@ class LessonController extends Controller
     public function update(StoreLessonRequest $request, Lesson $lesson): RedirectResponse
     {
         $data = $request->validated();
+
+        // Ensure duration_seconds is never null (DB NOT NULL constraint)
+        $data['duration_seconds'] = $data['duration_seconds'] ?? 0;
 
         // Parse video URL if provided
         if (!empty($data['video_url'])) {

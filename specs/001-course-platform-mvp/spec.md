@@ -6,7 +6,6 @@
 **Input**: User description: "數位內容販售平台 MVP，包含課程首頁、會員系統（email 驗證登入）、我的課程頁面、帳號設定頁面"
 **Updated**: 2026-01-30 - 全站配色優化（統一 Color Scheme）
 **Updated**: 2026-01-31 - Webhook 處理優化（靜默忽略不相關的 Portaly 產品）
-**Updated**: 2026-02-06 - 新增 Landing Page 模式（隱藏導覽列，適合外部連結分享）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -117,26 +116,6 @@
 
 ---
 
-### User Story 7 - Landing Page 模式 (Priority: P2)
-
-從外部連結（如社群媒體、廣告、Email）點擊進入課程販售頁的訪客，透過 URL 參數 `?lp=1` 進入 Landing Page 模式。此模式下隱藏頂部導覽列（NavBar）和導航麵包屑（Breadcrumb），讓頁面呈現更像獨立的銷售頁面，減少干擾並提升轉換專注度。
-
-**Why this priority**: Landing Page 模式可提升外部流量的轉換率，讓訪客專注於課程內容和購買決策，減少導覽分心。
-
-**Independent Test**: 可獨立測試，透過添加 `?lp=1` 參數訪問課程販售頁，驗證導覽列和麵包屑是否正確隱藏。
-
-**Acceptance Scenarios**:
-
-1. **Given** 訪客透過外部連結進入課程販售頁, **When** URL 包含 `?lp=1` 參數, **Then** 頁面不顯示頂部導覽列（NavBar）
-2. **Given** 訪客在 Landing Page 模式, **When** 頁面載入完成, **Then** 頁面不顯示導航麵包屑（Breadcrumb）
-3. **Given** 訪客在 Landing Page 模式, **When** 查看頁面內容, **Then** 課程資訊、價格、購買按鈕等核心內容完整顯示
-4. **Given** 訪客在 Landing Page 模式, **When** 頁尾連結（服務條款、隱私政策等）被點擊, **Then** 正常開啟對應的 Modal 或頁面
-5. **Given** 訪客直接訪問課程販售頁（無 `?lp=1` 參數）, **When** 頁面載入完成, **Then** 顯示完整的導覽列和麵包屑
-6. **Given** 訪客在 Landing Page 模式, **When** 使用手機瀏覽, **Then** 頁面正確適配手機螢幕，核心內容完整顯示
-7. **Given** 訪客在 Landing Page 模式, **When** URL 同時包含 `?lp=1` 和 UTM 參數, **Then** Landing Page 模式正常運作，UTM 參數可供分析追蹤
-
----
-
 ### Edge Cases
 
 - 用戶連續多次請求發送驗證碼時，系統需限制發送頻率（例如：60 秒內只能發送一次）
@@ -149,9 +128,6 @@
 - Webhook 的 productId 找不到對應課程時，靜默忽略並回傳 200（不記錄 ERROR，避免日誌噪音）
 - 退款 webhook 找不到對應訂單時，記錄錯誤但回傳 200
 - 不相關的 Portaly 產品（如其他商品）發送 webhook 到課程網站時，靜默忽略且不建立用戶帳號
-- Landing Page 模式下，訪客手動移除 `?lp=1` 參數並重新載入時，恢復顯示完整導覽列
-- Landing Page 模式下，登入功能仍可透過頁面內的登入連結（如購買區塊的「建議先登入」連結）使用
-- Landing Page 模式下，若訪客透過頁內連結跳轉至其他頁面，其他頁面顯示正常導覽列（參數不自動傳遞）
 
 ## Requirements *(mandatory)*
 
@@ -182,14 +158,6 @@
 - **FR-023**: 當收到 refund 事件時，系統 MUST 將對應購買紀錄狀態更新為 "refunded"
 - **FR-024**: 自動建立的會員帳號 SHOULD 包含 Portaly 回傳的姓名和電話（若有提供）
 
-**Landing Page 模式：**
-- **FR-025**: 系統 MUST 支援 `?lp=1` URL 參數啟用 Landing Page 模式
-- **FR-026**: Landing Page 模式下，課程販售頁 MUST 隱藏頂部導覽列（NavBar）
-- **FR-027**: Landing Page 模式下，課程販售頁 MUST 隱藏導航麵包屑（Breadcrumb）
-- **FR-028**: Landing Page 模式下，課程販售頁 MUST 保留完整的課程資訊、價格和購買功能
-- **FR-029**: Landing Page 模式 MUST 支援與 UTM 參數並用（如 `?lp=1&utm_source=facebook`）
-- **FR-030**: Landing Page 模式 MUST 支援 RWD，適配桌機和手機螢幕
-
 ### Key Entities
 
 - **User（會員）**: 代表平台用戶，包含 email、暱稱、真實姓名（選填）、電話（選填）、出生年月日、角色（管理員/編輯/一般會員）、建立時間、最後登入時間、最後登入 IP
@@ -208,8 +176,6 @@
 - **SC-006**: 會員帳號設定的修改可在 1 秒內完成儲存並顯示成功回饋
 - **SC-007**: Webhook 處理在 5 秒內完成購買紀錄建立
 - **SC-008**: 透過 webhook 自動建立的會員可在付款後立即使用 email 登入查看課程
-- **SC-009**: Landing Page 模式下，頁面載入時間與正常模式相同（3 秒內）
-- **SC-010**: 外部連結訪客在 Landing Page 模式下可完成完整購買流程
 
 ## Clarifications
 
@@ -255,10 +221,6 @@
 - 需在 Portaly 後台為每個商品設定 webhook URL（如 `https://domain.com/api/webhook/portaly`）
 - 每個課程的 `portaly_product_id` 需與 Portaly 商品的 ID 對應
 - Portaly 可能將多個產品的 webhook 發送到同一端點，系統應靜默忽略不相關產品（productId 不在資料庫中的課程）
-- Landing Page 模式透過前端檢測 URL 參數 `?lp=1` 實作，不需後端變更
-- Landing Page 模式僅影響課程販售頁的顯示，不影響其他頁面或功能
-- Landing Page 模式下隱藏的元素：NavBar（包含 Logo、選單、登入按鈕）和 Breadcrumb（導航麵包屑）
-- Landing Page 模式下保留的元素：頁尾（Footer）、課程完整資訊、價格區塊、購買按鈕、法律政策 Modal
 
 ### Session 2026-01-31 (Webhook 處理優化)
 
@@ -275,12 +237,3 @@
   - `#373557` - 深紫藍色（深色背景、主要文字）
   - `#3F83A3` - 藍綠色（連結、按鈕、次要強調）
 - Q: 配色優化範圍？ → A: 全站所有頁面和組件，包括倒數計時器、按鈕、連結、背景等
-
-### Session 2026-02-06 (Landing Page 模式)
-
-- Q: Landing Page 模式如何啟用？ → A: 透過 URL 參數 `?lp=1` 啟用
-- Q: Landing Page 模式隱藏哪些元素？ → A: 頂部導覽列（NavBar）和導航麵包屑（Breadcrumb）
-- Q: Landing Page 模式的用途？ → A: 讓從外部連結（社群、廣告、Email）進入的訪客看到更乾淨的銷售頁面，提升轉換專注度
-- Q: Landing Page 模式下登入功能如何處理？ → A: 訪客可透過購買區塊的「建議先登入」連結進入登入流程
-- Q: Landing Page 模式下頁尾是否保留？ → A: 保留，法律政策連結（服務條款、隱私政策等）仍可正常使用
-- Q: `?lp=1` 參數是否自動傳遞至其他頁面？ → A: 否，僅作用於當前頁面，跳轉至其他頁面時顯示正常導覽

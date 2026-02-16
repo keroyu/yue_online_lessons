@@ -31,6 +31,8 @@ class Course extends Model
         'sort_order',
         'portaly_product_id',
         'duration_minutes',
+        'course_type',
+        'drip_interval_days',
     ];
 
     protected function casts(): array
@@ -44,6 +46,7 @@ class Course extends Model
             'sale_at' => 'datetime',
             'promo_ends_at' => 'datetime',
             'duration_minutes' => 'integer',
+            'drip_interval_days' => 'integer',
         ];
     }
 
@@ -67,9 +70,31 @@ class Course extends Model
         return $this->hasMany(CourseImage::class);
     }
 
+    public function dripConversionTargets(): HasMany
+    {
+        return $this->hasMany(DripConversionTarget::class, 'drip_course_id');
+    }
+
+    public function dripSubscriptions(): HasMany
+    {
+        return $this->hasMany(DripSubscription::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('is_published', true);
+    }
+
+    public function scopeDrip(Builder $query): Builder
+    {
+        return $query->where('course_type', 'drip');
+    }
+
+    protected function isDrip(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->course_type === 'drip'
+        );
     }
 
     public function scopeOrdered(Builder $query): Builder

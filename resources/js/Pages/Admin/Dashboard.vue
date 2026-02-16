@@ -150,7 +150,7 @@ const getStatusLabel = (status) => {
                     {{ getStatusLabel(course.status) }}
                   </span>
                   <span
-                    v-if="course.is_published"
+                    v-if="course.status === 'preorder' || course.status === 'selling'"
                     class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"
                   >
                     已上架

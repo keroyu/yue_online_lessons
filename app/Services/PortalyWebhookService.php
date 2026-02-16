@@ -7,6 +7,7 @@ use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Services\DripService;
 
 class PortalyWebhookService
 {
@@ -246,6 +247,20 @@ class PortalyWebhookService
                     'user_id' => $user->id,
                     'portaly_order_id' => $data['id'],
                 ]);
+
+                $dripService = app(DripService::class);
+
+                // Auto-subscribe if purchased course is a drip course
+                if ($purchase->course->course_type === 'drip') {
+                    $result = $dripService->subscribe($user, $purchase->course);
+                    Log::info('Webhook: Drip subscription attempt', [
+                        'success' => $result['success'],
+                        'error' => $result['error'] ?? null,
+                    ]);
+                }
+
+                // Check if purchase triggers drip conversion
+                $dripService->checkAndConvert($user, $purchase->course);
 
                 return [
                     'success' => true,

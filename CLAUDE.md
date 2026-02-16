@@ -22,6 +22,9 @@ php artisan migrate:fresh --seed
 
 # Test
 php artisan test
+
+# Remote Deploy (SSH)
+ssh forge@129.212.217.5
 ```
 
 ## Coding Conventions
@@ -59,6 +62,8 @@ php artisan test
 - PHP 8.2+ / Laravel 12.x + Inertia.js, Vue 3, Tailwind CSS, Resend (email) (003-member-management)
 - MySQL (existing database with users, purchases, lesson_progress tables) (003-member-management)
 - Laravel Cache (file-based) for RSS feed caching (004-homepage-enhancement)
+- PHP 8.2+ / Laravel 12.x + Laravel, Inertia.js, Vue 3, Tailwind CSS, Resend (email) (005-drip-email)
+- MySQL (existing database) (005-drip-email)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS
