@@ -63,7 +63,7 @@ class SendDripEmailJob implements ShouldQueue
         $unsubscribeUrl = config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}";
 
         $hasVideo = (bool) $lesson->has_video;
-        $htmlContent = $lesson->html_content ?: '';
+        $htmlContent = $this->stripStylesForEmail($lesson->html_content ?: '');
 
         try {
             Mail::to($user->email)->send(new DripLessonMail(
@@ -88,5 +88,23 @@ class SendDripEmailJob implements ShouldQueue
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Strip style/class attributes from HTML for cleaner email delivery.
+     */
+    private function stripStylesForEmail(string $html): string
+    {
+        if (empty($html)) {
+            return '';
+        }
+
+        // Remove style and class attributes
+        $html = preg_replace('/\s*(style|class)="[^"]*"/i', '', $html);
+
+        // Remove <style> blocks
+        $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
+
+        return trim($html);
     }
 }
