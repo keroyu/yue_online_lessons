@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\DripSubscription;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -24,6 +25,25 @@ class CourseController extends Controller
         // Preview mode: draft course being viewed by admin
         $isPreviewMode = $isDraft && $isAdmin;
 
+        // Drip course subscription info
+        $isDrip = $course->course_type === 'drip';
+        $userSubscription = null;
+        $canSubscribe = false;
+
+        if ($isDrip && $user) {
+            $subscription = DripSubscription::where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+
+            if ($subscription) {
+                $userSubscription = $subscription->status;
+            } else {
+                $canSubscribe = true;
+            }
+        } elseif ($isDrip && !$user) {
+            $canSubscribe = true;
+        }
+
         return Inertia::render('Course/Show', [
             'course' => [
                 'id' => $course->id,
@@ -38,6 +58,7 @@ class CourseController extends Controller
                 'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
                 'type' => $course->type,
+                'course_type' => $course->course_type,
                 'status' => $course->status,
                 'is_published' => $course->is_published,
                 'duration_formatted' => $course->duration_formatted,
@@ -46,6 +67,9 @@ class CourseController extends Controller
             ],
             'isAdmin' => $isAdmin,
             'isPreviewMode' => $isPreviewMode,
+            'isDrip' => $isDrip,
+            'userSubscription' => $userSubscription,
+            'canSubscribe' => $canSubscribe,
         ]);
     }
 }

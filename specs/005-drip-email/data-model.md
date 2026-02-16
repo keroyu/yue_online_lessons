@@ -358,20 +358,21 @@ public function activeDripSubscriptions(): HasMany
 
 ## Validation Rules
 
-### DripSubscription
+### DripSubscription (StoreDripSubscriptionRequest.php)
 
 ```php
-// StoreDripSubscriptionRequest
+// app/Http/Requests/StoreDripSubscriptionRequest.php
 [
-    'course_id' => ['required', 'exists:courses,id', new IsDripCourse],
-    'email' => ['required_without:user_id', 'email'], // 訪客訂閱時
+    'course_id' => ['required', 'exists:courses,id'],
+    'email' => ['required_without:user_id', 'email'], // guest flow
+    'code' => ['required'], // verify flow
 ]
 ```
 
-### Course (drip settings)
+### Course drip settings (folded into UpdateCourseRequest.php)
 
 ```php
-// UpdateDripSettingsRequest
+// app/Http/Requests/Admin/UpdateCourseRequest.php - added rules
 [
     'course_type' => ['required', 'in:standard,drip'],
     'drip_interval_days' => ['required_if:course_type,drip', 'integer', 'min:1', 'max:30'],

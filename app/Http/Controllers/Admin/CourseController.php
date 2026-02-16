@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\Course;
+use App\Models\DripConversionTarget;
+use App\Models\DripSubscription;
 use App\Models\Purchase;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -106,6 +109,23 @@ class CourseController extends Controller
      */
     public function edit(Course $course): Response
     {
+        // Get available courses for conversion target selection (exclude self)
+        $availableCourses = Course::where('id', '!=', $course->id)
+            ->where('course_type', '!=', 'drip')
+            ->published()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        // Get current target course IDs
+        $targetCourseIds = $course->dripConversionTargets()
+            ->pluck('target_course_id')
+            ->toArray();
+
+        // Get lessons for schedule preview
+        $courseLessons = $course->lessons()
+            ->orderBy('sort_order')
+            ->get(['id', 'title', 'sort_order']);
+
         return Inertia::render('Admin/Courses/Edit', [
             'course' => [
                 'id' => $course->id,
@@ -128,6 +148,9 @@ class CourseController extends Controller
                 'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
                 'is_visible' => $course->is_visible,
+                'course_type' => $course->course_type ?? 'standard',
+                'drip_interval_days' => $course->drip_interval_days,
+                'target_course_ids' => $targetCourseIds,
             ],
             'images' => $course->images()
                 ->latest()
@@ -139,6 +162,8 @@ class CourseController extends Controller
                     'width' => $image->width,
                     'height' => $image->height,
                 ]),
+            'availableCourses' => $availableCourses,
+            'courseLessons' => $courseLessons,
         ]);
     }
 
@@ -148,6 +173,10 @@ class CourseController extends Controller
     public function update(UpdateCourseRequest $request, Course $course): RedirectResponse
     {
         $data = $request->validated();
+
+        // Extract target_course_ids before saving (not a course column)
+        $targetCourseIds = $data['target_course_ids'] ?? null;
+        unset($data['target_course_ids']);
 
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail')) {
@@ -161,7 +190,31 @@ class CourseController extends Controller
             unset($data['thumbnail']);
         }
 
-        $course->update($data);
+        // Clear drip fields if switching to standard
+        if (($data['course_type'] ?? 'standard') === 'standard') {
+            $data['drip_interval_days'] = null;
+        }
+
+        DB::transaction(function () use ($course, $data, $targetCourseIds) {
+            $course->update($data);
+
+            // Sync conversion targets for drip courses
+            if (($data['course_type'] ?? 'standard') === 'drip' && $targetCourseIds !== null) {
+                // Delete existing targets
+                $course->dripConversionTargets()->delete();
+
+                // Create new targets
+                foreach ($targetCourseIds as $targetId) {
+                    DripConversionTarget::create([
+                        'drip_course_id' => $course->id,
+                        'target_course_id' => $targetId,
+                    ]);
+                }
+            } elseif (($data['course_type'] ?? 'standard') === 'standard') {
+                // Remove conversion targets when switching to standard
+                $course->dripConversionTargets()->delete();
+            }
+        });
 
         return redirect()
             ->route('admin.courses.edit', $course)
@@ -230,5 +283,56 @@ class CourseController extends Controller
         return redirect()
             ->route('admin.courses.edit', $course)
             ->with('success', '課程已下架為草稿');
+    }
+
+    /**
+     * Display subscribers list for a drip course.
+     */
+    public function subscribers(Request $request, Course $course): Response
+    {
+        $statusFilter = $request->input('status');
+
+        $query = DripSubscription::where('course_id', $course->id)
+            ->with('user:id,email,nickname');
+
+        if ($statusFilter && in_array($statusFilter, ['active', 'converted', 'completed', 'unsubscribed'])) {
+            $query->where('status', $statusFilter);
+        }
+
+        $subscribers = $query->orderByDesc('subscribed_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Stats aggregation
+        $stats = DripSubscription::where('course_id', $course->id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_count,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
+            ")
+            ->first();
+
+        $totalLessons = $course->lessons()->count();
+
+        return Inertia::render('Admin/Courses/Subscribers', [
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'total_lessons' => $totalLessons,
+            ],
+            'subscribers' => $subscribers,
+            'stats' => [
+                'total' => (int) $stats->total,
+                'active' => (int) $stats->active_count,
+                'converted' => (int) $stats->converted_count,
+                'completed' => (int) $stats->completed_count,
+                'unsubscribed' => (int) $stats->unsubscribed_count,
+            ],
+            'filters' => [
+                'status' => $statusFilter,
+            ],
+        ]);
     }
 }

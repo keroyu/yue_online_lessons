@@ -12,6 +12,14 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  availableCourses: {
+    type: Array,
+    default: () => [],
+  },
+  courseLessons: {
+    type: Array,
+    default: () => [],
+  },
   submitUrl: {
     type: String,
     required: true,
@@ -39,6 +47,21 @@ const form = useForm({
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   is_visible: props.course?.is_visible ?? true,
+  course_type: props.course?.course_type || 'standard',
+  drip_interval_days: props.course?.drip_interval_days || '',
+  target_course_ids: props.course?.target_course_ids || [],
+})
+
+const isDrip = computed(() => form.course_type === 'drip')
+
+// Schedule preview for drip courses
+const schedulePreview = computed(() => {
+  if (!isDrip.value || !form.drip_interval_days || props.courseLessons.length === 0) return []
+  const interval = parseInt(form.drip_interval_days) || 1
+  return props.courseLessons.map((lesson, index) => ({
+    title: lesson.title,
+    day: index * interval,
+  }))
 })
 
 // Image gallery modal
@@ -448,6 +471,114 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               關閉後課程不會出現在首頁，但仍可透過網址存取和購買
             </p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drip Course Settings -->
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+      <div class="px-6 py-6 sm:p-8">
+        <div class="border-b border-gray-200 pb-6 mb-8">
+          <h3 class="text-xl font-semibold text-gray-900">連鎖課程設定</h3>
+          <p class="mt-1 text-sm text-gray-500">設定課程為連鎖課程後，訂閱者將依照間隔天數自動收到 Lesson 通知。</p>
+        </div>
+
+        <div class="space-y-8">
+          <!-- Course Mode -->
+          <div>
+            <label :class="labelClasses">
+              課程模式 <span class="text-red-500">*</span>
+            </label>
+            <div class="mt-3 flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  v-model="form.course_type"
+                  type="radio"
+                  value="standard"
+                  class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span class="text-sm text-gray-700">一般課程</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  v-model="form.course_type"
+                  type="radio"
+                  value="drip"
+                  class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span class="text-sm text-gray-700">連鎖課程</span>
+              </label>
+            </div>
+            <p v-if="form.errors.course_type" :class="errorTextClasses">{{ form.errors.course_type }}</p>
+          </div>
+
+          <!-- Drip-specific settings (visible when course_type = drip) -->
+          <template v-if="isDrip">
+            <!-- Interval Days -->
+            <div>
+              <label for="drip_interval_days" :class="labelClasses">
+                發信間隔天數 <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="drip_interval_days"
+                v-model="form.drip_interval_days"
+                type="number"
+                min="1"
+                max="30"
+                placeholder="例如：3"
+                :class="[inputClasses, form.errors.drip_interval_days ? inputErrorClasses : '']"
+              />
+              <p :class="helpTextClasses">每隔幾天發送一封 Lesson 通知信（1-30 天）</p>
+              <p v-if="form.errors.drip_interval_days" :class="errorTextClasses">{{ form.errors.drip_interval_days }}</p>
+            </div>
+
+            <!-- Target Courses -->
+            <div>
+              <label :class="labelClasses">目標課程（行銷漏斗）</label>
+              <p :class="helpTextClasses" class="!mt-1 mb-3">訂閱者購買以下任一課程後，連鎖課程將自動標記為已轉換，停止發信並解鎖全部內容。</p>
+              <div v-if="availableCourses.length > 0" class="space-y-2">
+                <label
+                  v-for="ac in availableCourses"
+                  :key="ac.id"
+                  class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                  :class="{ 'bg-indigo-50 border-indigo-300': form.target_course_ids.includes(ac.id) }"
+                >
+                  <input
+                    type="checkbox"
+                    :value="ac.id"
+                    v-model="form.target_course_ids"
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span class="text-sm text-gray-700">{{ ac.name }}</span>
+                </label>
+              </div>
+              <p v-else class="text-sm text-gray-400">目前沒有可選的目標課程</p>
+              <p v-if="form.errors.target_course_ids" :class="errorTextClasses">{{ form.errors.target_course_ids }}</p>
+            </div>
+
+            <!-- Schedule Preview -->
+            <div v-if="schedulePreview.length > 0">
+              <label :class="labelClasses">發信排程預覽</label>
+              <div class="mt-3 overflow-hidden rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lesson</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">解鎖日</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr v-for="(item, index) in schedulePreview" :key="index">
+                      <td class="px-4 py-2 text-sm text-gray-700">{{ item.title }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-500">
+                        {{ item.day === 0 ? '訂閱當天' : `第 ${item.day} 天` }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>

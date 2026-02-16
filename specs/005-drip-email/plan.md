@@ -110,7 +110,8 @@ resources/
 │   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_minutes, promo_html 欄位
 │   │   ├── Classroom/
 │   │   │   └── LessonPromoBlock.vue        # NEW: 促銷區塊組件（含倒數計時 + localStorage）
-│   │   └── DripSubscribeForm.vue           # NEW: Email 輸入 + 驗證碼表單
+│   │   └── Course/
+│   │       └── DripSubscribeForm.vue       # NEW: Email 輸入 + 驗證碼表單
 │   │
 │   └── Pages/
 │       ├── Admin/
@@ -315,14 +316,15 @@ const props = defineProps({
   promoHtml: { type: String, required: true },
 })
 
-const STORAGE_KEY = `promo_unlocked_lesson_${props.lessonId}`
+const UNLOCK_KEY = `promo_unlocked_lesson_${props.lessonId}`
+const ELAPSED_KEY = `promo_elapsed_lesson_${props.lessonId}`
 const isUnlocked = ref(false)
 const elapsedSeconds = ref(0)
 let timer = null
 
 onMounted(() => {
-  // Check localStorage
-  if (localStorage.getItem(STORAGE_KEY) === 'true') {
+  // Check if already unlocked
+  if (localStorage.getItem(UNLOCK_KEY) === 'true') {
     isUnlocked.value = true
     return
   }
@@ -332,9 +334,21 @@ onMounted(() => {
     return
   }
 
-  // Start timer
+  // Restore elapsed time from previous session
+  const savedElapsed = parseInt(localStorage.getItem(ELAPSED_KEY) || '0', 10)
+  elapsedSeconds.value = savedElapsed
+
+  if (savedElapsed >= props.delayMinutes * 60) {
+    unlock()
+    return
+  }
+
+  // Start timer, persist elapsed time every 5 seconds
   timer = setInterval(() => {
     elapsedSeconds.value++
+    if (elapsedSeconds.value % 5 === 0) {
+      localStorage.setItem(ELAPSED_KEY, String(elapsedSeconds.value))
+    }
     if (elapsedSeconds.value >= props.delayMinutes * 60) {
       unlock()
     }
@@ -343,11 +357,16 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  // Persist elapsed time on unmount (page leave / lesson switch)
+  if (!isUnlocked.value) {
+    localStorage.setItem(ELAPSED_KEY, String(elapsedSeconds.value))
+  }
 })
 
 const unlock = () => {
   isUnlocked.value = true
-  localStorage.setItem(STORAGE_KEY, 'true')
+  localStorage.setItem(UNLOCK_KEY, 'true')
+  localStorage.removeItem(ELAPSED_KEY)
   if (timer) clearInterval(timer)
 }
 

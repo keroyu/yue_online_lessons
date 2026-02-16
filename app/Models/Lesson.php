@@ -20,6 +20,8 @@ class Lesson extends Model
         'video_id',
         'video_url',
         'html_content',
+        'promo_delay_minutes',
+        'promo_html',
         'duration_seconds',
         'sort_order',
     ];
@@ -29,6 +31,7 @@ class Lesson extends Model
         return [
             'duration_seconds' => 'integer',
             'sort_order' => 'integer',
+            'promo_delay_minutes' => 'integer',
         ];
     }
 
@@ -88,6 +91,26 @@ class Lesson extends Model
     {
         return Attribute::make(
             get: fn () => !empty($this->video_id)
+        );
+    }
+
+    /**
+     * Check if lesson has a promo block configured
+     */
+    protected function hasPromoBlock(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->promo_delay_minutes !== null && !empty($this->promo_html)
+        );
+    }
+
+    /**
+     * Check if promo block should show immediately
+     */
+    protected function isPromoImmediate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->promo_delay_minutes === 0
         );
     }
 }

@@ -1,8 +1,9 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
+import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
 
 const props = defineProps({
   course: {
@@ -14,6 +15,18 @@ const props = defineProps({
     default: false,
   },
   isPreviewMode: {
+    type: Boolean,
+    default: false,
+  },
+  isDrip: {
+    type: Boolean,
+    default: false,
+  },
+  userSubscription: {
+    type: String,
+    default: null,
+  },
+  canSubscribe: {
     type: Boolean,
     default: false,
   },
@@ -67,6 +80,32 @@ const openLegalModal = (type) => {
 const closeLegalModal = () => {
   showLegalModal.value = false
 }
+
+// Drip subscription
+const subscribing = ref(false)
+const subscribeErrors = ref({})
+
+const memberSubscribe = () => {
+  subscribing.value = true
+  subscribeErrors.value = {}
+
+  router.post(`/member/drip/subscribe/${props.course.id}`, {}, {
+    onError: (errs) => {
+      subscribeErrors.value = errs
+      subscribing.value = false
+    },
+  })
+}
+
+const subscriptionStatusLabel = computed(() => {
+  const labels = {
+    active: '訂閱中',
+    converted: '已轉換',
+    completed: '已完成',
+    unsubscribed: '已退訂',
+  }
+  return labels[props.userSubscription] || props.userSubscription
+})
 </script>
 
 <template>
@@ -189,8 +228,50 @@ const closeLegalModal = () => {
             </div>
           </div>
 
-          <!-- Purchase section -->
-          <div class="mt-8 pt-8 border-t border-gray-100">
+          <!-- Drip subscription section -->
+          <div v-if="isDrip" class="mt-8 pt-8 border-t border-gray-100">
+            <!-- Already subscribed -->
+            <div v-if="userSubscription" class="text-center py-6">
+              <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                :class="{
+                  'bg-green-100 text-green-800': userSubscription === 'active',
+                  'bg-blue-100 text-blue-800': userSubscription === 'converted',
+                  'bg-gray-100 text-gray-800': userSubscription === 'completed',
+                  'bg-red-100 text-red-800': userSubscription === 'unsubscribed',
+                }"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                {{ subscriptionStatusLabel }}
+              </div>
+              <p v-if="userSubscription === 'active'" class="mt-2 text-sm text-gray-600">
+                <Link :href="`/member/classroom/${course.id}`" class="text-indigo-600 hover:underline">
+                  前往教室
+                </Link>
+              </p>
+            </div>
+
+            <!-- Can subscribe: logged-in member -->
+            <div v-else-if="canSubscribe && $page.props.auth.user" class="text-center py-6">
+              <p v-if="subscribeErrors.subscribe" class="mb-3 text-sm text-red-600">{{ subscribeErrors.subscribe }}</p>
+              <button
+                @click="memberSubscribe"
+                :disabled="subscribing"
+                class="px-10 py-3 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ subscribing ? '訂閱中...' : (Number(course.price) > 0 ? '立即購買' : '免費訂閱') }}
+              </button>
+            </div>
+
+            <!-- Can subscribe: guest -->
+            <div v-else-if="canSubscribe">
+              <DripSubscribeForm :course-id="course.id" />
+            </div>
+          </div>
+
+          <!-- Standard purchase section (non-drip courses) -->
+          <div v-else class="mt-8 pt-8 border-t border-gray-100">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
               <!-- Left: Price Block -->
               <div class="bg-gradient-to-br from-brand-cream to-white border border-brand-teal/20 rounded-xl px-5 py-4">

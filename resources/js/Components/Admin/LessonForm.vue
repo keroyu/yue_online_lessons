@@ -15,6 +15,8 @@ const form = ref({
   video_url: '',
   html_content: '',
   duration_seconds: '',
+  promo_delay_minutes: '',
+  promo_html: '',
 })
 
 const errors = ref({})
@@ -26,6 +28,8 @@ onMounted(() => {
       video_url: props.lesson.video_url || '',
       html_content: props.lesson.html_content || '',
       duration_seconds: props.lesson.duration_seconds || '',
+      promo_delay_minutes: props.lesson.promo_delay_minutes ?? '',
+      promo_html: props.lesson.promo_html || '',
     }
   }
 })
@@ -65,6 +69,8 @@ const submit = () => {
     video_url: form.value.video_url || null,
     html_content: form.value.html_content || null,
     duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
+    promo_delay_minutes: form.value.promo_delay_minutes !== '' ? parseInt(form.value.promo_delay_minutes) : null,
+    promo_html: form.value.promo_html || null,
   })
 }
 
@@ -174,6 +180,38 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <p :class="helpTextClasses">
                   如無影片連結，將顯示此 HTML 內容（電子書或文章形式）
                 </p>
+              </div>
+
+              <!-- Promo Block Settings -->
+              <div class="border-t pt-6 mt-2">
+                <h4 class="text-sm font-semibold text-gray-900 mb-4">促銷區塊設定</h4>
+
+                <div class="space-y-4">
+                  <div>
+                    <label for="promo_delay_minutes" :class="labelClasses">延遲顯示（分鐘）</label>
+                    <input
+                      id="promo_delay_minutes"
+                      v-model="form.promo_delay_minutes"
+                      type="number"
+                      min="0"
+                      max="120"
+                      placeholder="留空則不顯示促銷區塊"
+                      :class="inputClasses"
+                    />
+                    <p :class="helpTextClasses">0 = 立即顯示，留空 = 不啟用</p>
+                  </div>
+
+                  <div>
+                    <label for="promo_html" :class="labelClasses">促銷內容（HTML）</label>
+                    <textarea
+                      id="promo_html"
+                      v-model="form.promo_html"
+                      rows="5"
+                      placeholder="<div class='bg-yellow-100 p-4'>...</div>"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

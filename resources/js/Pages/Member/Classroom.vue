@@ -4,6 +4,7 @@ import { Head, router } from '@inertiajs/vue3'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
+import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
 
 // Throttling: 2-minute threshold before marking lesson as complete on server
 const COMPLETION_THRESHOLD_MS = 2 * 60 * 1000
@@ -28,6 +29,10 @@ const props = defineProps({
   hasContent: {
     type: Boolean,
     default: false,
+  },
+  dripSubscription: {
+    type: Object,
+    default: null,
   },
 })
 
@@ -113,6 +118,9 @@ onUnmounted(() => {
 
 // Handle lesson selection with throttling
 const handleSelectLesson = async (lesson) => {
+  // Prevent selecting locked lessons (drip courses)
+  if (lesson.is_unlocked === false) return
+
   // Skip if already selected
   if (selectedLesson.value?.id === lesson.id) {
     sidebarOpen.value = false
@@ -331,6 +339,20 @@ const toggleSidebar = () => {
             <p class="text-gray-500">講師正在努力製作課程內容，敬請期待！</p>
           </div>
 
+          <!-- Locked lesson (drip) -->
+          <div
+            v-else-if="selectedLesson && selectedLesson.is_unlocked === false"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ selectedLesson.title }}</h2>
+            <p class="text-gray-500">
+              {{ selectedLesson.unlock_in_days === -1 ? '此內容已鎖定' : (selectedLesson.unlock_in_days > 0 ? `${selectedLesson.unlock_in_days} 天後解鎖` : '即將解鎖') }}
+            </p>
+          </div>
+
           <!-- Lesson content -->
           <div v-else-if="selectedLesson">
             <!-- Lesson Title -->
@@ -362,6 +384,15 @@ const toggleSidebar = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
+
+            <!-- Promo Block -->
+            <LessonPromoBlock
+              v-if="selectedLesson.promo_delay_minutes !== null && selectedLesson.promo_delay_minutes !== undefined && selectedLesson.promo_html"
+              :key="selectedLesson.id"
+              :lesson-id="selectedLesson.id"
+              :delay-minutes="selectedLesson.promo_delay_minutes"
+              :promo-html="selectedLesson.promo_html"
+            />
           </div>
         </div>
       </main>

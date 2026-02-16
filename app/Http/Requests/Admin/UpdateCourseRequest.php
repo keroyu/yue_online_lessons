@@ -36,6 +36,10 @@ class UpdateCourseRequest extends FormRequest
             'sale_at' => ['nullable', 'date'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
             'is_visible' => ['nullable', 'boolean'],
+            'course_type' => ['required', 'in:standard,drip'],
+            'drip_interval_days' => ['nullable', 'required_if:course_type,drip', 'integer', 'min:1', 'max:30'],
+            'target_course_ids' => ['nullable', 'array'],
+            'target_course_ids.*' => ['exists:courses,id'],
         ];
     }
 
@@ -61,6 +65,14 @@ class UpdateCourseRequest extends FormRequest
             'original_price.integer' => '原價必須是整數',
             'original_price.min' => '原價不能為負數',
             'promo_ends_at.date' => '優惠到期時間格式不正確',
+            'course_type.required' => '請選擇課程模式',
+            'course_type.in' => '課程模式無效',
+            'drip_interval_days.required_if' => '連鎖課程需設定發信間隔天數',
+            'drip_interval_days.integer' => '發信間隔天數必須是整數',
+            'drip_interval_days.min' => '發信間隔天數至少為 1 天',
+            'drip_interval_days.max' => '發信間隔天數不能超過 30 天',
+            'target_course_ids.array' => '目標課程格式無效',
+            'target_course_ids.*.exists' => '選擇的目標課程不存在',
         ];
     }
 }

@@ -12,11 +12,20 @@ use App\Http\Controllers\Admin\ChapterController;
 use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
+use App\Http\Controllers\DripSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
+
+// Drip subscription routes (public)
+Route::prefix('drip')->name('drip.')->group(function () {
+    Route::post('/subscribe', [DripSubscriptionController::class, 'subscribe'])->name('subscribe');
+    Route::post('/verify', [DripSubscriptionController::class, 'verify'])->name('verify');
+    Route::get('/unsubscribe/{token}', [DripSubscriptionController::class, 'showUnsubscribe'])->name('unsubscribe.show');
+    Route::post('/unsubscribe/{token}', [DripSubscriptionController::class, 'unsubscribe'])->name('unsubscribe');
+});
 
 // Auth routes (Guest only)
 Route::middleware('guest')->group(function () {
@@ -42,6 +51,9 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::get('/classroom/{course}', [ClassroomController::class, 'show'])->name('classroom');
     Route::post('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markComplete'])->name('progress.store');
     Route::delete('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markIncomplete'])->name('progress.destroy');
+
+    // Drip subscription (logged-in member one-click subscribe)
+    Route::post('/drip/subscribe/{course}', [DripSubscriptionController::class, 'memberSubscribe'])->name('drip.subscribe');
 });
 
 // Admin routes (Admin only)
@@ -70,6 +82,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
     Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
     Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
+
+    // Drip subscribers
+    Route::get('/courses/{course}/subscribers', [AdminCourseController::class, 'subscribers'])->name('courses.subscribers');
 
     // Members
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');

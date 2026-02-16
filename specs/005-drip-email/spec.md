@@ -225,7 +225,7 @@
 - **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即發送**
 - **FR-013**: 後續通知信 MUST 由每天早上 9 點的排程任務發送
 - **FR-014**: 排程任務 MUST 比較 emails_sent 和應解鎖 Lesson 數，發送差額的信件
-- **FR-015**: 每封 Email MUST 包含：Lesson 標題、內容摘要、連回網站的連結、退訂連結
+- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的連結、退訂連結。若 Lesson 包含影片，MUST 顯示提示「本課程包含教學影片，請至網站觀看」。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
 - **FR-016**: 當 emails_sent 等於課程總 Lesson 數時，MUST 將狀態標記為 completed
 
 **轉換機制**

@@ -170,11 +170,10 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 
 | File | Purpose |
 |------|---------|
-| `resources/js/Components/DripSubscribeButton.vue` | Subscribe button |
-| `resources/js/Components/LessonLockOverlay.vue` | Locked lesson overlay |
+| `resources/js/Components/Course/DripSubscribeForm.vue` | Subscribe form (email + verification code) |
 | `resources/js/Components/Classroom/LessonPromoBlock.vue` | Promo block with countdown |
 | `resources/js/Components/Admin/LessonForm.vue` | MODIFY: Add promo fields |
-| `resources/js/Pages/Admin/Courses/DripSettings.vue` | Admin drip settings |
+| `resources/js/Pages/Admin/Courses/Edit.vue` | MODIFY: Add drip settings section |
 | `resources/js/Pages/Member/Classroom.vue` | MODIFY: Show promo block |
 | `resources/js/Pages/Drip/Unsubscribe.vue` | Unsubscribe confirmation |
 
