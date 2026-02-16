@@ -1207,6 +1207,30 @@ Within Phase 15:
 
 ---
 
+## Phase 19: Bug Fixes & UI Polish (2026-02-16 新增) 🐛
+
+**Purpose**: 修正後臺 Dashboard 和章節編輯頁的 UI 問題
+
+### Dashboard Bug Fix
+
+- [X] T192 [US8] Fix "已上架" badge incorrectly showing for draft courses in `resources/js/Pages/Admin/Dashboard.vue`
+  - Changed condition from `course.is_published` to `course.status === 'preorder' || course.status === 'selling'`
+  - `is_published` field is `true` even for draft courses, causing incorrect display
+
+### Chapter Editor UX Improvements
+
+- [X] T193 [US3] Add spacing between EP (chapter) cards in `resources/js/Components/Admin/ChapterList.vue`
+  - Added `class="space-y-4"` to chapter-level `<draggable>` for proper vertical spacing
+
+- [X] T194 [US3] Make standalone lessons drop zone always visible in `resources/js/Components/Admin/ChapterList.vue`
+  - Removed `v-if="localStandaloneLessons.length > 0"` so the area is always a valid drop target
+  - Empty state shows dashed border + hint text "將小節拖曳至此處可移出章節"
+  - Lessons dragged out of any EP block can now land in the standalone area (chapter_id set to null)
+
+**Checkpoint**: Dashboard badges correct, chapter editor drag-drop improved ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1221,4 +1245,5 @@ Within Phase 15:
 | Phase 16 (節流門檻調整 5min→2min) | T157-T159 | ✅ Completed |
 | Phase 17 (倒數計時 UI 優化) | T160-T168 | ✅ Completed |
 | Phase 18 (課程顯示/隱藏設定) | T169-T191 | ⏳ In Progress (19/23 complete) |
-| **Total** | **191 tasks** | 187 completed, 4 pending |
+| Phase 19 (Bug Fixes & UI Polish) | T192-T194 | ✅ Completed |
+| **Total** | **194 tasks** | 190 completed, 4 pending |
