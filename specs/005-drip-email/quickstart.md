@@ -139,7 +139,7 @@ php artisan tinker
 3. 設定 `promo_html` = `<div class="bg-yellow-100 p-4"><a href="/course/123">立即購買</a></div>`
 4. 儲存後以會員身份進入教室（Classroom），選擇該 Lesson
 5. 驗證：
-   - 初始顯示「請先觀看課程」+ 0:59 倒數
+   - 初始顯示「解鎖進階資訊，請先完成學習」+ 0:59 倒數
    - 1 分鐘後促銷區塊出現
    - 重新整理頁面 → 促銷區塊直接顯示（無需倒數）
    - 檢查 localStorage: `promo_unlocked_lesson_{id}` = true
@@ -156,7 +156,7 @@ localStorage.removeItem('promo_unlocked_lesson_123'); // 替換 123 為 lesson I
 2. 訂閱該課程，進入教室觀看第一個 Lesson
 3. 驗證：
    - 影片正常播放
-   - 影片下方顯示「免費公開中，剩餘 47:59:xx」倒數
+   - 影片下方顯示「課程免費公開中，剩餘 47:59:xx」倒數
 4. 使用 tinker 模擬超過 48 小時：
 
 ```bash

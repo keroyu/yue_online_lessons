@@ -405,7 +405,7 @@ const formattedTime = computed(() => {
   <div class="mt-6 border-t pt-6">
     <div v-if="isUnlocked" v-html="promoHtml" />
     <div v-else class="bg-gray-100 rounded-lg p-6 text-center">
-      <p class="text-gray-600 mb-2">請先觀看課程</p>
+      <p class="text-gray-600 mb-2">解鎖進階資訊，請先完成學習</p>
       <p class="text-2xl font-mono text-gray-800">{{ formattedTime }}</p>
     </div>
   </div>
@@ -544,7 +544,7 @@ const formattedCountdown = computed(() => {
   <!-- 免費觀看期內：倒數提示 -->
   <div v-if="!expired && formattedCountdown"
        class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-    <p class="text-sm text-green-700">免費公開中，剩餘</p>
+    <p class="text-sm text-green-700">課程免費公開中，剩餘</p>
     <p class="text-xl font-mono font-bold text-green-800">{{ formattedCountdown }}</p>
   </div>
 
@@ -592,18 +592,10 @@ const formattedCountdown = computed(() => {
 ```blade
 {{-- 在影片提示區塊修改 --}}
 @if($lesson->video_id)
-  <tr>
-    <td style="padding: 16px 24px; background-color: #f0f9ff; border-radius: 8px;">
-      <p style="margin: 0; color: #1e40af;">
-        🎬 本課程包含教學影片，請至網站觀看
-      </p>
-      @if(config('drip.video_access_hours'))
-      <p style="margin: 8px 0 0; color: #b45309; font-weight: 600;">
-        ⏰ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！
-      </p>
-      @endif
-    </td>
-  </tr>
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+  @if(config('drip.video_access_hours'))
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+  @endif
 @endif
 ```
 

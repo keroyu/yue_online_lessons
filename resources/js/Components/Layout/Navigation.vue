@@ -26,7 +26,7 @@ const logout = () => {
         <!-- Desktop Navigation -->
         <div class="hidden sm:flex sm:items-center sm:space-x-4">
           <Link href="/" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
-            課程
+            首頁
           </Link>
 
           <template v-if="user">
@@ -72,7 +72,7 @@ const logout = () => {
     <div v-show="mobileMenuOpen" class="sm:hidden border-t border-white/10">
       <div class="px-2 pt-2 pb-3 space-y-1">
         <Link href="/" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
-          課程
+          首頁
         </Link>
 
         <template v-if="user">

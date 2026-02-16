@@ -357,10 +357,51 @@ const toggleSidebar = () => {
               />
             </div>
 
-            <!-- HTML Content -->
-            <div v-if="selectedLesson.html_content">
-              <HtmlContent :content="selectedLesson.html_content" />
-            </div>
+            <!-- Has video: Countdown → Promo → Content (strike while hot) -->
+            <template v-if="selectedLesson.has_video">
+              <!-- Video Access Notice (drip courses only) -->
+              <VideoAccessNotice
+                v-if="course.is_drip
+                  && selectedLesson?.video_id
+                  && dripSubscription?.status !== 'converted'
+                  && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
+                :key="'video-access-' + selectedLesson.id"
+                :expired="selectedLesson.video_access_expired"
+                :remaining-seconds="selectedLesson.video_access_remaining_seconds"
+                :target-courses="videoAccessTargetCourses"
+              />
+
+              <!-- Promo Block -->
+              <LessonPromoBlock
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                :key="selectedLesson.id"
+                :lesson-id="selectedLesson.id"
+                :delay-seconds="selectedLesson.promo_delay_seconds"
+                :promo-html="selectedLesson.promo_html"
+              />
+
+              <!-- HTML Content -->
+              <div v-if="selectedLesson.html_content">
+                <HtmlContent :content="selectedLesson.html_content" />
+              </div>
+            </template>
+
+            <!-- No video: Content → Promo -->
+            <template v-else>
+              <!-- HTML Content -->
+              <div v-if="selectedLesson.html_content">
+                <HtmlContent :content="selectedLesson.html_content" />
+              </div>
+
+              <!-- Promo Block -->
+              <LessonPromoBlock
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                :key="selectedLesson.id"
+                :lesson-id="selectedLesson.id"
+                :delay-seconds="selectedLesson.promo_delay_seconds"
+                :promo-html="selectedLesson.promo_html"
+              />
+            </template>
 
             <!-- No content for this lesson -->
             <div
@@ -372,27 +413,6 @@ const toggleSidebar = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
-
-            <!-- Video Access Notice (drip courses only) -->
-            <VideoAccessNotice
-              v-if="course.is_drip
-                && selectedLesson?.video_id
-                && dripSubscription?.status !== 'converted'
-                && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
-              :key="'video-access-' + selectedLesson.id"
-              :expired="selectedLesson.video_access_expired"
-              :remaining-seconds="selectedLesson.video_access_remaining_seconds"
-              :target-courses="videoAccessTargetCourses"
-            />
-
-            <!-- Promo Block -->
-            <LessonPromoBlock
-              v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
-              :key="selectedLesson.id"
-              :lesson-id="selectedLesson.id"
-              :delay-seconds="selectedLesson.promo_delay_seconds"
-              :promo-html="selectedLesson.promo_html"
-            />
           </div>
         </div>
       </main>

@@ -366,7 +366,7 @@
 ```
 
 **Frontend Behavior** (in `Classroom.vue`):
-- `video_access_expired = false` 且 `video_access_remaining_seconds > 0` → 影片下方顯示「免費公開中，剩餘 XX:XX:XX」倒數
+- `video_access_expired = false` 且 `video_access_remaining_seconds > 0` → 影片下方顯示「課程免費公開中，剩餘 XX:XX:XX」倒數
 - `video_access_expired = true` → 影片下方顯示加強版促銷區塊（系統生成，非自訂 HTML）
 - `subscription.status = 'converted'` → 不顯示任何觀看期限 UI（Controller 已設 `video_access_expired = false`）
 - `lesson.video_id = null`（純文字）→ 不顯示（Controller 已設 `video_access_expired = false`）
@@ -428,8 +428,8 @@
 ```html
 <!-- 在影片提示後方加入 -->
 @if($lesson->video_id)
-  <p style="...">🎬 本課程包含教學影片，請至網站觀看</p>
-  <p style="...">⏰ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
 @endif
 ```
 
