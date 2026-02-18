@@ -590,13 +590,21 @@ const formattedCountdown = computed(() => {
 ### 15. drip-lesson.blade.php 修改（免費觀看期提示）
 
 ```blade
-{{-- 在影片提示區塊修改 --}}
-@if($lesson->video_id)
-  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+{{-- 影片提示區塊（使用 Unicode 符號，避免 HTML 樣式觸發垃圾信過濾） --}}
+@if($hasVideo)
+  <p>▶▶ 本課程包含教學影片，請至網站觀看</p>
   @if(config('drip.video_access_hours'))
-  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+  <p>▶ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
   @endif
 @endif
+
+{{-- 連結以純文字 URL 呈現（非超連結），降低垃圾信風險 --}}
+<p>{{ $hasVideo ? '▶ 前往觀看' : '📖 到網站上閱讀' }}<br>
+{{ $classroomUrl }}</p>
+
+<p>---<br>
+如不想繼續收到此系列通知，請點此退訂：<br>
+{{ $unsubscribeUrl }}</p>
 ```
 
 ---

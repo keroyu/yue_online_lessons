@@ -425,12 +425,15 @@
 **Description**: Drip Lesson 通知信（已修改，新增免費觀看期提示）
 
 **Additional Template Content** (for lessons with video):
-```html
-<!-- 在影片提示後方加入 -->
-@if($lesson->video_id)
-  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
-  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+```blade
+@if($hasVideo)
+  <p>▶▶ 本課程包含教學影片，請至網站觀看</p>
+  @if(config('drip.video_access_hours'))
+  <p>▶ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+  @endif
 @endif
 ```
 
-**Note**: 此提示僅在 `config('drip.video_access_hours')` 不為 null 時顯示。
+**Link Format**: 連結以純文字 URL 呈現（文字標籤 + 換行 + URL），非 `<a>` 超連結，以降低垃圾信風險。
+
+**Note**: 影片提示僅在 `config('drip.video_access_hours')` 不為 null 時顯示。不使用粗體紅色等 HTML 樣式，改用 Unicode 符號（▶▶/▶）。
