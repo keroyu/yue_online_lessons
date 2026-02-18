@@ -21,6 +21,17 @@ const form = ref({
 
 const errors = ref({})
 
+const ctaUrl = ref('')
+const ctaText = ref('')
+
+const insertCtaButton = () => {
+  if (!ctaUrl.value || !ctaText.value) return
+  const html = `<div style="text-align:center;"><a href="${ctaUrl.value}" style="margin-top:10px;display:inline-block;background:#ff5a36;color:#fff;font-size:16px;font-weight:600;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 2px 0 #c94420;cursor:pointer;" onmouseover="this.style.background='#e54e2e'" onmouseout="this.style.background='#ff5a36'">${ctaText.value}</a></div>`
+  form.value.promo_html = (form.value.promo_html || '') + '\n' + html
+  ctaUrl.value = ''
+  ctaText.value = ''
+}
+
 onMounted(() => {
   if (props.lesson) {
     form.value = {
@@ -203,6 +214,34 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
 
                   <div>
                     <label for="promo_html" :class="labelClasses">促銷內容（HTML）</label>
+                    <!-- Quick insert CTA button -->
+                    <div class="mt-2 flex items-end gap-2">
+                      <div class="flex-1">
+                        <label class="block text-xs text-gray-500">連結</label>
+                        <input
+                          v-model="ctaUrl"
+                          type="url"
+                          placeholder="https://..."
+                          class="block w-full rounded border-gray-300 px-3 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div class="flex-1">
+                        <label class="block text-xs text-gray-500">按鈕文字</label>
+                        <input
+                          v-model="ctaText"
+                          type="text"
+                          placeholder="心動不如馬上行動"
+                          class="block w-full rounded border-gray-300 px-3 py-1.5 text-sm"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        class="shrink-0 rounded bg-orange-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
+                        @click="insertCtaButton"
+                      >
+                        插入按鈕
+                      </button>
+                    </div>
                     <textarea
                       id="promo_html"
                       v-model="form.promo_html"
