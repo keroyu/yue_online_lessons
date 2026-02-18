@@ -19,9 +19,11 @@
 <p>新的課程內容已經解鎖了，點擊下方連結開始閱讀。</p>
 @endif
 
-<p><a href="{{ $classroomUrl }}">{{ $hasVideo ? '前往觀看' : '到網站上閱讀' }} →</a></p>
+<p>{{ $hasVideo ? '▶ 前往觀看' : '📖 到網站上閱讀' }}<br>
+{{ $classroomUrl }}</p>
 
 <p>---<br>
-如不想繼續收到此系列通知，<a href="{{ $unsubscribeUrl }}">請點此退訂</a></p>
+如不想繼續收到此系列通知，請點此退訂：<br>
+{{ $unsubscribeUrl }}</p>
 </body>
 </html>
