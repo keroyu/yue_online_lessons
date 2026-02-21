@@ -10,6 +10,7 @@ use App\Models\LessonProgress;
 use App\Services\DripService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +21,7 @@ class ClassroomController extends Controller
     /**
      * Display the classroom page for a course.
      */
-    public function show(Request $request, Course $course): Response|JsonResponse
+    public function show(Request $request, Course $course): Response|JsonResponse|HttpResponse
     {
         $user = $request->user();
         $isDrip = $course->course_type === 'drip';
@@ -145,9 +146,16 @@ class ClassroomController extends Controller
                     'name' => $target->targetCourse->name,
                     'url' => route('course.show', $target->targetCourse->id),
                 ]);
+
+            $rewardDelayMinutes = config('drip.reward_delay_minutes');
+            $pageProps['rewardDelaySeconds'] = $rewardDelayMinutes !== null
+                ? (int) ($rewardDelayMinutes * 60)
+                : null;
         }
 
-        return Inertia::render('Member/Classroom', $pageProps);
+        return Inertia::render('Member/Classroom', $pageProps)
+            ->toResponse($request)
+            ->withHeaders(['Cache-Control' => 'no-store, no-cache, must-revalidate']);
     }
 
     /**
@@ -263,6 +271,9 @@ class ClassroomController extends Controller
                 : false,
             'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
                 ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson)
+                : null,
+            'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+                ? $lesson->reward_html
                 : null,
         ];
     }

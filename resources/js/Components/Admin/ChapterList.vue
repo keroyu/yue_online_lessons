@@ -9,6 +9,10 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  courseType: {
+    type: String,
+    default: 'standard',
+  },
   chapters: {
     type: Array,
     required: true,
@@ -469,6 +473,7 @@ const onLessonDragEnd = (chapterId = null) => {
     <LessonForm
       v-if="showLessonForm"
       :lesson="editingLesson"
+      :course-type="courseType"
       @save="saveLesson"
       @close="closeLessonForm"
     />

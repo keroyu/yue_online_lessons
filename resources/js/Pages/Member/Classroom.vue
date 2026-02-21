@@ -39,6 +39,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  rewardDelaySeconds: {
+    type: Number,
+    default: null,
+  },
 })
 
 // Current lesson state
@@ -369,6 +373,9 @@ const toggleSidebar = () => {
                 :expired="selectedLesson.video_access_expired"
                 :remaining-seconds="selectedLesson.video_access_remaining_seconds"
                 :target-courses="videoAccessTargetCourses"
+                :reward-html="selectedLesson.reward_html ?? null"
+                :reward-delay-seconds="rewardDelaySeconds"
+                :lesson-id="selectedLesson.id"
               />
 
               <!-- Promo Block -->

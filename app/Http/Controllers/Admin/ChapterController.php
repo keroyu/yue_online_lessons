@@ -38,6 +38,7 @@ class ChapterController extends Controller
                     'sort_order' => $lesson->sort_order,
                     'promo_delay_seconds' => $lesson->promo_delay_seconds,
                     'promo_html' => $lesson->promo_html,
+                    'reward_html' => $lesson->reward_html,
                 ]),
             ]);
 
@@ -58,12 +59,14 @@ class ChapterController extends Controller
                 'sort_order' => $lesson->sort_order,
                 'promo_delay_seconds' => $lesson->promo_delay_seconds,
                 'promo_html' => $lesson->promo_html,
+                'reward_html' => $lesson->reward_html,
             ]);
 
         return Inertia::render('Admin/Courses/Chapters', [
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
+                'course_type' => $course->course_type,
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,

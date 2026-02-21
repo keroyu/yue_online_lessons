@@ -6,6 +6,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  courseType: {
+    type: String,
+    default: 'standard',
+  },
 })
 
 const emit = defineEmits(['save', 'close'])
@@ -17,6 +21,7 @@ const form = ref({
   duration_seconds: '',
   promo_delay_seconds: '',
   promo_html: '',
+  reward_html: '',
 })
 
 const errors = ref({})
@@ -41,6 +46,7 @@ onMounted(() => {
       duration_seconds: props.lesson.duration_seconds || '',
       promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
+      reward_html: props.lesson.reward_html || '',
     }
   }
 })
@@ -82,6 +88,7 @@ const submit = () => {
     duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
     promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
+    reward_html: form.value.reward_html || null,
   })
 }
 
@@ -191,6 +198,25 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <p :class="helpTextClasses">
                   如無影片連結，將顯示此 HTML 內容（電子書或文章形式）
                 </p>
+              </div>
+
+              <!-- Reward Block Settings (drip courses only) -->
+              <div v-if="courseType === 'drip'" class="border-t pt-6 mt-2">
+                <h4 class="text-sm font-semibold text-gray-900 mb-4">準時到課獎勵設定</h4>
+                <p class="text-xs text-gray-500 mb-4">
+                  設定後，在免費觀看期倒數旁顯示獎勵欄。停留達全站設定時間後顯示以下 HTML 內容。
+                </p>
+                <div>
+                  <label for="reward_html" :class="labelClasses">獎勵內容（HTML）</label>
+                  <textarea
+                    id="reward_html"
+                    v-model="form.reward_html"
+                    rows="4"
+                    placeholder="<div>送你優惠代碼 XXXXX</div>"
+                    class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                  />
+                  <p :class="helpTextClasses">留空則不顯示獎勵欄</p>
+                </div>
               </div>
 
               <!-- Promo Block Settings -->

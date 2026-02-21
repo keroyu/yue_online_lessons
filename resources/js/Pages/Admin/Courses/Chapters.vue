@@ -65,6 +65,7 @@ defineProps({
 
       <ChapterList
         :course-id="course.id"
+        :course-type="course.course_type"
         :chapters="chapters"
         :standalone-lessons="standaloneLessons"
       />

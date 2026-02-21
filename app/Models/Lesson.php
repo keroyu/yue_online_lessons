@@ -22,6 +22,7 @@ class Lesson extends Model
         'html_content',
         'promo_delay_seconds',
         'promo_html',
+        'reward_html',
         'duration_seconds',
         'sort_order',
     ];
@@ -111,6 +112,16 @@ class Lesson extends Model
     {
         return Attribute::make(
             get: fn () => $this->promo_delay_seconds === 0
+        );
+    }
+
+    /**
+     * Check if lesson has a reward block configured
+     */
+    protected function hasRewardBlock(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => !empty($this->reward_html)
         );
     }
 }

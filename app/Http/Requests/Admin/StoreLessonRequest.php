@@ -30,6 +30,7 @@ class StoreLessonRequest extends FormRequest
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
             'promo_html' => ['nullable', 'string', 'max:10000'],
+            'reward_html' => ['nullable', 'string', 'max:10000'],
         ];
     }
 
@@ -50,6 +51,7 @@ class StoreLessonRequest extends FormRequest
             'promo_delay_seconds.min' => '延遲時間不能為負數',
             'promo_delay_seconds.max' => '延遲時間不能超過 7200 秒',
             'promo_html.max' => '促銷內容太長',
+            'reward_html.max' => '獎勵內容太長',
         ];
     }
 
