@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-16 (新增影片免費觀看期限)
+**Updated**: 2026-02-21 (新增準時到課獎勵區塊)
 
 ## Prerequisites
 
@@ -36,6 +36,8 @@ This will create:
 - Add `course_type` and `drip_interval_days` columns to `courses` table
 - Create `drip_subscriptions` table
 - Create `drip_conversion_targets` table
+- Add `promo_delay_seconds`, `promo_html` columns to `lessons` table
+- Add `reward_html` column to `lessons` table
 
 ### 4. Start development servers
 
@@ -216,7 +218,7 @@ DRIP_VIDEO_ACCESS_HOURS=1
 | `resources/js/Components/Classroom/LessonPromoBlock.vue` | Promo block with countdown |
 | `resources/js/Components/Admin/LessonForm.vue` | MODIFY: Add promo fields |
 | `resources/js/Pages/Admin/Courses/Edit.vue` | MODIFY: Add drip settings section |
-| `resources/js/Components/Classroom/VideoAccessNotice.vue` | Video access countdown + urgency promo |
+| `resources/js/Components/Classroom/VideoAccessNotice.vue` | Video access countdown + urgency promo + reward column (US11) |
 | `resources/js/Pages/Member/Classroom.vue` | MODIFY: Show promo block + video access |
 | `resources/js/Pages/Drip/Unsubscribe.vue` | Unsubscribe confirmation |
 
@@ -228,6 +230,7 @@ DRIP_VIDEO_ACCESS_HOURS=1
 | `create_drip_subscriptions` | Subscription tracking |
 | `create_drip_conversion_targets` | Conversion goal mapping |
 | `add_promo_fields_to_lessons` | promo_delay_seconds, promo_html |
+| `add_reward_html_to_lessons` | reward_html (US11) |
 
 ---
 
@@ -303,6 +306,75 @@ php artisan schedule:list
 2. Check page timer is running (for non-video lessons)
 3. Verify localStorage is accessible (not in incognito with cookies blocked)
 
+### J. Test Reward Block (US11)
+
+**Prerequisites**: Drip course with a Lesson that has a video.
+
+1. **Admin setup**: 章節管理 → 編輯某個 drip 課程的 Lesson（有影片）
+   - 在「準時到課獎勵設定」欄位輸入：`<div style="background:#fff3cd;padding:12px;border-radius:8px;">送你優惠代碼 <strong>EARLY10</strong></div>`
+   - 儲存
+
+2. **快速測試（調低 config）**:
+```bash
+# 在 .env 加入（測試用 1 分鐘）
+DRIP_REWARD_DELAY_MINUTES=1
+```
+
+3. **以訂閱者身份進入教室**，選擇該 Lesson：
+   - 驗證：倒數計時與獎勵欄左右並排
+   - 右側顯示「你準時來上課了！真棒」
+   - 1 分鐘後右側切換顯示優惠代碼 HTML
+
+4. **重整頁面**：
+   - 獎勵欄直接顯示（不重新計時）
+   - 檢查 localStorage: `reward_earned_lesson_{id}` = 'true'
+
+5. **測試「錯過獎勵」情境**：
+```bash
+# 清除達標記錄
+# 瀏覽器 Console:
+localStorage.removeItem('reward_earned_lesson_123')  # 替換 123 為 lesson ID
+
+# 使訂閱超過 48 小時
+php artisan tinker
+>>> $sub = App\Models\DripSubscription::first();
+>>> $sub->subscribed_at = now()->subHours(50);
+>>> $sub->save();
+```
+   - 重整教室頁 → 確認逾期提示區出現「下次早點來喔，錯過了獎勵 :(」
+
+6. **測試 converted 豁免**：
+```bash
+php artisan tinker
+>>> $sub->status = 'converted'; $sub->save();
+```
+   - 重整 → 不顯示任何獎勵欄
+
+7. **測試 RWD**：手機寬度下，左右欄應垂直堆疊（倒數在上，獎勵欄在下）
+
+重置測試環境：
+```bash
+# 恢復 .env
+DRIP_REWARD_DELAY_MINUTES=10
+```
+
+---
+
+### Reward block not showing
+
+1. Check `reward_html` is not null/empty for the Lesson (admin setting)
+2. Check `config('drip.reward_delay_minutes')` is not null
+3. Check lesson has `video_id` (not a text-only lesson)
+4. Check subscription status is NOT `converted`
+5. Check course is `drip` type (not `standard`)
+6. Verify `rewardDelaySeconds` page prop is being passed by ClassroomController
+
+### Reward column missing from admin LessonForm
+
+1. Check course type is `drip` (reward_html field only renders for drip courses)
+2. Check `ChapterController@index` lesson map includes `reward_html` field
+3. Check `LessonForm.vue` receives `courseType` prop from parent component
+
 ### Video access notice not showing
 
 1. Check `config('drip.video_access_hours')` is not null
@@ -330,4 +402,7 @@ DRIP_SEND_HOUR=9
 
 # Optional: Override video free viewing window (default: 48 hours)
 DRIP_VIDEO_ACCESS_HOURS=48
+
+# Optional: Override reward dwell time (default: 10 minutes)
+DRIP_REWARD_DELAY_MINUTES=10
 ```

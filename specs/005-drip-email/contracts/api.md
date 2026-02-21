@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-16 (新增影片免費觀看期限)
+**Updated**: 2026-02-21 (新增準時到課獎勵區塊)
 
 ## Overview
 
@@ -158,6 +158,8 @@
     // Video access window (drip courses only, unlocked lessons with video)
     video_access_expired: boolean; // true if free viewing window has passed
     video_access_remaining_seconds: number | null; // null if expired or no video, seconds remaining otherwise
+    // Reward block (US11 — drip + video + non-converted only; null if not applicable)
+    reward_html: string | null;
   }>;
   subscription: {
     id: number;
@@ -171,6 +173,8 @@
     name: string;
     url: string;
   }>; // empty array if no target courses set
+  // Reward block config (US11 — drip courses only; null for standard courses)
+  rewardDelaySeconds: number | null; // config('drip.reward_delay_minutes') * 60
 }
 ```
 
@@ -392,11 +396,15 @@
     // Promo block (NEW)
     promo_delay_seconds: number | null;
     promo_html: string | null;
+    // Reward block (US11)
+    reward_html: string | null;
   }>;
 }
 ```
 
-**⚠️ 重要**: 此 lesson map 是 `ChapterList.vue` → `LessonForm.vue` 的資料來源。若缺少 promo 欄位，編輯表單開啟時促銷區塊設定會顯示空白。
+**⚠️ 重要**: 此 lesson map 是 `ChapterList.vue` → `LessonForm.vue` 的資料來源。若缺少 promo 或 reward_html 欄位，編輯表單開啟時設定會顯示空白。
+
+**⚠️ courseType 傳遞**: LessonForm.vue 需要知道課程類型（drip/standard）才能條件顯示 reward_html 欄位。需從 page props 或 lesson map 傳入 `course_type`。
 
 ---
 
@@ -412,9 +420,45 @@
 ```json
 {
   "promo_delay_seconds": 5,
-  "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>"
+  "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>",
+  "reward_html": "<div>送你優惠代碼 XXXXX</div>"
 }
 ```
+
+**Note**: `reward_html` is only rendered in the admin form for drip course Lessons (frontend conditional). Backend accepts and saves the field for any lesson type.
+
+---
+
+## Classroom Page - Reward Block (US11 — drip courses, video lessons, non-converted)
+
+**Note**: 獎勵區塊透過 `currentLesson.reward_html` 和 page-level `rewardDelaySeconds` prop 傳遞至 `VideoAccessNotice.vue`。無獨立 API 端點。
+
+### GET /member/classroom/{course}
+
+**Additional fields** (per-lesson in lessons array, drip courses with video only):
+```typescript
+{
+  reward_html: string | null; // null if no reward set, or lesson has no video, or user is converted
+}
+```
+
+**Additional page-level prop**:
+```typescript
+{
+  rewardDelaySeconds: number | null; // config('drip.reward_delay_minutes') * 60; null for standard courses
+}
+```
+
+**Frontend Behavior** (in `VideoAccessNotice.vue`):
+- `reward_html = null` → 無獎勵欄，原有倒數/過期 UI 保持不變（單欄）
+- `reward_html ≠ null` 且課程在免費觀看期內 → 左右並排佈局：左倒數、右獎勵欄
+  - 右側（未達標）：固定鼓勵文字「你準時來上課了！真棒」
+  - 右側（達標後）：`reward_html` 內容（v-html 渲染）
+- 達標狀態：`localStorage.setItem('reward_earned_lesson_{id}', 'true')`，永久保存
+- 計時：Per-session（每次進入頁面重新起算，**不**還原上次 elapsed）
+- 免費期逾期後（`video_access_expired = true`）：
+  - 已達標（`localStorage` 有記錄）→ 在逾期提示區顯示 `reward_html`
+  - 未達標 → 在逾期提示區追加「下次早點來喔，錯過了獎勵 :(」
 
 ---
 

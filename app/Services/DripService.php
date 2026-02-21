@@ -112,7 +112,7 @@ class DripService
             return $lesson->sort_order < $subscription->emails_sent;
         }
 
-        return $lesson->sort_order < $this->getUnlockedLessonCount($subscription);
+        return $lesson->sort_order < $subscription->emails_sent;
     }
 
     /**

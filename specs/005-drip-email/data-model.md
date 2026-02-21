@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-16 (新增影片免費觀看期限)
+**Updated**: 2026-02-21 (新增準時到課獎勵區塊)
 
 ## Entity Overview
 
@@ -285,7 +285,7 @@ class DripConversionTarget extends Model
 
 ### 4. Lesson (MODIFY - existing)
 
-**Description**: 擴充 Lesson 模型，新增促銷區塊功能（適用所有課程類型）
+**Description**: 擴充 Lesson 模型，新增促銷區塊（適用所有課程類型）和準時到課獎勵欄（drip 課程有影片 Lesson）
 
 **新增欄位**:
 
@@ -293,12 +293,20 @@ class DripConversionTarget extends Model
 |-------|------|-------------|-------------|
 | promo_delay_seconds | INT UNSIGNED | NULLABLE | 促銷區塊延遲秒數（null=停用、0=立即、>0=延遲）|
 | promo_html | TEXT | NULLABLE | 促銷區塊自訂 HTML 內容 |
+| reward_html | TEXT | NULLABLE | 準時到課獎勵自訂 HTML（null=不顯示獎勵欄；drip 課程有影片 Lesson 才生效）|
 
-**Migration**:
+**Migration (promo fields)**:
 ```php
 Schema::table('lessons', function (Blueprint $table) {
     $table->unsignedInteger('promo_delay_seconds')->nullable()->after('html_content');
     $table->text('promo_html')->nullable()->after('promo_delay_seconds');
+});
+```
+
+**Migration (reward_html — separate migration)**:
+```php
+Schema::table('lessons', function (Blueprint $table) {
+    $table->text('reward_html')->nullable()->after('promo_html');
 });
 ```
 
@@ -309,6 +317,7 @@ protected $fillable = [
     // ... existing fields ...
     'promo_delay_seconds',
     'promo_html',
+    'reward_html',  // NEW (US11)
 ];
 
 // Lesson.php - 新增到 casts()
@@ -332,6 +341,14 @@ protected function isPromoImmediate(): Attribute
 {
     return Attribute::make(
         get: fn () => $this->promo_delay_seconds === 0
+    );
+}
+
+// NEW (US11)
+protected function hasRewardBlock(): Attribute
+{
+    return Attribute::make(
+        get: fn () => !empty($this->reward_html)
     );
 }
 ```
@@ -411,7 +428,7 @@ public function messages(): array
 
 ## Config-Based Settings (not stored in DB)
 
-### Video Access Window (`config/drip.php`)
+### Config-Based Settings (`config/drip.php`)
 
 ```php
 <?php
@@ -421,17 +438,26 @@ return [
     |--------------------------------------------------------------------------
     | 影片免費觀看期限（小時）
     |--------------------------------------------------------------------------
+    */
+    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+
+    /*
+    |--------------------------------------------------------------------------
+    | 準時到課獎勵等待時間（分鐘）— US11
+    |--------------------------------------------------------------------------
     |
-    | Drip 課程 Lesson 解鎖後，影片的免費觀看期限。
-    | 過期後影片仍可觀看，但會顯示加強版促銷區塊。
+    | 會員進入頁面後需連續停留滿此時間才達標獲得獎勵。
+    | Per-session：離開頁面後歸零，下次重新起算（不累積）。
     | 設為 null 可停用此功能。
     |
     */
-    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+    'reward_delay_minutes' => env('DRIP_REWARD_DELAY_MINUTES', 10),
 ];
 ```
 
-**Usage**: `config('drip.video_access_hours')` — 全站統一，部署後修改 `.env` 即生效。
+**Usage**:
+- `config('drip.video_access_hours')` — 影片免費觀看期，全站統一
+- `config('drip.reward_delay_minutes')` → 乘以 60 後以秒數傳至前端（`rewardDelaySeconds` prop）
 
 ---
 
@@ -501,6 +527,27 @@ public function getVideoAccessRemainingSeconds(DripSubscription $subscription, L
 - `subscription.status = 'converted'` → 不計算，前端不顯示（Controller 層處理）
 - `lesson.video_id = null`（純文字）→ 不計算，前端不顯示（Controller 層處理）
 
+### Reward Block State (US11 — Frontend localStorage)
+
+```
+localStorage key:  reward_earned_lesson_{lesson_id}
+Value:             'true' (string)
+Scope:             Per Lesson, per device (not synced server-side)
+Persistence:       Permanent (no expiry)
+Timer type:        Per-session (NOT cumulative — elapsed resets each page visit)
+```
+
+**Comparison with Promo Block localStorage**:
+
+| Feature | Promo Block | Reward Block |
+|---------|-------------|--------------|
+| Key | `promo_unlocked_lesson_{id}` | `reward_earned_lesson_{id}` |
+| Elapsed key | `promo_elapsed_lesson_{id}` | None (per-session, no persistence) |
+| Timer | Cumulative (restores elapsed) | Per-session (resets on every visit) |
+| Unlock trigger | Accumulated watch time | Single session dwell time |
+
+**Note**: `reward_delay_minutes` is converted to seconds (`rewardDelaySeconds`) by the Controller and passed as a page-level Inertia prop. The frontend uses this value directly without further calculation.
+
 ---
 
 ## Query Patterns
@@ -558,7 +605,14 @@ $lessons = $course->lessons()
         'video_access_remaining_seconds' => (!$isConverted && $lesson->video_id)
             ? $this->dripService->getVideoAccessRemainingSeconds($subscription, $lesson)
             : null,
+        // Reward block (US11 — drip + video + non-converted only)
+        'reward_html' => (!$isConverted && $lesson->video_id)
+            ? $lesson->reward_html
+            : null,
     ]);
+
+// Page-level prop (added to show() return)
+// 'rewardDelaySeconds' => config('drip.reward_delay_minutes') * 60,
 ```
 
 ### 4. 取得目標課程資訊（過期促銷區塊用）

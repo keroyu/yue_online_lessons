@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-02-04
-**Updated**: 2026-02-16 (新增 Drip 影片免費觀看期限)
+**Updated**: 2026-02-21 (新增準時到課獎勵區塊 US11)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -35,6 +35,7 @@
 - All checklist items passed validation
 - Spec is ready for `/speckit.plan`
 - 2026-02-16: 新增 Drip 影片免費觀看期限（US10, FR-035~042, SC-009~011），所有項目通過驗證
+- 2026-02-21: 新增準時到課獎勵區塊（US11, FR-043~054, SC-012~014），所有項目通過驗證
 
 ## User Decisions Captured
 
@@ -75,3 +76,15 @@
 17. **converted 使用者豁免**：已轉換的使用者不顯示過期促銷區塊
 18. **僅限 drip 課程**：standard 課程不受影響
 19. **僅限有影片的 Lesson**：純文字 Lesson 不顯示觀看期限 UI
+
+## Clarifications (2026-02-21 - 準時到課獎勵區塊)
+
+20. **Lesson 層級**：`reward_html` 為 Lesson 欄位，null 表示不顯示獎勵欄
+21. **Config 設定**：`drip.reward_delay_minutes`，全站統一，預設 10 分鐘
+22. **佈局**：VideoAccessNotice 內左右並排（左：倒數計時；右：獎勵欄）
+23. **達標前文字**：系統固定文案「你準時來上課了！真棒」（非管理員自訂）
+24. **達標後內容**：管理員自訂 `reward_html`（優惠碼、按鈕等彈性設定）
+25. **永久記錄**：達標狀態以 localStorage 記錄（per Lesson），不同裝置間不共用
+26. **逾期後行為**：曾達標者保留獎勵顯示；未達標者加入「下次早點來喔，錯過了獎勵 :(」
+27. **豁免邏輯**：converted 使用者不顯示獎勵欄
+28. **適用範圍**：僅限有影片的 Lesson（與免費觀看期前提相同）
