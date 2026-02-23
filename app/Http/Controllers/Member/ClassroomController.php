@@ -27,6 +27,9 @@ class ClassroomController extends Controller
         $isDrip = $course->course_type === 'drip';
         $dripSubscription = null;
 
+        // Admin can preview any course without purchase
+        $isAdmin = $user->role === 'admin';
+
         // Check access: purchased OR drip subscription
         $hasPurchased = $user->purchases()
             ->where('course_id', $course->id)
@@ -39,7 +42,7 @@ class ClassroomController extends Controller
                 ->first();
         }
 
-        $hasAccess = $hasPurchased || ($dripSubscription !== null);
+        $hasAccess = $isAdmin || $hasPurchased || ($dripSubscription !== null);
 
         if (!$hasAccess) {
             return Inertia::render('Member/ClassroomUnauthorized', [
