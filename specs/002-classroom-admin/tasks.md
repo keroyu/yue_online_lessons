@@ -1231,6 +1231,30 @@ Within Phase 15:
 
 ---
 
+## Phase 20: US8 擴充 - 後臺課程管理頁預覽按鈕 (2026-02-24 新增) 👁️
+
+**Purpose**: 管理員可從後臺課程管理頁直接進入任何課程的上課頁面，無需購買紀錄
+
+**Spec refs**: FR-047a, FR-047b, US8 scenario 8
+
+### Backend
+
+- [X] T195 [US8] Update ClassroomController@show in `app/Http/Controllers/Member/ClassroomController.php`
+  - Add `$isAdmin = $user->role === 'admin'` check at start of method
+  - Update `$hasAccess` to `$isAdmin || $hasPurchased || ($dripSubscription !== null)`
+  - Admin bypasses purchase/subscription check for all courses (draft, hidden, any status)
+
+### Frontend
+
+- [X] T196 [US8] Add 預覽 button to Admin Courses Index in `resources/js/Pages/Admin/Courses/Index.vue`
+  - Add orange "預覽" link (`text-orange-600`) as first item in actions column
+  - href: `/member/classroom/${course.id}`
+  - Positioned before 編輯, 章節, 相簿, 刪除
+
+**Checkpoint**: Admin can preview any course classroom directly from course management page ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1246,4 +1270,5 @@ Within Phase 15:
 | Phase 17 (倒數計時 UI 優化) | T160-T168 | ✅ Completed |
 | Phase 18 (課程顯示/隱藏設定) | T169-T191 | ⏳ In Progress (19/23 complete) |
 | Phase 19 (Bug Fixes & UI Polish) | T192-T194 | ✅ Completed |
-| **Total** | **194 tasks** | 190 completed, 4 pending |
+| Phase 20 (US8 擴充 - 後臺預覽按鈕) | T195-T196 | ✅ Completed |
+| **Total** | **196 tasks** | 192 completed, 4 pending |

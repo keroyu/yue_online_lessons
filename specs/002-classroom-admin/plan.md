@@ -182,6 +182,8 @@ database/migrations/
 | Phase 16 | 節流門檻調整 | ✅ Complete |
 | Phase 17 | US2b - 倒數計時 UI 優化 | ✅ Complete |
 | Phase 18 | US9 - 課程顯示/隱藏設定 | ⏳ Pending |
+| Phase 19 | Bug Fixes & UI Polish | ✅ Complete |
+| Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
 
 **Phase 13 Details** (2026-01-18 完成, 2026-01-30 調整門檻):
 - 前端樂觀更新：點擊小節後立即顯示綠色勾勾
@@ -199,13 +201,15 @@ database/migrations/
 - 課程刪除時一併移除系統指派紀錄
 - 訂單紀錄頁面顯示「系統指派」類型
 
-**Phase 15 Details** (US8 - 管理員前端預覽, 2026-01-27 完成):
+**Phase 15 Details** (US8 - 管理員前端預覽, 2026-01-27 完成, 2026-02-24 擴充):
 - 首頁根據用戶角色返回不同課程列表（scopeVisibleToUser）
 - 管理員可看到所有課程（含草稿）
 - 草稿課程顯示「草稿」標籤（灰色）
 - 草稿課程販售頁顯示「預覽模式」橫幅（藍色）
 - 草稿課程購買按鈕點擊時顯示提示 Modal
 - 一般會員無法存取草稿課程（404）
+- **2026-02-24 新增**：後臺課程管理頁每筆課程操作欄加入橘色「預覽」按鈕，直接連結至上課頁面
+- **2026-02-24 新增**：ClassroomController 管理員身份繞過購買驗證（isAdmin 短路邏輯）
 
 See [tasks.md](./tasks.md) for detailed task breakdown.
 
