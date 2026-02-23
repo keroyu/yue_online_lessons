@@ -207,6 +207,29 @@ class DripService
     }
 
     /**
+     * Reactivate completed subscriptions when a new lesson is added to a drip course.
+     * This allows completed subscribers to receive emails for the new content.
+     */
+    public function reactivateCompletedSubscriptions(Course $course): int
+    {
+        $count = DripSubscription::where('course_id', $course->id)
+            ->where('status', 'completed')
+            ->update([
+                'status' => 'active',
+                'status_changed_at' => now(),
+            ]);
+
+        if ($count > 0) {
+            Log::info('Reactivated completed drip subscriptions due to new lesson', [
+                'course_id' => $course->id,
+                'reactivated_count' => $count,
+            ]);
+        }
+
+        return $count;
+    }
+
+    /**
      * Process daily drip emails for all active subscriptions.
      */
     public function processDailyEmails(): int

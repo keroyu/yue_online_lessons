@@ -8,7 +8,6 @@ const props = defineProps({
 })
 
 const UNLOCK_KEY = computed(() => `promo_unlocked_lesson_${props.lessonId}`)
-const ELAPSED_KEY = computed(() => `promo_elapsed_lesson_${props.lessonId}`)
 const isUnlocked = ref(false)
 const elapsedSeconds = ref(0)
 let timer = null
@@ -25,21 +24,9 @@ onMounted(() => {
     return
   }
 
-  // Restore elapsed time from previous session
-  const savedElapsed = parseInt(localStorage.getItem(ELAPSED_KEY.value) || '0', 10)
-  elapsedSeconds.value = savedElapsed
-
-  if (savedElapsed >= props.delaySeconds) {
-    unlock()
-    return
-  }
-
-  // Start timer, persist elapsed time every 5 seconds
+  // Start timer from 0 each session (no cumulative carry-over)
   timer = setInterval(() => {
     elapsedSeconds.value++
-    if (elapsedSeconds.value % 5 === 0) {
-      localStorage.setItem(ELAPSED_KEY.value, String(elapsedSeconds.value))
-    }
     if (elapsedSeconds.value >= props.delaySeconds) {
       unlock()
     }
@@ -48,10 +35,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
-  // Persist elapsed time on unmount
-  if (!isUnlocked.value) {
-    localStorage.setItem(ELAPSED_KEY.value, String(elapsedSeconds.value))
-  }
 })
 
 const unlock = () => {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLessonRequest;
 use App\Models\Course;
 use App\Models\Lesson;
+use App\Services\DripService;
 use App\Services\VideoEmbedService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,8 @@ use Illuminate\Http\Request;
 class LessonController extends Controller
 {
     public function __construct(
-        protected VideoEmbedService $videoEmbedService
+        protected VideoEmbedService $videoEmbedService,
+        protected DripService $dripService,
     ) {}
 
     /**
@@ -46,6 +48,11 @@ class LessonController extends Controller
         $data['sort_order'] = $maxSortOrder + 1;
 
         $course->lessons()->create($data);
+
+        // Reactivate completed subscribers so they receive the new lesson
+        if ($course->course_type === 'drip') {
+            $this->dripService->reactivateCompletedSubscriptions($course);
+        }
 
         return redirect()
             ->route('admin.chapters.index', $course)
