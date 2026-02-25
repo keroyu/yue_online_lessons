@@ -49,9 +49,11 @@ class SendDripEmailJob implements ShouldQueue
             return;
         }
 
-        // Don't send if subscription is no longer active
-        if ($subscription->status !== 'active') {
-            Log::info('Drip email: Subscription no longer active, skipping', [
+        // Don't send if user unsubscribed or converted (purchased target course).
+        // 'completed' is allowed: status is set to completed at the same time the last
+        // job is dispatched, so the job must still run to deliver that final email.
+        if (in_array($subscription->status, ['unsubscribed', 'converted'])) {
+            Log::info('Drip email: Subscription unsubscribed or converted, skipping', [
                 'subscription_id' => $subscription->id,
                 'status' => $subscription->status,
             ]);
