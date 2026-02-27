@@ -56,16 +56,8 @@ class DripService
                 $subscription->id
             );
 
+            // Track dispatched count; status=completed is set by the job after actual send
             $subscription->update(['emails_sent' => 1]);
-
-            // Check if this was the only lesson
-            $totalLessons = $course->lessons()->count();
-            if ($subscription->emails_sent >= $totalLessons) {
-                $subscription->update([
-                    'status' => 'completed',
-                    'status_changed_at' => now(),
-                ]);
-            }
         }
 
         Log::info('Drip subscription created', [
