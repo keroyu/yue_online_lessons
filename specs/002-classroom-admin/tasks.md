@@ -33,7 +33,7 @@
 - [X] T003 Create migration to add status columns to courses table in `database/migrations/xxxx_add_status_to_courses_table.php`
   - Add `status` enum('draft','preorder','selling') default 'draft'
   - Add `sale_at` timestamp nullable
-  - Add `description_html` longtext nullable
+  - Add `description_md` longtext nullable
   - Add `duration_minutes` int unsigned nullable (課程時間總長，分鐘)
   - Add `deleted_at` timestamp nullable (soft delete)
   - Add indexes on `status`, `sale_at`
@@ -43,7 +43,7 @@
 - [X] T005 [P] Create lessons migration in `database/migrations/xxxx_create_lessons_table.php`
   - `id`, `course_id` (FK), `chapter_id` (FK nullable), `title`
   - `video_platform` enum('vimeo','youtube') nullable, `video_id`, `video_url`
-  - `html_content` longtext, `duration_seconds`, `sort_order`, timestamps
+  - `md_content` longtext, `duration_seconds`, `sort_order`, timestamps
   - Index on `course_id`, `chapter_id`, composite index
 - [X] T006 [P] Create lesson_progress migration in `database/migrations/xxxx_create_lesson_progress_table.php`
   - `id`, `user_id` (FK), `lesson_id` (FK), `created_at`
@@ -55,7 +55,7 @@
 ### Models
 
 - [X] T008 Update Course model in `app/Models/Course.php`
-  - Add `status`, `sale_at`, `description_html`, `duration_minutes`, `deleted_at` to fillable
+  - Add `status`, `sale_at`, `description_md`, `duration_minutes`, `deleted_at` to fillable
   - Add SoftDeletes trait
   - Add `visible()` and `purchasable()` scopes
   - Add relationships: `chapters()`, `lessons()`, `images()`
@@ -287,8 +287,8 @@
 
 ### Course Edit Update
 
-- [X] T047 [US4] Add description_html textarea to CourseForm component
-  - Simple HTML textarea (no WYSIWYG - admin knows HTML)
+- [X] T047 [US4] Add description_md textarea to CourseForm component
+  - Markdown textarea with marked (npm) rendering on frontend
   - Link to gallery page
 
 **Checkpoint**: Admin can manage course images and edit description HTML
@@ -369,7 +369,7 @@
 - [X] T060 Handle edge case: empty course (no lessons) shows "課程內容準備中"
 - [X] T061 Handle edge case: invalid video URL shows validation error
 - [X] T062 Handle edge case: delete course with purchases shows error message
-- [X] T063 [P] Update existing CourseController@show to render description_html
+- [X] T063 [P] Update existing CourseController@show to render description_md
 - [X] T064 [P] Update HomeController to use `visible()` scope for course listing
 - [X] T065 Run `php artisan test` to verify all tests pass
 - [X] T066 Run quickstart.md verification checklist (build passes, routes registered)
@@ -610,7 +610,7 @@ Phase 5 and Phase 6 can run in parallel after Phase 4 completes.
 ### CourseForm Integration
 
 - [X] T097 Update CourseForm component in `resources/js/Components/Admin/CourseForm.vue`
-  - Add "插入圖片" button next to description_html textarea
+  - Add "插入圖片" button next to description_md textarea
   - Import and use ImageGalleryModal
   - On insert event: insert HTML at cursor position in textarea
 - [X] T098 Update Course Edit page in `resources/js/Pages/Admin/Courses/Edit.vue`

@@ -14,7 +14,7 @@
 │ name            │   │   │ course_id (FK)  │──┐
 │ tagline         │   │   │ title           │  │
 │ description     │   │   │ sort_order      │  │
-│ description_html│   │   │ created_at      │  │
+│ description_md  │   │   │ created_at      │  │
 │ price           │   │   │ updated_at      │  │
 │ thumbnail       │   │   └────────┬────────┘  │
 │ instructor_name │   │            │           │
@@ -29,7 +29,7 @@
 │ deleted_at      │   │   │ video_platform  │
 └────────┬────────┘   │   │ video_id        │
          │            │   │ video_url       │
-         │            │   │ html_content    │
+         │            │   │ md_content      │
          │            │   │ duration_seconds│
          │            │   │ sort_order      │
          ▼            │   │ created_at      │
@@ -63,7 +63,7 @@
 | ... | ... | ... | (existing fields from MVP) |
 | **status** | enum('draft','preorder','selling') | default: 'draft' | 課程狀態 |
 | **sale_at** | timestamp | nullable | 預購開賣時間 |
-| **description_html** | longtext | nullable | 課程介紹 HTML |
+| **description_md** | longtext | nullable | 課程介紹 Markdown |
 | **duration_minutes** | int unsigned | nullable | 時間總長（分鐘），前端換算顯示 |
 | **portaly_product_id** | varchar(100) | nullable | Portaly 商品 ID，前端組合為完整 URL |
 | **original_price** | int unsigned | nullable | 原價（優惠到期後顯示此價格） |
@@ -147,7 +147,7 @@ preorder/selling ──下架──→ draft
 | video_platform | enum('vimeo','youtube') | nullable | 影片平台 |
 | video_id | varchar(100) | nullable | 影片 ID |
 | video_url | varchar(500) | nullable | 原始影片連結 |
-| html_content | longtext | nullable | HTML 內容（無影片時使用） |
+| md_content | longtext | nullable | Markdown 內容（無影片時使用） |
 | duration_seconds | int unsigned | default: 0 | 時長（秒） |
 | sort_order | int unsigned | default: 0 | 排序順序 |
 | created_at | timestamp | not null | 建立時間 |
@@ -225,7 +225,7 @@ preorder/selling ──下架──→ draft
 ### Course (extended)
 - status: required, in ['draft', 'preorder', 'selling']
 - sale_at: nullable, date, after:now (when setting to preorder)
-- description_html: nullable, string
+- description_md: nullable, string
 - duration_minutes: nullable, integer, min 0
 - **original_price**: nullable, integer, min 0, should be > price (validation warning if not)
 - **promo_ends_at**: nullable, date, after:now (validation error if in past)
@@ -247,7 +247,7 @@ preorder/selling ──下架──→ draft
 - chapter_id: nullable, exists in chapters (must belong to same course)
 - title: required, max 255
 - video_url: nullable, url, valid Vimeo/YouTube format
-- html_content: nullable, string
+- md_content: nullable, string
 - duration_seconds: integer, min 0
 - sort_order: integer, min 0
 
@@ -289,7 +289,7 @@ preorder/selling ──下架──→ draft
 
 ### Lessons
 - 每個 Chapter 下建立 2-4 個 Lesson
-- 混合 Vimeo 影片和 HTML 內容
+- 混合 Vimeo 影片和 Markdown 內容
 - 包含無 Chapter 的獨立 Lesson
 
 ### LessonProgress

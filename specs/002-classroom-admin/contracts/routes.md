@@ -14,7 +14,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 | Method | URI | Name | Controller@Action | Description |
 |--------|-----|------|-------------------|-------------|
 | GET | `/` | home | HomeController@index | 首頁（現有） |
-| GET | `/course/{course}` | course.show | CourseController@show | 課程販售頁（現有，需擴充顯示 description_html） |
+| GET | `/course/{course}` | course.show | CourseController@show | 課程販售頁（現有，需擴充顯示 description_md） |
 
 ---
 
@@ -124,7 +124,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
     'name' => 'required|string|max:255',
     'tagline' => 'required|string|max:255',
     'description' => 'required|string',
-    'description_html' => 'nullable|string',
+    'description_md' => 'nullable|string',
     'price' => 'required|numeric|min:0',                    // 優惠價（實際售價）
     'original_price' => 'nullable|numeric|min:0',           // 原價（2026-01-17 新增）
     'promo_ends_at' => 'nullable|date|after:now',           // 優惠到期時間（2026-01-17 新增）
@@ -172,7 +172,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
     'chapter_id' => 'nullable|exists:chapters,id',
     'title' => 'required|string|max:255',
     'video_url' => 'nullable|url|max:500',
-    'html_content' => 'nullable|string',
+    'md_content' => 'nullable|string',
     'duration_seconds' => 'nullable|integer|min:0',
 ]
 ```

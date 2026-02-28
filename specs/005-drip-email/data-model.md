@@ -298,7 +298,7 @@ class DripConversionTarget extends Model
 **Migration (promo fields)**:
 ```php
 Schema::table('lessons', function (Blueprint $table) {
-    $table->unsignedInteger('promo_delay_seconds')->nullable()->after('html_content');
+    $table->unsignedInteger('promo_delay_seconds')->nullable()->after('md_content');
     $table->text('promo_html')->nullable()->after('promo_delay_seconds');
 });
 ```

@@ -187,7 +187,7 @@ interface CourseListItem {
 ```typescript
 interface CourseDetail extends CourseListItem {
   description: string;
-  description_html: string | null;
+  description_md: string | null;
   portaly_url: string | null;
   portaly_product_id: string | null;
   original_price: number | null;

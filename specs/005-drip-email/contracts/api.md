@@ -148,7 +148,7 @@
     sort_order: number; // 0-based
     video_platform: string | null;
     video_id: string | null;
-    html_content: string | null;
+    md_content: string | null;
     // Drip-specific fields
     is_unlocked: boolean;
     unlock_in_days: number | null; // null if already unlocked
@@ -563,7 +563,7 @@ Location: {decoded promo_url}
 
 **新增 Template Content** (當 Lesson 有 promo_url 時):
 ```html
-<!-- 在 html_content 之後、unsubscribe URL 之前 -->
+<!-- 在 md_content 渲染後、unsubscribe URL 之前 -->
 @if($promoTrackUrl)
 <p style="text-align:center;margin:24px 0">
   <a href="{{ $promoTrackUrl }}"

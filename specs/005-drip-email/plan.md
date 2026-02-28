@@ -1057,7 +1057,7 @@ public function __construct(
 ### 21. drip-lesson.blade.php 修改（追蹤 pixel + promo 按鈕）
 
 ```blade
-{{-- 在 html_content 之後、unsubscribe 之前 --}}
+{{-- 在 md_content 渲染後、unsubscribe 之前 --}}
 @if($promoTrackUrl)
 <p style="text-align:center;margin:24px 0">
   <a href="{{ $promoTrackUrl }}"
