@@ -25,28 +25,32 @@ php artisan serve
 npm run dev
 ```
 
-## Files to Create
+## Files to Create / Rename
 
 | File | Purpose |
 |------|---------|
-| `app/Services/SubstackRssService.php` | RSS fetching and caching logic |
-| `resources/js/Components/SocialLinks.vue` | Social media buttons component (URLs hardcoded) |
+| `config/homepage.php` | Social links URLs + blog RSS settings |
+| `app/Services/BlogRssService.php` | Generic RSS fetching and caching (renamed from SubstackRssService) |
+| `resources/js/Components/SocialLinks.vue` | Social media buttons (URLs from props) |
 | `resources/js/Components/SubstackArticles.vue` | Article list component |
+
+> **Note**: `app/Services/SubstackRssService.php` → renamed to `BlogRssService.php`
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `app/Http/Controllers/HomeController.php` | Add substackArticles to props |
-| `resources/js/Pages/Home.vue` | Add sidebar layout with new components |
+| `app/Http/Controllers/HomeController.php` | Read config, filter social links, pass `blogArticles` + `socialLinks` props |
+| `resources/js/Pages/Home.vue` | Add sidebar layout; pass `socialLinks` prop to SocialLinks |
 
 ## Implementation Order
 
-1. **Service** - Create `SubstackRssService` with RSS fetch + cache
-2. **Controller** - Update `HomeController` to pass substackArticles
-3. **Components** - Create Vue components (SocialLinks with hardcoded URLs, SubstackArticles)
-4. **Layout** - Update `Home.vue` with sidebar grid layout
-5. **Test** - Verify on mobile and desktop viewports
+1. **Config** - Create `config/homepage.php` with social links + RSS settings
+2. **Service** - Rename/rewrite `BlogRssService` (URL from config)
+3. **Controller** - Update `HomeController` to pass `blogArticles` + `socialLinks`
+4. **Components** - Create/update Vue components (SocialLinks accepts props, SubstackArticles unchanged)
+5. **Layout** - Update `Home.vue` with sidebar grid layout
+6. **Test** - Verify on mobile and desktop viewports
 
 ## Testing
 
@@ -68,11 +72,13 @@ open http://localhost:8000
 
 ## Verification Checklist
 
-- [ ] 5 Substack articles display with titles and dates
+- [ ] 5 blog articles display with titles and dates
 - [ ] Article links open in new tab
-- [ ] All 5 social media buttons visible
+- [ ] Only configured (non-empty) social media buttons appear
+- [ ] Removing a URL from config hides that platform button
 - [ ] Social links open in new tab
 - [ ] Sidebar layout on desktop (≥1024px)
 - [ ] Stacked layout on mobile (<1024px)
 - [ ] Page loads within 2 seconds
 - [ ] RSS failure doesn't break page (hide section)
+- [ ] Empty RSS URL in config hides articles section entirely

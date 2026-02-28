@@ -406,3 +406,96 @@ DRIP_VIDEO_ACCESS_HOURS=48
 # Optional: Override reward dwell time (default: 10 minutes)
 DRIP_REWARD_DELAY_MINUTES=10
 ```
+
+---
+
+## 增量更新：Email 追蹤分析（US12~US14）- 2026-02-28
+
+### Section J: Email 開信追蹤驗證
+
+**Prerequisites**: 有至少一個 drip 訂閱，並已發送過至少一封信
+
+```bash
+# 1. 取得 subscription id 和 lesson id
+php artisan tinker
+>>> $sub = \App\Models\DripSubscription::first();
+>>> $lesson = $sub->course->lessons()->orderBy('sort_order')->first();
+
+# 2. 手動生成 tracking pixel URL
+>>> $url = URL::signedRoute('drip.track.open', ['sub' => $sub->id, 'les' => $lesson->id], now()->addDays(180));
+>>> echo $url;
+
+# 3. 在瀏覽器或 curl 請求此 URL
+# curl -I "..."
+# 應看到 Content-Type: image/gif 回應
+
+# 4. 確認事件已記錄
+>>> \App\Models\DripEmailEvent::where('subscription_id', $sub->id)->get();
+# 應看到 event_type='opened' 的記錄
+```
+
+**Expected Result**: `drip_email_events` 表有一筆 `event_type='opened'` 記錄
+
+---
+
+### Section K: 促銷連結點擊追蹤驗證
+
+```bash
+# 1. 設定一個 Lesson 的 promo_url（後台或 tinker）
+php artisan tinker
+>>> $lesson = \App\Models\Lesson::find(1);
+>>> $lesson->update(['promo_url' => 'https://example.com/product']);
+
+# 2. 生成追蹤點擊 URL
+>>> $url = URL::signedRoute('drip.track.click', [
+...     'sub' => $sub->id,
+...     'les' => $lesson->id,
+...     'url' => $lesson->promo_url,
+... ], now()->addDays(180));
+>>> echo $url;
+
+# 3. 在瀏覽器訪問（應 redirect 到 example.com）
+# 4. 確認事件已記錄
+>>> \App\Models\DripEmailEvent::where('subscription_id', $sub->id)->where('event_type', 'clicked')->get();
+```
+
+**Expected Result**: 
+- 瀏覽器重定向到 `https://example.com/product`
+- `drip_email_events` 表有 `event_type='clicked'` 記錄
+
+---
+
+### Section L: 訂閱者清單統計驗證
+
+```bash
+# 訪問後台訂閱者清單
+open http://localhost/admin/courses/{course_id}/subscribers
+
+# 預期看到：
+# - 頁面上方 Lesson 統計表（每個 Lesson 的開信率/點擊率）
+# - 每個訂閱者行顯示「已開 N/M 封」和點擊狀態（✓ 或 —）
+# - 整體轉換率顯示在統計表下方
+```
+
+---
+
+### Troubleshooting: Tracking Pixel 無法記錄
+
+1. 確認 `drip.track.open` 路由已在 `routes/web.php` 中註冊
+2. 確認 `APP_KEY` 已設定（Signed URL 需要 APP_KEY 進行簽名）
+3. 檢查 URL 中的 `expires` 是否過期（180 天內有效）
+4. 查看 Laravel Log：`tail -f storage/logs/laravel.log`
+
+### Troubleshooting: promo_url 按鈕未出現在信件中
+
+1. 確認 Lesson 的 `promo_url` 欄位不為 null（資料庫確認）
+2. 確認 migration `add_promo_url_to_lessons` 已執行
+3. 確認 `DripLessonMail` 的 `promoTrackUrl` 參數有被傳入
+4. 確認 `drip-lesson.blade.php` 有加入 `@if($promoTrackUrl)` 區塊
+
+## Environment Variables（追加）
+
+```env
+# Email tracking (no additional env vars needed)
+# Tracking pixel and click redirect use APP_KEY for signing
+```

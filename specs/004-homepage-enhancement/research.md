@@ -88,26 +88,38 @@ return Cache::remember('substack_articles', 3600, function () {
 </div>
 ```
 
-### 5. Social Media URLs
+### 5. Social Media URLs & RSS Config
 
-**Decision**: Hardcode URLs directly in SocialLinks.vue component
+**Decision** *(Updated 2026-02-27)*: Store all URLs in `config/homepage.php`; controller reads config and passes non-empty social links to frontend via Inertia props
 
 **Rationale**:
-- URLs are static and rarely change
-- No backend complexity needed
-- Simpler implementation
-- Easier to maintain in one place
+- URLs may vary per deployment (multi-tenant / client customisation use case)
+- Config file allows `.env` override without code changes
+- Empty value = disabled platform, controller filters before passing to Vue
+- Consistent with Laravel convention for application-level settings
 
 **Alternatives Considered**:
-- Laravel config file - Adds unnecessary backend involvement
-- Environment variables - Overkill for static public URLs
-- Database settings - Way too complex for static data
+- Hardcoded in Vue (previous approach) - Cannot change per deployment without code edit
+- Database settings - Overkill for rarely-changing data
+- `.env` only (no config file) - Less discoverable; config file provides documentation
+
+**Config Key**: `config/homepage.php` → `social_links`, `blog_rss`
+
+### 6. Generic Blog RSS Service
+
+**Decision** *(Added 2026-02-27)*: Rename `SubstackRssService` to `BlogRssService`; RSS URL read from config instead of hardcoded
+
+**Rationale**:
+- Service logic is platform-agnostic (any standard RSS 2.0 feed)
+- Config-driven URL allows switching blog platform without code changes
+- Single point of change for RSS settings (URL, TTL, max items)
 
 ## Resolved Clarifications
 
 All technical unknowns resolved:
 - ✅ RSS parsing approach: SimpleXML
-- ✅ Caching strategy: Laravel Cache, 1 hour
+- ✅ Caching strategy: Laravel Cache, TTL from config (default 1 hour)
 - ✅ Icon approach: Inline SVGs
 - ✅ Layout approach: CSS Grid
-- ✅ Social URLs: Hardcoded in Vue component
+- ✅ Social URLs: Config file (`config/homepage.php`), filtered by controller, passed as Inertia props
+- ✅ RSS service scope: Generic `BlogRssService` (any RSS URL)

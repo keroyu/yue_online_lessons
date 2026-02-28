@@ -37,7 +37,7 @@
 - [x] T008 [P] Modify Lesson model: add promo_delay_seconds and promo_html to $fillable, add promo_delay_seconds integer cast, add hasPromoBlock and isPromoImmediate accessors in `app/Models/Lesson.php`
 - [x] T009 [P] Modify User model: add dripSubscriptions() HasMany and activeDripSubscriptions() (filtered by status=active) relationships in `app/Models/User.php`
 - [x] T010 [P] Create DripLessonMail mailable (implements ShouldQueue, uses Queueable+SerializesModels) with envelope() (subject: lesson title) and content() referencing drip-lesson blade template in `app/Mail/DripLessonMail.php`
-- [x] T011 [P] Create drip lesson email Blade template with lesson title, full html_content (when present), video notice using Unicode symbols ▶▶/▶ (no bold/red HTML styling to avoid spam filters), fallback text for pure-video lessons, classroom URL as plain text (not hyperlink), and unsubscribe URL as plain text in `resources/views/emails/drip-lesson.blade.php`
+- [x] T011 [P] Create drip lesson email Blade template with lesson title, full html_content (when present), video notice (if has_video), fallback text for pure-video lessons without html_content ("本課程包含教學影片，請至網站觀看完整內容" with classroom link), classroom link (`/member/classroom/{course_id}`), and unsubscribe link (`/drip/unsubscribe/{token}`) in `resources/views/emails/drip-lesson.blade.php`
 - [x] T012 [P] Create SendDripEmailJob (implements ShouldQueue, $tries=3, $backoff=[60,300,900]) that accepts userId (int), lessonId (int), subscriptionId (int) as primitive constructor params, loads models in handle(), and dispatches DripLessonMail in `app/Jobs/SendDripEmailJob.php`
 - [x] T013 Register all drip routes in `routes/web.php`: public drip group (POST subscribe, POST verify, GET/POST unsubscribe/{token}), member auth group (POST drip/subscribe/{course}), admin group (GET courses/{course}/subscribers)
 
@@ -145,11 +145,10 @@
 
 - [x] T033 [P] [US8] Modify StoreLessonRequest: add validation rules for promo_delay_seconds (nullable, integer, min:0, max:7200) and promo_html (nullable, string, max:10000) with Chinese error messages in `app/Http/Requests/Admin/StoreLessonRequest.php`
 - [x] T034 [P] [US8] Modify LessonForm.vue: add "促銷區塊設定" section with promo_delay_seconds number input (placeholder: 留空則不顯示) and promo_html textarea, add fields to form data in `resources/js/Components/Admin/LessonForm.vue`
-- [x] T034c [US9] Add CTA button quick-insert feature above promo_html textarea: URL + text inputs that generate inline-CSS styled button HTML and append to promo_html in `resources/js/Components/Admin/LessonForm.vue`
 - [x] T034b [P] [US9] Modify ChapterController@index: add promo_delay_seconds and promo_html to lesson map arrays (both chapter lessons and standalone lessons) so LessonForm receives promo data when editing in `app/Http/Controllers/Admin/ChapterController.php`
 - [x] T035 [US8] Create LessonPromoBlock.vue component: props (lessonId, delaySeconds, promoHtml), localStorage persistence for both unlock status (`promo_unlocked_lesson_{id}`) AND elapsed seconds (`promo_elapsed_lesson_{id}`) to support mid-session interruption resume, countdown timer (restore elapsed on mount, persist every 5s + on unmount, formatted MM:SS display), v-html render when unlocked, "解鎖進階資訊，請先完成學習" placeholder when locked, clean up elapsed key on unlock in `resources/js/Components/Classroom/LessonPromoBlock.vue`
 - [x] T036 [US8] Modify ClassroomController.formatLessonFull(): add promo_delay_seconds and promo_html to returned array in `app/Http/Controllers/Member/ClassroomController.php`
-- [x] T037 [US8] Modify Classroom.vue: import and render LessonPromoBlock below VideoAccessNotice and above html_content (has_video path: VideoAccessNotice → LessonPromoBlock → HtmlContent; no-video path: HtmlContent → LessonPromoBlock) when currentLesson has promo settings (promo_delay_seconds !== null && promo_html not empty) in `resources/js/Pages/Member/Classroom.vue`
+- [x] T037 [US8] Modify Classroom.vue: import and render LessonPromoBlock below lesson content when currentLesson has promo settings (promo_delay_seconds !== null && promo_html not empty) in `resources/js/Pages/Member/Classroom.vue`
 
 **Checkpoint**: 促銷區塊在倒數完成後顯示，重整後永久顯示，admin 可設定
 
@@ -207,30 +206,7 @@
 
 ---
 
-## Phase 12: US11 - 準時到課獎勵區塊 (Priority: P2)
-
-**Goal**: 在免費觀看期倒數旁加入獎勵欄（左右並排）。停留達 config 設定時間（預設 10 分鐘，per-session 計時）後，右側切換顯示管理員自訂 reward_html。逾期後若未達標顯示「下次早點來喔，錯過了獎勵 :(」提示。達標狀態以 localStorage 永久記錄（per Lesson）。
-
-**Independent Test**: 管理員設定某 Lesson 的 reward_html → 會員進入教室 → 驗證左側倒數右側顯示鼓勵文字 → 等待達標時間（調低 config 測試）→ 驗證右側切換為獎勵內容 → 重整後仍直接顯示獎勵。
-
-**Depends on**: Phase 11 (US10 - VideoAccessNotice component and ClassroomController drip support)
-
-### Implementation
-
-- [x] T054 [US11] Create migration to add `reward_html` (text, nullable, after promo_html) to lessons table; update Lesson model: add reward_html to $fillable and add hasRewardBlock accessor in `database/migrations/` and `app/Models/Lesson.php`
-- [x] T055 [P] [US11] Add `reward_delay_minutes` setting (default 10, env override `DRIP_REWARD_DELAY_MINUTES`) to existing `config/drip.php`
-- [x] T056 [P] [US11] Modify StoreLessonRequest: add `reward_html` validation rule (nullable, string, max:10000) and Chinese error message in `app/Http/Requests/Admin/StoreLessonRequest.php`
-- [x] T057 [P] [US11] Modify ChapterController@index: add `reward_html` to lesson map arrays (both chapter lessons and standalone lessons); ensure `course_type` is available in the lesson map or page props so LessonForm can conditionally show the reward field in `app/Http/Controllers/Admin/ChapterController.php`
-- [x] T058 [US11] Modify LessonForm.vue: accept `courseType` prop (or derive from page props), add `reward_html` to form data, add "準時到課獎勵設定" section (v-if="courseType === 'drip'") with textarea (placeholder: 留空則不顯示獎勵欄) in `resources/js/Components/Admin/LessonForm.vue`
-- [x] T059 [US11] Modify ClassroomController: in formatLessonFull() add `reward_html` field (null for converted users, lessons without video_id, or non-drip courses; otherwise pass lesson->reward_html); in show() add `rewardDelaySeconds` page-level prop (config('drip.reward_delay_minutes') * 60 for drip courses, null for standard) in `app/Http/Controllers/Member/ClassroomController.php`
-- [x] T060 [US11] Modify VideoAccessNotice.vue: add `rewardHtml` (string|null), `rewardDelaySeconds` (number|null), `lessonId` (number) props; add per-session reward timer (does NOT restore elapsed from localStorage on mount — resets each visit); when rewardHtml is not null and within free window, switch to left-right `flex flex-col sm:flex-row` layout (left: countdown, right: reward column); right column shows "你準時來上課了！真棒" before threshold, switches to v-html rewardHtml after threshold; persist earned state via `localStorage.setItem('reward_earned_lesson_{lessonId}', 'true')`; in expired state: show rewardHtml if localStorage earned, else append "下次早點來喔，錯過了獎勵 :(" text in `resources/js/Components/Classroom/VideoAccessNotice.vue`
-- [x] T061 [US11] Modify Classroom.vue: pass `:reward-html="currentLesson.reward_html ?? null"`, `:reward-delay-seconds="rewardDelaySeconds"`, `:lesson-id="currentLesson.id"` props to VideoAccessNotice component in `resources/js/Pages/Member/Classroom.vue`
-
-**Checkpoint**: 管理員可設定 reward_html、教室顯示左右並排獎勵欄、停留達標後切換為獎勵內容、重整後直接顯示、逾期未達標顯示錯過提示、RWD 正常
-
----
-
-## Phase 13: Polish & Cross-Cutting Concerns
+## Phase 12: Polish & Cross-Cutting Concerns
 
 **Purpose**: Final validation and refinements across all stories
 
@@ -238,8 +214,71 @@
 - [x] T044 Verify email retry mechanism: SendDripEmailJob retries up to 3 times with backoff [60, 300, 900] seconds
 - [ ] T045 Run quickstart.md validation scenarios end-to-end (sections A through I)
 - [x] T046 Verify all new/modified pages are responsive (mobile-first RWD per project conventions)
-- [ ] T053 Verify VideoAccessNotice responsive design: countdown + reward column (US11 left-right layout) display correctly on mobile screens
-- [ ] T062 Verify US11 acceptance scenarios end-to-end: reward shown pre-threshold, switches post-threshold, persists on reload, expired+earned shows reward, expired+not-earned shows missed message, converted users see no reward column
+- [ ] T053 Verify VideoAccessNotice responsive design: countdown and urgency promo block display correctly on mobile
+
+---
+
+## Phase 13: US11 - 準時到課獎勵區塊 (Priority: P2)
+
+**Goal**: 在免費觀看期倒數旁加入獎勵欄。會員進入頁面計時，停留滿設定時間後顯示管理員自訂獎勵 HTML。免費期逾期後保留已達標的獎勵，未達標則顯示「下次早點來喔，錯過了獎勵 :(」提示。
+
+**Independent Test**: 管理員設定某 Lesson 的 reward_html → 以訂閱者身份進入教室 → 驗證左側倒數右側顯示「你準時來上課了！真棒」→ 調低 `config(drip.reward_delay_minutes)` 為 0 後進入 → 驗證右側立即切換為 reward_html → 重整後仍直接顯示獎勵。
+
+**Depends on**: Phase 11 (US10 VideoAccessNotice.vue 已建立)
+
+### Implementation
+
+- [ ] T054 [P] [US11] Create migration to add `reward_html` (text, nullable) column to lessons table after `promo_html` in `database/migrations/`
+- [ ] T055 [P] [US11] Modify `config/drip.php`: add `reward_delay_minutes` key (default 10, env override `DRIP_REWARD_DELAY_MINUTES`) alongside existing `video_access_hours` in `config/drip.php`
+- [ ] T056 [P] [US11] Modify Lesson model: add `reward_html` to `$fillable` in `app/Models/Lesson.php`
+- [ ] T057 [P] [US11] Modify Admin ChapterController@index: add `reward_html` to lesson map arrays (both chapter lessons and standalone lessons); also ensure `course_type` is accessible to the chapter view (e.g. pass it as page prop or include in course data) so LessonForm.vue can conditionally render the reward_html field in `app/Http/Controllers/Admin/ChapterController.php`
+- [ ] T058 [P] [US11] Modify StoreLessonRequest: add `reward_html` validation rule (nullable, string, max:10000) and Chinese error message `'reward_html.max' => '獎勵內容太長'` in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [ ] T059 [P] [US11] Modify LessonForm.vue: add `reward_html` textarea field in "促銷區塊設定" section wrapped in `v-if="courseType === 'drip'"` (conditionally visible, add `courseType` prop to component); add `reward_html` to form data object and submit payload in `resources/js/Components/Admin/LessonForm.vue`
+- [ ] T060 [US11] Modify ClassroomController.show(): (a) add `reward_delay_minutes` as page-level Inertia prop from `config('drip.reward_delay_minutes')`; (b) in formatLessonFull(), pass `reward_html` per lesson for drip courses (set to null for converted users or lessons without video_id) in `app/Http/Controllers/Member/ClassroomController.php`
+- [ ] T061 [US11] Modify VideoAccessNotice.vue: add new props `rewardHtml` (String, default null), `rewardDelayMinutes` (Number, default 10), `lessonId` (Number, required); when rewardHtml is not empty, convert layout to two-column flex (flex-col on mobile, flex-row on md+): left column = existing countdown/expired notice, right column = reward panel; right column uses per-session timer (starts at 0 on each mount — NOT restored from localStorage, per spec:離開後計時歸零); localStorage key `reward_achieved_lesson_{lessonId}` tracks achievement across page loads; before achievement (elapsed < rewardDelayMinutes × 60s): show "你準時來上課了！真棒"; on achievement: switch right panel to v-html rewardHtml and save `reward_achieved_lesson_{lessonId}` to localStorage; when `expired === true` and localStorage key exists: show rewardHtml in right panel; when `expired === true` and localStorage key absent: append "下次早點來喔，錯過了獎勵 :(" below existing expired promo block in `resources/js/Components/Classroom/VideoAccessNotice.vue`
+- [ ] T062 [US11] Modify Classroom.vue: pass `rewardHtml` (currentLesson.reward_html || null), `rewardDelayMinutes` (page prop reward_delay_minutes), `lessonId` (currentLesson.id) to VideoAccessNotice component; ensure these props are only passed when course is drip + lesson has video_id + subscription.status !== 'converted'; add `reward_delay_minutes` to destructured Inertia page props in `resources/js/Pages/Member/Classroom.vue`
+
+**Checkpoint**: 獎勵欄在倒數旁正確顯示、達標後切換為 reward_html、重整後直接顯示、逾期未達標顯示提示、RWD 正常
+
+---
+
+## Phase 14: US12 + US13 + US14 - Email 追蹤分析 (Priority: P2)
+
+**Goal**: Drip 信件嵌入 tracking pixel 記錄開信事件；promo_url 包裝為追蹤 redirect 記錄點擊事件。管理員訂閱者清單新增 Lesson 統計表（已發送/開信率/點擊率/整體轉換率）及每位訂閱者的開信數和促銷點擊狀態。
+
+**Independent Test**: 建立 drip 課程並設定 Lesson promo_url → 訂閱測試帳號 → 收到 drip 信件後開啟信件（觸發 pixel 端點）並點擊商品連結（觸發 redirect 端點）→ 進入後台 /admin/courses/{id}/subscribers 驗證 Lesson 統計列顯示正確開信數和點擊數。
+
+**Depends on**: Phase 10 (US7 Subscribers.vue 已建立), Phase 3 (SendDripEmailJob 已建立), Phase 2 (DripLessonMail 已建立)
+
+### Implementation
+
+- [ ] T063 [P] [US12] Create migration for `drip_email_events` table: id (PK), subscription_id (FK → drip_subscriptions.id, cascade), lesson_id (FK → lessons.id, cascade), event_type ENUM('opened','clicked') NOT NULL, target_url varchar(500) nullable, ip varchar(45) nullable, user_agent text nullable, created_at timestamp (NO updated_at — events are immutable), UNIQUE KEY (subscription_id, lesson_id, event_type), INDEX subscription_id, INDEX lesson_id in `database/migrations/`
+- [ ] T064 [P] [US14] Create migration to add `promo_url` (varchar 500, nullable) column to lessons table after `promo_html` in `database/migrations/`
+- [ ] T065 [P] [US12] Create DripEmailEvent model: `const UPDATED_AT = null`, $fillable (subscription_id, lesson_id, event_type, target_url, ip, user_agent), subscription() BelongsTo DripSubscription (foreign key: subscription_id), lesson() BelongsTo Lesson in `app/Models/DripEmailEvent.php`
+- [ ] T066 [P] [US12] Modify DripSubscription model: add `emailEvents()` HasMany DripEmailEvent relationship (foreign key: subscription_id) in `app/Models/DripSubscription.php`
+- [ ] T067 [P] [US14] Modify Lesson model: add `promo_url` to `$fillable` in `app/Models/Lesson.php`
+- [ ] T068 [P] [US12] Create DripTrackingController: `open(Request $request)` — if `$request->hasValidSignature()` then `DripEmailEvent::firstOrCreate(['subscription_id' => $request->integer('sub'), 'lesson_id' => $request->integer('les'), 'event_type' => 'opened'], ['ip' => $request->ip(), 'user_agent' => $request->userAgent()])` wrapped in try/catch with `Log::warning` on failure — always return `response(PIXEL_BINARY, 200, ['Content-Type' => 'image/gif', 'Cache-Control' => 'no-store'])` where PIXEL_BINARY is a private const with the 1x1 transparent GIF hex sequence; `click(Request $request)` — same firstOrCreate pattern for 'clicked' event (include target_url in attributes), always `return redirect()->away($request->query('url', '/'))` in `app/Http/Controllers/DripTrackingController.php`
+- [ ] T069 [P] [US12] Add two public tracking routes to `routes/web.php` outside any auth middleware group: `Route::get('/drip/track/open', [DripTrackingController::class, 'open'])->name('drip.track.open')` and `Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click')` in `routes/web.php`
+- [ ] T070 [US12] Modify SendDripEmailJob.handle(): before calling Mail::to()->send(), generate signed URLs: `$openPixelUrl = URL::signedRoute('drip.track.open', ['sub' => $subscription->id, 'les' => $lesson->id], now()->addDays(180))`; `$promoTrackUrl = !empty($lesson->promo_url) ? URL::signedRoute('drip.track.click', ['sub' => $subscription->id, 'les' => $lesson->id, 'url' => $lesson->promo_url], now()->addDays(180)) : null`; pass both as named constructor args to DripLessonMail in `app/Jobs/SendDripEmailJob.php`
+- [ ] T071 [P] [US12] Modify DripLessonMail: add constructor params `public string $openPixelUrl` and `public ?string $promoTrackUrl = null`; verify content() method exposes these as template variables (as public properties they are auto-accessible in Blade) in `app/Mail/DripLessonMail.php`
+- [ ] T072 [US12] Modify drip-lesson.blade.php: (1) after html_content section, add promo button block — `@if($promoTrackUrl)` render `<p style="text-align:center;margin:24px 0"><a href="{{ $promoTrackUrl }}" style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;border:1px solid rgba(199,163,59,0.5);text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">立即瞭解</a></p>` `@endif`; (2) add tracking pixel as last element before closing body: `<img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">` in `resources/views/emails/drip-lesson.blade.php`
+- [ ] T073 [P] [US14] Modify StoreLessonRequest: add `promo_url` validation rule (`nullable|url|max:500`) and Chinese error message `'promo_url.url' => '商品連結必須是有效的 URL'` in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [ ] T074 [P] [US14] Modify LessonForm.vue: add `promo_url` URL input field in "促銷區塊設定" section below promo_html textarea (label: "商品連結 URL（Email 追蹤）", type="url", placeholder: "https://example.com/product/...", help text: "設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕。留空則不顯示。"); add `promo_url` to form data object and submit payload in `resources/js/Components/Admin/LessonForm.vue`
+- [ ] T075 [P] [US14] Modify Admin ChapterController@index: add `promo_url` to lesson map arrays (both chapter lessons and standalone lessons) so LessonForm receives promo_url data when editing existing lessons in `app/Http/Controllers/Admin/ChapterController.php`
+- [ ] T076 [US12] Add `getSubscriberStats(Course $course): array` method to DripService (Constitution §II: spans DripSubscription + DripEmailEvent + Lesson = 3 models, MUST go in Service): method returns `['lesson_stats' => [...], 'conversion_rate' => ?float]` where lesson_stats is a Collection — for each lesson ordered by sort_order compute: `sent_count` (DripSubscription where course_id and emails_sent > sort_order), `open_count`/`click_count` (DripEmailEvent aggregated by lesson_id), `open_rate` (null when sent_count=0), `click_rate` (null when sent_count=0 or no promo_url), `has_promo_url` bool; conversion_rate = converted_count / total (null when total=0); also add `getSubscriberEventCounts(Collection $subscriptionIds): Collection` returning per-subscription opened_count and has_clicked (bool) via DripEmailEvent withCount in `app/Services/DripService.php`
+- [ ] T076b [US12] Modify Admin CourseController::subscribers(): inject DripService via constructor (add `protected DripService $dripService` param); replace inline aggregation with `$stats = $this->dripService->getSubscriberStats($course)`; add `withCount` for per-subscriber event metrics by calling `$this->dripService->getSubscriberEventCounts($subIds)` and merging into subscriber collection; pass `lessonStats`, `conversionRate` as new Inertia props — controller remains thin orchestrator in `app/Http/Controllers/Admin/CourseController.php`
+- [ ] T077 [US12] Modify Subscribers.vue: (a) add Lesson stats table above subscriber list (columns: 課程/已發送/開信/開信率/點擊/點擊率); render open_rate and click_rate as percentage string (e.g. "40.0%"); show "—" when null (sent_count=0 or no promo_url); show conversionRate summary line below table ("整體轉換率：XX.X%"), hide when null; (b) add "已開 N/M 封" column (opened_count / emails_sent) to each subscriber row; (c) add has_clicked indicator column (✓ green text when true, — gray when false) to each subscriber row in `resources/js/Pages/Admin/Courses/Subscribers.vue`
+
+**Checkpoint**: Tracking pixel 觸發開信記錄、redirect 追蹤點擊並導向目標 URL、後台統計表顯示正確開信率/點擊率/轉換率、每位訂閱者行顯示開信數和點擊狀態
+
+---
+
+## Phase 12 (continued): Polish Additions
+
+- [ ] T078 Verify US11 reward column RWD: on mobile (< md breakpoint) reward section stacks below countdown, on desktop both columns display side by side
+- [ ] T079 Verify tracking end-to-end: open tracking pixel URL directly in browser returns 1x1 GIF (Content-Type: image/gif); click redirect URL records event and redirects to target within 1 second; duplicate requests (same sub+les+event_type) do not create duplicate records
+- [ ] T080 Verify Subscribers.vue lesson stats accuracy: open_count and click_count in table match actual drip_email_events records; division-by-zero cases (sent_count=0) show "—" without PHP errors
+- [ ] T081 [US14] Modify LessonForm.vue CTA quick-insert function: update generated button HTML template from old orange (`background:#ff5a36`, `border-radius:6px`) to brand-gold style (`background:#F0C14B`, `color:#373557`, `border-radius:9999px`, `border:1px solid rgba(199,163,59,0.5)`, `font-weight:600`, `box-shadow:0 1px 3px rgba(0,0,0,0.1)`); update default button text from any prior default to `'立即瞭解'` per spec FR-034b in `resources/js/Components/Admin/LessonForm.vue`
 
 ---
 
@@ -258,8 +297,9 @@
 - **US5 (Phase 9)**: Depends on Phase 3 (subscription + email infrastructure)
 - **US7 (Phase 10)**: Depends on Phase 2 (can parallel with any story)
 - **US10 (Phase 11)**: Depends on Phase 4 (US6 classroom) + Phase 7 (US4 conversion targets for urgency promo)
-- **US11 (Phase 12)**: Depends on Phase 11 (US10 - VideoAccessNotice component + ClassroomController drip support)
-- **Polish (Phase 13)**: Depends on all phases complete
+- **US11 (Phase 13)**: Depends on Phase 11 (VideoAccessNotice.vue exists to extend)
+- **US12~US14 (Phase 14)**: Depends on Phase 3 (SendDripEmailJob) + Phase 10 (Subscribers.vue) + Phase 2 (DripLessonMail)
+- **Polish (Phase 12)**: Depends on all phases complete
 
 ### User Story Dependencies
 
@@ -270,7 +310,8 @@
 - **US4 (P2)**: After US3 + US2 → needs conversion targets + webhook
 - **US8+US9 (P2)**: After Phase 2 → fully independent (all course types)
 - **US10 (P2)**: After US6 + US4 → needs classroom drip support + conversion targets
-- **US11 (P2)**: After US10 → extends VideoAccessNotice + ClassroomController
+- **US11 (P2)**: After US10 → extends VideoAccessNotice
+- **US12~US14 (P2)**: After US1 + US7 → needs email job + subscriber list
 - **US5 (P3)**: After US1 → uses subscription + email
 - **US7 (P3)**: After Phase 2 → independent (read-only)
 
@@ -291,34 +332,92 @@
 **After US10 completes**:
 - US11 (reward block) can start — extends VideoAccessNotice
 
+**After US1 + US7 complete**:
+- US12~US14 (tracking) can start in parallel with US11
+
 ---
 
-## Parallel Example: Phase 12 (US11)
+## Parallel Example: Phase 2 (Foundational)
+
+```bash
+# All model tasks can run in parallel (different files):
+T005: DripSubscription model    → app/Models/DripSubscription.php
+T006: DripConversionTarget model → app/Models/DripConversionTarget.php
+T007: Course model modifications → app/Models/Course.php
+T008: Lesson model modifications → app/Models/Lesson.php
+T009: User model modifications   → app/Models/User.php
+T010: DripLessonMail             → app/Mail/DripLessonMail.php
+T011: Email template             → resources/views/emails/drip-lesson.blade.php
+T012: SendDripEmailJob           → app/Jobs/SendDripEmailJob.php
+```
+
+## Parallel Example: After Phase 2
+
+```bash
+# These user stories can start simultaneously (different controllers/pages):
+Phase 3:  US1+US1.5 → DripSubscriptionController + DripSubscribeForm.vue
+Phase 5:  US3       → Admin CourseController + Edit.vue
+Phase 8:  US8+US9   → LessonForm.vue + LessonPromoBlock.vue
+Phase 10: US7       → Admin CourseController subscribers + Subscribers.vue
+```
+
+## Parallel Example: Phase 11 (US10)
 
 ```bash
 # These tasks can run in parallel (different files):
-T055: config/drip.php           → ADD reward_delay_minutes
-T056: StoreLessonRequest        → ADD reward_html validation
-T057: ChapterController         → ADD reward_html to lesson map
+T047: config/drip.php           → NEW config file
+T050: VideoAccessNotice.vue     → NEW Vue component
+T052: drip-lesson.blade.php     → MODIFY email template
 
 # Then sequential:
-T054: Migration + Lesson model  → depends on nothing, but gates DB schema
-T058: LessonForm.vue            → depends on T057 (needs courseType from controller)
-T059: ClassroomController       → depends on T055 (config) + T054 (DB field)
-T060: VideoAccessNotice.vue     → depends on T059 (reward props contract)
-T061: Classroom.vue             → depends on T059 + T060 (props + component)
+T048: DripService methods       → depends on config
+T049: ClassroomController       → depends on T048
+T051: Classroom.vue             → depends on T049 + T050
+```
+
+## Parallel Example: Phase 13 (US11)
+
+```bash
+# These tasks can run in parallel (different files):
+T054: migration reward_html     → database/migrations/
+T055: config/drip.php           → add reward_delay_minutes
+T056: Lesson model              → app/Models/Lesson.php
+T057: ChapterController         → app/Http/Controllers/Admin/ChapterController.php
+T058: StoreLessonRequest        → app/Http/Requests/Admin/StoreLessonRequest.php
+T059: LessonForm.vue            → resources/js/Components/Admin/LessonForm.vue
+
+# Then sequential:
+T060: ClassroomController       → depends on T054 + T055 + T056
+T061: VideoAccessNotice.vue     → depends on T055 (reward_delay_minutes config)
+T062: Classroom.vue             → depends on T060 + T061
+```
+
+## Parallel Example: Phase 14 (US12~US14)
+
+```bash
+# These tasks can run in parallel (different files):
+T063: migration drip_email_events → database/migrations/
+T064: migration promo_url         → database/migrations/
+T065: DripEmailEvent model        → app/Models/DripEmailEvent.php
+T066: DripSubscription model      → app/Models/DripSubscription.php
+T067: Lesson model                → app/Models/Lesson.php
+T068: DripTrackingController      → app/Http/Controllers/DripTrackingController.php
+T069: routes/web.php              → routes/web.php
+T071: DripLessonMail              → app/Mail/DripLessonMail.php
+T073: StoreLessonRequest          → app/Http/Requests/Admin/StoreLessonRequest.php
+T074: LessonForm.vue              → resources/js/Components/Admin/LessonForm.vue
+T075: ChapterController           → app/Http/Controllers/Admin/ChapterController.php
+
+# Then sequential (depend on models + routes + mail being ready):
+T070: SendDripEmailJob            → depends on T065 + T066 + T069 + T071
+T072: drip-lesson.blade.php       → depends on T071
+T076: CourseController            → depends on T065 + T066
+T077: Subscribers.vue             → depends on T076
 ```
 
 ---
 
 ## Implementation Strategy
-
-### Remaining Work (US11 Only)
-
-1. Complete Phase 12: US11 (T054-T061) in dependency order
-2. **STOP and VALIDATE**: Test reward block end-to-end (T062)
-3. Run full quickstart.md validation (T045)
-4. Verify RWD (T053)
 
 ### MVP First (US1 + US1.5 Only)
 
@@ -341,7 +440,8 @@ T061: Classroom.vue             → depends on T059 + T060 (props + component)
 9. US7 → 訂閱者清單 → Deploy
 10. US10 → 影片免費觀看期限 → Deploy
 11. US11 → 準時到課獎勵區塊 → Deploy
-12. Polish → Final validation
+12. US12~US14 → Email 追蹤分析 → Deploy
+13. Polish → Final validation
 
 ---
 
@@ -357,5 +457,8 @@ T061: Classroom.vue             → depends on T059 + T060 (props + component)
 - Stop at any checkpoint to validate independently
 - US10 has no DB migrations — config-based setting only (`config/drip.php`)
 - US10 urgency promo content is system-generated (not custom HTML like promo blocks)
-- US11 reward timer is **per-session** (no elapsed persistence) — contrast with US8 promo timer which IS cumulative
-- US11 reward_html is **drip-only** (admin form conditional) but backend accepts it for any lesson
+- US11 extends VideoAccessNotice.vue from US10 — reward timer is per-session (no localStorage accumulation), achievement state IS localStorage-persisted
+- US12~US14 combined — tracking infrastructure (pixel + redirect + events table) and analytics UI are tightly coupled
+- DripEmailEvent uses `const UPDATED_AT = null` — events are immutable records
+- Tracking signed URLs have 180-day expiry to cover typical email engagement window
+- promo_url (US14) is email-only; promo_html (US8) is classroom-only — they are independent

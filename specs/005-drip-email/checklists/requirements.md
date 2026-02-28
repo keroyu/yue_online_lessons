@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-02-04
-**Updated**: 2026-02-21 (新增準時到課獎勵區塊 US11)
+**Updated**: 2026-02-28 (新增 Email 追蹤分析 US12~US14)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -36,6 +36,7 @@
 - Spec is ready for `/speckit.plan`
 - 2026-02-16: 新增 Drip 影片免費觀看期限（US10, FR-035~042, SC-009~011），所有項目通過驗證
 - 2026-02-21: 新增準時到課獎勵區塊（US11, FR-043~054, SC-012~014），所有項目通過驗證
+- 2026-02-28: 新增 Email 追蹤分析（US12~US14, FR-055~071, SC-015~019），所有項目通過驗證
 
 ## User Decisions Captured
 
@@ -88,3 +89,12 @@
 26. **逾期後行為**：曾達標者保留獎勵顯示；未達標者加入「下次早點來喔，錯過了獎勵 :(」
 27. **豁免邏輯**：converted 使用者不顯示獎勵欄
 28. **適用範圍**：僅限有影片的 Lesson（與免費觀看期前提相同）
+
+## Clarifications (2026-02-28 - Email 追蹤分析)
+
+29. **點擊追蹤範圍**：僅追蹤 promo_url（促銷商品連結）；教室 URL 保持純文字，不加入追蹤
+30. **轉換率層級**：整體轉換率（課程維度），不做 per-Lesson 轉換分析
+31. **事件去重**：以「訂閱 × Lesson」為單位，DB unique constraint 確保去重
+32. **promo_url 顯示範圍**：僅在 drip 信件中，教室頁面的 promo_html 不受影響
+33. **新增 Lesson 欄位**：`promo_url`（varchar 500, nullable），獨立於 promo_html
+34. **新增實體**：`DripEmailEvent` 表，記錄 opened/clicked 事件，含 unique constraint

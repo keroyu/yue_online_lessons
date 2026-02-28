@@ -1,11 +1,13 @@
-# Implementation Plan: Homepage Enhancement - Substack Articles & Social Links
+# Implementation Plan: Homepage Enhancement - Blog Articles & Social Links
 
-**Branch**: `004-homepage-enhancement` | **Date**: 2026-01-26 | **Spec**: [spec.md](./spec.md)
+**Branch**: `004-homepage-enhancement` | **Date**: 2026-01-26 | **Updated**: 2026-02-27 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/004-homepage-enhancement/spec.md`
 
 ## Summary
 
-Add two new sections to the homepage in a sidebar layout: (1) Substack article feed displaying 5 recent articles fetched from RSS with server-side caching, and (2) social media links as pill-shaped buttons (URLs hardcoded in Vue component) for Instagram, YouTube, Facebook, Substack, and Podcast. The sidebar appears alongside courses on desktop/tablet and stacks below on mobile.
+Add two new sections to the homepage in a sidebar layout: (1) Blog article feed displaying 5 recent articles fetched from a configurable RSS URL with server-side caching, and (2) social media links as pill-shaped buttons with URLs stored in a Laravel config file (empty URL = button hidden). The sidebar appears alongside courses on desktop/tablet and stacks below on mobile.
+
+**Update 2026-02-27**: RSS service renamed to generic `BlogRssService`; social media URLs moved from Vue hardcode to `config/homepage.php`; frontend receives social links as Inertia props (filtered to non-empty only).
 
 ## Technical Context
 
@@ -62,23 +64,25 @@ specs/004-homepage-enhancement/
 ### Source Code (repository root)
 
 ```text
+config/
+│   └── homepage.php               # New: Social links URLs + RSS config
 app/
 ├── Http/
 │   └── Controllers/
-│       └── HomeController.php    # Modified: Pass RSS articles
+│       └── HomeController.php    # Modified: Pass RSS articles + socialLinks
 ├── Services/
-│   └── SubstackRssService.php    # New: RSS fetching + caching
+│   └── BlogRssService.php        # Renamed from SubstackRssService; generic RSS
 └── ...
 
 resources/js/
 ├── Components/
-│   ├── SubstackArticles.vue       # New: Article list component
-│   └── SocialLinks.vue            # New: Social links component (URLs hardcoded)
+│   ├── SubstackArticles.vue       # Unchanged: Article list component
+│   └── SocialLinks.vue            # Modified: URLs from props (not hardcoded)
 └── Pages/
-    └── Home.vue                   # Modified: Sidebar layout
+    └── Home.vue                   # Modified: Pass socialLinks prop
 ```
 
-**Structure Decision**: Follows existing Laravel project structure. New service class for RSS logic, new Vue components for UI. Social media URLs hardcoded in Vue component (no backend config needed).
+**Structure Decision**: Social URLs and RSS config moved to `config/homepage.php`. Controller reads config, filters out empty social URLs, passes to frontend via Inertia. RSS service renamed to `BlogRssService` for generality. Frontend article component unchanged; `SocialLinks.vue` updated to accept props instead of hardcoded data.
 
 ## Complexity Tracking
 

@@ -10,8 +10,6 @@
 
 **新增功能（2026-02-16）**：影片免費觀看期限 - Drip 課程 Lesson 解鎖後 48 小時內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒）。設定值存於 config 檔案。
 
-**新增功能（2026-02-21）**：準時到課獎勵區塊 - 在免費觀看期倒數旁加入獎勵欄（左右並排）。停留達 config 設定時間（預設 10 分鐘，per-session 計時）後，右側切換顯示管理員自訂 `reward_html`（優惠碼等）。逾期後若未達標顯示「下次早點來喔，錯過了獎勵 :(」提示。達標狀態以 localStorage 永久記錄（per Lesson）。`reward_html` 欄位僅在 drip 課程 Lesson 編輯頁顯示。
-
 ## Technical Context
 
 **Language/Version**: PHP 8.2+ / Laravel 12.x
@@ -76,7 +74,7 @@ app/
 │   │   │   ├── CourseController.php        # MODIFY: 新增 drip 設定相關 methods
 │   │   │   └── ChapterController.php      # MODIFY: index() lesson map 加入 promo 欄位
 │   │   ├── Member/
-│   │   │   └── ClassroomController.php     # MODIFY: 加入解鎖邏輯 + promo 欄位 + 影片觀看期限 + reward_html + rewardDelaySeconds prop
+│   │   │   └── ClassroomController.php     # MODIFY: 加入解鎖邏輯 + promo 欄位 + 影片觀看期限
 │   │   ├── DripSubscriptionController.php  # NEW: 訂閱/退訂處理
 │   │   └── Webhook/
 │   │       └── PortalyController.php       # (不變，Service 層處理)
@@ -94,7 +92,7 @@ app/
 │
 ├── Models/
 │   ├── Course.php                          # MODIFY: 新增 drip 欄位 + relationships
-│   ├── Lesson.php                          # MODIFY: 新增 promo + reward_html 欄位到 $fillable
+│   ├── Lesson.php                          # MODIFY: 新增 promo 欄位到 $fillable
 │   ├── DripConversionTarget.php            # NEW
 │   └── DripSubscription.php                # NEW
 │
@@ -103,23 +101,22 @@ app/
     └── DripService.php                     # NEW: 核心業務邏輯 + 影片觀看期限計算
 
 config/
-└── drip.php                                # MODIFY: 新增 reward_delay_minutes 設定
+└── drip.php                                # NEW: video_access_hours 設定
 
 database/migrations/
 ├── YYYY_MM_DD_add_drip_fields_to_courses.php
 ├── YYYY_MM_DD_create_drip_subscriptions.php
 ├── YYYY_MM_DD_create_drip_conversion_targets.php
 └── YYYY_MM_DD_add_promo_fields_to_lessons.php
-└── YYYY_MM_DD_add_reward_html_to_lessons.php
 
 resources/
 ├── js/
 │   ├── Components/
 │   │   ├── Admin/
-│   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_seconds, promo_html, reward_html 欄位（reward_html 僅在 drip 課程顯示）
+│   │   │   └── LessonForm.vue              # MODIFY: 加入 promo_delay_seconds, promo_html 欄位
 │   │   ├── Classroom/
 │   │   │   ├── LessonPromoBlock.vue        # NEW: 促銷區塊組件（含倒數計時 + localStorage）
-│   │   │   └── VideoAccessNotice.vue       # MODIFY: 加入準時到課獎勵欄（左右並排、計時切換、localStorage 永久記錄）
+│   │   │   └── VideoAccessNotice.vue       # NEW: 影片免費觀看期限組件（倒數 + 過期促銷）
 │   │   └── Course/
 │   │       └── DripSubscribeForm.vue       # NEW: Email 輸入 + 驗證碼表單
 │   │
@@ -415,25 +412,13 @@ const formattedTime = computed(() => {
 </template>
 ```
 
-### 10. config/drip.php（新設定檔 → MODIFY 新增 reward_delay_minutes）
+### 10. config/drip.php（新設定檔）
 
 ```php
 <?php
 
 return [
     'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
-
-    /*
-    |--------------------------------------------------------------------------
-    | 準時到課獎勵等待時間（分鐘）
-    |--------------------------------------------------------------------------
-    |
-    | 會員進入頁面後需連續停留滿此時間才達標獲得獎勵。
-    | 計時為 per-session：離開後歸零，下次重新計算。
-    | 設為 null 可停用此功能（所有 Lesson 皆不顯示獎勵欄）。
-    |
-    */
-    'reward_delay_minutes' => env('DRIP_REWARD_DELAY_MINUTES', 10),
 ];
 ```
 
@@ -602,222 +587,244 @@ const formattedCountdown = computed(() => {
 
 **⚠️ 顯示順序**：影片 → VideoAccessNotice（觀看期限）→ LessonPromoBlock（自訂促銷）→ 文字內容
 
-### 16. 準時到課獎勵區塊（US11）
+### 15. drip-lesson.blade.php 修改（免費觀看期提示）
 
-#### 16a. Migration: add_reward_html_to_lessons
-
-```php
-Schema::table('lessons', function (Blueprint $table) {
-    $table->text('reward_html')->nullable()->after('promo_html');
-});
+```blade
+{{-- 在影片提示區塊修改 --}}
+@if($lesson->video_id)
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+  @if(config('drip.video_access_hours'))
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
+  @endif
+@endif
 ```
 
-**Lesson.php 新增**:
-```php
-// $fillable - 加入
-'reward_html',
+---
 
-// accessor
-protected function hasRewardBlock(): Attribute
-{
-    return Attribute::make(
-        get: fn () => !empty($this->reward_html)
-    );
-}
+## 增量更新：準時到課獎勵區塊（US11）- 2026-02-21
+
+**新增功能（2026-02-21）**：在免費觀看期倒數旁加入獎勵欄（right column）。會員進入頁面後開始 per-session 計時，停留滿 `reward_delay_minutes` 分鐘後顯示管理員自訂 `reward_html`。達標狀態以 localStorage 永久記錄；免費期逾期後保留已達標獎勵，未達標則顯示「下次早點來喔，錯過了獎勵 :(」。
+
+### 檔案變更清單（Phase 13）
+
+```text
+database/migrations/
+└── YYYY_add_reward_html_to_lessons.php          # NEW
+
+config/
+└── drip.php                                     # MODIFY: 新增 reward_delay_minutes
+
+app/
+├── Models/
+│   └── Lesson.php                               # MODIFY: 新增 reward_html 到 $fillable
+├── Http/
+│   ├── Controllers/
+│   │   ├── Admin/
+│   │   │   └── ChapterController.php            # MODIFY: lesson map 加入 reward_html + course_type
+│   │   └── Member/
+│   │       └── ClassroomController.php          # MODIFY: 傳 reward_html (per-lesson) + reward_delay_minutes (page prop)
+│   └── Requests/
+│       └── Admin/
+│           └── StoreLessonRequest.php           # MODIFY: 加入 reward_html 驗證
+
+resources/js/
+├── Components/
+│   ├── Admin/
+│   │   └── LessonForm.vue                       # MODIFY: 加入 reward_html textarea (v-if drip)
+│   └── Classroom/
+│       └── VideoAccessNotice.vue                # MODIFY: 擴充為雙欄佈局 + 獎勵欄邏輯
+└── Pages/
+    └── Member/
+        └── Classroom.vue                        # MODIFY: 傳 reward props 給 VideoAccessNotice
 ```
 
-#### 16b. ClassroomController 修改（傳遞 reward 欄位）
+---
+
+### 16. config/drip.php 修改（新增獎勵延遲設定）
 
 ```php
-// formatLessonFull() - 加入 reward_html
+return [
+    'video_access_hours'   => env('DRIP_VIDEO_ACCESS_HOURS', 48),
+    'reward_delay_minutes' => env('DRIP_REWARD_DELAY_MINUTES', 10),  // NEW
+];
+```
+
+---
+
+### 17. ClassroomController 修改（US11）
+
+```php
+// show() 新增 page-level prop
+return Inertia::render('Member/Classroom', [
+    // ... existing props ...
+    'reward_delay_minutes' => config('drip.reward_delay_minutes'),  // NEW
+]);
+
+// formatLessonFull() 新增 reward_html（per-lesson）
 private function formatLessonFull(Lesson $lesson, ...): array
 {
-    $isConverted = $subscription?->status === 'converted';
     $hasVideo = !empty($lesson->video_id);
+    $isConverted = $subscription?->status === 'converted';
 
     return [
         // ... existing fields ...
-        // Reward block (drip + video + non-converted only)
-        'reward_html' => (!$isConverted && $hasVideo && $course->is_drip)
+        // US11: 僅 drip 課程 + 有影片 + 非 converted 才傳 reward_html
+        'reward_html' => ($isDrip && $hasVideo && !$isConverted)
             ? $lesson->reward_html
             : null,
     ];
 }
-
-// show() 方法加入 rewardDelaySeconds page-level prop
-return Inertia::render('Member/Classroom', [
-    // ... existing props ...
-    'rewardDelaySeconds' => $course->is_drip
-        ? (config('drip.reward_delay_minutes') * 60)
-        : null,
-]);
 ```
 
-#### 16c. LessonForm.vue 修改（reward_html 欄位，drip 課程限定）
+**⚠️ 設計決策**：`reward_delay_minutes` 是 page-level prop（全局 config 值），不需要 per-lesson 重複傳送。`reward_html` 是 per-lesson prop（管理員自訂內容）。
 
-```vue
-<!-- 在促銷區塊設定下方，僅在 drip 課程 Lesson 顯示 -->
-<div v-if="courseType === 'drip'" class="border-t pt-6 mt-6">
-  <h4 class="text-sm font-semibold text-gray-900 mb-4">準時到課獎勵設定</h4>
-  <p class="text-xs text-gray-500 mb-4">
-    設定後，在免費觀看期倒數旁顯示獎勵欄。停留達設定時間後顯示以下 HTML 內容。
-  </p>
-  <div>
-    <label :class="labelClasses">獎勵內容（HTML）</label>
-    <textarea
-      v-model="form.reward_html"
-      :class="inputClasses"
-      rows="4"
-      placeholder="<div>送你優惠代碼 XXXXX</div>"
-    />
-    <p :class="helpTextClasses">留空則不顯示獎勵欄</p>
-  </div>
-</div>
-```
+---
 
-**⚠️ 注意**：`courseType` prop 需由 `ChapterController@index` 傳入 lesson map（或從 page props 取得），使 LessonForm 知道當前課程類型。
+### 18. VideoAccessNotice.vue 修改（US11）— 核心元件擴充
 
-#### 16d. ChapterController 修改（lesson map 加入 reward_html）
-
-```php
-// index() 中 lesson map 加入（章節內小節 + 獨立小節皆需）
-->map(fn ($lesson) => [
-    // ... existing fields ...
-    'promo_delay_seconds' => $lesson->promo_delay_seconds,
-    'promo_html' => $lesson->promo_html,
-    'reward_html' => $lesson->reward_html, // NEW
-])
-```
-
-#### 16e. StoreLessonRequest 修改（加入 reward_html 驗證）
-
-```php
-// 新增到 rules()
-'reward_html' => ['nullable', 'string', 'max:10000'],
-
-// 新增到 messages()
-'reward_html.max' => '獎勵內容太長',
-```
-
-#### 16f. VideoAccessNotice.vue 修改（加入獎勵欄）
+**設計要點：**
+- 現有組件負責免費觀看期倒數（US10）。US11 在其右側加入獎勵欄。
+- **計時策略差異**（關鍵）：
+  - LessonPromoBlock（US8）：跨 session 累積（localStorage 存 elapsed seconds）
+  - VideoAccessNotice 獎勵計時（US11）：per-session，每次 mount 從 0 開始，**不累積**
+- **localStorage 用途**：僅存 `reward_achieved_lesson_{lessonId}`（布林）記錄已達標，不存計時秒數
 
 ```vue
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
-  expired: { type: Boolean, required: true },
-  remainingSeconds: { type: Number, default: null },
-  targetCourses: { type: Array, default: () => [] },
-  // US11: reward block props (null = no reward column)
-  rewardHtml: { type: String, default: null },
-  rewardDelaySeconds: { type: Number, default: null },
+  // US10 existing props
+  expired:          { type: Boolean, required: true },
+  remainingSeconds: { type: Number,  default: null },
+  targetCourses:    { type: Array,   default: () => [] },
+  // US11 new props
+  rewardHtml:          { type: String, default: null },
+  rewardDelayMinutes:  { type: Number, default: 10 },
+  lessonId:            { type: Number, required: true },
 })
 
-// --- Free access countdown (existing) ---
-const countdown = ref(props.remainingSeconds)
-let accessTimer = null
-
-// --- Reward block (US11) ---
-const REWARD_KEY = computed(() => `reward_earned_lesson_${props.lessonId ?? 0}`)
-const rewardEarned = ref(false)
-const rewardElapsed = ref(0)
+// US11: reward state
+const REWARD_KEY = computed(() => `reward_achieved_lesson_${props.lessonId}`)
+const rewardAchieved = ref(localStorage.getItem(REWARD_KEY.value) === 'true')
+const rewardElapsed = ref(0)          // per-session, not persisted
 let rewardTimer = null
 
-const showRewardColumn = computed(() =>
-  props.rewardHtml !== null && props.rewardDelaySeconds !== null
-)
+const showRewardColumn = computed(() => !!props.rewardHtml)
 
 onMounted(() => {
-  // Free access countdown
-  if (!props.expired && countdown.value > 0) {
-    accessTimer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(accessTimer)
-        window.location.reload()
+  // ... existing US10 countdown timer setup ...
+
+  // US11: start reward timer (per-session, not restored from localStorage)
+  if (showRewardColumn.value && !rewardAchieved.value && !props.expired) {
+    rewardTimer = setInterval(() => {
+      rewardElapsed.value++
+      if (rewardElapsed.value >= props.rewardDelayMinutes * 60) {
+        rewardAchieved.value = true
+        localStorage.setItem(REWARD_KEY.value, 'true')
+        clearInterval(rewardTimer)
       }
     }, 1000)
   }
-
-  // Reward block
-  if (!showRewardColumn.value) return
-
-  if (localStorage.getItem(REWARD_KEY.value) === 'true') {
-    rewardEarned.value = true
-    return
-  }
-
-  // Per-session timer (does NOT restore elapsed from localStorage)
-  rewardTimer = setInterval(() => {
-    rewardElapsed.value++
-    if (rewardElapsed.value >= props.rewardDelaySeconds) {
-      rewardEarned.value = true
-      localStorage.setItem(REWARD_KEY.value, 'true')
-      clearInterval(rewardTimer)
-    }
-  }, 1000)
 })
 
 onUnmounted(() => {
-  if (accessTimer) clearInterval(accessTimer)
+  // ... existing cleanup ...
   if (rewardTimer) clearInterval(rewardTimer)
-  // Per-session: intentionally do NOT persist elapsed time on unmount
+  // ⚠️ 不持久化 rewardElapsed（per-session，歸零）
 })
 </script>
 
 <template>
-  <!-- 免費觀看期內：倒數 + 獎勵欄（左右並排，僅 reward_html 有設定時) -->
-  <div v-if="!expired && formattedCountdown">
-    <div :class="showRewardColumn ? 'flex gap-4' : ''">
-      <!-- 左：倒數計時 -->
-      <div class="flex-1 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+  <!-- 有 reward_html 時：雙欄佈局（flex-col on mobile, flex-row on md+） -->
+  <div v-if="showRewardColumn"
+       class="mt-4 flex flex-col md:flex-row gap-4">
+    <!-- 左欄：免費觀看期倒數（既有邏輯不變） -->
+    <div class="flex-1">
+      <!-- 免費觀看期內 -->
+      <div v-if="!expired && formattedCountdown"
+           class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
         <p class="text-sm text-green-700">課程免費公開中，剩餘</p>
         <p class="text-xl font-mono font-bold text-green-800">{{ formattedCountdown }}</p>
       </div>
-
-      <!-- 右：獎勵欄（僅當 showRewardColumn） -->
-      <div v-if="showRewardColumn"
-           class="flex-1 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div v-if="rewardEarned" v-html="rewardHtml" />
-        <p v-else class="text-yellow-800 font-medium text-sm text-center">你準時來上課了！真棒</p>
+      <!-- 過期後 -->
+      <div v-else-if="expired" class="bg-amber-50 border border-amber-300 rounded-lg p-6">
+        <p class="text-amber-800 font-semibold mb-2">免費觀看期已結束，但我們為你保留了存取權。</p>
+        <!-- 未達標時追加提示 -->
+        <p v-if="!rewardAchieved" class="text-sm text-amber-600 mt-3">
+          下次早點來喔，錯過了獎勵 :(
+        </p>
+        <!-- 已達標時在過期區塊顯示獎勵內容 -->
+        <div v-if="rewardAchieved" v-html="rewardHtml" class="mt-3" />
+        <!-- 目標課程連結（不管達標與否都顯示） -->
+        <div v-if="targetCourses.length > 0" class="space-y-2 mt-4">
+          <a v-for="course in targetCourses" :key="course.id"
+             :href="course.url"
+             class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+            推薦購買：{{ course.name }}
+          </a>
+        </div>
+        <a v-else href="/"
+           class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition mt-4">
+          探索更多課程
+        </a>
       </div>
     </div>
+
+    <!-- 右欄：獎勵欄（免費觀看期內才顯示，逾期後整合至左欄） -->
+    <div v-if="!expired" class="flex-1 border border-gray-200 rounded-lg p-4 text-center">
+      <!-- 未達標：鼓勵文字 -->
+      <div v-if="!rewardAchieved">
+        <p class="text-sm font-medium text-gray-700">你準時來上課了！真棒</p>
+        <p class="text-xs text-gray-400 mt-1">繼續停留即可解鎖獎勵</p>
+      </div>
+      <!-- 已達標：管理員自訂 reward_html -->
+      <div v-else v-html="rewardHtml" />
+    </div>
   </div>
 
-  <!-- 過期後：加強版促銷區塊（+ 錯過獎勵提示若未達標） -->
-  <div v-else-if="expired" class="bg-amber-50 border border-amber-300 rounded-lg p-6">
-    <p class="text-amber-800 font-semibold mb-2">
-      免費觀看期已結束，但我們為你保留了存取權。
-    </p>
-    <!-- 曾達標：顯示獎勵 HTML -->
-    <div v-if="showRewardColumn && rewardEarned" v-html="rewardHtml" class="mb-4" />
-    <!-- 未達標：錯過提示 -->
-    <p v-else-if="showRewardColumn && !rewardEarned"
-       class="text-amber-700 text-sm mb-4">下次早點來喔，錯過了獎勵 :(</p>
-    <p class="text-amber-700 mb-4">想要完整學習體驗？</p>
-    <div v-if="targetCourses.length > 0" class="space-y-2">
-      <a v-for="course in targetCourses" :key="course.id"
-         :href="course.url"
+  <!-- 無 reward_html 時：原始單欄佈局（既有 US10 邏輯，不受影響） -->
+  <template v-else>
+    <div v-if="!expired && formattedCountdown"
+         class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+      <p class="text-sm text-green-700">課程免費公開中，剩餘</p>
+      <p class="text-xl font-mono font-bold text-green-800">{{ formattedCountdown }}</p>
+    </div>
+    <div v-else-if="expired"
+         class="mt-4 bg-amber-50 border border-amber-300 rounded-lg p-6">
+      <p class="text-amber-800 font-semibold mb-2">免費觀看期已結束，但我們為你保留了存取權。</p>
+      <p class="text-amber-700 mb-4">想要完整學習體驗？</p>
+      <div v-if="targetCourses.length > 0" class="space-y-2">
+        <a v-for="course in targetCourses" :key="course.id"
+           :href="course.url"
+           class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+          推薦購買：{{ course.name }}
+        </a>
+      </div>
+      <a v-else href="/"
          class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
-        推薦購買：{{ course.name }}
+        探索更多課程
       </a>
     </div>
-    <a v-else href="/"
-       class="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg transition">
-      探索更多課程
-    </a>
-  </div>
+  </template>
 </template>
 ```
 
-**⚠️ 注意**：`lessonId` prop 需由 Classroom.vue 傳入（已有 `currentLesson.id`）。
+**⚠️ 注意事項**：
+- 已達標（`rewardAchieved = true`）且免費期內：右欄直接顯示 `reward_html`（不需再次計時）
+- 已達標且逾期：獎勵整合顯示在左欄的逾期促銷區塊內（右欄在逾期後不顯示）
+- 未達標且逾期：左欄追加「下次早點來喔，錯過了獎勵 :(」文字
+- 無 `reward_html`：組件行為與 US10 原始版本完全相同（無右欄）
 
-**⚠️ RWD**：在小螢幕上 `flex gap-4` 應改為 `flex flex-col sm:flex-row gap-4`，讓手機上獎勵欄在倒數下方垂直排列。
+---
 
-#### 16g. Classroom.vue 修改（傳入 reward props）
+### 19. Classroom.vue 修改（US11）
 
 ```vue
+<!-- 新增 props 解構 -->
+const { course, lessons, subscription, videoAccessTargetCourses, reward_delay_minutes } = defineProps(...)
+
+<!-- VideoAccessNotice 傳入 US11 新 props -->
 <VideoAccessNotice
   v-if="course.course_type === 'drip'
     && currentLesson?.video_id
@@ -826,32 +833,10 @@ onUnmounted(() => {
   :expired="currentLesson.video_access_expired"
   :remaining-seconds="currentLesson.video_access_remaining_seconds"
   :target-courses="videoAccessTargetCourses"
-  :reward-html="currentLesson.reward_html ?? null"
-  :reward-delay-seconds="rewardDelaySeconds"
+  :reward-html="currentLesson.reward_html || null"
+  :reward-delay-minutes="reward_delay_minutes"
   :lesson-id="currentLesson.id"
 />
-```
-
----
-
-### 15. drip-lesson.blade.php 修改（免費觀看期提示）
-
-```blade
-{{-- 影片提示區塊（使用 Unicode 符號，避免 HTML 樣式觸發垃圾信過濾） --}}
-@if($hasVideo)
-  <p>▶▶ 本課程包含教學影片，請至網站觀看</p>
-  @if(config('drip.video_access_hours'))
-  <p>▶ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
-  @endif
-@endif
-
-{{-- 連結以純文字 URL 呈現（非超連結），降低垃圾信風險 --}}
-<p>{{ $hasVideo ? '▶ 前往觀看' : '📖 到網站上閱讀' }}<br>
-{{ $classroomUrl }}</p>
-
-<p>---<br>
-如不想繼續收到此系列通知，請點此退訂：<br>
-{{ $unsubscribeUrl }}</p>
 ```
 
 ---
@@ -873,9 +858,384 @@ onUnmounted(() => {
 
 ---
 
+## 增量更新：Email 追蹤分析（US12~US14）- 2026-02-28
+
+**新增功能（2026-02-28）**：Email 追蹤分析 - Tracking Pixel 開信追蹤、URL Redirect 點擊追蹤、Lesson 開信率/點擊率報表、訂閱者開信進度指示、促銷商品連結欄位（promo_url）
+
+### 檔案變更清單（Phase 13）
+
+```text
+app/
+├── Http/
+│   ├── Controllers/
+│   │   └── DripTrackingController.php          # NEW: open() + click()
+│   └── Requests/
+│       └── Admin/
+│           └── StoreLessonRequest.php           # MODIFY: 加入 promo_url 驗證
+│
+├── Models/
+│   ├── DripEmailEvent.php                       # NEW: opened/clicked 事件 model
+│   ├── DripSubscription.php                     # MODIFY: 新增 emailEvents() HasMany
+│   └── Lesson.php                               # MODIFY: 新增 promo_url 到 $fillable
+│
+├── Mail/
+│   └── DripLessonMail.php                       # MODIFY: 新增 openPixelUrl, promoTrackUrl props
+│
+└── Jobs/
+    └── SendDripEmailJob.php                     # MODIFY: 生成 signed tracking URLs
+
+database/migrations/
+├── YYYY_create_drip_email_events_table.php      # NEW
+└── YYYY_add_promo_url_to_lessons.php            # NEW
+
+resources/js/
+├── Components/
+│   └── Admin/
+│       └── LessonForm.vue                       # MODIFY: 加入 promo_url 輸入欄
+│
+└── Pages/
+    └── Admin/
+        └── Courses/
+            └── Subscribers.vue                  # MODIFY: 加入 Lesson 統計表 + 訂閱者指示器
+
+resources/views/emails/
+└── drip-lesson.blade.php                        # MODIFY: 加入 pixel + promo_url 按鈕
+
+routes/
+└── web.php                                      # MODIFY: 新增 2 個 tracking 路由
+```
+
+---
+
+### 17. DripTrackingController（新增）
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DripEmailEvent;
+use App\Models\DripSubscription;
+use App\Models\Lesson;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
+
+class DripTrackingController extends Controller
+{
+    // 1x1 透明 GIF binary
+    private const PIXEL = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b";
+
+    public function open(Request $request): Response
+    {
+        // 驗證 signed URL（失效時仍返回 GIF 避免破圖）
+        if ($request->hasValidSignature()) {
+            $subId = $request->integer('sub');
+            $lesId = $request->integer('les');
+
+            try {
+                DripEmailEvent::firstOrCreate(
+                    ['subscription_id' => $subId, 'lesson_id' => $lesId, 'event_type' => 'opened'],
+                    ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]
+                );
+            } catch (\Exception $e) {
+                Log::warning('Drip tracking open failed', ['sub' => $subId, 'les' => $lesId, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return response(self::PIXEL, 200, [
+            'Content-Type' => 'image/gif',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    public function click(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $targetUrl = $request->query('url', '/');
+
+        if ($request->hasValidSignature()) {
+            $subId = $request->integer('sub');
+            $lesId = $request->integer('les');
+
+            try {
+                DripEmailEvent::firstOrCreate(
+                    ['subscription_id' => $subId, 'lesson_id' => $lesId, 'event_type' => 'clicked'],
+                    ['target_url' => $targetUrl, 'ip' => $request->ip(), 'user_agent' => $request->userAgent()]
+                );
+            } catch (\Exception $e) {
+                Log::warning('Drip tracking click failed', ['sub' => $subId, 'les' => $lesId, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect()->away($targetUrl);
+    }
+}
+```
+
+---
+
+### 18. DripEmailEvent Model（新增）
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class DripEmailEvent extends Model
+{
+    // 只有 created_at，無 updated_at（事件不可變）
+    const UPDATED_AT = null;
+
+    protected $fillable = [
+        'subscription_id',
+        'lesson_id',
+        'event_type',
+        'target_url',
+        'ip',
+        'user_agent',
+    ];
+
+    public function subscription(): BelongsTo
+    {
+        return $this->belongsTo(DripSubscription::class, 'subscription_id');
+    }
+
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(Lesson::class);
+    }
+}
+```
+
+---
+
+### 19. SendDripEmailJob 修改（生成 tracking URLs）
+
+```php
+// 在 handle() 中，Mail::to()->send() 之前加入：
+$openPixelUrl = URL::signedRoute('drip.track.open', [
+    'sub' => $subscription->id,
+    'les' => $lesson->id,
+], now()->addDays(180));
+
+$promoTrackUrl = null;
+if (!empty($lesson->promo_url)) {
+    $promoTrackUrl = URL::signedRoute('drip.track.click', [
+        'sub' => $subscription->id,
+        'les' => $lesson->id,
+        'url' => $lesson->promo_url,
+    ], now()->addDays(180));
+}
+
+Mail::to($user->email)->send(new DripLessonMail(
+    // ... existing params ...
+    openPixelUrl: $openPixelUrl,
+    promoTrackUrl: $promoTrackUrl,
+));
+```
+
+---
+
+### 20. DripLessonMail 修改
+
+```php
+// 新增 constructor params
+public function __construct(
+    // ... existing params ...
+    public string $openPixelUrl,
+    public ?string $promoTrackUrl = null,
+) {}
+```
+
+---
+
+### 21. drip-lesson.blade.php 修改（追蹤 pixel + promo 按鈕）
+
+```blade
+{{-- 在 html_content 之後、unsubscribe 之前 --}}
+@if($promoTrackUrl)
+<p style="text-align:center;margin:24px 0">
+  <a href="{{ $promoTrackUrl }}"
+     style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;border:1px solid rgba(199,163,59,0.5);text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+    立即瞭解
+  </a>
+</p>
+@endif
+
+{{-- Tracking Pixel（隱藏，放最後） --}}
+<img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">
+```
+
+**Button Style 對應**（參考課程販售頁「立即購買」按鈕）：
+| Tailwind class | Inline CSS |
+|---|---|
+| `bg-brand-gold` | `background:#F0C14B` |
+| `text-brand-navy` | `color:#373557` |
+| `rounded-full` | `border-radius:9999px` |
+| `px-10 py-3` | `padding:12px 40px` |
+| `border border-brand-gold-dark/50` | `border:1px solid rgba(199,163,59,0.5)` |
+| `font-semibold` | `font-weight:600` |
+| `shadow-sm` | `box-shadow:0 1px 3px rgba(0,0,0,0.1)` |
+
+---
+
+### 22. routes/web.php 修改（新增 tracking 路由）
+
+```php
+// 加入現有 drip group 之後（public routes，不需 auth）
+Route::get('/drip/track/open', [DripTrackingController::class, 'open'])->name('drip.track.open');
+Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click');
+```
+
+---
+
+### 23. CourseController::subscribers() 修改（Lesson 統計）
+
+```php
+public function subscribers(Request $request, Course $course): Response
+{
+    // ... existing query ...
+
+    // NEW: Lesson stats
+    $lessons = $course->lessons()->orderBy('sort_order')->get(['id', 'title', 'sort_order', 'promo_url']);
+    $subIds = DripSubscription::where('course_id', $course->id)->pluck('id');
+
+    $eventStats = DripEmailEvent::whereIn('subscription_id', $subIds)
+        ->select('lesson_id',
+            DB::raw("SUM(event_type = 'opened') as open_count"),
+            DB::raw("SUM(event_type = 'clicked') as click_count")
+        )
+        ->groupBy('lesson_id')
+        ->get()->keyBy('lesson_id');
+
+    $lessonStats = $lessons->map(function ($lesson) use ($eventStats, $course) {
+        $sentCount = DripSubscription::where('course_id', $course->id)
+            ->where('emails_sent', '>', $lesson->sort_order)->count();
+        $stats = $eventStats->get($lesson->id);
+        return [
+            'lesson_id'   => $lesson->id,
+            'title'       => $lesson->title,
+            'sort_order'  => $lesson->sort_order,
+            'sent_count'  => $sentCount,
+            'open_count'  => $stats?->open_count ?? 0,
+            'open_rate'   => $sentCount > 0 ? round(($stats?->open_count ?? 0) / $sentCount, 4) : null,
+            'has_promo_url' => !empty($lesson->promo_url),
+            'click_count' => $stats?->click_count ?? 0,
+            'click_rate'  => ($sentCount > 0 && !empty($lesson->promo_url))
+                ? round(($stats?->click_count ?? 0) / $sentCount, 4) : null,
+        ];
+    });
+
+    // NEW: conversionRate
+    $conversionRate = $stats->total > 0
+        ? round($stats->converted_count / $stats->total, 4)
+        : null;
+
+    return Inertia::render('Admin/Courses/Subscribers', [
+        // ... existing props ...
+        'lessonStats'    => $lessonStats,
+        'conversionRate' => $conversionRate,
+    ]);
+}
+```
+
+---
+
+### 24. Subscribers.vue 修改（Lesson 統計表 + 訂閱者指示器）
+
+```vue
+<!-- Lesson 統計表（在統計卡片下方、訂閱者清單上方） -->
+<div v-if="lessonStats.length" class="mb-6 overflow-x-auto">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-2 text-left">課程</th>
+        <th class="px-4 py-2 text-right">已發送</th>
+        <th class="px-4 py-2 text-right">開信</th>
+        <th class="px-4 py-2 text-right">開信率</th>
+        <th class="px-4 py-2 text-right">點擊</th>
+        <th class="px-4 py-2 text-right">點擊率</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="ls in lessonStats" :key="ls.lesson_id" class="border-t">
+        <td class="px-4 py-2">{{ ls.title }}</td>
+        <td class="px-4 py-2 text-right">{{ ls.sent_count || '—' }}</td>
+        <td class="px-4 py-2 text-right">{{ ls.open_count }}</td>
+        <td class="px-4 py-2 text-right">
+          {{ ls.open_rate != null ? (ls.open_rate * 100).toFixed(1) + '%' : '—' }}
+        </td>
+        <td class="px-4 py-2 text-right">
+          {{ ls.has_promo_url ? ls.click_count : '—' }}
+        </td>
+        <td class="px-4 py-2 text-right">
+          {{ ls.click_rate != null ? (ls.click_rate * 100).toFixed(1) + '%' : '—' }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p v-if="conversionRate != null" class="mt-2 text-sm text-gray-600">
+    整體轉換率：{{ (conversionRate * 100).toFixed(1) }}%
+  </p>
+</div>
+
+<!-- 訂閱者表格新增欄位（加在現有 emails_sent 後方） -->
+<td class="hidden md:table-cell px-4 py-2 text-sm text-gray-600">
+  已開 {{ sub.opened_count }}/{{ sub.emails_sent }} 封
+</td>
+<td class="hidden md:table-cell px-4 py-2 text-center text-sm">
+  <span v-if="sub.has_clicked" class="text-green-600">✓</span>
+  <span v-else class="text-gray-300">—</span>
+</td>
+```
+
+---
+
+### 25. LessonForm.vue 修改（promo_url 欄位 + CTA 快速插入樣式）
+
+**A. 新增 promo_url 輸入欄**（在 promo_html textarea 下方）：
+
+```vue
+<div class="mt-4">
+  <label :class="labelClasses">商品連結 URL（Email 追蹤）</label>
+  <input
+    v-model="form.promo_url"
+    type="url"
+    :class="inputClasses"
+    placeholder="https://example.com/product/..."
+  />
+  <p :class="helpTextClasses">設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕。留空則不顯示。</p>
+</div>
+```
+
+**B. CTA 快速插入（FR-034b）按鈕樣式更新**：
+
+CTA 快速插入功能產生的 inline HTML 按鈕，樣式統一改用 brand-gold（與 drip 信件 promo_url 按鈕一致）：
+
+```js
+// CTA 快速插入生成的 HTML 模板（預設文字改為「立即瞭解」）
+const ctaHtml = (url, text = '立即瞭解') =>
+  `<div style="text-align:center;margin:24px 0">` +
+  `<a href="${url}" ` +
+  `style="display:inline-block;background:#F0C14B;color:#373557;` +
+  `padding:12px 40px;border-radius:9999px;` +
+  `border:1px solid rgba(199,163,59,0.5);` +
+  `text-decoration:none;font-weight:600;font-size:15px;` +
+  `box-shadow:0 1px 3px rgba(0,0,0,0.1)">${text}</a>` +
+  `</div>`
+```
+
+> **注意**：若舊有 CTA 快速插入使用 `#ff5a36` 橘色，需更新為上方 brand-gold 樣式。
+
+---
+
 ## Next Steps
 
-1. Implement Phase 11 (US10 — 影片免費觀看期限) tasks T047-T052
-2. Implement Phase 12 (US11 — 準時到課獎勵區塊) tasks (see tasks.md for updated task list)
-3. Complete verification tasks (T045, T053)
-4. Run end-to-end quickstart validation
+1. Complete Polish verification tasks (T045, T053, T062)
+2. Run `/speckit.tasks` to generate Phase 13 tasks for US12~US14 implementation
+3. Run end-to-end quickstart validation
