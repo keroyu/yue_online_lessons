@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\DripSubscriptionController;
+use App\Http\Controllers\DripTrackingController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -26,6 +27,10 @@ Route::prefix('drip')->name('drip.')->group(function () {
     Route::get('/unsubscribe/{token}', [DripSubscriptionController::class, 'showUnsubscribe'])->name('unsubscribe.show');
     Route::post('/unsubscribe/{token}', [DripSubscriptionController::class, 'unsubscribe'])->name('unsubscribe');
 });
+
+// Drip email tracking routes (public, no auth required)
+Route::get('/drip/track/open', [DripTrackingController::class, 'open'])->name('drip.track.open');
+Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click');
 
 // Auth routes (Guest only)
 Route::middleware('guest')->group(function () {

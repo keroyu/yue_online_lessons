@@ -22,6 +22,7 @@ class Lesson extends Model
         'html_content',
         'promo_delay_seconds',
         'promo_html',
+        'promo_url',
         'reward_html',
         'duration_seconds',
         'sort_order',

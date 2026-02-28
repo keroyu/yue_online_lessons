@@ -5,6 +5,7 @@
 **Status**: Draft
 **Input**: User description: "擴充現有課程系統，新增「連鎖課程」類型。當使用者訂閱後，系統會依照固定天數間隔，自動解鎖章節並發送 Email 通知。這是一個行銷漏斗，目標是導引客戶購買進階課程。"
 **Updated**: 2026-02-21 - 新增「準時到課獎勵」區塊（US11）：免費觀看期倒數旁新增獎勵欄，停留滿指定時間後解鎖管理員自訂禮物 HTML；逾期後加入「錯過獎勵」提示
+**Updated**: 2026-02-28 - 新增 Email 追蹤分析功能（US12~US14）：Tracking Pixel 開信追蹤、URL Redirect 點擊追蹤、Lesson 統計報表（開信率/點擊率/轉換率）、訂閱者開信進度指示、促銷商品連結欄位（promo_url）
 
 ## Clarifications
 
@@ -43,6 +44,13 @@
 - Q: 此功能適用範圍？ → A: **僅限 drip 課程**。standard 課程不受影響
 - Q: Drip 信件是否提及免費觀看期？ → A: **是**。有影片的 Lesson 信件加入「影片 48 小時內免費觀看，把握時間！」提示，強化緊迫感
 - Q: 免費觀看倒數顯示在哪裡？ → A: **僅在 Lesson 內容區域**。側邊欄不顯示倒數，保持簡潔
+
+### Session 2026-02-28 (Email 追蹤分析)
+
+- Q: 點擊追蹤的範圍為何？ → A: **僅追蹤 promo_url（促銷商品連結）的點擊**。教室 URL 保持純文字以降低垃圾信風險，不加入點擊追蹤
+- Q: 轉換率是 per-lesson 還是整體？ → A: **整體轉換率**（converted 訂閱者 / 總訂閱者）。轉換並非對應特定 Lesson，故不做 per-lesson 轉換分析；每個 Lesson 列顯示開信率和點擊率
+- Q: 開信和點擊事件是否去重？ → A: **是，以訂閱 × Lesson 為單位去重**。同一封信被開啟多次只計一次；同一封信的 promo_url 被點擊多次只計一次
+- Q: promo_url 追蹤連結在哪些地方顯示？ → A: **僅在 drip 信件中**，以可點擊按鈕呈現。教室頁面的 promo_html（自定 HTML）不受影響，兩者互相獨立
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -247,6 +255,58 @@
 
 ---
 
+### User Story 12 - 管理員查看 Lesson 開信率/點擊率/轉換率 (Priority: P2)
+
+管理員進入連鎖課程的訂閱者清單頁面，在清單上方看到每個 Lesson 的統計表：已發送人數、開信人數、開信率、點擊 promo_url 人數、點擊率，以及頁面頂部的整體轉換率。
+
+**Why this priority**: 沒有追蹤數據，行銷漏斗的效果無從評估；開信率和點擊率是優化信件內容和發送策略的核心依據。
+
+**Independent Test**: 建立 drip 課程並訂閱幾個測試帳號，部分帳號開信並點擊 promo_url，進入後台查看統計數字是否與實際一致。
+
+**Acceptance Scenarios**:
+
+1. **Given** 課程有 3 個 Lessons，已向 10 位訂閱者發送 Lesson 1，其中 4 人開信、2 人點擊，**When** 管理員進入訂閱者清單，**Then** Lesson 1 統計列顯示：已發送=10，開信=4，開信率=40%，點擊=2，點擊率=20%
+2. **Given** 5 位訂閱者已轉換（status=converted），總訂閱數 20，**When** 查看頁面，**Then** 整體轉換率顯示 25%（5/20）
+3. **Given** 某 Lesson 尚未發送給任何人，**When** 查看統計，**Then** 該 Lesson 顯示「尚未發送」或 0/0，不出現除以零錯誤
+4. **Given** 某 Lesson 未設定 promo_url，**When** 查看統計，**Then** 點擊欄位顯示「—」（不適用），不顯示 0%
+
+---
+
+### User Story 13 - 管理員查看訂閱者開信進度與促銷點擊狀態 (Priority: P2)
+
+管理員在訂閱者清單中，每位訂閱者的行顯示其已開信數量（例如「已開 3/5 封」）以及是否曾點擊過任一 promo_url。這些資訊讓管理員快速識別高意向訂閱者。
+
+**Why this priority**: 個別訂閱者的開信行為有助於辨識高意向客群（特別是有點擊促銷連結者），可用於後續精準行銷。
+
+**Independent Test**: 以測試帳號訂閱，開部分信件並點擊 promo_url，後台查看該訂閱者的開信數和點擊狀態是否正確。
+
+**Acceptance Scenarios**:
+
+1. **Given** 訂閱者收到 3 封信並開啟了其中 2 封，**When** 管理員查看訂閱者清單，**Then** 該訂閱者行顯示「已開 2/3 封」
+2. **Given** 訂閱者點擊了某 Lesson 的 promo_url，**When** 查看清單，**Then** 該訂閱者行顯示點擊狀態為「✓」或「已點擊」
+3. **Given** 訂閱者從未點擊任何 promo_url，**When** 查看清單，**Then** 點擊狀態顯示「—」或「未點擊」
+4. **Given** 訂閱者尚未開啟任何信件，**When** 查看清單，**Then** 開信進度顯示「已開 0/N 封」
+
+---
+
+### User Story 14 - 管理員設定 Lesson 促銷商品連結 (Priority: P2)
+
+管理員在後台編輯 Lesson 時，在「促銷區塊設定」區域看到一個「商品連結 URL」輸入欄（promo_url）。設定後，drip 信件中會出現一個可追蹤點擊的商品連結按鈕，點擊數會被記錄用於統計。
+
+**Why this priority**: promo_html 為自定義 HTML，其中的連結無法被系統自動追蹤。設定獨立的 promo_url 欄位，系統才能在信件中生成可追蹤的連結，實現點擊率統計。
+
+**Independent Test**: 管理員設定 promo_url → 發送 drip 信件 → 測試帳號點擊信件中商品連結 → 確認點擊被記錄且正確導向目標 URL。
+
+**Acceptance Scenarios**:
+
+1. **Given** 管理員在 Lesson 編輯頁輸入有效的 promo_url 並儲存，**When** 查看 Lesson，**Then** 設定正確保存
+2. **Given** Lesson 設定了 promo_url，**When** 訂閱者收到 drip 信件，**Then** 信件包含一個指向追蹤 redirect 的商品連結按鈕
+3. **Given** 訂閱者點擊信件中的商品連結，**When** 系統記錄點擊並執行 redirect，**Then** 訂閱者在 1 秒內被導向目標 URL，後台點擊數 +1（去重：同一封信重複點擊只計一次）
+4. **Given** 管理員清空 promo_url，**When** 儲存，**Then** 後續信件不顯示商品連結按鈕
+5. **Given** Lesson 無 promo_url（null），**When** 訂閱者收到信件，**Then** 信件不包含任何商品連結按鈕
+
+---
+
 ### Edge Cases
 
 - **重複訂閱**：已退訂的使用者嘗試再次訂閱同一課程 → 顯示「此課程已無法再次訂閱」訊息
@@ -268,6 +328,13 @@
 - **獎勵區塊：免費期結束前 10 分鐘才進來**：若倒數計時剩餘秒數少於 `reward_delay_minutes` 換算秒數，使用者無法在免費期內達標 → 免費期逾期後顯示「錯過了獎勵」
 - **獎勵區塊：reward_html 僅設定但 promo_html 未設定**：兩者互相獨立，各自顯示邏輯不影響對方
 - **獎勵區塊：純文字 Lesson 無影片**：不顯示獎勵欄（與免費觀看期前提相同）
+- **Tracking Pixel 被封鎖**：部分 email 用戶端或防火牆封鎖外部圖片 → 開信事件無法記錄，開信率低於實際值（業界普遍限制，無法避免）
+- **Email 預覽觸發 pixel**：部分 email 用戶端在預覽時自動載入圖片 → 計為開信（業界標準行為）
+- **同一封信重複開啟/點擊**：同一訂閱者多次開信或多次點擊同一 promo_url → 以訂閱 × Lesson 為單位去重，只記錄第一次
+- **Tracking URL 過期**：signed URL 有時效性，超時後 pixel/redirect 不再有效 → 設定 180 天有效期，覆蓋絕大多數使用場景
+- **點擊 promo_url 後 redirect 目標失效**：目標 URL 不存在或無法訪問 → 系統仍記錄點擊事件，用戶看到目標站點的錯誤頁面（非本系統問題）
+- **promo_url 含特殊字元**：URL 含 & 或 ? 等字元 → 系統 URL encode 後安全嵌入 redirect 參數
+- **Lesson 無 promo_url 時的統計**：該 Lesson 的點擊欄顯示「—」（不適用），不計入分母
 
 ## Requirements *(mandatory)*
 
@@ -353,6 +420,29 @@
 - **FR-053**: 獎勵區塊 MUST 僅適用於有影片的 Lesson（與 FR-042 前提一致），純文字 Lesson 不顯示
 - **FR-054**: 獎勵區塊（FR-043 ~ FR-053）MUST 支援 RWD，在手機螢幕上正常顯示
 
+**Email 追蹤基礎設施（US12~US14）**
+- **FR-055**: 每封 drip 信件 MUST 嵌入一個 1x1 像素的 tracking pixel（透明 GIF），用於記錄開信事件
+- **FR-056**: Tracking pixel 端點 MUST 使用 signed URL（含 180 天有效期）確保安全性，防止偽造請求
+- **FR-057**: 系統 MUST 以「訂閱 × Lesson」為單位記錄首次開信事件（去重：同一封信重複開啟不重複計）
+- **FR-058**: 當 Lesson 設定了 `promo_url`，drip 信件 MUST 將此 URL 包裝為可追蹤的 redirect 連結，點擊後記錄事件並導向目標 URL
+- **FR-059**: Redirect 端點 MUST 使用 signed URL（含 180 天有效期）確保安全性
+- **FR-060**: 系統 MUST 以「訂閱 × Lesson」為單位記錄首次 promo_url 點擊事件（去重）
+- **FR-061**: Tracking pixel 請求 MUST 立即回傳 1x1 透明 GIF（不影響信件顯示）；redirect 點擊 MUST 在 1 秒內完成導向
+
+**促銷商品連結欄位（US14）**
+- **FR-062**: 每個 Lesson MAY 設定促銷商品連結 URL（`promo_url`，varchar 500，nullable），獨立於 `promo_html`
+- **FR-063**: 管理員 MUST 可在 Lesson 編輯頁的「促銷區塊設定」區域設定 `promo_url`（URL 格式輸入欄，留空表示不設定）
+- **FR-064**: 當 Lesson 設定了 `promo_url`，drip 信件 MUST 顯示一個連至追蹤 redirect 的商品連結按鈕
+- **FR-065**: 當 Lesson 未設定 `promo_url`（null），drip 信件 MUST NOT 顯示商品連結按鈕
+
+**分析報表（US12，訂閱者清單頁面）**
+- **FR-066**: 訂閱者清單頁面 MUST 在清單上方顯示每個 Lesson 的統計表，包含：Lesson 名稱、已發送人數、開信人數、開信率（%）、點擊人數、點擊率（%）
+- **FR-067**: 頁面 MUST 在統計摘要區顯示整體轉換率（status=converted 的訂閱者數 / 總訂閱者數）
+- **FR-068**: 開信率定義：去重開信人數 / 已收到該 Lesson 信件的訂閱者數（即 emails_sent > Lesson.sort_order 的訂閱數）
+- **FR-069**: 點擊率定義：去重點擊 promo_url 人數 / 已收到該 Lesson 信件的訂閱者數；若該 Lesson 無 promo_url，點擊欄顯示「—」不計算比率
+- **FR-070**: 訂閱者清單每行 MUST 顯示該訂閱者的開信數（已開 N 封 / 已收 M 封）
+- **FR-071**: 訂閱者清單每行 MUST 顯示該訂閱者是否曾點擊任一 promo_url（布林值，✓/—）
+
 ### Key Entities
 
 - **User（現有，維持不變）**: 統一的客戶名單。訪客訂閱時自動建立帳號（僅需 email，nickname 可為空）。所有訂閱者都是 User。
@@ -361,6 +451,16 @@
   - promo_delay_seconds（促銷區塊延遲秒數，null=停用、0=立即、>0=延遲）
   - promo_html（促銷區塊自訂 HTML）
   - reward_html（準時到課獎勵自訂 HTML，null=不顯示獎勵欄）
+  - promo_url（促銷商品連結 URL，null=不顯示商品連結按鈕；用於 drip 信件點擊追蹤）
+- **DripEmailEvent（新增）**: 記錄每封 drip 信件的開信和點擊事件。包含：
+  - subscription_id（FK → drip_subscriptions.id）
+  - lesson_id（FK → lessons.id）
+  - event_type（enum: opened / clicked）
+  - target_url（nullable，僅 clicked 事件使用，記錄被點擊的 promo_url）
+  - ip（nullable，IPv4/IPv6）
+  - user_agent（nullable）
+  - created_at（事件發生時間）
+  - 唯一約束：(subscription_id, lesson_id, event_type)，DB 層確保去重
 - **DripConversionTarget（新增）**: 記錄連鎖課程與目標課程的關聯（一對多）。包含 drip_course_id、target_course_id
 - **DripSubscription（新增）**: 記錄使用者對連鎖課程的訂閱。包含：
   - user_id（必填，外鍵指向 users.id）
@@ -389,6 +489,11 @@
 - **SC-012**: 停留達標後，獎勵內容在 1 秒內顯示於獎勵欄
 - **SC-013**: 達標狀態在重新整理後仍保持（永久顯示獎勵，不需重新計時）
 - **SC-014**: 管理員可在 1 分鐘內完成單一 Lesson 的 reward_html 設定並儲存
+- **SC-015**: Tracking pixel 觸發後，開信事件在 5 秒內記錄至資料庫
+- **SC-016**: 點擊追蹤 redirect 在 1 秒內完成並導向目標 URL（不影響用戶體驗）
+- **SC-017**: 訂閱者清單頁面的 Lesson 統計表顯示正確數據（與實際開信/點擊記錄一致）
+- **SC-018**: 管理員可在 2 分鐘內完成設定 Lesson 的 promo_url 並儲存
+- **SC-019**: 開信率和點擊率計算正確（去重後人數 / 發送人數），分母為 0 時不發生錯誤
 
 ## Assumptions
 
@@ -402,6 +507,10 @@
 - 準時到課獎勵的等待時間（reward_delay_minutes）為全站統一設定（config），不按個別 Lesson 設定
 - 獎勵欄的鼓勵文字（達標前）為系統固定文案，管理員僅設定達標後的獎勵 HTML 內容
 - 達標狀態以本地儲存（localStorage）記錄，不儲存至伺服器，故同一帳號在不同裝置上不共用達標狀態
+- Email 用戶端封鎖圖片時，開信率會低於實際值，這是業界普遍限制，非系統缺陷
+- promo_url 追蹤連結僅出現在 drip 信件中，不影響教室頁面的 promo_html 顯示
+- 開信/點擊事件儲存為獨立記錄表（drip_email_events），不修改現有 drip_subscriptions 欄位
+- 整體轉換率以「至少一個訂閱狀態為 converted」計算，不做 per-Lesson 轉換率分析
 
 ## Migration Notes
 
@@ -461,3 +570,24 @@
   - 與自訂促銷區塊（promo_delay_seconds）互不影響，兩者可共存
   - 僅對有影片的 Lesson 生效，純文字 Lesson 不受影響
   - 計算公式：`過期時間 = subscribed_at + (sort_order × drip_interval_days) 天 + video_access_hours 小時`
+
+- **Email 追蹤技術（US12~US14）**：
+  - **Tracking Pixel**：在每封信件嵌入 1x1 透明 GIF，圖片請求觸發開信記錄；signed URL 防偽造，有效期 180 天
+  - **URL Redirect**：promo_url 包裝成系統 redirect 端點（`/drip/track/click`），點擊時記錄事件後導向目標；signed URL 防偽造，有效期 180 天
+  - **事件去重**：以 (subscription_id, lesson_id, event_type) 的 DB unique constraint 確保每封信每種事件只記一次
+  - **教室 URL 不加追蹤**：保持純文字以降低垃圾信分類風險；僅 promo_url 加入 redirect 追蹤
+
+- **promo_url 與 promo_html 職責分離**：
+  - promo_html：教室頁面使用的自定義 HTML 促銷區塊，系統無法安全解析其中連結
+  - promo_url：email 專用的單一商品連結，系統完全控制 tracking redirect
+  - 兩者互相獨立，管理員可分別設定不同的促銷內容；promo_url 在教室頁面不顯示
+
+- **促銷區塊連結按鈕樣式**：參考課程販售頁面「立即購買」按鈕（`bg-brand-gold` / `#F0C14B`，文字 `brand-navy` / `#373557`，`rounded-full`），統一套用於：
+  - drip 信件中的 promo_url 追蹤按鈕
+  - LessonForm.vue 的 CTA 快速插入功能產生的按鈕 HTML
+  - 按鈕預設文字統一為「立即瞭解」
+
+- **統計計算策略**：
+  - 即時計算（查詢時運算），不預先快取
+  - 訂閱者規模通常在千級內，即時計算效能可接受
+  - 分母為 0 時統計欄位顯示「—」，不計算比率

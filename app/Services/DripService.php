@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Jobs\SendDripEmailJob;
 use App\Models\Course;
 use App\Models\DripConversionTarget;
+use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DripService
@@ -238,6 +241,88 @@ class DripService
         }
 
         return $sentCount;
+    }
+
+    /**
+     * Get subscriber stats for admin Lesson analytics table.
+     *
+     * Returns lesson_stats (Collection) and conversion_rate (?float).
+     */
+    public function getSubscriberStats(Course $course): array
+    {
+        $lessons = $course->lessons()->orderBy('sort_order')->get(['id', 'title', 'sort_order', 'promo_url']);
+
+        $totalSubscribers = DripSubscription::where('course_id', $course->id)->count();
+        $convertedCount = DripSubscription::where('course_id', $course->id)->where('status', 'converted')->count();
+
+        // Aggregate open/click counts per lesson from drip_email_events
+        $subIds = DripSubscription::where('course_id', $course->id)->pluck('id');
+
+        $eventStats = DripEmailEvent::whereIn('subscription_id', $subIds)
+            ->select(
+                'lesson_id',
+                DB::raw("SUM(CASE WHEN event_type = 'opened' THEN 1 ELSE 0 END) as open_count"),
+                DB::raw("SUM(CASE WHEN event_type = 'clicked' THEN 1 ELSE 0 END) as click_count")
+            )
+            ->groupBy('lesson_id')
+            ->get()
+            ->keyBy('lesson_id');
+
+        $lessonStats = $lessons->map(function (Lesson $lesson) use ($eventStats, $course) {
+            // sent_count = subscriptions where emails_sent > sort_order (i.e., this lesson was sent)
+            $sentCount = DripSubscription::where('course_id', $course->id)
+                ->where('emails_sent', '>', $lesson->sort_order)
+                ->count();
+
+            $stats = $eventStats->get($lesson->id);
+            $openCount = (int) ($stats?->open_count ?? 0);
+            $clickCount = (int) ($stats?->click_count ?? 0);
+            $hasPromoUrl = !empty($lesson->promo_url);
+
+            return [
+                'lesson_id' => $lesson->id,
+                'title' => $lesson->title,
+                'sort_order' => $lesson->sort_order,
+                'sent_count' => $sentCount,
+                'open_count' => $openCount,
+                'open_rate' => $sentCount > 0 ? round($openCount / $sentCount, 4) : null,
+                'has_promo_url' => $hasPromoUrl,
+                'click_count' => $clickCount,
+                'click_rate' => ($sentCount > 0 && $hasPromoUrl)
+                    ? round($clickCount / $sentCount, 4)
+                    : null,
+            ];
+        });
+
+        return [
+            'lesson_stats' => $lessonStats,
+            'conversion_rate' => $totalSubscribers > 0
+                ? round($convertedCount / $totalSubscribers, 4)
+                : null,
+        ];
+    }
+
+    /**
+     * Get per-subscription open count and has_clicked (bool) for subscriber list rows.
+     *
+     * @param Collection $subscriptionIds
+     * @return Collection keyed by subscription_id
+     */
+    public function getSubscriberEventCounts(Collection $subscriptionIds): Collection
+    {
+        if ($subscriptionIds->isEmpty()) {
+            return collect();
+        }
+
+        return DripEmailEvent::whereIn('subscription_id', $subscriptionIds)
+            ->select(
+                'subscription_id',
+                DB::raw("SUM(CASE WHEN event_type = 'opened' THEN 1 ELSE 0 END) as opened_count"),
+                DB::raw("MAX(CASE WHEN event_type = 'clicked' THEN 1 ELSE 0 END) as has_clicked")
+            )
+            ->groupBy('subscription_id')
+            ->get()
+            ->keyBy('subscription_id');
     }
 
     /**

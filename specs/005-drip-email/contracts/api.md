@@ -2,7 +2,7 @@
 
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
-**Updated**: 2026-02-21 (新增準時到課獎勵區塊)
+**Updated**: 2026-02-16 (新增影片免費觀看期限)
 
 ## Overview
 
@@ -158,8 +158,6 @@
     // Video access window (drip courses only, unlocked lessons with video)
     video_access_expired: boolean; // true if free viewing window has passed
     video_access_remaining_seconds: number | null; // null if expired or no video, seconds remaining otherwise
-    // Reward block (US11 — drip + video + non-converted only; null if not applicable)
-    reward_html: string | null;
   }>;
   subscription: {
     id: number;
@@ -173,8 +171,6 @@
     name: string;
     url: string;
   }>; // empty array if no target courses set
-  // Reward block config (US11 — drip courses only; null for standard courses)
-  rewardDelaySeconds: number | null; // config('drip.reward_delay_minutes') * 60
 }
 ```
 
@@ -396,15 +392,11 @@
     // Promo block (NEW)
     promo_delay_seconds: number | null;
     promo_html: string | null;
-    // Reward block (US11)
-    reward_html: string | null;
   }>;
 }
 ```
 
-**⚠️ 重要**: 此 lesson map 是 `ChapterList.vue` → `LessonForm.vue` 的資料來源。若缺少 promo 或 reward_html 欄位，編輯表單開啟時設定會顯示空白。
-
-**⚠️ courseType 傳遞**: LessonForm.vue 需要知道課程類型（drip/standard）才能條件顯示 reward_html 欄位。需從 page props 或 lesson map 傳入 `course_type`。
+**⚠️ 重要**: 此 lesson map 是 `ChapterList.vue` → `LessonForm.vue` 的資料來源。若缺少 promo 欄位，編輯表單開啟時促銷區塊設定會顯示空白。
 
 ---
 
@@ -420,45 +412,9 @@
 ```json
 {
   "promo_delay_seconds": 5,
-  "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>",
-  "reward_html": "<div>送你優惠代碼 XXXXX</div>"
+  "promo_html": "<div class=\"bg-yellow-100 p-4\"><h3>限時優惠</h3><a href=\"/course/123\" class=\"btn\">立即購買</a></div>"
 }
 ```
-
-**Note**: `reward_html` is only rendered in the admin form for drip course Lessons (frontend conditional). Backend accepts and saves the field for any lesson type.
-
----
-
-## Classroom Page - Reward Block (US11 — drip courses, video lessons, non-converted)
-
-**Note**: 獎勵區塊透過 `currentLesson.reward_html` 和 page-level `rewardDelaySeconds` prop 傳遞至 `VideoAccessNotice.vue`。無獨立 API 端點。
-
-### GET /member/classroom/{course}
-
-**Additional fields** (per-lesson in lessons array, drip courses with video only):
-```typescript
-{
-  reward_html: string | null; // null if no reward set, or lesson has no video, or user is converted
-}
-```
-
-**Additional page-level prop**:
-```typescript
-{
-  rewardDelaySeconds: number | null; // config('drip.reward_delay_minutes') * 60; null for standard courses
-}
-```
-
-**Frontend Behavior** (in `VideoAccessNotice.vue`):
-- `reward_html = null` → 無獎勵欄，原有倒數/過期 UI 保持不變（單欄）
-- `reward_html ≠ null` 且課程在免費觀看期內 → 左右並排佈局：左倒數、右獎勵欄
-  - 右側（未達標）：固定鼓勵文字「你準時來上課了！真棒」
-  - 右側（達標後）：`reward_html` 內容（v-html 渲染）
-- 達標狀態：`localStorage.setItem('reward_earned_lesson_{id}', 'true')`，永久保存
-- 計時：Per-session（每次進入頁面重新起算，**不**還原上次 elapsed）
-- 免費期逾期後（`video_access_expired = true`）：
-  - 已達標（`localStorage` 有記錄）→ 在逾期提示區顯示 `reward_html`
-  - 未達標 → 在逾期提示區追加「下次早點來喔，錯過了獎勵 :(」
 
 ---
 
@@ -469,15 +425,161 @@
 **Description**: Drip Lesson 通知信（已修改，新增免費觀看期提示）
 
 **Additional Template Content** (for lessons with video):
-```blade
-@if($hasVideo)
-  <p>▶▶ 本課程包含教學影片，請至網站觀看</p>
-  @if(config('drip.video_access_hours'))
-  <p>▶ 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
-  @endif
+```html
+<!-- 在影片提示後方加入 -->
+@if($lesson->video_id)
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 本課程包含教學影片，請至網站觀看</p>
+  <p style="font-size:16px;font-weight:bold;color:#e00">* 影片 {{ config('drip.video_access_hours') }} 小時內免費觀看，把握時間！</p>
 @endif
 ```
 
-**Link Format**: 連結以純文字 URL 呈現（文字標籤 + 換行 + URL），非 `<a>` 超連結，以降低垃圾信風險。
+**Note**: 此提示僅在 `config('drip.video_access_hours')` 不為 null 時顯示。
 
-**Note**: 影片提示僅在 `config('drip.video_access_hours')` 不為 null 時顯示。不使用粗體紅色等 HTML 樣式，改用 Unicode 符號（▶▶/▶）。
+---
+
+## 增量更新：Email 追蹤端點（US12~US14）- 2026-02-28
+
+### GET /drip/track/open
+
+**Description**: Tracking Pixel 端點，記錄開信事件並返回 1x1 透明 GIF
+
+**Auth**: None（無需登入，使用 Laravel Signed URL 驗證）
+
+**Query Params** (由 Signed URL 自動包含):
+```
+sub       = {subscription_id}
+les       = {lesson_id}
+expires   = {timestamp}
+signature = {hash}
+```
+
+**Success Response (200)**:
+```
+Content-Type: image/gif
+[1x1 transparent GIF binary]
+```
+
+**Behavior**:
+1. 驗證 Signed URL 簽名（無效則仍返回 GIF，但不記錄）
+2. `DripEmailEvent::firstOrCreate(['subscription_id' => $sub, 'lesson_id' => $les, 'event_type' => 'opened'], ['ip' => $ip, 'user_agent' => $ua])`
+3. 返回 1x1 透明 GIF（不做 redirect）
+
+**Error Response**: 簽名無效或過期時仍返回 GIF（避免信件顯示破圖）
+
+**Route**: `GET /drip/track/open` → `DripTrackingController@open`，名稱 `drip.track.open`
+
+---
+
+### GET /drip/track/click
+
+**Description**: 點擊追蹤 redirect 端點，記錄點擊事件並 redirect 到目標 URL
+
+**Auth**: None（使用 Laravel Signed URL 驗證）
+
+**Query Params** (由 Signed URL 自動包含):
+```
+sub       = {subscription_id}
+les       = {lesson_id}
+url       = {urlencode(promo_url)}
+expires   = {timestamp}
+signature = {hash}
+```
+
+**Success Response (302 redirect)**:
+```
+Location: {decoded promo_url}
+```
+
+**Behavior**:
+1. 驗證 Signed URL 簽名
+2. 解碼 `url` 參數
+3. `DripEmailEvent::firstOrCreate(['subscription_id' => $sub, 'lesson_id' => $les, 'event_type' => 'clicked'], ['target_url' => $url, 'ip' => $ip, 'user_agent' => $ua])`
+4. `return redirect()->away($url)`
+
+**Error Response (400)**: 簽名無效或 url 參數缺失時，重定向至首頁並記錄 log
+
+**Route**: `GET /drip/track/click` → `DripTrackingController@click`，名稱 `drip.track.click`
+
+---
+
+### Admin: GET /admin/courses/{course}/subscribers（擴充）
+
+**Description**: 訂閱者清單（擴充：新增 Lesson 統計 + 訂閱者開信/點擊指標）
+
+**新增 Response Props**:
+```json
+{
+  "lessonStats": [
+    {
+      "lesson_id": 1,
+      "lesson_title": "第一課",
+      "sort_order": 0,
+      "sent_count": 100,
+      "open_count": 45,
+      "open_rate": 0.45,
+      "has_promo_url": true,
+      "click_count": 20,
+      "click_rate": 0.20
+    }
+  ],
+  "conversionRate": 0.15,
+  "subscribers": {
+    "data": [
+      {
+        "id": 1,
+        "user": { "email": "...", "nickname": "..." },
+        "status": "active",
+        "emails_sent": 3,
+        "opened_count": 2,
+        "has_clicked": false,
+        "subscribed_at": "2026-01-01T09:00:00Z",
+        "status_changed_at": null
+      }
+    ]
+  }
+}
+```
+
+**Note**: `has_clicked` 為布林值（cast from count > 0），`conversionRate` 為課程整體轉換率
+
+---
+
+### Admin: PUT /admin/lessons/{lesson}（擴充）
+
+**Description**: 更新 Lesson（擴充：新增 promo_url 欄位）
+
+**新增 Request Fields**:
+```json
+{
+  "promo_url": "https://example.com/product/123"
+}
+```
+
+**Validation**: `nullable|url|max:500`
+
+---
+
+### Email: drip-lesson.blade.php（擴充）
+
+**新增 Template Content** (當 Lesson 有 promo_url 時):
+```html
+<!-- 在 html_content 之後、unsubscribe URL 之前 -->
+@if($promoTrackUrl)
+<p style="text-align:center;margin:24px 0">
+  <a href="{{ $promoTrackUrl }}"
+     style="display:inline-block;background:#ff5a36;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+    {{ $promoButtonText ?? '查看詳情' }}
+  </a>
+</p>
+@endif
+
+<!-- Tracking Pixel（最後一行，不影響顯示） -->
+<img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">
+```
+
+**DripLessonMail 新增參數**:
+```php
+public string $openPixelUrl,
+public ?string $promoTrackUrl = null,
+public string $promoButtonText = '查看詳情',
+```

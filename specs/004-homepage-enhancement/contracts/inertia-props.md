@@ -2,10 +2,11 @@
 
 **Feature**: 004-homepage-enhancement
 **Date**: 2026-01-26
+**Updated**: 2026-02-27
 
 ## Overview
 
-This feature uses Inertia.js for server-to-client data passing. Social media links are hardcoded in the Vue component (no backend props needed).
+This feature uses Inertia.js for server-to-client data passing. Social media links are now read from `config/homepage.php` and passed as Inertia props (controller filters out empty URLs before passing).
 
 ## Home Page Props
 
@@ -24,13 +25,19 @@ interface Course {
 }
 ```
 
-### New Props (added)
+### Feature Props
 
 ```typescript
-interface SubstackArticle {
+interface BlogArticle {
   title: string;
   url: string;
   published_at: string; // ISO 8601 format
+}
+
+interface SocialLink {
+  platform: string; // 'instagram' | 'threads' | 'youtube' | 'facebook' | 'substack' | 'podcast'
+  label: string;
+  url: string;      // always non-empty (empty ones filtered by controller)
 }
 ```
 
@@ -41,9 +48,9 @@ interface HomePageProps {
   // Existing
   courses: Course[];
 
-  // New (004-homepage-enhancement)
-  substackArticles: SubstackArticle[];
-  // Note: socialLinks are hardcoded in SocialLinks.vue, not passed as props
+  // 004-homepage-enhancement
+  blogArticles: BlogArticle[];    // empty array if RSS unavailable or URL not configured
+  socialLinks: SocialLink[];      // only platforms with non-empty URLs in config
 }
 ```
 
@@ -51,9 +58,18 @@ interface HomePageProps {
 
 ```php
 // HomeController::index()
+$socialLinks = collect(config('homepage.social_links'))
+    ->filter(fn($url) => !empty($url))
+    ->map(fn($url, $platform) => [
+        'platform' => $platform,
+        'label'    => ucfirst($platform),
+        'url'      => $url,
+    ])->values();
+
 return Inertia::render('Home', [
-    'courses' => $courses,
-    'substackArticles' => $this->substackService->getArticles(),
+    'courses'      => $courses,
+    'blogArticles' => $this->blogRssService->getArticles(),
+    'socialLinks'  => $socialLinks,
 ]);
 ```
 
@@ -62,27 +78,26 @@ return Inertia::render('Home', [
 ```json
 {
   "courses": [...],
-  "substackArticles": [
+  "blogArticles": [
     {
       "title": "起點就是個廢物，沒什麼不好",
       "url": "https://getwhealthy.substack.com/p/no-goal-is-okay",
       "published_at": "2026-01-19T00:00:00Z"
-    },
-    {
-      "title": "政府應該要「穩定物價」嗎？",
-      "url": "https://getwhealthy.substack.com/p/why-government-price-stabilization-fails-economics",
-      "published_at": "2025-12-08T00:00:00Z"
     }
+  ],
+  "socialLinks": [
+    { "platform": "instagram", "label": "Instagram", "url": "https://www.instagram.com/kyontw" },
+    { "platform": "youtube",   "label": "Youtube",   "url": "https://www.youtube.com/@kyontw828" }
   ]
 }
 ```
 
 ## Error States
 
-| Scenario | substackArticles Value | UI Behavior |
-|----------|------------------------|-------------|
+| Scenario | Value | UI Behavior |
+|----------|-------|-------------|
 | RSS fetch success | Array of 1-5 articles | Show article list |
-| RSS fetch failure | Empty array `[]` | Hide section entirely |
-| RSS returns empty | Empty array `[]` | Hide section entirely |
-
-**Note**: Social links are hardcoded in `SocialLinks.vue` and always display (no failure state).
+| RSS fetch failure | Empty array `[]` | Hide articles section entirely |
+| RSS URL empty in config | Empty array `[]` | Hide articles section entirely |
+| All social URLs empty in config | Empty array `[]` | Hide social links section entirely |
+| Some social URLs empty | Filtered array | Only non-empty platforms shown |

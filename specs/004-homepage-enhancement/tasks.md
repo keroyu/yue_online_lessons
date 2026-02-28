@@ -1,9 +1,14 @@
-# Tasks: Homepage Enhancement - Substack Articles & Social Links
+# Tasks: Homepage Enhancement - Blog Articles & Social Links (Config Update)
 
 **Input**: Design documents from `/specs/004-homepage-enhancement/`
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/, research.md, quickstart.md
 
 **Tests**: Not requested - test tasks omitted.
+
+**Context**: This is an incremental update to an already-implemented feature. Tasks focus on the **changes** needed:
+1. Move social media URLs from Vue hardcode → `config/homepage.php`
+2. Rename `SubstackRssService` → `BlogRssService` with config-driven RSS URL
+3. Update controller and frontend to handle empty URLs (hide button if empty)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing.
 
@@ -23,114 +28,101 @@
 
 ## Phase 1: Setup
 
-**Purpose**: Project initialization - Skip (existing Laravel project)
+**Purpose**: Project initialization - Skip (existing Laravel project, no new dependencies needed)
 
-No setup tasks required. Project already has Laravel 12, Inertia.js, Vue 3, and Tailwind CSS configured.
+No setup tasks required.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Backend service that MUST be complete before User Story 1 can be implemented
+**Purpose**: Config file that MUST exist before both User Story 1 and User Story 2 can be updated
 
-- [x] T001 Create SubstackRssService with RSS fetch and cache logic in `app/Services/SubstackRssService.php`
+- [ ] T001 Create `config/homepage.php` with `social_links` array (all 6 platforms with default URLs) and `blog_rss` array (url, cache_ttl, max_items)
 
-**Service Requirements**:
-- Fetch RSS from `https://getwhealthy.substack.com/feed`
-- Parse XML using SimpleXML
-- Cache for 1 hour (3600 seconds TTL)
-- Return array of 5 most recent articles (title, url, published_at)
-- Handle failures gracefully (return empty array)
+**Config structure**:
+```php
+return [
+    'social_links' => [
+        'instagram' => env('SOCIAL_INSTAGRAM', 'https://www.instagram.com/kyontw'),
+        'threads'   => env('SOCIAL_THREADS',   'https://www.threads.com/@yueyuknows'),
+        'youtube'   => env('SOCIAL_YOUTUBE',   'https://www.youtube.com/@kyontw828'),
+        'facebook'  => env('SOCIAL_FACEBOOK',  'https://www.facebook.com/kyontw828'),
+        'substack'  => env('SOCIAL_SUBSTACK',  'https://getwhealthy.substack.com/'),
+        'podcast'   => env('SOCIAL_PODCAST',   'https://kyontw.firstory.io/'),
+    ],
+    'blog_rss' => [
+        'url'       => env('BLOG_RSS_URL',       'https://getwhealthy.substack.com/feed'),
+        'cache_ttl' => env('BLOG_RSS_CACHE_TTL', 3600),
+        'max_items' => env('BLOG_RSS_MAX_ITEMS', 5),
+    ],
+];
+```
 
-**Checkpoint**: Backend RSS service ready - User Story 1 implementation can begin
+**Checkpoint**: Config file ready - US1 and US2 implementation can begin in parallel
 
 ---
 
-## Phase 3: User Story 1 - View Recent Substack Articles (Priority: P1)
+## Phase 3: User Story 1 - View Recent Blog Articles (Priority: P1)
 
-**Goal**: Display 5 most recent Substack articles with titles, dates, and clickable links
+**Goal**: RSS service reads URL from config instead of being hardcoded to Substack
 
-**Independent Test**: Visit homepage → see 5 articles → click article → opens in new tab
+**Independent Test**: `php artisan tinker` → `app(App\Services\BlogRssService::class)->getArticles()` returns articles; change `BLOG_RSS_URL` in `.env` → service uses new URL
 
 ### Implementation for User Story 1
 
-- [x] T002 [US1] Update HomeController to inject SubstackRssService and pass articles in `app/Http/Controllers/HomeController.php`
-- [x] T003 [US1] Create SubstackArticles component in `resources/js/Components/SubstackArticles.vue`
+- [ ] T002 [US1] Create `app/Services/BlogRssService.php` — copy logic from `SubstackRssService.php`, replace hardcoded feed URL with `config('homepage.blog_rss.url')`, replace hardcoded TTL with `config('homepage.blog_rss.cache_ttl')`, replace hardcoded limit with `config('homepage.blog_rss.max_items')`; return empty array if URL is empty
+- [ ] T003 [US1] Update `app/Http/Controllers/HomeController.php` — replace `SubstackRssService` injection with `BlogRssService`; rename Inertia prop from `substackArticles` to `blogArticles`
+- [ ] T004 [US1] Delete `app/Services/SubstackRssService.php` after confirming `BlogRssService` is wired up and working
 
-**Component Requirements (T003)**:
-- Accept `articles` prop (array)
-- Display article title and formatted date
-- Title links open in new tab (`target="_blank"`)
-- Hide section if articles array is empty
-- Style with Tailwind CSS
+**Component note**: `resources/js/Components/SubstackArticles.vue` receives prop name change (`substackArticles` → `blogArticles`). Update prop name in component and in `Home.vue` usage.
 
-**Checkpoint**: Substack articles display on homepage (can test independently)
+- [ ] T005 [US1] Update `resources/js/Components/SubstackArticles.vue` — rename prop from `substackArticles` to `blogArticles`
+- [ ] T006 [US1] Update `resources/js/Pages/Home.vue` — pass `:blogArticles="blogArticles"` instead of `:substackArticles`; ensure prop is declared in defineProps
+
+**Checkpoint**: Blog articles display from config-driven RSS URL; articles section hides when RSS URL is empty or fetch fails
 
 ---
 
 ## Phase 4: User Story 2 - Access Social Media Links (Priority: P1)
 
-**Goal**: Display 6 social media buttons that link to instructor's profiles
+**Goal**: Social links read from config; empty URL = button not rendered
 
-**Independent Test**: Visit homepage → see 6 social buttons → click each → opens correct profile in new tab
+**Independent Test**: Visit homepage → only configured (non-empty) social platform buttons visible; set one URL to empty string in config → that button disappears without breaking layout
 
 ### Implementation for User Story 2
 
-- [x] T004 [P] [US2] Create SocialLinks component with hardcoded URLs and SVG icons in `resources/js/Components/SocialLinks.vue`
+- [ ] T007 [US2] Update `app/Http/Controllers/HomeController.php` — read `config('homepage.social_links')`, filter out empty values, map to `[platform, label, url]` array, pass as `socialLinks` Inertia prop
+- [ ] T008 [US2] Update `resources/js/Components/SocialLinks.vue` — remove hardcoded `socialLinks` array; accept `socialLinks` as a required prop (array of `{platform, label, url}`); component renders buttons from props; section hidden when array is empty
 
-**Component Requirements (T004)**:
-- Hardcode social links array:
-  ```javascript
-  const socialLinks = [
-    { platform: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/kyontw' },
-    { platform: 'threads', label: 'Threads', url: 'https://www.threads.com/@yueyuknows' },
-    { platform: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@kyontw828' },
-    { platform: 'facebook', label: 'Facebook', url: 'https://www.facebook.com/kyontw828' },
-    { platform: 'substack', label: 'Substack', url: 'https://getwhealthy.substack.com/' },
-    { platform: 'podcast', label: 'Podcast', url: 'https://kyontw.firstory.io/' },
-  ]
-  ```
-- Pill-shaped buttons with inline SVG icons
-- Links open in new tab (`target="_blank" rel="noopener"`)
-- No follower counts displayed
-- Style with Tailwind CSS
-
-**Checkpoint**: Social links display and work (can test independently)
+**Checkpoint**: Social links display from config; removing a URL from config hides that button; setting all URLs empty hides the entire section
 
 ---
 
 ## Phase 5: User Story 3 - Responsive Sidebar Layout (Priority: P2)
 
-**Goal**: Integrate both components into a responsive sidebar layout
+**Goal**: Home.vue passes the `socialLinks` prop through to `SocialLinks` component correctly
 
-**Independent Test**:
-- Desktop (≥1024px): Courses left, sidebar right with social + articles
-- Mobile (<1024px): Courses on top, social + articles stacked below
+**Independent Test**: Desktop (≥1024px): sidebar visible with social + articles; Mobile (<1024px): stacked below courses; layout unaffected whether 1 or 6 social links are shown
 
 ### Implementation for User Story 3
 
-- [x] T005 [US3] Update Home.vue with CSS Grid sidebar layout in `resources/js/Pages/Home.vue`
+- [ ] T009 [US3] Update `resources/js/Pages/Home.vue` — add `socialLinks` to `defineProps`; pass `:socialLinks="socialLinks"` to `<SocialLinks>` component; verify sidebar layout remains correct with variable number of social buttons
 
-**Layout Requirements (T005)**:
-- CSS Grid: `grid-cols-1 lg:grid-cols-[1fr_300px]`
-- Main area: existing courses grid
-- Sidebar: SocialLinks component + SubstackArticles component
-- Mobile: sidebar stacks below courses
-- Import and use both new components
-- Pass `substackArticles` prop to SubstackArticles component
-
-**Checkpoint**: Full feature complete - responsive layout works on all screen sizes
+**Checkpoint**: Full feature works end-to-end with responsive layout
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final validation and cleanup
+**Purpose**: Final validation per quickstart.md checklist
 
-- [x] T006 Test RSS feed failure handling (disconnect network, verify page still loads)
-- [x] T007 Test responsive layout on mobile (320px), tablet (768px), desktop (1920px)
-- [x] T008 Verify all links open in new tabs with correct URLs
-- [x] T009 Clear cache and verify fresh RSS fetch (`php artisan cache:clear`)
+- [ ] T010 Test that setting `BLOG_RSS_URL=` (empty) in `.env` hides the articles section
+- [ ] T011 Test that setting any social URL to empty string in `config/homepage.php` hides that platform button
+- [ ] T012 Test RSS feed failure handling (verify page still loads without articles)
+- [ ] T013 Test responsive layout: mobile (320px), tablet (768px), desktop (1920px)
+- [ ] T014 Verify all links open in new tabs with correct URLs (`target="_blank" rel="noopener"`)
+- [ ] T015 Run `php artisan cache:clear` and verify fresh RSS fetch works with new `BlogRssService`
 
 ---
 
@@ -139,33 +131,31 @@ No setup tasks required. Project already has Laravel 12, Inertia.js, Vue 3, and 
 ### Phase Dependencies
 
 ```
-Phase 1 (Setup)     → Skip (existing project)
+Phase 2 (Foundation) → T001: config/homepage.php
         ↓
-Phase 2 (Foundation) → T001: SubstackRssService
+Phase 3 (US1)       → T002-T006: BlogRssService + Controller + Vue ─┐
+        ↓                                                           │ Can run in parallel
+Phase 4 (US2)       → T007-T008: Controller social links + SocialLinks.vue ──────────────┘
         ↓
-Phase 3 (US1)       → T002, T003: Substack Articles ─┐
-        ↓                                            │ Can run in parallel
-Phase 4 (US2)       → T004: Social Links ────────────┘
+Phase 5 (US3)       → T009: Home.vue wiring (needs US1 + US2 props ready)
         ↓
-Phase 5 (US3)       → T005: Home.vue Layout (needs US1 + US2)
-        ↓
-Phase 6 (Polish)    → T006-T009: Testing & Validation
+Phase 6 (Polish)    → T010-T015: Validation
 ```
 
 ### User Story Dependencies
 
 | Story | Depends On | Can Parallel With |
 |-------|------------|-------------------|
-| US1 (Substack Articles) | T001 (Service) | US2 |
-| US2 (Social Links) | None | US1 |
-| US3 (Responsive Layout) | US1 + US2 | None |
+| US1 (Blog Articles) | T001 (config) | US2 |
+| US2 (Social Links)  | T001 (config) | US1 |
+| US3 (Responsive)    | US1 + US2    | None |
 
 ### Parallel Opportunities
 
 **After T001 completes**, US1 and US2 can run in parallel:
 ```
-T002, T003 (US1) ──┬── Can run simultaneously
-T004 (US2) ────────┘
+T002-T006 (US1) ──┬── Can run simultaneously
+T007-T008 (US2) ──┘
 ```
 
 ---
@@ -173,14 +163,18 @@ T004 (US2) ────────┘
 ## Parallel Example: User Stories 1 & 2
 
 ```bash
-# After T001 (SubstackRssService) is complete, launch in parallel:
+# After T001 (config/homepage.php) is complete:
 
-# Developer A / Session 1:
-Task: "T002 [US1] Update HomeController"
-Task: "T003 [US1] Create SubstackArticles.vue"
+# Session 1 (US1 - Blog RSS):
+Task: "T002 Create BlogRssService"
+Task: "T003 Update HomeController (RSS)"
+Task: "T004 Delete SubstackRssService"
+Task: "T005 Update SubstackArticles.vue prop name"
+Task: "T006 Update Home.vue prop name"
 
-# Developer B / Session 2 (simultaneously):
-Task: "T004 [US2] Create SocialLinks.vue"
+# Session 2 (US2 - Social Links, simultaneously):
+Task: "T007 Update HomeController (social links)"
+Task: "T008 Update SocialLinks.vue to use props"
 ```
 
 ---
@@ -189,26 +183,27 @@ Task: "T004 [US2] Create SocialLinks.vue"
 
 ### MVP First (Recommended)
 
-1. **T001**: Create SubstackRssService (foundation)
-2. **T002-T003**: Complete User Story 1 (Substack Articles)
-3. **T004**: Complete User Story 2 (Social Links)
-4. **T005**: Complete User Story 3 (Sidebar Layout)
-5. **VALIDATE**: Test full feature
-6. **T006-T009**: Polish tasks
+1. **T001**: Create `config/homepage.php` (foundation)
+2. **T002-T006**: Complete User Story 1 (Blog RSS from config)
+3. **T007-T008**: Complete User Story 2 (Config-driven social links)
+4. **T009**: Complete User Story 3 (Wire Home.vue props)
+5. **VALIDATE**: Run quickstart.md checklist
+6. **T010-T015**: Polish tasks
 
 ### Quick Validation Points
 
 After each user story, validate independently:
-- **After US1**: `php artisan tinker` → test SubstackRssService returns articles
-- **After US2**: Temporarily add SocialLinks to Home.vue, verify buttons work
+- **After US1**: Check homepage shows articles; set `BLOG_RSS_URL=` → articles hidden
+- **After US2**: Set one social URL to `''` in config → button disappears
 - **After US3**: Full integration test on all screen sizes
 
 ---
 
 ## Notes
 
-- No database migrations required (uses Laravel Cache)
-- Social URLs are hardcoded in Vue (no backend config)
-- RSS cache TTL: 3600 seconds (1 hour)
+- No database migrations required
+- `SubstackRssService.php` is deleted after `BlogRssService.php` is working (T004)
+- `SubstackArticles.vue` component name can stay as-is (rename is optional cosmetic change)
+- RSS cache key in `BlogRssService` should use a generic key (e.g., `blog_articles`) rather than `substack_articles`
 - All external links: `target="_blank" rel="noopener"`
-- SVG icons should follow platform brand guidelines
+- Config changes take effect immediately (no cache:clear needed for config, only for RSS data cache)

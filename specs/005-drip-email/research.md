@@ -189,3 +189,108 @@ public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $
 ## No Unresolved Clarifications
 
 All technical decisions have been made based on existing project patterns and constitution principles.
+
+---
+
+## 增量更新：Email 追蹤分析（US12~US14）- 2026-02-28
+
+### Tracking Pixel 技術選型
+
+**Decision**: 使用 **Laravel Signed Route**（`URL::signedRoute()`）生成 Tracking Pixel URL，有效期 180 天
+
+**Rationale**:
+- Signed Route 為 Laravel 原生功能，無需額外套件
+- 包含簽名防偽造，防止任意計數爆炸
+- 無狀態（不需預先在 DB 建立 pending 記錄）
+- 有效期 180 天覆蓋絕大多數場景（email 可能被很久後才開啟）
+
+**Alternatives Considered**:
+- UUID token stored in DB：需預建記錄，增加 DB 寫入次數
+- HMAC（custom）：可行但重複 Signed Route 的功能，沒有必要
+- 無安全保護的 plain URL：任何人可偽造開信，計數不可信
+
+**Implementation**:
+```php
+// In SendDripEmailJob::handle()
+$pixelUrl = URL::signedRoute('drip.track.open', [
+    'sub' => $subscription->id,
+    'les' => $lesson->id,
+], now()->addDays(180));
+```
+
+---
+
+### URL Redirect 點擊追蹤
+
+**Decision**: 同樣使用 **Laravel Signed Route**，`GET /drip/track/click` 端點驗簽後記錄並 redirect
+
+**Rationale**:
+- 一致性：與 Tracking Pixel 使用相同安全機制
+- 簡單：controller 只做驗簽 → 記錄 → redirect，三步驟
+- promo_url 經 `urlencode()` 編碼後嵌入 signed URL 的 query param
+
+**Implementation**:
+```php
+// In SendDripEmailJob::handle()
+$clickUrl = URL::signedRoute('drip.track.click', [
+    'sub'  => $subscription->id,
+    'les'  => $lesson->id,
+    'url'  => $promoUrl,
+], now()->addDays(180));
+```
+
+**Redirect Flow**: User clicks → `GET /drip/track/click?...` → verify signature → `firstOrCreate` event → `redirect()->away($url)`
+
+---
+
+### DripEmailEvent 去重策略
+
+**Decision**: 使用 **DB-level unique constraint** `(subscription_id, lesson_id, event_type)` + application-level `firstOrCreate()`
+
+**Rationale**:
+- DB unique constraint 為最終防線，即使 race condition 也不會重複計數
+- `firstOrCreate()` 在 application 層先做判斷，避免頻繁的 DB constraint violation
+- 每封信每種事件只計一次（opened / clicked 各算一次）
+
+**Schema**:
+```sql
+CREATE UNIQUE INDEX ON drip_email_events (subscription_id, lesson_id, event_type);
+```
+
+---
+
+### 統計查詢策略
+
+**Decision**: **即時計算**（每次請求時查詢），不使用快取或預計算欄位
+
+**Rationale**:
+- 訂閱者規模通常在千級內，GROUP BY 查詢效能可接受
+- 避免快取帶來的資料延遲問題（管理員需要看即時數據）
+- 減少系統複雜度（不需要快取失效邏輯）
+
+**Queries**:
+```sql
+-- Lesson stats (open_count, click_count per lesson)
+SELECT lesson_id,
+    COUNT(CASE WHEN event_type = 'opened' THEN 1 END) as open_count,
+    COUNT(CASE WHEN event_type = 'clicked' THEN 1 END) as click_count
+FROM drip_email_events
+WHERE subscription_id IN (SELECT id FROM drip_subscriptions WHERE course_id = ?)
+GROUP BY lesson_id;
+
+-- Sent count per lesson (from drip_subscriptions.emails_sent)
+SELECT COUNT(*) FROM drip_subscriptions
+WHERE course_id = ? AND emails_sent > {lesson.sort_order};
+```
+
+---
+
+### Technology Decisions Summary (追加)
+
+| Area | Decision | Key Reason |
+|------|----------|------------|
+| Tracking Pixel | Laravel Signed Route (180d) | 原生、安全、無狀態 |
+| Click Redirect | Laravel Signed Route (180d) | 一致性 |
+| Event De-dup | DB unique constraint + firstOrCreate | 雙層防護 |
+| Stats Queries | 即時 GROUP BY | 規模小、需即時數據 |
+| promo_url field | Lesson 欄位（varchar 500, nullable） | 最小變更 |

@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\DripConversionTarget;
 use App\Models\DripSubscription;
 use App\Models\Purchase;
+use App\Services\DripService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ use Inertia\Response;
 
 class CourseController extends Controller
 {
+    public function __construct(protected DripService $dripService) {}
     /**
      * Display a listing of courses.
      */
@@ -303,8 +305,8 @@ class CourseController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        // Stats aggregation
-        $stats = DripSubscription::where('course_id', $course->id)
+        // Status summary aggregation
+        $statusStats = DripSubscription::where('course_id', $course->id)
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
@@ -313,6 +315,21 @@ class CourseController extends Controller
                 SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
             ")
             ->first();
+
+        // Per-lesson analytics (opened/clicked counts)
+        $analyticsData = $this->dripService->getSubscriberStats($course);
+
+        // Per-subscriber event metrics (open count + has_clicked)
+        $subIds = $subscribers->pluck('id');
+        $eventCounts = $this->dripService->getSubscriberEventCounts($subIds);
+
+        // Merge event metrics into subscriber collection
+        $subscribers->getCollection()->transform(function ($sub) use ($eventCounts) {
+            $events = $eventCounts->get($sub->id);
+            $sub->opened_count = (int) ($events?->opened_count ?? 0);
+            $sub->has_clicked = (bool) ($events?->has_clicked ?? false);
+            return $sub;
+        });
 
         $totalLessons = $course->lessons()->count();
 
@@ -324,12 +341,14 @@ class CourseController extends Controller
             ],
             'subscribers' => $subscribers,
             'stats' => [
-                'total' => (int) $stats->total,
-                'active' => (int) $stats->active_count,
-                'converted' => (int) $stats->converted_count,
-                'completed' => (int) $stats->completed_count,
-                'unsubscribed' => (int) $stats->unsubscribed_count,
+                'total' => (int) $statusStats->total,
+                'active' => (int) $statusStats->active_count,
+                'converted' => (int) $statusStats->converted_count,
+                'completed' => (int) $statusStats->completed_count,
+                'unsubscribed' => (int) $statusStats->unsubscribed_count,
             ],
+            'lessonStats' => $analyticsData['lesson_stats'],
+            'conversionRate' => $analyticsData['conversion_rate'],
             'filters' => [
                 'status' => $statusFilter,
             ],

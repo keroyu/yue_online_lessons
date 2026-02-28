@@ -38,6 +38,7 @@ class ChapterController extends Controller
                     'sort_order' => $lesson->sort_order,
                     'promo_delay_seconds' => $lesson->promo_delay_seconds,
                     'promo_html' => $lesson->promo_html,
+                    'promo_url' => $lesson->promo_url,
                     'reward_html' => $lesson->reward_html,
                 ]),
             ]);
@@ -59,6 +60,7 @@ class ChapterController extends Controller
                 'sort_order' => $lesson->sort_order,
                 'promo_delay_seconds' => $lesson->promo_delay_seconds,
                 'promo_html' => $lesson->promo_html,
+                'promo_url' => $lesson->promo_url,
                 'reward_html' => $lesson->reward_html,
             ]);
 

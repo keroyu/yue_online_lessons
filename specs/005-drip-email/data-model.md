@@ -628,3 +628,97 @@ $targetCourses = $course->dripConversionTargets()
         'url' => route('course.show', $target->targetCourse),
     ]);
 ```
+
+---
+
+## 增量更新：Email 追蹤分析（US12~US14）- 2026-02-28
+
+### 新增：drip_email_events 表
+
+```sql
+CREATE TABLE drip_email_events (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    subscription_id BIGINT UNSIGNED NOT NULL,
+    lesson_id       BIGINT UNSIGNED NOT NULL,
+    event_type      ENUM('opened', 'clicked') NOT NULL,
+    target_url      VARCHAR(500) NULL COMMENT '僅 clicked 事件：被點擊的 promo_url',
+    ip              VARCHAR(45) NULL,
+    user_agent      TEXT NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (subscription_id) REFERENCES drip_subscriptions(id) ON DELETE CASCADE,
+    FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_sub_les_type (subscription_id, lesson_id, event_type),
+    INDEX idx_subscription (subscription_id),
+    INDEX idx_lesson (lesson_id)
+    -- 無 updated_at（事件不可變）
+);
+```
+
+**注意**: 模型設定 `const UPDATED_AT = null;`，只有 `created_at`
+
+**關聯**:
+- `DripEmailEvent` belongsTo `DripSubscription`
+- `DripEmailEvent` belongsTo `Lesson`
+- `DripSubscription` hasMany `DripEmailEvent`
+
+---
+
+### 修改：lessons 表（新增 promo_url）
+
+```sql
+ALTER TABLE lessons
+    ADD COLUMN promo_url VARCHAR(500) NULL AFTER promo_html;
+```
+
+**Lesson Model 新增**:
+```php
+// $fillable
+'promo_url',
+```
+
+---
+
+### 統計查詢（Lesson Stats）
+
+```php
+// CourseController::subscribers() 中新增 Lesson stats 查詢
+$lessonStats = DB::table('drip_email_events as e')
+    ->join('drip_subscriptions as s', 'e.subscription_id', '=', 's.id')
+    ->where('s.course_id', $course->id)
+    ->select('e.lesson_id',
+        DB::raw("SUM(e.event_type = 'opened') as open_count"),
+        DB::raw("SUM(e.event_type = 'clicked') as click_count")
+    )
+    ->groupBy('e.lesson_id')
+    ->get()
+    ->keyBy('lesson_id');
+
+// 已發送人數（per lesson）
+$sentCounts = DB::table('drip_subscriptions')
+    ->where('course_id', $course->id)
+    ->selectRaw('COUNT(*) as cnt, emails_sent')
+    ->groupBy('emails_sent')
+    ->pluck('cnt', 'emails_sent');
+```
+
+---
+
+### 訂閱者層級統計（per subscriber）
+
+```php
+// DripSubscription 模型新增 relationship
+public function emailEvents(): HasMany
+{
+    return $this->hasMany(DripEmailEvent::class, 'subscription_id');
+}
+
+// Eager loading in subscribers() query
+$subscribers = DripSubscription::where('course_id', $course->id)
+    ->with('user:id,email,nickname')
+    ->withCount([
+        'emailEvents as opened_count' => fn($q) => $q->where('event_type', 'opened'),
+        'emailEvents as has_clicked'  => fn($q) => $q->where('event_type', 'clicked'),
+    ])
+    ->paginate(20);
+```
