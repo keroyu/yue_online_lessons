@@ -388,16 +388,16 @@ const toggleSidebar = () => {
               />
 
               <!-- HTML Content -->
-              <div v-if="selectedLesson.html_content">
-                <HtmlContent :content="selectedLesson.html_content" />
+              <div v-if="selectedLesson.md_content">
+                <HtmlContent :content="selectedLesson.md_content" />
               </div>
             </template>
 
             <!-- No video: Content → Promo -->
             <template v-else>
               <!-- HTML Content -->
-              <div v-if="selectedLesson.html_content">
-                <HtmlContent :content="selectedLesson.html_content" />
+              <div v-if="selectedLesson.md_content">
+                <HtmlContent :content="selectedLesson.md_content" />
               </div>
 
               <!-- Promo Block -->
@@ -412,7 +412,7 @@ const toggleSidebar = () => {
 
             <!-- No content for this lesson -->
             <div
-              v-if="!selectedLesson.has_video && !selectedLesson.html_content"
+              v-if="!selectedLesson.has_video && !selectedLesson.md_content"
               class="bg-white rounded-lg shadow-sm p-8 text-center"
             >
               <svg class="mx-auto w-12 h-12 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

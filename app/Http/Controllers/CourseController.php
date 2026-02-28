@@ -50,7 +50,7 @@ class CourseController extends Controller
                 'name' => $course->name,
                 'tagline' => $course->tagline,
                 'description' => $course->description,
-                'description_html' => $course->description_html,
+                'description_md' => $course->description_md,
                 'price' => $course->price,
                 'original_price' => $course->original_price,
                 'promo_ends_at' => $course->promo_ends_at?->toISOString(),
