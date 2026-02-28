@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
@@ -36,6 +37,11 @@ class DripSubscription extends Model
                 $subscription->unsubscribe_token = Str::uuid()->toString();
             }
         });
+    }
+
+    public function emailEvents(): HasMany
+    {
+        return $this->hasMany(DripEmailEvent::class, 'subscription_id');
     }
 
     public function user(): BelongsTo

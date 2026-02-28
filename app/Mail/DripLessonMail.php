@@ -18,7 +18,9 @@ class DripLessonMail extends Mailable
         public bool $hasVideo,
         public string $classroomUrl,
         public string $unsubscribeUrl,
-        public string $courseName
+        public string $courseName,
+        public string $openPixelUrl = '',
+        public ?string $promoTrackUrl = null,
     ) {}
 
     public function envelope(): Envelope

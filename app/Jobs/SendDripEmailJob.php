@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class SendDripEmailJob implements ShouldQueue
 {
@@ -67,6 +68,21 @@ class SendDripEmailJob implements ShouldQueue
         $hasVideo = (bool) $lesson->has_video;
         $htmlContent = $this->stripStylesForEmail($lesson->html_content ?: '');
 
+        // Generate signed tracking URLs (180-day expiry)
+        $openPixelUrl = URL::signedRoute('drip.track.open', [
+            'sub' => $subscription->id,
+            'les' => $lesson->id,
+        ], now()->addDays(180));
+
+        $promoTrackUrl = null;
+        if (!empty($lesson->promo_url)) {
+            $promoTrackUrl = URL::signedRoute('drip.track.click', [
+                'sub' => $subscription->id,
+                'les' => $lesson->id,
+                'url' => $lesson->promo_url,
+            ], now()->addDays(180));
+        }
+
         try {
             Mail::to($user->email)->send(new DripLessonMail(
                 lessonTitle: $lesson->title,
@@ -75,6 +91,8 @@ class SendDripEmailJob implements ShouldQueue
                 classroomUrl: $classroomUrl,
                 unsubscribeUrl: $unsubscribeUrl,
                 courseName: $course->name,
+                openPixelUrl: $openPixelUrl,
+                promoTrackUrl: $promoTrackUrl,
             ));
 
             Log::info('Drip email sent', [

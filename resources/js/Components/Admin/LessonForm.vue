@@ -21,6 +21,7 @@ const form = ref({
   duration_seconds: '',
   promo_delay_seconds: '',
   promo_html: '',
+  promo_url: '',
   reward_html: '',
 })
 
@@ -31,7 +32,8 @@ const ctaText = ref('')
 
 const insertCtaButton = () => {
   if (!ctaUrl.value || !ctaText.value) return
-  const html = `<div style="text-align:center;"><a href="${ctaUrl.value}" style="margin-top:10px;display:inline-block;background:#ff5a36;color:#fff;font-size:16px;font-weight:600;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 2px 0 #c94420;cursor:pointer;" onmouseover="this.style.background='#e54e2e'" onmouseout="this.style.background='#ff5a36'">${ctaText.value}</a></div>`
+  const text = ctaText.value || '立即瞭解'
+  const html = `<div style="text-align:center;margin:24px 0"><a href="${ctaUrl.value}" style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;border:1px solid rgba(199,163,59,0.5);text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">${text}</a></div>`
   form.value.promo_html = (form.value.promo_html || '') + '\n' + html
   ctaUrl.value = ''
   ctaText.value = ''
@@ -46,6 +48,7 @@ onMounted(() => {
       duration_seconds: props.lesson.duration_seconds || '',
       promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
+      promo_url: props.lesson.promo_url || '',
       reward_html: props.lesson.reward_html || '',
     }
   }
@@ -88,6 +91,7 @@ const submit = () => {
     duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
     promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
+    promo_url: form.value.promo_url || null,
     reward_html: form.value.reward_html || null,
   })
 }
@@ -275,6 +279,18 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                       placeholder="<div class='bg-yellow-100 p-4'>...</div>"
                       class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
                     />
+                  </div>
+
+                  <div>
+                    <label for="promo_url" :class="labelClasses">商品連結 URL（Email 追蹤）</label>
+                    <input
+                      id="promo_url"
+                      v-model="form.promo_url"
+                      type="url"
+                      :class="inputClasses"
+                      placeholder="https://example.com/product/..."
+                    />
+                    <p :class="helpTextClasses">設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕。留空則不顯示。</p>
                   </div>
                 </div>
               </div>
