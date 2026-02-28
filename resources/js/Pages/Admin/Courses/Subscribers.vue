@@ -18,6 +18,14 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  lessonStats: {
+    type: Array,
+    default: () => [],
+  },
+  conversionRate: {
+    type: Number,
+    default: null,
+  },
   filters: {
     type: Object,
     required: true,
@@ -52,6 +60,11 @@ const applyFilter = () => {
 const clearFilter = () => {
   statusFilter.value = ''
   applyFilter()
+}
+
+const formatRate = (rate) => {
+  if (rate === null || rate === undefined) return '—'
+  return (rate * 100).toFixed(1) + '%'
 }
 
 const formatDate = (dateString) => {
@@ -113,6 +126,40 @@ const goToPage = (page) => {
       </div>
     </div>
 
+    <!-- Lesson Stats Table -->
+    <div v-if="lessonStats.length" class="mb-6 bg-white rounded-lg shadow-sm overflow-x-auto">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <h2 class="text-sm font-semibold text-gray-900">Lesson 發信統計</h2>
+        <p v-if="conversionRate !== null" class="text-xs text-gray-500 mt-0.5">
+          整體轉換率：<span class="font-medium text-blue-700">{{ formatRate(conversionRate) }}</span>
+        </p>
+      </div>
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 text-left font-semibold text-gray-600">課程</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">已發送</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">開信</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">開信率</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">點擊</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">點擊率</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr v-for="ls in lessonStats" :key="ls.lesson_id" class="hover:bg-gray-50">
+            <td class="px-4 py-2 text-gray-900">{{ ls.title }}</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ ls.sent_count || '—' }}</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ ls.open_count }}</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ formatRate(ls.open_rate) }}</td>
+            <td class="px-4 py-2 text-right text-gray-600">
+              {{ ls.has_promo_url ? ls.click_count : '—' }}
+            </td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ formatRate(ls.click_rate) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- Filter -->
     <div class="mb-4 flex items-center gap-3">
       <select
@@ -150,6 +197,8 @@ const goToPage = (page) => {
                   <th scope="col" class="hidden sm:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">暱稱</th>
                   <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">狀態</th>
                   <th scope="col" class="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">進度</th>
+                  <th scope="col" class="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">開信數</th>
+                  <th scope="col" class="hidden md:table-cell px-3 py-3.5 text-center text-sm font-semibold text-gray-900">點擊</th>
                   <th scope="col" class="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">訂閱時間</th>
                   <th scope="col" class="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">狀態變更</th>
                 </tr>
@@ -173,6 +222,13 @@ const goToPage = (page) => {
                   <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                     {{ sub.emails_sent }} / {{ course.total_lessons }}
                   </td>
+                  <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    已開 {{ sub.opened_count }}/{{ sub.emails_sent }} 封
+                  </td>
+                  <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-center">
+                    <span v-if="sub.has_clicked" class="text-green-600 font-medium">✓</span>
+                    <span v-else class="text-gray-300">—</span>
+                  </td>
                   <td class="hidden lg:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                     {{ formatDate(sub.subscribed_at) }}
                   </td>
@@ -181,7 +237,7 @@ const goToPage = (page) => {
                   </td>
                 </tr>
                 <tr v-if="subscribers.data?.length === 0">
-                  <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                  <td colspan="8" class="px-6 py-12 text-center text-gray-500">
                     {{ statusFilter ? '沒有符合條件的訂閱者' : '尚無訂閱者' }}
                   </td>
                 </tr>
