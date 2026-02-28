@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
+import { marked } from 'marked'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
@@ -91,6 +92,8 @@ const openLegalModal = (type) => {
 const closeLegalModal = () => {
   showLegalModal.value = false
 }
+
+const renderedDescription = computed(() => marked(props.course.description_md || ''))
 
 // Drip subscription
 const subscribing = ref(false)
@@ -228,11 +231,11 @@ const subscriptionStatusLabel = computed(() => {
           <!-- Description -->
           <div class="mt-8">
             <h2 class="text-lg font-semibold text-brand-navy mb-4">課程介紹</h2>
-            <!-- HTML content (if available) -->
+            <!-- Markdown content (if available) -->
             <div
-              v-if="course.description_html"
+              v-if="course.description_md"
               class="course-content"
-              v-html="course.description_html"
+              v-html="renderedDescription"
             />
             <!-- Plain text fallback -->
             <div v-else class="course-content">

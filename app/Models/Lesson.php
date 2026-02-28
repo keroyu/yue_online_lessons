@@ -19,7 +19,7 @@ class Lesson extends Model
         'video_platform',
         'video_id',
         'video_url',
-        'html_content',
+        'md_content',
         'promo_delay_seconds',
         'promo_html',
         'promo_url',

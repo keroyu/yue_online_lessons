@@ -36,7 +36,7 @@ const form = useForm({
   name: props.course?.name || '',
   tagline: props.course?.tagline || '',
   description: props.course?.description || '',
-  description_html: props.course?.description_html || '',
+  description_md: props.course?.description_md || '',
   price: props.course?.price || '',
   original_price: props.course?.original_price || '',
   promo_ends_at: props.course?.promo_ends_at || '',
@@ -66,7 +66,7 @@ const schedulePreview = computed(() => {
 
 // Image gallery modal
 const showImageGallery = ref(false)
-const descriptionHtmlTextarea = ref(null)
+const descriptionMdTextarea = ref(null)
 
 const openImageGallery = () => {
   showImageGallery.value = true
@@ -76,23 +76,23 @@ const closeImageGallery = () => {
   showImageGallery.value = false
 }
 
-const insertImageHtml = (html) => {
-  const textarea = descriptionHtmlTextarea.value
+const insertImageMd = (text) => {
+  const textarea = descriptionMdTextarea.value
   if (!textarea) {
-    form.description_html += html
+    form.description_md += text
     return
   }
 
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
-  const text = form.description_html
+  const current = form.description_md
 
-  form.description_html = text.substring(0, start) + html + text.substring(end)
+  form.description_md = current.substring(0, start) + text + current.substring(end)
 
-  // Move cursor after inserted HTML
+  // Move cursor after inserted text
   setTimeout(() => {
     textarea.focus()
-    textarea.selectionStart = textarea.selectionEnd = start + html.length
+    textarea.selectionStart = textarea.selectionEnd = start + text.length
   }, 0)
 }
 
@@ -395,13 +395,13 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
       </div>
     </div>
 
-    <!-- Description HTML -->
+    <!-- Description Markdown -->
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
       <div class="px-6 py-6 sm:p-8">
         <div class="border-b border-gray-200 pb-6 mb-8">
-          <h3 class="text-xl font-semibold text-gray-900">課程介紹 HTML</h3>
+          <h3 class="text-xl font-semibold text-gray-900">課程介紹（Markdown）</h3>
           <p class="mt-1 text-sm text-gray-500">
-            自定義 HTML 內容，將顯示於課程販售頁面。
+            支援 Markdown 格式，將顯示於課程販售頁面。
           </p>
         </div>
 
@@ -427,14 +427,14 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           </div>
 
           <textarea
-            ref="descriptionHtmlTextarea"
-            v-model="form.description_html"
+            ref="descriptionMdTextarea"
+            v-model="form.description_md"
             rows="12"
-            placeholder="<h2>課程特色</h2>&#10;<p>這是一門精心設計的課程...</p>"
+            placeholder="## 課程特色&#10;&#10;這是一門精心設計的課程...&#10;&#10;- 重點一&#10;- 重點二"
             class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm leading-relaxed"
-            :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.description_html }"
+            :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.description_md }"
           />
-          <p v-if="form.errors.description_html" :class="errorTextClasses">{{ form.errors.description_html }}</p>
+          <p v-if="form.errors.description_md" :class="errorTextClasses">{{ form.errors.description_md }}</p>
         </div>
       </div>
     </div>
@@ -445,8 +445,9 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
       :course-id="course.id"
       :images="images"
       :show="showImageGallery"
+      :markdown-mode="true"
       @close="closeImageGallery"
-      @insert="insertImageHtml"
+      @insert="insertImageMd"
     />
 
     <!-- Portaly Integration (standard courses only) -->

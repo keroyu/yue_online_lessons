@@ -264,7 +264,7 @@ class ClassroomController extends Controller
             'video_platform' => $isLocked ? null : $lesson->video_platform,
             'video_id' => $isLocked ? null : $lesson->video_id,
             'embed_url' => $isLocked ? null : $lesson->embed_url,
-            'html_content' => $isLocked ? null : $lesson->html_content,
+            'md_content' => $isLocked ? null : $lesson->md_content,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,

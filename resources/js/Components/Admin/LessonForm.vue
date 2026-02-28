@@ -17,7 +17,7 @@ const emit = defineEmits(['save', 'close'])
 const form = ref({
   title: '',
   video_url: '',
-  html_content: '',
+  md_content: '',
   duration_seconds: '',
   promo_delay_seconds: '',
   promo_html: '',
@@ -44,7 +44,7 @@ onMounted(() => {
     form.value = {
       title: props.lesson.title || '',
       video_url: props.lesson.video_url || '',
-      html_content: props.lesson.html_content || '',
+      md_content: props.lesson.md_content || '',
       duration_seconds: props.lesson.duration_seconds || '',
       promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
@@ -87,7 +87,7 @@ const submit = () => {
   emit('save', {
     title: form.value.title,
     video_url: form.value.video_url || null,
-    html_content: form.value.html_content || null,
+    md_content: form.value.md_content || null,
     duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
     promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
@@ -187,20 +187,20 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <p :class="helpTextClasses">230 秒會顯示為「3:50」</p>
               </div>
 
-              <!-- HTML Content -->
+              <!-- Markdown Content -->
               <div>
-                <label for="html_content" :class="labelClasses">
-                  HTML 內容
+                <label for="md_content" :class="labelClasses">
+                  Markdown 內容
                 </label>
                 <textarea
-                  id="html_content"
-                  v-model="form.html_content"
+                  id="md_content"
+                  v-model="form.md_content"
                   rows="8"
-                  placeholder="<h2>標題</h2>&#10;<p>內容...</p>"
+                  placeholder="## 標題&#10;&#10;內容...&#10;&#10;- 項目一&#10;- 項目二"
                   class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
                 />
                 <p :class="helpTextClasses">
-                  如無影片連結，將顯示此 HTML 內容（電子書或文章形式）
+                  如無影片連結，將顯示此 Markdown 內容（電子書或文章形式）
                 </p>
               </div>
 

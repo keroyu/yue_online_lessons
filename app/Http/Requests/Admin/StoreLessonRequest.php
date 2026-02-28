@@ -26,7 +26,7 @@ class StoreLessonRequest extends FormRequest
             'chapter_id' => ['nullable', 'exists:chapters,id'],
             'title' => ['required', 'string', 'max:255'],
             'video_url' => ['nullable', 'url', 'max:500'],
-            'html_content' => ['nullable', 'string'],
+            'md_content' => ['nullable', 'string'],
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
             'promo_html' => ['nullable', 'string', 'max:10000'],

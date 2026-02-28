@@ -17,7 +17,7 @@ class Course extends Model
         'name',
         'tagline',
         'description',
-        'description_html',
+        'description_md',
         'price',
         'original_price',
         'thumbnail',

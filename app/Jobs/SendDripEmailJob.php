@@ -14,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use League\CommonMark\CommonMarkConverter;
 
 class SendDripEmailJob implements ShouldQueue
 {
@@ -66,7 +67,11 @@ class SendDripEmailJob implements ShouldQueue
         $unsubscribeUrl = config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}";
 
         $hasVideo = (bool) $lesson->has_video;
-        $htmlContent = $this->stripStylesForEmail($lesson->html_content ?: '');
+        $converter = new CommonMarkConverter();
+        $rawMd = $lesson->md_content ?: '';
+        $htmlContent = $rawMd
+            ? $this->stripStylesForEmail($converter->convert($rawMd)->getContent())
+            : '';
 
         // Generate signed tracking URLs (180-day expiry)
         $openPixelUrl = URL::signedRoute('drip.track.open', [

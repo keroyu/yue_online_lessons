@@ -15,6 +15,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  markdownMode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close', 'insert'])
@@ -62,12 +66,25 @@ const insertImage = () => {
   if (!selectedImage.value) return
 
   const img = selectedImage.value
-  let html = `<img src="${img.url}" alt="${img.filename}"`
-  if (customWidth.value) html += ` width="${customWidth.value}"`
-  if (customHeight.value) html += ` height="${customHeight.value}"`
-  html += ' />'
+  let text
 
-  emit('insert', html)
+  if (props.markdownMode) {
+    if (!customWidth.value && !customHeight.value) {
+      text = `![${img.filename}](${img.url})`
+    } else {
+      text = `<img src="${img.url}" alt="${img.filename}"`
+      if (customWidth.value) text += ` width="${customWidth.value}"`
+      if (customHeight.value) text += ` height="${customHeight.value}"`
+      text += '>'
+    }
+  } else {
+    text = `<img src="${img.url}" alt="${img.filename}"`
+    if (customWidth.value) text += ` width="${customWidth.value}"`
+    if (customHeight.value) text += ` height="${customHeight.value}"`
+    text += ' />'
+  }
+
+  emit('insert', text)
   emit('close')
 }
 

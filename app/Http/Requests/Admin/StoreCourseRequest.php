@@ -25,7 +25,7 @@ class StoreCourseRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'tagline' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'description_html' => ['nullable', 'string'],
+            'description_md' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date', 'after:now'],

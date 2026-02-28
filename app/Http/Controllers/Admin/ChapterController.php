@@ -34,7 +34,7 @@ class ChapterController extends Controller
                     'has_video' => $lesson->has_video,
                     'video_url' => $lesson->video_url,
                     'video_platform' => $lesson->video_platform,
-                    'html_content' => $lesson->html_content,
+                    'md_content' => $lesson->md_content,
                     'sort_order' => $lesson->sort_order,
                     'promo_delay_seconds' => $lesson->promo_delay_seconds,
                     'promo_html' => $lesson->promo_html,
