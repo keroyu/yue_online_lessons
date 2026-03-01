@@ -1,6 +1,6 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
@@ -91,6 +91,18 @@ const openLegalModal = (type) => {
 const closeLegalModal = () => {
   showLegalModal.value = false
 }
+
+// Scroll to drip section after successful subscription
+const page = usePage()
+const dripSectionRef = ref(null)
+
+onMounted(() => {
+  if (page.props.flash?.drip_subscribed) {
+    nextTick(() => {
+      dripSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }
+})
 
 // Drip subscription
 const subscribing = ref(false)
@@ -241,7 +253,7 @@ const subscriptionStatusLabel = computed(() => {
           </div>
 
           <!-- Drip subscription section -->
-          <div v-if="isDrip" class="mt-8 pt-8 border-t border-gray-100">
+          <div v-if="isDrip" ref="dripSectionRef" class="mt-8 pt-8 border-t border-gray-100">
             <!-- Subscription success (inline) -->
             <div v-if="$page.props.flash?.drip_subscribed" class="text-center py-6">
               <div class="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
