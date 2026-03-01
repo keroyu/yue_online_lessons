@@ -9,6 +9,9 @@ const props = defineProps({
   },
 })
 
+// marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
+// Do NOT add DOMPurify or any sanitizer here — admin content is trusted and
+// iframes (YouTube / Vimeo) must be preserved.
 const rendered = computed(() => marked(props.content || ''))
 </script>
 

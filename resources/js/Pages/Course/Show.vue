@@ -112,6 +112,8 @@ const closeLegalModal = () => {
   showLegalModal.value = false
 }
 
+// marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
+// Do NOT add DOMPurify here — admin content is trusted and iframes must be preserved.
 const renderedDescription = computed(() => marked(props.course.description_md || ''))
 
 // Scroll to drip section after successful subscription

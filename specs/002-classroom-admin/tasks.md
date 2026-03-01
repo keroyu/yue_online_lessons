@@ -2,6 +2,7 @@
 
 **Input**: Design documents from `/specs/002-classroom-admin/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/routes.md
+**Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式 (Phase 21)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1255,6 +1256,22 @@ Within Phase 15:
 
 ---
 
+## Phase 21: Markdown 內嵌影片 iframe 響應式樣式 (2026-03-01 新增)
+
+**Purpose**: 讓管理員可在課程介紹及小節 Markdown 中貼入 YouTube/Vimeo iframe，影片在前台以響應式方式顯示
+
+**背景**：marked.js v17 預設允許 `<iframe>` HTML 直通（不過濾），但缺少 CSS 樣式導致 iframe 固定寬度在手機上溢出容器。
+
+- [x] T197 [P] [US4] 新增 `.course-content iframe` 響應式樣式 in `resources/css/app.css`
+  - `width: 100%`、`aspect-ratio: 16/9`、`margin: 1.5em 0`、`border: none`、`border-radius: 0.5rem`
+- [x] T198 [P] [US3] [US4] 新增注釋至 Markdown 渲染處，說明 iframe 直通行為與禁止 sanitizer 原則
+  - `resources/js/Components/Classroom/HtmlContent.vue`
+  - `resources/js/Pages/Course/Show.vue`
+
+**Checkpoint**: 課程介紹及小節 Markdown 貼入 YouTube/Vimeo iframe 後，前台以 16:9 響應式嵌入顯示 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1271,4 +1288,5 @@ Within Phase 15:
 | Phase 18 (課程顯示/隱藏設定) | T169-T191 | ⏳ In Progress (19/23 complete) |
 | Phase 19 (Bug Fixes & UI Polish) | T192-T194 | ✅ Completed |
 | Phase 20 (US8 擴充 - 後臺預覽按鈕) | T195-T196 | ✅ Completed |
-| **Total** | **196 tasks** | 192 completed, 4 pending |
+| Phase 21 (Markdown iframe 響應式樣式) | T197-T198 | ✅ Completed |
+| **Total** | **198 tasks** | 194 completed, 4 pending |

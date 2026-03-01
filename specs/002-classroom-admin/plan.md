@@ -7,6 +7,7 @@
 **Updated**: 2026-01-30 - 將課程完成狀態節流門檻從 5 分鐘調整為 2 分鐘
 **Updated**: 2026-01-30 - 優化優惠倒數計時 UI（卡片式設計 + 數字滾動動畫）
 **Updated**: 2026-01-30 - 新增課程顯示/隱藏設定功能 (US9)
+**Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式
 
 ## Summary
 
@@ -184,6 +185,7 @@ database/migrations/
 | Phase 18 | US9 - 課程顯示/隱藏設定 | ⏳ Pending |
 | Phase 19 | Bug Fixes & UI Polish | ✅ Complete |
 | Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
+| Phase 21 | Markdown 內嵌影片 iframe 響應式樣式 | ✅ Complete |
 
 **Phase 13 Details** (2026-01-18 完成, 2026-01-30 調整門檻):
 - 前端樂觀更新：點擊小節後立即顯示綠色勾勾
@@ -213,6 +215,24 @@ database/migrations/
 
 See [tasks.md](./tasks.md) for detailed task breakdown.
 
+---
+
+### 2026-03-01: Markdown 內嵌影片 iframe 響應式樣式
+
+**背景**：管理員在課程介紹（`description_md`）或小節 Markdown（`md_content`）中貼入 YouTube/Vimeo `<iframe>` 代碼時，iframe 預設帶有固定 `width="560"`，在手機螢幕上會溢出容器。需要確保嵌入影片響應式顯示。
+
+**修改檔案**：
+- `resources/css/app.css` - 新增 `.course-content iframe` 響應式樣式（`width: 100%`、`aspect-ratio: 16/9`、`border-radius: 0.5rem`）
+- `resources/js/Components/Classroom/HtmlContent.vue` - 新增注釋，說明 marked.js 允許 iframe 直通，禁止加 sanitizer
+- `resources/js/Pages/Course/Show.vue` - 新增注釋，同上
+
+**設計決策**：
+- **不需修改 marked.js 設定**：marked.js v17 預設就允許 `<iframe>` 等原始 HTML 直通（不過濾），無需額外設定
+- **純 CSS 解法**：用 `width: 100%` + `aspect-ratio: 16/9` 覆蓋 iframe 上的固定寬高屬性，不需改動 JS 邏輯
+- **禁止加 sanitizer**：admin 內容為可信任來源，加入 DOMPurify 會過濾 iframe，故明確以注釋標記禁止
+
+**使用方式**：在 Markdown 編輯器中，`<iframe>` 前後需各保留一個空行，marked.js 才能將其識別為 HTML block 正確通過。
+
 ## Key Design Decisions
 
 Documented in [research.md](./research.md):
@@ -222,7 +242,7 @@ Documented in [research.md](./research.md):
 3. **Image Storage**: Laravel Storage (local, expandable to S3)
 4. **Status Scheduler**: Laravel Task Scheduling (every minute)
 5. **Admin Auth**: Custom middleware checking `role === 'admin'`
-6. **Markdown Content**: Rendered via marked.js (frontend), stored as Markdown in `description_html` / `html_content` columns (admin trusted, no sanitization)
+6. **Markdown Content**: Rendered via marked.js (frontend), stored as Markdown in `description_html` / `html_content` columns (admin trusted, no sanitization). marked.js v17 passes raw HTML (including `<iframe>`) through by default — **do NOT add DOMPurify**. `<iframe>` 需前後保留空行才能被視為 HTML block。
 7. **Countdown Timer**: Frontend Vue computed (every second)
 8. **Image Gallery Modal**: Vue 3 Teleport
 9. **Legal Policy Modal**: Static Vue components
