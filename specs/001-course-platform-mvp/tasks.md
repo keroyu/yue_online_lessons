@@ -3,6 +3,9 @@
 **Input**: Design documents from `/specs/001-course-platform-mvp/`
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/routes.md
 **Updated**: 2026-01-30 - 全站配色優化 (Phase 11)、倒數計時器簡化設計
+**Updated**: 2026-03-01 - 隱藏課程自動精簡 UI (Phase 12)
+**Updated**: 2026-03-01 - 販售頁版面重設計 (Phase 13)
+**Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化 (Phase 14)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -485,6 +488,68 @@ Task: T018 "Create VerificationCode model"
 
 ---
 
+## Phase 12: 隱藏課程自動精簡 UI (2026-03-01 新增)
+
+**Purpose**: 課程設為隱藏（`is_visible = false`）時，販售頁自動隱藏導覽列與返回連結，作為獨立 landing page 使用
+
+**背景**：與既有的 `?lp=1` landing page 模式共用同一隱藏機制，統一由 `hideUiElements` computed 控制。
+
+- [x] T100 [US5] Pass `isHidden` prop from CourseController to Course/Show page in `app/Http/Controllers/CourseController.php`
+  - Add `'isHidden' => !$course->is_visible` to Inertia render props
+- [x] T101 [US5] Add `hideUiElements` computed to Course/Show.vue in `resources/js/Pages/Course/Show.vue`
+  - Add `isHidden` prop (Boolean, default false)
+  - Add `hideUiElements = computed(() => isLandingMode.value || props.isHidden)`
+  - Replace `:hide-nav="isLandingMode"` and `:hide-breadcrumb="isLandingMode"` with `hideUiElements`
+  - Replace `v-if="!isLandingMode"` on back link with `v-if="!hideUiElements"`
+
+**Checkpoint**: 課程設為隱藏後，販售頁不顯示導覽列和「返回課程列表」連結 ✅
+
+---
+
+## Phase 13: 販售頁版面重設計 (2026-03-01 新增)
+
+**Purpose**: 提升課程販售頁視覺吸引力，改為分區段佈局，H1 標題置於影片上方
+
+**背景**：原白色卡片設計視覺層次不足。重設計為無邊界分段佈局，課程標題突出，影片適中顯示，課程介紹中的 h2 標題以全寬深色方塊強調。
+
+- [x] T102 [US5] 重構 `resources/js/Pages/Course/Show.vue` 版面結構
+  - 移除白色卡片包裝（`bg-white rounded-lg shadow-sm`）
+  - H1 標題 + 講師移至影片上方（米白背景，置中大字）
+  - 影片/縮圖改為限寬（`max-w-3xl`）並加藍色 tagline 條
+  - 移除影片下方促銷 CTA block 與頁底促銷橫幅
+  - 新增 `purchaseSectionRef` + `handleBuyClick()`：未同意條款時 scroll 至購買區
+- [x] T103 [P] [US5] 更新 `resources/css/app.css` `.course-content h2` 為 full-bleed 深色標題
+  - 黑底白字（`#1a1a1a`），`margin: calc(-50vw + 50%)` 突破容器寬度
+  - 父容器加 `overflow-x: hidden` 防止橫向捲動
+
+**Checkpoint**: 課程販售頁 H1 在影片上方，影片 max-w-3xl，介紹內 h2 為全寬深色方塊 ✅
+
+---
+
+## Phase 14: 課程資訊欄、價格標示、按鈕樣式優化 (2026-03-01 新增)
+
+**Purpose**: 填補影片下方空白，補充課程資訊，統一按鈕樣式，優化價格標示
+
+**背景**：版面重設計後影片下方出現空白；按鈕形狀和顏色不一致；價格標示缺少「優惠價」說明和標準幣別格式。
+
+- [x] T104 [US5] 新增課程資訊欄至 `resources/js/Pages/Course/Show.vue`（影片正下方）
+  - 左欄：課程類型、預計時長、授課講師、觀看限制（靜態）、預購狀態
+  - 右欄：PriceDisplay + scroll-to-purchase 快速按鈕（不重複購買邏輯）
+- [x] T105 [P] [US5] 新增靜態「觀看限制：不限時間、次數」欄位 in `resources/js/Pages/Course/Show.vue`
+  - 不讀取 DB，硬編碼靜態文字
+- [x] T106 [P] [US5] 統一按鈕樣式 in `resources/js/Pages/Course/Show.vue`
+  - `rounded-full` → `rounded-lg`（全部按鈕）
+  - Drip 訂閱按鈕由 `bg-indigo-600` 改為金色統一樣式
+  - 補齊 `hover:shadow-md active:scale-[0.98] cursor-pointer`
+- [x] T107 [P] [US5] 更新 PriceDisplay in `resources/js/Components/Course/PriceDisplay.vue`
+  - 兩種狀態皆加「優惠價」灰色小標籤
+  - 幣別格式 `NT$` → `NTD$`（自訂格式）
+  - 購買區移除白色卡片包裝
+
+**Checkpoint**: 影片下方無空白，課程資訊清晰呈現，所有按鈕圓角矩形金色樣式一致，價格顯示「優惠價 NTD$XXX」✅
+
+---
+
 ## Summary
 
 | Phase | Tasks | Parallel Tasks |
@@ -500,7 +565,10 @@ Task: T018 "Create VerificationCode model"
 | Phase 9: 縮圖 URL | 8 | 4 |
 | Phase 10: Webhook 購買 | 17 | 2 |
 | Phase 11: 全站配色優化 | 16 | 12 |
-| **Total** | **105** | **44** |
+| Phase 12: 隱藏課程精簡 UI | 2 | 0 |
+| Phase 13: 販售頁版面重設計 | 2 | 1 |
+| Phase 14: 課程資訊欄、價格標示、按鈕樣式 | 4 | 3 |
+| **Total** | **113** | **48** |
 
 ---
 

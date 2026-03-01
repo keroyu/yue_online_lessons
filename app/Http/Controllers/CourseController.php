@@ -67,6 +67,7 @@ class CourseController extends Controller
             ],
             'isAdmin' => $isAdmin,
             'isPreviewMode' => $isPreviewMode,
+            'isHidden' => !$course->is_visible,
             'isDrip' => $isDrip,
             'userSubscription' => $userSubscription,
             'canSubscribe' => $canSubscribe,

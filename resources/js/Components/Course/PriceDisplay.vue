@@ -86,11 +86,8 @@ const displayPrice = computed(() => {
 })
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat('zh-TW', {
-    style: 'currency',
-    currency: 'TWD',
-    minimumFractionDigits: 0,
-  }).format(price)
+  const num = new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 0 }).format(price)
+  return `NTD$${num}`
 }
 </script>
 
@@ -98,6 +95,7 @@ const formatPrice = (price) => {
   <div>
     <!-- Active Promo: Show original price (strikethrough) + promo price + countdown -->
     <div v-if="isPromoActive" class="space-y-3">
+      <p class="text-xs text-gray-500">優惠價</p>
       <div class="flex items-baseline gap-3 flex-wrap">
         <span class="text-lg text-gray-400 line-through">
           {{ formatPrice(originalPrice) }}
@@ -144,7 +142,8 @@ const formatPrice = (price) => {
 
     <!-- No active promo: Just show the price -->
     <div v-else>
-      <span class="text-3xl font-bold text-brand-teal">
+      <p class="text-xs text-gray-500">優惠價</p>
+      <span class="text-3xl font-bold text-brand-red">
         {{ formatPrice(displayPrice) }}
       </span>
     </div>

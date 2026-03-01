@@ -3,6 +3,9 @@
 **Branch**: `001-course-platform-mvp` | **Date**: 2026-01-16 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-course-platform-mvp/spec.md`
 **Updated**: 2026-01-30 - 全站配色優化、倒數計時器簡化設計
+**Updated**: 2026-03-01 - 隱藏課程自動精簡 UI
+**Updated**: 2026-03-01 - 販售頁版面重設計
+**Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化
 
 ## Summary
 
@@ -285,8 +288,92 @@ protected function thumbnailUrl(): Attribute
 - 購買區兩欄式佈局：左欄價格/計時器，右欄同意條款與購買按鈕
 - 響應式設計：手機版垂直堆疊，桌面版水平並排
 
-**購買按鈕設計（Amazon 風格）**：
-- 圓角膠囊形狀（rounded-full）
+---
+
+### 2026-03-01: 隱藏課程自動精簡 UI
+
+**背景**：課程設為隱藏（`is_visible = false`）時，販售頁應作為獨立 landing page 使用，不需要顯示全站導覽列和返回連結。
+
+**變更邏輯**：
+- 新增 `hideUiElements` computed：`isLandingMode || isHidden`
+- `isHidden` 由後端傳入（`!$course->is_visible`），與既有的 `?lp=1` landing page 模式共用同一隱藏機制
+
+**修改檔案**：
+- `app/Http/Controllers/CourseController.php` - 新增 `'isHidden' => !$course->is_visible` 至 Inertia props
+- `resources/js/Pages/Course/Show.vue` - 新增 `isHidden` prop，新增 `hideUiElements` computed，替換兩處 `isLandingMode` 引用
+
+**影響元素**：
+1. 頂端深藍色導覽列（`<Navigation>`）— 透過 `AppLayout :hide-nav`
+2. 「返回課程列表」連結 — `v-if="!hideUiElements"`
+
+---
+
+### 2026-03-01: 販售頁版面重設計
+
+**背景**：課程販售頁原本採用白色卡片置中設計，視覺吸引力不足。重設計為分區段全寬佈局，提升閱讀層次與轉換率。
+
+**修改檔案**：
+- `resources/js/Pages/Course/Show.vue` - 完整重構版面結構
+- `resources/css/app.css` - 更新 `.course-content h2` 為全寬深色 full-bleed 標題
+
+**版面結構（由上至下）**：
+1. H1 標題 + 講師 — 米白背景（`bg-brand-cream`），大粗體置中
+2. 影片/縮圖 — 有限寬（`max-w-3xl`），上方加藍色 tagline 條（課程類型 + tagline）
+3. 課程介紹 — 白色背景，`max-w-4xl` 內文寬度，h2 標題 full-bleed 深色方塊
+4. 購買區 — 米白背景，保持現有 PriceDisplay + 同意條款 + 購買按鈕
+
+**設計決策**：
+- 移除原本白色卡片 `bg-white rounded-lg shadow-sm` 包裝，改為分段式色塊佈局
+- 影片限寬 `max-w-3xl`（非全寬），避免縮圖過大失真
+- 藍色 tagline 條 (`bg-brand-teal`) 緊貼影片上方，形成一個完整視覺單元
+- h2 full-bleed 使用 `margin: calc(-50vw + 50%)` 技術，父容器需設 `overflow-x: hidden`
+- 移除影片下方促銷 CTA 與頁底促銷橫幅（用戶決策：販售頁不應置入促銷資訊）
+- `handleBuyClick()` 新邏輯：未勾選同意條款時，scroll 至購買區引導用戶操作
+
+**h2 full-bleed CSS 原理**：
+```css
+.course-content h2 {
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    /* 父容器需設 overflow-x: hidden */
+}
+```
+
+---
+
+### 2026-03-01: 課程資訊欄、價格標示、按鈕樣式優化
+
+**背景**：版面重設計後，影片下方出現空白區域，需補充課程資訊；價格標示不清晰；按鈕形狀和樣式不一致。
+
+**修改檔案**：
+- `resources/js/Pages/Course/Show.vue` - 新增課程資訊欄、統一按鈕樣式
+- `resources/js/Components/Course/PriceDisplay.vue` - 加「優惠價」標籤、幣別改 NTD$
+
+**課程資訊欄設計**（影片正下方，白色背景兩欄佈局）：
+- 左欄：課程類型、預計時長、授課講師、觀看限制（靜態：不限時間、次數）、預購狀態（若有）
+- 右欄：PriceDisplay + 快速 scroll-to-purchase 按鈕
+- 上方按鈕僅做 scroll，不重複購買邏輯（同意條款在下方購買區處理）
+
+**設計決策**：
+- 觀看限制為靜態文字（不限時間、次數），不讀取 DB
+- 上方快速按鈕統一 scroll 到購買區，避免重複邏輯
+- drip / 非drip 課程共用同一個快速按鈕，僅文字不同（免費訂閱 / 立即購買）
+
+**按鈕樣式統一**：
+- 所有主要按鈕：`rounded-lg`（圓角矩形，取代原 `rounded-full` 膠囊形狀）
+- 金色樣式：`bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50`
+- Hover 效果：`hover:shadow-md active:scale-[0.98] cursor-pointer`
+- Drip 訂閱按鈕由 `bg-indigo-600` 改為金色統一樣式
+
+**PriceDisplay 更新**：
+- 兩種狀態（促銷/非促銷）都加「優惠價」灰色小標籤
+- 幣別格式：`NT$` → `NTD$`（自訂格式，移除 Intl currency style）
+- 購買區價格 block 移除白色卡片包裝（`bg-white border rounded-xl`）
+
+---
+
+**購買按鈕設計（更新後）**：
+- 圓角矩形（`rounded-lg`，取代原 `rounded-full`）
 - 土黃金色背景 (#F0C14B)，深金色邊框
 - 深藍色文字 (#373557)
 - Hover 時加深顏色並增加陰影

@@ -34,14 +34,23 @@ body {
     margin-bottom: 1.25em;
 }
 
+.course-content h2:first-child {
+    margin-top: 0;
+}
+
 .course-content h2 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    color: #111827;
-    margin-top: 2em;
-    margin-bottom: 0.75em;
-    padding-bottom: 0.5em;
-    border-bottom: 2px solid #e5e7eb;
+    color: #ffffff;
+    background-color: #1a1a1a;
+    /* Full-bleed: break out of max-w-4xl container */
+    margin-top: 2.5em;
+    margin-bottom: 1em;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    padding: 0.85em 2rem;
+    text-align: center;
+    border-bottom: none;
 }
 
 .course-content h3 {
