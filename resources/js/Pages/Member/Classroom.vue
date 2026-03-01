@@ -367,6 +367,7 @@ const toggleSidebar = () => {
               <VideoAccessNotice
                 v-if="course.is_drip
                   && selectedLesson?.video_id
+                  && selectedLesson.video_access_hours !== null
                   && dripSubscription?.status !== 'converted'
                   && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
                 :key="'video-access-' + selectedLesson.id"
@@ -378,13 +379,14 @@ const toggleSidebar = () => {
                 :lesson-id="selectedLesson.id"
               />
 
-              <!-- Promo Block -->
+              <!-- Promo Block (promo_html + promo_url button, both controlled by delay timer) -->
               <LessonPromoBlock
-                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && (selectedLesson.promo_html || selectedLesson.promo_url)"
                 :key="selectedLesson.id"
                 :lesson-id="selectedLesson.id"
                 :delay-seconds="selectedLesson.promo_delay_seconds"
                 :promo-html="selectedLesson.promo_html"
+                :promo-url="selectedLesson.promo_url"
               />
 
               <!-- HTML Content -->
@@ -400,13 +402,14 @@ const toggleSidebar = () => {
                 <HtmlContent :content="selectedLesson.html_content" />
               </div>
 
-              <!-- Promo Block -->
+              <!-- Promo Block (promo_html + promo_url button, both controlled by delay timer) -->
               <LessonPromoBlock
-                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && (selectedLesson.promo_html || selectedLesson.promo_url)"
                 :key="selectedLesson.id"
                 :lesson-id="selectedLesson.id"
                 :delay-seconds="selectedLesson.promo_delay_seconds"
                 :promo-html="selectedLesson.promo_html"
+                :promo-url="selectedLesson.promo_url"
               />
             </template>
 

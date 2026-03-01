@@ -8,6 +8,7 @@
 **Updated**: 2026-02-28 - 新增 Email 追蹤分析功能（US12~US14）：Tracking Pixel 開信追蹤、URL Redirect 點擊追蹤、Lesson 統計報表（開信率/點擊率/轉換率）、訂閱者開信進度指示、促銷商品連結欄位（promo_url）
 **Updated**: 2026-03-01 - 修正 US14 promo_url 設計：Email 不應包含任何促銷按鈕，promo_url 用途改為「教室促銷點擊追蹤」（auth session 識別訂閱者，無需 signed URL）；Email 點擊追蹤整體移除（開信率 + 課程進度已足夠）；相關 FR/US/統計定義同步更新
 **Updated**: 2026-03-01 - 影片免費觀看時數改為 per-lesson 設定（`video_access_hours`，nullable 整數）：null 表示無限期觀看（不顯示任何倒數計時 UI），有填寫則啟用限時觀看與倒數計時；移除全站統一 config 設定；FR-035~FR-042 及 US11 相關前提條件同步更新
+**Updated**: 2026-03-01 - 修正 promo_url 實作位置：promo_url 按鈕嵌入 LessonPromoBlock 促銷區塊內（非旁邊），與 promo_html 同受 promo_delay_seconds 延遲計時控制；FR-029 顯示條件改為「promo_html 與 promo_url 均為空才不顯示」；FR-064 更新位置描述；promo_url 對所有有存取權用戶顯示（不限 drip 訂閱者）
 
 ## Clarifications
 
@@ -52,7 +53,7 @@
 - Q: 點擊追蹤的範圍為何？ → A: **不追蹤 Email 點擊**。開信率 + 課程進度已足夠判斷訂閱者是否回來上課；Email 中不插入任何促銷按鈕
 - Q: 轉換率是 per-lesson 還是整體？ → A: **整體轉換率**（converted 訂閱者 / 總訂閱者）。轉換並非對應特定 Lesson，故不做 per-lesson 轉換分析；每個 Lesson 列顯示開信率和點擊率
 - Q: 開信和點擊事件是否去重？ → A: **是，以訂閱 × Lesson 為單位去重**。同一封信被開啟多次只計一次；教室促銷按鈕被點擊多次只計一次
-- Q: promo_url 追蹤連結在哪些地方顯示？ → A: **僅在教室頁面**，以獨立追蹤按鈕呈現（與 promo_html 並列）。drip 信件不包含任何促銷按鈕
+- Q: promo_url 追蹤連結在哪些地方顯示？ → A: **僅在教室頁面**，嵌入 LessonPromoBlock 促銷區塊內，與 promo_html 同受延遲計時控制。drip 信件不包含任何促銷按鈕
 
 ### Session 2026-03-01 (promo_url 設計修正)
 
@@ -306,7 +307,7 @@
 
 ### User Story 14 - 管理員設定 Lesson 促銷連結（教室追蹤）(Priority: P2)
 
-管理員在後台編輯 Lesson 時，在「促銷區塊設定」區域看到一個「促銷連結 URL（教室追蹤）」輸入欄（promo_url）。設定後，教室頁面的促銷區塊旁會出現一個獨立的可追蹤按鈕，訂閱者在教室點擊後系統記錄事件並導向目標 URL。
+管理員在後台編輯 Lesson 時，在「促銷區塊設定」區域看到一個「促銷連結 URL（教室追蹤）」輸入欄（promo_url）。設定後，教室頁面的促銷區塊（LessonPromoBlock）內會出現一個可追蹤按鈕（與 promo_html 同受延遲計時控制），有存取權的用戶在教室點擊後系統記錄事件並導向目標 URL。
 
 **Why this priority**: promo_html 為自定義 HTML，其中的連結無法被系統自動追蹤。設定獨立的 promo_url 欄位，系統在教室中生成可追蹤按鈕，實現教室促銷點擊率統計。
 
@@ -315,7 +316,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** 管理員在 Lesson 編輯頁輸入有效的 promo_url 並儲存，**When** 查看 Lesson，**Then** 設定正確保存
-2. **Given** Lesson 設定了 promo_url，**When** 訂閱者（已登入）進入教室，**Then** 教室頁面在促銷區塊旁顯示一個獨立的追蹤按鈕
+2. **Given** Lesson 設定了 promo_url，**When** 有存取權的用戶（已登入）進入教室，**Then** 教室頁面在促銷區塊（LessonPromoBlock）內顯示一個追蹤按鈕，與 promo_html 同受延遲計時控制
 3. **Given** 訂閱者在教室點擊促銷按鈕，**When** 系統記錄點擊並執行 redirect，**Then** 訂閱者在 1 秒內被導向目標 URL，後台點擊數 +1（去重：同一 Lesson 重複點擊只計一次）
 4. **Given** 管理員清空 promo_url，**When** 儲存，**Then** 教室頁面不顯示追蹤按鈕
 5. **Given** Lesson 無 promo_url（null），**When** 訂閱者進入教室，**Then** 教室不顯示任何促銷追蹤按鈕
@@ -383,7 +384,7 @@
 - **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即同步發送**（不經由佇列）
 - **FR-013**: 後續通知信 MUST 由每天早上 9 點的排程任務發送
 - **FR-014**: 排程任務 MUST 比較 emails_sent 和應解鎖 Lesson 數，發送差額的信件
-- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的純文字 URL（非超連結）、退訂純文字 URL。若 Lesson 包含影片，MUST 以 Unicode 符號（▶▶/▶）標示提示「本課程包含教學影片，請至網站觀看」；若 Lesson 另設定了 `video_access_hours`（不為 null），MUST 加入「影片 {video_access_hours} 小時內免費觀看，把握時間！」免費觀看期提示（不使用粗體紅色等 HTML 樣式，以降低垃圾信風險）；未設定 `video_access_hours` 時不顯示此行。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
+- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（`html_content` 欄位，儲存格式為 Markdown，發送前由後端以 CommonMarkConverter 渲染為 HTML）、連回網站的純文字 URL（非超連結）、退訂純文字 URL。若 Lesson 包含影片，MUST 以 Unicode 符號（▶▶/▶）標示提示「本課程包含教學影片，請至網站觀看」；若 Lesson 另設定了 `video_access_hours`（不為 null），MUST 加入「影片 {video_access_hours} 小時內免費觀看，把握時間！」免費觀看期提示（不使用粗體紅色等 HTML 樣式，以降低垃圾信風險）；未設定 `video_access_hours` 時不顯示此行。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
 - **FR-016**: 當 emails_sent 等於課程總 Lesson 數時，MUST 將狀態標記為 completed
 
 **轉換機制**
@@ -405,7 +406,7 @@
 **Lesson 促銷區塊（適用所有課程）**
 - **FR-027**: 每個 Lesson MAY 設定促銷區塊延遲時間（promo_delay_seconds）
 - **FR-028**: 每個 Lesson MAY 設定促銷區塊自訂 HTML 內容（promo_html）
-- **FR-029**: 當 promo_delay_seconds 為 null 或 promo_html 為空時，MUST 不顯示促銷區塊
+- **FR-029**: 當 promo_delay_seconds 為 null 或 promo_html 與 promo_url 均為空時，MUST 不顯示促銷區塊
 - **FR-030**: 當 promo_delay_seconds = 0 時，MUST 立即顯示促銷區塊
 - **FR-031**: 當 promo_delay_seconds > 0 時，MUST 顯示倒數計時，達標後才顯示促銷內容
 - **FR-032**: 系統 MUST 追蹤使用者觀看時間（累積計算，支援中斷後繼續）
@@ -447,7 +448,7 @@
 **促銷連結欄位（US14）**
 - **FR-062**: 每個 Lesson MAY 設定促銷連結 URL（`promo_url`，varchar 500，nullable），獨立於 `promo_html`，用於教室點擊追蹤
 - **FR-063**: 管理員 MUST 可在 Lesson 編輯頁的「促銷區塊設定」區域設定 `promo_url`（label：「促銷連結 URL（教室追蹤）」，URL 格式輸入欄，留空表示不設定）
-- **FR-064**: 當 Lesson 設定了 `promo_url`，教室頁面 MUST 在 LessonPromoBlock 旁渲染一個獨立的可追蹤按鈕，點擊後記錄事件並導向目標 URL
+- **FR-064**: 當 Lesson 設定了 `promo_url`，教室頁面 MUST 在 LessonPromoBlock 內渲染可追蹤按鈕（與 promo_html 同受延遲計時控制），點擊後記錄事件並導向目標 URL；按鈕對所有有存取權用戶顯示（不限 drip 訂閱者）
 - **FR-065**: 當 Lesson 未設定 `promo_url`（null），教室頁面 MUST NOT 顯示任何促銷追蹤按鈕；drip 信件永遠不顯示促銷按鈕
 
 **分析報表（US12，訂閱者清單頁面）**
@@ -595,13 +596,13 @@
 
 - **教室促銷點擊追蹤技術（US14）**：
   - 教室頁面為已登入環境，直接使用 auth session 識別訂閱者，不需要 signed URL
-  - promo_url 在教室渲染為獨立追蹤按鈕（`/drip/track/click`），點擊時以 auth user 查詢 DripSubscription，記錄後 redirect 至目標 URL
+  - promo_url 在教室嵌入 LessonPromoBlock 促銷區塊內（`/drip/track/click`），與 promo_html 同受 promo_delay_seconds 延遲計時控制；點擊時以 auth user 查詢 DripSubscription（無訂閱記錄時仍 redirect，不報錯）
   - **事件去重**：同一訂閱者對同一 Lesson 的教室促銷點擊只記一次
 
 - **promo_url 與 promo_html 職責分離**：
   - promo_html：教室頁面使用的自定義 HTML 促銷區塊，系統無法安全解析其中連結，不追蹤
   - promo_url：教室專用的單一可追蹤促銷連結，系統完全控制追蹤邏輯；不出現在 drip 信件
-  - 兩者互相獨立，管理員可分別設定不同促銷內容
+  - 兩者整合於同一 LessonPromoBlock 組件，同受 promo_delay_seconds 延遲計時控制；管理員可分別設定不同促銷內容
 
 - **促銷區塊連結按鈕樣式**：參考課程販售頁面「立即購買」按鈕（`bg-brand-gold` / `#F0C14B`，文字 `brand-navy` / `#373557`，`rounded-full`），統一套用於：
   - 教室頁面的 promo_url 追蹤按鈕

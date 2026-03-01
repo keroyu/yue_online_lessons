@@ -96,7 +96,7 @@ app/
 │           └── StoreLessonRequest.php      # MODIFY: 加入 promo/reward/promo_url 驗證規則
 │
 ├── Jobs/
-│   └── SendDripEmailJob.php                # NEW: 發信 Job（不含 promoTrackUrl）
+│   └── SendDripEmailJob.php                # NEW: 發信 Job（不含 promoTrackUrl）。使用 CommonMarkConverter 將 lesson.html_content（Markdown）渲染為 HTML 後傳入 DripLessonMail
 │
 ├── Mail/
 │   └── DripLessonMail.php                  # NEW: Lesson 通知信（含 openPixelUrl，不含 promoTrackUrl）
@@ -248,14 +248,14 @@ private function formatLessonFull(Lesson $lesson, ...): array
 {
     return [
         // ... existing fields ...
-        'promo_url' => $lesson->promo_url
+        'promo_url' => (!$isLocked && $lesson->promo_url)
             ? route('drip.track.click', ['les' => $lesson->id, 'url' => $lesson->promo_url])
             : null,
     ];
 }
 ```
 
-**⚠️ 注意**：傳給前端的不是原始 `promo_url`，而是已包裝成 `/drip/track/click?les=X&url=...` 的追蹤 URL，前端直接使用。
+**注意**：傳給前端的不是原始 `promo_url`，而是已包裝成 `/drip/track/click?les=X&url=...` 的追蹤 URL，前端直接使用。不限 drip 訂閱者，所有有存取權用戶均可取得此 URL（非 drip 用戶點擊時 DripTrackingController 找不到訂閱記錄，仍正常 redirect）。
 
 ### routes/web.php（click 移入 auth 群組）
 
@@ -288,15 +288,20 @@ Route::middleware('auth')->group(function () {
 ### Classroom.vue（渲染教室追蹤按鈕）
 
 ```vue
-<!-- 在 LessonPromoBlock 後方渲染 promo_url 追蹤按鈕 -->
-<a
-  v-if="currentLesson?.promo_url"
-  :href="currentLesson.promo_url"
-  style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;font-weight:600"
->
-  立即瞭解
-</a>
+<!-- promo_url 按鈕嵌入 LessonPromoBlock 內（與 promo_html 同受延遲計時控制） -->
+<LessonPromoBlock
+  v-if="selectedLesson.promo_delay_seconds !== null
+    && selectedLesson.promo_delay_seconds !== undefined
+    && (selectedLesson.promo_html || selectedLesson.promo_url)"
+  :key="selectedLesson.id"
+  :lesson-id="selectedLesson.id"
+  :delay-seconds="selectedLesson.promo_delay_seconds"
+  :promo-html="selectedLesson.promo_html"
+  :promo-url="selectedLesson.promo_url"
+/>
 ```
+
+**注意**：v-if 條件由原本的 `promo_html` 改為 `(promo_html || promo_url)`，使純 promo_url（無自訂 HTML）也能顯示促銷區塊。
 
 ### drip-lesson.blade.php（移除促銷按鈕）
 
@@ -316,7 +321,7 @@ Route::middleware('auth')->group(function () {
 | Phase 0: Research | ✅ Complete | [research.md](./research.md) |
 | Phase 1: Design | ✅ Complete | [data-model.md](./data-model.md), [contracts/](./contracts/), [quickstart.md](./quickstart.md) |
 | Phase 2: Tasks | ✅ Complete | [tasks.md](./tasks.md) |
-| Phase 15: promo_url 設計修正 | ⚠️ Pending tasks update | 本 plan.md 更新完成 |
+| Phase 15: promo_url 設計修正 | ✅ Complete | promo_url 嵌入 LessonPromoBlock；條件修正；$dripSubscription 限制移除 |
 
 ---
 
