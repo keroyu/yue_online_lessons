@@ -78,7 +78,10 @@ class ClassroomController extends Controller
                 'id' => $chapter->id,
                 'title' => $chapter->title,
                 'lessons' => $chapter->lessons
-                    ->filter(fn ($lesson) => !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                    ->filter(fn ($lesson) =>
+                        (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                        && (!$isDrip || $isAdmin || !empty($lesson->video_id))
+                    )
                     ->values()
                     ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds)),
             ])
@@ -90,7 +93,10 @@ class ClassroomController extends Controller
             ->whereNull('chapter_id')
             ->orderBy('sort_order')
             ->get()
-            ->filter(fn ($lesson) => !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+            ->filter(fn ($lesson) =>
+                (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                && (!$isDrip || $isAdmin || !empty($lesson->video_id))
+            )
             ->values()
             ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds));
 
@@ -107,14 +113,16 @@ class ClassroomController extends Controller
         }
 
         if (!isset($currentLesson) || !$currentLesson) {
-            // For drip courses, find first unlocked uncompleted lesson
+            // For drip courses, find first unlocked uncompleted lesson with video
             if ($isDrip) {
                 $currentLesson = $allLessons->first(fn ($lesson) =>
                     (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                    && !empty($lesson->video_id)
                     && !in_array($lesson->id, $completedLessonIds)
                 ) ?? $allLessons->first(fn ($lesson) =>
-                    !isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id]
-                );
+                    (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+                    && !empty($lesson->video_id)
+                ) ?? null;
             } else {
                 $currentLesson = $allLessons->first(fn ($lesson) => !in_array($lesson->id, $completedLessonIds))
                     ?? $allLessons->first();

@@ -322,6 +322,8 @@ Route::middleware('auth')->group(function () {
 | Phase 1: Design | ✅ Complete | [data-model.md](./data-model.md), [contracts/](./contracts/), [quickstart.md](./quickstart.md) |
 | Phase 2: Tasks | ✅ Complete | [tasks.md](./tasks.md) |
 | Phase 15: promo_url 設計修正 | ✅ Complete | promo_url 嵌入 LessonPromoBlock；條件修正；$dripSubscription 限制移除 |
+| Phase 16: per-lesson video_access_hours | ✅ Complete | video_access_hours 移至 Lesson 欄位；config 移除；Email 動態時數 |
+| Phase 17: US15 sidebar filter | ⏳ Pending | T101~T103 |
 
 ---
 
@@ -460,6 +462,74 @@ public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $
 
 ---
 
+---
+
+## 增量更新：Drip 課程教室側邊欄過濾（US15）- 2026-03-01
+
+**設計決策**：Drip 課程的唯一目的是建立信任感並吸引轉單。純文字 Lesson 是 Email 加溫內容，不應出現在教室章節清單。顯示完整序列（含「X 天後解鎖」）會讓訂閱者提前看清漏斗全貌，消除購買動機。
+
+**新規則**：`顯示條件 = has_video AND is_unlocked`（drip 課程側邊欄專屬）
+
+### 檔案變更（US15）
+
+```text
+app/Http/Controllers/Member/ClassroomController.php  # MODIFY: sidebar 雙重過濾 + 預設 currentLesson 選擇
+resources/js/Pages/Member/Classroom.vue              # MODIFY: 空狀態提示（無任何可顯示的影片課）
+```
+
+### 關鍵實作細節
+
+**ClassroomController 修改（chapters + standaloneLessons sidebar 過濾）**：
+
+```php
+// 原有過濾：drip 課程移除 locked lessons
+// 新增過濾：drip 課程額外移除無影片的 lessons
+->filter(fn ($lesson) =>
+    (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+    && (!$isDrip || !empty($lesson->video_id))  // NEW: drip 課程過濾純文字
+)
+```
+
+此規則在 `chapters` 的 lessons filter 和 `standaloneLessons` filter 均需套用。
+
+**ClassroomController 修改（預設 currentLesson 選擇邏輯）**：
+
+```php
+if ($isDrip) {
+    $currentLesson = $allLessons->first(fn ($lesson) =>
+        (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+        && !empty($lesson->video_id)                          // NEW: 優先選有影片的
+        && !in_array($lesson->id, $completedLessonIds)
+    ) ?? $allLessons->first(fn ($lesson) =>
+        (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
+        && !empty($lesson->video_id)                          // NEW: fallback 也要有影片
+    ) ?? null;                                                // 若無任何有影片的已解鎖 lesson
+}
+```
+
+**⚠️ 重要邊界**：
+- 側邊欄過濾不影響直接訪問。訂閱者透過 Email 連結（`?lesson_id=X`）仍可訪問純文字 Lesson 的內容；存取控制邏輯不變，只有側邊欄清單被過濾
+- `currentLesson` 若由 `$requestedLessonId` 指定（Email 連結），純文字 Lesson 也可作為 `currentLesson` 正常顯示
+- 此規則**僅適用 drip 課程**。Standard 課程完全不受影響
+
+**Classroom.vue 空狀態提示**（當 drip 課程無任何可顯示的影片課時）：
+
+```vue
+<!-- drip 課程，側邊欄為空時 -->
+<p v-if="course.is_drip && chapters.length === 0 && standaloneLessons.length === 0"
+   class="text-sm text-gray-500 p-4">
+  你的課程正在準備中，請留意 Email 通知。
+</p>
+```
+
+### 影響範圍
+
+- **US6**（在教室中觀看連鎖課程）：側邊欄顯示邏輯改變，不再顯示純文字或未解鎖課程
+- **US15**（新增）：完整實作上述過濾規則
+- 不影響 Email 發送邏輯、存取控制、promo block、video access notice 等其他功能
+
+---
+
 ## Next Steps
 
-1. Run `/speckit.tasks` 產生 Phase 15（promo_url 修正）及 Phase 16（per-lesson video_access_hours）的 task 清單
+1. Run `/speckit.tasks` 產生 Phase 17（US15 sidebar filter）的 task 清單

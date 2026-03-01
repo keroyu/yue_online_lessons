@@ -9,6 +9,7 @@
 **Updated**: 2026-03-01 - 修正 US14 promo_url 設計：Email 不應包含任何促銷按鈕，promo_url 用途改為「教室促銷點擊追蹤」（auth session 識別訂閱者，無需 signed URL）；Email 點擊追蹤整體移除（開信率 + 課程進度已足夠）；相關 FR/US/統計定義同步更新
 **Updated**: 2026-03-01 - 影片免費觀看時數改為 per-lesson 設定（`video_access_hours`，nullable 整數）：null 表示無限期觀看（不顯示任何倒數計時 UI），有填寫則啟用限時觀看與倒數計時；移除全站統一 config 設定；FR-035~FR-042 及 US11 相關前提條件同步更新
 **Updated**: 2026-03-01 - 修正 promo_url 實作位置：promo_url 按鈕嵌入 LessonPromoBlock 促銷區塊內（非旁邊），與 promo_html 同受 promo_delay_seconds 延遲計時控制；FR-029 顯示條件改為「promo_html 與 promo_url 均為空才不顯示」；FR-064 更新位置描述；promo_url 對所有有存取權用戶顯示（不限 drip 訂閱者）
+**Updated**: 2026-03-01 - 新增 Drip 課程教室側邊欄過濾規則（US15）：Drip 課程側邊欄只顯示「有影片且已解鎖」的 Lesson；純文字 Lesson 永遠不出現（Email 加溫內容不屬於教室）；未解鎖 Lesson 完全不露出（無倒數無鎖頭）；FR-010 修正為僅適用 standard 課程；新增 FR-072～FR-074
 
 ## Clarifications
 
@@ -305,6 +306,24 @@
 
 ---
 
+### User Story 15 - Drip 課程訂閱者在教室只看到有影片的已解鎖課程 (Priority: P1)
+
+Drip 課程的教室側邊欄只顯示「有影片且已解鎖」的 Lesson，讓訂閱者感受到的是一個精心準備的影片課程，而非一堆 Email 文字的堆疊。純文字 Lesson 只活在 Email 裡，訂閱者無法從教室側邊欄感知到連鎖序列的全貌，維持黑盒子效果，保持好奇心與購買動機。
+
+**Why this priority**: Drip 課程的核心目的是建立信任感並吸引轉單，不是提供完整教育課程。若在教室大綱顯示「X 天後解鎖」的純文字章節，訂閱者可提前看清整個漏斗序列（幾封信、幾天後全部到），消除購買動機，變成「免費索取機器」。此設計維持行銷漏斗的神秘感與緊迫性。
+
+**Independent Test**: 建立一個 drip 課程，同時包含純文字 Lesson 和有影片 Lesson，訂閱後進入教室，確認側邊欄只顯示有影片的已解鎖 Lesson；converted 後全解鎖，仍確認側邊欄不顯示任何純文字 Lesson。
+
+**Acceptance Scenarios**:
+
+1. **Given** Drip 課程有 5 個 Lesson（3 個純文字、2 個有影片），訂閱第 1 天，**When** 進入教室，**Then** 側邊欄只顯示已解鎖的有影片 Lesson，純文字 Lesson 完全不出現
+2. **Given** Drip 課程側邊欄，**When** 存在未解鎖的有影片 Lesson，**Then** 該 Lesson 也不出現（無倒數、無鎖頭、不存在）
+3. **Given** 訂閱者狀態為 converted（全解鎖），**When** 進入教室，**Then** 所有有影片的 Lesson 都可見，但純文字 Lesson 仍然不出現
+4. **Given** Drip 課程中所有 Lesson 均為純文字（無影片），**When** 訂閱者進入教室，**Then** 側邊欄為空，顯示空狀態提示
+5. **Given** Standard 課程（非 drip），**When** 進入教室，**Then** 不受此過濾規則影響，行為與原本相同
+
+---
+
 ### User Story 14 - 管理員設定 Lesson 促銷連結（教室追蹤）(Priority: P2)
 
 管理員在後台編輯 Lesson 時，在「促銷區塊設定」區域看到一個「促銷連結 URL（教室追蹤）」輸入欄（promo_url）。設定後，教室頁面的促銷區塊（LessonPromoBlock）內會出現一個可追蹤按鈕（與 promo_html 同受延遲計時控制），有存取權的用戶在教室點擊後系統記錄事件並導向目標 URL。
@@ -353,6 +372,9 @@
 - **promo_url 含特殊字元**：URL 含 & 或 ? 等字元 → 系統 URL encode 後安全嵌入 redirect 參數
 - **Lesson 無 promo_url 時的統計**：該 Lesson 的點擊欄顯示「—」（不適用），不計入分母
 - **未登入訂閱者點擊教室促銷按鈕**：此情況不會發生（教室頁面需登入才能進入）
+- **Drip 課程側邊欄為空**：課程所有 Lesson 均為純文字（無影片），或所有有影片的 Lesson 尚未解鎖 → 側邊欄顯示空狀態，不顯示任何項目
+- **converted 全解鎖後純文字 Lesson**：訂閱者轉換後獲得全部解鎖，側邊欄仍不顯示任何純文字 Lesson（過濾規則不因解鎖狀態改變）
+- **直接連結進入純文字 Lesson**：訂閱者透過 Email 連結直接訪問純文字 Lesson URL → 仍可正常顯示內容（直接訪問不受側邊欄過濾影響，存取控制邏輯不變）
 
 ## Requirements *(mandatory)*
 
@@ -377,7 +399,7 @@
 - **FR-009**: 系統 MUST 防止已退訂使用者再次訂閱同一課程
 
 **教室頁面**
-- **FR-010**: 教室頁面 MUST 對未解鎖 Lesson 顯示「X 天後解鎖」倒數，且標題 MUST 隱藏為「******」
+- **FR-010**: 教室頁面（standard 課程）MUST 對未解鎖 Lesson 顯示「X 天後解鎖」倒數，且標題 MUST 隱藏為「******」；Drip 課程適用 FR-072～FR-074
 - **FR-011**: 系統 MUST 阻止使用者存取未解鎖的 Lesson 內容
 
 **Email 發送**
@@ -458,6 +480,11 @@
 - **FR-069**: 點擊率定義：去重在教室點擊 promo_url 按鈕人數 / 總訂閱者數；若該 Lesson 無 promo_url，點擊欄顯示「—」不計算比率
 - **FR-070**: 訂閱者清單每行 MUST 顯示該訂閱者的開信數（已開 N 封 / 已收 M 封）
 - **FR-071**: 訂閱者清單每行 MUST 顯示該訂閱者是否曾在教室點擊任一 promo_url 按鈕（布林值，✓/—）
+
+**Drip 課程教室側邊欄過濾（US15）**
+- **FR-072**: Drip 課程教室側邊欄 MUST 只顯示同時滿足以下兩個條件的 Lesson：(1) 有影片（`video_id IS NOT NULL`）；(2) 已解鎖（自然解鎖或 converted 全解鎖均可）。管理員預覽模式豁免此過濾規則，admin 可見所有 Lesson（含純文字、未解鎖），以利內容管理檢查。當 drip 課程無任何可顯示的影片已解鎖 Lesson 時，`currentLesson` 為 null，教室主內容區 MUST 顯示空白歡迎狀態（非錯誤頁面）
+- **FR-073**: 未解鎖的 Lesson MUST NOT 出現在 drip 課程側邊欄中，不得顯示任何佔位元素（無「X 天後解鎖」倒數、無鎖頭圖示、無隱藏標題）
+- **FR-074**: 純文字 Lesson（`video_id` 為空）MUST NOT 出現在 drip 課程側邊欄，無論其解鎖狀態或訂閱者狀態（包含 converted 全解鎖後）；純文字 Lesson 僅透過 Email 傳遞，不出現於教室章節清單
 
 ### Key Entities
 
@@ -613,3 +640,11 @@
   - 即時計算（查詢時運算），不預先快取
   - 訂閱者規模通常在千級內，即時計算效能可接受
   - 分母為 0 時統計欄位顯示「—」，不計算比率
+
+- **Drip 課程教室定位（行銷漏斗，非教育平台）**：
+  - Drip 課程的唯一目的是建立信任感並吸引轉單，不是提供完整教育內容
+  - 純文字 Lesson 是 Email 加溫內容，其自然媒介是 Email，不應出現在教室章節清單
+  - 若在教室顯示「X 天後解鎖」序列，訂閱者可提前看清整個漏斗（幾封信、幾天），消除購買動機
+  - **側邊欄只顯示「有影片且已解鎖」的 Lesson**：教室是影片課的容器，也是轉換機制（promo block）的觸發場所
+  - 此設計維持漏斗黑盒子效果：訂閱者不知道還有多少封信、什麼時候到，每封 Email 都是驚喜
+  - 純文字 Lesson 透過 Email 仍完整傳遞，訂閱者直接訪問 Lesson URL 也不受影響（存取控制邏輯不變）

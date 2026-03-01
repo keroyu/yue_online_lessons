@@ -351,6 +351,18 @@
 
 ---
 
+## Phase 17: US15 (Drip 課程教室側邊欄過濾)
+
+**Story Goal**: Drip 課程教室側邊欄只顯示「有影片且已解鎖」的 Lesson。純文字 Lesson 永遠不出現（包含 converted 全解鎖後）；未解鎖 Lesson 完全不露出（無倒數、無鎖頭）。
+
+**Independent Test**: 建立 drip 課程含 2 個純文字 Lesson（已解鎖）+ 2 個有影片 Lesson（1 已解鎖、1 未解鎖）→ 進教室 → 側邊欄只顯示 1 個有影片已解鎖的 Lesson → 模擬 converted → 側邊欄顯示 2 個有影片 Lesson，純文字仍不出現。
+
+- [x] T101 [US15] Modify `ClassroomController@show`: (1) in chapters filter add `&& (!$isDrip || !empty($lesson->video_id))` to the existing unlocked filter condition; (2) apply same condition to standaloneLessons filter; (3) update drip `currentLesson` default selection to add `&& !empty($lesson->video_id)` to both first-uncompleted and fallback queries; (4) **admin exemption**: wrap the video filter condition with `&& (!$isDrip || $isAdmin || !empty($lesson->video_id))` so admin preview shows all lessons including text-only; (5) direct `?lesson_id=X` access unchanged — pure text lesson still displayable when accessed via email link in `app/Http/Controllers/Member/ClassroomController.php`
+- [x] T102 [P] [US15] Modify `Classroom.vue`: (1) add sidebar empty-state message for drip courses when no visible lessons — `v-if="course.is_drip && chapters.length === 0 && standaloneLessons.length === 0"` displays `<p class="text-sm text-gray-500 p-4">你的課程正在準備中，請留意 Email 通知。</p>` in the sidebar lesson list area; (2) add main content area null guard — when `currentLesson` is null AND `course.is_drip`, show a welcome/empty state in the main panel (e.g. `<p>訂閱成功！第一堂課程即將發送至您的信箱，請留意 Email 通知。</p>`) instead of a blank or broken layout in `resources/js/Pages/Member/Classroom.vue`
+- [ ] T103 Verify US15 sidebar filtering: (1) drip course with mixed lessons (text-only + video) → subscribe → confirm sidebar shows only unlocked video lessons; (2) force converted status (update DB) → confirm all video lessons visible, text-only still absent; (3) navigate via `?lesson_id=X` to a text-only lesson → confirm content renders normally despite not being in sidebar; (4) standard course → confirm sidebar behaviour unchanged (all lessons including text-only shown)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -371,6 +383,7 @@
 - **Polish (Phase 12)**: Depends on all phases complete
 - **Phase 15 (promo_url 修正)**: Depends on Phase 14 (T069-T074 舊版實作需修正)
 - **Phase 16 (video_access_hours)**: Depends on Phase 11 (DripService + VideoAccessNotice) + Phase 15 (Email 模板已修正)
+- **Phase 17 (US15 sidebar filter)**: Depends on Phase 4 (ClassroomController drip unlock logic exists)
 
 ### User Story Dependencies
 
@@ -385,6 +398,7 @@
 - **US12~US14 (P2)**: After US1 + US7 → needs email job + subscriber list
 - **US5 (P3)**: After US1 → uses subscription + email
 - **US7 (P3)**: After Phase 2 → independent (read-only)
+- **US15 (P1)**: After Phase 4 (US6 ClassroomController) → no other story dependencies
 
 ### Parallel Opportunities
 
