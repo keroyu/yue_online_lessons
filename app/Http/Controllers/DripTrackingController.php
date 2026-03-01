@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DripEmailEvent;
+use App\Models\DripSubscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -50,30 +51,36 @@ class DripTrackingController extends Controller
     public function click(Request $request): RedirectResponse
     {
         $targetUrl = $request->query('url', '/');
+        $lessonId = $request->integer('les');
 
-        if ($request->hasValidSignature()) {
-            $subId = $request->integer('sub');
-            $lesId = $request->integer('les');
+        // Auth middleware guarantees a logged-in user; use session to identify subscriber.
+        $user = $request->user();
+        if ($user && $lessonId) {
+            $subscription = DripSubscription::where('user_id', $user->id)
+                ->whereHas('course.lessons', fn ($q) => $q->where('lessons.id', $lessonId))
+                ->first();
 
-            try {
-                DripEmailEvent::firstOrCreate(
-                    [
-                        'subscription_id' => $subId,
-                        'lesson_id' => $lesId,
-                        'event_type' => 'clicked',
-                    ],
-                    [
-                        'target_url' => $targetUrl,
-                        'ip' => $request->ip(),
-                        'user_agent' => $request->userAgent(),
-                    ]
-                );
-            } catch (\Exception $e) {
-                Log::warning('Drip tracking click failed', [
-                    'sub' => $subId,
-                    'les' => $lesId,
-                    'error' => $e->getMessage(),
-                ]);
+            if ($subscription) {
+                try {
+                    DripEmailEvent::firstOrCreate(
+                        [
+                            'subscription_id' => $subscription->id,
+                            'lesson_id' => $lessonId,
+                            'event_type' => 'clicked',
+                        ],
+                        [
+                            'target_url' => $targetUrl,
+                            'ip' => $request->ip(),
+                            'user_agent' => $request->userAgent(),
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    Log::warning('Drip tracking click failed', [
+                        'subscription_id' => $subscription->id,
+                        'lesson_id' => $lessonId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 

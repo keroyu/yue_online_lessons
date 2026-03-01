@@ -28,9 +28,13 @@ Route::prefix('drip')->name('drip.')->group(function () {
     Route::post('/unsubscribe/{token}', [DripSubscriptionController::class, 'unsubscribe'])->name('unsubscribe');
 });
 
-// Drip email tracking routes (public, no auth required)
+// Drip email tracking routes
+// open: public (email pixel has no session)
 Route::get('/drip/track/open', [DripTrackingController::class, 'open'])->name('drip.track.open');
-Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click');
+// click: requires auth (classroom tracking uses auth session to identify subscriber)
+Route::middleware('auth')->group(function () {
+    Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click');
+});
 
 // Auth routes (Guest only)
 Route::middleware('guest')->group(function () {

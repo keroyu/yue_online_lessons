@@ -290,6 +290,12 @@ const toggleSidebar = () => {
           @select-lesson="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />
+        <p
+          v-if="course.is_drip && localChapters.length === 0 && localStandaloneLessons.length === 0"
+          class="text-sm text-gray-500 p-4"
+        >
+          你的課程正在準備中，請留意 Email 通知。
+        </p>
       </aside>
 
       <!-- Sidebar - Mobile Overlay -->
@@ -326,6 +332,12 @@ const toggleSidebar = () => {
               @select-lesson="handleSelectLesson"
               @toggle-complete="handleToggleComplete"
             />
+            <p
+              v-if="course.is_drip && localChapters.length === 0 && localStandaloneLessons.length === 0"
+              class="text-sm text-gray-500 p-4"
+            >
+              你的課程正在準備中，請留意 Email 通知。
+            </p>
           </div>
         </aside>
       </div>
@@ -343,6 +355,18 @@ const toggleSidebar = () => {
             </svg>
             <h2 class="text-xl font-semibold text-gray-900 mb-2">課程內容準備中</h2>
             <p class="text-gray-500">講師正在努力製作課程內容，敬請期待！</p>
+          </div>
+
+          <!-- Drip course: no unlocked video lessons yet -->
+          <div
+            v-else-if="course.is_drip && !selectedLesson"
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">訂閱成功！</h2>
+            <p class="text-gray-500">第一堂課程即將發送至您的信箱，請留意 Email 通知。</p>
           </div>
 
           <!-- Lesson content -->
@@ -367,6 +391,7 @@ const toggleSidebar = () => {
               <VideoAccessNotice
                 v-if="course.is_drip
                   && selectedLesson?.video_id
+                  && selectedLesson.video_access_hours !== null
                   && dripSubscription?.status !== 'converted'
                   && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
                 :key="'video-access-' + selectedLesson.id"
@@ -378,13 +403,14 @@ const toggleSidebar = () => {
                 :lesson-id="selectedLesson.id"
               />
 
-              <!-- Promo Block -->
+              <!-- Promo Block (promo_html + promo_url button, both controlled by delay timer) -->
               <LessonPromoBlock
-                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && (selectedLesson.promo_html || selectedLesson.promo_url)"
                 :key="selectedLesson.id"
                 :lesson-id="selectedLesson.id"
                 :delay-seconds="selectedLesson.promo_delay_seconds"
                 :promo-html="selectedLesson.promo_html"
+                :promo-url="selectedLesson.promo_url"
               />
 
               <!-- HTML Content -->
@@ -400,13 +426,14 @@ const toggleSidebar = () => {
                 <HtmlContent :content="selectedLesson.md_content" />
               </div>
 
-              <!-- Promo Block -->
+              <!-- Promo Block (promo_html + promo_url button, both controlled by delay timer) -->
               <LessonPromoBlock
-                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && selectedLesson.promo_html"
+                v-if="selectedLesson.promo_delay_seconds !== null && selectedLesson.promo_delay_seconds !== undefined && (selectedLesson.promo_html || selectedLesson.promo_url)"
                 :key="selectedLesson.id"
                 :lesson-id="selectedLesson.id"
                 :delay-seconds="selectedLesson.promo_delay_seconds"
                 :promo-html="selectedLesson.promo_html"
+                :promo-url="selectedLesson.promo_url"
               />
             </template>
 

@@ -222,7 +222,7 @@ Documented in [research.md](./research.md):
 3. **Image Storage**: Laravel Storage (local, expandable to S3)
 4. **Status Scheduler**: Laravel Task Scheduling (every minute)
 5. **Admin Auth**: Custom middleware checking `role === 'admin'`
-6. **HTML Content**: No sanitization (admin trusted)
+6. **Markdown Content**: Rendered via marked.js (frontend), stored as Markdown in `description_html` / `html_content` columns (admin trusted, no sanitization)
 7. **Countdown Timer**: Frontend Vue computed (every second)
 8. **Image Gallery Modal**: Vue 3 Teleport
 9. **Legal Policy Modal**: Static Vue components

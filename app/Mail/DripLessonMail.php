@@ -20,7 +20,7 @@ class DripLessonMail extends Mailable
         public string $unsubscribeUrl,
         public string $courseName,
         public string $openPixelUrl = '',
-        public ?string $promoTrackUrl = null,
+        public ?int $videoAccessHours = null,
     ) {}
 
     public function envelope(): Envelope

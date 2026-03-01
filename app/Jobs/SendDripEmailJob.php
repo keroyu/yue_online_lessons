@@ -73,20 +73,11 @@ class SendDripEmailJob implements ShouldQueue
             ? $this->stripStylesForEmail($converter->convert($rawMd)->getContent())
             : '';
 
-        // Generate signed tracking URLs (180-day expiry)
+        // Generate open-tracking pixel URL (signed, 180-day expiry)
         $openPixelUrl = URL::signedRoute('drip.track.open', [
             'sub' => $subscription->id,
             'les' => $lesson->id,
         ], now()->addDays(180));
-
-        $promoTrackUrl = null;
-        if (!empty($lesson->promo_url)) {
-            $promoTrackUrl = URL::signedRoute('drip.track.click', [
-                'sub' => $subscription->id,
-                'les' => $lesson->id,
-                'url' => $lesson->promo_url,
-            ], now()->addDays(180));
-        }
 
         try {
             Mail::to($user->email)->send(new DripLessonMail(
@@ -97,7 +88,7 @@ class SendDripEmailJob implements ShouldQueue
                 unsubscribeUrl: $unsubscribeUrl,
                 courseName: $course->name,
                 openPixelUrl: $openPixelUrl,
-                promoTrackUrl: $promoTrackUrl,
+                videoAccessHours: $lesson->video_access_hours,
             ));
 
             Log::info('Drip email sent', [

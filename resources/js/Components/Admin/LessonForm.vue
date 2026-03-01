@@ -23,6 +23,7 @@ const form = ref({
   promo_html: '',
   promo_url: '',
   reward_html: '',
+  video_access_hours: '',
 })
 
 const errors = ref({})
@@ -50,6 +51,7 @@ onMounted(() => {
       promo_html: props.lesson.promo_html || '',
       promo_url: props.lesson.promo_url || '',
       reward_html: props.lesson.reward_html || '',
+      video_access_hours: props.lesson.video_access_hours ?? '',
     }
   }
 })
@@ -93,6 +95,7 @@ const submit = () => {
     promo_html: form.value.promo_html || null,
     promo_url: form.value.promo_url || null,
     reward_html: form.value.reward_html || null,
+    video_access_hours: form.value.video_access_hours !== '' ? parseInt(form.value.video_access_hours) : null,
   })
 }
 
@@ -210,16 +213,30 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <p class="text-xs text-gray-500 mb-4">
                   設定後，在免費觀看期倒數旁顯示獎勵欄。停留達全站設定時間後顯示以下 HTML 內容。
                 </p>
-                <div>
-                  <label for="reward_html" :class="labelClasses">獎勵內容（HTML）</label>
-                  <textarea
-                    id="reward_html"
-                    v-model="form.reward_html"
-                    rows="4"
-                    placeholder="<div>送你優惠代碼 XXXXX</div>"
-                    class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
-                  />
-                  <p :class="helpTextClasses">留空則不顯示獎勵欄</p>
+                <div class="space-y-4">
+                  <div>
+                    <label for="video_access_hours" :class="labelClasses">影片觀看期限（小時）</label>
+                    <input
+                      id="video_access_hours"
+                      v-model="form.video_access_hours"
+                      type="number"
+                      min="1"
+                      :class="inputClasses"
+                      placeholder="留空表示無限期觀看"
+                    />
+                    <p :class="helpTextClasses">drip 課程有影片的 Lesson 專用。設定後啟用倒數計時與準時到課獎勵欄。</p>
+                  </div>
+                  <div>
+                    <label for="reward_html" :class="labelClasses">獎勵內容（HTML）</label>
+                    <textarea
+                      id="reward_html"
+                      v-model="form.reward_html"
+                      rows="4"
+                      placeholder="<div>送你優惠代碼 XXXXX</div>"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                    />
+                    <p :class="helpTextClasses">留空則不顯示獎勵欄</p>
+                  </div>
                 </div>
               </div>
 
@@ -282,7 +299,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   </div>
 
                   <div>
-                    <label for="promo_url" :class="labelClasses">商品連結 URL（Email 追蹤）</label>
+                    <label for="promo_url" :class="labelClasses">促銷連結 URL（教室追蹤）</label>
                     <input
                       id="promo_url"
                       v-model="form.promo_url"
@@ -290,7 +307,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                       :class="inputClasses"
                       placeholder="https://example.com/product/..."
                     />
-                    <p :class="helpTextClasses">設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕。留空則不顯示。</p>
+                    <p :class="helpTextClasses">設定後，教室頁面的促銷區塊旁顯示可追蹤點擊的按鈕，追蹤訂閱者在教室的促銷互動。留空則不顯示。</p>
                   </div>
                 </div>
               </div>

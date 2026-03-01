@@ -325,14 +325,16 @@
     // Promo block (NEW)
     promo_delay_seconds: number | null;
     promo_html: string | null;
+    promo_url: string | null;  // 已包裝為 /drip/track/click?les=X&url=... 追蹤 URL
   };
 }
 ```
 
-**Frontend Behavior** (in `Classroom.vue`):
-- `promo_delay_seconds = null` 或 `promo_html` 為空 → 不顯示促銷區塊
-- `promo_delay_seconds = 0` → 立即顯示 `promo_html`
-- `promo_delay_seconds > 0` → 顯示倒數計時，達標後顯示 `promo_html`
+**Frontend Behavior** (in `LessonPromoBlock.vue` via `Classroom.vue`):
+- `promo_delay_seconds = null` 或 `promo_html` 與 `promo_url` 均為空 → 不顯示促銷區塊
+- `promo_delay_seconds = 0` → 立即顯示促銷內容（`promo_html` + `promo_url` 按鈕，若有設定）
+- `promo_delay_seconds > 0` → 顯示倒數計時，達標後顯示促銷內容
+- `promo_url` 按鈕與 `promo_html` 同在 LessonPromoBlock 內，同受延遲計時控制；對所有有存取權用戶顯示
 - 達標狀態存於 localStorage（key: `promo_unlocked_lesson_{lesson_id}`），永久有效
 
 ---
@@ -472,17 +474,14 @@ Content-Type: image/gif
 
 ### GET /drip/track/click
 
-**Description**: 點擊追蹤 redirect 端點，記錄點擊事件並 redirect 到目標 URL
+**Description**: 點擊追蹤 redirect 端點，記錄教室促銷點擊事件並 redirect 到目標 URL
 
-**Auth**: None（使用 Laravel Signed URL 驗證）
+**Auth**: auth middleware（用戶必須已登入，教室頁面保證已登入）
 
-**Query Params** (由 Signed URL 自動包含):
+**Query Params**:
 ```
-sub       = {subscription_id}
-les       = {lesson_id}
-url       = {urlencode(promo_url)}
-expires   = {timestamp}
-signature = {hash}
+les = {lesson_id}
+url = {urlencode(promo_url)}
 ```
 
 **Success Response (302 redirect)**:
@@ -491,14 +490,14 @@ Location: {decoded promo_url}
 ```
 
 **Behavior**:
-1. 驗證 Signed URL 簽名
-2. 解碼 `url` 參數
-3. `DripEmailEvent::firstOrCreate(['subscription_id' => $sub, 'lesson_id' => $les, 'event_type' => 'clicked'], ['target_url' => $url, 'ip' => $ip, 'user_agent' => $ua])`
+1. 解碼 `url` 參數（缺失時 redirect 至首頁並記錄 log）
+2. 以 `auth()->user()` 查詢對應 Lesson 所在課程的 DripSubscription（無訂閱記錄時仍執行 redirect，不報錯）
+3. 若有訂閱記錄：`DripEmailEvent::firstOrCreate(['subscription_id' => $sub->id, 'lesson_id' => $les, 'event_type' => 'clicked'], ['target_url' => $url, 'ip' => $ip, 'user_agent' => $ua])`
 4. `return redirect()->away($url)`
 
-**Error Response (400)**: 簽名無效或 url 參數缺失時，重定向至首頁並記錄 log
+**Error Response (302 redirect to home)**: url 參數缺失時，重定向至首頁並記錄 log
 
-**Route**: `GET /drip/track/click` → `DripTrackingController@click`，名稱 `drip.track.click`
+**Route**: `GET /drip/track/click` → `DripTrackingController@click`，名稱 `drip.track.click`（在 auth middleware 群組內）
 
 ---
 

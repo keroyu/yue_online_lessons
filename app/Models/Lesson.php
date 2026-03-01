@@ -24,6 +24,7 @@ class Lesson extends Model
         'promo_html',
         'promo_url',
         'reward_html',
+        'video_access_hours',
         'duration_seconds',
         'sort_order',
     ];
@@ -34,6 +35,7 @@ class Lesson extends Model
             'duration_seconds' => 'integer',
             'sort_order' => 'integer',
             'promo_delay_seconds' => 'integer',
+            'video_access_hours' => 'integer',
         ];
     }
 
