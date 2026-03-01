@@ -18,6 +18,8 @@
 
 **新增功能（2026-03-01）**：Email 個人化問候語 - drip 信件主旨加入「{名字}，」前綴，信件開頭加入「Hi {名字}，」問候段落（獨立一行，與後續內容間隔一空行）。名字優先取 nickname，fallback 至 real_name；3 個中文字取後 2 字，其餘全名；無名字時略過。
 
+**設計修正（2026-03-01）**：精簡 drip 信件模板 - 移除課程/Lesson 標題行、影片提醒、免費觀看期提示、教室連結、退訂連結等系統自動產生的固定區塊。Email 結構改為「問候語（選填）＋ Lesson HTML 正文＋ tracking pixel」，所有連結由管理員在 Lesson 內容中手動維護。
+
 ## Technical Context
 
 **Language/Version**: PHP 8.2+ / Laravel 12.x
@@ -549,6 +551,39 @@ if ($isDrip) {
 - **非 3 字一律全名**：2 字（小明）、4 字（歐陽美玲）、英文（Amy）、中英混合一律取全名，避免誤截
 - **主旨格式**：`{名字}，{Lesson 標題}`；無名字時維持原格式 `{Lesson 標題}`
 - **問候語版型**：`Hi {名字}，`（無「最近好嗎」等附加語），簡潔不累贅；獨立 `<p>` 標籤，與後續課程標題行間隔一空行
+
+---
+
+## 增量更新：精簡 drip 信件模板 - 2026-03-01
+
+**背景**：現有 Email 模板包含大量系統自動產生的固定區塊（課程/Lesson 標題、影片提醒、教室連結、退訂連結），使信件看起來像系統通知而非日常對話式 Email，降低開信率與閱讀意願。
+
+**修改檔案**：
+- `resources/views/emails/drip-lesson.blade.php` - 移除課程/Lesson 標題行（`$courseName — $lessonTitle`）、影片提醒區塊（`@if($hasVideo)`）、免費觀看期提示（`$videoAccessHours`）、教室連結（`$classroomUrl`）、退訂連結（`$unsubscribeUrl`）
+
+**設計決策**：
+- **移除固定區塊**：系統自動填入的標題行和功能連結讓信件有「機器人感」；改為讓管理員完全掌控信件內文
+- **連結手動維護**：教室連結、退訂連結等改由管理員在 Lesson 的 `md_content` 中手動寫入，彈性更高，也更符合真實 Email 寫作習慣
+- **最終 Email 結構**：`問候語（Hi {名字}，，若設定）` → `Lesson HTML 正文` → `tracking pixel`（隱藏）
+
+**最終 blade 模板結構**：
+
+```blade
+@if($greetingName)
+<p>Hi {{ $greetingName }}，</p>
+@endif
+
+@if($htmlContent)
+{!! $htmlContent !!}
+@else
+<p>新的課程內容已經解鎖了，請至網站觀看。</p>
+@endif
+
+{{-- Tracking pixel (hidden) --}}
+@if($openPixelUrl)
+<img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">
+@endif
+```
 
 ## Next Steps
 

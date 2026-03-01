@@ -374,9 +374,24 @@
   - nickname 優先，fallback real_name，兩者空回傳 ''
   - 3 個中文字取後 2 字（王小明 → 小明），其餘全名
 - [x] T105 [P] [US1] Modify `DripLessonMail`: add `public string $greetingName = ''` constructor parameter; update `envelope()` to build subject as `"{$this->greetingName}，{$this->lessonTitle}"` when greetingName non-empty, else keep `$this->lessonTitle` in `app/Mail/DripLessonMail.php`
-- [x] T106 [P] [US1] Modify `drip-lesson.blade.php`: add `@if($greetingName)<p>Hi {{ $greetingName }}，</p>@endif` as first element inside `<body>`, followed by a blank line before the course/lesson title `<p>` in `resources/views/emails/drip-lesson.blade.php`
+- [x] T106 [P] [US1] Modify `drip-lesson.blade.php`: add `@if($greetingName)<p>Hi {{ $greetingName }}，</p>@endif` as first element inside `<body>` in `resources/views/emails/drip-lesson.blade.php`
+  > ⚠️ **Phase 19 後續修正**：課程/Lesson 標題行已於 T107 移除，問候語後直接接 Lesson HTML 正文
 
 **Checkpoint**: 有暱稱訂閱者收到的信件主旨含名字前綴，信件正文開頭顯示個人化問候（獨立段落），無名字訂閱者行為不變 ✅
+
+---
+
+## Phase 19: 精簡 drip 信件模板 (2026-03-01 新增)
+
+**Purpose**: 移除 Email 中系統自動產生的固定區塊，讓信件更像日常對話式 Email。
+
+**背景**：原模板自動填入課程名、Lesson 標題、影片提醒、教室連結、退訂連結，視覺上像系統通知。改為純內容輸出，所有連結由管理員手動在 Lesson 內容中維護。
+
+- [x] T107 [US1] Simplify `drip-lesson.blade.php`: remove course/lesson title line (`$courseName — $lessonTitle`), video reminder block (`@if($hasVideo)…@endif`), video access hours hint (`$videoAccessHours`), classroom URL line (`$classroomUrl`), unsubscribe URL line (`$unsubscribeUrl`) in `resources/views/emails/drip-lesson.blade.php`
+  - 最終結構：問候語（@if greetingName）→ htmlContent → tracking pixel
+  - `$classroomUrl`、`$unsubscribeUrl` 等變數仍由 Mail class 傳入（`DripLessonMail`），但模板不再渲染
+
+**Checkpoint**: 發出的 drip 信件不含任何系統自動產生的標題行或功能連結，僅顯示問候語（若設定）與 Lesson 正文 ✅
 
 ---
 
