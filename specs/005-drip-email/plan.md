@@ -141,7 +141,7 @@ resources/
 │       │       ├── Edit.vue                # MODIFY: 加入連鎖課程設定區塊
 │       │       └── Subscribers.vue         # NEW/MODIFY: 訂閱者清單 + Lesson 統計表
 │       ├── Course/
-│       │   └── Show.vue                    # MODIFY: 顯示訂閱按鈕/表單
+│       │   └── Show.vue                    # MODIFY: 顯示訂閱按鈕/表單；onMounted 偵測 flash.drip_subscribed 後 scrollIntoView 至訂閱區塊
 │       ├── Drip/
 │       │   └── Unsubscribe.vue             # NEW: 退訂確認頁面
 │       └── Member/
