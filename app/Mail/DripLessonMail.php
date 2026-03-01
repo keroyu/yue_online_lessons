@@ -21,12 +21,17 @@ class DripLessonMail extends Mailable
         public string $courseName,
         public string $openPixelUrl = '',
         public ?int $videoAccessHours = null,
+        public string $greetingName = '',
     ) {}
 
     public function envelope(): Envelope
     {
+        $subject = $this->greetingName
+            ? "{$this->greetingName}，{$this->lessonTitle}"
+            : $this->lessonTitle;
+
         return new Envelope(
-            subject: $this->lessonTitle,
+            subject: $subject,
         );
     }
 

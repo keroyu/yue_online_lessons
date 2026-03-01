@@ -89,6 +89,7 @@ class SendDripEmailJob implements ShouldQueue
                 courseName: $course->name,
                 openPixelUrl: $openPixelUrl,
                 videoAccessHours: $lesson->video_access_hours,
+                greetingName: $this->resolveGreetingName($user),
             ));
 
             Log::info('Drip email sent', [
@@ -104,6 +105,25 @@ class SendDripEmailJob implements ShouldQueue
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Resolve the greeting name from the user's nickname or real_name.
+     * If exactly 3 Chinese characters, returns the last 2 (e.g., 王小明 → 小明).
+     * Otherwise returns the full name. Returns empty string if no name is set.
+     */
+    private function resolveGreetingName(User $user): string
+    {
+        $name = $user->nickname ?: $user->real_name ?: '';
+        if (!$name) {
+            return '';
+        }
+
+        if (mb_strlen($name) === 3 && preg_match('/^[\x{4e00}-\x{9fff}]+$/u', $name)) {
+            return mb_substr($name, 1);
+        }
+
+        return $name;
     }
 
     /**

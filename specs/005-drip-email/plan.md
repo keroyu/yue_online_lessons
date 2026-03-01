@@ -16,6 +16,8 @@
 
 **設計修正（2026-03-01）**：promo_url 用途修正 - 從「drip Email 按鈕追蹤」改為「教室促銷點擊追蹤」。Email 不包含促銷按鈕；教室頁面以 auth session 識別訂閱者，無需 signed URL。
 
+**新增功能（2026-03-01）**：Email 個人化問候語 - drip 信件主旨加入「{名字}，」前綴，信件開頭加入「Hi {名字}，」問候段落（獨立一行，與後續內容間隔一空行）。名字優先取 nickname，fallback 至 real_name；3 個中文字取後 2 字，其餘全名；無名字時略過。
+
 ## Technical Context
 
 **Language/Version**: PHP 8.2+ / Laravel 12.x
@@ -529,6 +531,24 @@ if ($isDrip) {
 - 不影響 Email 發送邏輯、存取控制、promo block、video access notice 等其他功能
 
 ---
+
+---
+
+## 增量更新：Email 個人化問候語 - 2026-03-01
+
+**背景**：drip 信件缺乏個人化，對所有訂閱者發送完全相同的信件。加入收件者姓名於主旨與信件開頭，提升親切感與開信率。
+
+**修改檔案**：
+- `app/Jobs/SendDripEmailJob.php` - 新增 `resolveGreetingName(User $user): string` helper，計算顯示名稱後傳入 DripLessonMail
+- `app/Mail/DripLessonMail.php` - 新增 `greetingName` 參數（`string $greetingName = ''`），`envelope()` 加入名字前綴至主旨
+- `resources/views/emails/drip-lesson.blade.php` - 正文最上方加入 `@if($greetingName)<p>Hi {{ $greetingName }}，</p>@endif`，獨立段落與後續內容間隔一空行
+
+**設計決策**：
+- **名字來源優先順序**：`nickname` → `real_name` → 空字串；nickname 是用戶自選稱呼，最親切
+- **3 字中文截取規則**：`mb_strlen($name) === 3 && preg_match('/^[\x{4e00}-\x{9fff}]+$/u', $name)` → `mb_substr($name, 1)` 取後 2 字（王小明 → 小明）
+- **非 3 字一律全名**：2 字（小明）、4 字（歐陽美玲）、英文（Amy）、中英混合一律取全名，避免誤截
+- **主旨格式**：`{名字}，{Lesson 標題}`；無名字時維持原格式 `{Lesson 標題}`
+- **問候語版型**：`Hi {名字}，`（無「最近好嗎」等附加語），簡潔不累贅；獨立 `<p>` 標籤，與後續課程標題行間隔一空行
 
 ## Next Steps
 

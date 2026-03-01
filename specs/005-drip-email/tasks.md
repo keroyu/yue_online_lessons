@@ -364,6 +364,22 @@
 
 ---
 
+## Phase 18: Email 個人化問候語 (2026-03-01 新增)
+
+**Purpose**: drip 信件主旨與正文開頭加入收件者姓名，提升親切感與開信率。
+
+**背景**：所有訂閱者收到完全相同格式的信件。加入個人化稱呼讓信件更像真人手寫，提高開信動機。
+
+- [x] T104 [US1] Add `resolveGreetingName(User $user): string` private method to `SendDripEmailJob`: priority `nickname → real_name → ''`; if exactly 3 Chinese chars (`preg_match('/^[\x{4e00}-\x{9fff}]+$/u')`) return `mb_substr($name, 1)`, else return full name; pass result as `greetingName:` to `DripLessonMail` constructor in `app/Jobs/SendDripEmailJob.php`
+  - nickname 優先，fallback real_name，兩者空回傳 ''
+  - 3 個中文字取後 2 字（王小明 → 小明），其餘全名
+- [x] T105 [P] [US1] Modify `DripLessonMail`: add `public string $greetingName = ''` constructor parameter; update `envelope()` to build subject as `"{$this->greetingName}，{$this->lessonTitle}"` when greetingName non-empty, else keep `$this->lessonTitle` in `app/Mail/DripLessonMail.php`
+- [x] T106 [P] [US1] Modify `drip-lesson.blade.php`: add `@if($greetingName)<p>Hi {{ $greetingName }}，</p>@endif` as first element inside `<body>`, followed by a blank line before the course/lesson title `<p>` in `resources/views/emails/drip-lesson.blade.php`
+
+**Checkpoint**: 有暱稱訂閱者收到的信件主旨含名字前綴，信件正文開頭顯示個人化問候（獨立段落），無名字訂閱者行為不變 ✅
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

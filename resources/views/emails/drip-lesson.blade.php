@@ -4,6 +4,9 @@
     <meta charset="utf-8">
 </head>
 <body>
+@if($greetingName)
+<p>Hi {{ $greetingName }}，</p>
+@endif
 <p><strong>{{ $courseName }}</strong> — {{ $lessonTitle }}</p>
 
 @if($hasVideo)
