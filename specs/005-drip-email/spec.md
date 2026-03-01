@@ -7,6 +7,7 @@
 **Updated**: 2026-02-21 - 新增「準時到課獎勵」區塊（US11）：免費觀看期倒數旁新增獎勵欄，停留滿指定時間後解鎖管理員自訂禮物 HTML；逾期後加入「錯過獎勵」提示
 **Updated**: 2026-02-28 - 新增 Email 追蹤分析功能（US12~US14）：Tracking Pixel 開信追蹤、URL Redirect 點擊追蹤、Lesson 統計報表（開信率/點擊率/轉換率）、訂閱者開信進度指示、促銷商品連結欄位（promo_url）
 **Updated**: 2026-03-01 - 修正 US14 promo_url 設計：Email 不應包含任何促銷按鈕，promo_url 用途改為「教室促銷點擊追蹤」（auth session 識別訂閱者，無需 signed URL）；Email 點擊追蹤整體移除（開信率 + 課程進度已足夠）；相關 FR/US/統計定義同步更新
+**Updated**: 2026-03-01 - 影片免費觀看時數改為 per-lesson 設定（`video_access_hours`，nullable 整數）：null 表示無限期觀看（不顯示任何倒數計時 UI），有填寫則啟用限時觀看與倒數計時；移除全站統一 config 設定；FR-035~FR-042 及 US11 相關前提條件同步更新
 
 ## Clarifications
 
@@ -40,10 +41,10 @@
 ### Session 2026-02-16 (影片免費觀看期限)
 
 - Q: 影片過期後的處理方式？ → A: **方案 A：倒數提醒但不鎖定**。過期後影片仍可觀看，但在影片下方顯示加強版促銷區塊（「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」+ 推薦購買目標課程連結）
-- Q: 免費觀看期設定方式？ → A: **config 檔案**（`config/drip.php`），非資料庫欄位。全站統一預設 48 小時
+- Q: 免費觀看期設定方式？ → A: ~~**config 檔案**（`config/drip.php`），非資料庫欄位。全站統一預設 48 小時~~ **（2026-03-01 更新）改為 per-lesson 設定**：Lesson 新增 `video_access_hours`（nullable 整數）欄位，null=無限期觀看不顯示任何相關 UI，有填寫則啟用倒數計時
 - Q: 已轉換使用者是否受限？ → A: **不受限**。converted 狀態的使用者不顯示過期促銷區塊
 - Q: 此功能適用範圍？ → A: **僅限 drip 課程**。standard 課程不受影響
-- Q: Drip 信件是否提及免費觀看期？ → A: **是**。有影片的 Lesson 信件加入「影片 48 小時內免費觀看，把握時間！」提示，強化緊迫感
+- Q: Drip 信件是否提及免費觀看期？ → A: **有條件是**。僅在 Lesson 設定了 `video_access_hours` 時，信件才加入「影片 {X} 小時內免費觀看，把握時間！」提示；未設定（null）則不顯示此提示，僅顯示影片入口文字
 - Q: 免費觀看倒數顯示在哪裡？ → A: **僅在 Lesson 內容區域**。側邊欄不顯示倒數，保持簡潔
 
 ### Session 2026-02-28 (Email 追蹤分析)
@@ -58,6 +59,12 @@
 - Q: promo_url 原本設計為 Email 按鈕，這樣對嗎？ → A: **不對**。促銷區塊只出現在網站教室，Email 只發送課程內容；promo_url 改為「教室促銷點擊追蹤」專用欄位
 - Q: 教室追蹤如何識別是哪個訂閱者點擊？ → A: **使用 auth session**。訂閱者在教室必定已登入，直接從 auth user 查對應的 DripSubscription，不需要 signed URL
 - Q: Email 完全不追蹤點擊，那點擊率統計還有意義嗎？ → A: **有意義，語義改變**。「點擊率」從「Email 促銷按鈕點擊」改為「教室促銷按鈕點擊」，代表訂閱者主動在教室點擊促銷連結的比例
+
+### Session 2026-03-01 (per-lesson 影片觀看期限)
+
+- Q: 影片免費觀看期限應該是全站統一還是個別 Lesson 設定？ → A: **個別 Lesson 設定**。每個 Lesson 可填寫 `video_access_hours`（正整數），未填寫（null）表示無限期觀看，不顯示任何倒數計時 UI 和獎勵欄；有填寫則啟用限時觀看、倒數計時，以及準時到課獎勵欄（若另有設定 `reward_html`）。
+- Q: Email 中的觀看期限提示如何處理？ → A: **改為動態時數**。信件讀取 Lesson 的 `video_access_hours` 值，僅在不為 null 時加入「影片 {X} 小時內免費觀看，把握時間！」提示；null 時不顯示此行。
+- Q: 準時到課獎勵的顯示前提隨之改變嗎？ → A: **是**。獎勵欄前提條件改為「Lesson 有設定 `video_access_hours`（啟用限時觀看）且仍在免費觀看期內」；若 Lesson 未設定 `video_access_hours`，則沒有倒數計時，也沒有獎勵欄，兩者前提一致。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -224,20 +231,21 @@
 
 ### User Story 10 - Drip 課程影片免費觀看期限提醒 (Priority: P2)
 
-訂閱者在 Lesson 解鎖後有一段免費觀看期（預設 48 小時，由 config 設定）。在免費觀看期內，Lesson 正常顯示影片和內容。過期後影片**仍可觀看**，但在影片下方顯示加強版促銷區塊，推薦購買目標課程。此機制透過軟性提醒製造緊迫感，而非限制存取，以避免負面觀感。
+管理員可為每個 Lesson 個別設定影片免費觀看時數（`video_access_hours`，正整數，null 表示不設定）。設定後，訂閱者從 Lesson 解鎖起算至指定時數內為免費觀看期，教室顯示倒數計時。過期後影片**仍可觀看**，但在影片下方顯示加強版促銷區塊，推薦購買目標課程。未設定 `video_access_hours` 的 Lesson 無限期觀看，不顯示任何倒數計時相關 UI。此機制透過軟性提醒製造緊迫感，而非限制存取，以避免負面觀感。
 
 **Why this priority**: 此功能是行銷漏斗的加速器，透過時間窗口的緊迫感提高潛在購買者的行動力。與現有促銷區塊互補，但觸發條件不同（時間經過 vs 觀看時間）。
 
-**Independent Test**: 設定一個 drip 課程，訂閱後修改 subscribed_at 使 Lesson 超過 48 小時，驗證影片仍可觀看且促銷區塊出現。
+**Independent Test**: 設定一個 drip 課程，為某 Lesson 設定 `video_access_hours`（如 2 小時），訂閱後修改 subscribed_at 使該 Lesson 超過 2 小時，驗證影片仍可觀看且過期促銷區塊出現；另測試未設定 `video_access_hours` 的 Lesson 不顯示任何倒數計時 UI。
 
 **Acceptance Scenarios**:
 
-1. **Given** Lesson 剛解鎖（未超過 48 小時），**When** 使用者進入教室觀看，**Then** 影片正常播放，顯示「課程免費公開中，剩餘 XX:XX:XX」倒數提示
-2. **Given** Lesson 解鎖已超過 48 小時，**When** 使用者進入教室觀看，**Then** 影片仍可播放，但在影片下方顯示加強促銷區塊：「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
+1. **Given** Lesson 設定了 `video_access_hours` 且解鎖未超過設定時數，**When** 使用者進入教室觀看，**Then** 影片正常播放，顯示「課程免費公開中，剩餘 XX:XX:XX」倒數提示
+2. **Given** Lesson 設定了 `video_access_hours` 且解鎖已超過設定時數，**When** 使用者進入教室觀看，**Then** 影片仍可播放，但在影片下方顯示加強促銷區塊：「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
 3. **Given** 使用者已轉換（status=converted），**When** 進入任何 Lesson，**Then** 不顯示免費觀看期相關提示和促銷區塊
 4. **Given** Drip 課程未設定目標課程，**When** 影片過期後顯示促銷區塊，**Then** 顯示通用文案「想要完整學習體驗？探索更多課程」附帶課程列表連結
-5. **Given** Lesson 為純文字（無影片），**When** 使用者進入 Lesson，**Then** 不顯示免費觀看期相關 UI（免費觀看期僅適用於有影片的 Lesson）
-6. **Given** 使用者已完成全部課程（status=completed），**When** 進入過期 Lesson，**Then** 仍顯示過期促銷區塊（因尚未購買目標課程）
+5. **Given** Lesson 未設定 `video_access_hours`（null），**When** 使用者進入 Lesson，**Then** 影片正常播放，不顯示任何倒數計時或觀看期相關 UI
+6. **Given** Lesson 為純文字（無影片），**When** 使用者進入 Lesson，**Then** 不顯示免費觀看期相關 UI
+7. **Given** 使用者已完成全部課程（status=completed），**When** 進入過期 Lesson（有 `video_access_hours`），**Then** 仍顯示過期促銷區塊（因尚未購買目標課程）
 
 ---
 
@@ -329,7 +337,7 @@
 - **免費觀看期與自訂促銷區塊共存**：同一 Lesson 同時有 promo_delay_seconds 和影片過期促銷 → 兩者獨立顯示，顯示順序為：影片 → VideoAccessNotice（觀看期限倒數/過期促銷）→ LessonPromoBlock（自訂促銷）→ 文字內容
 - **converted 使用者與免費觀看期**：已轉換的使用者 → 不顯示過期促銷區塊（已購買目標課程）
 - **純文字 Lesson 無影片**：Lesson 沒有影片（video_id 為空）→ 不顯示免費觀看期相關 UI
-- **免費觀看期 config 變更**：部署後修改 config 值 → 立即生效，影響所有使用者的計算結果
+- **免費觀看期 per-lesson 變更**：管理員修改 Lesson 的 `video_access_hours` → 立即生效，影響所有訂閱者對該 Lesson 的觀看期計算結果
 - **第一個 Lesson（Day 0）**：訂閱後立即解鎖 → 免費觀看期從 subscribed_at 開始計算
 - **獎勵區塊：config 調低後 localStorage 已有記錄**：曾達標的使用者不受 config 縮短影響，仍直接顯示獎勵
 - **獎勵區塊：免費期結束前 10 分鐘才進來**：若倒數計時剩餘秒數少於 `reward_delay_minutes` 換算秒數，使用者無法在免費期內達標 → 免費期逾期後顯示「錯過了獎勵」
@@ -375,7 +383,7 @@
 - **FR-012**: 第一封歡迎信 MUST 在訂閱完成後**立即同步發送**（不經由佇列）
 - **FR-013**: 後續通知信 MUST 由每天早上 9 點的排程任務發送
 - **FR-014**: 排程任務 MUST 比較 emails_sent 和應解鎖 Lesson 數，發送差額的信件
-- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的純文字 URL（非超連結）、退訂純文字 URL。若 Lesson 包含影片，MUST 以 Unicode 符號（▶▶/▶）標示提示「本課程包含教學影片，請至網站觀看」以及「影片 48 小時內免費觀看，把握時間！」免費觀看期提示（不使用粗體紅色等 HTML 樣式，以降低垃圾信風險）。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
+- **FR-015**: 每封 Email MUST 包含：Lesson 標題、Lesson 全文內容（html_content）、連回網站的純文字 URL（非超連結）、退訂純文字 URL。若 Lesson 包含影片，MUST 以 Unicode 符號（▶▶/▶）標示提示「本課程包含教學影片，請至網站觀看」；若 Lesson 另設定了 `video_access_hours`（不為 null），MUST 加入「影片 {video_access_hours} 小時內免費觀看，把握時間！」免費觀看期提示（不使用粗體紅色等 HTML 樣式，以降低垃圾信風險）；未設定 `video_access_hours` 時不顯示此行。若 Lesson 無文字內容（純影片），MUST 顯示預設文案引導使用者前往網站。
 - **FR-016**: 當 emails_sent 等於課程總 Lesson 數時，MUST 將狀態標記為 completed
 
 **轉換機制**
@@ -406,35 +414,33 @@
 - **FR-034b**: 促銷 HTML 編輯區 MUST 提供 CTA 按鈕快速插入功能（輸入連結 + 按鈕文字，自動產生帶 inline CSS 的置中按鈕 HTML）
 
 **Drip 課程影片免費觀看期限**
-- **FR-035**: 系統 MUST 提供免費觀看期設定，儲存於 config 檔案（非資料庫），預設 48 小時
-- **FR-036**: 系統 MUST 為每個已解鎖的 drip Lesson 計算免費觀看期截止時間：`Lesson 解鎖時間 + config 設定時數`
-- **FR-037**: 在免費觀看期內，教室頁面 MUST 在當前觀看的 Lesson 內容區域（影片下方）顯示「課程免費公開中，剩餘 XX:XX:XX」倒數提示，側邊欄 Lesson 列表不顯示倒數
+- **FR-035**: 每個 Lesson MAY 設定影片免費觀看時數（`video_access_hours`，unsigned integer，nullable），儲存於 Lesson 欄位（非全站 config）；null 表示無限期觀看。管理員 MUST 可在 Lesson 編輯頁填寫或清空此欄位（正整數輸入框，留空=無限期）
+- **FR-036**: 系統 MUST 為設定了 `video_access_hours` 的已解鎖 drip Lesson 計算免費觀看期截止時間：`Lesson 解鎖時間 + video_access_hours 小時`
+- **FR-037**: 在免費觀看期內（Lesson 設定了 `video_access_hours` 且尚未超時），教室頁面 MUST 在當前觀看的 Lesson 內容區域（影片下方）顯示「課程免費公開中，剩餘 XX:XX:XX」倒數提示，側邊欄 Lesson 列表不顯示倒數
 - **FR-038**: 免費觀看期過後，影片 MUST 仍然可以觀看（不鎖定）
-- **FR-039**: 免費觀看期過後，系統 MUST 在影片下方顯示加強版促銷區塊，內容為「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
+- **FR-039**: 免費觀看期過後（Lesson 的 `video_access_hours` 已超時），系統 MUST 在影片下方顯示加強版促銷區塊，內容為「免費觀看期已結束，但我們為你保留了存取權。想要完整學習體驗？」附帶目標課程購買連結
 - **FR-040**: 若 drip 課程未設定目標課程，過期促銷區塊 MUST 顯示通用文案並附帶課程列表連結
 - **FR-041**: 已轉換（converted）的訂閱者 MUST NOT 看到免費觀看期相關 UI（倒數提示和過期促銷區塊）
-- **FR-042**: 免費觀看期限 MUST 僅適用於有影片的 Lesson（video_id 不為空），純文字 Lesson 不受影響
+- **FR-042**: 免費觀看期限（FR-035 ~ FR-041）MUST 僅適用於有影片（video_id 不為空）且設定了 `video_access_hours` 的 Lesson；未設定 `video_access_hours`（null）或純文字 Lesson 不顯示任何倒數計時、觀看期提示或過期促銷區塊
 
 **準時到課獎勵區塊（US11）**
 - **FR-043**: 每個 Lesson MAY 設定獎勵 HTML 內容（`reward_html`），null 或空值表示該 Lesson 不顯示獎勵區塊
 - **FR-044**: 管理員 MUST 可在 Lesson 編輯頁設定 `reward_html`（自訂 HTML，可包含優惠碼、按鈕等）。此欄位 MUST 只在所屬課程類型為 drip 的 Lesson 編輯頁顯示，standard 課程的 Lesson 不顯示此欄位
 - **FR-045**: 系統 MUST 提供獎勵延遲時間設定，儲存於 config 檔案（`drip.reward_delay_minutes`），預設 10 分鐘，不按個別 Lesson 設定
-- **FR-046**: 當 Lesson 有 `reward_html` 且課程在免費觀看期內時，VideoAccessNotice 區域 MUST 採用左右並排佈局：左側顯示倒數計時，右側顯示獎勵欄
+- **FR-046**: 當 Lesson 有 `reward_html`、且設定了 `video_access_hours`（啟用限時觀看）且仍在免費觀看期內時，VideoAccessNotice 區域 MUST 採用左右並排佈局：左側顯示倒數計時，右側顯示獎勵欄；若 Lesson 未設定 `video_access_hours`，則不顯示任何獎勵欄（即使有 `reward_html`）
 - **FR-047**: 會員進入頁面起算，停留不足 `reward_delay_minutes` 時，獎勵欄 MUST 顯示固定鼓勵文字「你準時來上課了！真棒」。計時為 per-session：離開頁面後計時歸零，下次訪問重新起算（不跨訪問累積）
 - **FR-048**: 會員累積停留達到 `reward_delay_minutes` 後，獎勵欄 MUST 立即切換顯示管理員設定的 `reward_html` 內容
 - **FR-049**: 達標後，系統 MUST 使用本地儲存永久記錄達標狀態（per Lesson），再次訪問時直接顯示獎勵，不需重新計時
 - **FR-050**: 免費觀看期逾期後，若該 Lesson 的達標狀態已記錄（曾獲得獎勵），MUST 在逾期提示區繼續顯示 `reward_html` 內容
 - **FR-051**: 免費觀看期逾期後，若該 Lesson 的達標狀態**未**記錄（未曾獲得獎勵），MUST 在逾期提示區額外顯示「下次早點來喔，錯過了獎勵 :(」文字
 - **FR-052**: 已轉換（converted）的訂閱者 MUST NOT 看到獎勵欄及相關提示（與 FR-041 豁免邏輯一致）
-- **FR-053**: 獎勵區塊 MUST 僅適用於有影片的 Lesson（與 FR-042 前提一致），純文字 Lesson 不顯示
+- **FR-053**: 獎勵區塊 MUST 僅適用於有影片（video_id 不為空）且設定了 `video_access_hours` 的 Lesson（與 FR-042 前提一致）；未設定 `video_access_hours` 或純文字 Lesson 不顯示任何獎勵欄
 - **FR-054**: 獎勵區塊（FR-043 ~ FR-053）MUST 支援 RWD，在手機螢幕上正常顯示
 
 **Email 開信追蹤基礎設施（US12）**
 - **FR-055**: 每封 drip 信件 MUST 嵌入一個 1x1 像素的 tracking pixel（透明 GIF），用於記錄開信事件
 - **FR-056**: Tracking pixel 端點 MUST 使用 signed URL（含 180 天有效期）確保安全性，防止偽造請求
 - **FR-057**: 系統 MUST 以「訂閱 × Lesson」為單位記錄首次開信事件（去重：同一封信重複開啟不重複計）
-- **FR-058**: ~~（已移除）drip 信件不包含任何促銷按鈕，不追蹤 Email 點擊~~
-- **FR-059**: ~~（已移除）教室促銷追蹤使用 auth session 識別訂閱者，不需要 redirect signed URL~~
 - **FR-060**: 系統 MUST 以「訂閱 × Lesson」為單位記錄首次教室促銷按鈕點擊事件（去重）
 - **FR-061**: Tracking pixel 請求 MUST 立即回傳 1x1 透明 GIF（不影響信件顯示）；教室促銷按鈕點擊 MUST 在 1 秒內完成 redirect 導向
 
@@ -459,8 +465,9 @@
 - **Lesson（擴充）**: 使用現有的 sort_order 欄位決定發送順序（不需要新增 release_day）。新增以下屬性：
   - promo_delay_seconds（促銷區塊延遲秒數，null=停用、0=立即、>0=延遲）
   - promo_html（促銷區塊自訂 HTML）
-  - reward_html（準時到課獎勵自訂 HTML，null=不顯示獎勵欄）
+  - reward_html（準時到課獎勵自訂 HTML，null=不顯示獎勵欄；drip 課程有影片且設定 `video_access_hours` 的 Lesson 才生效）
   - promo_url（促銷連結 URL，null=不顯示教室追蹤按鈕；用於教室促銷點擊追蹤，不出現在 drip 信件）
+  - video_access_hours（影片免費觀看時數，unsigned integer，nullable；null=無限期觀看不顯示任何相關 UI，有填寫則啟用限時觀看倒數計時和準時到課獎勵欄；僅 drip 課程有影片的 Lesson 生效）
 - **DripEmailEvent（新增）**: 記錄開信事件（opened）和教室促銷點擊事件（clicked）。包含：
   - subscription_id（FK → drip_subscriptions.id）
   - lesson_id（FK → lessons.id）
@@ -511,7 +518,7 @@
 - Portaly webhook 整合已穩定運作
 - 連鎖課程不使用 Chapter 層級，直接以 Lesson 為發信單位
 - 所有 Lesson 在開放訂閱前已建立完成（可事後新增）
-- 免費觀看期為全站統一設定（config），不按個別課程設定
+- 影片免費觀看時數（`video_access_hours`）為 per-lesson 設定；null 表示無限期觀看，不顯示任何倒數計時相關 UI
 - 免費觀看期僅影響 UI 顯示（促銷區塊），不影響影片存取權限
 - 準時到課獎勵的等待時間（reward_delay_minutes）為全站統一設定（config），不按個別 Lesson 設定
 - 獎勵欄的鼓勵文字（達標前）為系統固定文案，管理員僅設定達標後的獎勵 HTML 內容
@@ -576,10 +583,10 @@
   - 避免懲罰忙碌使用者造成負面觀感
   - 透過「我們為你保留了存取權」建立善意和信任
   - 仍然製造緊迫感：倒數計時提醒使用者把握免費期
-  - 設定值存在 config 而非 DB：全站統一管理，部署即生效，減少 DB schema 變更
+  - **設定值存在 Lesson 欄位（per-lesson）**：管理員可為每個 Lesson 個別設定時數（`video_access_hours`，null=無限期），不同 Lesson 可有不同的觀看期限或不啟用此功能
   - 與自訂促銷區塊（promo_delay_seconds）互不影響，兩者可共存
-  - 僅對有影片的 Lesson 生效，純文字 Lesson 不受影響
-  - 計算公式：`過期時間 = subscribed_at + (sort_order × drip_interval_days) 天 + video_access_hours 小時`
+  - 僅對有影片（video_id 不為空）且設定了 `video_access_hours` 的 Lesson 生效；未設定或純文字 Lesson 不顯示任何相關 UI
+  - 計算公式：`過期時間 = subscribed_at + (sort_order × drip_interval_days) 天 + lesson.video_access_hours 小時`
 
 - **Email 追蹤技術（US12）**：
   - **Tracking Pixel**：在每封 drip 信件嵌入 1x1 透明 GIF，圖片請求觸發開信記錄；signed URL 防偽造，有效期 180 天

@@ -187,19 +187,24 @@
 
 ## Phase 11: US10 - Drip 影片免費觀看期限提醒 (Priority: P2)
 
-**Goal**: Drip 課程 Lesson 解鎖後 48 小時內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒，不鎖定影片）
+**Goal**: Drip 課程 Lesson 若設定了 `video_access_hours`，則從 Lesson 解鎖起算至指定時數內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒，不鎖定影片）。未設定 `video_access_hours` 的 Lesson 無限期觀看，不顯示任何相關 UI。
 
-**Independent Test**: 訂閱 drip 課程 → 修改 subscribed_at 使 Lesson 超過 48 小時 → 驗證影片仍可播放、過期促銷區塊出現、converted 使用者不顯示
+> ⚠️ **此 Phase 實作為舊 config-based 設計（全站統一時數）**，已於 Phase 16 (T089~T098) 改為 per-lesson `video_access_hours` 欄位。Phase 16 為本 Phase 的設計修正。
+
+**Independent Test**: 訂閱 drip 課程 → 為 Lesson 設定 `video_access_hours`，修改 subscribed_at 使其超過設定時數 → 驗證影片仍可播放、過期促銷區塊出現、converted 使用者不顯示；另驗證未設定 `video_access_hours` 的 Lesson 完全不顯示倒數 UI
 
 **Depends on**: Phase 4 (US6 - ClassroomController drip 支援), Phase 7 (US4 - conversion targets 用於促銷區塊)
 
 ### Implementation
 
 - [x] T047 [P] [US10] Create config file with `video_access_hours` setting (default 48, env override `DRIP_VIDEO_ACCESS_HOURS`) in `config/drip.php`
+  > ⚠️ **SUPERSEDED**: `video_access_hours` config key 已移除，改為 per-lesson 欄位。**由 T094 移除此 key。**
 - [x] T048 [US10] Add getVideoAccessExpiresAt(subscription, lesson), isVideoAccessExpired(subscription, lesson), getVideoAccessRemainingSeconds(subscription, lesson) methods to DripService: calculate expiry as `subscribed_at + (sort_order × interval) days + config hours`, return null if config is null (feature disabled) in `app/Services/DripService.php`
+  > ⚠️ **SUPERSEDED**: 計算邏輯使用 `config('drip.video_access_hours')`，已改為讀取 `$lesson->video_access_hours`。**由 T095 修正。**
 - [x] T049 [US10] Modify ClassroomController.formatLessonFull(): for drip courses add video_access_expired (bool) and video_access_remaining_seconds (int|null) per lesson (skip for converted users and lessons without video); in show() add videoAccessTargetCourses prop with target course id/name/url from DripConversionTarget in `app/Http/Controllers/Member/ClassroomController.php`
 - [x] T050 [P] [US10] Create VideoAccessNotice.vue component: props (expired bool, remainingSeconds number|null, targetCourses array), countdown timer with HH:MM:SS format (reload page when reaches 0), green "免費公開中" notice when within window, amber urgency promo block when expired with target course purchase buttons or generic "探索更多課程" fallback in `resources/js/Components/Classroom/VideoAccessNotice.vue`
 - [x] T051 [US10] Modify Classroom.vue: import VideoAccessNotice, render below video player (above LessonPromoBlock) when course is drip + lesson has video + subscription not converted + (expired or remaining > 0), pass videoAccessTargetCourses prop in `resources/js/Pages/Member/Classroom.vue`
+  > ⚠️ **BUG (C1)**: 此任務的 render condition 缺少 `video_access_hours !== null` 檢查，導致 `video_access_hours` 未設定的 Lesson 仍會顯示倒數元件。**必須由 T097（Phase 16）修正後才算完整實作。**
 - [x] T052 [P] [US10] Modify drip-lesson email template: for lessons with video_id, add "⏰ 影片 {hours} 小時內免費觀看，把握時間！" notice below the video prompt, only show when config('drip.video_access_hours') is not null in `resources/views/emails/drip-lesson.blade.php`
 
 **Checkpoint**: 免費觀看期內顯示倒數、過期後顯示促銷區塊、converted 使用者不顯示、Email 包含免費觀看提示
@@ -237,6 +242,7 @@
 - [x] T060 [US11] Modify ClassroomController.show(): (a) add `reward_delay_minutes` as page-level Inertia prop from `config('drip.reward_delay_minutes')`; (b) in formatLessonFull(), pass `reward_html` per lesson for drip courses (set to null for converted users or lessons without video_id) in `app/Http/Controllers/Member/ClassroomController.php`
 - [x] T061 [US11] Modify VideoAccessNotice.vue: add new props `rewardHtml` (String, default null), `rewardDelayMinutes` (Number, default 10), `lessonId` (Number, required); when rewardHtml is not empty, convert layout to two-column flex (flex-col on mobile, flex-row on md+): left column = existing countdown/expired notice, right column = reward panel; right column uses per-session timer (starts at 0 on each mount — NOT restored from localStorage, per spec:離開後計時歸零); localStorage key `reward_achieved_lesson_{lessonId}` tracks achievement across page loads; before achievement (elapsed < rewardDelayMinutes × 60s): show "你準時來上課了！真棒"; on achievement: switch right panel to v-html rewardHtml and save `reward_achieved_lesson_{lessonId}` to localStorage; when `expired === true` and localStorage key exists: show rewardHtml in right panel; when `expired === true` and localStorage key absent: append "下次早點來喔，錯過了獎勵 :(" below existing expired promo block in `resources/js/Components/Classroom/VideoAccessNotice.vue`
 - [x] T062 [US11] Modify Classroom.vue: pass `rewardHtml` (currentLesson.reward_html || null), `rewardDelayMinutes` (page prop reward_delay_minutes), `lessonId` (currentLesson.id) to VideoAccessNotice component; ensure these props are only passed when course is drip + lesson has video_id + subscription.status !== 'converted'; add `reward_delay_minutes` to destructured Inertia page props in `resources/js/Pages/Member/Classroom.vue`
+  > ⚠️ **條件不完整 (U1)**: prop 傳遞條件缺少 `video_access_hours !== null`（FR-046 要求）。功能上由 T097 在 VideoAccessNotice 渲染層補上此判斷來補償，但條件本身不完整。T097 執行後功能正確，此處為文件標記。
 
 **Checkpoint**: 獎勵欄在倒數旁正確顯示、達標後切換為 reward_html、重整後直接顯示、逾期未達標顯示提示、RWD 正常
 
@@ -258,12 +264,18 @@
 - [x] T066 [P] [US12] Modify DripSubscription model: add `emailEvents()` HasMany DripEmailEvent relationship (foreign key: subscription_id) in `app/Models/DripSubscription.php`
 - [x] T067 [P] [US14] Modify Lesson model: add `promo_url` to `$fillable` in `app/Models/Lesson.php`
 - [x] T068 [P] [US12] Create DripTrackingController: `open(Request $request)` — if `$request->hasValidSignature()` then `DripEmailEvent::firstOrCreate(['subscription_id' => $request->integer('sub'), 'lesson_id' => $request->integer('les'), 'event_type' => 'opened'], ['ip' => $request->ip(), 'user_agent' => $request->userAgent()])` wrapped in try/catch with `Log::warning` on failure — always return `response(PIXEL_BINARY, 200, ['Content-Type' => 'image/gif', 'Cache-Control' => 'no-store'])` where PIXEL_BINARY is a private const with the 1x1 transparent GIF hex sequence; `click(Request $request)` — same firstOrCreate pattern for 'clicked' event (include target_url in attributes), always `return redirect()->away($request->query('url', '/'))` in `app/Http/Controllers/DripTrackingController.php`
+  > ⚠️ **SUPERSEDED (E1)**: `click()` 方法使用 `$request->integer('sub')` 讀取訂閱 ID，但 T087 生成的點擊 URL 不含 `sub` 參數（改用 auth session 識別訂閱者）。此版本上線會造成 FK 約束錯誤。**由 T088a 修正。**
 - [x] T069 [P] [US12] Add two public tracking routes to `routes/web.php` outside any auth middleware group: `Route::get('/drip/track/open', [DripTrackingController::class, 'open'])->name('drip.track.open')` and `Route::get('/drip/track/click', [DripTrackingController::class, 'click'])->name('drip.track.click')` in `routes/web.php`
+  > ⚠️ **SUPERSEDED (C2)**: `drip.track.click` 路由設計錯誤（click 應在 auth middleware 內）。**由 T082 修正。**
 - [x] T070 [US12] Modify SendDripEmailJob.handle(): before calling Mail::to()->send(), generate signed URLs: `$openPixelUrl = URL::signedRoute('drip.track.open', ['sub' => $subscription->id, 'les' => $lesson->id], now()->addDays(180))`; `$promoTrackUrl = !empty($lesson->promo_url) ? URL::signedRoute('drip.track.click', ['sub' => $subscription->id, 'les' => $lesson->id, 'url' => $lesson->promo_url], now()->addDays(180)) : null`; pass both as named constructor args to DripLessonMail in `app/Jobs/SendDripEmailJob.php`
+  > ⚠️ **SUPERSEDED (C2)**: Email 不應生成 `$promoTrackUrl`（Email 不應有促銷按鈕）。**由 T083 修正。**
 - [x] T071 [P] [US12] Modify DripLessonMail: add constructor params `public string $openPixelUrl` and `public ?string $promoTrackUrl = null`; verify content() method exposes these as template variables (as public properties they are auto-accessible in Blade) in `app/Mail/DripLessonMail.php`
+  > ⚠️ **SUPERSEDED (C2)**: `$promoTrackUrl` 不應存在於 Mailable（Email 不追蹤點擊）。**由 T084 移除。**
 - [x] T072 [US12] Modify drip-lesson.blade.php: (1) after html_content section, add promo button block — `@if($promoTrackUrl)` render `<p style="text-align:center;margin:24px 0"><a href="{{ $promoTrackUrl }}" style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;border:1px solid rgba(199,163,59,0.5);text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">立即瞭解</a></p>` `@endif`; (2) add tracking pixel as last element before closing body: `<img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">` in `resources/views/emails/drip-lesson.blade.php`
-- [x] T073 [P] [US14] Modify StoreLessonRequest: add `promo_url` validation rule (`nullable|url|max:500`) and Chinese error message `'promo_url.url' => '商品連結必須是有效的 URL'` in `app/Http/Requests/Admin/StoreLessonRequest.php`
+  > ⚠️ **SUPERSEDED (C2)**: Email 模板不應包含 `$promoTrackUrl` 促銷按鈕區塊（違反 FR-065）。**由 T085 移除促銷按鈕並加入 video_access_hours 提示。**
+- [x] T073 [P] [US14] Modify StoreLessonRequest: add `promo_url` validation rule (`nullable|url|max:500`) and Chinese error message `'promo_url.url' => '促銷連結必須是有效的 URL'` in `app/Http/Requests/Admin/StoreLessonRequest.php`
 - [x] T074 [P] [US14] Modify LessonForm.vue: add `promo_url` URL input field in "促銷區塊設定" section below promo_html textarea (label: "商品連結 URL（Email 追蹤）", type="url", placeholder: "https://example.com/product/...", help text: "設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕。留空則不顯示。"); add `promo_url` to form data object and submit payload in `resources/js/Components/Admin/LessonForm.vue`
+  > ⚠️ **SUPERSEDED (C2)**: 欄位 label「商品連結 URL（Email 追蹤）」和 help text 說明 drip 信件顯示按鈕，均與新設計衝突。**由 T086 修正 label 和說明文字。**
 - [x] T075 [P] [US14] Modify Admin ChapterController@index: add `promo_url` to lesson map arrays (both chapter lessons and standalone lessons) so LessonForm receives promo_url data when editing existing lessons in `app/Http/Controllers/Admin/ChapterController.php`
 - [x] T076 [US12] Add `getSubscriberStats(Course $course): array` method to DripService (Constitution §II: spans DripSubscription + DripEmailEvent + Lesson = 3 models, MUST go in Service): method returns `['lesson_stats' => [...], 'conversion_rate' => ?float]` where lesson_stats is a Collection — for each lesson ordered by sort_order compute: `sent_count` (DripSubscription where course_id and emails_sent > sort_order), `open_count`/`click_count` (DripEmailEvent aggregated by lesson_id), `open_rate` (null when sent_count=0), `click_rate` (null when sent_count=0 or no promo_url), `has_promo_url` bool; conversion_rate = converted_count / total (null when total=0); also add `getSubscriberEventCounts(Collection $subscriptionIds): Collection` returning per-subscription opened_count and has_clicked (bool) via DripEmailEvent withCount in `app/Services/DripService.php`
 - [x] T076b [US12] Modify Admin CourseController::subscribers(): inject DripService via constructor (add `protected DripService $dripService` param); replace inline aggregation with `$stats = $this->dripService->getSubscriberStats($course)`; add `withCount` for per-subscriber event metrics by calling `$this->dripService->getSubscriberEventCounts($subIds)` and merging into subscriber collection; pass `lessonStats`, `conversionRate` as new Inertia props — controller remains thin orchestrator in `app/Http/Controllers/Admin/CourseController.php`
@@ -279,6 +291,63 @@
 - [x] T079 Verify tracking end-to-end: open tracking pixel URL directly in browser returns 1x1 GIF (Content-Type: image/gif); click redirect URL records event and redirects to target within 1 second; duplicate requests (same sub+les+event_type) do not create duplicate records
 - [x] T080 Verify Subscribers.vue lesson stats accuracy: open_count and click_count in table match actual drip_email_events records; division-by-zero cases (sent_count=0) show "—" without PHP errors
 - [x] T081 [US14] Modify LessonForm.vue CTA quick-insert function: update generated button HTML template from old orange (`background:#ff5a36`, `border-radius:6px`) to brand-gold style (`background:#F0C14B`, `color:#373557`, `border-radius:9999px`, `border:1px solid rgba(199,163,59,0.5)`, `font-weight:600`, `box-shadow:0 1px 3px rgba(0,0,0,0.1)`); update default button text from any prior default to `'立即瞭解'` per spec FR-034b in `resources/js/Components/Admin/LessonForm.vue`
+
+---
+
+## Phase 15: promo_url 追蹤方式修正 (US12~US14 設計修正)
+
+**Goal**: 修正 T069-T074 實作的舊設計錯誤：Email 不應有促銷按鈕；promo_url 追蹤改為「教室促銷點擊追蹤」，使用 auth session 識別訂閱者。
+
+**Background**: 原始任務 T069（click 路由為 public）、T070（SendDripEmailJob 生成 promoTrackUrl）、T071（DripLessonMail 有 promoTrackUrl 參數）、T072（Email 模板含促銷按鈕）、T074（欄位 label 為「Email 追蹤」）均需修正以符合 2026-03-01 spec 更新。
+
+**Independent Test**: 訂閱 drip 課程 → 收到信件 → 確認信件中無任何促銷按鈕（只有 pixel 和課程內容）→ 進入教室 → 確認教室頁面有 promo_url 追蹤按鈕 → 點擊後記錄事件並 redirect → 確認 `/drip/track/click` 路由需登入才能訪問。
+
+**Depends on**: Phase 14 (T069-T074 已完成的錯誤版本)
+
+### Implementation
+
+- [ ] T082 [P] [US14] Fix `routes/web.php`: move `Route::get('/drip/track/click', ...)` from public group into `Route::middleware('auth')->group(...)` so classroom click tracking requires auth session; keep `/drip/track/open` in public group (email pixel has no session) in `routes/web.php`
+- [ ] T083 [P] [US12] Fix `SendDripEmailJob.handle()`: remove `$promoTrackUrl` generation (the signed URL block for `drip.track.click`); only generate `$openPixelUrl = URL::signedRoute('drip.track.open', ...)` and pass it alone to DripLessonMail constructor in `app/Jobs/SendDripEmailJob.php`
+- [ ] T084 [P] [US12] Fix `DripLessonMail`: remove `public ?string $promoTrackUrl = null` constructor parameter entirely; keep only `public string $openPixelUrl` in `app/Mail/DripLessonMail.php`
+- [ ] T085 [US12] Fix `drip-lesson.blade.php`: remove the `@if($promoTrackUrl)` promo button block entirely; keep only the tracking pixel `<img src="{{ $openPixelUrl }}" ...>` at bottom; add `@if($lesson->video_access_hours)⏰ 影片 {{ $lesson->video_access_hours }} 小時內免費觀看，把握時間！@endif` below the video prompt block (only shows when lesson has video_access_hours set) in `resources/views/emails/drip-lesson.blade.php`
+- [ ] T086 [P] [US14] Fix `LessonForm.vue`: update `promo_url` field label from "商品連結 URL（Email 追蹤）" to "促銷連結 URL（教室追蹤）"; update help text from "設定後，drip 信件中顯示可追蹤點擊的商品連結按鈕" to "設定後，教室頁面的促銷區塊旁顯示可追蹤點擊的按鈕，追蹤訂閱者在教室的促銷互動" in `resources/js/Components/Admin/LessonForm.vue`
+- [ ] T087 [US14] Fix `ClassroomController.formatLessonFull()`: change `'promo_url' => $lesson->promo_url` to wrap as tracking route `'promo_url' => $lesson->promo_url ? route('drip.track.click', ['les' => $lesson->id, 'url' => $lesson->promo_url]) : null` so frontend receives ready-to-use tracking URL (no signed URL needed — auth middleware handles identity) in `app/Http/Controllers/Member/ClassroomController.php`
+- [ ] T088a [US12] Fix `DripTrackingController.click()`: remove `$request->integer('sub')` lookup; replace with auth-based subscription lookup — `$sub = Auth::user()->dripSubscriptions()->whereHas('course.lessons', fn($q) => $q->where('id', $request->integer('les')))->first()`; if `$sub` is null (not a subscriber), skip `firstOrCreate` and still `return redirect()->away($request->query('url', '/'))` (silent skip, don't fail); use `$sub->id` as `subscription_id` in `DripEmailEvent::firstOrCreate` in `app/Http/Controllers/DripTrackingController.php`
+- [ ] T088 [US14] Fix `Classroom.vue`: add promo_url tracking button rendered after LessonPromoBlock — `<a v-if="currentLesson?.promo_url" :href="currentLesson.promo_url" style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;font-weight:600">立即瞭解</a>` — only visible when currentLesson has promo_url (i.e. lesson has promo_url set AND user is subscribed drip member) in `resources/js/Pages/Member/Classroom.vue`
+
+**Checkpoint**: Email 中無促銷按鈕；教室有 promo_url 追蹤按鈕；click 路由需登入；點擊事件正確記錄到 drip_email_events
+
+---
+
+## Phase 16: per-lesson 影片觀看期限 (US10 設計修正)
+
+**Goal**: 將影片免費觀看時數從全站 config 改為 per-lesson `video_access_hours` 欄位（nullable 整數）。null=無限期觀看不顯示任何倒數計時 UI；有填寫則啟用限時觀看、倒數計時和準時到課獎勵欄。
+
+**Independent Test**: 管理員為 Lesson A 設定 `video_access_hours=2`、Lesson B 不設定 → 訂閱後修改 subscribed_at 使 Lesson A 超過 2 小時 → 驗證 Lesson A 顯示過期促銷區塊、Lesson B 完全不顯示倒數計時 UI → 驗證 Email 中 Lesson A 含「2 小時內免費觀看」提示、Lesson B 無此提示。
+
+**Depends on**: Phase 11 (US10 DripService + VideoAccessNotice.vue), Phase 15 (Email 模板已修正)
+
+### Implementation
+
+- [ ] T089 Create migration to add `video_access_hours` (unsigned integer, nullable) column to lessons table after `reward_html` in `database/migrations/`
+- [ ] T090 [P] [US10] Modify Lesson model: add `video_access_hours` to `$fillable`; add `'video_access_hours' => 'integer'` to `casts()` in `app/Models/Lesson.php`
+- [ ] T091 [P] [US10] Modify `StoreLessonRequest`: add `video_access_hours` validation rule (`nullable|integer|min:1|max:8760`) and Chinese error message `'video_access_hours.min' => '觀看期限至少 1 小時'` in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [ ] T092 [P] [US10] Modify Admin `ChapterController@index`: add `video_access_hours` to lesson map arrays (both chapter lessons and standalone lessons) so LessonForm receives the value when editing in `app/Http/Controllers/Admin/ChapterController.php`
+- [ ] T093 [P] [US10] Modify `LessonForm.vue`: add `video_access_hours` number input in "促銷區塊設定" section (label: "影片觀看期限（小時）", type="number", min="1", placeholder="留空表示無限期觀看", help text: "drip 課程有影片的 Lesson 專用。設定後啟用倒數計時與準時到課獎勵欄。"); add `video_access_hours` to form data and submit payload; **wrap the field with `v-if="courseType === 'drip'"` so it only appears for drip courses** in `resources/js/Components/Admin/LessonForm.vue`
+- [ ] T094 [P] Modify `config/drip.php`: remove `video_access_hours` key entirely (and its `env('DRIP_VIDEO_ACCESS_HOURS', 48)` line); retain only `reward_delay_minutes`; add comment `// video_access_hours moved to Lesson.video_access_hours field (per-lesson)` in `config/drip.php`
+- [ ] T095 [US10] Modify `DripService.getVideoAccessExpiresAt()`: change `$hours = config('drip.video_access_hours')` to `$hours = $lesson->video_access_hours`; update comment from `// feature disabled` to `// null = unlimited access, no countdown UI`; also update `isVideoAccessExpired()` and `getVideoAccessRemainingSeconds()` comments accordingly in `app/Services/DripService.php`
+- [ ] T096 [US10] Modify `ClassroomController.formatLessonFull()`: update condition for `video_access_expired` and `video_access_remaining_seconds` — skip calculation (return false/null) when `$lesson->video_access_hours === null` (in addition to existing converted/no-video checks); pass `'video_access_hours' => $lesson->video_access_hours` in returned array so frontend can check it directly in `app/Http/Controllers/Member/ClassroomController.php`
+- [ ] T097 [US10] Modify `Classroom.vue`: update VideoAccessNotice render condition — add `&& currentLesson.video_access_hours !== null` check (i.e. only render VideoAccessNotice when course is drip + lesson has video + lesson has video_access_hours set + subscription not converted); update VideoAccessNotice prop binding to include `video_access_hours` if needed in `resources/js/Pages/Member/Classroom.vue`
+- [ ] T098 [US10] Modify `drip-lesson.blade.php`: replace any hardcoded hours reference with `$lesson->video_access_hours` — ensure `@if($lesson->video_access_hours)` guard wraps the "X 小時內免費觀看" line (this should already be done in T085; verify and ensure no leftover hardcoded config reference remains) in `resources/views/emails/drip-lesson.blade.php`
+
+**Checkpoint**: Lesson 有設定 video_access_hours → 倒數計時和獎勵欄正常顯示；Lesson 未設定 → 完全不顯示任何觀看期 UI；Email 動態帶入時數或不顯示；config/drip.php 不再有 video_access_hours
+
+---
+
+## Phase 12 (continued): Polish Additions (Phase 15+16)
+
+- [ ] T099 Verify Phase 15 tracking end-to-end: subscribe to drip course → receive email → confirm NO promo button in email, only tracking pixel → enter classroom → confirm promo_url button appears → click button → verify event recorded in drip_email_events AND redirect completes within 1 second → verify `/drip/track/click` returns 302 for authenticated users and 403/redirect for unauthenticated
+- [ ] T100 Verify Phase 16 video_access_hours: set Lesson A with `video_access_hours=1`, Lesson B with null → subscribe → confirm Lesson A shows countdown, Lesson B shows nothing → force expire Lesson A (modify subscribed_at) → confirm expired promo block appears for A but not B → confirm reward column only appears on Lesson A when `reward_html` is set → confirm Email for A has "1 小時內免費觀看" and Email for B has no such line
 
 ---
 
@@ -300,6 +369,8 @@
 - **US11 (Phase 13)**: Depends on Phase 11 (VideoAccessNotice.vue exists to extend)
 - **US12~US14 (Phase 14)**: Depends on Phase 3 (SendDripEmailJob) + Phase 10 (Subscribers.vue) + Phase 2 (DripLessonMail)
 - **Polish (Phase 12)**: Depends on all phases complete
+- **Phase 15 (promo_url 修正)**: Depends on Phase 14 (T069-T074 舊版實作需修正)
+- **Phase 16 (video_access_hours)**: Depends on Phase 11 (DripService + VideoAccessNotice) + Phase 15 (Email 模板已修正)
 
 ### User Story Dependencies
 
@@ -442,6 +513,9 @@ T077: Subscribers.vue             → depends on T076
 11. US11 → 準時到課獎勵區塊 → Deploy
 12. US12~US14 → Email 追蹤分析 → Deploy
 13. Polish → Final validation
+14. Phase 15 → promo_url 追蹤方式修正（Email 移除促銷按鈕，改為教室追蹤）→ Deploy
+15. Phase 16 → per-lesson video_access_hours → Deploy
+16. Polish (Phase 15+16) → Final validation
 
 ---
 
@@ -455,10 +529,14 @@ T077: Subscribers.vue             → depends on T076
 - Course model already has a `type` field (lecture/mini/full) — the new `course_type` field is separate
 - Commit after each task or logical group
 - Stop at any checkpoint to validate independently
-- US10 has no DB migrations — config-based setting only (`config/drip.php`)
+- US10 has no DB migrations originally (was config-based) — **Phase 16 adds `video_access_hours` migration to lessons table**
 - US10 urgency promo content is system-generated (not custom HTML like promo blocks)
 - US11 extends VideoAccessNotice.vue from US10 — reward timer is per-session (no localStorage accumulation), achievement state IS localStorage-persisted
+- US11 reward column only appears when lesson has `video_access_hours` set (same prerequisite as video countdown UI)
 - US12~US14 combined — tracking infrastructure (pixel + redirect + events table) and analytics UI are tightly coupled
 - DripEmailEvent uses `const UPDATED_AT = null` — events are immutable records
-- Tracking signed URLs have 180-day expiry to cover typical email engagement window
-- promo_url (US14) is email-only; promo_html (US8) is classroom-only — they are independent
+- Tracking signed URLs have 180-day expiry — applies to open pixel only; click tracking uses auth session (no signed URL)
+- **Phase 15 修正**：T069-T074 的舊設計將 click 追蹤放在 Email 中，已於 Phase 15 (T082-T088) 修正為教室追蹤
+- promo_url (US14) is classroom-only (tracked via auth session); promo_html (US8) is also classroom-only — both independent of Email
+- Email 中不含任何促銷按鈕；drip 信件只有課程內容 + tracking pixel + （若設定）觀看期限提示
+- **Phase 16 修正**：`config/drip.php` 的 `video_access_hours` 已移至 `lessons.video_access_hours` 欄位（per-lesson）

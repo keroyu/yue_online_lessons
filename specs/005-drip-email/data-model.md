@@ -285,7 +285,7 @@ class DripConversionTarget extends Model
 
 ### 4. Lesson (MODIFY - existing)
 
-**Description**: 擴充 Lesson 模型，新增促銷區塊（適用所有課程類型）和準時到課獎勵欄（drip 課程有影片 Lesson）
+**Description**: 擴充 Lesson 模型，新增促銷區塊（適用所有課程類型）、準時到課獎勵欄和影片免費觀看時數（drip 課程有影片 Lesson）
 
 **新增欄位**:
 
@@ -293,7 +293,8 @@ class DripConversionTarget extends Model
 |-------|------|-------------|-------------|
 | promo_delay_seconds | INT UNSIGNED | NULLABLE | 促銷區塊延遲秒數（null=停用、0=立即、>0=延遲）|
 | promo_html | TEXT | NULLABLE | 促銷區塊自訂 HTML 內容 |
-| reward_html | TEXT | NULLABLE | 準時到課獎勵自訂 HTML（null=不顯示獎勵欄；drip 課程有影片 Lesson 才生效）|
+| reward_html | TEXT | NULLABLE | 準時到課獎勵自訂 HTML（null=不顯示獎勵欄；需同時設定 `video_access_hours` 才生效）|
+| video_access_hours | INT UNSIGNED | NULLABLE | 影片免費觀看時數（null=無限期觀看，不顯示倒數計時 UI；有填寫則啟用限時觀看、倒數計時及準時到課獎勵欄）|
 
 **Migration (promo fields)**:
 ```php
@@ -310,6 +311,13 @@ Schema::table('lessons', function (Blueprint $table) {
 });
 ```
 
+**Migration (video_access_hours — separate migration)**:
+```php
+Schema::table('lessons', function (Blueprint $table) {
+    $table->unsignedInteger('video_access_hours')->nullable()->after('reward_html');
+});
+```
+
 **Model 修改（遵循現有 Pattern）**:
 ```php
 // Lesson.php - 新增到 $fillable
@@ -317,7 +325,8 @@ protected $fillable = [
     // ... existing fields ...
     'promo_delay_seconds',
     'promo_html',
-    'reward_html',  // NEW (US11)
+    'reward_html',       // NEW (US11)
+    'video_access_hours', // NEW (per-lesson video access)
 ];
 
 // Lesson.php - 新增到 casts()
@@ -436,13 +445,6 @@ public function messages(): array
 return [
     /*
     |--------------------------------------------------------------------------
-    | 影片免費觀看期限（小時）
-    |--------------------------------------------------------------------------
-    */
-    'video_access_hours' => env('DRIP_VIDEO_ACCESS_HOURS', 48),
-
-    /*
-    |--------------------------------------------------------------------------
     | 準時到課獎勵等待時間（分鐘）— US11
     |--------------------------------------------------------------------------
     |
@@ -452,12 +454,15 @@ return [
     |
     */
     'reward_delay_minutes' => env('DRIP_REWARD_DELAY_MINUTES', 10),
+
+    // NOTE: video_access_hours 已移至 Lesson 欄位（per-lesson 設定），
+    // 不再使用全站 config。詳見 Lesson.video_access_hours 欄位。
 ];
 ```
 
 **Usage**:
-- `config('drip.video_access_hours')` — 影片免費觀看期，全站統一
 - `config('drip.reward_delay_minutes')` → 乘以 60 後以秒數傳至前端（`rewardDelaySeconds` prop）
+- `$lesson->video_access_hours` → 影片免費觀看時數，null=無限期（per-lesson 設定，非 config）
 
 ---
 
@@ -493,9 +498,9 @@ public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson)
 // DripService
 public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
 {
-    $hours = config('drip.video_access_hours');
+    $hours = $lesson->video_access_hours; // 改讀 lesson 欄位（per-lesson），非全站 config
     if ($hours === null) {
-        return null; // feature disabled
+        return null; // null = 無限期觀看，不啟用計時
     }
 
     $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
@@ -523,7 +528,7 @@ public function getVideoAccessRemainingSeconds(DripSubscription $subscription, L
 ```
 
 **Rules**:
-- `video_access_hours = null` → 功能停用，永不過期
+- `lesson.video_access_hours = null` → 無限期觀看，不顯示任何倒數計時 UI（per-lesson 設定）
 - `subscription.status = 'converted'` → 不計算，前端不顯示（Controller 層處理）
 - `lesson.video_id = null`（純文字）→ 不計算，前端不顯示（Controller 層處理）
 

@@ -8,7 +8,7 @@
 
 **新增功能（2026-02-05）**：Lesson 促銷區塊 - 在 Lesson 內可設定延遲顯示的促銷區塊（自訂 HTML），用於建立價值感和過濾精準名單。適用於所有課程類型。
 
-**新增功能（2026-02-16）**：影片免費觀看期限 - Drip 課程 Lesson 解鎖後 48 小時內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒）。設定值存於 config 檔案。
+**新增功能（2026-02-16）**：影片免費觀看期限 - Drip 課程 Lesson 解鎖後一定時數內為免費觀看期，過期後影片仍可觀看但顯示加強版促銷區塊（方案 A：軟性提醒）。~~設定值存於 config 檔案。~~ **（2026-03-01 更新）改為 per-lesson `video_access_hours` 欄位（nullable 整數），null = 無限期觀看。**
 
 **新增功能（2026-02-21）**：準時到課獎勵區塊 - 在免費觀看期倒數旁加入獎勵欄，停留滿設定時間後顯示管理員自訂獎勵 HTML。
 
@@ -380,6 +380,81 @@ routes/web.php                                   # MODIFY: click 路由移入 au
 
 ---
 
+---
+
+## 增量更新：per-lesson 影片觀看期限 - 2026-03-01
+
+**設計修正**：影片免費觀看時數從全站 config 設定改為 per-lesson 欄位 `video_access_hours`。
+
+### 核心變更
+
+```text
+database/migrations/
+└── YYYY_add_video_access_hours_to_lessons.php   # NEW
+
+app/Models/Lesson.php                            # MODIFY: video_access_hours 加入 $fillable
+app/Services/DripService.php                     # MODIFY: 計算改讀 lesson.video_access_hours（非 config）
+app/Http/Controllers/Member/ClassroomController.php  # MODIFY: 傳 video_access_hours 給前端，條件更新
+app/Http/Controllers/Admin/ChapterController.php     # MODIFY: lesson map 加入 video_access_hours
+app/Http/Requests/Admin/StoreLessonRequest.php       # MODIFY: video_access_hours 驗證規則
+
+resources/js/Components/Admin/LessonForm.vue         # MODIFY: 新增 video_access_hours 數字輸入欄
+resources/js/Pages/Member/Classroom.vue              # MODIFY: 渲染條件改為 lesson.video_access_hours !== null
+resources/views/emails/drip-lesson.blade.php         # MODIFY: 動態讀取 lesson.video_access_hours
+
+config/drip.php                                      # MODIFY: 移除 video_access_hours（保留 reward_delay_minutes）
+```
+
+### 關鍵實作細節
+
+**DripService 計算修改**：
+
+```php
+public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+{
+    $hours = $lesson->video_access_hours; // 改讀 lesson 欄位，非 config
+    if ($hours === null) {
+        return null; // null = 無限期觀看，不啟用計時
+    }
+    $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
+    $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+    return $unlockAt->addHours($hours);
+}
+```
+
+**Classroom.vue 渲染條件修改**：
+- 原條件：`course is drip + lesson has video + subscription not converted + (expired or remaining > 0)`
+- 新條件：`course is drip + lesson has video + lesson.video_access_hours !== null + subscription not converted + (expired or remaining > 0)`
+
+**Email 模板修改**：
+
+```blade
+@if($lesson->video_access_hours)
+⏰ 影片 {{ $lesson->video_access_hours }} 小時內免費觀看，把握時間！
+@endif
+```
+
+**LessonForm.vue 新增欄位**：
+
+```vue
+<label>影片觀看期限（小時）</label>
+<input
+  v-model="form.video_access_hours"
+  type="number"
+  min="1"
+  placeholder="留空表示無限期觀看"
+/>
+<p>drip 課程有影片的 Lesson 專用。設定後啟用倒數計時與準時到課獎勵欄。</p>
+```
+
+### 影響範圍
+
+- **US10**（影片免費觀看期）：設定方式從全站 config 改為 per-lesson 欄位，業務邏輯不變
+- **US11**（準時到課獎勵）：顯示前提改為「Lesson 設定了 `video_access_hours`」，邏輯不變
+- **Email 模板**：動態讀取 lesson 時數，不再固定顯示固定小時數
+
+---
+
 ## Next Steps
 
-1. Run `/speckit.tasks` 產生 Phase 15（promo_url 修正）的 task 清單
+1. Run `/speckit.tasks` 產生 Phase 15（promo_url 修正）及 Phase 16（per-lesson video_access_hours）的 task 清單
