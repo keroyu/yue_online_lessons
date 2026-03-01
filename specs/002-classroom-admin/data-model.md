@@ -63,7 +63,7 @@
 | ... | ... | ... | (existing fields from MVP) |
 | **status** | enum('draft','preorder','selling') | default: 'draft' | 課程狀態 |
 | **sale_at** | timestamp | nullable | 預購開賣時間 |
-| **description_html** | longtext | nullable | 課程介紹 HTML |
+| **description_html** | longtext | nullable | 課程介紹（Markdown 格式，透過 marked.js 渲染後顯示）|
 | **duration_minutes** | int unsigned | nullable | 時間總長（分鐘），前端換算顯示 |
 | **portaly_product_id** | varchar(100) | nullable | Portaly 商品 ID，前端組合為完整 URL |
 | **original_price** | int unsigned | nullable | 原價（優惠到期後顯示此價格） |
@@ -147,7 +147,7 @@ preorder/selling ──下架──→ draft
 | video_platform | enum('vimeo','youtube') | nullable | 影片平台 |
 | video_id | varchar(100) | nullable | 影片 ID |
 | video_url | varchar(500) | nullable | 原始影片連結 |
-| html_content | longtext | nullable | HTML 內容（無影片時使用） |
+| html_content | longtext | nullable | Markdown 內容（無影片時使用，透過 marked.js 渲染）|
 | duration_seconds | int unsigned | default: 0 | 時長（秒） |
 | sort_order | int unsigned | default: 0 | 排序順序 |
 | created_at | timestamp | not null | 建立時間 |

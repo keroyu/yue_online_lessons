@@ -167,7 +167,7 @@ class DripService
      */
     public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
     {
-        $hours = config('drip.video_access_hours');
+        $hours = $lesson->video_access_hours; // null = unlimited access, no countdown UI
         if ($hours === null) {
             return null;
         }

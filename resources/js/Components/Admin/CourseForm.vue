@@ -430,7 +430,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             ref="descriptionHtmlTextarea"
             v-model="form.description_html"
             rows="12"
-            placeholder="<h2>課程特色</h2>&#10;<p>這是一門精心設計的課程...</p>"
+            placeholder="## 課程特色&#10;這是一門精心設計的課程..."
             class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm leading-relaxed"
             :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.description_html }"
           />

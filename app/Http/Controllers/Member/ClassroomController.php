@@ -269,13 +269,17 @@ class ClassroomController extends Controller
             'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
             'promo_html' => $isLocked ? null : $lesson->promo_html,
-            'video_access_expired' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+            'promo_url' => (!$isLocked && $lesson->promo_url)
+                ? route('drip.track.click', ['les' => $lesson->id, 'url' => $lesson->promo_url])
+                : null,
+            'video_access_hours' => $lesson->video_access_hours,
+            'video_access_expired' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $this->dripService->isVideoAccessExpired($dripSubscription, $lesson)
                 : false,
-            'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+            'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson)
                 : null,
-            'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription)
+            'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $lesson->reward_html
                 : null,
         ];

@@ -40,6 +40,7 @@ class ChapterController extends Controller
                     'promo_html' => $lesson->promo_html,
                     'promo_url' => $lesson->promo_url,
                     'reward_html' => $lesson->reward_html,
+                    'video_access_hours' => $lesson->video_access_hours,
                 ]),
             ]);
 
@@ -62,6 +63,7 @@ class ChapterController extends Controller
                 'promo_html' => $lesson->promo_html,
                 'promo_url' => $lesson->promo_url,
                 'reward_html' => $lesson->reward_html,
+                'video_access_hours' => $lesson->video_access_hours,
             ]);
 
         return Inertia::render('Admin/Courses/Chapters', [

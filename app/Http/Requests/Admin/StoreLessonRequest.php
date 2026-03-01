@@ -32,6 +32,7 @@ class StoreLessonRequest extends FormRequest
             'promo_html' => ['nullable', 'string', 'max:10000'],
             'promo_url' => ['nullable', 'url', 'max:500'],
             'reward_html' => ['nullable', 'string', 'max:10000'],
+            'video_access_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
         ];
     }
 
@@ -55,6 +56,7 @@ class StoreLessonRequest extends FormRequest
             'promo_url.url' => '商品連結必須是有效的 URL',
             'promo_url.max' => '商品連結太長',
             'reward_html.max' => '獎勵內容太長',
+            'video_access_hours.min' => '觀看期限至少 1 小時',
         ];
     }
 
