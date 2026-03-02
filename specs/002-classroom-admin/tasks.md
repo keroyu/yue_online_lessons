@@ -3,6 +3,7 @@
 **Input**: Design documents from `/specs/002-classroom-admin/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/routes.md
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式 (Phase 21)
+**Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放 (Phase 22)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1272,6 +1273,20 @@ Within Phase 15:
 
 ---
 
+## Phase 22: 教室切換 lesson 時影片自動播放 (2026-03-02 新增)
+
+**Purpose**: 切換章節時有影片的課程自動開始播放，提升學習流暢度
+
+**背景**：VideoPlayer.vue 原本 Vimeo 設 `autoplay=0`，YouTube 不設 autoplay，切換 lesson 後需手動點擊播放。
+
+- [x] T199 [US1] 啟用影片自動播放 in `resources/js/Components/Classroom/VideoPlayer.vue`
+  - Vimeo: `autoplay` 從 `'0'` 改為 `'1'`
+  - YouTube: 新增 `url.searchParams.set('autoplay', '1')`
+
+**Checkpoint**: 切換 lesson 後，Vimeo 與 YouTube 影片自動播放 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1289,4 +1304,5 @@ Within Phase 15:
 | Phase 19 (Bug Fixes & UI Polish) | T192-T194 | ✅ Completed |
 | Phase 20 (US8 擴充 - 後臺預覽按鈕) | T195-T196 | ✅ Completed |
 | Phase 21 (Markdown iframe 響應式樣式) | T197-T198 | ✅ Completed |
-| **Total** | **198 tasks** | 194 completed, 4 pending |
+| Phase 22 (教室切換 lesson 自動播放) | T199 | ✅ Completed |
+| **Total** | **199 tasks** | 195 completed, 4 pending |

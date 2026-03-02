@@ -8,6 +8,7 @@
 **Updated**: 2026-01-30 - 優化優惠倒數計時 UI（卡片式設計 + 數字滾動動畫）
 **Updated**: 2026-01-30 - 新增課程顯示/隱藏設定功能 (US9)
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式
+**Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放
 
 ## Summary
 
@@ -186,6 +187,7 @@ database/migrations/
 | Phase 19 | Bug Fixes & UI Polish | ✅ Complete |
 | Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
 | Phase 21 | Markdown 內嵌影片 iframe 響應式樣式 | ✅ Complete |
+| Phase 22 | 教室切換 lesson 時影片自動播放 | ✅ Complete |
 
 **Phase 13 Details** (2026-01-18 完成, 2026-01-30 調整門檻):
 - 前端樂觀更新：點擊小節後立即顯示綠色勾勾
@@ -232,6 +234,20 @@ See [tasks.md](./tasks.md) for detailed task breakdown.
 - **禁止加 sanitizer**：admin 內容為可信任來源，加入 DOMPurify 會過濾 iframe，故明確以注釋標記禁止
 
 **使用方式**：在 Markdown 編輯器中，`<iframe>` 前後需各保留一個空行，marked.js 才能將其識別為 HTML block 正確通過。
+
+---
+
+### 2026-03-02: 教室切換 lesson 時影片自動播放
+
+**背景**：會員在上課頁面切換章節時，影片播放器需要自動開始播放，提升學習流暢度，無需手動點擊播放按鈕。
+
+**修改檔案**：
+- `resources/js/Components/Classroom/VideoPlayer.vue` - 將 Vimeo `autoplay` 從 `'0'` 改為 `'1'`，並為 YouTube 新增 `autoplay=1` 參數
+
+**設計決策**：
+- **URL 參數解法**：直接在 embed URL 加上 `autoplay=1`，iframe 重新載入時自動播放，無需額外 JS 控制
+- **瀏覽器相容性**：切換 lesson 需要用戶點擊（使用者互動），符合瀏覽器 autoplay policy，不會被封鎖
+- **初次載入**：頁面首次載入若未有使用者互動，瀏覽器可能攔截 autoplay，但屬預期行為
 
 ## Key Design Decisions
 
