@@ -182,7 +182,7 @@ database/migrations/
 | Phase 15 | US8 - 管理員前端預覽 | ✅ Complete |
 | Phase 16 | 節流門檻調整 | ✅ Complete |
 | Phase 17 | US2b - 倒數計時 UI 優化 | ✅ Complete |
-| Phase 18 | US9 - 課程顯示/隱藏設定 | ⏳ Pending |
+| Phase 18 | US9 - 課程顯示/隱藏設定 | ✅ Complete |
 | Phase 19 | Bug Fixes & UI Polish | ✅ Complete |
 | Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
 | Phase 21 | Markdown 內嵌影片 iframe 響應式樣式 | ✅ Complete |
