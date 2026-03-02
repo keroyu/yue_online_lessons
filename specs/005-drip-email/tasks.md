@@ -3,6 +3,8 @@
 **Input**: Design documents from `/specs/005-drip-email/`
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/, research.md, quickstart.md
 **Tests**: Not explicitly requested. Tests NOT included.
+**Updated**: 2026-03-02 - 訂閱時強制填寫暱稱 (Phase 20)
+**Updated**: 2026-03-02 - 暱稱欄位行為調整：永遠顯示+預填+regex 驗證 (Phase 21)
 
 **Organization**: Tasks grouped by user story for independent implementation and testing.
 
@@ -360,7 +362,7 @@
 
 - [x] T101 [US15] Modify `ClassroomController@show`: (1) in chapters filter add `&& (!$isDrip || !empty($lesson->video_id))` to the existing unlocked filter condition; (2) apply same condition to standaloneLessons filter; (3) update drip `currentLesson` default selection to add `&& !empty($lesson->video_id)` to both first-uncompleted and fallback queries; (4) **admin exemption**: wrap the video filter condition with `&& (!$isDrip || $isAdmin || !empty($lesson->video_id))` so admin preview shows all lessons including text-only; (5) direct `?lesson_id=X` access unchanged — pure text lesson still displayable when accessed via email link in `app/Http/Controllers/Member/ClassroomController.php`
 - [x] T102 [P] [US15] Modify `Classroom.vue`: (1) add sidebar empty-state message for drip courses when no visible lessons — `v-if="course.is_drip && chapters.length === 0 && standaloneLessons.length === 0"` displays `<p class="text-sm text-gray-500 p-4">你的課程正在準備中，請留意 Email 通知。</p>` in the sidebar lesson list area; (2) add main content area null guard — when `currentLesson` is null AND `course.is_drip`, show a welcome/empty state in the main panel (e.g. `<p>訂閱成功！第一堂課程即將發送至您的信箱，請留意 Email 通知。</p>`) instead of a blank or broken layout in `resources/js/Pages/Member/Classroom.vue`
-- [ ] T103 Verify US15 sidebar filtering: (1) drip course with mixed lessons (text-only + video) → subscribe → confirm sidebar shows only unlocked video lessons; (2) force converted status (update DB) → confirm all video lessons visible, text-only still absent; (3) navigate via `?lesson_id=X` to a text-only lesson → confirm content renders normally despite not being in sidebar; (4) standard course → confirm sidebar behaviour unchanged (all lessons including text-only shown)
+- [x] T103 Verify US15 sidebar filtering: (1) drip course with mixed lessons (text-only + video) → subscribe → confirm sidebar shows only unlocked video lessons; (2) force converted status (update DB) → confirm all video lessons visible, text-only still absent; (3) navigate via `?lesson_id=X` to a text-only lesson → confirm content renders normally despite not being in sidebar; (4) standard course → confirm sidebar behaviour unchanged (all lessons including text-only shown)
 
 ---
 
@@ -392,6 +394,48 @@
   - `$classroomUrl`、`$unsubscribeUrl` 等變數仍由 Mail class 傳入（`DripLessonMail`），但模板不再渲染
 
 **Checkpoint**: 發出的 drip 信件不含任何系統自動產生的標題行或功能連結，僅顯示問候語（若設定）與 Lesson 正文 ✅
+
+---
+
+## Phase 20: 訂閱時強制填寫暱稱 (2026-03-02 新增)
+
+**Purpose**: 確保每位 drip 訂閱者都有暱稱，讓 Email 個人化問候語（FR-075/FR-076）能正常運作。
+
+**背景**：訂閱流程原本不收集暱稱，導致新訂閱者無 nickname，drip 信件略過問候語。透過在訂閱入口強制填寫暱稱解決此問題。
+
+- [x] T108 [US1] Add `drip_nickname` to flash in `app/Http/Middleware/HandleInertiaRequests.php`
+  - 在 flash 陣列新增 `'drip_nickname' => fn () => $request->session()->get('drip_nickname')`
+- [x] T109 [US1] Update `DripSubscriptionController::subscribe()` in `app/Http/Controllers/DripSubscriptionController.php`
+  - 新增 nickname 必填驗證（required, string, max:50）；flash 回傳帶入 `drip_nickname`
+- [x] T110 [P] [US1] Update `DripSubscriptionController::verify()` in `app/Http/Controllers/DripSubscriptionController.php`
+  - 新增 nickname 必填驗證；新用戶建立時帶入 nickname；已存在但無 nickname 的用戶補填
+- [x] T111 [P] [US1.5] Update `DripSubscriptionController::memberSubscribe()` in `app/Http/Controllers/DripSubscriptionController.php`
+  - 使用 `Rule::requiredIf(empty($user->nickname))` 條件驗證；成功後更新 user.nickname；引入 `Illuminate\Validation\Rule`
+- [x] T112 [P] [US1] Update `DripSubscribeForm.vue` in `resources/js/Components/Course/DripSubscribeForm.vue`
+  - Step 1 加入暱稱輸入欄位（含錯誤顯示）；nickname ref 初始值從 `flash.drip_nickname` 讀取；Step 1 + Step 2 POST 帶入 nickname；按鈕 disabled 條件加入 `!nickname`
+- [x] T113 [P] [US1.5] Update `Course/Show.vue` in `resources/js/Pages/Course/Show.vue`
+  - 新增 `needsNickname` computed（`!!auth.user && !auth.user.nickname`）和 `memberNickname` ref；已登入無暱稱時在訂閱按鈕上方顯示暱稱輸入欄；按鈕 disabled 條件加入 `needsNickname && !memberNickname`；memberSubscribe 帶入 nickname
+
+**Checkpoint**: 訪客訂閱時必須填寫暱稱才能送出；已登入無暱稱會員需填寫後才能訂閱；有暱稱的會員流程完全不受影響；新訂閱者的 drip 歡迎信包含個人化問候語 ✅
+
+---
+
+## Phase 21: 暱稱欄位行為調整（永遠顯示+預填+regex 驗證）(2026-03-02 新增)
+
+**Purpose**: 修正 Phase 20 的初版設計，讓所有訂閱者在訂閱前均可確認/修改暱稱，並加強輸入安全性。
+
+**背景**：Phase 20 僅對無暱稱會員顯示欄位，有暱稱的會員可繞過；verify() 亦只在無暱稱時補填。本 Phase 調整為永遠顯示（預填舊值）、一律覆蓋、加入 regex 驗證。
+
+- [x] T114 [US1] [US1.5] Add `regex:/\p{L}/u` to all three nickname validation rules + add Chinese error message in `app/Http/Controllers/DripSubscriptionController.php`
+  - subscribe() / verify() / memberSubscribe() 統一加入 `'regex:/\p{L}/u'` 和 `'nickname.regex' => '暱稱需包含至少一個文字（不可為純空格或符號）'`
+- [x] T115 [P] [US1] Fix `verify()` to always update nickname in `app/Http/Controllers/DripSubscriptionController.php`
+  - 移除 `elseif (!$user->nickname)` 條件 → 改為 `else { $user->update(['nickname' => $nickname]); }`；trim() 統一處理
+- [x] T116 [P] [US1.5] Fix `memberSubscribe()` to always require and update nickname in `app/Http/Controllers/DripSubscriptionController.php`
+  - 移除 `Rule::requiredIf` → 改為 `'required'`；移除 `nullable`；移除條件判斷直接 update；移除 `use Illuminate\Validation\Rule` import
+- [x] T117 [P] [US1.5] Update `Course/Show.vue` nickname field to always show with pre-fill in `resources/js/Pages/Course/Show.vue`
+  - `memberNickname` 初始值改為 `page.props.auth?.user?.nickname || ''`；移除 `needsNickname` computed；移除 `v-if="needsNickname"`（欄位永遠顯示）；按鈕 disabled 改為 `!memberNickname.trim()`；memberSubscribe 移除 `|| undefined`
+
+**Checkpoint**: 所有已登入會員（含有暱稱）訂閱時見到暱稱欄並可確認/修改；純空格/符號/數字暱稱後端拒絕；前端空白時按鈕 disabled；trim 後儲存；verify() 和 memberSubscribe() 均一律更新 nickname ✅
 
 ---
 

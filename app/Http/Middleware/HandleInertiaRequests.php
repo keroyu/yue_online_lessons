@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'drip_email' => fn () => $request->session()->get('drip_email'),
                 'drip_course_id' => fn () => $request->session()->get('drip_course_id'),
                 'drip_subscribed' => fn () => $request->session()->get('drip_subscribed'),
+                'drip_nickname' => fn () => $request->session()->get('drip_nickname'),
             ],
         ];
     }

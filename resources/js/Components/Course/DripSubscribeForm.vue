@@ -13,6 +13,7 @@ const page = usePage()
 
 const email = ref('')
 const code = ref('')
+const nickname = ref(page.props.flash?.drip_nickname || '')
 const step = ref('email') // 'email' or 'code'
 const processing = ref(false)
 const errors = ref({})
@@ -34,6 +35,7 @@ const sendCode = () => {
   router.post('/drip/subscribe', {
     course_id: props.courseId,
     email: email.value,
+    nickname: nickname.value,
   }, {
     preserveScroll: true,
     onSuccess: () => {
@@ -55,6 +57,7 @@ const verifyCode = () => {
     course_id: props.courseId,
     email: email.value,
     code: code.value,
+    nickname: nickname.value,
   }, {
     onError: (errs) => {
       errors.value = errs
@@ -92,9 +95,26 @@ const goBack = () => {
         <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
       </div>
 
+      <div>
+        <label for="drip-nickname" class="block text-sm font-medium text-gray-700 mb-1">
+          暱稱
+        </label>
+        <input
+          id="drip-nickname"
+          v-model="nickname"
+          type="text"
+          placeholder="請輸入您的暱稱"
+          required
+          maxlength="50"
+          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          :class="{ 'border-red-300': errors.nickname }"
+        />
+        <p v-if="errors.nickname" class="mt-1 text-sm text-red-600">{{ errors.nickname }}</p>
+      </div>
+
       <button
         type="submit"
-        :disabled="processing || !email"
+        :disabled="processing || !email || !nickname"
         class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {{ processing ? '發送中...' : '取得驗證碼' }}

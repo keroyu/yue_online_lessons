@@ -20,6 +20,10 @@
 
 **設計修正（2026-03-01）**：精簡 drip 信件模板 - 移除課程/Lesson 標題行、影片提醒、免費觀看期提示、教室連結、退訂連結等系統自動產生的固定區塊。Email 結構改為「問候語（選填）＋ Lesson HTML 正文＋ tracking pixel」，所有連結由管理員在 Lesson 內容中手動維護。
 
+**新增功能（2026-03-02）**：訂閱時強制填寫暱稱 - 訪客訂閱表單加入必填暱稱欄位（Step 1 + Step 2），確保新訂閱者有 nickname 以供 drip 信件個人化問候語使用；已登入但無暱稱的會員訂閱時顯示暱稱欄位，空白時禁用按鈕。
+
+**設計修正（2026-03-02）**：暱稱欄位行為調整 - 改為永遠顯示（含已有暱稱的已登入會員）並預填現有值，允許訂閱時確認/修改；verify() 改為一律覆蓋舊暱稱；新增 `regex:/\p{L}/u` 驗證防純空格/符號；前端 `memberNickname` 初始值改讀現有 nickname；移除 `needsNickname` computed。
+
 ## Technical Context
 
 **Language/Version**: PHP 8.2+ / Laravel 12.x
@@ -327,7 +331,7 @@ Route::middleware('auth')->group(function () {
 | Phase 2: Tasks | ✅ Complete | [tasks.md](./tasks.md) |
 | Phase 15: promo_url 設計修正 | ✅ Complete | promo_url 嵌入 LessonPromoBlock；條件修正；$dripSubscription 限制移除 |
 | Phase 16: per-lesson video_access_hours | ✅ Complete | video_access_hours 移至 Lesson 欄位；config 移除；Email 動態時數 |
-| Phase 17: US15 sidebar filter | ⏳ Pending | T101~T103 |
+| Phase 17: US15 sidebar filter | ✅ Complete | T101~T103 |
 
 ---
 
@@ -584,6 +588,40 @@ if ($isDrip) {
 <img src="{{ $openPixelUrl }}" width="1" height="1" alt="" style="display:none">
 @endif
 ```
+
+---
+
+## 增量更新：訂閱 Drip 課程時強制填寫暱稱 - 2026-03-02
+
+**背景**：Email 個人化問候語功能（FR-075/FR-076）需要 `nickname`，但訂閱流程原本不收集暱稱，導致新訂閱者無暱稱可用，發信時略過問候語。透過在訂閱入口強制填寫暱稱，確保每位訂閱者都有名字可供問候。
+
+**修改檔案**：
+- `app/Http/Middleware/HandleInertiaRequests.php` - 新增 `drip_nickname` 至 flash shared data，讓 Step 2 能讀取 Step 1 傳入的暱稱
+- `app/Http/Controllers/DripSubscriptionController.php` - `subscribe()` 加入 nickname 必填驗證並 flash `drip_nickname`；`verify()` 加入 nickname 驗證並在建立/更新 user 時帶入；`memberSubscribe()` 使用 `Rule::requiredIf` 條件驗證並更新 user
+- `resources/js/Components/Course/DripSubscribeForm.vue` - Step 1 加入暱稱輸入欄位與錯誤顯示；nickname ref 初始值從 `flash.drip_nickname` 讀取；Step 1 + Step 2 POST 均帶入 nickname
+- `resources/js/Pages/Course/Show.vue` - 新增 `needsNickname` computed（已登入但 nickname 為空）、`memberNickname` ref；無暱稱時顯示暱稱輸入欄並禁用訂閱按鈕；memberSubscribe 帶入 nickname
+
+**設計決策**：
+- **Step 2 暱稱傳遞**：透過 flash session（`drip_nickname`）而非 URL 參數，避免暱稱外露於網址列；前端讀取 flash 初始化 ref，使用者進入 Step 2 無需重新輸入
+- **條件驗證**（memberSubscribe）：使用 `Rule::requiredIf(empty($user->nickname))` 而非前端 disabled 單獨防護，確保後端也有驗證邏輯，有暱稱的會員傳入的 nickname 欄位為 nullable 不影響原流程
+- **不覆蓋現有暱稱**：`elseif (!$user->nickname)` 條件確保已有暱稱的用戶不會被訪客輸入的值覆蓋
+
+---
+
+## 增量更新：暱稱欄位行為調整 - 2026-03-02
+
+**背景**：Phase 20 的初版實作僅對「無暱稱會員」顯示欄位，已有暱稱的會員可直接訂閱。後續決策改為永遠顯示並預填，讓所有訂閱者在訂閱前都有機會確認或修改暱稱，同時加入輸入內容安全性驗證。
+
+**修改檔案**：
+- `app/Http/Controllers/DripSubscriptionController.php` - 三個方法統一加入 `regex:/\p{L}/u` 驗證規則和對應中文錯誤訊息；`trim()` 所有儲存動作；`verify()` 移除 `elseif (!$user->nickname)` 條件改為一律更新；`memberSubscribe()` 移除 `Rule::requiredIf` 改為 `required`、移除條件判斷直接呼叫 update；移除 `use Illuminate\Validation\Rule` import
+- `resources/js/Pages/Course/Show.vue` - `memberNickname` ref 初始值改為 `page.props.auth?.user?.nickname || ''`（預填現有暱稱）；移除 `needsNickname` computed；暱稱輸入欄改為永遠顯示（移除 `v-if="needsNickname"`）；按鈕 disabled 改為 `!memberNickname.trim()`；`memberSubscribe` 永遠傳送 nickname
+
+**設計決策**：
+- **永遠顯示欄位**：讓使用者訂閱前確認暱稱，避免多年前填的暱稱不符現況；UI 預填舊值降低摩擦
+- **一律覆蓋暱稱**（verify + memberSubscribe）：訂閱即是一次「身份確認」，輸入值即為最新意願；若需保留舊值只需不改動預填值
+- **`regex:/\p{L}/u`**：要求至少一個 Unicode 文字（中/英/日等均可），拒絕純空白、純符號、純數字，不限制語言，對非英語用戶友好
+- **`trim()` 儲存**：去除首尾空白，防止資料庫存入無效空白字串；Laravel Eloquent ORM 已透過 PDO prepared statement 防 SQL injection
+- **前端 `.trim()` 驗證**：`!memberNickname.trim()` 使純空格輸入無法啟用按鈕（前端早期攔截，後端仍有 regex 雙重保護）
 
 ## Next Steps
 

@@ -31,9 +31,12 @@ class DripSubscriptionController extends Controller
         $request->validate([
             'course_id' => ['required', 'exists:courses,id'],
             'email' => ['required', 'email'],
+            'nickname' => ['required', 'string', 'max:50', 'regex:/\p{L}/u'],
         ], [
             'email.required' => '請輸入 Email',
             'email.email' => '請輸入有效的 Email 格式',
+            'nickname.required' => '請輸入暱稱',
+            'nickname.regex' => '暱稱需包含至少一個文字（不可為純空格或符號）',
         ]);
 
         $email = $request->input('email');
@@ -82,6 +85,7 @@ class DripSubscriptionController extends Controller
             'success' => '驗證碼已發送至您的信箱',
             'drip_email' => $email,
             'drip_course_id' => $courseId,
+            'drip_nickname' => trim($request->input('nickname')),
         ]);
     }
 
@@ -94,8 +98,11 @@ class DripSubscriptionController extends Controller
             'course_id' => ['required', 'exists:courses,id'],
             'email' => ['required', 'email'],
             'code' => ['required', 'string'],
+            'nickname' => ['required', 'string', 'max:50', 'regex:/\p{L}/u'],
         ], [
             'code.required' => '請輸入驗證碼',
+            'nickname.required' => '請輸入暱稱',
+            'nickname.regex' => '暱稱需包含至少一個文字（不可為純空格或符號）',
         ]);
 
         $email = $request->input('email');
@@ -113,12 +120,17 @@ class DripSubscriptionController extends Controller
         $user = User::where('email', $email)->first();
         $isNewUser = !$user;
 
+        $nickname = trim($request->input('nickname'));
+
         if ($isNewUser) {
             $user = User::create([
                 'email' => $email,
+                'nickname' => $nickname,
                 'email_verified_at' => now(),
                 'role' => 'member',
             ]);
+        } else {
+            $user->update(['nickname' => $nickname]);
         }
 
         // Login the user
@@ -147,6 +159,15 @@ class DripSubscriptionController extends Controller
     public function memberSubscribe(Request $request, Course $course): RedirectResponse
     {
         $user = $request->user();
+
+        $validated = $request->validate([
+            'nickname' => ['required', 'string', 'max:50', 'regex:/\p{L}/u'],
+        ], [
+            'nickname.required' => '請輸入暱稱',
+            'nickname.regex' => '暱稱需包含至少一個文字（不可為純空格或符號）',
+        ]);
+
+        $user->update(['nickname' => trim($validated['nickname'])]);
 
         $result = $this->dripService->subscribe($user, $course);
 

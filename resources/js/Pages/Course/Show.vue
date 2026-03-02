@@ -133,12 +133,15 @@ onMounted(() => {
 // Drip subscription
 const subscribing = ref(false)
 const subscribeErrors = ref({})
+const memberNickname = ref(page.props.auth?.user?.nickname || '')
 
 const memberSubscribe = () => {
   subscribing.value = true
   subscribeErrors.value = {}
 
-  router.post(`/member/drip/subscribe/${props.course.id}`, {}, {
+  router.post(`/member/drip/subscribe/${props.course.id}`, {
+    nickname: memberNickname.value,
+  }, {
     onError: (errs) => {
       subscribeErrors.value = errs
       subscribing.value = false
@@ -372,9 +375,21 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
         <!-- Can subscribe: logged-in member -->
         <div v-else-if="canSubscribe && $page.props.auth.user" class="text-center py-6">
           <p v-if="subscribeErrors.subscribe" class="mb-3 text-sm text-red-600">{{ subscribeErrors.subscribe }}</p>
+          <div class="mb-4 max-w-xs mx-auto text-left">
+            <label class="block text-sm font-medium text-gray-700 mb-1">暱稱（必填）</label>
+            <input
+              v-model="memberNickname"
+              type="text"
+              placeholder="請輸入您的暱稱"
+              maxlength="50"
+              class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              :class="{ 'border-red-300': subscribeErrors.nickname }"
+            />
+            <p v-if="subscribeErrors.nickname" class="mt-1 text-sm text-red-600">{{ subscribeErrors.nickname }}</p>
+          </div>
           <button
             @click="memberSubscribe"
-            :disabled="subscribing"
+            :disabled="subscribing || !memberNickname.trim()"
             class="px-10 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ subscribing ? '訂閱中...' : (Number(course.price) > 0 ? '立即購買' : '免費訂閱') }}
