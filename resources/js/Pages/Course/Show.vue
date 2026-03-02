@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { marked } from 'marked'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
@@ -116,19 +116,7 @@ const closeLegalModal = () => {
 // Do NOT add DOMPurify here — admin content is trusted and iframes must be preserved.
 const renderedDescription = computed(() => marked(props.course.description_md || ''))
 
-// Scroll to drip section after successful subscription
 const page = usePage()
-const dripSectionRef = ref(null)
-
-onMounted(() => {
-  if (page.props.flash?.drip_subscribed) {
-    nextTick(() => {
-      setTimeout(() => {
-        dripSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 400)
-    })
-  }
-})
 
 // Drip subscription
 const subscribing = ref(false)
@@ -240,6 +228,26 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     </div>
 
     <!-- ============================================================ -->
+    <!-- Drip subscription success notification                       -->
+    <!-- ============================================================ -->
+    <div v-if="isDrip && $page.props.flash?.drip_subscribed" class="bg-brand-cream px-4 pt-6 pb-2">
+      <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-xl border border-green-100 shadow-sm px-6 py-6 text-center">
+          <div class="mx-auto w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">訂閱成功</h3>
+          <p class="text-gray-600">
+            課程已寄送到您的信箱 <strong class="text-gray-800">{{ $page.props.auth?.user?.email }}</strong>，請去收取歡迎信！<br>
+            如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
     <!-- 3. Info row + quick buy (directly below video, no gap)       -->
     <!-- ============================================================ -->
     <div class="bg-white px-4 sm:px-6 py-5 border-b border-gray-100">
@@ -335,23 +343,10 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     <!-- ============================================================ -->
     <!-- 6a. Drip subscription section                                -->
     <!-- ============================================================ -->
-    <div v-if="isDrip" ref="dripSectionRef" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
+    <div v-if="isDrip" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
       <div class="max-w-2xl mx-auto">
-        <!-- Subscription success (inline) -->
-        <div v-if="$page.props.flash?.drip_subscribed" class="text-center py-6">
-          <div class="mx-auto w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-            <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">訂閱成功</h3>
-          <p class="text-gray-600">
-            請到信箱收取歡迎信。<br>如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。
-          </p>
-        </div>
-
         <!-- Already subscribed -->
-        <div v-else-if="userSubscription" class="text-center py-6">
+        <div v-if="userSubscription" class="text-center py-6">
           <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
             :class="{
               'bg-green-100 text-green-800': userSubscription === 'active',
