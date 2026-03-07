@@ -28,6 +28,26 @@ const form = ref({
 
 const errors = ref({})
 
+// Convert seconds to "M:SS" display format
+const secondsToMMSS = (seconds) => {
+  if (!seconds) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+// Parse "M:SS" input to seconds
+const parseMMSS = (input) => {
+  if (!input || !input.trim()) return null
+  const parts = input.trim().split(':')
+  if (parts.length === 2) {
+    const minutes = parseInt(parts[0]) || 0
+    const seconds = parseInt(parts[1]) || 0
+    return minutes * 60 + seconds
+  }
+  return null
+}
+
 const ctaUrl = ref('')
 const ctaText = ref('')
 
@@ -46,7 +66,7 @@ onMounted(() => {
       title: props.lesson.title || '',
       video_url: props.lesson.video_url || '',
       md_content: props.lesson.md_content || '',
-      duration_seconds: props.lesson.duration_seconds || '',
+      duration_seconds: secondsToMMSS(props.lesson.duration_seconds),
       promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
       promo_url: props.lesson.promo_url || '',
@@ -80,6 +100,11 @@ const validate = () => {
     return false
   }
 
+  if (form.value.duration_seconds && !/^\d+:[0-5]?\d$/.test(form.value.duration_seconds.trim())) {
+    errors.value.duration_seconds = '格式錯誤，請使用 分:秒 格式（如 3:50 或 11:30）'
+    return false
+  }
+
   return true
 }
 
@@ -90,7 +115,7 @@ const submit = () => {
     title: form.value.title,
     video_url: form.value.video_url || null,
     md_content: form.value.md_content || null,
-    duration_seconds: form.value.duration_seconds ? parseInt(form.value.duration_seconds) : null,
+    duration_seconds: parseMMSS(form.value.duration_seconds),
     promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
     promo_url: form.value.promo_url || null,
@@ -177,17 +202,17 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               <!-- Duration -->
               <div>
                 <label for="duration_seconds" :class="labelClasses">
-                  影片時長（秒）
+                  影片時長
                 </label>
                 <input
                   id="duration_seconds"
                   v-model="form.duration_seconds"
-                  type="number"
-                  min="0"
-                  placeholder="例如：230"
-                  :class="inputClasses"
+                  type="text"
+                  placeholder="例如：3:50 或 11:30"
+                  :class="[inputClasses, errors.duration_seconds ? inputErrorClasses : '']"
                 />
-                <p :class="helpTextClasses">230 秒會顯示為「3:50」</p>
+                <p :class="helpTextClasses">格式：分:秒，課程總時長將自動加總</p>
+                <p v-if="errors.duration_seconds" :class="errorTextClasses">{{ errors.duration_seconds }}</p>
               </div>
 
               <!-- Markdown Content -->

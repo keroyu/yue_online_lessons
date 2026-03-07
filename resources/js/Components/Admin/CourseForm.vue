@@ -43,7 +43,6 @@ const form = useForm({
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
   type: props.course?.type || 'lecture',
-  duration_minutes: props.course?.duration_minutes || '',
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   is_visible: props.course?.is_visible ?? true,
@@ -363,20 +362,6 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               <p v-if="form.errors.promo_ends_at" :class="errorTextClasses">{{ form.errors.promo_ends_at }}</p>
             </div>
 
-            <!-- Duration -->
-            <div>
-              <label for="duration_minutes" :class="labelClasses">時間總長（分鐘）</label>
-              <input
-                id="duration_minutes"
-                v-model="form.duration_minutes"
-                type="number"
-                min="0"
-                placeholder="例如：190"
-                :class="[inputClasses, form.errors.duration_minutes ? inputErrorClasses : '']"
-              />
-              <p :class="helpTextClasses">190 分鐘會顯示為「3小時10分鐘」</p>
-              <p v-if="form.errors.duration_minutes" :class="errorTextClasses">{{ form.errors.duration_minutes }}</p>
-            </div>
           </div>
 
           <!-- Sale At -->

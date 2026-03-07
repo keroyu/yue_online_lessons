@@ -49,6 +49,8 @@ class LessonController extends Controller
 
         $course->lessons()->create($data);
 
+        $this->updateCourseDuration($course);
+
         // Reactivate completed subscribers so they receive the new lesson
         if ($course->course_type === 'drip') {
             $this->dripService->reactivateCompletedSubscriptions($course);
@@ -84,6 +86,8 @@ class LessonController extends Controller
 
         $lesson->update($data);
 
+        $this->updateCourseDuration($lesson->course);
+
         return redirect()
             ->route('admin.chapters.index', $lesson->course_id)
             ->with('success', '小節更新成功');
@@ -94,15 +98,31 @@ class LessonController extends Controller
      */
     public function destroy(Lesson $lesson): RedirectResponse
     {
-        $courseId = $lesson->course_id;
+        $course = $lesson->course;
 
         // Delete progress records for this lesson
         $lesson->progress()->delete();
         $lesson->delete();
 
+        $this->updateCourseDuration($course);
+
         return redirect()
-            ->route('admin.chapters.index', $courseId)
+            ->route('admin.chapters.index', $course->id)
             ->with('success', '小節已刪除');
+    }
+
+    /**
+     * Recalculate and update course duration_minutes from video lessons.
+     */
+    private function updateCourseDuration(Course $course): void
+    {
+        $totalSeconds = $course->lessons()
+            ->whereNotNull('video_id')
+            ->sum('duration_seconds');
+
+        $course->update([
+            'duration_minutes' => (int) round($totalSeconds / 60),
+        ]);
     }
 
     /**
