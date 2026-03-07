@@ -197,33 +197,27 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     </div>
 
     <!-- ============================================================ -->
-    <!-- 2. Video / Thumbnail (contained max-width)                   -->
+    <!-- 2. Thumbnail — full-width hero with bottom fade              -->
     <!-- ============================================================ -->
-    <div class="bg-brand-cream px-4 sm:px-6 pb-0">
-      <div class="max-w-3xl mx-auto">
-        <!-- Tagline bar above video -->
-        <div class="bg-brand-teal text-white text-center py-2 px-4 text-sm rounded-t-lg">
-          <span v-if="isPreviewMode" class="mr-2 opacity-75">[草稿]</span>
-          {{ getTypeLabel(course.type) }}
-          <span v-if="course.tagline"> — {{ course.tagline }}</span>
+    <div class="relative w-full">
+      <!-- Image: full bleed, fixed height -->
+      <div class="relative w-full h-56 sm:h-72 md:h-96 lg:h-[480px] bg-gray-900 overflow-hidden">
+        <img
+          v-if="course.thumbnail"
+          :src="course.thumbnail"
+          :alt="course.name"
+          class="w-full h-full object-cover"
+        />
+        <div
+          v-else
+          class="w-full h-full flex items-center justify-center text-gray-400"
+        >
+          <svg class="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
         </div>
-        <!-- Thumbnail -->
-        <div class="aspect-video bg-gray-900 relative rounded-b-lg overflow-hidden">
-          <img
-            v-if="course.thumbnail"
-            :src="course.thumbnail"
-            :alt="course.name"
-            class="w-full h-full object-cover"
-          />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-gray-400"
-          >
-            <svg class="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </div>
-        </div>
+        <!-- Bottom gradient: image fades into cream background -->
+        <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F6F1E9] to-transparent pointer-events-none"></div>
       </div>
     </div>
 
