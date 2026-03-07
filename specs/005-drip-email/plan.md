@@ -1,6 +1,7 @@
 # Implementation Plan: Email 連鎖加溫系統 (Drip Email System)
 
 **Branch**: `005-drip-email` | **Date**: 2026-02-05 | **Spec**: [spec.md](./spec.md)
+**Updated**: 2026-03-02 - 驗證碼畫面加入寄件者提示（Phase 23）
 
 ## Summary
 
@@ -23,6 +24,8 @@
 **新增功能（2026-03-02）**：訂閱時強制填寫暱稱 - 訪客訂閱表單加入必填暱稱欄位（Step 1 + Step 2），確保新訂閱者有 nickname 以供 drip 信件個人化問候語使用；已登入但無暱稱的會員訂閱時顯示暱稱欄位，空白時禁用按鈕。
 
 **設計修正（2026-03-02）**：暱稱欄位行為調整 - 改為永遠顯示（含已有暱稱的已登入會員）並預填現有值，允許訂閱時確認/修改；verify() 改為一律覆蓋舊暱稱；新增 `regex:/\p{L}/u` 驗證防純空格/符號；前端 `memberNickname` 初始值改讀現有 nickname；移除 `needsNickname` computed。
+
+**UX 修正（2026-03-02）**：訂閱成功通知位置優化 - 從頁面底部 drip 區塊移至主圖下方（課程資訊上方），頁面頂部即可見，不依賴 scroll；成功訊息加入訂閱者 Email；移除 onMounted scroll 代碼。
 
 ## Technical Context
 
@@ -332,6 +335,7 @@ Route::middleware('auth')->group(function () {
 | Phase 15: promo_url 設計修正 | ✅ Complete | promo_url 嵌入 LessonPromoBlock；條件修正；$dripSubscription 限制移除 |
 | Phase 16: per-lesson video_access_hours | ✅ Complete | video_access_hours 移至 Lesson 欄位；config 移除；Email 動態時數 |
 | Phase 17: US15 sidebar filter | ✅ Complete | T101~T103 |
+| Phase 23: 驗證碼寄件者提示 | ✅ Complete | T119~T120 |
 
 ---
 
@@ -623,6 +627,39 @@ if ($isDrip) {
 - **`trim()` 儲存**：去除首尾空白，防止資料庫存入無效空白字串；Laravel Eloquent ORM 已透過 PDO prepared statement 防 SQL injection
 - **前端 `.trim()` 驗證**：`!memberNickname.trim()` 使純空格輸入無法啟用按鈕（前端早期攔截，後端仍有 regex 雙重保護）
 
+---
+
+## 增量更新：訂閱成功通知位置優化 - 2026-03-02
+
+**背景**：訂閱成功後頁面跳轉（Inertia full-page reload），通知顯示在頁面底部 drip 區塊，而頁面 scroll 位置重置至頂部，使用者無法立即看到成功訊息。過去透過 `onMounted` + `nextTick` + `setTimeout` 嘗試 scroll 至通知區塊，但因跳轉時序問題始終不穩定。
+
+**修改檔案**：
+- `resources/js/Pages/Course/Show.vue` - 移除 `onMounted`/`nextTick`/`setTimeout` scroll 代碼和 `dripSectionRef` ref；在主圖下方（課程資訊上方）插入獨立的成功通知 block；通知訊息加入訂閱者 Email（`auth.user.email`）；移除 section 6a 中的舊成功通知；修正 section 6a 的 `v-else-if` → `v-if`（因舊的 `v-if="drip_subscribed"` 被移除後 v-else-if 失去依附）
+
+**設計決策**：
+- **獨立通知 block**：不依附在 drip 訂閱 section 內，而是在主圖正下方插入，頁面頂部即可見，完全不需要 scroll
+- **加入 Email**：「課程已寄送到您的信箱 xxx@email.com」讓使用者確認是哪個信箱，減少「收不到信」的疑惑
+- **只在 drip 課程且有 flash 時顯示**：`v-if="isDrip && $page.props.flash?.drip_subscribed"` 確保不影響非 drip 課程
+
+**影響元素**：
+1. 成功通知 block — 位置：主圖下方、課程資訊上方；條件：`isDrip && flash.drip_subscribed`
+2. Section 6a drip 訂閱區塊 — 移除舊成功通知；第一個子元素從 `v-else-if` 改回 `v-if`
+
 ## Next Steps
 
 1. Run `/speckit.tasks` 產生 Phase 17（US15 sidebar filter）的 task 清單
+
+---
+
+### 2026-03-02: 驗證碼畫面加入寄件者提示
+
+**背景**：使用者收到驗證碼後，有時找不到信件（尤其寄件者顯示名稱不直觀），導致訂閱/登入流程中斷。在驗證碼輸入畫面加入寄件者名稱提示，引導使用者查找。
+
+**修改檔案**：
+- `resources/js/Components/Course/DripSubscribeForm.vue` - Step 2（驗證碼）畫面「已發送至」文字下方加入寄件者提示
+- `resources/js/Pages/Auth/Login.vue` - 登入/註冊驗證碼畫面「已發送至」文字下方加入寄件者提示
+
+**設計決策**：
+- 文字固定為「來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件」
+- 使用 `text-xs text-gray-400` 保持低視覺權重（輔助說明，非主要資訊）
+- 不需要後端變更，純 UI 文字

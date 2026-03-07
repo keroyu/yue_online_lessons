@@ -126,6 +126,7 @@ const goBack = () => {
       <p class="text-sm text-gray-600">
         驗證碼已發送至 <span class="font-medium text-gray-900">{{ email }}</span>
       </p>
+      <p class="text-xs text-gray-400 mt-1">來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件</p>
 
       <div>
         <label for="drip-code" class="block text-sm font-medium text-gray-700 mb-1">

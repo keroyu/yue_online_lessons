@@ -126,9 +126,10 @@ const onCodeComplete = (code) => {
         <!-- Code Step -->
         <form v-else @submit.prevent="verifyCode" class="space-y-6">
           <div class="text-center">
-            <p class="text-sm text-gray-600 mb-4">
+            <p class="text-sm text-gray-600 mb-1">
               驗證碼已發送至 <strong>{{ codeForm.email }}</strong>
             </p>
+            <p class="text-xs text-gray-400 mb-4">來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件</p>
 
             <VerificationCodeInput
               v-model="codeForm.code"

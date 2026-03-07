@@ -5,6 +5,8 @@
 **Tests**: Not explicitly requested. Tests NOT included.
 **Updated**: 2026-03-02 - 訂閱時強制填寫暱稱 (Phase 20)
 **Updated**: 2026-03-02 - 暱稱欄位行為調整：永遠顯示+預填+regex 驗證 (Phase 21)
+**Updated**: 2026-03-02 - 訂閱成功通知位置優化 (Phase 22)
+**Updated**: 2026-03-02 - 驗證碼寄件者提示 (Phase 23)
 
 **Organization**: Tasks grouped by user story for independent implementation and testing.
 
@@ -436,6 +438,37 @@
   - `memberNickname` 初始值改為 `page.props.auth?.user?.nickname || ''`；移除 `needsNickname` computed；移除 `v-if="needsNickname"`（欄位永遠顯示）；按鈕 disabled 改為 `!memberNickname.trim()`；memberSubscribe 移除 `|| undefined`
 
 **Checkpoint**: 所有已登入會員（含有暱稱）訂閱時見到暱稱欄並可確認/修改；純空格/符號/數字暱稱後端拒絕；前端空白時按鈕 disabled；trim 後儲存；verify() 和 memberSubscribe() 均一律更新 nickname ✅
+
+---
+
+## Phase 22: 訂閱成功通知位置優化 (2026-03-02 新增)
+
+**Purpose**: 解決訂閱成功後通知出現在頁面底部、使用者看不見的問題。
+
+**背景**：Inertia full-page reload 後 scroll 位置重置至頂部，舊的 `onMounted` scroll 代碼因跳轉時序不穩定始終無效。改為將通知直接放在頁面頂部可見位置，根本解決問題。
+
+- [x] T118 [US1] [US1.5] Refactor success notification in `resources/js/Pages/Course/Show.vue`
+  - 移除 `onMounted`/`nextTick`/`setTimeout`/`dripSectionRef` scroll 代碼
+  - 在主圖下方插入獨立 `v-if="isDrip && $page.props.flash?.drip_subscribed"` 成功通知 block
+  - 訊息加入 `auth.user.email` 讓使用者確認收信信箱
+  - 移除 section 6a 舊成功通知；修正 `v-else-if` → `v-if` 保持 Vue 條件鏈正確
+
+**Checkpoint**: 訂閱成功後頁面頂部（主圖下方）立即可見成功通知，包含訂閱 Email；不需要 scroll；頁面其他功能（課程資訊、訂閱狀態顯示）不受影響 ✅
+
+---
+
+## Phase 23: 驗證碼寄件者提示 (2026-03-02 新增)
+
+**Purpose**: 減少使用者因找不到驗證碼信件而放棄訂閱/登入的情況
+
+**背景**：驗證碼 Email 寄件者顯示名稱對使用者不直觀，需在輸入驗證碼的畫面提示寄件者為「經營者時間銀行」並引導檢查垃圾郵件。
+
+- [x] T119 [US1] Add sender hint text below "驗證碼已發送至" in Step 2 of drip subscribe form in `resources/js/Components/Course/DripSubscribeForm.vue`
+  - 在 `<p>驗證碼已發送至 ...</p>` 下方新增 `<p class="text-xs text-gray-400 mt-1">來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件</p>`
+- [x] T120 [P] Add sender hint text below "驗證碼已發送至" in Login/Register verification code step in `resources/js/Pages/Auth/Login.vue`
+  - 同上，將 `mb-4` 從 `<p>驗證碼已發送至</p>` 移至新增的提示行
+
+**Checkpoint**: 訂閱 Step 2 及登入 Step 2 均顯示寄件者提示文字 ✅
 
 ---
 
