@@ -6,6 +6,7 @@
 **Updated**: 2026-03-01 - 隱藏課程自動精簡 UI
 **Updated**: 2026-03-01 - 販售頁版面重設計
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化
+**Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例
 
 ## Summary
 
@@ -378,3 +379,17 @@ protected function thumbnailUrl(): Attribute
 - 深藍色文字 (#373557)
 - Hover 時加深顏色並增加陰影
 - 點擊時有輕微縮放回饋
+
+---
+
+### 2026-03-08: 課程縮圖統一 16:9 比例
+
+**背景**：首頁課程卡（`CourseCard`）使用 3:2 比例，我的課程卡（`MyCourseCard`）使用固定高度，與販售頁的 16:9 不一致，造成視覺落差。統一改為 16:9 使全站縮圖比例一致。
+
+**修改檔案**：
+- `resources/js/Components/CourseCard.vue` - `aspect-[3/2]` → `aspect-video`
+- `resources/js/Components/MyCourseCard.vue` - 固定 `h-40 sm:h-48` → `aspect-video` 容器 + `h-full` 圖片
+
+**設計決策**：
+- 販售頁 `Course/Show.vue` 已使用 `aspect-video`（16:9），無需修改
+- `MyCourseCard` 改用比例容器後，img 從 `h-40 sm:h-48` 改為 `h-full` 填滿容器

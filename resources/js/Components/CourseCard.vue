@@ -72,7 +72,7 @@ const isHidden = computed(() => {
     class="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
   >
     <!-- Thumbnail -->
-    <div class="aspect-[3/2] bg-gray-100 relative">
+    <div class="aspect-video bg-gray-100 relative">
       <img
         v-if="course.thumbnail"
         :src="course.thumbnail"

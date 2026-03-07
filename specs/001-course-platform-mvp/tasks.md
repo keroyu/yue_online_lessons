@@ -6,6 +6,7 @@
 **Updated**: 2026-03-01 - 隱藏課程自動精簡 UI (Phase 12)
 **Updated**: 2026-03-01 - 販售頁版面重設計 (Phase 13)
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化 (Phase 14)
+**Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例 (Phase 15)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -550,6 +551,21 @@ Task: T018 "Create VerificationCode model"
 
 ---
 
+## Phase 15: 課程縮圖統一 16:9 比例 (2026-03-08 新增)
+
+**Purpose**: 全站課程縮圖顯示區域統一為 16:9 比例，與課程販售頁一致
+
+**背景**：首頁課程卡使用 3:2，我的課程卡使用固定高度，與販售頁 16:9 不一致。
+
+- [x] T108 [P] [US1] 更新 CourseCard 縮圖比例 in `resources/js/Components/CourseCard.vue`
+  - `aspect-[3/2]` → `aspect-video`
+- [x] T109 [P] [US3] 更新 MyCourseCard 縮圖比例 in `resources/js/Components/MyCourseCard.vue`
+  - 固定高度容器改為 `aspect-video`，圖片改為 `h-full object-cover`
+
+**Checkpoint**: 首頁、我的課程、販售頁縮圖皆以 16:9 比例顯示 ✅
+
+---
+
 ## Summary
 
 | Phase | Tasks | Parallel Tasks |
@@ -568,7 +584,8 @@ Task: T018 "Create VerificationCode model"
 | Phase 12: 隱藏課程精簡 UI | 2 | 0 |
 | Phase 13: 販售頁版面重設計 | 2 | 1 |
 | Phase 14: 課程資訊欄、價格標示、按鈕樣式 | 4 | 3 |
-| **Total** | **113** | **48** |
+| Phase 15: 課程縮圖統一 16:9 比例 | 2 | 2 |
+| **Total** | **115** | **50** |
 
 ---
 

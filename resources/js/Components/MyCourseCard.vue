@@ -21,16 +21,16 @@ const formatDate = (dateString) => {
 <template>
   <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
     <!-- Thumbnail -->
-    <div class="relative">
+    <div class="relative aspect-video">
       <img
         v-if="course.thumbnail"
         :src="course.thumbnail"
         :alt="course.name"
-        class="w-full h-40 sm:h-48 object-cover"
+        class="w-full h-full object-cover"
       />
       <div
         v-else
-        class="w-full h-40 sm:h-48 bg-gray-200 flex items-center justify-center"
+        class="w-full h-full bg-gray-200 flex items-center justify-center"
       >
         <span class="text-gray-400 text-sm">No Image</span>
       </div>

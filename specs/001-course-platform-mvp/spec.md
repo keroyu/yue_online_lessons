@@ -9,6 +9,7 @@
 **Updated**: 2026-03-01 - 隱藏課程自動精簡 UI（隱藏導覽列與麵包屑）
 **Updated**: 2026-03-01 - 販售頁版面重設計（H1 移至影片上方、移除促銷區塊、h2 全寬深色標題）
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示優化（優惠價 NTD$）、按鈕樣式統一
+**Updated**: 2026-03-08 - 課程縮圖統一改為 16:9 比例
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -165,6 +166,7 @@
 - **FR-022**: Webhook 處理 MUST 透過 `data.productId` 對應 `Course.portaly_product_id` 找到課程
 - **FR-023**: 當收到 refund 事件時，系統 MUST 將對應購買紀錄狀態更新為 "refunded"
 - **FR-024**: 自動建立的會員帳號 SHOULD 包含 Portaly 回傳的姓名和電話（若有提供）
+- **FR-025**: 所有課程縮圖顯示區域 MUST 使用 16:9 比例（首頁課程卡、我的課程卡、課程販售頁）
 
 ### Key Entities
 
