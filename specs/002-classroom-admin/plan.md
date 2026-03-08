@@ -9,6 +9,7 @@
 **Updated**: 2026-01-30 - 新增課程顯示/隱藏設定功能 (US9)
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放
+**Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤
 
 ## Summary
 
@@ -248,6 +249,20 @@ See [tasks.md](./tasks.md) for detailed task breakdown.
 - **URL 參數解法**：直接在 embed URL 加上 `autoplay=1`，iframe 重新載入時自動播放，無需額外 JS 控制
 - **瀏覽器相容性**：切換 lesson 需要用戶點擊（使用者互動），符合瀏覽器 autoplay policy，不會被封鎖
 - **初次載入**：頁面首次載入若未有使用者互動，瀏覽器可能攔截 autoplay，但屬預期行為
+
+---
+
+### 2026-03-08: Bug Fix - 獨立小節編輯時 md_content 欄位空白
+
+**背景**：管理員在章節編輯頁面點擊「獨立小節（無章節分類）」的編輯按鈕後，Markdown 內容欄位顯示空白，但存檔後前台顯示正常。
+
+**根本原因**：`ChapterController::index()` 在組建獨立小節資料時，錯誤地使用了不存在的 key `html_content`（`$lesson->html_content`），而有章節的小節則正確使用 `md_content`。前端 `LessonForm.vue` 讀取 `props.lesson.md_content`，因 key 不符導致拿到 `undefined`，呈現空白。
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/ChapterController.php` - 將 standalone lessons mapping 中的 `'html_content' => $lesson->html_content` 改為 `'md_content' => $lesson->md_content`
+
+**設計決策**：
+- 此為 typo 修正，無架構變更
 
 ## Key Design Decisions
 

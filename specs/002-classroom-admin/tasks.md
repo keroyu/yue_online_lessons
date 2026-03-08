@@ -4,6 +4,7 @@
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/routes.md
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式 (Phase 21)
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放 (Phase 22)
+**Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤 (Phase 23)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1287,6 +1288,19 @@ Within Phase 15:
 
 ---
 
+## Phase 23: Bug Fix - 獨立小節編輯 md_content 空白 (2026-03-08 新增)
+
+**Purpose**: 修正獨立小節（無章節分類）在管理員編輯介面中 Markdown 欄位顯示空白的 Bug
+
+**背景**：`ChapterController::index()` 在組建獨立小節資料時，使用了不存在的 key `html_content`，應為 `md_content`，導致前端 `LessonForm.vue` 拿到 `undefined` 而顯示空白。有章節的小節不受影響（原本即正確使用 `md_content`）。
+
+- [x] T200 [US3] 修正 standalone lessons mapping 的欄位 key in `app/Http/Controllers/Admin/ChapterController.php`
+  - 將 `'html_content' => $lesson->html_content` 改為 `'md_content' => $lesson->md_content`
+
+**Checkpoint**: 獨立小節編輯介面正確顯示已儲存的 Markdown 內容 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1305,4 +1319,5 @@ Within Phase 15:
 | Phase 20 (US8 擴充 - 後臺預覽按鈕) | T195-T196 | ✅ Completed |
 | Phase 21 (Markdown iframe 響應式樣式) | T197-T198 | ✅ Completed |
 | Phase 22 (教室切換 lesson 自動播放) | T199 | ✅ Completed |
-| **Total** | **199 tasks** | 195 completed, 4 pending |
+| Phase 23 (Bug Fix：獨立小節 md_content) | T200 | ✅ Completed |
+| **Total** | **200 tasks** | 196 completed, 4 pending |

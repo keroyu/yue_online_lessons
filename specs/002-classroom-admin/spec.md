@@ -12,6 +12,7 @@
 **Updated**: 2026-01-30 - 新增課程「是否顯示」設定功能（隱藏課程可透過直接連結購買）
 **Updated**: 2026-03-01 - 課程介紹及小節 Markdown 支援內嵌影片 iframe（響應式樣式）
 **Updated**: 2026-03-02 - 教室切換 lesson 時有影片自動播放
+**Updated**: 2026-03-08 - 修正獨立小節（無章節）編輯時 Markdown 欄位顯示空白的 Bug
 
 ## User Scenarios & Testing *(mandatory)*
 
