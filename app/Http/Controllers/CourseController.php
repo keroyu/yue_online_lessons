@@ -44,6 +44,14 @@ class CourseController extends Controller
             $canSubscribe = true;
         }
 
+        view()->share('og', [
+            'title' => $course->name . ' - Your Time Bank',
+            'description' => $course->tagline ?: $course->name,
+            'image' => $course->thumbnail_url,
+            'url' => route('course.show', $course),
+            'type' => 'website',
+        ]);
+
         return Inertia::render('Course/Show', [
             'course' => [
                 'id' => $course->id,

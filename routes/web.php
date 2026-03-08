@@ -14,11 +14,13 @@ use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
 // Drip subscription routes (public)
 Route::prefix('drip')->name('drip.')->group(function () {
