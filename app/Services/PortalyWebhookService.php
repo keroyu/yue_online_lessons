@@ -27,8 +27,10 @@ class PortalyWebhookService
             return false;
         }
 
-        // Use JSON_UNESCAPED flags to match Portaly's JSON encoding
-        $data = json_encode($request->input('data'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        // Decode raw body to bypass Laravel's ConvertEmptyStringsToNull middleware
+        // which converts "" to null, breaking HMAC signature verification
+        $rawPayload = json_decode($request->getContent(), true);
+        $data = json_encode($rawPayload['data'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $expectedSignature = hash_hmac('sha256', $data, $secret);
 
         $isValid = hash_equals($expectedSignature, $signature);
