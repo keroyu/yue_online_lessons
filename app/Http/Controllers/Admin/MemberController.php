@@ -261,9 +261,10 @@ class MemberController extends Controller
             ], 422);
         }
 
-        // Check which members already own the course
+        // Check which members already own the course (excluding refunded purchases)
         $alreadyOwnedIds = Purchase::whereIn('user_id', $validMembers->pluck('id'))
             ->where('course_id', $courseId)
+            ->where('status', 'paid')
             ->pluck('user_id')
             ->toArray();
 

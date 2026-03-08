@@ -61,8 +61,8 @@ class GiftCourseJob implements ShouldQueue
 
         foreach ($members as $member) {
             try {
-                // Skip if member already owns the course
-                if ($member->purchases()->where('course_id', $this->courseId)->exists()) {
+                // Skip if member already has a paid purchase for this course
+                if ($member->purchases()->where('course_id', $this->courseId)->where('status', 'paid')->exists()) {
                     Log::info('Gift course skipped: Member already owns course', [
                         'member_id' => $member->id,
                         'course_id' => $this->courseId,
@@ -70,16 +70,17 @@ class GiftCourseJob implements ShouldQueue
                     continue;
                 }
 
-                // Create gift purchase
-                Purchase::create([
-                    'user_id' => $member->id,
-                    'course_id' => $this->courseId,
-                    'buyer_email' => $member->email ?? '',
-                    'amount' => 0,
-                    'currency' => 'TWD',
-                    'status' => 'paid',
-                    'type' => 'gift',
-                ]);
+                // Create or update gift purchase (handles refunded purchases via unique constraint)
+                Purchase::updateOrCreate(
+                    ['user_id' => $member->id, 'course_id' => $this->courseId],
+                    [
+                        'buyer_email' => $member->email ?? '',
+                        'amount' => 0,
+                        'currency' => 'TWD',
+                        'status' => 'paid',
+                        'type' => 'gift',
+                    ]
+                );
 
                 // Send notification email if member has email
                 if ($member->email) {
