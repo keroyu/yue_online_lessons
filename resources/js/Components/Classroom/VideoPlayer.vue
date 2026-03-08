@@ -25,6 +25,7 @@ const iframeSrc = computed(() => {
   if (props.platform === 'vimeo') {
     url.searchParams.set('autoplay', '1')
     url.searchParams.set('quality', 'auto')
+    url.searchParams.set('texttrack', 'zh-TW')
   } else if (props.platform === 'youtube') {
     url.searchParams.set('autoplay', '1')
     url.searchParams.set('rel', '0')
