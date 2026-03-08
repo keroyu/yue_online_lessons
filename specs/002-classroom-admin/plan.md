@@ -12,6 +12,7 @@
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕
 **Updated**: 2026-03-09 - 新增 US10 章節新增 Email 通知 (Phase 23)
+**Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位（Phase 25）
 
 ## Summary
 
@@ -345,6 +346,23 @@ foreach ($recipients as $purchase) {
 - 使用現有 Resend 服務（已在 003-member-management 設定），無需新增服務依賴
 - Mailable 使用 Blade 模板（繁體中文），樣式與現有系統 Email 一致
 - 大量收件人（如課程有數百學員）：Job 內逐一發送，避免觸發 Resend rate limit；若未來需要，可改為 BCC 或批次發送
+
+---
+
+### 2026-03-09: 管理員課程表單新增 SEO 欄位
+
+**背景**：前台 SEO 基礎建設（slug URL + meta_description）需要管理員能在後台填入這兩個欄位。
+
+**修改檔案**：
+- `app/Http/Requests/Admin/StoreCourseRequest.php` - 新增 `slug`（nullable, unique, regex）與 `meta_description`（nullable, max:160）驗證
+- `app/Http/Requests/Admin/UpdateCourseRequest.php` - 同上，slug unique 排除自身
+- `app/Http/Controllers/Admin/CourseController.php` - `edit()` 輸出加入 `slug`、`meta_description` 欄位
+- `resources/js/Components/Admin/CourseForm.vue` - 在「副標題」下方新增 SEO 欄位區塊（兩欄並排：slug + meta_description）
+
+**設計決策**：
+- **放置位置**：SEO 欄位放在「副標題」後方（同一「基本資訊」卡片），視覺上與行銷欄位相鄰但分開
+- **即時字數計算**：meta_description 顯示 `{{ form.meta_description.length }}/160` 提醒管理員長度
+- **slug 格式說明**：input 下方提示「英文、數字、連字號，留空則用 ID」，降低輸入錯誤
 
 ---
 

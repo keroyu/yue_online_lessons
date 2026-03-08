@@ -15,6 +15,7 @@
 **Updated**: 2026-03-08 - 修正獨立小節（無章節）編輯時 Markdown 欄位顯示空白的 Bug
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示繁體中文 CC 字幕
 **Updated**: 2026-03-09 - 新增已發布課程新增章節時 Email 通知會員功能 (US10)
+**Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位（slug + meta_description）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -76,6 +77,8 @@
 5. **Given** 管理員要刪除某課程, **When** 點擊刪除並確認, **Then** 課程被軟刪除（或提示無法刪除若有購買紀錄）
 6. **Given** 管理員編輯課程定價, **When** 設定優惠價、原價和優惠到期時間, **Then** 儲存成功，課程以優惠價展示直到到期
 7. **Given** 管理員僅填寫優惠價欄位, **When** 不設定原價和到期時間, **Then** 課程僅顯示優惠價（無倒數計時、無原價刪除線）
+8. **Given** 管理員在課程編輯表單, **When** 填入 slug（如 `value-investing`）並儲存, **Then** 課程可透過 `/course/value-investing` 訪問
+9. **Given** 管理員在課程編輯表單, **When** 填入 meta_description 並儲存, **Then** 課程販售頁的搜尋結果描述使用 meta_description 內容
 
 ---
 
@@ -418,6 +421,10 @@
 - **FR-063**: 通知 Email MUST 包含：課程名稱、新增的章節名稱、前往上課頁面的連結，以及「記得回來觀看」的邀請文案
 - **FR-064**: 草稿課程（status = draft）的新增章節表單 MUST NOT 顯示「發送 Email 通知學員」選項
 - **FR-065**: 章節儲存成功後，Email 發送失敗 MUST NOT 影響章節資料的完整性（章節仍視為儲存成功）
+
+**SEO 欄位（2026-03-09 新增）：**
+- **FR-066**: 管理員 MUST 可在課程編輯表單填入 SEO slug（格式：英文小寫、數字、連字號，最多 200 字，留空時系統使用 ID）
+- **FR-067**: 管理員 MUST 可在課程編輯表單填入 meta_description（最多 160 字，留空時系統使用 tagline）
 
 ### Key Entities
 

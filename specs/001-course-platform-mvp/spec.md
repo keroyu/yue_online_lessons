@@ -10,6 +10,7 @@
 **Updated**: 2026-03-01 - 販售頁版面重設計（H1 移至影片上方、移除促銷區塊、h2 全寬深色標題）
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示優化（優惠價 NTD$）、按鈕樣式統一
 **Updated**: 2026-03-08 - 課程縮圖統一改為 16:9 比例
+**Updated**: 2026-03-09 - 新增課程 SEO 欄位（slug URL + meta_description）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -92,6 +93,8 @@
 **Acceptance Scenarios**:
 
 1. **Given** 訪客進入課程販售頁, **When** 頁面載入完成, **Then** 顯示課程縮圖、名稱、完整介紹、價格和購買區塊
+10. **Given** 課程已設定 slug（如 `value-investing`）, **When** 訪客訪問 `/course/value-investing`, **Then** 正確顯示課程頁面（與 `/course/{id}` 相同內容）
+11. **Given** 課程尚未設定 slug, **When** 訪客訪問 `/course/{id}`, **Then** 以數字 ID 正常訪問，不受影響
 7. **Given** 訪客進入課程販售頁, **When** 頁面載入完成, **Then** H1 課程名稱顯示在影片/縮圖上方（米白背景、大粗體置中），影片縮圖限寬呈現（max-w-3xl），課程介紹中的 h2 標題以全寬深色方塊（黑底白字）呈現
 8. **Given** 訪客進入課程販售頁, **When** 頁面載入完成, **Then** 影片下方顯示課程資訊欄（課程類型、預計時長、授課講師、觀看限制：不限時間次數），右側顯示價格（優惠價 NTD$XXX）與快速 scroll 至購買區按鈕
 9. **Given** 訪客點擊影片下方的「立即購買」或「免費訂閱」按鈕, **When** 尚未勾選同意條款, **Then** 頁面自動 scroll 至下方購買區，引導用戶完成同意步驟
@@ -167,6 +170,9 @@
 - **FR-023**: 當收到 refund 事件時，系統 MUST 將對應購買紀錄狀態更新為 "refunded"
 - **FR-024**: 自動建立的會員帳號 SHOULD 包含 Portaly 回傳的姓名和電話（若有提供）
 - **FR-025**: 所有課程縮圖顯示區域 MUST 使用 16:9 比例（首頁課程卡、我的課程卡、課程販售頁）
+- **FR-026**: 課程 SHOULD 支援 SEO 友善 URL slug（`/course/{slug}`），未設定時回退使用數字 ID（`/course/{id}`）
+- **FR-027**: 課程 SHOULD 支援獨立的 `meta_description` 欄位（最多 160 字），搜尋結果描述優先使用 `meta_description`，其次 `tagline`；OG description 使用相同邏輯
+- **FR-028**: Sitemap SHOULD 對已設定 slug 的課程輸出 slug URL，未設定則輸出 ID URL
 
 ### Key Entities
 
@@ -231,6 +237,8 @@
 - 需在 Portaly 後台為每個商品設定 webhook URL（如 `https://domain.com/api/webhook/portaly`）
 - 每個課程的 `portaly_product_id` 需與 Portaly 商品的 ID 對應
 - Portaly 可能將多個產品的 webhook 發送到同一端點，系統應靜默忽略不相關產品（productId 不在資料庫中的課程）
+- 課程 slug 若未設定，系統自動回退使用數字 ID（`resolveRouteBinding` fallback），舊有連結永不失效
+- slug 格式限制：英文小寫、數字、連字號（regex: `/^[a-z0-9\-]+$/`），唯一性在資料庫層保證
 
 ### Session 2026-01-31 (Webhook 處理優化)
 

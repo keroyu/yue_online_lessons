@@ -6,6 +6,7 @@
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放 (Phase 22)
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤 (Phase 23)
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
+**Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1315,6 +1316,28 @@ Within Phase 15:
 
 ---
 
+## Phase 25: 管理員課程表單新增 SEO 欄位 (2026-03-09 新增)
+
+**Purpose**: 讓管理員可在後台為每個課程設定 SEO slug 與 meta_description
+
+**背景**：前台已實作 slug 路由解析與 meta_description OG fallback，後台表單需要對應的輸入欄位讓管理員填寫。
+
+- [x] T202 [P] [US2] 新增 slug 與 meta_description 驗證至 StoreCourseRequest in `app/Http/Requests/Admin/StoreCourseRequest.php`
+  - `slug`: nullable, string, max:200, unique:courses,slug, regex:/^[a-z0-9\-]+$/
+  - `meta_description`: nullable, string, max:160
+- [x] T203 [P] [US2] 新增 slug 與 meta_description 驗證至 UpdateCourseRequest in `app/Http/Requests/Admin/UpdateCourseRequest.php`
+  - slug unique 規則排除當前課程 id（`unique:courses,slug,{id}`）
+- [x] T204 [P] [US2] 更新 Admin CourseController edit() 輸出 SEO 欄位 in `app/Http/Controllers/Admin/CourseController.php`
+  - 在 edit() 的 course 陣列中加入 `slug` 與 `meta_description`
+- [x] T205 [P] [US2] CourseForm.vue 新增 SEO 欄位區塊 in `resources/js/Components/Admin/CourseForm.vue`
+  - useForm 加入 `slug`、`meta_description` 初始值
+  - 「副標題」下方新增兩欄並排 SEO 區塊（slug 輸入框 + meta_description textarea）
+  - meta_description 顯示即時字數 `{{ form.meta_description.length }}/160`
+
+**Checkpoint**: 管理員填入 slug 儲存後可用 `/course/my-slug` 訪問課程；meta_description 儲存後出現在搜尋結果描述 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1335,4 +1358,5 @@ Within Phase 15:
 | Phase 22 (教室切換 lesson 自動播放) | T199 | ✅ Completed |
 | Phase 23 (Bug Fix：獨立小節 md_content) | T200 | ✅ Completed |
 | Phase 24 (Vimeo CC 字幕自動顯示) | T201 | ✅ Completed |
-| **Total** | **201 tasks** | 197 completed, 4 pending |
+| Phase 25 (管理員 SEO 欄位) | T202-T205 | ✅ Completed |
+| **Total** | **205 tasks** | 201 completed, 4 pending |

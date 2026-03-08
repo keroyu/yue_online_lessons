@@ -34,7 +34,9 @@ const emit = defineEmits(['submitted'])
 
 const form = useForm({
   name: props.course?.name || '',
+  slug: props.course?.slug || '',
   tagline: props.course?.tagline || '',
+  meta_description: props.course?.meta_description || '',
   description: props.course?.description || '',
   description_md: props.course?.description_md || '',
   price: props.course?.price || '',
@@ -204,6 +206,38 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               :class="[inputClasses, form.errors.tagline ? inputErrorClasses : '']"
             />
             <p v-if="form.errors.tagline" :class="errorTextClasses">{{ form.errors.tagline }}</p>
+          </div>
+
+          <!-- SEO Fields -->
+          <div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <!-- Slug -->
+            <div>
+              <label for="slug" :class="labelClasses">SEO 網址 (Slug)</label>
+              <input
+                id="slug"
+                v-model="form.slug"
+                type="text"
+                placeholder="例如：warren-buffett-investing"
+                :class="[inputClasses, form.errors.slug ? inputErrorClasses : '']"
+              />
+              <p :class="helpTextClasses">英文、數字、連字號，留空則用 ID</p>
+              <p v-if="form.errors.slug" :class="errorTextClasses">{{ form.errors.slug }}</p>
+            </div>
+
+            <!-- Meta Description -->
+            <div>
+              <label for="meta_description" :class="labelClasses">SEO 搜尋描述</label>
+              <textarea
+                id="meta_description"
+                v-model="form.meta_description"
+                rows="3"
+                maxlength="160"
+                placeholder="給 Google 搜尋結果看的描述（建議 155 字以內）"
+                :class="[inputClasses, form.errors.meta_description ? inputErrorClasses : '']"
+              />
+              <p :class="helpTextClasses">留空則用副標題。{{ form.meta_description.length }}/160 字</p>
+              <p v-if="form.errors.meta_description" :class="errorTextClasses">{{ form.errors.meta_description }}</p>
+            </div>
           </div>
 
           <!-- Description -->

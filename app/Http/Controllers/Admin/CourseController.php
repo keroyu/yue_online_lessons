@@ -132,7 +132,9 @@ class CourseController extends Controller
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
+                'slug' => $course->slug,
                 'tagline' => $course->tagline,
+                'meta_description' => $course->meta_description,
                 'description' => $course->description,
                 'description_md' => $course->description_md,
                 'price' => $course->price,

@@ -9,7 +9,7 @@ class SitemapController extends Controller
 {
     public function index(): Response
     {
-        $courses = Course::where('is_published', true)->get(['id', 'updated_at']);
+        $courses = Course::where('is_published', true)->get(['id', 'slug', 'updated_at']);
 
         return response()
             ->view('sitemap', ['courses' => $courses])

@@ -7,6 +7,7 @@
 **Updated**: 2026-03-01 - 販售頁版面重設計
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例
+**Updated**: 2026-03-09 - 課程 SEO 欄位：slug URL + meta_description
 
 ## Summary
 
@@ -393,3 +394,21 @@ protected function thumbnailUrl(): Attribute
 **設計決策**：
 - 販售頁 `Course/Show.vue` 已使用 `aspect-video`（16:9），無需修改
 - `MyCourseCard` 改用比例容器後，img 從 `h-40 sm:h-48` 改為 `h-full` 填滿容器
+
+---
+
+### 2026-03-09: 課程 SEO 欄位（slug + meta_description）
+
+**背景**：課程 URL 原為 `/course/{id}`（數字 ID），對 Google 無語意。加入 slug 後 URL 可帶關鍵字（如 `/course/value-investing`），對搜尋排名有正面影響。同時分離 `meta_description` 與 `tagline`，讓兩者各自針對不同目標優化。
+
+**修改檔案**：
+- `database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php` - 新增 `slug` (unique nullable) 和 `meta_description` (160 char nullable) 欄位
+- `app/Models/Course.php` - 加入 `slug`、`meta_description` 至 `$fillable`，新增 `resolveRouteBinding()` 支援 slug/id 雙重解析
+- `app/Http/Controllers/CourseController.php` - OG description 改為 `meta_description ?: tagline ?: name` fallback
+- `app/Http/Controllers/SitemapController.php` - 查詢加入 `slug` 欄位
+- `resources/views/sitemap.blade.php` - `<loc>` 改為 `slug ?: id`
+
+**設計決策**：
+- **向下相容**：`resolveRouteBinding()` 先查 slug，找不到再查 id，舊連結永不失效
+- **不強制設定**：slug 和 meta_description 皆為 nullable，不影響現有課程
+- **sitemap 優先輸出 slug**：已設定 slug 的課程在 sitemap 使用語意 URL，提升 Google 抓取品質

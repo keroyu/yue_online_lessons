@@ -8,7 +8,7 @@
   </url>
   @foreach ($courses as $course)
   <url>
-    <loc>{{ config('app.url') }}/course/{{ $course->id }}</loc>
+    <loc>{{ config('app.url') }}/course/{{ $course->slug ?: $course->id }}</loc>
     <lastmod>{{ $course->updated_at->toAtomString() }}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

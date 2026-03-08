@@ -23,7 +23,9 @@ class UpdateCourseRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:200', 'unique:courses,slug,' . $this->route('course')->id, 'regex:/^[a-z0-9\-]+$/'],
             'tagline' => ['required', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:160'],
             'description' => ['required', 'string'],
             'description_md' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],

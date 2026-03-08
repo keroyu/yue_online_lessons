@@ -7,6 +7,7 @@
 **Updated**: 2026-03-01 - 販售頁版面重設計 (Phase 13)
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化 (Phase 14)
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例 (Phase 15)
+**Updated**: 2026-03-09 - 課程 SEO 欄位 slug + meta_description (Phase 16)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -566,6 +567,28 @@ Task: T018 "Create VerificationCode model"
 
 ---
 
+## Phase 16: 課程 SEO 欄位 slug + meta_description (2026-03-09 新增)
+
+**Purpose**: 新增 SEO 友善 URL（slug）與搜尋描述（meta_description）欄位，提升課程頁面在 Google 的可見度
+
+**背景**：URL `/course/1` 對 Google 無語意；tagline 行銷用途與搜尋描述目的不同，分開管理更有效。
+
+- [x] T110 [US5] 新增 Migration 加入 slug 與 meta_description 欄位 in `database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php`
+  - `slug` string nullable unique after name
+  - `meta_description` string(160) nullable after tagline
+- [x] T111 [P] [US5] 更新 Course Model 支援 slug 路由解析 in `app/Models/Course.php`
+  - 加入 `slug`、`meta_description` 至 `$fillable`
+  - 新增 `resolveRouteBinding()`：先查 slug，找不到再查 id（向下相容）
+- [x] T112 [P] [US5] 更新 CourseController OG description fallback in `app/Http/Controllers/CourseController.php`
+  - `description` 改為 `meta_description ?: tagline ?: name`
+- [x] T113 [P] [US1] 更新 SitemapController + sitemap.blade 輸出 slug URL in `app/Http/Controllers/SitemapController.php` + `resources/views/sitemap.blade.php`
+  - 查詢加入 `slug` 欄位
+  - `<loc>` 改為 `slug ?: id`
+
+**Checkpoint**: 設定 slug 後可用 `/course/my-slug` 訪問；舊 `/course/{id}` 仍可用；sitemap 輸出 slug URL；OG description 優先使用 meta_description ✅
+
+---
+
 ## Summary
 
 | Phase | Tasks | Parallel Tasks |
@@ -585,7 +608,8 @@ Task: T018 "Create VerificationCode model"
 | Phase 13: 販售頁版面重設計 | 2 | 1 |
 | Phase 14: 課程資訊欄、價格標示、按鈕樣式 | 4 | 3 |
 | Phase 15: 課程縮圖統一 16:9 比例 | 2 | 2 |
-| **Total** | **115** | **50** |
+| Phase 16: 課程 SEO 欄位 slug + meta_description | 3 | 2 |
+| **Total** | **118** | **52** |
 
 ---
 

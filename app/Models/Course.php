@@ -15,7 +15,9 @@ class Course extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'tagline',
+        'meta_description',
         'description',
         'description_md',
         'price',
@@ -48,6 +50,11 @@ class Course extends Model
             'duration_minutes' => 'integer',
             'drip_interval_days' => 'integer',
         ];
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?self
+    {
+        return $this->where('slug', $value)->orWhere('id', $value)->firstOrFail();
     }
 
     public function purchases(): HasMany
