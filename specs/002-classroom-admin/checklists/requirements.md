@@ -5,6 +5,7 @@
 **Updated**: 2026-01-18 - Added lesson completion throttling mechanism
 **Updated**: 2026-01-26 - Added admin course ownership auto-assign and frontend preview
 **Updated**: 2026-01-30 - Added course visibility (show/hide) setting
+**Updated**: 2026-03-09 - Added chapter addition email notification (US10)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -199,3 +200,30 @@
 
 ### Key Entities Updated:
 - Course（課程）：新增 is_visible 欄位（布林值，預設 true）
+
+## Update Summary (2026-03-09 - 章節新增 Email 通知)
+
+### New Features Added:
+9. **新增章節時 Email 通知擁有課程的會員 (US10)**
+   - 管理員在已發布課程新增章節時，可 opt-in 發送通知 Email
+   - 通知對象：所有非退款、非系統指派（管理員自身）的購買紀錄持有者
+   - Email 說明課程名稱和章節名稱，並附上課連結
+   - 草稿課程不顯示通知選項
+   - Email 發送為非同步，不阻塞章節儲存
+
+### New Requirements:
+- FR-061 ~ FR-065（章節新增 Email 通知）
+
+### New Success Criteria:
+- SC-018: 通知 Email 在 60 秒內送達所有符合資格的會員
+- SC-019: Email 發送不影響章節儲存的回應時間（3 秒內）
+
+### New Edge Cases:
+- 無符合資格的會員時，靜默成功不報錯
+- Email 發送失敗不影響章節儲存完整性
+- 管理員連續新增多章節時，每次個別勾選
+
+### New Clarifications:
+- Email 通知為管理員 opt-in（表單勾選框，預設未勾選）
+- 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned'
+- Email 發送非同步（背景 Job）

@@ -2,6 +2,7 @@
 
 **Branch**: `002-classroom-admin` | **Date**: 2026-01-17
 **Updated**: 2026-01-30 - 新增 is_visible 欄位支援課程顯示/隱藏設定
+**Updated**: 2026-03-09 - 新增 notify_members 欄位至 Store Chapter Request (US10)
 
 ## Overview
 
@@ -161,8 +162,14 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 // POST /admin/courses/{course}/chapters
 [
     'title' => 'required|string|max:255',
+    'notify_members' => 'nullable|boolean',  // US10: 發送 Email 通知學員（2026-03-09 新增）
 ]
 ```
+
+**章節新增 Email 通知說明（2026-03-09 新增）**：
+- `notify_members` = true：章節儲存後，非同步發送通知 Email 給所有符合條件的課程學員
+- 僅在已發布課程（status = preorder 或 selling）時有效；草稿課程即使傳入 true，後端不發信
+- 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned'
 
 ### Store Lesson Request
 

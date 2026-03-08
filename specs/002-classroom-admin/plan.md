@@ -10,6 +10,8 @@
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤
+**Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕
+**Updated**: 2026-03-09 - 新增 US10 章節新增 Email 通知 (Phase 23)
 
 ## Summary
 
@@ -189,6 +191,7 @@ database/migrations/
 | Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
 | Phase 21 | Markdown 內嵌影片 iframe 響應式樣式 | ✅ Complete |
 | Phase 22 | 教室切換 lesson 時影片自動播放 | ✅ Complete |
+| Phase 23 | US10 - 章節新增 Email 通知會員 | ⬜ Planned |
 
 **Phase 13 Details** (2026-01-18 完成, 2026-01-30 調整門檻):
 - 前端樂觀更新：點擊小節後立即顯示綠色勾勾
@@ -264,6 +267,87 @@ See [tasks.md](./tasks.md) for detailed task breakdown.
 **設計決策**：
 - 此為 typo 修正，無架構變更
 
+---
+
+### 2026-03-08: Vimeo 影片自動顯示 CC 字幕
+
+**背景**：Vimeo 影片在上課頁面播放時，即使影片已上傳字幕，播放器預設不自動顯示 CC 字幕，需會員手動開啟，影響學習體驗。
+
+**修改檔案**：
+- `resources/js/Components/Classroom/VideoPlayer.vue` - 新增 `texttrack=zh-TW` 參數至 Vimeo embed URL
+
+**設計決策**：
+- **URL 參數解法**：Vimeo embed 支援 `texttrack` 參數指定語言代碼，設定後播放器自動啟用對應字幕軌
+- **語言代碼選擇 zh-TW**：本平台以繁體中文為主，配合 Vimeo 上傳的字幕語言代碼
+- **僅影響 Vimeo**：YouTube 字幕由 YouTube 播放器原生管理，不在此處處理
+- **前提條件**：需影片在 Vimeo 後台已上傳 zh-TW 字幕軌，否則此參數無作用
+
+---
+
+### Phase 23 Plan — US10: 章節新增 Email 通知會員
+
+**背景**：管理員在已發布課程（preorder / selling）新增章節時，可勾選「發送 Email 通知學員」。系統非同步發送 Email 給所有符合條件的購買者，說明課程名稱與新章節名稱，並邀請回來觀看。
+
+**新增檔案**：
+
+```text
+app/
+├── Mail/
+│   └── ChapterAddedNotification.php      # Mailable 類別
+├── Jobs/
+│   └── SendChapterNotificationJob.php    # 背景 Queue Job
+└── Http/Controllers/Admin/
+    └── ChapterController.php             # 修改 store() 加入 notify_members 處理
+
+resources/
+└── views/mail/
+    └── chapter-added.blade.php           # Email Blade 模板
+```
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/ChapterController.php` — `store()` 新增 `notify_members` 欄位處理與 Job dispatch
+- `app/Http/Requests/Admin/StoreChapterRequest.php` — 新增 `notify_members: nullable|boolean` 驗證
+- `resources/js/Pages/Admin/Courses/Chapters.vue` — 新增章節表單加入「發送 Email 通知學員」勾選框（已發布課程才顯示）
+
+**Email 內容設計**：
+- Subject: `【{課程名稱}】新章節「{章節名稱}」上線囉！`
+- Body: 說明課程新增章節，附上「立即前往上課」按鈕，連結至 `/member/classroom/{courseId}`
+
+**核心實作邏輯**：
+
+```php
+// ChapterController@store（新增部分）
+if ($request->boolean('notify_members') && $course->status !== 'draft') {
+    SendChapterNotificationJob::dispatch($course, $chapter);
+}
+
+// SendChapterNotificationJob
+$recipients = Purchase::where('course_id', $course->id)
+    ->where('status', '!=', 'refunded')
+    ->where('type', '!=', 'system_assigned')
+    ->with('user')
+    ->get();
+
+foreach ($recipients as $purchase) {
+    Mail::to($purchase->user->email)
+        ->send(new ChapterAddedNotification($course, $chapter));
+}
+```
+
+**設計決策**：
+- **非同步 Job**：章節儲存後 dispatch，不阻塞 HTTP 回應（符合 SC-019）
+- **Opt-in 勾選**：預設未勾選，避免管理員一次新增多章節時重複發信
+- **通知對象篩選**：排除 refunded（退款）與 system_assigned（管理員自身），確保只通知真實學員
+- **草稿課程不顯示選項**：前端條件渲染，後端 `status !== 'draft'` 雙重保護
+- **Email 發送失敗**：Job 失敗不影響章節資料完整性，Laravel Queue retry 機制自動重試
+
+**技術考量**：
+- 使用現有 Resend 服務（已在 003-member-management 設定），無需新增服務依賴
+- Mailable 使用 Blade 模板（繁體中文），樣式與現有系統 Email 一致
+- 大量收件人（如課程有數百學員）：Job 內逐一發送，避免觸發 Resend rate limit；若未來需要，可改為 BCC 或批次發送
+
+---
+
 ## Key Design Decisions
 
 Documented in [research.md](./research.md):
@@ -281,4 +365,5 @@ Documented in [research.md](./research.md):
 11. **Auto-Assign Ownership**: Purchase.type extension (system_assigned)
 12. **Admin Frontend Preview**: Conditional query + UI badges
 13. **Countdown Timer UI**: Card-based design with flip/scroll animation
-14. **Course Visibility Toggle**: is_visible field in Course model ← **New**
+14. **Course Visibility Toggle**: is_visible field in Course model
+15. **Chapter Email Notification**: Laravel Queue Job + Resend Mailable, admin opt-in, async dispatch ← **New**

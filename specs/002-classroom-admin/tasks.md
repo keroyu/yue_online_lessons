@@ -5,6 +5,7 @@
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式 (Phase 21)
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放 (Phase 22)
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤 (Phase 23)
+**Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1301,6 +1302,19 @@ Within Phase 15:
 
 ---
 
+## Phase 24: Vimeo 影片自動顯示 CC 字幕 (2026-03-08 新增)
+
+**Purpose**: 讓 Vimeo 影片在上課頁面自動顯示繁體中文字幕，無需會員手動開啟
+
+**背景**：Vimeo embed 支援 `texttrack` URL 參數指定字幕語言，影片若已在 Vimeo 後台上傳 zh-TW 字幕軌則自動啟用。
+
+- [x] T201 [US1] 新增 `texttrack=zh-TW` 至 Vimeo embed URL in `resources/js/Components/Classroom/VideoPlayer.vue`
+  - 在 Vimeo 參數區塊加入 `url.searchParams.set('texttrack', 'zh-TW')`
+
+**Checkpoint**: Vimeo 影片播放時自動顯示 zh-TW 字幕（需影片已上傳字幕軌）✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1320,4 +1334,5 @@ Within Phase 15:
 | Phase 21 (Markdown iframe 響應式樣式) | T197-T198 | ✅ Completed |
 | Phase 22 (教室切換 lesson 自動播放) | T199 | ✅ Completed |
 | Phase 23 (Bug Fix：獨立小節 md_content) | T200 | ✅ Completed |
-| **Total** | **200 tasks** | 196 completed, 4 pending |
+| Phase 24 (Vimeo CC 字幕自動顯示) | T201 | ✅ Completed |
+| **Total** | **201 tasks** | 197 completed, 4 pending |
