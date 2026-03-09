@@ -1347,21 +1347,21 @@ Within Phase 15:
 
 **FR**: FR-061, FR-062, FR-063, FR-064, FR-065
 
-- [ ] T206 [P] [US10] 新增 `ChapterAddedNotification` Mailable in `app/Mail/ChapterAddedNotification.php`
+- [X] T206 [P] [US10] 新增 `ChapterAddedNotification` Mailable in `app/Mail/ChapterAddedNotification.php`
   - 接收 `Course $course`、`Chapter $chapter`
   - Subject: `【{$course->name}】新章節「{$chapter->title}」上線囉！`
   - View: `emails.chapter-added`
-- [ ] T207 [P] [US10] 新增 Email Blade 模板 in `resources/views/emails/chapter-added.blade.php`
+- [X] T207 [P] [US10] 新增 Email Blade 模板 in `resources/views/emails/chapter-added.blade.php`
   - 說明課程新增了章節，附上「立即前往上課」按鈕，連結至 `/member/classroom/{course->id}`
   - 風格與 `course-gifted.blade.php` 一致
-- [ ] T208 [P] [US10] 修改 `StoreChapterRequest` 新增 `notify_members` 欄位驗證 in `app/Http/Requests/Admin/StoreChapterRequest.php`
+- [X] T208 [P] [US10] 修改 `StoreChapterRequest` 新增 `notify_members` 欄位驗證 in `app/Http/Requests/Admin/StoreChapterRequest.php`
   - `'notify_members' => 'nullable|boolean'`
-- [ ] T209 [US10] 修改 `ChapterController@store()` 加入 Email 發送邏輯 in `app/Http/Controllers/Admin/ChapterController.php`
+- [X] T209 [US10] 修改 `ChapterController@store()` 加入 Email 發送邏輯 in `app/Http/Controllers/Admin/ChapterController.php`
   - 章節儲存成功後，若 `$request->boolean('notify_members') && $course->status !== 'draft'`
   - 查詢 `Purchase` (status ≠ refunded, type ≠ system_assigned) with user
   - `foreach` 發送 `Mail::to()->send(new ChapterAddedNotification($course, $chapter))`
   - 依賴 T206、T207、T208
-- [ ] T210 [US10] 修改章節編輯頁表單加入通知勾選框 in `resources/js/Pages/Admin/Courses/Chapters.vue`
+- [X] T210 [US10] 修改章節編輯頁表單加入通知勾選框 in `resources/js/Components/Admin/ChapterList.vue`
   - 新增章節 Modal/表單中，若 `course.status !== 'draft'`，顯示「發送 Email 通知學員」checkbox（預設 unchecked）
   - 將 `notify_members` 隨表單一起 POST
 
@@ -1390,5 +1390,5 @@ Within Phase 15:
 | Phase 23 (Bug Fix：獨立小節 md_content) | T200 | ✅ Completed |
 | Phase 24 (Vimeo CC 字幕自動顯示) | T201 | ✅ Completed |
 | Phase 25 (管理員 SEO 欄位) | T202-T205 | ✅ Completed |
-| Phase 26 (US10 章節 Email 通知) | T206-T210 | ⬜ Planned |
-| **Total** | **210 tasks** | 201 completed, 9 pending |
+| Phase 26 (US10 章節 Email 通知) | T206-T210 | ✅ Completed |
+| **Total** | **210 tasks** | 210 completed, 0 pending |

@@ -353,14 +353,14 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 **影響 FR**: FR-017（批次 Email）、FR-027（贈課通知）
 
-- [ ] T064 [US6] 修改 `MemberController@sendBatchEmail()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
+- [X] T064 [US6] 修改 `MemberController@sendBatchEmail()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
   - 移除 `SendBatchEmailJob::dispatch(...)` 呼叫
   - 改為直接 `foreach` 收件人，呼叫 `Mail::to($user->email)->send(new BatchEmailMail(...))`
-- [ ] T065 [US6] 刪除 `app/Jobs/SendBatchEmailJob.php`（已無 Queue 需求）
-- [ ] T066 [US7] 修改 `MemberController@giftCourse()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
+- [X] T065 [US6] 刪除 `app/Jobs/SendBatchEmailJob.php`（已無 Queue 需求）
+- [X] T066 [US7] 修改 `MemberController@giftCourse()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
   - 移除 `GiftCourseJob::dispatch(...)` 呼叫
   - 改為直接在方法內 `foreach` 處理購買紀錄建立與 `Mail::to()->send(new CourseGiftedMail(...))`
-- [ ] T067 [US7] 刪除 `app/Jobs/GiftCourseJob.php`（已無 Queue 需求）
+- [X] T067 [US7] 刪除 `app/Jobs/GiftCourseJob.php`（已無 Queue 需求）
 
 **Checkpoint**: 批次 Email 和贈課通知均可在不啟動 Queue Worker 的情況下立即發送
 
@@ -397,6 +397,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 8: US6 Batch Email | 9 tasks (T035-T043) | Complete |
 | Phase 9: US7 Gift Course | 12 tasks (T050-T061) | Complete |
 | Phase 10: Polish | 8 tasks (T044-T063) | Complete |
-| Phase 11: 改同步發送，移除 Job | T064-T067 | ⬜ Planned |
+| Phase 11: 改同步發送，移除 Job | T064-T067 | ✅ Completed |
 
-**Total**: 71 tasks (67 complete, 4 planned)
+**Total**: 71 tasks (71 complete, 0 planned)

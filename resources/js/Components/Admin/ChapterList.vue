@@ -13,6 +13,10 @@ const props = defineProps({
     type: String,
     default: 'standard',
   },
+  courseStatus: {
+    type: String,
+    default: 'draft',
+  },
   chapters: {
     type: Array,
     required: true,
@@ -45,6 +49,7 @@ const editingChapterId = ref(null)
 const editingChapterTitle = ref('')
 const newChapterTitle = ref('')
 const showAddChapter = ref(false)
+const notifyMembers = ref(false)
 
 // Lesson editing
 const showLessonForm = ref(false)
@@ -77,10 +82,12 @@ const addChapter = () => {
 
   router.post(`/admin/courses/${props.courseId}/chapters`, {
     title: newChapterTitle.value,
+    notify_members: notifyMembers.value,
   }, {
     preserveScroll: true,
     onSuccess: () => {
       newChapterTitle.value = ''
+      notifyMembers.value = false
       showAddChapter.value = false
     },
   })
@@ -442,6 +449,16 @@ const onLessonDragEnd = (chapterId = null) => {
         >
           取消
         </button>
+      </div>
+      <div v-if="courseStatus && courseStatus !== 'draft'" class="mt-3">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            v-model="notifyMembers"
+            type="checkbox"
+            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+          />
+          <span class="text-sm text-gray-700">發送 Email 通知學員</span>
+        </label>
       </div>
     </div>
 

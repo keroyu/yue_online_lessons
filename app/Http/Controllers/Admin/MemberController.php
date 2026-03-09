@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GiftCourseRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
-use App\Jobs\GiftCourseJob;
-use App\Jobs\SendBatchEmailJob;
+use App\Mail\BatchEmailMail;
+use App\Mail\CourseGiftedMail;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -171,16 +173,15 @@ class MemberController extends Controller
         $body = $request->input('body');
 
         // Get members with valid emails (members only)
-        $validMembers = User::whereIn('id', $memberIds)
+        $members = User::whereIn('id', $memberIds)
             ->where('role', 'member')
             ->whereNotNull('email')
             ->where('email', '!=', '')
-            ->pluck('id')
-            ->toArray();
+            ->get();
 
-        $skippedCount = count($memberIds) - count($validMembers);
+        $skippedCount = count($memberIds) - $members->count();
 
-        if (empty($validMembers)) {
+        if ($members->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => '沒有可發送郵件的會員',
@@ -189,17 +190,24 @@ class MemberController extends Controller
             ], 422);
         }
 
-        // Dispatch jobs in chunks of 50
-        collect($validMembers)->chunk(50)->each(function ($chunk) use ($subject, $body) {
-            SendBatchEmailJob::dispatch($chunk->values()->toArray(), $subject, $body);
-        });
-
-        $queuedCount = count($validMembers);
+        $sentCount = 0;
+        foreach ($members as $member) {
+            try {
+                Mail::to($member->email)->send(new BatchEmailMail($subject, $body));
+                $sentCount++;
+            } catch (\Exception $e) {
+                Log::error('Failed to send batch email', [
+                    'member_id' => $member->id,
+                    'email' => $member->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'message' => "已排程發送 {$queuedCount} 封郵件" . ($skippedCount > 0 ? "（{$skippedCount} 位會員無有效 Email）" : ''),
-            'queued_count' => $queuedCount,
+            'message' => "已成功發送 {$sentCount} 封郵件" . ($skippedCount > 0 ? "（{$skippedCount} 位會員無有效 Email）" : ''),
+            'queued_count' => $sentCount,
             'skipped_count' => $skippedCount,
         ]);
     }
@@ -287,20 +295,44 @@ class MemberController extends Controller
             ]);
         }
 
-        // Count members without email (will receive course but no notification)
-        $membersWithEmail = $membersToGift->filter(function ($member) {
-            return !empty($member->email);
-        });
-        $skippedNoEmailCount = $membersToGift->count() - $membersWithEmail->count();
+        // Load the course for email notification
+        $course = Course::find($courseId);
+        $courseDescription = $course->description ?: '（無課程簡介）';
 
-        // Dispatch jobs in chunks of 50
-        $giftedMemberIds = $membersToGift->pluck('id')->toArray();
-        collect($giftedMemberIds)->chunk(50)->each(function ($chunk) use ($courseId) {
-            GiftCourseJob::dispatch($chunk->values()->toArray(), $courseId);
-        });
+        $giftedCount = 0;
+        $emailSentCount = 0;
+        $skippedNoEmailCount = 0;
 
-        $giftedCount = count($giftedMemberIds);
-        $emailQueuedCount = $membersWithEmail->count();
+        foreach ($membersToGift as $member) {
+            try {
+                // Create or update gift purchase (handles refunded purchases via unique constraint)
+                Purchase::updateOrCreate(
+                    ['user_id' => $member->id, 'course_id' => $courseId],
+                    [
+                        'buyer_email' => $member->email ?? '',
+                        'amount' => 0,
+                        'currency' => 'TWD',
+                        'status' => 'paid',
+                        'type' => 'gift',
+                    ]
+                );
+                $giftedCount++;
+
+                // Send notification email if member has email
+                if ($member->email) {
+                    Mail::to($member->email)->send(new CourseGiftedMail($course->name, $courseDescription));
+                    $emailSentCount++;
+                } else {
+                    $skippedNoEmailCount++;
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to gift course to member', [
+                    'member_id' => $member->id,
+                    'course_id' => $courseId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         // Build result message
         $message = "已成功贈送課程給 {$giftedCount} 位會員";
@@ -322,7 +354,7 @@ class MemberController extends Controller
             'message' => $message,
             'gifted_count' => $giftedCount,
             'already_owned_count' => $alreadyOwnedCount,
-            'email_queued_count' => $emailQueuedCount,
+            'email_queued_count' => $emailSentCount,
             'skipped_no_email_count' => $skippedNoEmailCount,
         ]);
     }
