@@ -295,8 +295,6 @@ See [tasks.md](./tasks.md) for detailed task breakdown.
 app/
 ├── Mail/
 │   └── ChapterAddedNotification.php      # Mailable 類別
-├── Jobs/
-│   └── SendChapterNotificationJob.php    # 背景 Queue Job
 └── Http/Controllers/Admin/
     └── ChapterController.php             # 修改 store() 加入 notify_members 處理
 
@@ -319,33 +317,30 @@ resources/
 ```php
 // ChapterController@store（新增部分）
 if ($request->boolean('notify_members') && $course->status !== 'draft') {
-    SendChapterNotificationJob::dispatch($course, $chapter);
-}
+    $recipients = Purchase::where('course_id', $course->id)
+        ->where('status', '!=', 'refunded')
+        ->where('type', '!=', 'system_assigned')
+        ->with('user')
+        ->get();
 
-// SendChapterNotificationJob
-$recipients = Purchase::where('course_id', $course->id)
-    ->where('status', '!=', 'refunded')
-    ->where('type', '!=', 'system_assigned')
-    ->with('user')
-    ->get();
-
-foreach ($recipients as $purchase) {
-    Mail::to($purchase->user->email)
-        ->send(new ChapterAddedNotification($course, $chapter));
+    foreach ($recipients as $purchase) {
+        Mail::to($purchase->user->email)
+            ->send(new ChapterAddedNotification($course, $chapter));
+    }
 }
 ```
 
 **設計決策**：
-- **非同步 Job**：章節儲存後 dispatch，不阻塞 HTTP 回應（符合 SC-019）
+- **同步發送（Mail::send）**：學員數量少，同步發送夠用，無需 Queue Worker；與現有登入驗證碼發送方式一致
 - **Opt-in 勾選**：預設未勾選，避免管理員一次新增多章節時重複發信
 - **通知對象篩選**：排除 refunded（退款）與 system_assigned（管理員自身），確保只通知真實學員
 - **草稿課程不顯示選項**：前端條件渲染，後端 `status !== 'draft'` 雙重保護
-- **Email 發送失敗**：Job 失敗不影響章節資料完整性，Laravel Queue retry 機制自動重試
+- **未來擴展**：若學員數增長到同步發送感覺卡頓，只需將 `send()` 改為 `queue()` 即可，Mailable 不需修改
 
 **技術考量**：
 - 使用現有 Resend 服務（已在 003-member-management 設定），無需新增服務依賴
 - Mailable 使用 Blade 模板（繁體中文），樣式與現有系統 Email 一致
-- 大量收件人（如課程有數百學員）：Job 內逐一發送，避免觸發 Resend rate limit；若未來需要，可改為 BCC 或批次發送
+- 不需要新增 Job 類別，減少程式複雜度
 
 ---
 
@@ -384,4 +379,4 @@ Documented in [research.md](./research.md):
 12. **Admin Frontend Preview**: Conditional query + UI badges
 13. **Countdown Timer UI**: Card-based design with flip/scroll animation
 14. **Course Visibility Toggle**: is_visible field in Course model
-15. **Chapter Email Notification**: Laravel Queue Job + Resend Mailable, admin opt-in, async dispatch ← **New**
+15. **Chapter Email Notification**: Resend Mailable 同步發送（Mail::send），admin opt-in，學員數少不需 Queue ← **New**

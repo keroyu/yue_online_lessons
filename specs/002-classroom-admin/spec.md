@@ -559,8 +559,7 @@
 - 當課程同時為草稿且隱藏時，草稿限制優先（一般用戶無法存取，即使有 URL）
 - 「隱藏」標籤樣式採用灰色斜體文字，與「草稿」標籤（灰色背景）視覺上區分
 - 章節新增 Email 通知使用現有 Resend 信件服務（與 003-member-management 共用）
-
-- Email 發送採非同步（背景 Job），不阻塞管理員的章節儲存操作
+- Email 採同步發送（Mail::send），與現有登入驗證碼方式一致；學員數量少，無需 Queue Job
 - 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned' 的所有購買紀錄持有者
 - Email 的「前往上課」連結指向 `/member/classroom/{courseId}`（需登入後才能進入上課頁面）
 - 若課程無符合資格的會員（如全數退款），勾選通知後系統靜默成功，不報錯

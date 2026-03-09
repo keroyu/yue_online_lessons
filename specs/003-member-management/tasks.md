@@ -3,6 +3,7 @@
 **Input**: Design documents from `/specs/003-member-management/`
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, research.md
 **Updated**: 2026-01-18 (Added User Story 7 - Gift Course)
+**Updated**: 2026-03-09 - 改批次 Email 和贈課通知為同步發送，移除 Queue Job (Phase 11)
 
 **Tests**: Not explicitly requested - test tasks omitted.
 
@@ -344,16 +345,37 @@ Task: "Add success/error feedback with counts in Index.vue"
 - All pages must be mobile-responsive (Tailwind mobile-first)
 - Batch email uses existing Resend.com integration via `resend/resend-laravel`
 
+---
+
+## Phase 11: 改同步發送 Email，移除 Queue Job (2026-03-09 新增)
+
+**Purpose**: 批次 Email（US6）與贈課通知（US7）改為同步 Mail::send()，移除 Queue Job，與登入驗證碼的發送方式統一。學員數量少，不需要 Queue Worker 的複雜度。
+
+**影響 FR**: FR-017（批次 Email）、FR-027（贈課通知）
+
+- [ ] T064 [US6] 修改 `MemberController@sendBatchEmail()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
+  - 移除 `SendBatchEmailJob::dispatch(...)` 呼叫
+  - 改為直接 `foreach` 收件人，呼叫 `Mail::to($user->email)->send(new BatchEmailMail(...))`
+- [ ] T065 [US6] 刪除 `app/Jobs/SendBatchEmailJob.php`（已無 Queue 需求）
+- [ ] T066 [US7] 修改 `MemberController@giftCourse()` 改為同步發送 in `app/Http/Controllers/Admin/MemberController.php`
+  - 移除 `GiftCourseJob::dispatch(...)` 呼叫
+  - 改為直接在方法內 `foreach` 處理購買紀錄建立與 `Mail::to()->send(new CourseGiftedMail(...))`
+- [ ] T067 [US7] 刪除 `app/Jobs/GiftCourseJob.php`（已無 Queue 需求）
+
+**Checkpoint**: 批次 Email 和贈課通知均可在不啟動 Queue Worker 的情況下立即發送
+
+---
+
 ## Deployment Checklist
 
-### Queue Worker (Required for Batch Email and Gift Course)
+### Email Configuration
 
-| Environment | QUEUE_CONNECTION | Action |
-|-------------|------------------|--------|
-| Local Dev | `sync` | No setup needed - emails send immediately |
-| Production | `database` | Must configure Supervisor for queue worker |
+批次 Email 與贈課通知均使用同步 Mail::send() via Resend，不需要 Queue Worker。
 
-**Production**: Add Supervisor config to run `php artisan queue:work --sleep=3 --tries=3`
+| Environment | 設定 |
+|-------------|------|
+| Local Dev | `.env` 設 `MAIL_MAILER=log`（測試）或 `resend` |
+| Production | `.env` 設 `MAIL_MAILER=resend` 和 `RESEND_KEY` |
 
 ### Bug Fixes Applied
 
@@ -375,5 +397,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 8: US6 Batch Email | 9 tasks (T035-T043) | Complete |
 | Phase 9: US7 Gift Course | 12 tasks (T050-T061) | Complete |
 | Phase 10: Polish | 8 tasks (T044-T063) | Complete |
+| Phase 11: 改同步發送，移除 Job | T064-T067 | ⬜ Planned |
 
-**Total**: 67 tasks (67 complete)
+**Total**: 71 tasks (67 complete, 4 planned)

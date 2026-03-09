@@ -3,6 +3,7 @@
 **Feature Branch**: `003-member-management`
 **Created**: 2026-01-17
 **Updated**: 2026-01-18
+**Updated**: 2026-03-09 - 改為同步發送 Email（Mail::send），移除 Queue 依賴（FR-017, FR-027, SC-007）
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -164,7 +165,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **FR-014**: System MUST preserve member selections when navigating between pages.
 - **FR-015**: System MUST provide a modal for composing batch emails with subject and body fields.
 - **FR-016**: System MUST validate that email subject and body are not empty before sending.
-- **FR-017**: System MUST queue emails for asynchronous delivery to avoid timeout issues.
+- **FR-017**: System MUST send batch emails synchronously using Mail::send() for immediate delivery (member count is small; no queue required).
 - **FR-018**: System MUST display success/failure feedback after email sending operation.
 - **FR-019**: System MUST only allow admin users to access member management features.
 - **FR-020**: System MUST provide a "贈送課程" (Gift Course) button when members are selected.
@@ -174,7 +175,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **FR-024**: System MUST skip members who already own the course being gifted (no duplicates).
 - **FR-025**: System MUST send notification email to each member who receives a gifted course.
 - **FR-026**: Gift notification email MUST include: course name, course description (or placeholder if empty), and a welcome message inviting the member to start learning.
-- **FR-027**: System MUST queue gift notification emails for asynchronous delivery.
+- **FR-027**: System MUST send gift notification emails synchronously using Mail::send() immediately after each gift purchase record is created.
 - **FR-028**: System MUST display result summary showing: courses gifted count, already owned count, and email sent count.
 
 ### Key Entities
@@ -195,7 +196,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **SC-004**: Batch emails reach 100% of selected recipients with valid email addresses.
 - **SC-005**: Email composition and sending workflow completes in under 1 minute for up to 500 recipients.
 - **SC-006**: Member list loads within 2 seconds for up to 10,000 members.
-- **SC-007**: Gift course operation completes within 1 minute for up to 500 recipients.
+- **SC-007**: Gift course operation (including email sending) completes within 30 seconds for the platform's current member scale.
 - **SC-008**: 100% of gifted courses are accessible to members immediately after gift operation.
 - **SC-009**: Gift notification emails reach 100% of recipients with valid email addresses.
 
@@ -206,6 +207,11 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - Q: What interface pattern for member editing? → A: Hybrid - email, real name, phone are inline-editable in table (email has copy button); other fields (nickname, birthday, courses) open in modal dialog.
 - Q: What is the scope of "select all" behavior? → A: After filtering, provide "Select all X matching members" option that selects across all pages, not just current page.
 - Q: Should member edits be audit logged? → A: No audit logging needed for this feature.
+
+### Session 2026-03-09 (Email Sending Strategy)
+
+- Q: Should batch email and gift notification use async queue or synchronous sending? → A: Synchronous (Mail::send), consistent with login verification code. Platform member count is small; no Queue Worker complexity needed. Can be switched to `queue()` later without changing Mailable classes.
+- Q: What is the performance expectation for synchronous email sending? → A: Completes within 30 seconds for current member scale; SC-007 updated accordingly.
 
 ### Session 2026-01-18 (Gift Course Feature)
 
@@ -225,22 +231,18 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - Course description is available in the Course model for inclusion in gift notification emails.
 - Gifted courses grant immediate full access - no separate activation required.
 - Gift notification emails use a fixed template in Chinese (中文) matching the platform language.
+- Both batch emails and gift notification emails are sent synchronously (Mail::send), consistent with the login verification code approach. Member count is small; no Queue Worker required. If member base grows significantly, change `send()` to `queue()` without modifying the Mailable class.
 
 ## Deployment Notes
 
-### Queue Configuration
+### Email Configuration
 
-Batch email uses Laravel's queue system for asynchronous delivery.
+Both batch emails and gift notification emails use synchronous Mail::send() via Resend. No queue worker setup required.
 
-| Environment | QUEUE_CONNECTION | Setup |
-|-------------|------------------|-------|
-| Local Dev | `sync` | Immediate send, no worker needed |
-| Production | `database` | Requires Supervisor to run `php artisan queue:work` |
-
-**Production Setup**:
-1. Set `QUEUE_CONNECTION=database` in `.env`
-2. Configure Supervisor to keep queue worker running
-3. See Laravel docs: https://laravel.com/docs/queues#supervisor-configuration
+| Environment | Setup |
+|-------------|-------|
+| Local Dev | Set `MAIL_MAILER=resend` (or `log` for testing) in `.env` |
+| Production | Set `MAIL_MAILER=resend` and `RESEND_KEY` in `.env` |
 
 ### Admin Page Layout
 
