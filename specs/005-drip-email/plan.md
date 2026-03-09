@@ -1,7 +1,7 @@
 # Implementation Plan: Email 連鎖加溫系統 (Drip Email System)
 
 **Branch**: `005-drip-email` | **Date**: 2026-02-05 | **Spec**: [spec.md](./spec.md)
-**Updated**: 2026-03-02 - 驗證碼畫面加入寄件者提示（Phase 23）
+**Updated**: 2026-03-10 - drip 信件加入退訂連結（Phase 24）
 
 ## Summary
 
@@ -663,3 +663,16 @@ if ($isDrip) {
 - 文字固定為「來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件」
 - 使用 `text-xs text-gray-400` 保持低視覺權重（輔助說明，非主要資訊）
 - 不需要後端變更，純 UI 文字
+
+---
+
+### 2026-03-10: drip 信件加入退訂連結
+
+**背景**：drip 信件模板未渲染退訂連結，需靠管理員在 Lesson 內容中手動維護，容易遺漏。退訂連結屬於 email reputation 必要元素，改由模板統一渲染。
+
+**修改檔案**：
+- `resources/views/emails/drip-lesson.blade.php` - 在 tracking pixel 之前加入退訂連結段落（無 inline style）
+
+**設計決策**：
+- **不加 inline style**：保持模板簡潔，由 email client 預設樣式呈現
+- **`$unsubscribeUrl` 已存在**：`DripLessonMail` 早已傳入此變數，退訂路由也已存在，無需後端改動

@@ -7,6 +7,7 @@
 **Updated**: 2026-03-02 - 暱稱欄位行為調整：永遠顯示+預填+regex 驗證 (Phase 21)
 **Updated**: 2026-03-02 - 訂閱成功通知位置優化 (Phase 22)
 **Updated**: 2026-03-02 - 驗證碼寄件者提示 (Phase 23)
+**Updated**: 2026-03-10 - drip 信件加入退訂連結 (Phase 24)
 
 **Organization**: Tasks grouped by user story for independent implementation and testing.
 
@@ -469,6 +470,19 @@
   - 同上，將 `mb-4` 從 `<p>驗證碼已發送至</p>` 移至新增的提示行
 
 **Checkpoint**: 訂閱 Step 2 及登入 Step 2 均顯示寄件者提示文字 ✅
+
+---
+
+## Phase 24: drip 信件加入退訂連結 (2026-03-10 新增)
+
+**Purpose**: 確保 drip email 末尾自動渲染退訂連結，維護 email reputation
+
+**背景**：信件模板缺少退訂連結，需管理員手動在 Lesson 內容維護，容易遺漏。
+
+- [x] T121 [US5] Add unsubscribe link before tracking pixel in `resources/views/emails/drip-lesson.blade.php`
+  - 插入 `<p>如不想繼續收到此課程的郵件，可<a href="{{ $unsubscribeUrl }}">按此退訂</a>。</p>`（無 inline style）
+
+**Checkpoint**: drip email 末尾顯示退訂連結，點擊後跳至退訂確認頁面 ✅
 
 ---
 

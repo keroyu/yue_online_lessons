@@ -20,6 +20,7 @@
 **Updated**: 2026-03-09 - 免費試閱功能（US11）：is_preview 欄位、後台勾選、公開試閱教室路由、鎖定 UI
 **Updated**: 2026-03-09 - 教室側欄展開/收合動態效果（Phase 32）
 **Updated**: 2026-03-09 - 側欄右邊緣 edge toggle tab（Phase 33）
+**Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長 M:SS 輸入格式 + 課程總時長自動計算（Phase 34）
 
 ## Summary
 
@@ -511,3 +512,21 @@ Documented in [research.md](./research.md):
 13. **Countdown Timer UI**: Card-based design with flip/scroll animation
 14. **Course Visibility Toggle**: is_visible field in Course model
 15. **Chapter Email Notification**: Resend Mailable 同步發送（Mail::send），admin opt-in，學員數少不需 Queue ← **New**
+16. **Course Duration Auto-Calculation**: 課程 `duration_minutes` 不由管理員手動輸入，改由 `LessonController` 在 store/update/destroy 後自動從有影片的小節（`duration_seconds`）加總計算；小節時長輸入格式為 `M:SS`（如 `3:50`），存為 `duration_seconds` 整數
+
+---
+
+### 2026-03-08: 小節時長 M:SS 輸入 + 課程總時長自動計算
+
+**背景**：原本小節時長需輸入秒數數字（容易出錯），課程總時長需管理員手動填寫（容易忘記更新）。改為 M:SS 文字輸入更直覺，並在每次新增/修改/刪除小節時自動重算課程總時長。
+
+**修改檔案**：
+- `resources/js/Components/Admin/LessonForm.vue` - 時長輸入從秒數數字改為 `M:SS` 文字格式，前端轉換顯示/輸入
+- `app/Http/Controllers/Admin/LessonController.php` - 新增 `updateCourseDuration()` private method；store/update/destroy 後呼叫自動重算
+- `resources/js/Components/Admin/CourseForm.vue` - 移除手動 `duration_minutes` 輸入欄位
+- `database/migrations/..._backfill_course_duration_minutes_from_lessons.php` - backfill 既有課程的 `duration_minutes`
+
+**設計決策**：
+- **M:SS 格式**：比秒數更直覺，管理員不需心算換算
+- **自動重算時機**：每次小節 store/update/destroy 後同步計算，確保資料即時正確
+- **計算範圍**：只加總有 `video_id`（有影片）的小節，純文字小節不計入時長

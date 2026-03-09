@@ -6,6 +6,7 @@
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放 (Phase 22)
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤 (Phase 23)
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
+**Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長 M:SS 輸入 + 課程總時長自動計算 (Phase 34)
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
 **Updated**: 2026-03-09 - US10 小節新增 Email 通知會員 (Phase 26)
 **Updated**: 2026-03-09 - 修正：通知觸發點從 ChapterController 改為 LessonController，排除 drip 課程 (Phase 27)
@@ -1491,6 +1492,26 @@ Within Phase 15:
 
 ---
 
+## Phase 34: 小節時長 M:SS 輸入 + 課程總時長自動計算 (2026-03-08 實作，2026-03-10 補記)
+
+**Purpose**: 小節時長改用 M:SS 格式輸入，課程總時長從影片小節自動計算，移除手動輸入
+
+**背景**：原本小節時長需輸入秒數（容易出錯），課程總時長需手動填寫（容易忘記更新）。改為更直覺的輸入方式並自動維護。
+
+- [x] T230 [US3] Change lesson duration input to M:SS text format in `resources/js/Components/Admin/LessonForm.vue`
+  - 新增 `secondsToMMSS()` 轉換函式（秒 → M:SS 顯示）；輸入值存回時解析 M:SS → 秒數
+- [x] T231 [P] [US2] Add `updateCourseDuration()` private method to `app/Http/Controllers/Admin/LessonController.php`
+  - 從有 `video_id` 的小節加總 `duration_seconds`，四捨五入轉為 `duration_minutes` 更新 course
+  - store/update/destroy 後各呼叫一次
+- [x] T232 [P] [US2] Remove manual `duration_minutes` input field from `resources/js/Components/Admin/CourseForm.vue`
+  - 移除 form data、label、input、help text、error message
+- [x] T233 [P] [US2] Add backfill migration for existing course `duration_minutes` in `database/migrations/`
+  - 從現有小節 `duration_seconds` 加總計算各課程 `duration_minutes`
+
+**Checkpoint**: 管理員新增/修改/刪除小節後，課程時間總長自動更新；小節時長欄以 M:SS 格式顯示與輸入；CourseForm 不再顯示時長輸入欄 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1520,4 +1541,5 @@ Within Phase 15:
 | Phase 31 (免費試閱功能 US11) | T218-T227 | ✅ Completed |
 | Phase 32 (教室側欄動態效果) | T228 | ✅ Completed |
 | Phase 33 (側欄 edge toggle tab) | T229 | ✅ Completed |
-| **Total** | **229 tasks** | 229 completed, 0 pending |
+| Phase 34 (小節時長 M:SS + 課程總時長自動計算) | T230-T233 | ✅ Completed |
+| **Total** | **233 tasks** | 233 completed, 0 pending |

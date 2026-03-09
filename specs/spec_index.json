@@ -901,7 +901,8 @@
       ],
       "code_files": [
         "app/Http/Controllers/DripSubscriptionController.php",
-        "app/Models/DripSubscription.php"
+        "app/Models/DripSubscription.php",
+        "resources/views/emails/drip-lesson.blade.php"
       ],
       "status": "implemented"
     },

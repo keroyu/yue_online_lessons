@@ -166,6 +166,9 @@
     "resources/js/Pages/Member/": [
       "001.us-3",
       "001.us-4"
+    ],
+    "resources/views/emails/drip-lesson.blade.php": [
+      "005.us-5"
     ]
   }
 }
