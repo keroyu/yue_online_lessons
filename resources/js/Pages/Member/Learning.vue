@@ -16,7 +16,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <h1 class="text-2xl sm:text-3xl font-bold text-brand-navy mb-6">
       我的課程
     </h1>
@@ -24,7 +24,7 @@ defineProps({
     <!-- Course Grid -->
     <div
       v-if="courses.length > 0"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+      class="grid grid-cols-1 sm:grid-cols-2 gap-6"
     >
       <MyCourseCard
         v-for="course in courses"

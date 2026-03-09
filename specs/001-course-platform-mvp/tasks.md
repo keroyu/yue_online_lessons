@@ -9,6 +9,7 @@
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例 (Phase 15)
 **Updated**: 2026-03-09 - 課程 SEO 欄位 slug + meta_description (Phase 16)
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕 (Phase 17)
+**Updated**: 2026-03-09 - 我的課程頁面 card 增大 (Phase 18)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -629,7 +630,20 @@ Task: T018 "Create VerificationCode model"
 | Phase 15: 課程縮圖統一 16:9 比例 | 2 | 2 |
 | Phase 16: 課程 SEO 欄位 slug + meta_description | 3 | 2 |
 | Phase 17: 販售頁「免費試閱」按鈕 | 3 | 2 |
-| **Total** | **121** | **54** |
+| Phase 18: 我的課程 card 增大 | 1 | 1 |
+| **Total** | **122** | **55** |
+
+## Phase 18: 我的課程頁面 Card 增大 (2026-03-09 新增)
+
+**Purpose**: 將我的課程頁面的課程 card 由最多 4 欄調整為最多 2 欄，使每張 card 約 500px 寬
+
+**背景**：原本 4 欄 grid 導致 card 過小（約 250px），縮圖難以辨識；增大後提升視覺清晰度。
+
+- [x] T117 [US3] 我的課程頁面 card 增大：容器改 `max-w-[1100px]`、grid 改 `grid-cols-1 sm:grid-cols-2` in `resources/js/Pages/Member/Learning.vue`
+  - `max-w-7xl` → `max-w-[1100px]` 讓容器寬度配合 2 欄 500px card
+  - grid 從 `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` 縮減為 `grid-cols-1 sm:grid-cols-2`
+
+**Checkpoint**: 桌機上每張 card 約 506px 寬，手機維持全寬單欄 ✅
 
 ---
 

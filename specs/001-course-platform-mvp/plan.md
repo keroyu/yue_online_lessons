@@ -9,6 +9,7 @@
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例
 **Updated**: 2026-03-09 - 課程 SEO 欄位：slug URL + meta_description
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕（FR-029, FR-030）
+**Updated**: 2026-03-09 - 我的課程頁面 card 增大（Phase 18）
 
 ## Summary
 
@@ -428,3 +429,16 @@ protected function thumbnailUrl(): Attribute
 - **向下相容**：`resolveRouteBinding()` 先查 slug，找不到再查 id，舊連結永不失效
 - **不強制設定**：slug 和 meta_description 皆為 nullable，不影響現有課程
 - **sitemap 優先輸出 slug**：已設定 slug 的課程在 sitemap 使用語意 URL，提升 Google 抓取品質
+
+---
+
+### 2026-03-09: 我的課程頁面 Card 增大
+
+**背景**：原本最多 4 欄的 grid 讓每張 card 僅約 250px 寬，縮圖過小難以辨識；改為最多 2 欄，使 card 達到約 500px 寬，視覺體驗更佳。
+
+**修改檔案**：
+- `resources/js/Pages/Member/Learning.vue` - 容器改為 `max-w-[1100px]`；grid 改為 `grid-cols-1 sm:grid-cols-2`
+
+**設計決策**：
+- **縮小容器而非固定 card 寬度**：`max-w-[1100px]` 搭配 2 欄 + `gap-6` + `lg:px-8`，數學上每 card ≈ (1100 - 64 - 24) / 2 = 506px，符合 500px 目標，且保持 RWD 彈性
+- **不改 MyCourseCard.vue**：card 本身無需修改，尺寸由 grid cell 自然決定
