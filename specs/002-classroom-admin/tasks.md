@@ -7,8 +7,11 @@
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤 (Phase 23)
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
-**Updated**: 2026-03-09 - US10 章節新增 Email 通知會員 (Phase 26)
-**Updated**: 2026-03-09 - 修正：章節通知排除 drip 連鎖課程 (Phase 27)
+**Updated**: 2026-03-09 - US10 小節新增 Email 通知會員 (Phase 26)
+**Updated**: 2026-03-09 - 修正：通知觸發點從 ChapterController 改為 LessonController，排除 drip 課程 (Phase 27)
+**Updated**: 2026-03-09 - 精簡 Email 模板 HTML (Phase 28)
+**Updated**: 2026-03-09 - 小節通知 Email 改為純文字 MIME (Phase 29)
+**Updated**: 2026-03-09 - 修正 Email 模板檔名；Email 主旨與內文加入課程類型標籤 (Phase 30)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1342,46 +1345,92 @@ Within Phase 15:
 
 ---
 
-## Phase 26: US10 - 章節新增 Email 通知會員 (2026-03-09 新增)
+## Phase 26: US10 - 小節新增 Email 通知會員 (2026-03-09 新增)
 
-**Purpose**: 管理員在已發布課程新增章節時，可 opt-in 發送通知 Email 給所有擁有該課程的學員
+**Purpose**: 管理員在已發布課程新增**小節（Lesson）**時，可 opt-in 發送通知 Email 給所有擁有該課程的學員。章（ep）只是容器，真正的新內容是小節，因此通知觸發點在 LessonController。
 
 **FR**: FR-061, FR-062, FR-063, FR-064, FR-065
 
-- [X] T206 [P] [US10] 新增 `ChapterAddedNotification` Mailable in `app/Mail/ChapterAddedNotification.php`
-  - 接收 `Course $course`、`Chapter $chapter`
-  - Subject: `【{$course->name}】新章節「{$chapter->title}」上線囉！`
-  - View: `emails.chapter-added`
-- [X] T207 [P] [US10] 新增 Email Blade 模板 in `resources/views/emails/chapter-added.blade.php`
-  - 說明課程新增了章節，附上「立即前往上課」按鈕，連結至 `/member/classroom/{course->id}`
+- [X] T206 [P] [US10] 新增 `LessonAddedNotification` Mailable in `app/Mail/LessonAddedNotification.php`
+  - 接收 `Course $course`、`Lesson $lesson`
+  - Subject: `【{$course->name}】新小節「{$lesson->title}」上線囉！`
+  - View: `emails.lesson-added`
+- [X] T207 [P] [US10] 新增 Email Blade 模板 in `resources/views/emails/lesson-added.blade.php`
+  - 說明「您購買的課程新增了新內容：小節名稱」，附上「立即前往上課」按鈕，連結至 `/member/classroom/{course->id}`
   - 風格與 `course-gifted.blade.php` 一致
-- [X] T208 [P] [US10] 修改 `StoreChapterRequest` 新增 `notify_members` 欄位驗證 in `app/Http/Requests/Admin/StoreChapterRequest.php`
+- [X] T208 [P] [US10] 修改 `StoreLessonRequest` 新增 `notify_members` 欄位驗證 in `app/Http/Requests/Admin/StoreLessonRequest.php`
   - `'notify_members' => 'nullable|boolean'`
-- [X] T209 [US10] 修改 `ChapterController@store()` 加入 Email 發送邏輯 in `app/Http/Controllers/Admin/ChapterController.php`
-  - 章節儲存成功後，若 `$request->boolean('notify_members') && $course->status !== 'draft'`
+- [X] T209 [US10] 修改 `LessonController@store()` 加入 Email 發送邏輯 in `app/Http/Controllers/Admin/LessonController.php`
+  - `$notifyMembers = $request->boolean('notify_members')`；用 `$request->safe()->except(['notify_members'])` 排除 notify_members（非 DB 欄位）
+  - 小節儲存成功後，若 `$notifyMembers && $course->status !== 'draft' && $course->course_type !== 'drip'`
   - 查詢 `Purchase` (status ≠ refunded, type ≠ system_assigned) with user
-  - `foreach` 發送 `Mail::to()->send(new ChapterAddedNotification($course, $chapter))`
+  - `foreach` 發送 `Mail::to()->send(new LessonAddedNotification($course, $lesson))`，以 try/catch 保護
   - 依賴 T206、T207、T208
-- [X] T210 [US10] 修改章節編輯頁表單加入通知勾選框 in `resources/js/Components/Admin/ChapterList.vue`
-  - 新增章節 Modal/表單中，若 `course.status !== 'draft'`，顯示「發送 Email 通知學員」checkbox（預設 unchecked）
-  - 將 `notify_members` 隨表單一起 POST
+- [X] T210 [US10] 修改小節新增 Modal 加入通知勾選框 in `resources/js/Components/Admin/LessonForm.vue`
+  - 新增 `courseStatus` prop（來自 ChapterList 傳入）
+  - 新增 `notifyMembers` ref（與 form 分離，不入 DB）
+  - 若 `!isEditing && courseStatus !== 'draft' && courseType !== 'drip'`，顯示「發送 Email 通知學員」checkbox（預設 unchecked）
+  - emit('save', ...) 中加入 `notify_members: notifyMembers.value`
 
-**Checkpoint**: 管理員在已發布課程新增章節並勾選通知後，學員收到 Email，包含課程名稱和章節名稱
+**Checkpoint**: 管理員在已發布非 drip 課程新增小節並勾選通知後，學員收到 Email，包含課程名稱和小節名稱 ✅
 
 ---
 
-## Phase 27: 修正章節通知排除 drip 連鎖課程 (2026-03-09 新增)
+## Phase 27: 修正：通知觸發點從 Chapter 改為 Lesson，排除 drip 課程 (2026-03-09 新增)
 
-**Purpose**: drip 課程有自己的訂閱排程發信，手動新增章節不應觸發通知，避免訂閱者收到混亂的重複信件
+**Purpose**: 最初錯誤地將通知放在 ChapterController（章），應改為 LessonController（小節）。同時排除 drip 課程，避免訂閱者收到混亂的重複信件
 
-**背景**：Phase 26 實作時未考慮 drip 課程類型（course_type = 'drip'），需在前後端各加一道防護。
+**背景**：Phase 26 原本實作在 ChapterController@store()，但章（ep）只是容器結構，管理員新增章不代表有新內容供學員觀看。真正的新內容單元是小節（Lesson）。此 Phase 記錄修正過程。
 
-- [X] T211 [P] [US10] 修正 `ChapterController@store()` 排除 drip 課程 in `app/Http/Controllers/Admin/ChapterController.php`
-  - 條件改為 `notify_members && status !== 'draft' && course_type !== 'drip'`
-- [X] T212 [P] [US10] 修正 `ChapterList.vue` checkbox 顯示條件排除 drip 課程 in `resources/js/Components/Admin/ChapterList.vue`
-  - 條件改為 `courseStatus !== 'draft' && courseType !== 'drip'`
+- [X] T211 [P] [US10] 移除 `ChapterController` 中的錯誤通知邏輯，還原為純章節建立 in `app/Http/Controllers/Admin/ChapterController.php`
+  - 移除 `ChapterAddedNotification`、`Purchase`、`Log`、`Mail` 等 import
+  - `store()` 還原為簡單的 `$course->chapters()->create([...])` 無通知邏輯
+- [X] T212 [P] [US10] 移除 `ChapterList.vue` 中的通知 checkbox，改為在 `LessonForm.vue` 實作（見 T210），傳遞 `:course-status` prop in `resources/js/Components/Admin/ChapterList.vue`
+  - 移除 `notifyMembers` ref 和章節表單的 checkbox
+  - 在 `<LessonForm>` 元件傳入 `:course-status="courseStatus"`
 
-**Checkpoint**: drip 課程章節編輯頁不顯示通知 checkbox，後端亦不發信 ✅
+**Checkpoint**: drip 課程及草稿課程新增小節時不顯示通知 checkbox，後端亦不發信；一般已發布課程新增小節時可正常勾選發信 ✅
+
+---
+
+## Phase 28: 精簡 Email 模板 HTML (2026-03-09 新增)
+
+**Purpose**: 移除 Email 模板裝飾性 HTML，避免被信件服務歸類為促銷信，提升開信率
+
+- [x] T213 [US10] 精簡 `lesson-added.blade.php` 為純文字風格 in `resources/views/emails/lesson-added.blade.php`
+  - 移除色塊、陰影、emoji、大色塊 CTA 按鈕
+  - 連結改為純文字 URL
+
+**Checkpoint**: Email 外觀如一般事務信，無裝飾性樣式 ✅
+
+---
+
+## Phase 29: 小節通知 Email 改為純文字 MIME (2026-03-09 新增)
+
+**Purpose**: 徹底移除 HTML，改用 text/plain MIME 傳送，並精簡主旨格式
+
+- [x] T214 [P] [US10] 修改 Mailable 改用純文字 MIME 並更新主旨 in `app/Mail/LessonAddedNotification.php`
+  - `Content(text: 'emails.lesson-added')`；主旨改為 `您擁有的課程更新了：新小節「{title}」上線囉`
+- [x] T215 [P] [US10] 重新命名模板並改為純文字內容 in `resources/views/emails/lesson-added.blade.php`
+  - 原 `lesson-added.blade.php` 保持檔名不變（修正：`.text.blade.php` 命名錯誤，`Content(text:)` 需找 `.blade.php`），內容改為無任何 HTML 標籤的純文字
+
+**Checkpoint**: 收件端收到 text/plain Email，無任何 HTML 渲染 ✅
+
+---
+
+## Phase 30: 修正 Email 模板檔名與加入課程類型標籤 (2026-03-09 新增)
+
+**Purpose**: 修正 `.text.blade.php` 檔名造成的模板找不到錯誤，並在主旨與內文依課程類型顯示正確標籤
+
+**背景**：`Content(text: 'emails.lesson-added')` 查找的是 `lesson-added.blade.php`，而非 `lesson-added.text.blade.php`；`.text.blade.php` 命名僅在 `Content(view:)` 自動偵測情境下才有效。同時用戶反映主旨固定顯示「課程」，未區分課程類型。
+
+- [x] T216 [US10] 修正 Email 模板檔名錯誤，重新排版內文並加入課程類型標籤 in `resources/views/emails/lesson-added.blade.php`
+  - 確認檔名為 `lesson-added.blade.php`（非 `.text.blade.php`）
+  - 內文重新排版為多行，依 `$course->type` 顯示「課程/迷你課/講座」
+- [x] T217 [P] [US10] Mailable 主旨加入課程類型標籤 in `app/Mail/LessonAddedNotification.php`
+  - 新增 `match($this->course->type)` 邏輯，主旨動態顯示「您擁有的{課程/迷你課/講座}更新了」
+
+**Checkpoint**: Email 可正常送達；主旨與內文依課程類型顯示正確標籤 ✅
 
 ---
 
@@ -1406,6 +1455,9 @@ Within Phase 15:
 | Phase 23 (Bug Fix：獨立小節 md_content) | T200 | ✅ Completed |
 | Phase 24 (Vimeo CC 字幕自動顯示) | T201 | ✅ Completed |
 | Phase 25 (管理員 SEO 欄位) | T202-T205 | ✅ Completed |
-| Phase 26 (US10 章節 Email 通知) | T206-T210 | ✅ Completed |
-| Phase 27 (修正：drip 課程排除通知) | T211-T212 | ✅ Completed |
-| **Total** | **212 tasks** | 212 completed, 0 pending |
+| Phase 26 (US10 小節 Email 通知) | T206-T210 | ✅ Completed |
+| Phase 27 (修正：通知觸發點從 Chapter 改為 Lesson) | T211-T212 | ✅ Completed |
+| Phase 28 (精簡 Email 模板 HTML) | T213 | ✅ Completed |
+| Phase 29 (小節通知 Email 純文字 MIME) | T214-T215 | ✅ Completed |
+| Phase 30 (修正 Email 模板檔名與課程類型標籤) | T216-T217 | ✅ Completed |
+| **Total** | **217 tasks** | 217 completed, 0 pending |

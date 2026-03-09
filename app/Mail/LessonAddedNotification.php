@@ -21,15 +21,21 @@ class LessonAddedNotification extends Mailable
 
     public function envelope(): Envelope
     {
+        $typeLabel = match($this->course->type) {
+            'lecture' => '講座',
+            'mini'    => '迷你課',
+            default   => '課程',
+        };
+
         return new Envelope(
-            subject: "【{$this->course->name}】新小節「{$this->lesson->title}」上線囉！",
+            subject: "您擁有的{$typeLabel}更新了：新小節「{$this->lesson->title}」上線囉",
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.lesson-added',
+            text: 'emails.lesson-added',
         );
     }
 

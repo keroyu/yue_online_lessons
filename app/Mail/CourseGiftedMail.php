@@ -27,7 +27,7 @@ class CourseGiftedMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.course-gifted',
+            text: 'emails.course-gifted',
         );
     }
 

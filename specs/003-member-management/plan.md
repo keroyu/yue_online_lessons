@@ -2,6 +2,7 @@
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 加入 Markdown 支援（league/commonmark）
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 

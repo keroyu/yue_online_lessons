@@ -4,6 +4,7 @@
 **Created**: 2026-01-17
 **Updated**: 2026-01-18
 **Updated**: 2026-03-09 - 改為同步發送 Email（Mail::send），移除 Queue 依賴（FR-017, FR-027, SC-007）
+**Updated**: 2026-03-09 - 修正贈課 Email 模板檔名錯誤（.text.blade.php → .blade.php）；批次 Email 支援 Markdown 格式輸入
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -108,6 +109,7 @@ As an admin, I want to compose and send an email to selected members so I can co
 3. **Given** I try to send an email with empty subject or body, **When** I click send, **Then** I see validation errors indicating required fields.
 4. **Given** I have filtered members by a course, **When** I select members and send an email, **Then** only the selected members receive the email.
 5. **Given** emails are being sent, **When** the process completes, **Then** I see a success message with the count of emails sent.
+6. **Given** 管理員在批次 Email 內文輸入 Markdown 語法（粗體 `**text**`、清單 `- item`）, **When** Email 送達收件人, **Then** 收件人看到渲染後的 HTML 格式（粗體、清單），無裝飾性樣式
 
 ---
 
@@ -163,7 +165,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **FR-012a**: System MUST provide a "Select all X matching members" option after filtering, allowing selection across all pages.
 - **FR-013**: System MUST display a count of currently selected members.
 - **FR-014**: System MUST preserve member selections when navigating between pages.
-- **FR-015**: System MUST provide a modal for composing batch emails with subject and body fields.
+- **FR-015**: System MUST provide a modal for composing batch emails with subject and body fields; body MUST support Markdown syntax (bold, lists, links) which is rendered to minimal HTML on send.
 - **FR-016**: System MUST validate that email subject and body are not empty before sending.
 - **FR-017**: System MUST send batch emails synchronously using Mail::send() for immediate delivery (member count is small; no queue required).
 - **FR-018**: System MUST display success/failure feedback after email sending operation.

@@ -7,15 +7,21 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use League\CommonMark\CommonMarkConverter;
 
 class BatchEmailMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public string $htmlBody;
+
     public function __construct(
         public string $emailSubject,
         public string $emailBody
-    ) {}
+    ) {
+        $converter = new CommonMarkConverter();
+        $this->htmlBody = $converter->convert($emailBody)->getContent();
+    }
 
     public function envelope(): Envelope
     {

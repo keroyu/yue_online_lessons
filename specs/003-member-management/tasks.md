@@ -4,6 +4,9 @@
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, research.md
 **Updated**: 2026-01-18 (Added User Story 7 - Gift Course)
 **Updated**: 2026-03-09 - 改批次 Email 和贈課通知為同步發送，移除 Queue Job (Phase 11)
+**Updated**: 2026-03-09 - 精簡贈課 Email 模板 HTML (Phase 12)
+**Updated**: 2026-03-09 - 贈課 Email 改為純文字 MIME (Phase 13)
+**Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 支援 Markdown (Phase 14)
 
 **Tests**: Not explicitly requested - test tasks omitted.
 
@@ -383,6 +386,48 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 ---
 
+## Phase 12: 精簡贈課 Email 模板 HTML (2026-03-09 新增)
+
+**Purpose**: 移除贈課 Email 模板裝飾性 HTML，避免被信件服務歸類為促銷信
+
+- [x] T068 [US7] 精簡 `course-gifted.blade.php` 為純文字風格 in `resources/views/emails/course-gifted.blade.php`
+  - 移除色塊、陰影、emoji、大色塊 CTA 按鈕
+  - 連結改為純文字 URL；加入 `@if($courseDescription)` 條件渲染
+
+**Checkpoint**: 贈課通知 Email 外觀如一般事務信，無裝飾性樣式 ✅
+
+---
+
+## Phase 13: 贈課 Email 改為純文字 MIME (2026-03-09 新增)
+
+**Purpose**: 徹底移除 HTML，改用 text/plain MIME 傳送，避免被歸類為促銷信
+
+- [x] T069 [P] [US7] 修改 Mailable 改用純文字 MIME in `app/Mail/CourseGiftedMail.php`
+  - `Content(text: 'emails.course-gifted')`
+- [x] T070 [P] [US7] 重新命名模板並改為純文字內容 in `resources/views/emails/course-gifted.blade.php`
+  - 確認檔名為 `course-gifted.blade.php`（修正：`.text.blade.php` 命名錯誤），內容改為無任何 HTML 標籤的純文字
+
+**Checkpoint**: 贈課通知以 text/plain 傳送，無任何 HTML ✅
+
+---
+
+## Phase 14: 修正贈課 Email 模板檔名；批次 Email 支援 Markdown (2026-03-09 新增)
+
+**Purpose**: 修正 `.text.blade.php` 檔名錯誤導致模板找不到；批次 Email 加入 Markdown 轉換支援
+
+**背景**：`Content(text: 'emails.course-gifted')` 查找 `course-gifted.blade.php`，`.text.blade.php` 名稱無效。批次 Email 管理員輸入純文字，加入 Markdown 支援讓信件可呈現基本格式（粗體、清單），且不使用裝飾性樣式，Promotions 風險低。
+
+- [x] T071 [US7] 確認贈課 Email 模板檔名為 `course-gifted.blade.php` in `resources/views/emails/course-gifted.blade.php`
+  - 確保檔名正確，與 `Content(text: 'emails.course-gifted')` 對應
+- [x] T072 [P] [US6] 新增 Markdown 轉換至批次 Email Mailable in `app/Mail/BatchEmailMail.php`
+  - 加入 `league/commonmark` CommonMarkConverter，constructor 中轉換 `$emailBody` → `$htmlBody`
+- [x] T073 [P] [US6] 更新批次 Email 模板輸出轉換後 HTML in `resources/views/emails/batch-email.blade.php`
+  - 移除裝飾性 wrapper HTML（背景、卡片、陰影、copyright footer）；僅輸出 `{!! $htmlBody !!}`
+
+**Checkpoint**: 贈課 Email 可正常送達；批次 Email 支援 Markdown 格式，無裝飾性樣式 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -398,5 +443,8 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 9: US7 Gift Course | 12 tasks (T050-T061) | Complete |
 | Phase 10: Polish | 8 tasks (T044-T063) | Complete |
 | Phase 11: 改同步發送，移除 Job | T064-T067 | ✅ Completed |
+| Phase 12: 精簡贈課 Email 模板 HTML | T068 | ✅ Completed |
+| Phase 13: 贈課 Email 純文字 MIME | T069-T070 | ✅ Completed |
+| Phase 14: 修正贈課 Email 檔名；批次 Email Markdown | T071-T073 | ✅ Completed |
 
-**Total**: 71 tasks (71 complete, 0 planned)
+**Total**: 77 tasks (77 complete, 0 planned)
