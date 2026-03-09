@@ -8,6 +8,7 @@
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
 **Updated**: 2026-03-09 - US10 章節新增 Email 通知會員 (Phase 26)
+**Updated**: 2026-03-09 - 修正：章節通知排除 drip 連鎖課程 (Phase 27)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1369,6 +1370,21 @@ Within Phase 15:
 
 ---
 
+## Phase 27: 修正章節通知排除 drip 連鎖課程 (2026-03-09 新增)
+
+**Purpose**: drip 課程有自己的訂閱排程發信，手動新增章節不應觸發通知，避免訂閱者收到混亂的重複信件
+
+**背景**：Phase 26 實作時未考慮 drip 課程類型（course_type = 'drip'），需在前後端各加一道防護。
+
+- [X] T211 [P] [US10] 修正 `ChapterController@store()` 排除 drip 課程 in `app/Http/Controllers/Admin/ChapterController.php`
+  - 條件改為 `notify_members && status !== 'draft' && course_type !== 'drip'`
+- [X] T212 [P] [US10] 修正 `ChapterList.vue` checkbox 顯示條件排除 drip 課程 in `resources/js/Components/Admin/ChapterList.vue`
+  - 條件改為 `courseStatus !== 'draft' && courseType !== 'drip'`
+
+**Checkpoint**: drip 課程章節編輯頁不顯示通知 checkbox，後端亦不發信 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1391,4 +1407,5 @@ Within Phase 15:
 | Phase 24 (Vimeo CC 字幕自動顯示) | T201 | ✅ Completed |
 | Phase 25 (管理員 SEO 欄位) | T202-T205 | ✅ Completed |
 | Phase 26 (US10 章節 Email 通知) | T206-T210 | ✅ Completed |
-| **Total** | **210 tasks** | 210 completed, 0 pending |
+| Phase 27 (修正：drip 課程排除通知) | T211-T212 | ✅ Completed |
+| **Total** | **212 tasks** | 212 completed, 0 pending |

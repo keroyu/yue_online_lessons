@@ -13,6 +13,7 @@
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕
 **Updated**: 2026-03-09 - 新增 US10 章節新增 Email 通知 (Phase 23)
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位（Phase 25）
+**Updated**: 2026-03-09 - 章節通知排除 drip 連鎖課程
 
 ## Summary
 
@@ -316,7 +317,7 @@ resources/
 
 ```php
 // ChapterController@store（新增部分）
-if ($request->boolean('notify_members') && $course->status !== 'draft') {
+if ($request->boolean('notify_members') && $course->status !== 'draft' && $course->course_type !== 'drip') {
     $recipients = Purchase::where('course_id', $course->id)
         ->where('status', '!=', 'refunded')
         ->where('type', '!=', 'system_assigned')
@@ -335,6 +336,7 @@ if ($request->boolean('notify_members') && $course->status !== 'draft') {
 - **Opt-in 勾選**：預設未勾選，避免管理員一次新增多章節時重複發信
 - **通知對象篩選**：排除 refunded（退款）與 system_assigned（管理員自身），確保只通知真實學員
 - **草稿課程不顯示選項**：前端條件渲染，後端 `status !== 'draft'` 雙重保護
+- **drip 課程排除**：drip 課程有自己的訂閱排程發信，手動通知會造成訂閱者混亂；前端條件 `courseStatus !== 'draft' && courseType !== 'drip'`，後端 `$course->course_type !== 'drip'` 雙重保護
 - **未來擴展**：若學員數增長到同步發送感覺卡頓，只需將 `send()` 改為 `queue()` 即可，Mailable 不需修改
 
 **技術考量**：
