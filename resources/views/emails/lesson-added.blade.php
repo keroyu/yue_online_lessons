@@ -12,16 +12,16 @@
 
         <div style="background-color: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 20px; margin-bottom: 24px; text-align: center;">
             <p style="color: #1d4ed8; font-size: 18px; font-weight: 600; margin: 0;">
-                📢 課程新增章節通知
+                📢 課程新增內容通知
             </p>
         </div>
 
         <p style="color: #374151; font-size: 16px; line-height: 1.75; margin: 0 0 16px 0;">
-            您購買的課程「<strong>{{ $course->name }}</strong>」剛新增了新章節：
+            您購買的課程「<strong>{{ $course->name }}</strong>」剛新增了新內容：
         </p>
 
         <h2 style="color: #111827; font-size: 20px; font-weight: 600; margin: 0 0 24px 0;">
-            「{{ $chapter->title }}」
+            「{{ $lesson->title }}」
         </h2>
 
         <p style="color: #374151; font-size: 16px; line-height: 1.75; margin: 0 0 24px 0;">

@@ -4,14 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreChapterRequest;
-use App\Mail\ChapterAddedNotification;
 use App\Models\Chapter;
 use App\Models\Course;
-use App\Models\Purchase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,32 +85,10 @@ class ChapterController extends Controller
     {
         $maxSortOrder = $course->chapters()->max('sort_order') ?? 0;
 
-        $chapter = $course->chapters()->create([
+        $course->chapters()->create([
             'title' => $request->validated('title'),
             'sort_order' => $maxSortOrder + 1,
         ]);
-
-        if ($request->boolean('notify_members') && $course->status !== 'draft' && $course->course_type !== 'drip') {
-            $recipients = Purchase::where('course_id', $course->id)
-                ->where('status', '!=', 'refunded')
-                ->where('type', '!=', 'system_assigned')
-                ->with('user')
-                ->get();
-
-            foreach ($recipients as $purchase) {
-                if ($purchase->user && $purchase->user->email) {
-                    try {
-                        Mail::to($purchase->user->email)
-                            ->send(new ChapterAddedNotification($course, $chapter));
-                    } catch (\Exception $e) {
-                        Log::error('Failed to send chapter notification', [
-                            'purchase_id' => $purchase->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
-        }
 
         return redirect()
             ->route('admin.chapters.index', $course)

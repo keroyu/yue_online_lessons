@@ -23,7 +23,6 @@ class StoreChapterRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'notify_members' => ['nullable', 'boolean'],
         ];
     }
 

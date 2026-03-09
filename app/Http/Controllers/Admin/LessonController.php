@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLessonRequest;
+use App\Mail\LessonAddedNotification;
 use App\Models\Course;
 use App\Models\Lesson;
+use App\Models\Purchase;
 use App\Services\DripService;
 use App\Services\VideoEmbedService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class LessonController extends Controller
 {
@@ -23,7 +27,8 @@ class LessonController extends Controller
      */
     public function store(StoreLessonRequest $request, Course $course): RedirectResponse
     {
-        $data = $request->validated();
+        $notifyMembers = $request->boolean('notify_members');
+        $data = $request->safe()->except(['notify_members']);
 
         // Ensure duration_seconds is never null (DB NOT NULL constraint)
         $data['duration_seconds'] = $data['duration_seconds'] ?? 0;
@@ -47,13 +52,36 @@ class LessonController extends Controller
         }
         $data['sort_order'] = $maxSortOrder + 1;
 
-        $course->lessons()->create($data);
+        $lesson = $course->lessons()->create($data);
 
         $this->updateCourseDuration($course);
 
         // Reactivate completed subscribers so they receive the new lesson
         if ($course->course_type === 'drip') {
             $this->dripService->reactivateCompletedSubscriptions($course);
+        }
+
+        // Send notification email to course owners (standard courses only, published only)
+        if ($notifyMembers && $course->status !== 'draft' && $course->course_type !== 'drip') {
+            $recipients = Purchase::where('course_id', $course->id)
+                ->where('status', '!=', 'refunded')
+                ->where('type', '!=', 'system_assigned')
+                ->with('user')
+                ->get();
+
+            foreach ($recipients as $purchase) {
+                if ($purchase->user && $purchase->user->email) {
+                    try {
+                        Mail::to($purchase->user->email)
+                            ->send(new LessonAddedNotification($course, $lesson));
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send lesson notification', [
+                            'purchase_id' => $purchase->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
         }
 
         return redirect()
