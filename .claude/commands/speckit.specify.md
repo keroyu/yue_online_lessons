@@ -192,6 +192,14 @@ Given that feature description, do this:
 
 7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
 
+8. **Sync spec index** (spec-kit plugin): Run the following to update all navigation artifacts:
+
+   ```bash
+   python plugins/spec_index_plugin.py
+   ```
+
+   This regenerates `specs/spec_index.json`, `specs/code_index.json`, and `repo_map.md` so agents can immediately navigate to the new feature's User Stories without scanning the repository.
+
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
 ## General Guidelines

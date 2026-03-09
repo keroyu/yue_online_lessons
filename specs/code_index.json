@@ -1,0 +1,171 @@
+{
+  "files": {
+    "app/Http/Controllers/Admin/ChapterController.php": [
+      "002.us-3"
+    ],
+    "app/Http/Controllers/Admin/CourseController.php": [
+      "002.us-2",
+      "002.us-2a",
+      "002.us-7",
+      "002.us-9",
+      "005.us-3"
+    ],
+    "app/Http/Controllers/Admin/CourseImageController.php": [
+      "002.us-4"
+    ],
+    "app/Http/Controllers/Admin/DashboardController.php": [
+      "002.us-5"
+    ],
+    "app/Http/Controllers/Admin/LessonController.php": [
+      "002.us-10",
+      "002.us-3",
+      "005.us-3",
+      "005.us-9"
+    ],
+    "app/Http/Controllers/Admin/MemberController.php": [
+      "003.us-1",
+      "003.us-2",
+      "003.us-3",
+      "003.us-4",
+      "003.us-6",
+      "003.us-7",
+      "005.us-7"
+    ],
+    "app/Http/Controllers/Auth/LoginController.php": [
+      "001.us-2"
+    ],
+    "app/Http/Controllers/CourseController.php": [
+      "001.us-5",
+      "002.us-8"
+    ],
+    "app/Http/Controllers/DripSubscriptionController.php": [
+      "005.us-1",
+      "005.us-1.5",
+      "005.us-5"
+    ],
+    "app/Http/Controllers/DripTrackingController.php": [
+      "005.us-14"
+    ],
+    "app/Http/Controllers/HomeController.php": [
+      "001.us-1",
+      "002.us-8",
+      "004.us-1"
+    ],
+    "app/Http/Controllers/Member/ClassroomController.php": [
+      "001.us-3",
+      "002.us-1",
+      "002.us-11",
+      "005.us-15",
+      "005.us-6"
+    ],
+    "app/Http/Controllers/Member/LearningController.php": [
+      "002.us-1",
+      "002.us-1a"
+    ],
+    "app/Http/Controllers/Member/SettingsController.php": [
+      "001.us-4"
+    ],
+    "app/Http/Controllers/Webhook/PortalyController.php": [
+      "001.us-6",
+      "005.us-2",
+      "005.us-4"
+    ],
+    "app/Models/Chapter.php": [
+      "002.us-3"
+    ],
+    "app/Models/Course.php": [
+      "001.us-1",
+      "001.us-5",
+      "002.us-2",
+      "002.us-2a",
+      "002.us-9",
+      "005.us-3"
+    ],
+    "app/Models/CourseImage.php": [
+      "002.us-4"
+    ],
+    "app/Models/DripConversionTarget.php": [
+      "005.us-4"
+    ],
+    "app/Models/DripEmailEvent.php": [
+      "005.us-12",
+      "005.us-13"
+    ],
+    "app/Models/DripSubscription.php": [
+      "005.us-1",
+      "005.us-1.5",
+      "005.us-10",
+      "005.us-13",
+      "005.us-15",
+      "005.us-2",
+      "005.us-4",
+      "005.us-5",
+      "005.us-6",
+      "005.us-7"
+    ],
+    "app/Models/Lesson.php": [
+      "002.us-10",
+      "002.us-11",
+      "002.us-3",
+      "005.us-14",
+      "005.us-15",
+      "005.us-3",
+      "005.us-8",
+      "005.us-9"
+    ],
+    "app/Models/LessonProgress.php": [
+      "002.us-1",
+      "002.us-1a",
+      "003.us-3"
+    ],
+    "app/Models/Purchase.php": [
+      "001.us-3",
+      "001.us-6",
+      "002.us-10",
+      "002.us-7",
+      "003.us-3",
+      "003.us-7",
+      "005.us-2"
+    ],
+    "app/Models/User.php": [
+      "001.us-2",
+      "003.us-1",
+      "003.us-2"
+    ],
+    "app/Models/VerificationCode.php": [
+      "001.us-2"
+    ],
+    "resources/js/Pages/Admin/": [
+      "002.us-2",
+      "002.us-3",
+      "002.us-4"
+    ],
+    "resources/js/Pages/Admin/Member/": [
+      "003.us-1",
+      "003.us-5"
+    ],
+    "resources/js/Pages/Auth/": [
+      "001.us-2"
+    ],
+    "resources/js/Pages/Course/": [
+      "001.us-5",
+      "002.us-1",
+      "002.us-2a",
+      "002.us-2b"
+    ],
+    "resources/js/Pages/Drip/": [
+      "005.us-1",
+      "005.us-6"
+    ],
+    "resources/js/Pages/Home.vue": [
+      "001.us-1",
+      "004.us-1",
+      "004.us-2",
+      "004.us-3"
+    ],
+    "resources/js/Pages/Member/": [
+      "001.us-3",
+      "001.us-4"
+    ]
+  }
+}

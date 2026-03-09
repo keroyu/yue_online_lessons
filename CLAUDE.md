@@ -48,6 +48,25 @@ ssh forge@129.212.217.5
 - UI 文案：中文
 - Code / Comments：英文
 
+## Agent Navigation Protocol
+
+When working in this repository, follow this order **strictly**:
+
+1. Read `repo_map.md` to identify the relevant module and its main files.
+2. Search `specs/spec_index.json` by feature name, user story summary, or keywords.
+3. Read only the matched spec section (use `file` + `anchor` from the index entry).
+4. Read only the `code_files` listed in that spec entry.
+5. Expand search outward only if those files are insufficient.
+6. Do **not** scan the entire repository unless explicitly requested.
+
+Before making any change, output:
+```
+Target feature: [feature id, e.g. 002.us-10]
+Spec section: [file#anchor]
+Target files: [list]
+Need more search: yes/no
+```
+
 ## Development Rules
 
 - 所有頁面需 RWD
