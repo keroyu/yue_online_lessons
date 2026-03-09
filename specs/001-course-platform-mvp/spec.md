@@ -11,6 +11,7 @@
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示優化（優惠價 NTD$）、按鈕樣式統一
 **Updated**: 2026-03-08 - 課程縮圖統一改為 16:9 比例
 **Updated**: 2026-03-09 - 新增課程 SEO 欄位（slug URL + meta_description）
+**Updated**: 2026-03-09 - 販售頁新增「免費試閱」按鈕，未購買訪客可另開視窗體驗教室介面
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -103,6 +104,8 @@
 4. **Given** 訪客在課程販售頁, **When** 尚未勾選同意條款, **Then** 購買按鈕呈現禁用狀態
 5. **Given** 訪客已勾選同意條款, **When** 點擊購買按鈕, **Then** 開啟新視窗連到該課程的 Portaly 產品頁（Portaly 表單會收集用戶資料）
 6. **Given** 課程 `is_visible = false`（隱藏）, **When** 訪客進入課程販售頁, **Then** 頁面頂端導覽列與「返回課程列表」連結均隱藏
+12. **Given** 課程有至少一個標記為「免費試閱」的小節（且非 drip 課程）, **When** 訪客進入課程販售頁, **Then** 購買按鈕旁顯示「免費試閱」按鈕（含播放 icon）
+13. **Given** 訪客點擊「免費試閱」按鈕, **When** 按鈕被點擊, **Then** 另開新視窗進入試閱教室（`/course/{id}/preview`），不需登入
 
 ---
 
@@ -140,6 +143,9 @@
 - 退款 webhook 找不到對應訂單時，記錄錯誤但回傳 200
 - 不相關的 Portaly 產品（如其他商品）發送 webhook 到課程網站時，靜默忽略且不建立用戶帳號
 - 課程設為隱藏（`is_visible = false`）時，課程販售頁自動精簡為無導覽列版本（與 `?lp=1` landing page 模式行為一致）
+- drip 課程不顯示「免費試閱」按鈕，即使後台誤設了 `is_preview = true` 的小節
+- 草稿課程（previewMode）不顯示「免費試閱」按鈕（避免草稿流出）
+- 課程無任何 `is_preview = true` 小節時，`/course/{id}/preview` 不顯示 404，而是顯示「此課程目前沒有免費試閱內容」提示頁
 
 ## Requirements *(mandatory)*
 
@@ -173,6 +179,8 @@
 - **FR-026**: 課程 SHOULD 支援 SEO 友善 URL slug（`/course/{slug}`），未設定時回退使用數字 ID（`/course/{id}`）
 - **FR-027**: 課程 SHOULD 支援獨立的 `meta_description` 欄位（最多 160 字），搜尋結果描述優先使用 `meta_description`，其次 `tagline`；OG description 使用相同邏輯
 - **FR-028**: Sitemap SHOULD 對已設定 slug 的課程輸出 slug URL，未設定則輸出 ID URL
+- **FR-029**: 販售頁 MUST 對「非 drip、非草稿、至少有一個 `is_preview = true` 小節」的課程顯示「免費試閱」按鈕，並以 `target="_blank"` 另開新視窗連至 `/course/{id}/preview`
+- **FR-030**: `/course/{id}/preview` 路由 MUST 為公開路由（不需登入），drip 課程存取該路由時回傳 404
 
 ### Key Entities
 

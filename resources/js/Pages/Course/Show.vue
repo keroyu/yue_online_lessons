@@ -41,6 +41,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  hasPreviewLessons: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Landing Page mode detection
@@ -307,12 +311,29 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
             :original-price="course.original_price"
             :promo-ends-at="course.promo_ends_at"
           />
-          <button
-            @click="purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
-            class="w-full sm:w-auto px-8 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer"
-          >
-            {{ isDrip ? '免費訂閱' : '立即購買' }}
-          </button>
+          <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
+            <a
+              v-if="hasPreviewLessons && !isDrip && !isPreviewMode"
+              :href="`/course/${course.id}/preview`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+              </svg>
+              免費試閱
+            </a>
+            <button
+              @click="purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+              class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {{ isDrip ? '免費訂閱' : '立即購買' }}
+            </button>
+          </div>
         </div>
 
       </div>
@@ -435,20 +456,37 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
               </span>
             </label>
 
-            <button
-              @click="openPortaly"
-              :disabled="!isPreviewMode && (!agreed || !portalyUrl)"
-              :class="[
-                'w-full sm:w-auto px-10 py-3 rounded-lg font-semibold transition-all shadow-sm',
-                isPreviewMode
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : (agreed && portalyUrl
-                      ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
-              ]"
-            >
-              {{ isPreviewMode ? '預覽購買按鈕' : '立即購買' }}
-            </button>
+            <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
+              <a
+                v-if="hasPreviewLessons && !isDrip && !isPreviewMode"
+                :href="`/course/${course.id}/preview`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all"
+              >
+                <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                免費試閱
+              </a>
+              <button
+                @click="openPortaly"
+                :disabled="!isPreviewMode && (!agreed || !portalyUrl)"
+                :class="[
+                  'flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold transition-all shadow-sm',
+                  isPreviewMode
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : (agreed && portalyUrl
+                        ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
+                ]"
+              >
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {{ isPreviewMode ? '預覽購買按鈕' : '立即購買' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

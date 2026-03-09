@@ -87,6 +87,11 @@ class Course extends Model
         return $this->hasMany(DripSubscription::class);
     }
 
+    public function hasPreviewLessons(): bool
+    {
+        return $this->lessons()->where('is_preview', true)->exists();
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('is_published', true);

@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
+Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
 // Drip subscription routes (public)

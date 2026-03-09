@@ -27,6 +27,7 @@ class Lesson extends Model
         'video_access_hours',
         'duration_seconds',
         'sort_order',
+        'is_preview',
     ];
 
     protected function casts(): array
@@ -36,6 +37,7 @@ class Lesson extends Model
             'sort_order' => 'integer',
             'promo_delay_seconds' => 'integer',
             'video_access_hours' => 'integer',
+            'is_preview' => 'boolean',
         ];
     }
 

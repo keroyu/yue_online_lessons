@@ -8,6 +8,7 @@
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化 (Phase 14)
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例 (Phase 15)
 **Updated**: 2026-03-09 - 課程 SEO 欄位 slug + meta_description (Phase 16)
+**Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕 (Phase 17)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -589,6 +590,24 @@ Task: T018 "Create VerificationCode model"
 
 ---
 
+## Phase 17: 販售頁「免費試閱」按鈕 (2026-03-09 新增)
+
+**Purpose**: 讓未購買訪客可在販售頁直接點擊試閱，提升轉換率
+
+**背景**：新增試閱教室（Phase 31 of 002）後，販售頁需對應顯示入口按鈕。僅非 drip、非草稿、有 `is_preview` 小節的課程才顯示按鈕。
+
+- [x] T114 [US5] 計算 `$hasPreviewLessons` 並傳入 Inertia prop in `app/Http/Controllers/CourseController.php`
+  - 條件：`!$isDraft && !$isDrip && $course->hasPreviewLessons()`
+- [x] T115 [P] [US5] 新增 `hasPreviewLessons` prop 並在課程資訊欄右側加入「免費試閱」按鈕 in `resources/js/Pages/Course/Show.vue`
+  - `<a target="_blank">` 含播放 icon，`v-if="hasPreviewLessons && !isDrip && !isPreviewMode"`
+  - 與「立即購買」按鈕並排（`flex-row gap-2`）
+- [x] T116 [P] [US5] 底部購買區加入「免費試閱」按鈕（同條件）in `resources/js/Pages/Course/Show.vue`
+  - 「免費試閱」在左、「立即購買」在右
+
+**Checkpoint**: 有 preview 小節的非 drip 課程販售頁顯示「免費試閱」按鈕；drip 課程、草稿課程、無 preview 小節的課程不顯示 ✅
+
+---
+
 ## Summary
 
 | Phase | Tasks | Parallel Tasks |
@@ -609,7 +628,8 @@ Task: T018 "Create VerificationCode model"
 | Phase 14: 課程資訊欄、價格標示、按鈕樣式 | 4 | 3 |
 | Phase 15: 課程縮圖統一 16:9 比例 | 2 | 2 |
 | Phase 16: 課程 SEO 欄位 slug + meta_description | 3 | 2 |
-| **Total** | **118** | **52** |
+| Phase 17: 販售頁「免費試閱」按鈕 | 3 | 2 |
+| **Total** | **121** | **54** |
 
 ---
 

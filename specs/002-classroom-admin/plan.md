@@ -17,6 +17,7 @@
 **Updated**: 2026-03-09 - 精簡 lesson-added Email 模板，移除裝飾性 HTML
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字 MIME（text:），主旨精簡
 **Updated**: 2026-03-09 - 修正 Email 模板檔名（.text.blade.php → .blade.php）；主旨與內文加入課程類型標籤
+**Updated**: 2026-03-09 - 免費試閱功能（US11）：is_preview 欄位、後台勾選、公開試閱教室路由、鎖定 UI
 
 ## Summary
 
@@ -404,6 +405,31 @@ if ($notifyMembers && $course->status !== 'draft' && $course->course_type !== 'd
 **設計決策**：
 - **檔名規則澄清**：`Content(text: 'view')` 找 `view.blade.php`；`.text.blade.php` 是 `Content(view:)` 的自動偵測副本命名；兩者不可混用
 - **類型標籤**：`full` → 課程、`mini` → 迷你課、`lecture` → 講座，兩處（主旨 + 內文）使用相同 `match` 邏輯
+
+---
+
+### 2026-03-09: 免費試閱功能（US11）
+
+**背景**：讓未購買訪客體驗課程介面，降低購買決策阻力。管理員在後台標記特定小節為「試閱」，訪客可免登入進入試閱教室，但僅能觀看試閱小節；其他小節顯示鎖頭。試閱教室下方顯示購買 CTA 引導轉換。
+
+**修改檔案**：
+- `database/migrations/2026_03_09_000001_add_is_preview_to_lessons_table.php` - 新增 `is_preview` boolean default false
+- `app/Models/Lesson.php` - `is_preview` 加入 `$fillable` 與 `casts`
+- `app/Models/Course.php` - 新增 `hasPreviewLessons(): bool` 方法
+- `app/Http/Requests/Admin/StoreLessonRequest.php` - 新增 `is_preview` 驗證規則
+- `app/Http/Controllers/Member/ClassroomController.php` - 新增 `preview()` action、`formatLessonForPreview()`；`formatLesson()` 加入 `is_preview` 欄位
+- `routes/web.php` - 新增公開路由 `GET /course/{course}/preview`（`course.preview`）
+- `resources/js/Components/Admin/LessonForm.vue` - 非 drip 課程顯示「免費試閱」checkbox
+- `resources/js/Pages/Member/Classroom.vue` - 新增 `isFreePreview` prop，試閱導航邏輯、返回連結、頂部橫幅、底部 CTA
+- `resources/js/Components/Classroom/ChapterSidebar.vue` - 新增 `isFreePreview` prop，傳入 LessonItem
+- `resources/js/Components/Classroom/LessonItem.vue` - 新增 `isFreePreview` prop，`isLocked` computed，鎖頭圖示，隱藏完成勾勾
+
+**設計決策**：
+- **複用 Classroom.vue**：試閱模式與正式教室同頁面，`isFreePreview` prop 切換行為差異，不新建頁面
+- **不記錄進度**：`handleToggleComplete` 開頭加 `if (isFreePreview) return`；計時器完全不啟動
+- **鎖定顯示**：鎖定小節顯示 padlock SVG，`cursor-default`，`@click="!isLocked && handleClick()"`
+- **CTA 位置**：每個試閱小節內容最下方固定顯示購買區塊，確保每次觀看後都能看到轉換入口
+- **返回連結**：試閱教室返回 `/course/{id}`（販售頁），正式教室返回 `/member/learning`
 
 ---
 

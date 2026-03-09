@@ -28,6 +28,7 @@ const form = ref({
   promo_url: '',
   reward_html: '',
   video_access_hours: '',
+  is_preview: false,
 })
 
 const errors = ref({})
@@ -77,6 +78,7 @@ onMounted(() => {
       promo_url: props.lesson.promo_url || '',
       reward_html: props.lesson.reward_html || '',
       video_access_hours: props.lesson.video_access_hours ?? '',
+      is_preview: props.lesson.is_preview ?? false,
     }
   }
 })
@@ -127,6 +129,7 @@ const submit = () => {
     reward_html: form.value.reward_html || null,
     video_access_hours: form.value.video_access_hours !== '' ? parseInt(form.value.video_access_hours) : null,
     notify_members: notifyMembers.value,
+    is_preview: form.value.is_preview,
   })
 }
 
@@ -181,6 +184,19 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   :class="[inputClasses, errors.title ? inputErrorClasses : '']"
                 />
                 <p v-if="errors.title" :class="errorTextClasses">{{ errors.title }}</p>
+              </div>
+
+              <!-- Free Preview -->
+              <div v-if="courseType !== 'drip'" class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_preview"
+                  v-model="form.is_preview"
+                  class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                />
+                <label for="is_preview" class="text-sm text-gray-700 cursor-pointer">
+                  免費試閱 <span class="text-xs text-gray-400">勾選後訪客可在試閱頁面觀看此小節</span>
+                </label>
               </div>
 
               <!-- Video URL -->

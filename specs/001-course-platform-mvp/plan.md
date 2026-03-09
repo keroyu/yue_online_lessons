@@ -8,6 +8,7 @@
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示、按鈕樣式優化
 **Updated**: 2026-03-08 - 課程縮圖統一 16:9 比例
 **Updated**: 2026-03-09 - 課程 SEO 欄位：slug URL + meta_description
+**Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕（FR-029, FR-030）
 
 ## Summary
 
@@ -394,6 +395,21 @@ protected function thumbnailUrl(): Attribute
 **設計決策**：
 - 販售頁 `Course/Show.vue` 已使用 `aspect-video`（16:9），無需修改
 - `MyCourseCard` 改用比例容器後，img 從 `h-40 sm:h-48` 改為 `h-full` 填滿容器
+
+---
+
+### 2026-03-09: 販售頁「免費試閱」按鈕
+
+**背景**：讓未購買訪客可以在購買前先體驗課程內容，提升轉換率。按鈕條件：課程非 drip、非草稿、至少有一個 `is_preview = true` 小節。點擊後另開新視窗進入試閱教室。
+
+**修改檔案**：
+- `app/Http/Controllers/CourseController.php` - 計算 `$hasPreviewLessons`（非 drip、非草稿、有 preview 小節），傳入 Inertia prop
+- `resources/js/Pages/Course/Show.vue` - 新增 `hasPreviewLessons` prop；在課程資訊欄右側按鈕群與底部購買區各加一個「免費試閱」`<a>` 按鈕，`target="_blank"`，含播放 icon；兩按鈕均以 `v-if="hasPreviewLessons && !isDrip && !isPreviewMode"` 控制顯示
+
+**設計決策**：
+- **`<a>` 而非 `<Link>`**：Inertia `<Link>` 不支援 `target="_blank"`，改用原生 `<a>` 標籤
+- **按鈕排列**：免費試閱（outlined）在左，立即購買（filled）在右，水平並排 `flex-row gap-2`
+- **按鈕樣式**：`border border-brand-teal text-brand-teal hover:bg-brand-teal/10`（次要 outlined 樣式）
 
 ---
 

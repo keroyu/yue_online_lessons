@@ -34,6 +34,7 @@ class StoreLessonRequest extends FormRequest
             'reward_html' => ['nullable', 'string', 'max:10000'],
             'video_access_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
             'notify_members' => ['nullable', 'boolean'],
+            'is_preview' => ['nullable', 'boolean'],
         ];
     }
 

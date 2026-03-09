@@ -27,6 +27,7 @@ class CourseController extends Controller
 
         // Drip course subscription info
         $isDrip = $course->course_type === 'drip';
+        $hasPreviewLessons = !$isDraft && !$isDrip && $course->hasPreviewLessons();
         $userSubscription = null;
         $canSubscribe = false;
 
@@ -77,6 +78,7 @@ class CourseController extends Controller
             'isPreviewMode' => $isPreviewMode,
             'isHidden' => !$course->is_visible,
             'isDrip' => $isDrip,
+            'hasPreviewLessons' => $hasPreviewLessons,
             'userSubscription' => $userSubscription,
             'canSubscribe' => $canSubscribe,
         ]);

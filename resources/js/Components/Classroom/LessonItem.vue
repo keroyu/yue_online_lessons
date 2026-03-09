@@ -14,9 +14,16 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isFreePreview: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['select', 'toggleComplete'])
+
+// In free preview, lesson is locked if it's not marked as is_preview
+const isLocked = computed(() => props.isFreePreview && !props.lesson.is_preview)
 
 // Check if lesson appears completed (server state OR optimistic local state)
 const showAsCompleted = computed(() => {
@@ -40,15 +47,23 @@ const handleToggleComplete = (e) => {
 
 <template>
   <div
-    class="flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer"
+    class="flex items-center gap-3 px-3 py-2 rounded-md transition-colors"
     :class="[
-      isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700',
+      isLocked ? 'cursor-default text-gray-400' : 'cursor-pointer',
+      isActive ? 'bg-indigo-50 text-indigo-700' : (isLocked ? '' : 'hover:bg-gray-50 text-gray-700'),
     ]"
-    @click="handleClick"
+    @click="!isLocked && handleClick()"
   >
+    <!-- Locked icon (free preview) -->
+    <div v-if="isLocked" class="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-300">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    </div>
+
     <!-- Completion/Play Icon -->
     <button
-      v-if="showAsCompleted"
+      v-else-if="showAsCompleted && !isFreePreview"
       type="button"
       class="flex-shrink-0 w-5 h-5 flex items-center justify-center hover:text-green-600"
       :class="isPendingCompletion ? 'text-green-400' : 'text-green-500'"
@@ -72,7 +87,7 @@ const handleToggleComplete = (e) => {
     </div>
 
     <!-- Title -->
-    <span class="flex-1 text-sm truncate">{{ lesson.title }}</span>
+    <span class="flex-1 text-sm truncate" :class="isLocked ? 'text-gray-400' : ''">{{ lesson.title }}</span>
 
     <!-- Duration -->
     <span class="flex-shrink-0 text-xs text-gray-400">{{ lesson.duration_formatted }}</span>

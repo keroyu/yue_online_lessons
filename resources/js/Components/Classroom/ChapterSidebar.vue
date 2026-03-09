@@ -19,6 +19,10 @@ const props = defineProps({
     type: Set,
     default: () => new Set(),
   },
+  isFreePreview: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Check if lesson is locally completed (optimistic UI state)
@@ -100,6 +104,7 @@ const getChapterProgress = (chapter) => {
             :lesson="lesson"
             :is-active="lesson.id === currentLessonId"
             :is-locally-completed="isLocallyCompleted(lesson.id)"
+            :is-free-preview="isFreePreview"
             @select="handleSelectLesson"
             @toggle-complete="handleToggleComplete"
           />
@@ -117,6 +122,7 @@ const getChapterProgress = (chapter) => {
           :lesson="lesson"
           :is-active="lesson.id === currentLessonId"
           :is-locally-completed="isLocallyCompleted(lesson.id)"
+          :is-free-preview="isFreePreview"
           @select="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />

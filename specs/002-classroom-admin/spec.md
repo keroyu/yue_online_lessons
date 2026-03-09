@@ -20,6 +20,7 @@
 **Updated**: 2026-03-09 - 精簡 Email 模板 HTML，避免被歸類為促銷信
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字（無 HTML），主旨精簡
 **Updated**: 2026-03-09 - 修正 Email 模板檔名錯誤（.text.blade.php → .blade.php）；Email 主旨與內文依課程類型顯示「課程/迷你課/講座」
+**Updated**: 2026-03-09 - 免費試閱功能：lessons 新增 `is_preview` 欄位，admin 可標記試閱小節；新增公開試閱教室路由與 US11
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -286,6 +287,26 @@
 
 ---
 
+### User Story 11 - 免費試閱教室 (Priority: P2)
+
+未購買的訪客或會員可以在課程販售頁點擊「免費試閱」按鈕，不需登入即可進入試閱教室。教室僅開放標記為「免費試閱」的小節，其餘小節顯示鎖頭且無法點擊。試閱頁面下方顯示購買 CTA，引導用戶轉換。管理員可在後台小節編輯 Modal 勾選「免費試閱」開關。
+
+**Why this priority**: 試閱功能可降低購買決策阻力，屬加值轉換功能而非核心流程，故定為 P2。
+
+**Independent Test**: 管理員勾選某小節為試閱 → 販售頁出現「免費試閱」按鈕 → 點擊進入試閱教室 → 試閱小節可播放，非試閱小節顯示鎖頭。
+
+**Acceptance Scenarios**:
+
+1. **Given** 管理員在非 drip 課程的小節編輯 Modal, **When** 勾選「免費試閱」並儲存, **Then** 資料庫 `lessons.is_preview = 1`，該課程販售頁出現「免費試閱」按鈕
+2. **Given** 訪客點擊「免費試閱」按鈕, **When** 另開視窗進入 `/course/{id}/preview`, **Then** 不需登入即可進入試閱教室，顯示琥珀色試閱提示橫幅
+3. **Given** 試閱教室已開啟, **When** 訪客查看側邊欄, **Then** `is_preview = true` 的小節可點擊並正常播放；`is_preview = false` 的小節顯示鎖頭圖示且無法點擊
+4. **Given** 訪客在試閱教室觀看試閱小節, **When** 影片播放完畢或頁面滾動至底部, **Then** 影片內容下方顯示課程名稱、tagline 與「立即購買完整課程」按鈕，連結至課程販售頁
+5. **Given** 管理員在 drip 課程的小節編輯 Modal, **When** 查看欄位, **Then** 不顯示「免費試閱」勾選框（drip 課程不支援試閱）
+6. **Given** 課程無任何 `is_preview = true` 小節, **When** 訪客直接訪問 `/course/{id}/preview`, **Then** 顯示「此課程目前沒有免費試閱內容」提示，不顯示 404
+7. **Given** 已登入會員（無購買紀錄）點擊試閱, **When** 進入試閱教室, **Then** 行為與未登入訪客完全相同（試閱不記錄完成進度）
+
+---
+
 ### Edge Cases
 
 - 會員嘗試進入未購買課程的上課頁面時，顯示「您尚未購買此課程」並引導至課程販售頁
@@ -326,6 +347,9 @@
 - 管理員一次新增多個小節（或快速連續新增）時，每次儲存均需個別勾選，系統不合併批次發信
 - 已退款（status = refunded）的購買紀錄，其對應會員不在通知名單中
 - drip 連鎖課程新增小節時，「發送 Email 通知學員」選項完全不顯示，因 drip 課程依訂閱排程自動發信，手動觸發會造成訂閱者混亂
+- drip 課程存取 `/course/{id}/preview` 時回傳 404，不顯示試閱教室
+- 試閱教室不記錄任何 `lesson_progress`，完成勾勾按鈕不顯示，計時器不啟動
+- 試閱教室的返回連結指向課程販售頁（`/course/{id}`），而非「我的課程」頁
 
 ## Requirements *(mandatory)*
 
@@ -433,6 +457,15 @@
 **SEO 欄位（2026-03-09 新增）：**
 - **FR-066**: 管理員 MUST 可在課程編輯表單填入 SEO slug（格式：英文小寫、數字、連字號，最多 200 字，留空時系統使用 ID）
 - **FR-067**: 管理員 MUST 可在課程編輯表單填入 meta_description（最多 160 字，留空時系統使用 tagline）
+
+**免費試閱（2026-03-09 新增）：**
+- **FR-069**: `lessons` 表 MUST 新增 `is_preview` boolean 欄位（預設 false），標記該小節是否開放免費試閱
+- **FR-070**: 非 drip 課程的小節編輯 Modal MUST 顯示「免費試閱」勾選框；drip 課程 MUST NOT 顯示
+- **FR-071**: 系統 MUST 提供公開路由 `/course/{id}/preview`（GET，不需驗證），drip 課程存取時 MUST 回傳 404
+- **FR-072**: 試閱教室 MUST 使用與正式教室相同的 `Member/Classroom` 頁面，透過 `isFreePreview: true` prop 切換試閱模式
+- **FR-073**: 試閱模式下，側邊欄 `is_preview = false` 的小節 MUST 顯示鎖頭圖示且不可點擊；`is_preview = true` 的小節可正常播放
+- **FR-074**: 試閱模式下 MUST NOT 記錄任何完成進度（`lesson_progress`），完成勾勾按鈕 MUST NOT 顯示，2分鐘計時器 MUST NOT 啟動
+- **FR-075**: 試閱教室影片內容下方 MUST 顯示購買 CTA 區塊（課程名稱、tagline、「立即購買完整課程」按鈕），連結至課程販售頁
 
 ### Key Entities
 

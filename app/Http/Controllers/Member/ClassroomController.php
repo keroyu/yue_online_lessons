@@ -242,6 +242,81 @@ class ClassroomController extends Controller
     }
 
     /**
+     * Display preview classroom for a course (no auth required).
+     */
+    public function preview(Request $request, Course $course): Response
+    {
+        // Drip courses don't support preview
+        if ($course->course_type === 'drip') {
+            abort(404);
+        }
+
+        // Check if course has any preview lessons
+        if (!$course->hasPreviewLessons()) {
+            return Inertia::render('Member/ClassroomUnauthorized', [
+                'course' => [
+                    'id' => $course->id,
+                    'name' => $course->name,
+                ],
+                'message' => '此課程目前沒有免費試閱內容',
+            ]);
+        }
+
+        // Load all chapters with all lessons (no lock filtering)
+        $chapters = $course->chapters()
+            ->with(['lessons' => fn ($q) => $q->orderBy('sort_order')])
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn ($chapter) => [
+                'id' => $chapter->id,
+                'title' => $chapter->title,
+                'lessons' => $chapter->lessons
+                    ->values()
+                    ->map(fn ($lesson) => $this->formatLesson($lesson, [])),
+            ])
+            ->filter(fn ($chapter) => $chapter['lessons']->isNotEmpty())
+            ->values();
+
+        $standaloneLessons = $course->lessons()
+            ->whereNull('chapter_id')
+            ->orderBy('sort_order')
+            ->get()
+            ->values()
+            ->map(fn ($lesson) => $this->formatLesson($lesson, []));
+
+        // Determine current lesson: prefer ?lesson_id (must be is_preview=true)
+        $allLessons = $course->lessons()->orderBy('sort_order')->get();
+        $requestedLessonId = $request->input('lesson_id');
+        $currentLesson = null;
+
+        if ($requestedLessonId) {
+            $candidate = $allLessons->first(fn ($l) => $l->id == $requestedLessonId);
+            if ($candidate && $candidate->is_preview) {
+                $currentLesson = $candidate;
+            }
+        }
+
+        if (!$currentLesson) {
+            $currentLesson = $allLessons->first(fn ($l) => $l->is_preview);
+        }
+
+        return Inertia::render('Member/Classroom', [
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'tagline' => $course->tagline,
+                'is_drip' => false,
+                'sales_url' => route('course.show', $course),
+            ],
+            'chapters' => $chapters,
+            'standaloneLessons' => $standaloneLessons,
+            'currentLesson' => $currentLesson ? $this->formatLessonForPreview($currentLesson) : null,
+            'hasContent' => $allLessons->count() > 0,
+            'isFreePreview' => true,
+        ]);
+    }
+
+    /**
      * Format lesson for list display.
      */
     private function formatLesson(Lesson $lesson, array $completedLessonIds): array
@@ -252,6 +327,27 @@ class ClassroomController extends Controller
             'duration_formatted' => $lesson->duration_formatted,
             'has_video' => $lesson->has_video,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
+            'is_preview' => $lesson->is_preview,
+        ];
+    }
+
+    /**
+     * Format lesson with full content for preview mode (no drip fields, always unlocked).
+     */
+    private function formatLessonForPreview(Lesson $lesson): array
+    {
+        return [
+            'id' => $lesson->id,
+            'title' => $lesson->title,
+            'duration_formatted' => $lesson->duration_formatted,
+            'has_video' => $lesson->has_video,
+            'video_platform' => $lesson->video_platform,
+            'video_id' => $lesson->video_id,
+            'embed_url' => $lesson->embed_url,
+            'md_content' => $lesson->md_content,
+            'is_completed' => false,
+            'is_locked' => false,
+            'is_preview' => $lesson->is_preview,
         ];
     }
 

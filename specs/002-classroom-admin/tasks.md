@@ -12,6 +12,7 @@
 **Updated**: 2026-03-09 - 精簡 Email 模板 HTML (Phase 28)
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字 MIME (Phase 29)
 **Updated**: 2026-03-09 - 修正 Email 模板檔名；Email 主旨與內文加入課程類型標籤 (Phase 30)
+**Updated**: 2026-03-09 - 免費試閱功能 is_preview + 試閱教室 (Phase 31)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1434,6 +1435,27 @@ Within Phase 15:
 
 ---
 
+## Phase 31: 免費試閱功能（US11）(2026-03-09 新增)
+
+**Purpose**: 讓未購買訪客免登入體驗試閱教室，提升購買轉換率
+
+**背景**：管理員在後台標記特定小節為「免費試閱」，系統提供公開試閱路由，複用 Classroom.vue 並以 `isFreePreview` prop 切換行為。
+
+- [x] T218 [US11] 新增 Migration `is_preview` boolean default false in `database/migrations/2026_03_09_000001_add_is_preview_to_lessons_table.php`
+- [x] T219 [P] [US11] Lesson model 加入 `is_preview` fillable 與 cast in `app/Models/Lesson.php`
+- [x] T220 [P] [US11] Course model 新增 `hasPreviewLessons(): bool` in `app/Models/Course.php`
+- [x] T221 [P] [US11] StoreLessonRequest 新增 `is_preview` 驗證規則 in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [x] T222 [P] [US11] ClassroomController 新增 `preview()` action 與 `formatLessonForPreview()`；`formatLesson()` 加入 `is_preview` in `app/Http/Controllers/Member/ClassroomController.php`
+- [x] T223 [P] [US11] routes/web.php 新增公開路由 `course.preview` in `routes/web.php`
+- [x] T224 [P] [US11] LessonForm.vue 新增「免費試閱」checkbox（非 drip 課程才顯示）in `resources/js/Components/Admin/LessonForm.vue`
+- [x] T225 [P] [US11] LessonItem.vue 新增 `isFreePreview` prop、`isLocked` computed、鎖頭圖示、隱藏完成勾勾 in `resources/js/Components/Classroom/LessonItem.vue`
+- [x] T226 [P] [US11] ChapterSidebar.vue 新增 `isFreePreview` prop 並傳入 LessonItem in `resources/js/Components/Classroom/ChapterSidebar.vue`
+- [x] T227 [P] [US11] Classroom.vue 新增 `isFreePreview` prop、試閱導航、禁用計時器、頂部橫幅、底部購買 CTA、動態返回連結 in `resources/js/Pages/Member/Classroom.vue`
+
+**Checkpoint**: 後台可勾選試閱小節；販售頁出現「免費試閱」按鈕；試閱教室試閱小節可播放、非試閱小節顯示鎖頭；影片下方顯示購買 CTA；無需登入 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1460,4 +1482,5 @@ Within Phase 15:
 | Phase 28 (精簡 Email 模板 HTML) | T213 | ✅ Completed |
 | Phase 29 (小節通知 Email 純文字 MIME) | T214-T215 | ✅ Completed |
 | Phase 30 (修正 Email 模板檔名與課程類型標籤) | T216-T217 | ✅ Completed |
-| **Total** | **217 tasks** | 217 completed, 0 pending |
+| Phase 31 (免費試閱功能 US11) | T218-T227 | ✅ Completed |
+| **Total** | **227 tasks** | 227 completed, 0 pending |

@@ -43,6 +43,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  isFreePreview: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Current lesson state
@@ -133,6 +137,26 @@ const handleSelectLesson = async (lesson) => {
     return
   }
 
+  // Free preview: locked lessons cannot be selected
+  if (props.isFreePreview && !lesson.is_preview) return
+
+  // Free preview: navigate via Inertia partial reload
+  if (props.isFreePreview) {
+    sidebarOpen.value = false
+    router.visit(`/course/${props.course.id}/preview`, {
+      only: ['currentLesson'],
+      data: { lesson_id: lesson.id },
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: (page) => {
+        if (page.props.currentLesson) {
+          selectedLesson.value = page.props.currentLesson
+        }
+      },
+    })
+    return
+  }
+
   // Cancel timer for previous lesson (if switching before 5 minutes)
   if (selectedLesson.value) {
     cancelLessonTimer(selectedLesson.value.id)
@@ -190,6 +214,7 @@ const handleSelectLesson = async (lesson) => {
 
 // Handle toggle complete (mark as incomplete is immediate, no throttling)
 const handleToggleComplete = async (lesson) => {
+  if (props.isFreePreview) return
   const isCurrentlyCompleted = lesson.is_completed || localCompletedLessons.value.has(lesson.id)
   const newStatus = !isCurrentlyCompleted
 
@@ -266,7 +291,7 @@ const toggleSidebar = () => {
 
           <!-- Back link -->
           <a
-            href="/member/learning"
+            :href="isFreePreview ? `/course/${course.id}` : '/member/learning'"
             class="text-gray-500 hover:text-gray-700"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -279,6 +304,12 @@ const toggleSidebar = () => {
       </div>
     </header>
 
+    <!-- Free Preview Banner -->
+    <div v-if="isFreePreview" class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-sm text-amber-800">
+      免費試閱中 ·
+      <a :href="course.sales_url" class="font-semibold underline">立即購買完整課程</a>
+    </div>
+
     <div class="flex h-[calc(100vh-3.5rem)]">
       <!-- Sidebar - Desktop -->
       <aside class="hidden lg:block w-80 flex-shrink-0 border-r border-gray-200 bg-white overflow-hidden">
@@ -287,6 +318,7 @@ const toggleSidebar = () => {
           :standalone-lessons="localStandaloneLessons"
           :current-lesson-id="selectedLesson?.id"
           :local-completed-lessons="localCompletedLessons"
+          :is-free-preview="isFreePreview"
           @select-lesson="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />
@@ -329,6 +361,7 @@ const toggleSidebar = () => {
               :standalone-lessons="localStandaloneLessons"
               :current-lesson-id="selectedLesson?.id"
               :local-completed-lessons="localCompletedLessons"
+              :is-free-preview="isFreePreview"
               @select-lesson="handleSelectLesson"
               @toggle-complete="handleToggleComplete"
             />
@@ -446,6 +479,19 @@ const toggleSidebar = () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
+            </div>
+
+            <!-- Free Preview CTA -->
+            <div v-if="isFreePreview" class="mt-8 p-6 bg-brand-cream rounded-xl border border-amber-200 text-center">
+              <p class="text-sm text-gray-500 mb-1">您正在試閱</p>
+              <h3 class="text-lg font-bold text-gray-900 mb-1">{{ course.name }}</h3>
+              <p v-if="course.tagline" class="text-sm text-gray-600 mb-4">{{ course.tagline }}</p>
+              <a
+                :href="course.sales_url"
+                class="inline-block px-10 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 font-semibold rounded-lg transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+              >
+                立即購買完整課程
+              </a>
             </div>
           </div>
         </div>
