@@ -450,7 +450,7 @@ const onLessonDragEnd = (chapterId = null) => {
           取消
         </button>
       </div>
-      <div v-if="courseStatus && courseStatus !== 'draft'" class="mt-3">
+      <div v-if="courseStatus && courseStatus !== 'draft' && courseType !== 'drip'" class="mt-3">
         <label class="flex items-center space-x-2 cursor-pointer">
           <input
             v-model="notifyMembers"

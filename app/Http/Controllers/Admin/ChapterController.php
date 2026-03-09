@@ -94,7 +94,7 @@ class ChapterController extends Controller
             'sort_order' => $maxSortOrder + 1,
         ]);
 
-        if ($request->boolean('notify_members') && $course->status !== 'draft') {
+        if ($request->boolean('notify_members') && $course->status !== 'draft' && $course->course_type !== 'drip') {
             $recipients = Purchase::where('course_id', $course->id)
                 ->where('status', '!=', 'refunded')
                 ->where('type', '!=', 'system_assigned')
