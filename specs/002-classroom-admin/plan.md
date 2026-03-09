@@ -18,6 +18,8 @@
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字 MIME（text:），主旨精簡
 **Updated**: 2026-03-09 - 修正 Email 模板檔名（.text.blade.php → .blade.php）；主旨與內文加入課程類型標籤
 **Updated**: 2026-03-09 - 免費試閱功能（US11）：is_preview 欄位、後台勾選、公開試閱教室路由、鎖定 UI
+**Updated**: 2026-03-09 - 教室側欄展開/收合動態效果（Phase 32）
+**Updated**: 2026-03-09 - 側欄右邊緣 edge toggle tab（Phase 33）
 
 ## Summary
 
@@ -447,6 +449,46 @@ if ($notifyMembers && $course->status !== 'draft' && $course->course_type !== 'd
 - **放置位置**：SEO 欄位放在「副標題」後方（同一「基本資訊」卡片），視覺上與行銷欄位相鄰但分開
 - **即時字數計算**：meta_description 顯示 `{{ form.meta_description.length }}/160` 提醒管理員長度
 - **slug 格式說明**：input 下方提示「英文、數字、連字號，留空則用 ID」，降低輸入錯誤
+
+---
+
+### 2026-03-09: 教室側欄展開/收合動態效果
+
+**背景**：側欄原本桌機固定顯示、手機用 `v-show` 無動畫；加入動效提升教室操作體驗。
+
+**修改檔案**：
+- `resources/js/Pages/Member/Classroom.vue` - 新增 `desktopSidebarOpen` ref、桌機 toggle 按鈕、width CSS transition、mobile `<Transition>` 動效、`<style scoped>` 區塊
+
+**設計決策**：
+- **桌機**：`aside` 改用 inline style `width: 20rem ↔ 0` + `transition: width 0.3s ease-in-out`，`overflow-hidden` 裁切內容；`border-r` 條件式綁定避免 0 寬時殘留邊框
+- **手機**：移除外層 `v-show` wrapper，改用兩個獨立 `<Transition>`：backdrop 用 `name="sidebar-fade"`（opacity 0↔1），panel 用 `name="sidebar-slide"`（translateX(-100%) ↔ 0）
+- **兩個 toggle 按鈕**：mobile 維持 `lg:hidden`，desktop 新增 `hidden lg:block`，各自綁定不同 ref，避免螢幕尺寸判斷問題
+
+**影響元素**：
+1. 桌機側欄 `<aside>` — `desktopSidebarOpen` ref 控制 width / border
+2. 手機 backdrop `<div>` — `sidebarOpen` + `<Transition name="sidebar-fade">` 控制
+3. 手機 panel `<aside>` — `sidebarOpen` + `<Transition name="sidebar-slide">` 控制
+4. Header 漢堡按鈕 — 桌機/手機各一顆，分別 `hidden lg:block` / `lg:hidden`
+
+---
+
+### 2026-03-09: 側欄右邊緣 Edge Toggle Tab
+
+**背景**：左上角漢堡按鈕不夠直覺，需要在側欄邊緣提供更易被發現的收合/展開入口。
+
+**修改檔案**：
+- `resources/js/Pages/Member/Classroom.vue` - 新增 edge toggle tab div；hamburger 按鈕加 `cursor-pointer`
+
+**設計決策**：
+- **獨立 flex child**：tab 作為 aside 之後的獨立兄弟 div（`w-4 flex-shrink-0`），永遠存在於 flex row 中；sidebar 收合後 tab 自動貼靠左側，無需 absolute 定位
+- **Chevron 方向動態**：展開時 `‹`（path M15 19l-7-7 7-7），收合時 `›`（path M9 5l7 7-7 7）
+- **Hover 效果**：用 Tailwind `group` / `group-hover` 讓 tab 背景與 chevron 顏色同步變化
+- **cursor-pointer**：tab div 與兩個 hamburger `<button>` 皆加上 `cursor-pointer`，確保跨瀏覽器顯示手指
+
+**影響元素**：
+1. Sidebar edge tab `<div>` — `desktopSidebarOpen` ref 控制 chevron 方向
+2. Desktop hamburger `<button>` — 加 `cursor-pointer`
+3. Mobile hamburger `<button>` — 加 `cursor-pointer`
 
 ---
 

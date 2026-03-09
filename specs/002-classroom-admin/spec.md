@@ -21,6 +21,8 @@
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字（無 HTML），主旨精簡
 **Updated**: 2026-03-09 - 修正 Email 模板檔名錯誤（.text.blade.php → .blade.php）；Email 主旨與內文依課程類型顯示「課程/迷你課/講座」
 **Updated**: 2026-03-09 - 免費試閱功能：lessons 新增 `is_preview` 欄位，admin 可標記試閱小節；新增公開試閱教室路由與 US11
+**Updated**: 2026-03-09 - 教室側欄新增展開/收合動態效果（桌機 width slide + 手機 translate slide）
+**Updated**: 2026-03-09 - 側欄右邊緣新增細長 toggle tab，內含方向性 chevron，hover 顯示手指游標
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -42,6 +44,9 @@
 6. **Given** 課程小節無影片但有 Markdown 內容, **When** 會員點擊該小節, **Then** 右側顯示該小節的 Markdown 內容（電子書或文章形式）
 7. **Given** 會員點擊章節列表中有影片的小節, **When** 右側影片播放器載入完成, **Then** 影片自動開始播放（Vimeo 與 YouTube 皆適用）
 8. **Given** Vimeo 影片已上傳繁體中文（zh-TW）字幕軌, **When** 會員在上課頁面播放該影片, **Then** 播放器自動顯示 CC 字幕，無需會員手動開啟
+9. **Given** 會員在桌機使用教室, **When** 點擊 header 的漢堡選單按鈕, **Then** 左側章節側欄以平滑的水平滑動動畫展開或收合
+10. **Given** 會員在手機使用教室, **When** 點擊漢堡選單開啟或關閉側欄, **Then** 側欄從左側以滑入/滑出動畫顯示或隱藏，背景遮罩同步淡入淡出
+11. **Given** 會員在桌機使用教室, **When** 將游標移至側欄右邊緣的細長 toggle tab 上, **Then** 游標變為手指，tab 背景色加深，chevron 顏色加深；點擊後側欄收合或展開
 
 ---
 

@@ -13,6 +13,8 @@
 **Updated**: 2026-03-09 - 小節通知 Email 改為純文字 MIME (Phase 29)
 **Updated**: 2026-03-09 - 修正 Email 模板檔名；Email 主旨與內文加入課程類型標籤 (Phase 30)
 **Updated**: 2026-03-09 - 免費試閱功能 is_preview + 試閱教室 (Phase 31)
+**Updated**: 2026-03-09 - 教室側欄動態效果 (Phase 32)
+**Updated**: 2026-03-09 - 側欄右邊緣 edge toggle tab (Phase 33)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -1456,6 +1458,39 @@ Within Phase 15:
 
 ---
 
+## Phase 32: 教室側欄展開/收合動態效果 (2026-03-09 新增)
+
+**Purpose**: 為教室左側章節側欄加入水平滑動動畫，改善桌機收合體驗與手機展開體驗
+
+**背景**：原本桌機側欄固定顯示無法收合，手機 overlay 用 `v-show` 無任何動畫。
+
+- [x] T228 [US1] 教室側欄動態效果：桌機 width transition + 手機 `<Transition>` slide/fade in `resources/js/Pages/Member/Classroom.vue`
+  - 新增 `desktopSidebarOpen` ref（預設 `true`）
+  - Header 新增桌機 toggle 按鈕（`hidden lg:block`）
+  - 桌機 `<aside>` 改用 inline style `width` + `transition: width 0.3s ease-in-out`，`border-r` 條件綁定
+  - 移除手機外層 `v-show` wrapper，改為 backdrop（`<Transition name="sidebar-fade">`）與 panel（`<Transition name="sidebar-slide">`）分離
+  - 新增 `<style scoped>` CSS transitions（`sidebar-slide`：translateX；`sidebar-fade`：opacity）
+
+**Checkpoint**: 桌機可點擊漢堡按鈕平滑收合/展開側欄；手機側欄開啟/關閉有滑入滑出動畫與背景淡入淡出 ✅
+
+---
+
+## Phase 33: 側欄右邊緣 Edge Toggle Tab (2026-03-09 新增)
+
+**Purpose**: 在側欄右邊緣新增直覺的細長 toggle tab，提供比左上角漢堡按鈕更易發現的收合入口
+
+**背景**：左上角漢堡按鈕位置隱蔽，用戶不易發現可收合側欄；在側欄右邊緣新增常駐 tab，視覺上更直覺。
+
+- [x] T229 [US1] 側欄 edge toggle tab：新增 `w-4` 細長 div、方向性 chevron、hover 效果；hamburger 按鈕加 `cursor-pointer` in `resources/js/Pages/Member/Classroom.vue`
+  - 在 desktop aside 後新增 `hidden lg:flex` 的 `w-4 flex-shrink-0` div，永遠存在於 flex row
+  - `group` + `group-hover` 控制 tab 背景色（`hover:bg-gray-50`）與 chevron 顏色（`group-hover:text-gray-500`）
+  - SVG path 動態綁定：展開時 `‹`，收合時 `›`
+  - Desktop / mobile hamburger 按鈕各加 `cursor-pointer`
+
+**Checkpoint**: 側欄右邊緣出現細長 tab；hover 時背景變色、游標顯示手指；點擊後側欄平滑收合/展開，chevron 方向隨之切換 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1483,4 +1518,6 @@ Within Phase 15:
 | Phase 29 (小節通知 Email 純文字 MIME) | T214-T215 | ✅ Completed |
 | Phase 30 (修正 Email 模板檔名與課程類型標籤) | T216-T217 | ✅ Completed |
 | Phase 31 (免費試閱功能 US11) | T218-T227 | ✅ Completed |
-| **Total** | **227 tasks** | 227 completed, 0 pending |
+| Phase 32 (教室側欄動態效果) | T228 | ✅ Completed |
+| Phase 33 (側欄 edge toggle tab) | T229 | ✅ Completed |
+| **Total** | **229 tasks** | 229 completed, 0 pending |

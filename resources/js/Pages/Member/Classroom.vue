@@ -52,6 +52,7 @@ const props = defineProps({
 // Current lesson state
 const selectedLesson = ref(props.currentLesson)
 const sidebarOpen = ref(false)
+const desktopSidebarOpen = ref(true)
 
 // Throttling state
 const completionTimers = ref({}) // Track setTimeout handles per lesson ID
@@ -278,10 +279,21 @@ const toggleSidebar = () => {
     <header class="bg-white shadow-sm sticky top-0 z-30">
       <div class="flex items-center justify-between px-4 h-14">
         <div class="flex items-center gap-3">
+          <!-- Desktop sidebar toggle -->
+          <button
+            type="button"
+            class="hidden lg:block p-2 -ml-2 text-gray-500 hover:text-gray-700 cursor-pointer"
+            @click="desktopSidebarOpen = !desktopSidebarOpen"
+          >
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           <!-- Mobile menu button -->
           <button
             type="button"
-            class="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700"
+            class="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 cursor-pointer"
             @click="toggleSidebar"
           >
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -312,7 +324,11 @@ const toggleSidebar = () => {
 
     <div class="flex h-[calc(100vh-3.5rem)]">
       <!-- Sidebar - Desktop -->
-      <aside class="hidden lg:block w-80 flex-shrink-0 border-r border-gray-200 bg-white overflow-hidden">
+      <aside
+        class="hidden lg:block flex-shrink-0 bg-white overflow-hidden"
+        :class="desktopSidebarOpen ? 'border-r border-gray-200' : ''"
+        :style="{ width: desktopSidebarOpen ? '20rem' : '0', transition: 'width 0.3s ease-in-out' }"
+      >
         <ChapterSidebar
           :chapters="localChapters"
           :standalone-lessons="localStandaloneLessons"
@@ -330,19 +346,40 @@ const toggleSidebar = () => {
         </p>
       </aside>
 
-      <!-- Sidebar - Mobile Overlay -->
+      <!-- Sidebar Edge Toggle Tab - Desktop -->
       <div
-        v-show="sidebarOpen"
-        class="fixed inset-0 z-40 lg:hidden"
+        class="hidden lg:flex flex-col items-center justify-center w-4 flex-shrink-0 bg-white border-r border-gray-200 cursor-pointer group hover:bg-gray-50 transition-colors"
+        @click="desktopSidebarOpen = !desktopSidebarOpen"
       >
-        <!-- Backdrop -->
+        <svg
+          class="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            :d="desktopSidebarOpen ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'"
+          />
+        </svg>
+      </div>
+
+      <!-- Sidebar - Mobile Overlay -->
+      <Transition name="sidebar-fade">
         <div
-          class="absolute inset-0 bg-black/50"
+          v-if="sidebarOpen"
+          class="fixed inset-0 z-40 bg-black/50 lg:hidden"
           @click="sidebarOpen = false"
         />
+      </Transition>
 
-        <!-- Sidebar Panel -->
-        <aside class="absolute inset-y-0 left-0 w-full max-w-sm bg-white shadow-xl">
+      <Transition name="sidebar-slide">
+        <aside
+          v-if="sidebarOpen"
+          class="fixed inset-y-0 left-0 z-50 w-full max-w-sm bg-white shadow-xl lg:hidden"
+        >
           <div class="flex items-center justify-between p-4 border-b">
             <h2 class="font-semibold text-gray-900">課程內容</h2>
             <button
@@ -373,7 +410,7 @@ const toggleSidebar = () => {
             </p>
           </div>
         </aside>
-      </div>
+      </Transition>
 
       <!-- Main Content -->
       <main class="flex-1 overflow-y-auto">
@@ -499,3 +536,25 @@ const toggleSidebar = () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Mobile sidebar slide from left */
+.sidebar-slide-enter-active,
+.sidebar-slide-leave-active {
+  transition: transform 0.3s ease-in-out;
+}
+.sidebar-slide-enter-from,
+.sidebar-slide-leave-to {
+  transform: translateX(-100%);
+}
+
+/* Mobile backdrop fade */
+.sidebar-fade-enter-active,
+.sidebar-fade-leave-active {
+  transition: opacity 0.3s ease-in-out;
+}
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
+  opacity: 0;
+}
+</style>
