@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `/specs/006-transactions-management/`
 **Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
-**Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)
+**Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)；列表「標記退款」快捷按鈕 (Phase 10)；修正退款按鈕 cursor-pointer (T026 補丁)；金額格式化 (Phase 11)
 
 **Tests**: Not requested — no test tasks included.
 
@@ -131,6 +131,32 @@
 
 ---
 
+## Phase 10: 列表「標記退款」快捷按鈕 (2026-03-11 增量更新)
+
+**Purpose**: 讓管理員直接從列表操作退款，無需進入詳情頁
+
+**背景**：後端 `POST /admin/transactions/{transaction}/refund` 路由與 `TransactionService::refund()` 均已實作。本次只需在列表操作欄新增前端按鈕與確認邏輯。
+
+- [x] T026 [US4] 在 `Index.vue` 操作欄（td.relative.whitespace-nowrap，line ~434）的「查看」Link 左側新增「標記退款」按鈕：僅在 `transaction.status === 'paid'` 時顯示（`v-if`）；點擊後 `window.confirm('確認將此交易標記為退款？退款後該會員的課程存取將被撤銷。')` → 確認後 `router.post(\`/admin/transactions/\${transaction.id}/refund\`, {}, { preserveScroll: true })`；按鈕樣式 `text-red-600 hover:text-red-900 mr-3 cursor-pointer` in `resources/js/Pages/Admin/Transactions/Index.vue`
+    - 補加 `cursor-pointer` 確保 hover 游標與「查看」Link 一致
+
+**Checkpoint**: 列表中 paid 交易的操作欄顯示「標記退款 | 查看」；refunded 交易只顯示「查看」；點擊確認後列表即時更新狀態
+
+---
+
+## Phase 11: 金額格式化 (2026-03-11 新增)
+
+**Purpose**: 確保交易金額固定顯示兩位小數
+
+**背景**：模板直接插值無格式化，DB 存整數時顯示 `TWD 1200` 而非 `TWD 1200.00`；前端統一用 `Number().toFixed(2)` 格式化。
+
+- [x] T027 [P] [US1] 在 `Index.vue` 新增 `formatAmount(currency, amount)` helper，替換金額欄插值為 `{{ formatAmount(transaction.currency, transaction.amount) }}` in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [x] T028 [P] [US2] 在 `Show.vue` 新增 `formatAmount(currency, amount)` helper，替換 `amount` 與 `discount_amount` 插值 in `resources/js/Pages/Admin/Transactions/Show.vue`
+
+**Checkpoint**: 列表與詳情頁金額均顯示兩位小數（如 `TWD 1200.00`、`TWD 0.00`）✅
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -190,4 +216,6 @@
 | Phase 7: US4 P4 | 退款標記 | T018–T020 | |
 | Phase 8: Polish | — | T021–T023 | |
 | Phase 9: 課程進度顯示 | US1 | T024–T025 | 2026-03-11 新增 |
-| **Total** | **5 stories** | **25 tasks** | |
+| Phase 10: 列表退款按鈕 | US4 | T026 | 2026-03-11 增量更新 |
+| Phase 11: 金額格式化 | US1, US2 | T027–T028 | 2026-03-11 新增 |
+| **Total** | **5 stories** | **28 tasks** | |

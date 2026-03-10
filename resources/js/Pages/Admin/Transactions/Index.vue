@@ -148,6 +148,11 @@ const exportCsv = () => {
 }
 
 // Format helpers
+const formatAmount = (currency, amount) => {
+  if (amount === null || amount === undefined) return '-'
+  return `${currency} ${Number(amount).toFixed(2)}`
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
@@ -165,6 +170,11 @@ const statusClass = (status, type) => {
   return type === 'paid'
     ? 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800'
     : 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800'
+}
+
+const handleRefund = (transaction) => {
+  if (!window.confirm('確認將此交易標記為退款？退款後該會員的課程存取將被撤銷。')) return
+  router.post(`/admin/transactions/${transaction.id}/refund`, {}, { preserveScroll: true })
 }
 
 // Manual create modal
@@ -420,7 +430,7 @@ const submitCreate = () => {
                     </template>
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700">
-                    {{ transaction.currency }} {{ transaction.amount }}
+                    {{ formatAmount(transaction.currency, transaction.amount) }}
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm">
                     <span :class="statusClass(transaction.status, transaction.type)">{{ statusLabel(transaction.status, transaction.type) }}</span>
@@ -432,6 +442,14 @@ const submitCreate = () => {
                     {{ formatDate(transaction.created_at) }}
                   </td>
                   <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                    <button
+                      v-if="transaction.status === 'paid'"
+                      type="button"
+                      class="text-red-600 hover:text-red-900 mr-3 cursor-pointer"
+                      @click="handleRefund(transaction)"
+                    >
+                      標記退款
+                    </button>
                     <Link
                       :href="`/admin/transactions/${transaction.id}`"
                       class="text-indigo-600 hover:text-indigo-900"

@@ -19,6 +19,11 @@ const flash = computed(() => page.props.flash)
 // Refund modal
 const showRefundModal = ref(false)
 
+const formatAmount = (currency, amount) => {
+  if (amount === null || amount === undefined) return '-'
+  return `${currency} ${Number(amount).toFixed(2)}`
+}
+
 const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
@@ -149,13 +154,13 @@ const statusClass = (status, type) => {
           <!-- Amount -->
           <div>
             <dt class="text-sm font-medium text-gray-500">金額</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ transaction.currency }} {{ transaction.amount }}</dd>
+            <dd class="mt-1 text-sm text-gray-900">{{ formatAmount(transaction.currency, transaction.amount) }}</dd>
           </div>
 
           <!-- Discount -->
           <div>
             <dt class="text-sm font-medium text-gray-500">折扣金額</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ transaction.currency }} {{ transaction.discount_amount }}</dd>
+            <dd class="mt-1 text-sm text-gray-900">{{ formatAmount(transaction.currency, transaction.discount_amount) }}</dd>
           </div>
 
           <!-- Coupon code -->
