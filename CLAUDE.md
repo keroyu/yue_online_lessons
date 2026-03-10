@@ -83,6 +83,8 @@ Need more search: yes/no
 - Laravel Cache (file-based) for RSS feed caching (004-homepage-enhancement)
 - PHP 8.2+ / Laravel 12.x + Laravel, Inertia.js, Vue 3, Tailwind CSS, Resend (email) (005-drip-email)
 - MySQL (existing database) (005-drip-email)
+- PHP 8.2+ / Laravel 12.x + Inertia.js v2, Vue 3, Tailwind CSS v4 (006-transactions-management)
+- MySQL — 現有 `purchases` 表（無需新增 migration） (006-transactions-management)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

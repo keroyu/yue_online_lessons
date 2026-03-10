@@ -1,0 +1,178 @@
+# Tasks: 交易紀錄管理
+
+**Input**: Design documents from `/specs/006-transactions-management/`
+**Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
+
+**Tests**: Not requested — no test tasks included.
+
+**Organization**: Tasks grouped by user story. US1(P1) → US2(P2) + US5(P2) → US3(P3) → US4(P4).
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to
+
+---
+
+## Phase 1: Setup
+
+**Purpose**: Bug fix + routes + navigation — 所有 User Story 的前提
+
+- [ ] T001 Fix `Purchase.$fillable` — 補上 `'source'` 欄位（現有 bug）in `app/Models/Purchase.php`
+- [ ] T002 Add 5 transaction routes inside admin middleware group in `routes/web.php`
+- [ ] T003 [P] Add 「交易紀錄」nav link after 「會員管理」in admin navigation component
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Service 和 Controller 骨架 — MUST 在所有 User Story 之前完成
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+- [ ] T004 Create `TransactionService` with `createManual()` and `refund()` methods in `app/Services/TransactionService.php`
+- [ ] T005 [P] Create `StoreTransactionRequest` with validation rules in `app/Http/Requests/Admin/StoreTransactionRequest.php`
+- [ ] T006 Create `TransactionController` class skeleton with route model binding in `app/Http/Controllers/Admin/TransactionController.php`
+
+**Checkpoint**: Foundation ready — User Story phases can now begin
+
+---
+
+## Phase 3: User Story 1 — 交易列表（搜尋/篩選/分頁）Priority: P1 🎯 MVP
+
+**Goal**: 管理員可進入交易列表，看到分頁紀錄，並以狀態、類型、課程、關鍵字篩選
+
+**Independent Test**: 瀏覽 `/admin/transactions`，看到分頁列表；輸入搜尋關鍵字後列表更新；下拉篩選 status/type/course 後結果正確
+
+- [ ] T007 [US1] Implement `TransactionController::index()` with filtered paginated query (search, status, type, course_id), eager load user+course, pass matchingCount prop in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T008 [US1] Create `Index.vue` with data table (columns: 購買者、課程、金額、狀態、類型、購買時間) and pagination component in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T009 [US1] Add search input and filter dropdowns (status, type, course) with Inertia `router.get` on change and `preserveState: true` in `resources/js/Pages/Admin/Transactions/Index.vue`
+
+**Checkpoint**: US1 fully functional — list, search, filter, pagination all work independently
+
+---
+
+## Phase 4: User Story 2 — 單筆交易詳情 Priority: P2
+
+**Goal**: 點擊列表中任一筆交易，進入詳情頁顯示所有欄位，並可跳至對應會員頁和課程頁
+
+**Independent Test**: 點擊列表中一筆交易，詳情頁顯示 portaly_order_id、buyer_email、金額、折扣、狀態、type_label、webhook_received_at 等所有欄位；member/course 連結跳轉正確
+
+- [ ] T010 [US2] Implement `TransactionController::show()` with eager load `user` and `course`, shape all fields as props in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T011 [US2] Create `Show.vue` displaying all transaction fields in a detail layout; member link → `admin.members.index?highlight={user.id}`（勿用 admin.members.show，該路由回傳 JsonResponse）; course link → `admin.courses.edit` in `resources/js/Pages/Admin/Transactions/Show.vue`
+
+**Checkpoint**: US1 + US2 both independently functional
+
+---
+
+## Phase 5: User Story 5 — 批次勾選並匯出 CSV Priority: P2
+
+**Goal**: 管理員可勾選交易（含跨頁全選）並下載 CSV
+
+**Independent Test**: 勾選 3 筆後點「匯出 CSV」，下載檔名含日期，開啟後有且僅有這 3 筆的 13 個欄位；未勾選時按鈕不可用
+
+- [ ] T012 [P] [US5] Add checkbox column to data table with individual selection state and select-all-page checkbox in header in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T013 [US5] Add selected count banner and「選取全部 N 筆符合條件的交易」option (cross-page select) following Members/Index.vue pattern in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T014 [US5] Add「匯出 CSV」button (disabled when selectedIds empty), build export URL with `?ids[]=...` or `?select_all=true&...filters`, trigger via `window.location.href` in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T015 [US5] Implement `TransactionController::export()` with StreamedResponse, UTF-8 BOM, `chunk(200)`, 13-column CSV output, filename `transactions-YYYYMMDD.csv` in `app/Http/Controllers/Admin/TransactionController.php`
+
+**Checkpoint**: US1 + US2 + US5 all independently functional; CSV download verified
+
+---
+
+## Phase 6: User Story 3 — 手動新增交易 Priority: P3
+
+**Goal**: 管理員可手動新增 system_assigned/gift 交易，會員立即取得課程存取權
+
+**Independent Test**: 點「手動新增」，填入 Email、課程、類型後提交，列表出現新紀錄（amount=0, status=paid），該會員可進入教室；重複指派同課程時顯示錯誤
+
+- [ ] T016 [US3] Implement `TransactionController::store()` delegating to `TransactionService::createManual()`, handle success redirect and error redirect with flash in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T017 [US3] Add manual create modal/form with user search (by email, using Inertia `router.get` suggestions or simple input), course dropdown, type radio (system_assigned/gift) to `Index.vue`; wire submit to `router.post` in `resources/js/Pages/Admin/Transactions/Index.vue`
+
+**Checkpoint**: US1–US3 all functional; manual create persists correctly and duplicate is blocked
+
+---
+
+## Phase 7: User Story 4 — 退款標記 Priority: P4
+
+**Goal**: 在詳情頁對 paid 交易執行退款標記，撤銷課程存取
+
+**Independent Test**: 在一筆 paid 交易詳情頁點「標記退款」，確認後 status 變 refunded；該會員進入教室被拒；refunded 交易詳情頁不顯示退款按鈕
+
+- [ ] T018 [US4] Implement `TransactionController::refund()` delegating to `TransactionService::refund()`, redirect back with flash in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T019 [P] [US4] Create `TransactionRefundModal.vue` confirm dialog with warning text and confirm/cancel buttons in `resources/js/Components/Admin/TransactionRefundModal.vue`
+- [ ] T020 [US4] Wire refund button (visible only when `status === 'paid'`) and `TransactionRefundModal` to `Show.vue`; on confirm `router.patch` to refund route in `resources/js/Pages/Admin/Transactions/Show.vue`
+
+**Checkpoint**: All 5 User Stories functional end-to-end
+
+---
+
+## Phase 8: Polish & Cross-Cutting Concerns
+
+**Purpose**: UX 完整性與 RWD
+
+- [ ] T021 [P] Add flash success/error banner handling (using existing flash pattern) in `Index.vue` and `Show.vue`
+- [ ] T022 Add empty state display (「目前沒有符合條件的交易紀錄」) when filtered results are empty in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T023 RWD review — add horizontal scroll wrapper on data table for mobile viewports in `resources/js/Pages/Admin/Transactions/Index.vue`
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 (Setup)**: No dependencies — start immediately
+- **Phase 2 (Foundational)**: Depends on Phase 1 — BLOCKS all user stories
+- **Phase 3 (US1)**: Depends on Phase 2 — no other story dependencies
+- **Phase 4 (US2)**: Depends on Phase 3 (needs list page to navigate from)
+- **Phase 5 (US5)**: Depends on Phase 3 (checkboxes added to existing list)
+- **Phase 6 (US3)**: Depends on Phase 3 (modal on list page)
+- **Phase 7 (US4)**: Depends on Phase 4 (refund button on detail page)
+- **Phase 8 (Polish)**: Depends on all desired user stories being complete
+
+### Parallel Opportunities
+
+- T003 (nav link) can run in parallel with T004/T005/T006
+- T005 (StoreTransactionRequest) can run in parallel with T004 (TransactionService)
+- Phase 4 (US2) and Phase 5 (US5) can run in parallel after Phase 3
+- T012 (checkbox column) can start alongside T013/T014 on different state refs
+- T019 (RefundModal component) can be built in parallel with T018 (controller action)
+- T021 (flash banners) can run in parallel with T022/T023
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 Only)
+
+1. Complete Phase 1: Setup (T001–T003)
+2. Complete Phase 2: Foundational (T004–T006)
+3. Complete Phase 3: US1 (T007–T009)
+4. **STOP and VALIDATE**: Visit `/admin/transactions`, verify list/search/filter
+5. Already usable for viewing transaction data
+
+### Incremental Delivery
+
+1. Phase 1 + 2 → Foundation ready (T001–T006)
+2. Phase 3 → List + search/filter functional (T007–T009) 🎯 MVP
+3. Phase 4 → Detail page (T010–T011)
+4. Phase 5 → CSV export (T012–T015)
+5. Phase 6 → Manual create (T016–T017)
+6. Phase 7 → Refund (T018–T020)
+7. Phase 8 → Polish (T021–T023)
+
+---
+
+## Summary
+
+| Phase | Stories | Tasks | Notes |
+|-------|---------|-------|-------|
+| Phase 1: Setup | — | T001–T003 | Bug fix + routes + nav |
+| Phase 2: Foundational | — | T004–T006 | Service + Request + Controller skeleton |
+| Phase 3: US1 P1 | 交易列表 | T007–T009 | 🎯 MVP |
+| Phase 4: US2 P2 | 單筆詳情 | T010–T011 | |
+| Phase 5: US5 P2 | CSV 匯出 | T012–T015 | Parallel with Phase 4 |
+| Phase 6: US3 P3 | 手動新增 | T016–T017 | |
+| Phase 7: US4 P4 | 退款標記 | T018–T020 | |
+| Phase 8: Polish | — | T021–T023 | |
+| **Total** | **5 stories** | **23 tasks** | |
