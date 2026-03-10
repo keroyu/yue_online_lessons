@@ -402,8 +402,22 @@ const submitCreate = () => {
                     <div>{{ transaction.user?.real_name || transaction.user?.nickname || '-' }}</div>
                     <div class="text-xs text-gray-500">{{ transaction.buyer_email || transaction.user?.email || '-' }}</div>
                   </td>
-                  <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700">
-                    {{ transaction.course?.name || '-' }}
+                  <td class="px-3 py-4 text-sm text-gray-700 max-w-[200px]">
+                    <div>{{ transaction.course?.name || '-' }}</div>
+                    <template v-if="transaction.course && transaction.progress_total > 0">
+                      <div class="mt-1 flex items-center gap-1.5">
+                        <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            class="h-full bg-indigo-500 rounded-full"
+                            :style="{ width: Math.round(transaction.progress_completed / transaction.progress_total * 100) + '%' }"
+                          />
+                        </div>
+                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ transaction.progress_completed }}/{{ transaction.progress_total }} 課</span>
+                      </div>
+                    </template>
+                    <template v-else-if="transaction.course && transaction.progress_total === 0">
+                      <div class="mt-1 text-xs text-gray-400">（無課程內容）</div>
+                    </template>
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700">
                     {{ transaction.currency }} {{ transaction.amount }}

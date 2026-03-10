@@ -1,6 +1,7 @@
 # Implementation Plan: 交易紀錄管理
 
 **Branch**: `006-transactions-management` | **Date**: 2026-03-10 | **Spec**: [spec.md](./spec.md)
+**Updated**: 2026-03-11 - 交易列表新增課程進度顯示（批次查詢 LessonProgress，透過 through() 注入）
 **Input**: Feature specification from `/specs/006-transactions-management/spec.md`
 
 ## Summary
@@ -80,3 +81,25 @@ routes/
 ## Complexity Tracking
 
 > No violations to justify.
+
+## Incremental Update Summary
+
+---
+
+### 2026-03-11: 交易列表新增課程進度顯示
+
+**背景**：管理員在交易列表查看時無法快速得知會員的學習狀況，需要進入詳情頁才能判斷；加入進度顯示讓列表頁即可掌握關鍵資訊。
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/TransactionController.php` - index() 新增 `course.lessons:id,course_id` eager load；分頁後批次查詢 `lesson_progress`，用 `through()` 將 `progress_completed` / `progress_total` 注入各 paginator item
+- `resources/js/Pages/Admin/Transactions/Index.vue` - 課程欄位 td 新增進度條（indigo，`h-1.5`）與「X/Y 課」文字；若課程無課程內容則顯示「（無課程內容）」
+
+**設計決策**：
+- 批次查詢策略：收集當頁所有 user_id + lesson_id，發出**單一**額外查詢 `LessonProgress whereIn user_id whereIn lesson_id`，避免 N+1
+- 使用 `paginator->through()` 在 Inertia render 前注入進度欄位，保持 paginator 結構不變（分頁 meta 完整保留）
+- 前端只接收 `progress_completed`、`progress_total` 兩個整數，百分比在 template 中計算，不在後端預先計算
+
+**影響元素**：
+1. 課程欄位進度條 — `progress_completed / progress_total * 100`，用 inline style 控制寬度
+2. 課程欄位進度文字 — `{{ progress_completed }}/{{ progress_total }} 課`
+3. 若 `progress_total === 0`（課程尚無內容）— 顯示灰色「（無課程內容）」提示

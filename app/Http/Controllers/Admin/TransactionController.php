@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreTransactionRequest;
 use App\Models\Course;
+use App\Models\LessonProgress;
 use App\Models\Purchase;
 use App\Models\User;
 use App\Services\TransactionService;
@@ -31,7 +32,7 @@ class TransactionController extends Controller
         $courseId = $request->input('course_id');
         $perPage  = min($request->input('per_page', 20), 100);
 
-        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name'])
+        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'course.lessons:id,course_id'])
             ->when($search, fn ($q) => $q->where(fn ($q2) =>
                 $q2->where('buyer_email', 'like', "%{$search}%")
                    ->orWhere('portaly_order_id', 'like', "%{$search}%")
@@ -44,6 +45,52 @@ class TransactionController extends Controller
         $matchingCount = $query->count();
 
         $transactions = $query->paginate($perPage)->withQueryString();
+
+        // Batch compute lesson progress for all transactions on this page
+        $items = $transactions->items();
+
+        $allLessonIds = [];
+        $allUserIds   = [];
+        foreach ($items as $t) {
+            if ($t->user_id) {
+                $allUserIds[] = $t->user_id;
+            }
+            if ($t->course) {
+                foreach ($t->course->lessons as $lesson) {
+                    $allLessonIds[] = $lesson->id;
+                }
+            }
+        }
+        $allLessonIds = array_unique($allLessonIds);
+        $allUserIds   = array_unique($allUserIds);
+
+        // Build a lookup: [user_id => Set of completed lesson_ids]
+        $progressMap = [];
+        if (!empty($allUserIds) && !empty($allLessonIds)) {
+            LessonProgress::whereIn('user_id', $allUserIds)
+                ->whereIn('lesson_id', $allLessonIds)
+                ->get(['user_id', 'lesson_id'])
+                ->each(function ($lp) use (&$progressMap) {
+                    $progressMap[$lp->user_id][$lp->lesson_id] = true;
+                });
+        }
+
+        // Attach progress fields to each paginator item
+        $transactions->through(function ($t) use ($progressMap) {
+            $lessonIds = $t->course ? $t->course->lessons->pluck('id')->all() : [];
+            $total     = count($lessonIds);
+            $completed = 0;
+            if ($t->user_id && $total > 0) {
+                foreach ($lessonIds as $lid) {
+                    if (isset($progressMap[$t->user_id][$lid])) {
+                        $completed++;
+                    }
+                }
+            }
+            $t->progress_completed = $completed;
+            $t->progress_total     = $total;
+            return $t;
+        });
 
         $courses = Course::select('id', 'name')->orderBy('name')->get();
 

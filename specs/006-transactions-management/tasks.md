@@ -2,6 +2,7 @@
 
 **Input**: Design documents from `/specs/006-transactions-management/`
 **Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
+**Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)
 
 **Tests**: Not requested — no test tasks included.
 
@@ -117,6 +118,19 @@
 
 ---
 
+## Phase 9: 課程進度顯示 (2026-03-11 新增)
+
+**Purpose**: 在交易列表「課程」欄位下方顯示該會員的課程學習進度
+
+**背景**：管理員需在列表頁即可快速掌握會員學習狀況，無需點入詳情頁。
+
+- [x] T024 [US1] 更新 `TransactionController::index()` — 新增 `course.lessons:id,course_id` eager load，批次查詢 `LessonProgress`，透過 `through()` 注入 `progress_completed` / `progress_total` 到各 paginator item in `app/Http/Controllers/Admin/TransactionController.php`
+- [x] T025 [P] [US1] 更新 `Index.vue` 課程欄位 — 新增進度條（indigo `h-1.5`）與「X/Y 課」文字；`progress_total === 0` 時顯示「（無課程內容）」 in `resources/js/Pages/Admin/Transactions/Index.vue`
+
+**Checkpoint**: 交易列表課程欄位顯示進度條與課數，批次查詢無 N+1 ✅
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -175,4 +189,5 @@
 | Phase 6: US3 P3 | 手動新增 | T016–T017 | |
 | Phase 7: US4 P4 | 退款標記 | T018–T020 | |
 | Phase 8: Polish | — | T021–T023 | |
-| **Total** | **5 stories** | **23 tasks** | |
+| Phase 9: 課程進度顯示 | US1 | T024–T025 | 2026-03-11 新增 |
+| **Total** | **5 stories** | **25 tasks** | |
