@@ -19,7 +19,7 @@ const submitting = ref(false)
 
 const confirmRefund = () => {
   submitting.value = true
-  router.patch(route('admin.transactions.refund', props.transaction.id), {}, {
+  router.patch(`/admin/transactions/${props.transaction.id}/refund`, {}, {
     onSuccess: () => {
       submitting.value = false
       emit('close')

@@ -107,7 +107,7 @@ watch(search, () => {
 })
 
 const applyFilters = () => {
-  router.get(route('admin.transactions.index'), {
+  router.get('/admin/transactions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
     type: typeFilter.value || undefined,
@@ -119,7 +119,7 @@ const applyFilters = () => {
 }
 
 const goToPage = (pageNum) => {
-  router.get(route('admin.transactions.index'), {
+  router.get('/admin/transactions', {
     page: pageNum,
     search: search.value || undefined,
     status: statusFilter.value || undefined,
@@ -144,7 +144,7 @@ const exportCsv = () => {
     selectedIds.value.forEach(id => params.append('ids[]', id))
   }
 
-  window.location.href = route('admin.transactions.export') + '?' + params.toString()
+  window.location.href = '/admin/transactions/export?' + params.toString()
 }
 
 // Format helpers
@@ -217,7 +217,7 @@ const submitCreate = () => {
     return
   }
   createSubmitting.value = true
-  router.post(route('admin.transactions.store'), {
+  router.post('/admin/transactions', {
     user_id:   createForm.value.user_id,
     course_id: parseInt(createForm.value.course_id),
     type:      createForm.value.type,
@@ -415,7 +415,7 @@ const submitCreate = () => {
                   </td>
                   <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <Link
-                      :href="route('admin.transactions.show', transaction.id)"
+                      :href="`/admin/transactions/${transaction.id}`"
                       class="text-indigo-600 hover:text-indigo-900"
                     >
                       查看

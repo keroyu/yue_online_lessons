@@ -40,7 +40,7 @@ const statusClass = (status) => {
     <!-- Header -->
     <div class="mb-6">
       <Link
-        :href="route('admin.transactions.index')"
+        href="/admin/transactions"
         class="text-sm text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -104,7 +104,7 @@ const statusClass = (status) => {
             <dd class="mt-1 text-sm text-gray-900">
               <template v-if="transaction.user">
                 <Link
-                  :href="route('admin.members.index') + '?highlight=' + transaction.user.id"
+                  :href="`/admin/members?highlight=${transaction.user.id}`"
                   class="text-indigo-600 hover:text-indigo-900"
                 >
                   {{ transaction.user.real_name || transaction.user.nickname || transaction.user.email }}
@@ -130,7 +130,7 @@ const statusClass = (status) => {
             <dd class="mt-1 text-sm text-gray-900">
               <template v-if="transaction.course">
                 <Link
-                  :href="route('admin.courses.edit', transaction.course.id)"
+                  :href="`/admin/courses/${transaction.course.id}/edit`"
                   class="text-indigo-600 hover:text-indigo-900"
                 >
                   {{ transaction.course.name }}
