@@ -22,6 +22,7 @@ class Purchase extends Model
         'coupon_code',
         'discount_amount',
         'status',
+        'source',
         'type',
         'webhook_received_at',
     ];
