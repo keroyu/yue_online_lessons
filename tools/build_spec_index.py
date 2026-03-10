@@ -26,13 +26,16 @@ SPEC_INDEX    = os.path.join(SPECS_DIR, "spec_index.json")
 CODE_INDEX    = os.path.join(SPECS_DIR, "code_index.json")
 REPO_MAP      = os.path.join(ROOT, "repo_map.md")
 
-MODULE_DIRS = [
-    "001-course-platform-mvp",
-    "002-classroom-admin",
-    "003-member-management",
-    "004-homepage-enhancement",
-    "005-drip-email",
-]
+def _discover_module_dirs() -> list:
+    """Auto-discover NNN-name feature directories under SPECS_DIR, sorted."""
+    dirs = []
+    if os.path.isdir(SPECS_DIR):
+        for entry in sorted(os.listdir(SPECS_DIR)):
+            if re.match(r"^\d{3}-", entry) and os.path.isdir(os.path.join(SPECS_DIR, entry)):
+                dirs.append(entry)
+    return dirs
+
+MODULE_DIRS = _discover_module_dirs()
 
 # ── Initial status seed ────────────────────────────────────────────────────────
 # Applied only when a feature has no "status" field yet.
@@ -52,6 +55,9 @@ INITIAL_STATUSES = {
     "003.us-7": "implemented",
 
     "004.us-1": "implemented", "004.us-2": "implemented", "004.us-3": "implemented",
+
+    "006.us-1": "implemented", "006.us-2": "implemented", "006.us-3": "implemented",
+    "006.us-4": "implemented", "006.us-5": "implemented",
 
     "005.us-1":   "implemented", "005.us-1.5": "implemented",
     "005.us-2":   "implemented", "005.us-3":   "implemented",

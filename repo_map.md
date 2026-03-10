@@ -119,3 +119,20 @@ related_specs:
 - specs/005-drip-email/spec.md
 - specs/005-drip-email/data-model.md
 - specs/005-drip-email/contracts/api.md
+
+## Transaction Management (006)
+purpose: admin transaction list with search/filter/pagination, transaction detail, manual create (gift/system_assigned), refund marking, batch CSV export
+specs: specs/006-transactions-management/
+
+main_files:
+- app/Http/Controllers/Admin/TransactionController.php
+- app/Http/Requests/Admin/StoreTransactionRequest.php
+- app/Services/TransactionService.php
+- resources/js/Components/Admin/TransactionRefundModal.vue
+- resources/js/Pages/Admin/Transactions/Index.vue
+- resources/js/Pages/Admin/Transactions/Show.vue
+
+related_specs:
+- specs/006-transactions-management/spec.md
+- specs/006-transactions-management/data-model.md
+- specs/006-transactions-management/contracts/transactions.md

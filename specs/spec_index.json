@@ -990,6 +990,85 @@
         "app/Models/Lesson.php"
       ],
       "status": "partial"
+    },
+    {
+      "id": "006.us-1",
+      "module": "006-transactions-management",
+      "title": "檢視所有交易紀錄列表",
+      "summary": "",
+      "heading": "### User Story 1 - 檢視所有交易紀錄列表 (Priority: P1)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-1---檢視所有交易紀錄列表-priority-p1",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-2",
+      "module": "006-transactions-management",
+      "title": "檢視單筆交易詳情",
+      "summary": "",
+      "heading": "### User Story 2 - 檢視單筆交易詳情 (Priority: P2)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-2---檢視單筆交易詳情-priority-p2",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Show.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-3",
+      "module": "006-transactions-management",
+      "title": "手動新增交易（系統指派 / 贈送）",
+      "summary": "",
+      "heading": "### User Story 3 - 手動新增交易（系統指派 / 贈送） (Priority: P3)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-3---手動新增交易（系統指派--贈送）-priority-p3",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "app/Http/Requests/Admin/StoreTransactionRequest.php",
+        "app/Services/TransactionService.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-4",
+      "module": "006-transactions-management",
+      "title": "將交易標記為退款",
+      "summary": "",
+      "heading": "### User Story 4 - 將交易標記為退款 (Priority: P4)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-4---將交易標記為退款-priority-p4",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "app/Services/TransactionService.php",
+        "resources/js/Pages/Admin/Transactions/Show.vue",
+        "resources/js/Components/Admin/TransactionRefundModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-5",
+      "module": "006-transactions-management",
+      "title": "勾選交易紀錄並批次匯出 CSV",
+      "summary": "",
+      "heading": "### User Story 5 - 勾選交易紀錄並批次匯出 CSV (Priority: P2)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-5---勾選交易紀錄並批次匯出-csv-priority-p2",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
     }
   ]
 }
