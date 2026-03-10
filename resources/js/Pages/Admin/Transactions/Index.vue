@@ -153,14 +153,18 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
 }
 
-const statusLabel = (status) => {
-  return status === 'paid' ? '已付款' : '已退款'
+const statusLabel = (status, type) => {
+  if (status === 'refunded') return type === 'paid' ? '已退款' : '已撤銷'
+  return type === 'paid' ? '已付款' : '有效'
 }
 
-const statusClass = (status) => {
-  return status === 'paid'
+const statusClass = (status, type) => {
+  if (status === 'refunded') {
+    return 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800'
+  }
+  return type === 'paid'
     ? 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800'
-    : 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800'
+    : 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800'
 }
 
 // Manual create modal
@@ -405,7 +409,7 @@ const submitCreate = () => {
                     {{ transaction.currency }} {{ transaction.amount }}
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm">
-                    <span :class="statusClass(transaction.status)">{{ statusLabel(transaction.status) }}</span>
+                    <span :class="statusClass(transaction.status, transaction.type)">{{ statusLabel(transaction.status, transaction.type) }}</span>
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700">
                     {{ transaction.type_label || transaction.type }}

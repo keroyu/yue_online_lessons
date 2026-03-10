@@ -24,14 +24,18 @@ const formatDateTime = (dateString) => {
   return new Date(dateString).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
 }
 
-const statusLabel = (status) => {
-  return status === 'paid' ? '已付款' : '已退款'
+const statusLabel = (status, type) => {
+  if (status === 'refunded') return type === 'paid' ? '已退款' : '已撤銷'
+  return type === 'paid' ? '已付款' : '有效'
 }
 
-const statusClass = (status) => {
-  return status === 'paid'
+const statusClass = (status, type) => {
+  if (status === 'refunded') {
+    return 'inline-flex px-2.5 py-0.5 text-sm font-medium rounded-full bg-red-100 text-red-800'
+  }
+  return type === 'paid'
     ? 'inline-flex px-2.5 py-0.5 text-sm font-medium rounded-full bg-green-100 text-green-800'
-    : 'inline-flex px-2.5 py-0.5 text-sm font-medium rounded-full bg-red-100 text-red-800'
+    : 'inline-flex px-2.5 py-0.5 text-sm font-medium rounded-full bg-blue-100 text-blue-800'
 }
 </script>
 
@@ -70,7 +74,7 @@ const statusClass = (status) => {
       <!-- Status + actions bar -->
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
         <div class="flex items-center gap-3">
-          <span :class="statusClass(transaction.status)">{{ statusLabel(transaction.status) }}</span>
+          <span :class="statusClass(transaction.status, transaction.type)">{{ statusLabel(transaction.status, transaction.type) }}</span>
           <span class="text-sm text-gray-500">{{ transaction.type_label }}</span>
         </div>
         <button
