@@ -52,13 +52,6 @@ const chartDataset = computed(() => ({
       label: '當日銷售額',
       data: props.chartData.days.map(d => d.amount),
       backgroundColor: '#2dd4bf',
-      yAxisID: 'yAmount',
-    },
-    {
-      label: '當日銷售量',
-      data: props.chartData.days.map(d => d.count),
-      backgroundColor: '#93c5fd',
-      yAxisID: 'yCount',
     },
   ],
 }))
@@ -68,31 +61,16 @@ const chartOptions = {
   maintainAspectRatio: false,
   interaction: { mode: 'index', intersect: false },
   plugins: {
-    legend: {
-      position: 'bottom',
-    },
+    legend: { position: 'bottom' },
     tooltip: {
       callbacks: {
-        label: (ctx) => {
-          if (ctx.dataset.yAxisID === 'yAmount') {
-            return ` 銷售額：$${Number(ctx.raw).toLocaleString()}`
-          }
-          return ` 銷售量：${ctx.raw} 筆`
-        },
+        label: (ctx) => ` 銷售額：$${Number(ctx.raw).toLocaleString()}`,
       },
     },
   },
   scales: {
-    yAmount: {
-      type: 'linear',
-      position: 'left',
+    y: {
       ticks: { callback: v => `$${v.toLocaleString()}` },
-    },
-    yCount: {
-      type: 'linear',
-      position: 'right',
-      grid: { drawOnChartArea: false },
-      ticks: { precision: 0 },
     },
   },
 }
