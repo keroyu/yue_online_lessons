@@ -96,30 +96,23 @@ package.json                               ← 新增 chart.js + vue-chartjs
 - `Show.vue`（詳情頁）
 - `TransactionRefundModal.vue`
 
-### Phase B — Revenue Chart（本次新增）
+### Phase B — Revenue Chart ✅ 已完成（2026-03-11）
 
-待實作：
-
-1. **套件安裝**（2 min）
-   - `npm install chart.js vue-chartjs`
-
-2. **後端：TransactionController::index() 補充 chart props**（20 min）
+1. **套件安裝** ✅ — `npm install chart.js vue-chartjs`
+2. **後端：TransactionController::index() 補充 chart props** ✅
    - 解析 `chart_range / chart_start / chart_end` 參數
    - 執行 GROUP BY date 查詢（UTC+8 時區轉換）
    - CarbonPeriod 補齊無資料日期
-   - 計算 `total_amount / total_count`
-   - 加入 `chartData` / `chartFilters` 至 Inertia props
-
-3. **前端：RevenueChart.vue**（40 min）
-   - 雙軸 mixed chart（bar: 銷售額左軸 + line: 銷售量右軸）
-   - 統計卡片（區間總銷售量、區間總銷售額）
-   - 時間區間篩選器 dropdown（7d / 30d / 90d / 自訂）
-   - 自訂模式：顯示起訖日期輸入欄位
-   - Emit `change-range(range)` 與 `change-custom(start, end)` 給父層
-
-4. **前端：Index.vue 整合**（20 min）
-   - 在列表上方掛載 `<RevenueChart>` 並傳入 `chartData / chartFilters` props
-   - 監聽 events → 執行 Inertia partial reload（`only: ['chartData', 'chartFilters']`）
+   - 計算 `total_amount / total_count`，加入 `chartData` / `chartFilters` 至 Inertia props
+3. **前端：RevenueChart.vue** ✅
+   - 雙軸 mixed chart（bar: 銷售額左軸 teal，line: 銷售量右軸 blue）
+   - 統計卡片（區間總銷售量、區間總銷售額千分位）
+   - 時間區間 dropdown（7d / 30d / 90d / 自訂），預設 30d
+   - 自訂模式起訖日期輸入欄（MM/DD/YYYY）
+   - **高度固定 360px**（`maintainAspectRatio: false` + 外層 `style="height:360px"`）
+   - **右 Y 軸整數刻度**：`beginAtZero: true` + `stepSize: 1` + `precision: 0`
+4. **前端：Index.vue 整合** ✅
+   - 掛載 `<RevenueChart>` + 監聽 events → Inertia partial reload（`only: ['chartData', 'chartFilters']`）
 
 ## Dependencies & Risks
 
@@ -129,3 +122,22 @@ package.json                               ← 新增 chart.js + vue-chartjs
 | 自訂日期區間過長（如數年）導致查詢慢 | 低 | 無上限限制（per Assumption），但 GROUP BY + index on `created_at` 足夠快 |
 | chart.js bundle size | 低 | 只 import 使用的模組（tree-shaking） |
 | Inertia partial reload 與現有列表篩選 params 衝突 | 中 | 使用 `URLSearchParams` 保留現有 params，只覆寫 chart_* params |
+
+---
+
+## Incremental Update Summary
+
+### 2026-03-11: Phase 12 — 營收圖表實作完成（含 UI 修正）
+
+**背景**：Phase 12（T029–T032）本次全部完成，並在初版實作後依視覺回饋做了兩輪修正：高度過高 → 限制 360px；右 Y 軸出現小數刻度（資料稀少時 Chart.js 預設行為）→ 強制整數。
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/TransactionController.php` — `index()` 新增 chart 查詢邏輯（chart_range 解析、GROUP BY date、CarbonPeriod 零值補齊、chartData/chartFilters props）
+- `resources/js/Components/Admin/RevenueChart.vue` — 全新元件；統計卡片 + mixed bar/line chart + 時間篩選器
+- `resources/js/Pages/Admin/Transactions/Index.vue` — 新增 chartData/chartFilters props，掛載 RevenueChart，處理 partial reload events
+- `package.json` — 新增 `chart.js`、`vue-chartjs` 依賴
+
+**設計決策**：
+- **圖表高度固定 360px**：外層容器設 `height: 360px`，Chart.js 設 `maintainAspectRatio: false` 讓畫布填滿容器，避免預設 aspect ratio 導致高度隨寬度無限增長。
+- **右 Y 軸整數刻度**：`beginAtZero: true` 確保從 0 開始；`stepSize: 1` + `precision: 0` 確保即使 max 為 0 或 1 時也只顯示整數刻度，不出現 0.1 等小數。
+- **圖表呈現方式**：柱狀圖（銷售額 teal `#2dd4bf`）搭配折線圖（銷售量 blue `#93c5fd`），左右雙 Y 軸；圖例置於底部。

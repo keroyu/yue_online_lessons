@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `/specs/006-transactions-management/`
 **Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
-**Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)；列表「標記退款」快捷按鈕 (Phase 10)；修正退款按鈕 cursor-pointer (T026 補丁)；金額格式化 (Phase 11)；營收圖表 (Phase 12)
+**Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)；列表「標記退款」快捷按鈕 (Phase 10)；修正退款按鈕 cursor-pointer (T026 補丁)；金額格式化 (Phase 11)；營收圖表 (Phase 12)；圖表 UI 修正：高度 360px + 右 Y 軸整數刻度 (Phase 13)
 
 **Tests**: Not requested — no test tasks included.
 
@@ -172,6 +172,19 @@
 
 ---
 
+## Phase 13: 營收圖表 UI 修正 (2026-03-11 新增)
+
+**Purpose**: 修正圖表高度過高及右 Y 軸出現小數刻度的問題
+
+**背景**：Phase 12 初版上線後，發現兩個視覺問題：(1) 圖表預設高度隨版面比例伸展，過於佔版面；(2) 當資料稀少時右 Y 軸（銷售量）出現 0.1、0.2 等小數刻度，不符合「筆數」語意。
+
+- [x] T033 [P] [US6] 限制 `resources/js/Components/Admin/RevenueChart.vue` 圖表高度為 360px — 外層容器加 `style="height:360px"`；Chart.js 設 `maintainAspectRatio: false`
+- [x] T034 [P] [US6] 修正 `resources/js/Components/Admin/RevenueChart.vue` 右 Y 軸整數刻度 — `yCount` scale 加 `beginAtZero: true`、`stepSize: 1`、`precision: 0`；同步恢復 `LineElement` / `PointElement` 到 ChartJS.register
+
+**Checkpoint**: 圖表高度固定 360px；切換至無資料的近 7 天時右 Y 軸只顯示 0, 1, 2 整數；折線圖正常顯示 ✅
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -234,4 +247,5 @@
 | Phase 10: 列表退款按鈕 | US4 | T026 | 2026-03-11 增量更新 |
 | Phase 11: 金額格式化 | US1, US2 | T027–T028 | 2026-03-11 新增 |
 | Phase 12: 營收圖表 | US6 | T029–T032 | 2026-03-11 新增 ✅ |
-| **Total** | **6 stories** | **32 tasks** | 全部完成 ✅ |
+| Phase 13: 圖表 UI 修正 | US6 | T033–T034 | 2026-03-11 新增 ✅ |
+| **Total** | **6 stories** | **34 tasks** | 全部完成 ✅ |
