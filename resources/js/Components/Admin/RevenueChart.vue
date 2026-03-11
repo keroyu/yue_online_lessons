@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Bar } from 'vue-chartjs'
+import { Chart } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -167,7 +167,7 @@ const chartOptions = {
 
     <!-- Chart -->
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4" style="height: 360px;">
-      <Bar :data="chartDataset" :options="chartOptions" style="height: 100%;" />
+      <Chart type="bar" :data="chartDataset" :options="chartOptions" style="height: 100%;" />
     </div>
   </div>
 </template>
