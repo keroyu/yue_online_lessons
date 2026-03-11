@@ -6,13 +6,11 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Tooltip,
   Legend,
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
 const props = defineProps({
   chartData: { type: Object, required: true },   // { days, total_amount, total_count }
@@ -51,29 +49,23 @@ const chartDataset = computed(() => ({
   labels: props.chartData.days.map(d => d.date),
   datasets: [
     {
-      type: 'bar',
       label: '當日銷售額',
       data: props.chartData.days.map(d => d.amount),
       backgroundColor: '#2dd4bf',
       yAxisID: 'yAmount',
-      order: 2,
     },
     {
-      type: 'line',
       label: '當日銷售量',
       data: props.chartData.days.map(d => d.count),
-      borderColor: '#93c5fd',
-      backgroundColor: 'transparent',
+      backgroundColor: '#93c5fd',
       yAxisID: 'yCount',
-      tension: 0.4,
-      order: 1,
     },
   ],
 }))
 
 const chartOptions = {
   responsive: true,
-  maintainAspectRatio: true,
+  maintainAspectRatio: false,
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: {
@@ -162,8 +154,8 @@ const chartOptions = {
     </div>
 
     <!-- Chart -->
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-      <Bar :data="chartDataset" :options="chartOptions" />
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4" style="height: 360px;">
+      <Bar :data="chartDataset" :options="chartOptions" style="height: 100%;" />
     </div>
   </div>
 </template>
