@@ -6,11 +6,13 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   Tooltip,
   Legend,
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend)
 
 const props = defineProps({
   chartData: { type: Object, required: true },   // { days, total_amount, total_count }
@@ -49,9 +51,23 @@ const chartDataset = computed(() => ({
   labels: props.chartData.days.map(d => d.date),
   datasets: [
     {
+      type: 'bar',
       label: '當日銷售額',
       data: props.chartData.days.map(d => d.amount),
       backgroundColor: '#2dd4bf',
+      yAxisID: 'yAmount',
+      order: 2,
+    },
+    {
+      type: 'line',
+      label: '當日銷售量',
+      data: props.chartData.days.map(d => d.count),
+      borderColor: '#93c5fd',
+      backgroundColor: 'transparent',
+      pointBackgroundColor: '#93c5fd',
+      yAxisID: 'yCount',
+      tension: 0.4,
+      order: 1,
     },
   ],
 }))
@@ -64,13 +80,31 @@ const chartOptions = {
     legend: { position: 'bottom' },
     tooltip: {
       callbacks: {
-        label: (ctx) => ` 銷售額：$${Number(ctx.raw).toLocaleString()}`,
+        label: (ctx) => {
+          if (ctx.dataset.yAxisID === 'yAmount') {
+            return ` 銷售額：$${Number(ctx.raw).toLocaleString()}`
+          }
+          return ` 銷售量：${ctx.raw} 筆`
+        },
       },
     },
   },
   scales: {
-    y: {
+    yAmount: {
+      type: 'linear',
+      position: 'left',
+      beginAtZero: true,
       ticks: { callback: v => `$${v.toLocaleString()}` },
+    },
+    yCount: {
+      type: 'linear',
+      position: 'right',
+      beginAtZero: true,
+      grid: { drawOnChartArea: false },
+      ticks: {
+        precision: 0,
+        stepSize: 1,
+      },
     },
   },
 }
