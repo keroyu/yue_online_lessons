@@ -135,6 +135,153 @@ Add 「交易紀錄」link to admin navigation component, after 「會員管理�
 | `resources/js/Components/Admin/TransactionRefundModal.vue` | Confirm dialog |
 | `routes/web.php` | 5 new routes in admin group |
 
+---
+
+### Step 10 — Install chart.js + vue-chartjs (2 min)
+
+```bash
+npm install chart.js vue-chartjs
+```
+
+---
+
+### Step 11 — RevenueChart.vue (40 min)
+
+Create `resources/js/Components/Admin/RevenueChart.vue`:
+
+```vue
+<script setup>
+import { computed } from 'vue'
+import { Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS, CategoryScale, LinearScale,
+  BarElement, LineElement, PointElement, Tooltip, Legend
+} from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend)
+
+const props = defineProps({
+  chartData: Object,   // { days: [], total_amount, total_count }
+  chartFilters: Object // { range, start, end }
+})
+
+const emit = defineEmits(['change-range'])
+
+const data = computed(() => ({
+  labels: props.chartData.days.map(d => d.date),
+  datasets: [
+    {
+      type: 'bar',
+      label: '當日銷售額',
+      data: props.chartData.days.map(d => d.amount),
+      backgroundColor: '#2dd4bf',  // teal-400
+      yAxisID: 'yAmount',
+    },
+    {
+      type: 'line',
+      label: '當日銷售量',
+      data: props.chartData.days.map(d => d.count),
+      borderColor: '#93c5fd',  // blue-300
+      backgroundColor: 'transparent',
+      yAxisID: 'yCount',
+      tension: 0.4,
+    },
+  ],
+}))
+
+const options = {
+  responsive: true,
+  interaction: { mode: 'index', intersect: false },
+  scales: {
+    yAmount: { type: 'linear', position: 'left',  ticks: { callback: v => `$${v.toLocaleString()}` } },
+    yCount:  { type: 'linear', position: 'right', grid: { drawOnChartArea: false } },
+  },
+}
+</script>
+```
+
+Key design points:
+- `type: 'bar'` dataset uses left Y axis (`yAmount`), `type: 'line'` uses right Y axis (`yCount`)
+- Register only the Chart.js modules you use (tree-shake friendly)
+- Emit `change-range` when user selects a preset; parent handles partial reload
+
+---
+
+### Step 12 — Wire chart filter to Inertia partial reload (20 min)
+
+In `Index.vue`, add:
+
+```js
+import { router } from '@inertiajs/vue3'
+
+function changeChartRange(range) {
+  const params = new URLSearchParams(window.location.search)
+  params.set('chart_range', range)
+  if (range !== 'custom') {
+    params.delete('chart_start')
+    params.delete('chart_end')
+  }
+  router.visit(`/admin/transactions?${params}`, {
+    only: ['chartData', 'chartFilters'],
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
+function changeCustomRange(start, end) {
+  const params = new URLSearchParams(window.location.search)
+  params.set('chart_range', 'custom')
+  params.set('chart_start', start)
+  params.set('chart_end', end)
+  router.visit(`/admin/transactions?${params}`, {
+    only: ['chartData', 'chartFilters'],
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+```
+
+Mount `<RevenueChart>` above the transaction table, passing `chartData` and `chartFilters` props.
+
+---
+
+### Step 13 — Update TransactionController::index() (20 min)
+
+Add chart data computation to the existing `index()` method:
+
+```php
+// Resolve chart date range
+$chartRange = $request->input('chart_range', '30d');
+[$chartStart, $chartEnd] = match($chartRange) {
+    '7d'    => [now()->subDays(6)->startOfDay(), now()->endOfDay()],
+    '90d'   => [now()->subDays(89)->startOfDay(), now()->endOfDay()],
+    'custom'=> [Carbon::parse($request->chart_start)->startOfDay(),
+                Carbon::parse($request->chart_end)->endOfDay()],
+    default => [now()->subDays(29)->startOfDay(), now()->endOfDay()],
+};
+
+// See data-model.md for full query pattern (GROUP BY date with zero-fill)
+// Append chartData + chartFilters to existing Inertia::render() props
+```
+
+See `data-model.md` "Chart Query Pattern" section for the full GROUP BY + CarbonPeriod zero-fill implementation.
+
+---
+
+## Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `app/Models/Purchase.php` | Patch: add `source` to `$fillable` |
+| `app/Services/TransactionService.php` | createManual + refund business logic |
+| `app/Http/Controllers/Admin/TransactionController.php` | 5 actions: index, show, store, refund, export + chart data |
+| `app/Http/Requests/Admin/StoreTransactionRequest.php` | Validation for manual create |
+| `resources/js/Pages/Admin/Transactions/Index.vue` | List page with checkboxes + CSV export + revenue chart |
+| `resources/js/Pages/Admin/Transactions/Show.vue` | Detail page + refund button |
+| `resources/js/Components/Admin/TransactionRefundModal.vue` | Confirm dialog |
+| `resources/js/Components/Admin/RevenueChart.vue` | Dual-axis bar+line chart |
+| `routes/web.php` | 5 new routes in admin group |
+
 ## Patterns to Follow
 
 | Pattern | Where to Look |
@@ -144,3 +291,5 @@ Add 「交易紀錄」link to admin navigation component, after 「會員管理�
 | Confirmation modal | `Components/Admin/GiftCourseModal.vue` |
 | Inertia redirect with flash | `Admin\MemberController::update()` |
 | StreamedResponse CSV | New pattern (see research.md R-001) |
+| Inertia partial reload | research.md R-008, contracts/transactions.md |
+| Dual-axis Chart.js | research.md R-007, Components/Admin/RevenueChart.vue |

@@ -43,6 +43,9 @@ Route::patch('/transactions/{transaction}/refund', [TransactionController::class
 | `type` | `paid\|system_assigned\|gift` | null | 類型篩選 |
 | `course_id` | int | null | 課程篩選 |
 | `per_page` | int | 20 | 每頁筆數（上限 100） |
+| `chart_range` | `7d\|30d\|90d\|custom` | `30d` | 圖表時間區間 |
+| `chart_start` | `YYYY-MM-DD` | — | 自訂起始日（chart_range=custom 時有效） |
+| `chart_end` | `YYYY-MM-DD` | — | 自訂結束日（chart_range=custom 時有效） |
 
 **Response**: Inertia render `Admin/Transactions/Index`
 
@@ -52,8 +55,31 @@ Route::patch('/transactions/{transaction}/refund', [TransactionController::class
   "transactions": { /* LengthAwarePaginator */ },
   "filters": { "search": null, "status": null, "type": null, "course_id": null },
   "courses": [{ "id": 1, "name": "課程名稱" }],
-  "matchingCount": 150
+  "matchingCount": 150,
+  "chartData": {
+    "days": [
+      { "date": "2026-02-09", "amount": 600.0, "count": 3 },
+      { "date": "2026-02-10", "amount": 0, "count": 0 }
+    ],
+    "total_amount": 20330.0,
+    "total_count": 492
+  },
+  "chartFilters": {
+    "range": "30d",
+    "start": "2026-02-09",
+    "end": "2026-03-10"
+  }
 }
+```
+
+**Partial reload** (when user changes chart filter only):
+```js
+// Frontend: only re-fetch chartData + chartFilters, skip transactions reload
+router.visit(url, {
+  only: ['chartData', 'chartFilters'],
+  preserveState: true,
+  preserveScroll: true,
+})
 ```
 
 ---

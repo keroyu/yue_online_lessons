@@ -33,3 +33,4 @@
 
 - 2026-03-10: Initial spec created — all items pass.
 - 2026-03-10: Updated with User Story 5 (batch CSV export, FR-012~FR-018, SC-007~SC-008) — all items still pass.
+- 2026-03-11: Incremental update — added User Story 6 (revenue chart, FR-020~FR-027, SC-009~SC-010) — all items still pass.

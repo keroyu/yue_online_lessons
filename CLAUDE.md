@@ -85,6 +85,10 @@ Need more search: yes/no
 - MySQL (existing database) (005-drip-email)
 - PHP 8.2+ / Laravel 12.x + Inertia.js v2, Vue 3, Tailwind CSS v4 (006-transactions-management)
 - MySQL — 現有 `purchases` 表（無需新增 migration） (006-transactions-management)
+- PHP 8.2 / Laravel 12, Vue 3 (Composition API `<script setup>`) + Inertia.js v2, Tailwind CSS v4 (006-transactions-management)
+- MySQL — 現有 `purchases` 表（`status` 欄位） (006-transactions-management)
+- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 + `<script setup>`, Tailwind CSS v4, `chart.js` + `vue-chartjs`（新增） (006-transactions-management)
+- MySQL — 現有 `purchases` 表（無新增 migration） (006-transactions-management)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

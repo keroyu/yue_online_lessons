@@ -10,6 +10,7 @@
 **Updated**: 2026-03-09 - 課程 SEO 欄位 slug + meta_description (Phase 16)
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕 (Phase 17)
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大 (Phase 18)
+**Updated**: 2026-03-11 - 我的課程頁面未登入防護 (Phase 19)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -631,7 +632,24 @@ Task: T018 "Create VerificationCode model"
 | Phase 16: 課程 SEO 欄位 slug + meta_description | 3 | 2 |
 | Phase 17: 販售頁「免費試閱」按鈕 | 3 | 2 |
 | Phase 18: 我的課程 card 增大 | 1 | 1 |
-| **Total** | **122** | **55** |
+| Phase 19: 我的課程未登入防護 | 1 | 0 |
+| **Total** | **123** | **55** |
+
+## Phase 19: 我的課程頁面未登入防護 (2026-03-11 新增)
+
+**Purpose**: 未登入者因 Inertia SPA 快取看到頁面時，顯示「請先登入」提示而非「尚無課程」
+
+**背景**：Inertia.js SPA history cache 可能讓未登入者看到他人 auth 狀態的舊 cached 頁面，誤以為被指派的課程不見了。Server-side auth middleware 已有 redirect，此為 client-side 第二層防護。
+
+- [x] T118 [US3] 我的課程 client-side 未登入防護 in `resources/js/Pages/Member/Learning.vue`
+  - 引入 `usePage`、新增 `isLoggedIn` computed（`!!page.props.auth?.user`）
+  - 新增 `v-if="!isLoggedIn"` 區塊：人形 icon + 「請先登入」+ 「前往登入」按鈕
+  - 原課程列表改為 `v-else-if courses.length > 0`，空白狀態改為 `v-else`
+  - `courses` prop 改為 `default: () => []` 防止 server 未傳值時報錯
+
+**Checkpoint**: 未登入狀態下訪問 /member/learning 顯示「請先登入」提示，而非「尚無課程」 ✅
+
+---
 
 ## Phase 18: 我的課程頁面 Card 增大 (2026-03-09 新增)
 

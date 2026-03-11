@@ -10,6 +10,7 @@
 **Updated**: 2026-03-09 - 課程 SEO 欄位：slug URL + meta_description
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕（FR-029, FR-030）
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大（Phase 18）
+**Updated**: 2026-03-11 - 我的課程頁面未登入 client-side 防護（Phase 19）
 
 ## Summary
 
@@ -429,6 +430,25 @@ protected function thumbnailUrl(): Attribute
 - **向下相容**：`resolveRouteBinding()` 先查 slug，找不到再查 id，舊連結永不失效
 - **不強制設定**：slug 和 meta_description 皆為 nullable，不影響現有課程
 - **sitemap 優先輸出 slug**：已設定 slug 的課程在 sitemap 使用語意 URL，提升 Google 抓取品質
+
+---
+
+### 2026-03-11: 我的課程頁面未登入 Client-Side 防護
+
+**背景**：Inertia.js SPA 的 browser history cache 可能導致未登入者（或 session 已過期的使用者）看到舊的 cached 版本，頁面顯示「尚無課程」且 nav 顯示他人的已登入狀態，造成使用者誤以為課程沒有被指派。Server-side `auth` middleware 已有 redirect，此處新增 client-side 防護作為第二層保護。
+
+**修改檔案**：
+- `resources/js/Pages/Member/Learning.vue` - 新增 `usePage` + `isLoggedIn` computed；新增 `v-if="!isLoggedIn"` 區塊顯示「請先登入」；courses prop 改為 `default: () => []`
+
+**設計決策**：
+- **兩層防護**：server 已有 `auth` middleware redirect，client-side 防護處理 SPA cache edge case
+- **顯示提示而非靜默 redirect**：在頁面內渲染「請先登入 + 前往登入」，比直接 redirect 更清楚
+- **三態 v-if 結構**：`!isLoggedIn` → 登入提示 / `courses.length > 0` → 課程列表 / else → 空白狀態
+
+**影響元素**：
+1. `!isLoggedIn` 區塊 — 顯示人形 icon + 「請先登入」標題 + 「前往登入」按鈕
+2. `v-else-if courses.length > 0` — 原有課程 grid（邏輯不變）
+3. `v-else` — 原有「尚無課程」空白狀態（邏輯不變）
 
 ---
 

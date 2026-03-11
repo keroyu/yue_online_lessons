@@ -1069,6 +1069,18 @@
         "resources/js/Pages/Admin/Transactions/Index.vue"
       ],
       "status": "implemented"
+    },
+    {
+      "id": "006.us-6",
+      "module": "006-transactions-management",
+      "title": "檢視營收圖表與區間統計",
+      "summary": "",
+      "heading": "### User Story 6 - 檢視營收圖表與區間統計 (Priority: P2)",
+      "file": "specs/006-transactions-management/spec.md",
+      "anchor": "user-story-6---檢視營收圖表與區間統計-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
     }
   ]
 }

@@ -102,3 +102,50 @@ CSV 匯出為 query-only，直接在 `TransactionController::export()` 中實作
 **Impact**: 任何 `Purchase::create(['source' => ...])` 或 `$purchase->update(['source' => ...])` 呼叫會被 mass-assignment 保護靜默忽略，導致 `source` 永遠寫不進去。
 
 **Fix**: 在 `Purchase.php` 的 `$fillable` 中補上 `'source'`。此為現有 bug，應在 Task 清單中優先修正。
+
+---
+
+## R-007: 營收圖表 — 前端圖表套件選擇
+
+**Decision**: 使用 `chart.js` + `vue-chartjs`（Vue 3 官方包裝）實作雙軸混合圖表（柱狀 + 折線）。
+
+**Rationale**:
+- 專案目前無任何圖表套件；需從零引入
+- Chart.js 支援 mixed chart type（bar + line 同一圖）及雙 Y 軸，原生功能完整
+- `vue-chartjs` 提供 Vue 3 Composition API 包裝，使用 `<Bar>` component + `data`/`options` props，符合 Constitution III 的 Vue 3 `<script setup>` 規範
+- 套件體積小（Chart.js ~60KB gzip），不影響管理後台載入速度
+
+**Installation**:
+```bash
+npm install chart.js vue-chartjs
+```
+
+**Alternatives considered**:
+- Apache ECharts / vue-echarts：功能更強大但體積較大（~300KB），超出需求 → 棄用
+- Recharts：React 生態，無 Vue 版本 → 棄用
+- 純 SVG 手寫：工程量過大，維護困難 → 棄用
+- uPlot：API 較底層，需自行處理雙軸 → 棄用
+
+---
+
+## R-008: 營收圖表 — 資料取得策略（後端 vs 前端狀態）
+
+**Decision**: 將圖表資料（`chartData`）與圖表篩選條件（`chartFilters`）作為 prop 加入現有 Index 頁面，透過 Inertia `router.visit()` 的 `only: ['chartData', 'chartFilters']` 做局部更新（partial reload），切換時間區間時不重新載入整個頁面。
+
+**Rationale**:
+- Constitution III 明確「No Axios for data fetching (use Inertia router)」；Inertia v2 partial reload 是符合規範的動態資料更新方式
+- 圖表資料與列表使用相同 URL（`/admin/transactions?chart_range=30d&...`），方便書籤與分享
+- `only: ['chartData', 'chartFilters']` 讓後端只計算圖表 props，不重新查詢 transactions 分頁列表，效能可接受
+
+**Chart data URL params**:
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chart_range` | `7d\|30d\|90d\|custom` | `30d` | 預設區間 |
+| `chart_start` | `YYYY-MM-DD` | 30天前 | 自訂起始日（chart_range=custom 時有效） |
+| `chart_end` | `YYYY-MM-DD` | 今天 | 自訂結束日（chart_range=custom 時有效） |
+
+**Alternatives considered**:
+- 獨立 JSON API 端點 + fetch：違反 Constitution III，需引入 axios 或 native fetch → 棄用
+- Livewire/Alpine：專案未使用此技術 → 棄用
+- 在頁面初始載入時一次傳入所有區間資料：payload 過大 → 棄用

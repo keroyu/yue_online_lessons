@@ -165,3 +165,63 @@ interface TransactionShowProps {
   }
 }
 ```
+
+### Chart props (added to Index page — partial reload via `only: ['chartData', 'chartFilters']`)
+
+```typescript
+interface ChartFilters {
+  range: '7d' | '30d' | '90d' | 'custom'
+  start: string   // YYYY-MM-DD
+  end: string     // YYYY-MM-DD
+}
+
+interface ChartDayPoint {
+  date: string        // 'YYYY-MM-DD'
+  amount: number      // 當日 paid 銷售額（float）
+  count: number       // 當日 paid 銷售量（int）
+}
+
+interface ChartData {
+  days: ChartDayPoint[]
+  total_amount: number  // 區間總銷售額
+  total_count: number   // 區間總銷售量
+}
+```
+
+### Chart Query Pattern (TransactionController::index)
+
+```php
+// Resolve date range from chart_range / chart_start / chart_end params
+$range = $request->input('chart_range', '30d');
+[$chartStart, $chartEnd] = match($range) {
+    '7d'     => [now()->subDays(6)->startOfDay(), now()->endOfDay()],
+    '90d'    => [now()->subDays(89)->startOfDay(), now()->endOfDay()],
+    'custom' => [Carbon::parse($request->chart_start)->startOfDay(),
+                 Carbon::parse($request->chart_end)->endOfDay()],
+    default  => [now()->subDays(29)->startOfDay(), now()->endOfDay()], // '30d'
+};
+
+$days = Purchase::query()
+    ->where('status', 'paid')
+    ->whereBetween('created_at', [$chartStart, $chartEnd])
+    ->selectRaw('DATE(CONVERT_TZ(created_at, "+00:00", "+08:00")) as date')
+    ->selectRaw('SUM(amount) as amount')
+    ->selectRaw('COUNT(*) as count')
+    ->groupBy('date')
+    ->orderBy('date')
+    ->get()
+    ->keyBy('date');
+
+// Fill missing dates with zeros to ensure continuous x-axis
+$period = CarbonPeriod::create($chartStart, $chartEnd);
+$chartDays = collect($period)->map(fn($day) => [
+    'date'   => $day->format('Y-m-d'),
+    'amount' => (float) ($days[$day->format('Y-m-d')]->amount ?? 0),
+    'count'  => (int)   ($days[$day->format('Y-m-d')]->count  ?? 0),
+]);
+```
+
+**Notes**:
+- 時區轉換使用 `CONVERT_TZ(created_at, "+00:00", "+08:00")` 確保日期以台灣時區（UTC+8）切分
+- 使用 `CarbonPeriod` 補齊無資料的日期，確保 X 軸連續（spec FR-026 edge case）
+- 只計算 `status = 'paid'` 的交易（Assumption: 退款不計入）
