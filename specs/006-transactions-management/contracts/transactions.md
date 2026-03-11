@@ -63,6 +63,8 @@ Route::patch('/transactions/{transaction}/refund', [TransactionController::class
     ],
     "total_amount": 20330.0,
     "total_count": 492
+    // Note: total_amount is a raw float. Currency symbol and thousands-separator formatting
+    // (e.g. "$20,330") are applied by the frontend component, not the backend.
   },
   "chartFilters": {
     "range": "30d",
