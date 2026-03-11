@@ -7,6 +7,7 @@
 **Updated**: 2026-03-09 - 精簡贈課 Email 模板 HTML (Phase 12)
 **Updated**: 2026-03-09 - 贈課 Email 改為純文字 MIME (Phase 13)
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 支援 Markdown (Phase 14)
+**Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤 (Phase 15)
 
 **Tests**: Not explicitly requested - test tasks omitted.
 
@@ -428,6 +429,22 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 ---
 
+## Phase 15: 會員詳情課程列表新增取得方式標籤 (2026-03-11 新增)
+
+**Purpose**: 在會員詳情 Modal 的擁有課程列表中，為每門課程標示取得方式（贈送／購買）
+
+**背景**：管理員查看會員詳情時無法區分課程是購買還是贈送，新增小標籤提升客服判斷效率。
+
+- [x] T074 [US3] 在 `MemberController@show()` 回傳的課程資料加入 `acquisition_type` 欄位 in `app/Http/Controllers/Admin/MemberController.php`
+  - `gift` / `system_assigned` → `'gift'`；其餘 → `'paid'`
+- [x] T075 [P] [US3] 在 `MemberDetailModal.vue` 課程卡片名稱旁顯示取得方式標籤 in `resources/js/Components/MemberDetailModal.vue`
+  - 贈送：紫色標籤「贈送」；購買：藍色標籤「購買」
+  - 日期前綴同步調整（「取得於」vs「購買於」）
+
+**Checkpoint**: 會員詳情 Modal 每門課程皆顯示贈送／購買標籤 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -446,5 +463,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 12: 精簡贈課 Email 模板 HTML | T068 | ✅ Completed |
 | Phase 13: 贈課 Email 純文字 MIME | T069-T070 | ✅ Completed |
 | Phase 14: 修正贈課 Email 檔名；批次 Email Markdown | T071-T073 | ✅ Completed |
+| Phase 15: 會員詳情課程取得方式標籤 | T074-T075 | ✅ Completed |
 
-**Total**: 77 tasks (77 complete, 0 planned)
+**Total**: 79 tasks (79 complete, 0 planned)

@@ -5,6 +5,7 @@
 **Updated**: 2026-01-18
 **Updated**: 2026-03-09 - 改為同步發送 Email（Mail::send），移除 Queue 依賴（FR-017, FR-027, SC-007）
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名錯誤（.text.blade.php → .blade.php）；批次 Email 支援 Markdown 格式輸入
+**Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤（贈送／購買）
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -58,6 +59,7 @@ As an admin, I want to see which courses a member owns and their progress in eac
 1. **Given** I am viewing a member's details, **When** I look at their courses section, **Then** I see a list of all courses they have purchased.
 2. **Given** a member owns a course with 10 lessons and has completed 3, **When** I view their course progress, **Then** I see 30% progress displayed.
 3. **Given** a member has not purchased any courses, **When** I view their courses section, **Then** I see an appropriate empty state message.
+4. **Given** a member owns courses acquired by different means, **When** I view their course list in the detail modal, **Then** each course displays a small label indicating "贈送" (purple) or "購買" (blue) based on the purchase type.
 
 ---
 
@@ -179,6 +181,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **FR-026**: Gift notification email MUST include: course name, course description (or placeholder if empty), and a welcome message inviting the member to start learning.
 - **FR-027**: System MUST send gift notification emails synchronously using Mail::send() immediately after each gift purchase record is created.
 - **FR-028**: System MUST display result summary showing: courses gifted count, already owned count, and email sent count.
+- **FR-029**: System MUST display an acquisition type label on each course in the member detail modal: "贈送" for purchases with type 'gift' or 'system_assigned', "購買" for all other types.
 
 ### Key Entities
 

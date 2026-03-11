@@ -116,6 +116,7 @@ class MemberController extends Controller
                     'id' => $course->id,
                     'name' => $course->name,
                     'purchased_at' => $purchase->created_at->toIso8601String(),
+                    'acquisition_type' => in_array($purchase->type, ['gift', 'system_assigned']) ? 'gift' : 'paid',
                     'total_lessons' => $totalLessons,
                     'completed_lessons' => $completedLessons,
                     'progress_percent' => $totalLessons > 0
