@@ -9,6 +9,8 @@ use App\Models\LessonProgress;
 use App\Models\Purchase;
 use App\Models\User;
 use App\Services\TransactionService;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -94,6 +96,48 @@ class TransactionController extends Controller
 
         $courses = Course::select('id', 'name')->orderBy('name')->get();
 
+        // --- Chart data ---
+        $chartRange = $request->input('chart_range', '30d');
+        [$chartStart, $chartEnd] = match ($chartRange) {
+            '7d'     => [now()->subDays(6)->startOfDay(), now()->endOfDay()],
+            '90d'    => [now()->subDays(89)->startOfDay(), now()->endOfDay()],
+            'custom' => [
+                Carbon::parse($request->input('chart_start'))->startOfDay(),
+                Carbon::parse($request->input('chart_end'))->endOfDay(),
+            ],
+            default  => [now()->subDays(29)->startOfDay(), now()->endOfDay()], // '30d'
+        };
+
+        $dailyRows = Purchase::query()
+            ->where('status', 'paid')
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
+            ->selectRaw('DATE(CONVERT_TZ(created_at, "+00:00", "+08:00")) as date')
+            ->selectRaw('SUM(amount) as amount')
+            ->selectRaw('COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy('date');
+
+        $period    = CarbonPeriod::create($chartStart->toDateString(), $chartEnd->toDateString());
+        $chartDays = collect($period)->map(fn ($day) => [
+            'date'   => $day->format('Y-m-d'),
+            'amount' => (float) ($dailyRows[$day->format('Y-m-d')]->amount ?? 0),
+            'count'  => (int)   ($dailyRows[$day->format('Y-m-d')]->count  ?? 0),
+        ]);
+
+        $chartData = [
+            'days'         => $chartDays->values(),
+            'total_amount' => (float) $dailyRows->sum('amount'),
+            'total_count'  => (int)   $dailyRows->sum('count'),
+        ];
+
+        $chartFilters = [
+            'range' => $chartRange,
+            'start' => $chartStart->toDateString(),
+            'end'   => $chartEnd->toDateString(),
+        ];
+
         return Inertia::render('Admin/Transactions/Index', [
             'transactions' => $transactions,
             'filters'      => [
@@ -104,6 +148,8 @@ class TransactionController extends Controller
             ],
             'courses'      => $courses,
             'matchingCount' => $matchingCount,
+            'chartData'    => $chartData,
+            'chartFilters' => $chartFilters,
         ]);
     }
 

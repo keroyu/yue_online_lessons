@@ -1,6 +1,7 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import RevenueChart from '@/Components/Admin/RevenueChart.vue'
 import { ref, computed, watch } from 'vue'
 
 defineOptions({ layout: AdminLayout })
@@ -21,6 +22,14 @@ const props = defineProps({
   matchingCount: {
     type: Number,
     default: 0,
+  },
+  chartData: {
+    type: Object,
+    required: true,
+  },
+  chartFilters: {
+    type: Object,
+    required: true,
   },
 })
 
@@ -177,6 +186,31 @@ const handleRefund = (transaction) => {
   router.post(`/admin/transactions/${transaction.id}/refund`, {}, { preserveScroll: true })
 }
 
+// Chart range helpers
+const changeChartRange = (range) => {
+  const params = new URLSearchParams(window.location.search)
+  params.set('chart_range', range)
+  params.delete('chart_start')
+  params.delete('chart_end')
+  router.visit(`/admin/transactions?${params}`, {
+    only: ['chartData', 'chartFilters'],
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
+const changeCustomRange = (start, end) => {
+  const params = new URLSearchParams(window.location.search)
+  params.set('chart_range', 'custom')
+  params.set('chart_start', start)
+  params.set('chart_end', end)
+  router.visit(`/admin/transactions?${params}`, {
+    only: ['chartData', 'chartFilters'],
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
 // Manual create modal
 const openCreateModal = () => {
   createForm.value = { user_email: '', user_id: null, course_id: '', type: 'gift' }
@@ -279,6 +313,16 @@ const submitCreate = () => {
       <button type="button" @click="page.props.flash = {}" class="text-red-600 hover:text-red-800">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
+    </div>
+
+    <!-- Revenue Chart -->
+    <div class="mt-6">
+      <RevenueChart
+        :chartData="chartData"
+        :chartFilters="chartFilters"
+        @change-range="changeChartRange"
+        @change-custom="changeCustomRange"
+      />
     </div>
 
     <!-- Filters -->

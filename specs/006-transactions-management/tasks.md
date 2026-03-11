@@ -163,10 +163,10 @@
 
 **背景**：2026-03-11 spec 增量更新，新增 US6 + FR-020~FR-027 + SC-009~SC-010。
 
-- [ ] T029 [US6] 安裝圖表套件：`npm install chart.js vue-chartjs`（`package.json`）
-- [ ] T030 [US6] 更新 `app/Http/Controllers/Admin/TransactionController.php` `index()` — 解析 `chart_range / chart_start / chart_end` 參數；執行 `GROUP BY DATE(CONVERT_TZ(created_at, "+00:00", "+08:00"))` 查詢（只計算 `status = 'paid'`）；`CarbonPeriod` 補齊零值日期；計算 `total_amount` / `total_count`；加入 `chartData` + `chartFilters` 至 Inertia props（參考 `data-model.md` "Chart Query Pattern"）
-- [ ] T031 [P] [US6] 建立 `resources/js/Components/Admin/RevenueChart.vue` — 統計卡片（區間總銷售量、區間總銷售額千分位格式，格式化由前端負責）+ Chart.js mixed chart（bar 左 Y 軸銷售額、line 右 Y 軸銷售量）+ 時間區間 dropdown（7d / 30d / 90d / 自訂），**component mount 時預設選取 `30d`（過去 30 天）** + 自訂模式起訖日期輸入欄（格式 `MM/DD/YYYY`）+ 底部圖例（label 字串：`'當日銷售額'`、`'當日銷售量'`）；後端已補齊零值日期，component 不需處理缺口（參考 `quickstart.md` Step 11）
-- [ ] T032 [US6] 更新 `resources/js/Pages/Admin/Transactions/Index.vue` — 在列表上方掛載 `<RevenueChart :chartData :chartFilters />`；監聽 `change-range` / `change-custom` events；執行 `router.visit(..., { only: ['chartData', 'chartFilters'], preserveState: true, preserveScroll: true })`（參考 `quickstart.md` Step 12–13）
+- [x] T029 [US6] 安裝圖表套件：`npm install chart.js vue-chartjs`（`package.json`）
+- [x] T030 [US6] 更新 `app/Http/Controllers/Admin/TransactionController.php` `index()` — 解析 `chart_range / chart_start / chart_end` 參數；執行 `GROUP BY DATE(CONVERT_TZ(created_at, "+00:00", "+08:00"))` 查詢（只計算 `status = 'paid'`）；`CarbonPeriod` 補齊零值日期；計算 `total_amount` / `total_count`；加入 `chartData` + `chartFilters` 至 Inertia props（參考 `data-model.md` "Chart Query Pattern"）
+- [x] T031 [P] [US6] 建立 `resources/js/Components/Admin/RevenueChart.vue` — 統計卡片（區間總銷售量、區間總銷售額千分位格式，格式化由前端負責）+ Chart.js mixed chart（bar 左 Y 軸銷售額、line 右 Y 軸銷售量）+ 時間區間 dropdown（7d / 30d / 90d / 自訂），**component mount 時預設選取 `30d`（過去 30 天）** + 自訂模式起訖日期輸入欄（格式 `MM/DD/YYYY`）+ 底部圖例（label 字串：`'當日銷售額'`、`'當日銷售量'`）；後端已補齊零值日期，component 不需處理缺口（參考 `quickstart.md` Step 11）
+- [x] T032 [US6] 更新 `resources/js/Pages/Admin/Transactions/Index.vue` — 在列表上方掛載 `<RevenueChart :chartData :chartFilters />`；監聽 `change-range` / `change-custom` events；執行 `router.visit(..., { only: ['chartData', 'chartFilters'], preserveState: true, preserveScroll: true })`（參考 `quickstart.md` Step 12–13）
 
 **Checkpoint**: 進入 `/admin/transactions`，圖表預設顯示過去 30 天；切換「過去 7 天」1 秒內更新；切換「自訂」出現日期輸入欄；統計卡片數字與手動加總 paid 交易一致；各日期有零值時圖表不中斷
 
@@ -233,5 +233,5 @@
 | Phase 9: 課程進度顯示 | US1 | T024–T025 | 2026-03-11 新增 |
 | Phase 10: 列表退款按鈕 | US4 | T026 | 2026-03-11 增量更新 |
 | Phase 11: 金額格式化 | US1, US2 | T027–T028 | 2026-03-11 新增 |
-| Phase 12: 營收圖表 | US6 | T029–T032 | 2026-03-11 新增，**待實作** |
-| **Total** | **6 stories** | **32 tasks** | T029–T032 待完成 |
+| Phase 12: 營收圖表 | US6 | T029–T032 | 2026-03-11 新增 ✅ |
+| **Total** | **6 stories** | **32 tasks** | 全部完成 ✅ |
