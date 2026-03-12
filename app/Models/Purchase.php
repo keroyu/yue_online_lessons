@@ -32,6 +32,7 @@ class Purchase extends Model
         return [
             'amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
+            'webhook_received_at' => 'datetime',
         ];
     }
 
