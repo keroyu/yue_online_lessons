@@ -11,6 +11,7 @@
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕 (Phase 17)
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大 (Phase 18)
 **Updated**: 2026-03-11 - 我的課程頁面未登入防護 (Phase 19)
+**Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式 (Phase 20)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 
@@ -633,7 +634,22 @@ Task: T018 "Create VerificationCode model"
 | Phase 17: 販售頁「免費試閱」按鈕 | 3 | 2 |
 | Phase 18: 我的課程 card 增大 | 1 | 1 |
 | Phase 19: 我的課程未登入防護 | 1 | 0 |
-| **Total** | **123** | **55** |
+| Phase 20: 販售頁 h3 色塊樣式 | 1 | 0 |
+| **Total** | **124** | **55** |
+
+## Phase 20: 販售頁 h3 標題左側色塊裝飾樣式 (2026-03-19 新增)
+
+**Purpose**: 課程介紹中的 h3 標題加入左側深色色塊裝飾，強化視覺層次
+
+**背景**：課程販售頁 Markdown 介紹中的 h3 標題原為純文字，缺乏視覺層次；改為左側附有 10px 深色長方形色塊（與 h3 文字垂直置中，間距 15px）的設計，與設計稿一致。
+
+- [x] T119 [US5] 更新 `.course-content h3` 樣式：flexbox 左對齊 + `::before` 偽元素色塊 in `resources/css/app.css`
+  - `.course-content h3` 改為 `display: flex; align-items: center; gap: 15px`
+  - 新增 `::before`：`width: 10px; height: 1.2em; background-color: #1f2937; flex-shrink: 0; border-radius: 1px`
+
+**Checkpoint**: 課程販售頁 h3 標題左側顯示 10px 深色長方形色塊，與文字垂直置中，間距 15px ✅
+
+---
 
 ## Phase 19: 我的課程頁面未登入防護 (2026-03-11 新增)
 

@@ -11,6 +11,7 @@
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕（FR-029, FR-030）
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大（Phase 18）
 **Updated**: 2026-03-11 - 我的課程頁面未登入 client-side 防護（Phase 19）
+**Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式（Phase 20）
 
 ## Summary
 
@@ -462,3 +463,21 @@ protected function thumbnailUrl(): Attribute
 **設計決策**：
 - **縮小容器而非固定 card 寬度**：`max-w-[1100px]` 搭配 2 欄 + `gap-6` + `lg:px-8`，數學上每 card ≈ (1100 - 64 - 24) / 2 = 506px，符合 500px 目標，且保持 RWD 彈性
 - **不改 MyCourseCard.vue**：card 本身無需修改，尺寸由 grid cell 自然決定
+
+### 2026-03-19: 販售頁 h3 標題左側色塊裝飾樣式
+
+**背景**：課程販售頁的 Markdown 介紹中，h3 標題原為純文字樣式，缺乏視覺層次感；改為左側附有深色色塊（10px 寬）的設計，強化標題辨識度，與整體排版風格一致。
+
+**修改檔案**：
+- `resources/css/app.css` - 更新 `.course-content h3`：改為 flexbox 置中排列，新增 `::before` 偽元素作為 10px × 1.2em 深色長方形色塊，gap 設為 15px
+
+**設計決策**：
+- **`::before` 偽元素而非額外 HTML 標籤**：純 CSS 實作，Markdown 輸出的 HTML 無需改動
+- **`height: 1.2em`**：隨字型大小等比縮放，保持各層級 h3 比例一致
+- **`flex-shrink: 0`**：防止色塊在長標題換行時被壓縮
+
+**影響元素**：
+1. `.course-content h3::before` — 10px 寬、1.2em 高深色長方形，`flex-shrink: 0`
+2. `.course-content h3` — 改為 `display: flex; align-items: center; gap: 15px`
+
+---
