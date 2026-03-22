@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { marked } from 'marked'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
@@ -86,6 +86,38 @@ const openPortaly = () => {
 
 // Ref for purchase section (scroll target when not yet agreed)
 const purchaseSectionRef = ref(null)
+
+// Floating panel: show when both top info and bottom purchase section are out of view
+const topInfoRef = ref(null)
+const topInfoVisible = ref(true)
+const bottomPurchaseVisible = ref(false)
+const showFloatingPanel = computed(() => !topInfoVisible.value && !bottomPurchaseVisible.value)
+
+let observer = null
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === topInfoRef.value) {
+          topInfoVisible.value = entry.isIntersecting
+        } else if (entry.target === purchaseSectionRef.value) {
+          bottomPurchaseVisible.value = entry.isIntersecting
+        }
+      })
+    },
+    { threshold: 0 }
+  )
+  if (topInfoRef.value) observer.observe(topInfoRef.value)
+  // purchaseSectionRef may not be mounted yet (v-else), watch for it
+  watch(purchaseSectionRef, (el) => {
+    if (el && observer) observer.observe(el)
+  }, { immediate: true })
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+})
 
 const handleBuyClick = () => {
   if (props.isPreviewMode) {
@@ -248,7 +280,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     <!-- ============================================================ -->
     <!-- 3. Info row + quick buy (directly below video, no gap)       -->
     <!-- ============================================================ -->
-    <div class="bg-white px-4 sm:px-6 py-5 border-b border-gray-100">
+    <div ref="topInfoRef" class="bg-white px-4 sm:px-6 py-5 border-b border-gray-100">
       <div class="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-start gap-6">
 
         <!-- Left: Course info -->
@@ -492,6 +524,52 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
       </div>
     </div>
 
+
+    <!-- Floating buy panel (visible when info section scrolls out of view) -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-all duration-300"
+        enter-from-class="translate-x-full opacity-0"
+        enter-to-class="translate-x-0 opacity-100"
+        leave-active-class="transition-all duration-300"
+        leave-from-class="translate-x-0 opacity-100"
+        leave-to-class="translate-x-full opacity-0"
+      >
+        <div
+          v-if="showFloatingPanel && !isDrip && !isPreviewMode && portalyUrl"
+          class="fixed right-4 bottom-6 z-40 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4"
+        >
+          <PriceDisplay
+            :price="course.price"
+            :original-price="course.original_price"
+            :promo-ends-at="course.promo_ends_at"
+          />
+          <div class="mt-3 flex flex-col gap-2">
+            <a
+              v-if="hasPreviewLessons"
+              :href="`/course/${course.id}/preview`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all text-sm"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+              </svg>
+              免費試閱
+            </a>
+            <button
+              @click="handleBuyClick"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              立即購買
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Legal Policy Modal -->
     <LegalPolicyModal

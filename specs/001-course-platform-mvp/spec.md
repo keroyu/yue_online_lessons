@@ -15,6 +15,7 @@
 **Updated**: 2026-03-09 - 我的課程頁面課程 card 等比例增大為約 500px 寬（最多 2 欄）
 **Updated**: 2026-03-11 - 我的課程頁面新增未登入 client-side 防護，顯示「請先登入」提示
 **Updated**: 2026-03-19 - 販售頁 h3 標題加入左側色塊裝飾樣式（10px 深色長方形 + 15px 間距）
+**Updated**: 2026-03-22 - 販售頁新增懸浮購買面板（floating buy panel）：scroll 過頂部資訊區後從右側滑入，顯示價格、優惠倒數計時與購買按鈕；scroll 到底部購買區時自動收回
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -112,6 +113,9 @@
 12. **Given** 課程有至少一個標記為「免費試閱」的小節（且非 drip 課程）, **When** 訪客進入課程販售頁, **Then** 購買按鈕旁顯示「免費試閱」按鈕（含播放 icon）
 13. **Given** 訪客點擊「免費試閱」按鈕, **When** 按鈕被點擊, **Then** 另開新視窗進入試閱教室（`/course/{id}/preview`），不需登入
 14. **Given** 訪客進入課程販售頁, **When** 頁面載入完成, **Then** 課程介紹中的 h3 標題以左側 10px 深色長方形色塊 + 15px 間距方式呈現，與文字垂直置中對齊
+15. **Given** 訪客 scroll 過頂部課程資訊欄（section 3）, **When** 底部購買區尚不在畫面內, **Then** 右下角顯示懸浮購買面板（含價格、優惠倒數計時、免費試閱按鈕、立即購買按鈕），從右側以 slide-in 動畫進入
+16. **Given** 懸浮購買面板可見, **When** 訪客 scroll 至底部購買區（同意條款區），**Then** 懸浮面板自動以 slide-out 動畫收回
+17. **Given** 懸浮購買面板可見, **When** 訪客點擊「立即購買」，**Then** 若尚未勾選同意條款則自動 scroll 至底部購買區；若已勾選則直接開啟 Portaly 購買頁面
 
 ---
 
@@ -150,6 +154,7 @@
 - 不相關的 Portaly 產品（如其他商品）發送 webhook 到課程網站時，靜默忽略且不建立用戶帳號
 - 課程設為隱藏（`is_visible = false`）時，課程販售頁自動精簡為無導覽列版本（與 `?lp=1` landing page 模式行為一致）
 - drip 課程不顯示「免費試閱」按鈕，即使後台誤設了 `is_preview = true` 的小節
+- drip 課程、草稿課程、無 portaly_product_id 的課程不顯示懸浮購買面板
 - 草稿課程（previewMode）不顯示「免費試閱」按鈕（避免草稿流出）
 - 課程無任何 `is_preview = true` 小節時，`/course/{id}/preview` 不顯示 404，而是顯示「此課程目前沒有免費試閱內容」提示頁
 
@@ -187,6 +192,7 @@
 - **FR-028**: Sitemap SHOULD 對已設定 slug 的課程輸出 slug URL，未設定則輸出 ID URL
 - **FR-029**: 販售頁 MUST 對「非 drip、非草稿、至少有一個 `is_preview = true` 小節」的課程顯示「免費試閱」按鈕，並以 `target="_blank"` 另開新視窗連至 `/course/{id}/preview`
 - **FR-030**: `/course/{id}/preview` 路由 MUST 為公開路由（不需登入），drip 課程存取該路由時回傳 404
+- **FR-031**: 販售頁 MUST 在訪客 scroll 過頂部資訊欄且底部購買區不在視窗內時，顯示懸浮購買面板（右下角固定）；面板包含 PriceDisplay（含優惠倒數計時）、免費試閱按鈕（若有試閱小節）、立即購買按鈕；僅限非 drip、非草稿課程且有 portaly_product_id 的課程顯示
 
 ### Key Entities
 
