@@ -16,6 +16,7 @@
 **Updated**: 2026-03-11 - 我的課程頁面新增未登入 client-side 防護，顯示「請先登入」提示
 **Updated**: 2026-03-19 - 販售頁 h3 標題加入左側色塊裝飾樣式（10px 深色長方形 + 15px 間距）
 **Updated**: 2026-03-22 - 販售頁新增懸浮購買面板（floating buy panel）：scroll 過頂部資訊區後從右側滑入，顯示價格、優惠倒數計時與購買按鈕；scroll 到底部購買區時自動收回
+**Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（portaly_product_id 空且 price > 0）與免費課程直接報名（portaly_product_id 空且 price = 0）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -119,6 +120,49 @@
 
 ---
 
+### User Story 7 - PayUni 統一金流付費 (Priority: P2)
+
+當課程 `portaly_product_id` 為空且 `price > 0` 時，使用 PayUni 統一金流完成購買。已登入用戶使用帳號 email 發起付款；未登入用戶在 PayUni 填寫資料，付款完成後系統透過 NotifyURL 回調建立/更新帳號與購買紀錄。金額使用 `display_price`（優惠期間為優惠價，否則為原價）。
+
+**Why this priority**: 允許課程不依賴 Portaly 販售，支援台灣本地金流管道（信用卡、ATM、超商）。
+
+**Independent Test**: 可用 PayUni 沙箱帳號模擬付款流程與 NotifyURL 回調。
+
+**Acceptance Scenarios**:
+
+1. **Given** `portaly_product_id` 為空且 `price > 0`, **When** 訪客進入販售頁, **Then** 顯示「立即購買」按鈕，採用 PayUni 付費流程
+2. **Given** 已登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 以帳號 email 發起 PayUni 付款（導向 PayUni 付款頁）
+3. **Given** 未登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 頁面顯示 email 輸入欄，填寫後發起 PayUni 付款
+4. **Given** 課程在優惠期間, **When** 發起 PayUni 付款, **Then** 傳給 PayUni 的金額為優惠價（display_price）
+5. **Given** 課程不在優惠期間, **When** 發起 PayUni 付款, **Then** 傳給 PayUni 的金額為原價
+6. **Given** PayUni 付款成功, **When** PayUni 發送 NotifyURL 回調, **Then** 後端驗證並建立購買紀錄（source=payuni），用戶可在「我的課程」看到課程
+7. **Given** 未登入用戶在 PayUni 完成付款, **When** NotifyURL 收到通知（含 email/姓名/電話）, **Then** 後端自動建立/更新用戶帳號（姓名電話以最新為準）
+8. **Given** PayUni 付款完成, **When** 用戶被 ReturnURL 導回, **Then** redirect 到 `/member/learning`；若未登入則系統自動轉到登入頁並顯示提示「請用購買時的 email 登入查看課程」
+9. **Given** PayUni 付款失敗, **When** 用戶被 ReturnURL 導回, **Then** redirect 回課程販售頁
+10. **Given** 相同 MerTradeNo 已存在, **When** 收到重複 PayUni 通知, **Then** 冪等處理，不重複建立購買紀錄
+
+---
+
+### User Story 8 - 免費課程直接報名 (Priority: P2)
+
+當課程 `portaly_product_id` 為空且 `price = 0` 時，販售頁提供免費報名入口。用戶點擊後頁面展開 inline 表單，填寫 email / 姓名 / 電話後直接建立購買紀錄，不通過任何金流。
+
+**Why this priority**: 支援免費課程/贈品課程的自助報名，不需管理員手動指派。
+
+**Independent Test**: 可直接送出表單測試，無需金流帳號。
+
+**Acceptance Scenarios**:
+
+1. **Given** `portaly_product_id` 為空且 `price = 0`, **When** 訪客進入販售頁, **Then** 顯示「免費報名」按鈕（不通過金流）
+2. **Given** 訪客點擊免費報名按鈕, **When** 按鈕被點擊, **Then** 頁面向下展開 email / 姓名 / 電話 必填表單
+3. **Given** 已登入用戶展開報名表單, **When** 表單顯示, **Then** 預填帳號的 email / 姓名 / 電話（均可修改）
+4. **Given** 未登入用戶填寫完表單, **When** 點擊送出前, **Then** 顯示確認提示「請確認資料正確，email 將作為登入帳號」
+5. **Given** 表單資料驗證通過, **When** 送出後後端建立購買紀錄, **Then** 頁面顯示成功訊息並提供前往「我的課程」的連結
+6. **Given** 用戶已報名過此課程, **When** 重複提交表單, **Then** 冪等處理，回傳成功訊息但不重複建立紀錄
+7. **Given** 表單填寫了新的姓名/電話, **When** 送出後, **Then** 用戶帳號的姓名/電話以最新填寫內容更新
+
+---
+
 ### User Story 6 - Webhook 購買處理 (Priority: P1)
 
 當用戶在 Portaly 完成付款後，Portaly 透過 webhook 通知系統。系統使用 HMAC-SHA256 驗證 `X-Portaly-Signature` header 後建立購買紀錄，並在必要時自動為未註冊的 email 建立會員帳號。系統也需處理退款 (refund) 事件。
@@ -154,9 +198,13 @@
 - 不相關的 Portaly 產品（如其他商品）發送 webhook 到課程網站時，靜默忽略且不建立用戶帳號
 - 課程設為隱藏（`is_visible = false`）時，課程販售頁自動精簡為無導覽列版本（與 `?lp=1` landing page 模式行為一致）
 - drip 課程不顯示「免費試閱」按鈕，即使後台誤設了 `is_preview = true` 的小節
-- drip 課程、草稿課程、無 portaly_product_id 的課程不顯示懸浮購買面板
+- drip 課程、草稿課程、無付款管道（portaly_product_id 空且 price = 0 且 is_free 未啟用）的課程不顯示懸浮購買面板
 - 草稿課程（previewMode）不顯示「免費試閱」按鈕（避免草稿流出）
 - 課程無任何 `is_preview = true` 小節時，`/course/{id}/preview` 不顯示 404，而是顯示「此課程目前沒有免費試閱內容」提示頁
+- PayUni NotifyURL 回調簽章驗證失敗時，記錄 warning 但回傳 200（避免 PayUni 重試風暴）；不建立任何購買紀錄
+- PayUni MerTradeNo 解析不到對應課程時，記錄 error 並回傳 200
+- 免費報名表單 email 欄位與已登入帳號 email 不一致時，以用戶填寫的 email 為準（可用於更換聯絡 email 場景，但不更動登入 email）
+- 免費報名表單的 email 若已存在其他帳號，以該帳號完成報名（合併報名意圖），並更新姓名/電話
 
 ## Requirements *(mandatory)*
 
@@ -192,13 +240,18 @@
 - **FR-028**: Sitemap SHOULD 對已設定 slug 的課程輸出 slug URL，未設定則輸出 ID URL
 - **FR-029**: 販售頁 MUST 對「非 drip、非草稿、至少有一個 `is_preview = true` 小節」的課程顯示「免費試閱」按鈕，並以 `target="_blank"` 另開新視窗連至 `/course/{id}/preview`
 - **FR-030**: `/course/{id}/preview` 路由 MUST 為公開路由（不需登入），drip 課程存取該路由時回傳 404
-- **FR-031**: 販售頁 MUST 在訪客 scroll 過頂部資訊欄且底部購買區不在視窗內時，顯示懸浮購買面板（右下角固定）；面板包含 PriceDisplay（含優惠倒數計時）、免費試閱按鈕（若有試閱小節）、立即購買按鈕；僅限非 drip、非草稿課程且有 portaly_product_id 的課程顯示
+- **FR-031**: 販售頁 MUST 在訪客 scroll 過頂部資訊欄且底部購買區不在視窗內時，顯示懸浮購買面板（右下角固定）；面板包含 PriceDisplay（含優惠倒數計時）、免費試閱按鈕（若有試閱小節）、立即購買按鈕；僅限非 drip、非草稿、且有付款管道（portaly_product_id 有值 或 price > 0）的課程顯示
+- **FR-032**: 當課程 `portaly_product_id` 為空且 `price > 0` 時，系統 MUST 使用 PayUni 統一金流處理付費，並透過 NotifyURL 回調驗證並建立購買紀錄（`source=payuni`）；NotifyURL 回調失敗時依賴 PayUni 重試並記錄 error log，管理員可手動補建紀錄；退款由管理員透過後台手動觸發 API endpoint，更新購買紀錄 status=refunded
+- **FR-033**: PayUni 付費金額 MUST 使用 `display_price`（優惠期間為優惠價，否則為原價），以整數 NTD 傳遞
+- **FR-034**: 當課程 `portaly_product_id` 為空且 `price = 0` 時，販售頁 MUST 顯示免費報名按鈕，點擊後展開 inline 表單，收集 email / 姓名 / 電話後直接建立購買紀錄（不通過金流，`source=free`, `amount=0`）
+- **FR-035**: 免費報名與 PayUni 付費 MUST 支援冪等處理（重複提交不重複建立購買紀錄）；已登入且已購買的用戶造訪販售頁時，購買按鈕 MUST 改為「前往學習」並導向 `/course/{id}/classroom`
+- **FR-036**: 用戶透過免費報名或 PayUni NotifyURL 回調提交的姓名/電話 MUST 更新用戶帳號資料（以最新填寫內容為準）
 
 ### Key Entities
 
 - **User（會員）**: 代表平台用戶，包含 email、暱稱、真實姓名（選填）、電話（選填）、出生年月日、角色（管理員/編輯/一般會員）、建立時間、最後登入時間、最後登入 IP
 - **Course（課程）**: 代表販售的數位內容，包含名稱、一句話簡介、完整介紹、價格、縮圖、教師資訊、類型（講座/迷你課/大型課程）、上架狀態、排序順序、Portaly 產品頁連結、Portaly productId
-- **Purchase（購買紀錄）**: 代表會員與課程的購買關係，包含 Portaly 訂單編號、購買時間、金額、幣別、折扣碼（選填）、折扣金額、付款狀態（已付款/已退款）
+- **Purchase（購買紀錄）**: 代表會員與課程的購買關係，包含 Portaly 訂單編號（portaly_order_id）、PayUni 交易編號（payuni_trade_no）、購買時間、金額、幣別、折扣碼（選填）、折扣金額、付款狀態（已付款/已退款）、來源（portaly / payuni / free / system_assigned / gift）
 
 ## Success Criteria *(mandatory)*
 
@@ -212,6 +265,8 @@
 - **SC-006**: 會員帳號設定的修改可在 1 秒內完成儲存並顯示成功回饋
 - **SC-007**: Webhook 處理在 5 秒內完成購買紀錄建立
 - **SC-008**: 透過 webhook 自動建立的會員可在付款後立即使用 email 登入查看課程
+- **SC-009**: PayUni 付款完成後 NotifyURL 回調在 10 秒內完成購買紀錄建立
+- **SC-010**: 免費課程報名表單送出後在 2 秒內顯示成功訊息並可立即查看課程
 
 ## Clarifications
 
@@ -228,6 +283,13 @@
 - Q: 課程縮圖的 URL 應由前端或後端組合？ → A: 後端統一輸出完整 URL，前端直接使用
 - Q: 資料庫應儲存完整 URL 還是相對路徑？ → A: 資料庫儲存相對路徑（如 `thumbnails/abc.jpg`），後端輸出時轉換為完整 URL（如 `/storage/thumbnails/abc.jpg`）
 - Q: 縮圖 URL 處理的設計原則？ → A: 前端不需知道 storage 實作細節，後端負責提供可直接使用的 URL；未來如遷移至 S3 只需修改後端一處
+
+### Session 2026-03-23 (PayUni 與免費報名)
+
+- Q: PayUni 退款時，系統應如何處理退款流程？ → A: 後端提供管理員退款 API endpoint，更新購買紀錄 status=refunded（由管理員手動觸發，而非自動 webhook）
+- Q: 已登入且已購買的用戶再次造訪 PayUni / 免費課程販售頁時，購買按鈕應顯示什麼？ → A: 按鈕改為「前往學習」，點擊直接跳轉到 `/course/{id}/classroom`
+- Q: PayUni NotifyURL 回調失敗時的補救機制為何？ → A: 依賴 PayUni 重試機制，後端記錄 error log；管理員可在後台手動補建購買紀錄（不自動補款）
+- Q: 未登入用戶完成 PayUni 付款後被 ReturnURL 導回，頁面應如何引導？ → A: Redirect 到 `/member/learning`；未登入時系統自動轉到登入頁，並顯示提示訊息「請用購買時的 email 登入查看課程」
 
 ### Session 2026-01-17 (Webhook 購買處理)
 
@@ -275,3 +337,12 @@
   - `#373557` - 深紫藍色（深色背景、主要文字）
   - `#3F83A3` - 藍綠色（連結、按鈕、次要強調）
 - Q: 配色優化範圍？ → A: 全站所有頁面和組件，包括倒數計時器、按鈕、連結、背景等
+
+### Session 2026-03-23 (PayUni 統一金流 + 免費課程報名)
+
+- Q: 付款管道判斷邏輯？ → A: portaly_product_id 有值 → Portaly；portaly_product_id 空且 price > 0 → PayUni；portaly_product_id 空且 price = 0 → 免費報名
+- Q: PayUni 付款金額如何決定？ → A: 使用 display_price（優惠期間為優惠價，否則為原價），以整數 NTD 傳遞
+- Q: 免費報名時 email 與登入帳號不同怎麼辦？ → A: 以填寫的 email 對應帳號完成報名，姓名/電話更新到該帳號
+- Q: PayUni MerTradeNo 格式？ → A: `YUE-C{courseId:06d}-{YmdHis}-{rand4}`，供 NotifyURL 回調解析 courseId
+- Q: PayUni ReturnURL 行為？ → A: 付款成功 redirect /member/learning；付款失敗 redirect /course/{id}
+- Q: 免費報名未登入時的確認機制？ → A: 送出前顯示確認提示「請確認資料正確，email 將作為登入帳號」

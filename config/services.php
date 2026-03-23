@@ -39,4 +39,11 @@ return [
         'webhook_secret' => env('PORTALY_WEBHOOK_SECRET'),
     ],
 
+    'payuni' => [
+        'merchant_id' => env('PAYUNI_MERCHANT_ID'),
+        'hash_key'    => env('PAYUNI_HASH_KEY'),
+        'hash_iv'     => env('PAYUNI_HASH_IV'),
+        'sandbox'     => env('PAYUNI_SANDBOX', false),
+    ],
+
 ];

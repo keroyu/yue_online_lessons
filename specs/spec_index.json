@@ -135,6 +135,30 @@
       "status": "implemented"
     },
     {
+      "id": "001.us-7",
+      "module": "001-course-platform-mvp",
+      "title": "PayUni 統一金流付費",
+      "summary": "",
+      "heading": "### User Story 7 - PayUni 統一金流付費 (Priority: P2)",
+      "file": "specs/001-course-platform-mvp/spec.md",
+      "anchor": "user-story-7---payuni-統一金流付費-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "001.us-8",
+      "module": "001-course-platform-mvp",
+      "title": "免費課程直接報名",
+      "summary": "",
+      "heading": "### User Story 8 - 免費課程直接報名 (Priority: P2)",
+      "file": "specs/001-course-platform-mvp/spec.md",
+      "anchor": "user-story-8---免費課程直接報名-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
       "id": "002.us-1",
       "module": "002-classroom-admin",
       "title": "會員上課頁面",

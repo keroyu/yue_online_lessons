@@ -166,6 +166,25 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
 });
 ```
 
+```php
+// routes/api.php  (CSRF-exempt)
+
+use App\Http\Controllers\Webhook\PortalyController;
+use App\Http\Controllers\Payment\PayuniController;
+use App\Http\Controllers\Purchase\FreePurchaseController;
+
+// Portaly Webhook (existing)
+Route::post('/webhooks/portaly', [PortalyController::class, 'handle'])->name('webhook.portaly');
+
+// PayUni 統一金流
+Route::post('/payment/payuni/initiate', [PayuniController::class, 'initiate'])->name('payuni.initiate');
+Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])->name('payuni.notify');
+Route::post('/payment/payuni/return', [PayuniController::class, 'return'])->name('payuni.return');
+
+// 免費課程報名
+Route::post('/purchase/free/{course}', [FreePurchaseController::class, 'store'])->name('purchase.free');
+```
+
 ---
 
 ## Data Transfer Objects
@@ -194,6 +213,52 @@ interface CourseDetail extends CourseListItem {
   promo_ends_at: string | null;  // ISO 8601 format
   duration_formatted: string | null;
   status: 'draft' | 'preorder' | 'selling';
+  use_payuni: boolean;     // portaly_product_id 空 且 price > 0
+  is_free: boolean;        // portaly_product_id 空 且 price == 0
+  display_price: number;   // 優惠價（promo 中）或原價
+}
+```
+
+### PayUni Initiate Request/Response
+```typescript
+// POST /api/payment/payuni/initiate
+// Request
+interface PayuniInitiateRequest {
+  course_id: number;
+  email?: string;  // 未登入時必填；已登入時可省略（後端使用 auth email）
+}
+
+// Response (200)
+interface PayuniInitiateResponse {
+  endpoint: string;  // 'https://[sandbox-]api.payuni.com.tw/api/upp'
+  fields: {
+    MerID: string;
+    Version: string;
+    EncryptInfo: string;
+    HashInfo: string;
+  };
+}
+```
+
+### Free Enrollment Request/Response
+```typescript
+// POST /api/purchase/free/{course}
+// Request
+interface FreeEnrollRequest {
+  email: string;
+  name: string;
+  phone: string;
+}
+
+// Response (200)
+interface FreeEnrollResponse {
+  success: true;
+  already_enrolled?: true;
+}
+
+// Response (422)
+interface FreeEnrollError {
+  error: string;
 }
 ```
 

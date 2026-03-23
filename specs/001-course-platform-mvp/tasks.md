@@ -635,7 +635,9 @@ Task: T018 "Create VerificationCode model"
 | Phase 18: 我的課程 card 增大 | 1 | 1 |
 | Phase 19: 我的課程未登入防護 | 1 | 0 |
 | Phase 20: 販售頁 h3 色塊樣式 | 1 | 0 |
-| **Total** | **124** | **55** |
+| Phase 21: 販售頁懸浮購買面板 | 2 | 1 |
+| Phase 22: PayUni + 免費報名 | 13 | 8 |
+| **Total** | **139** | **64** |
 
 ## Phase 20: 販售頁 h3 標題左側色塊裝飾樣式 (2026-03-19 新增)
 
@@ -678,6 +680,85 @@ Task: T018 "Create VerificationCode model"
   - grid 從 `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` 縮減為 `grid-cols-1 sm:grid-cols-2`
 
 **Checkpoint**: 桌機上每張 card 約 506px 寬，手機維持全寬單欄 ✅
+
+---
+
+---
+
+## Phase 21: 販售頁懸浮購買面板 (2026-03-22 新增)
+
+**Purpose**: scroll 過頂部資訊區後從右側滑入懸浮面板，顯示價格、優惠倒數計時與購買按鈕，底部購買區可見時自動收回
+
+**背景**：提升販售頁的轉換率，讓用戶在滾動頁面時隨時可見購買入口；僅限非 drip、非草稿、有付款管道的課程顯示。
+
+- [x] T120 [P] [US5] 更新 FR-031 懸浮面板顯示條件 in `app/Http/Controllers/CourseController.php`
+  - `hasBuyAction` 由 `use_payuni`/`is_free`/`portaly_url` 組合決定
+- [x] T121 [US5] 實作懸浮購買面板 in `resources/js/Pages/Course/Show.vue`
+  - 使用 `IntersectionObserver` 監測頂部資訊欄與底部購買區是否可見
+  - 面板包含：`PriceDisplay`（含優惠倒數計時）、免費試閱按鈕（若有）、購買按鈕
+  - 顯示條件：`showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction`
+  - 動畫：從右側滑入（`translate-x-full` → `translate-x-0`，`transition-transform`）
+
+**Checkpoint**: 非 drip 課程販售頁 scroll 過資訊區後右下角顯示懸浮面板；scroll 回購買區或無付款管道時收起 ✅
+
+---
+
+## Phase 22: PayUni 統一金流 + 免費課程直接報名 (2026-03-23 新增)
+
+**Purpose**: 新增 PayUni 付費路徑（portaly_product_id 空且 price > 0）與免費 inline 表單報名路徑（portaly_product_id 空且 price = 0）
+
+**背景**：US7 / US8 — 課程不使用 Portaly 時需要獨立金流處理。PayUni 使用 AES-256-GCM 加密（不使用 SDK echo/exit），免費課程直接建立購買紀錄。
+
+- [x] T122 [P] 新增 `payuni_trade_no` 欄位 migration in `database/migrations/2026_03_23_060722_add_payuni_trade_no_to_purchases_table.php`
+  - `varchar(64) nullable unique`，置於 `portaly_order_id` 之後；`php artisan migrate` 已執行
+- [x] T123 [P] 新增 PayUni config 區塊 in `config/services.php`
+  - `merchant_id`, `hash_key`, `hash_iv`, `sandbox` 四個 env 對應值
+- [x] T124 [P] 更新 Purchase model `$fillable` 加入 `payuni_trade_no` in `app/Models/Purchase.php`
+- [x] T125 [US7] 建立 `PayuniService` in `app/Services/PayuniService.php`
+  - `generateMerTradeNo(courseId)` → `YUE-C{courseId:06d}-{YmdHis}-{rand4}`
+  - `parseCourseId(merTradeNo)` → regex `/^YUE-C(\d+)-/`
+  - `buildPaymentForm(course, email, merTradeNo)` → `{ endpoint, fields }` (AES-256-GCM encrypt)
+  - `verifyAndDecrypt(encryptInfo, hashInfo)` → 驗證 hash 後解密
+  - `processNotify(request)` → 建立 Purchase，回傳 `'1|OK'`
+  - `getOrCreateUser(email, name, phone)` → 建立或更新用戶（姓名電話以最新為準）
+- [x] T126 [US7] 建立 `PayuniController` in `app/Http/Controllers/Payment/PayuniController.php`
+  - `initiate`: 驗證課程（無 portaly_id, price>0, 非草稿），組裝 email，回傳 `{ endpoint, fields }` JSON
+  - `notify`: 轉交 `processNotify`，固定回傳 200 plain text `1|OK`
+  - `return`: 解密結果，成功 redirect `/member/learning`，失敗 redirect `/course/{id}?payment_failed=1`
+- [x] T127 [P] [US8] 建立 `FreePurchaseController` in `app/Http/Controllers/Purchase/FreePurchaseController.php`
+  - 驗證課程（無 portaly_id, price=0, 非草稿），驗證 email/name/phone
+  - 冪等檢查 `Purchase::where(user_id, course_id)->exists()`
+  - 建立 Purchase（`source=free, amount=0, status=paid`）；drip 課程自動 subscribe
+- [x] T128 [P] 新增 4 條 API 路由 in `routes/api.php`
+  - `POST /payment/payuni/initiate`, `POST /webhooks/payuni`, `POST /payment/payuni/return`
+  - `POST /purchase/free/{course}`
+- [x] T129 [P] [US7] 更新 CourseController 傳入 PayUni/免費相關 props in `app/Http/Controllers/CourseController.php`
+  - `use_payuni`, `is_free`, `display_price`
+- [x] T130 [US7] Show.vue 新增 PayUni 付費流程 in `resources/js/Pages/Course/Show.vue`
+  - computed: `usePayuni`, `isFree`, `hasBuyAction`
+  - `payuniEmail`（已登入預填，未登入顯示輸入欄）、`payuniSubmitting`、`payuniError`
+  - `initiatePayuni()`: axios POST → 動態建 form 並 submit
+  - 更新 `handleBuyClick()`: free → `openFreeForm()`; payuni → `initiatePayuni()`
+- [x] T131 [P] [US8] Show.vue 新增免費報名 inline 表單 in `resources/js/Pages/Course/Show.vue`
+  - `showFreeForm`, `freeFormEmail/Name/Phone`, `freeSubmitting`, `freeSuccess`, `freeError`, `showFreeConfirm`
+  - `submitFreeEnrollment()`: axios POST → 成功顯示綠色訊息 + 前往我的課程連結
+  - 未登入送出前顯示確認提示；表單預填已登入用戶資料
+- [x] T132 [P] [US5] 更新浮動面板與 Section 6b 按鈕條件為 `hasBuyAction` in `resources/js/Pages/Course/Show.vue`
+  - 浮動面板條件：`showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction`
+  - 按鈕 disabled: `!isPreviewMode && (!agreed || !hasBuyAction)`；免費課程不顯示同意條款
+- [ ] T133 [US7] 後端傳入 `hasPurchased` prop + 前端「前往學習」按鈕 in `app/Http/Controllers/CourseController.php` + `resources/js/Pages/Course/Show.vue`
+  - `'hasPurchased' => $user ? Purchase::where('user_id', $user->id)->where('course_id', $course->id)->where('status', 'paid')->exists() : false`
+  - 前端：`hasPurchased` 為 true 時，主購買按鈕與浮動面板按鈕改為「前往學習」，導向 `/course/{id}/classroom`
+- [ ] T134 [P] [US7] 登入頁顯示 PayUni 購買完成提示 in `resources/js/Pages/Auth/Login.vue`
+  - `PayuniController::return()` redirect 到 `/member/learning`，未登入時 Laravel auth middleware 導向 `/login?hint=payuni`
+  - 登入頁讀取 `?hint=payuni` query param，顯示提示橫幅「請用購買時的 email 登入查看課程」
+
+**Checkpoint**:
+- PayUni 課程（無 portaly_id, price > 0）：點擊購買 → 導到 PayUni 付款頁；完成付款 → purchases 有新紀錄（source=payuni）；導回 /member/learning ✅
+- 免費課程（無 portaly_id, price = 0）：點擊「免費報名」→ 展開表單；送出 → purchases 有新紀錄（source=free, amount=0）；顯示成功訊息 ✅
+- Portaly 課程（有 portaly_product_id）：完全不受影響 ✅
+- 已購買：T133 完成後按鈕改為「前往學習」（待完成）
+- 未登入 PayUni 引導：T134 完成後登入頁顯示提示（待完成）
 
 ---
 

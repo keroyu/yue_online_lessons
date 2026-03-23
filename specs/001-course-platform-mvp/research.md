@@ -267,8 +267,69 @@ Controller 在組裝資料時輸出完整 URL：
 
 ---
 
+---
+
+## 10. PayUni 統一金流整合 (2026-03-23)
+
+### Decision
+不使用 `payuni/sdk` 套件中的 `UniversalTrade('upp')` 方法，改為直接在 `PayuniService` 中重現 SDK 的加密邏輯，回傳 JSON form fields 讓前端動態建立表單並提交。
+
+### Rationale
+- SDK 的 `UniversalTrade('upp')` 直接呼叫 `echo` + `exit`，無法在 Laravel 的 Response 生命週期中使用
+- PayUni 使用 AES-256-GCM 加密（`openssl_encrypt`），HashInfo 為 `strtoupper(hash('sha256', key . encryptStr . iv))`
+- 前端使用 JavaScript 動態建立隱藏表單並 POST 到 PayUni endpoint（沙箱/正式）
+
+### Implementation Approach
+```
+加密流程（buildPaymentForm）：
+1. 組裝 payload 陣列（MerID, RespondType, TimeStamp, MerTradeNo, TradeAmt, ItemDesc, Email, ReturnURL, NotifyURL）
+2. http_build_query → EncryptInfo = AES-256-GCM encrypt
+3. HashInfo = strtoupper(sha256(key . encryptInfo . iv))
+4. 回傳 { endpoint, fields: { MerID, Version, EncryptInfo, HashInfo } }
+
+解密流程（verifyAndDecrypt）：
+1. 驗證 HashInfo
+2. AES-256-GCM decrypt EncryptInfo → parse_str → 陣列
+```
+
+### MerTradeNo 格式
+`YUE-C{courseId:06d}-{YmdHis}-{rand4}` — 供 NotifyURL 回調解析 courseId，無需額外查詢
+
+### 環境變數
+```env
+PAYUNI_MERCHANT_ID=U076568645
+PAYUNI_HASH_KEY=3oJT39ndIhpjJX3ggky2EzKcroq3Ryro
+PAYUNI_HASH_IV=NGbzPwH3pTlq2nz2
+PAYUNI_SANDBOX=true
+```
+
+### Alternatives Considered
+| Alternative | Reason Rejected |
+|-------------|-----------------|
+| 直接使用 SDK `UniversalTrade('upp')` | SDK 呼叫 `echo` + `exit`，破壞 Laravel response cycle |
+| Server-side form redirect | 需要額外 Blade view，增加複雜度 |
+| 儲存 pending purchase 再付款 | 增加 DB 狀態管理複雜度，NotifyURL 回調已可完整建立紀錄 |
+
+---
+
+## 11. 購買來源識別與路由三分支 (2026-03-23)
+
+### Decision
+以 `Purchase.source` 欄位區分購買來源（`portaly` / `payuni` / `free`），CourseController 傳入 `use_payuni` + `is_free` flags 由前端決定 CTA 行為。
+
+### Rationale
+- 三種付款路徑互斥：portaly（有 portaly_product_id）/ payuni（無 portaly_id，price > 0）/ free（無 portaly_id，price = 0）
+- `source` 欄位讓管理後台和報表可清楚區分購買來源
+- 前端 computed `usePayuni` + `isFree` + `hasBuyAction` 統一管控按鈕和浮動面板
+
+### Already-Purchased UI State
+已登入且已購買的用戶造訪販售頁時，購買按鈕改為「前往學習」，導向 `/course/{id}/classroom`（需後端傳入 `hasPurchased` prop）。
+
+---
+
 ## Summary
 
 所有技術決策已完成研究，無未解決的 NEEDS CLARIFICATION 項目。可進入 Phase 1 設計階段。
 
 **2026-01-17 更新**：新增縮圖 URL 處理規範（第 9 項研究）。
+**2026-03-23 更新**：新增 PayUni 統一金流整合（第 10 項）與購買來源識別（第 11 項）。

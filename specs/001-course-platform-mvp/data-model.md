@@ -131,21 +131,25 @@
 | id | bigint unsigned | PK, auto-increment | 主鍵 |
 | user_id | bigint unsigned | FK → users.id, not null | 會員 ID |
 | course_id | bigint unsigned | FK → courses.id, not null | 課程 ID |
-| portaly_order_id | varchar(100) | not null, unique | Portaly 訂單編號 |
-| buyer_email | varchar(255) | not null | 購買者 email（webhook 回傳） |
-| amount | decimal(10,2) | not null | 金額 |
+| portaly_order_id | varchar(100) | nullable, unique | Portaly 訂單編號（Portaly 購買時填入） |
+| payuni_trade_no | varchar(64) | nullable, unique | PayUni MerTradeNo（PayUni 購買時填入） |
+| buyer_email | varchar(255) | not null | 購買者 email |
+| amount | decimal(10,2) | not null | 金額（免費課程為 0） |
 | currency | varchar(10) | default: 'TWD' | 幣別 |
 | coupon_code | varchar(50) | nullable | 折扣碼 |
 | discount_amount | decimal(10,2) | default: 0 | 折扣金額 |
 | status | enum('paid','refunded') | not null | 付款狀態 |
-| webhook_received_at | timestamp | nullable | Webhook 接收時間 |
+| type | varchar(20) | default: 'paid' | 付款類型（目前僅 'paid'） |
+| source | varchar(20) | nullable | 購買來源：`portaly` / `payuni` / `free` |
+| webhook_received_at | timestamp | nullable | Webhook / 建立時間（除錯用） |
 | created_at | timestamp | not null | 購買時間 |
 | updated_at | timestamp | not null | 更新時間 |
 
 **Indexes**:
 - `user_id`
 - `course_id`
-- `portaly_order_id` (unique)
+- `portaly_order_id` (unique, nullable)
+- `payuni_trade_no` (unique, nullable)
 - `buyer_email`
 - composite: `user_id, course_id` (unique - 防止重複購買)
 
@@ -154,7 +158,9 @@
 - belongsTo: Course
 
 **Notes**:
-- `portaly_order_id` 改為 not null，因為購買紀錄必須來自 webhook
+- `portaly_order_id` 改為 nullable（PayUni 和免費課程不使用）
+- `payuni_trade_no` 格式：`YUE-C{courseId:06d}-{YmdHis}-{rand4}`，供 NotifyURL 解析 courseId
+- `source` 欄位區分購買來源，便於報表和後台管理
 - `buyer_email` 記錄購買時的 email，方便追蹤
 - `webhook_received_at` 記錄 webhook 接收時間，便於除錯
 

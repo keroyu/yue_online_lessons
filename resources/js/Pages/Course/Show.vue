@@ -74,6 +74,11 @@ const portalyUrl = computed(() => {
   return `https://portaly.cc/kyontw/product/${props.course.portaly_product_id}`
 })
 
+// Payment method flags
+const usePayuni = computed(() => props.course.use_payuni === true)
+const isFree = computed(() => props.course.is_free === true)
+const hasBuyAction = computed(() => !!portalyUrl.value || usePayuni.value || isFree.value)
+
 const openPortaly = () => {
   if (props.isPreviewMode) {
     showPreviewAlert.value = true
@@ -81,6 +86,80 @@ const openPortaly = () => {
   }
   if (portalyUrl.value && agreed.value) {
     window.open(portalyUrl.value, '_blank')
+  }
+}
+
+// ── PayUni ────────────────────────────────────────────────────────────────────
+const payuniEmail = ref(page.props.auth?.user?.email || '')
+const payuniSubmitting = ref(false)
+const payuniError = ref('')
+
+const initiatePayuni = async () => {
+  payuniError.value = ''
+  if (!agreed.value || payuniSubmitting.value) return
+  payuniSubmitting.value = true
+  try {
+    const res = await window.axios.post('/api/payment/payuni/initiate', {
+      course_id: props.course.id,
+      email: payuniEmail.value,
+    })
+    const { endpoint, fields } = res.data
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = endpoint
+    Object.entries(fields).forEach(([k, v]) => {
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = k
+      input.value = v
+      form.appendChild(input)
+    })
+    document.body.appendChild(form)
+    form.submit()
+  } catch (e) {
+    payuniError.value = e.response?.data?.message || '付款初始化失敗，請稍後再試。'
+    payuniSubmitting.value = false
+  }
+}
+
+// ── Free enrollment ───────────────────────────────────────────────────────────
+const showFreeForm = ref(false)
+const freeFormEmail = ref(page.props.auth?.user?.email || '')
+const freeFormName = ref(page.props.auth?.user?.real_name || '')
+const freeFormPhone = ref(page.props.auth?.user?.phone || '')
+const freeSubmitting = ref(false)
+const freeSuccess = ref(false)
+const freeError = ref('')
+const showFreeConfirm = ref(false)
+
+const openFreeForm = () => {
+  showFreeForm.value = true
+  setTimeout(() => {
+    purchaseSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 50)
+}
+
+const submitFreeEnrollment = async () => {
+  freeError.value = ''
+  // If not logged in, show confirmation first
+  if (!page.props.auth?.user && !showFreeConfirm.value) {
+    showFreeConfirm.value = true
+    return
+  }
+  freeSubmitting.value = true
+  try {
+    await window.axios.post(`/api/purchase/free/${props.course.id}`, {
+      email: freeFormEmail.value,
+      name: freeFormName.value,
+      phone: freeFormPhone.value,
+    })
+    freeSuccess.value = true
+    showFreeConfirm.value = false
+  } catch (e) {
+    freeError.value = e.response?.data?.message || '報名失敗，請稍後再試。'
+    showFreeConfirm.value = false
+  } finally {
+    freeSubmitting.value = false
   }
 }
 
@@ -124,8 +203,16 @@ const handleBuyClick = () => {
     showPreviewAlert.value = true
     return
   }
+  if (isFree.value) {
+    openFreeForm()
+    return
+  }
   if (!agreed.value) {
     purchaseSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
+  if (usePayuni.value) {
+    initiatePayuni()
     return
   }
   openPortaly()
@@ -357,13 +444,13 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
               免費試閱
             </a>
             <button
-              @click="purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+              @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer"
             >
               <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {{ isDrip ? '免費訂閱' : '立即購買' }}
+              {{ isDrip ? '免費訂閱' : (isFree ? '免費報名' : '立即購買') }}
             </button>
           </div>
         </div>
@@ -450,7 +537,23 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     <!-- ============================================================ -->
     <div v-else ref="purchaseSectionRef" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
       <div class="max-w-4xl mx-auto">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+
+        <!-- ── Free enrollment success ── -->
+        <div v-if="freeSuccess" class="bg-white rounded-xl border border-green-100 shadow-sm px-6 py-6 text-center max-w-lg mx-auto">
+          <div class="mx-auto w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">報名成功！</h3>
+          <p class="text-gray-600 mb-5">已成功取得課程，前往「我的課程」開始學習。</p>
+          <a href="/member/learning" class="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm">
+            前往我的課程
+          </a>
+        </div>
+
+        <!-- ── Normal purchase UI ── -->
+        <div v-else class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
           <!-- Price Block -->
           <div class="py-1">
             <PriceDisplay
@@ -461,12 +564,81 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
           </div>
 
           <!-- Consent & Purchase Button -->
-          <div class="flex flex-col gap-3 sm:items-end">
+          <div class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
             <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
               草稿課程，僅供預覽
             </div>
 
-            <label v-if="!isPreviewMode" class="flex items-start gap-2 cursor-pointer">
+            <!-- PayUni: email input for guests -->
+            <div v-if="usePayuni && !$page.props.auth?.user && !isPreviewMode" class="w-full sm:w-72">
+              <label class="block text-xs font-medium text-gray-600 mb-1">付款 Email（用於課程開通）</label>
+              <input
+                v-model="payuniEmail"
+                type="email"
+                placeholder="your@email.com"
+                class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              />
+            </div>
+            <div v-else-if="usePayuni && $page.props.auth?.user && !isPreviewMode" class="text-sm text-gray-500">
+              付款 Email：<strong class="text-gray-700">{{ $page.props.auth.user.email }}</strong>
+            </div>
+
+            <!-- Free form: inline enrollment -->
+            <div v-if="isFree && showFreeForm && !isPreviewMode" class="w-full sm:w-80 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <h4 class="text-sm font-semibold text-gray-800 mb-3">填寫資料完成免費報名</h4>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+                  <input
+                    v-model="freeFormEmail"
+                    type="email"
+                    placeholder="your@email.com"
+                    :readonly="!!$page.props.auth?.user"
+                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                    :class="{ 'bg-gray-50': !!$page.props.auth?.user }"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">姓名 <span class="text-red-500">*</span></label>
+                  <input
+                    v-model="freeFormName"
+                    type="text"
+                    placeholder="請輸入姓名"
+                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">電話 <span class="text-red-500">*</span></label>
+                  <input
+                    v-model="freeFormPhone"
+                    type="tel"
+                    placeholder="0912345678"
+                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                  />
+                </div>
+                <!-- Confirmation notice for guests -->
+                <div v-if="showFreeConfirm" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  請確認資料正確——Email 將作為登入帳號，確認後點「送出報名」完成報名。
+                </div>
+                <p v-if="freeError" class="text-sm text-red-600">{{ freeError }}</p>
+                <button
+                  @click="submitFreeEnrollment"
+                  :disabled="freeSubmitting || !freeFormEmail || !freeFormName || !freeFormPhone"
+                  class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <svg v-if="freeSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  {{ freeSubmitting ? '報名中...' : (showFreeConfirm ? '送出報名' : '確認並報名') }}
+                </button>
+              </div>
+            </div>
+
+            <p v-if="payuniError" class="text-sm text-red-600">{{ payuniError }}</p>
+
+            <!-- Consent checkbox (non-free, non-preview) -->
+            <label v-if="!isPreviewMode && !isFree" class="flex items-start gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 v-model="agreed"
@@ -501,14 +673,15 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
                 </svg>
                 免費試閱
               </a>
+              <!-- Main buy / enroll button -->
               <button
-                @click="openPortaly"
-                :disabled="!isPreviewMode && (!agreed || !portalyUrl)"
+                @click="isFree ? openFreeForm() : (usePayuni ? handleBuyClick() : openPortaly())"
+                :disabled="isPreviewMode || (!isFree && (!agreed || !hasBuyAction))"
                 :class="[
                   'flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold transition-all shadow-sm',
                   isPreviewMode
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : (agreed && portalyUrl
+                    : (isFree || (agreed && hasBuyAction)
                         ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
                 ]"
@@ -516,7 +689,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
                 <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                {{ isPreviewMode ? '預覽購買按鈕' : '立即購買' }}
+                {{ isPreviewMode ? '預覽購買按鈕' : (isFree ? '免費報名' : (payuniSubmitting ? '處理中...' : '立即購買')) }}
               </button>
             </div>
           </div>
@@ -536,7 +709,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
         leave-to-class="translate-x-full opacity-0"
       >
         <div
-          v-if="showFloatingPanel && !isDrip && !isPreviewMode && portalyUrl"
+          v-if="showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction"
           class="fixed right-4 bottom-6 z-40 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4"
         >
           <PriceDisplay

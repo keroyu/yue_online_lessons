@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "442a9641bafd7fa0eca89d96ff8b0461",
+    "content-hash": "33ae47b2d21e4286c058f536c0885dfe",
     "packages": [
         {
             "name": "brick/math",
@@ -2684,6 +2684,51 @@
                 }
             ],
             "time": "2025-11-20T02:34:59+00:00"
+        },
+        {
+            "name": "payuni/sdk",
+            "version": "v1.2.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/payuni/PHP_SDK.git",
+                "reference": "bba8ddd831321aebc0123478b34fecfbc11ed70a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/payuni/PHP_SDK/zipball/bba8ddd831321aebc0123478b34fecfbc11ed70a",
+                "reference": "bba8ddd831321aebc0123478b34fecfbc11ed70a",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1|^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Payuni\\Sdk\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "payuni",
+                    "email": "Yifan.Shu@presco.ws"
+                }
+            ],
+            "description": "payuni sdk",
+            "homepage": "https://github.com/payuni/PHP_SDK",
+            "keywords": [
+                "payuni",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/payuni/PHP_SDK/issues",
+                "source": "https://github.com/payuni/PHP_SDK/tree/v1.2.4"
+            },
+            "time": "2024-10-28T09:32:46+00:00"
         },
         {
             "name": "phpoption/phpoption",

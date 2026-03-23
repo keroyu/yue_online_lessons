@@ -16,6 +16,7 @@ class Purchase extends Model
         'user_id',
         'course_id',
         'portaly_order_id',
+        'payuni_trade_no',
         'buyer_email',
         'amount',
         'currency',

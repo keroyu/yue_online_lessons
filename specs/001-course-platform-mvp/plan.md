@@ -12,6 +12,7 @@
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大（Phase 18）
 **Updated**: 2026-03-11 - 我的課程頁面未登入 client-side 防護（Phase 19）
 **Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式（Phase 20）
+**Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（US7）與免費課程直接報名（US8）（Phase 21）
 
 ## Summary
 
@@ -71,6 +72,10 @@ app/
 │   │   ├── Member/
 │   │   │   ├── LearningController.php
 │   │   │   └── SettingsController.php
+│   │   ├── Payment/
+│   │   │   └── PayuniController.php
+│   │   ├── Purchase/
+│   │   │   └── FreePurchaseController.php
 │   │   └── Webhook/
 │   │       └── PortalyController.php
 │   ├── Requests/
@@ -91,7 +96,8 @@ app/
 │   └── PurchasePolicy.php
 ├── Services/
 │   ├── VerificationCodeService.php
-│   └── PortalyWebhookService.php
+│   ├── PortalyWebhookService.php
+│   └── PayuniService.php
 └── Mail/
     └── VerificationCodeMail.php
 
@@ -129,7 +135,8 @@ resources/
     └── app.blade.php
 
 routes/
-└── web.php
+├── web.php
+└── api.php
 
 tests/
 ├── Feature/
@@ -156,6 +163,9 @@ tests/
 | **Webhook** | 簽章驗證 + 冪等處理 | 確保安全性和可靠性 |
 | **Guest Purchase** | Email 輸入 + 自動註冊 | 降低購買門檻，購買即註冊 |
 | **Countdown Timer** | 簡化設計，無深色背景 | 減少視覺層級複雜度，融入頁面風格 |
+| **PayUni 加密** | 不使用 SDK `UniversalTrade`，自行重現加密邏輯 | SDK 呼叫 `echo`+`exit`，破壞 Laravel response cycle |
+| **Free Enrollment** | Inline 表單 + axios POST + 冪等處理 | 無需金流，直接建立 Purchase，姓名/電話以最新為準 |
+| **已購買 UI** | 「前往學習」按鈕取代「立即購買」 | 已購買用戶無需再次購買，清楚的行動按鈕更有用 |
 
 ---
 
@@ -479,5 +489,70 @@ protected function thumbnailUrl(): Attribute
 **影響元素**：
 1. `.course-content h3::before` — 10px 寬、1.2em 高深色長方形，`flex-shrink: 0`
 2. `.course-content h3` — 改為 `display: flex; align-items: center; gap: 15px`
+
+---
+
+### 2026-03-23: PayUni 統一金流付費 + 免費課程直接報名（Phase 21）
+
+**背景**：原本購買唯一管道是 Portaly。新增兩條路徑：
+- `portaly_product_id` 空且 `price > 0` → PayUni 統一金流
+- `portaly_product_id` 空且 `price = 0` → 免費 inline 表單報名
+
+**判斷邏輯（三分支）**：
+| 條件 | 流程 |
+|------|------|
+| `portaly_product_id` 有值 | Portaly（現有，不動） |
+| 無 portaly_id，`price > 0` | PayUni 付費 |
+| 無 portaly_id，`price = 0` | 免費報名（inline 表單） |
+
+**新增後端檔案**：
+- `app/Services/PayuniService.php` — 加密/解密/付款表單產生/NotifyURL 處理
+- `app/Http/Controllers/Payment/PayuniController.php` — initiate / notify / return
+- `app/Http/Controllers/Purchase/FreePurchaseController.php` — store（免費報名）
+- `database/migrations/2026_03_23_*_add_payuni_trade_no_to_purchases_table.php` — 新增 `payuni_trade_no` 欄位
+
+**修改後端檔案**：
+- `config/services.php` — 新增 `payuni` 設定區塊
+- `app/Models/Purchase.php` — `$fillable` 新增 `payuni_trade_no`
+- `app/Http/Controllers/CourseController.php` — 新增 `use_payuni`, `is_free`, `display_price` props
+- `routes/api.php` — 新增 4 條路由
+
+**修改前端**：
+- `resources/js/Pages/Course/Show.vue`:
+  - computed: `usePayuni`, `isFree`, `hasBuyAction`
+  - PayUni flow: `payuniEmail`, `payuniSubmitting`, `payuniError`, `initiatePayuni()`
+  - Free form flow: `showFreeForm`, `freeFormEmail/Name/Phone`, `freeSubmitting`, `freeSuccess`, `freeError`, `showFreeConfirm`, `submitFreeEnrollment()`
+  - 更新 `handleBuyClick()`、section 6b 購買區塊、浮動面板條件
+
+**PayUni 加密實作**（不使用 SDK `UniversalTrade`）：
+```php
+// AES-256-GCM encrypt
+$iv = config('services.payuni.hash_iv');
+$key = config('services.payuni.hash_key');
+$encrypted = openssl_encrypt($data, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+$encryptInfo = bin2hex($encrypted . $tag);
+
+// HashInfo
+$hashInfo = strtoupper(hash('sha256', $key . $encryptInfo . $iv));
+```
+
+**已購買用戶 UI（需補實作）**：
+後端需傳入 `hasPurchased` prop（`CourseController` 查詢 `Purchase::where(user_id, course_id)->exists()`），前端據此將按鈕改為「前往學習」導向 `/course/{id}/classroom`。
+
+**ReturnURL 未登入引導**：
+PayUni 付款完成後 redirect 到 `/member/learning`；未登入時 Laravel `auth` middleware 自動轉到 `/login`，登入頁透過 `intended` URL 或 query param 顯示提示「請用購買時的 email 登入查看課程」。
+
+**環境變數**：
+```env
+PAYUNI_MERCHANT_ID=U076568645
+PAYUNI_HASH_KEY=3oJT39ndIhpjJX3ggky2EzKcroq3Ryro
+PAYUNI_HASH_IV=NGbzPwH3pTlq2nz2
+PAYUNI_SANDBOX=true
+```
+
+**未完成項目**（後續補實作）：
+1. `hasPurchased` prop + 「前往學習」按鈕
+2. 登入頁 PayUni 購買完成提示訊息
+3. 管理員退款 API endpoint（FR-032）
 
 ---
