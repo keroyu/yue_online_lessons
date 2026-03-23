@@ -746,12 +746,12 @@ Task: T018 "Create VerificationCode model"
 - [x] T132 [P] [US5] 更新浮動面板與 Section 6b 按鈕條件為 `hasBuyAction` in `resources/js/Pages/Course/Show.vue`
   - 浮動面板條件：`showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction`
   - 按鈕 disabled: `!isPreviewMode && (!agreed || !hasBuyAction)`；免費課程不顯示同意條款
-- [ ] T133 [US7] 後端傳入 `hasPurchased` prop + 前端「前往學習」按鈕 in `app/Http/Controllers/CourseController.php` + `resources/js/Pages/Course/Show.vue`
+- [x] T133 [US7] 後端傳入 `hasPurchased` prop + 前端「前往學習」按鈕 in `app/Http/Controllers/CourseController.php` + `resources/js/Pages/Course/Show.vue`
   - `'hasPurchased' => $user ? Purchase::where('user_id', $user->id)->where('course_id', $course->id)->where('status', 'paid')->exists() : false`
-  - 前端：`hasPurchased` 為 true 時，主購買按鈕與浮動面板按鈕改為「前往學習」，導向 `/course/{id}/classroom`
-- [ ] T134 [P] [US7] 登入頁顯示 PayUni 購買完成提示 in `resources/js/Pages/Auth/Login.vue`
-  - `PayuniController::return()` redirect 到 `/member/learning`，未登入時 Laravel auth middleware 導向 `/login?hint=payuni`
-  - 登入頁讀取 `?hint=payuni` query param，顯示提示橫幅「請用購買時的 email 登入查看課程」
+  - 前端：`hasPurchased` 為 true 時，主購買按鈕與浮動面板按鈕改為「前往學習」，導向 `/member/learning`
+- [x] T134 [P] [US7] 登入頁顯示 PayUni 購買完成提示 in `resources/js/Pages/Auth/Login.vue`
+  - `PayuniController::return()` 已登入導向 `/member/learning`，未登入導向 `/login?hint=payuni`
+  - 登入頁讀取 `?hint=payuni` query param，顯示提示橫幅「付款已完成！請用購買時填寫的 Email 登入查看課程」
 
 **Checkpoint**:
 - PayUni 課程（無 portaly_id, price > 0）：點擊購買 → 導到 PayUni 付款頁；完成付款 → purchases 有新紀錄（source=payuni）；導回 /member/learning ✅

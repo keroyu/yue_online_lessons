@@ -5,6 +5,7 @@ import VerificationCodeInput from '@/Components/VerificationCodeInput.vue'
 
 const page = usePage()
 const flash = computed(() => page.props.flash)
+const payuniHint = computed(() => new URLSearchParams(window.location.search).get('hint') === 'payuni')
 
 const step = ref('email') // 'email' or 'code'
 const isNewUser = ref(false)
@@ -81,6 +82,16 @@ const onCodeComplete = (code) => {
           <p class="mt-2 text-gray-600">
             {{ step === 'email' ? '請輸入您的 Email' : '請輸入驗證碼' }}
           </p>
+        </div>
+
+        <!-- PayUni post-payment hint -->
+        <div v-if="payuniHint" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+          <div class="flex items-start gap-2">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>付款已完成！請用<strong>購買時填寫的 Email</strong> 登入以查看您的課程。</span>
+          </div>
         </div>
 
         <!-- Flash messages -->

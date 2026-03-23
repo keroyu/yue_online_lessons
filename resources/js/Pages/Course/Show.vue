@@ -45,6 +45,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  hasPurchased: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Landing Page mode detection
@@ -443,7 +447,19 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
               </svg>
               免費試閱
             </a>
+            <a
+              v-if="hasPurchased && !isDrip"
+              href="/member/learning"
+              class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-teal hover:bg-brand-teal/80 text-white transition-all shadow-sm"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              前往學習
+            </a>
             <button
+              v-else
               @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer"
             >
@@ -550,6 +566,28 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
           <a href="/member/learning" class="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm">
             前往我的課程
           </a>
+        </div>
+
+        <!-- ── Already purchased ── -->
+        <div v-else-if="hasPurchased" class="text-center py-6">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 mb-4">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            您已購買此課程
+          </div>
+          <div>
+            <a
+              href="/member/learning"
+              class="inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-teal hover:bg-brand-teal/80 text-white transition-all shadow-sm"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              前往學習
+            </a>
+          </div>
         </div>
 
         <!-- ── Normal purchase UI ── -->
@@ -709,7 +747,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
         leave-to-class="translate-x-full opacity-0"
       >
         <div
-          v-if="showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction"
+          v-if="showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction && !hasPurchased"
           class="fixed right-4 bottom-6 z-40 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4"
         >
           <PriceDisplay

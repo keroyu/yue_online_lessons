@@ -5,9 +5,7 @@ namespace App\Services;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Payuni\Sdk\PayuniApi;
 
 class PayuniService
 {
@@ -97,18 +95,18 @@ class PayuniService
 
     /**
      * Process PayUni NotifyURL callback.
-     * Returns '1|OK' on success (required by PayUni), logs errors.
+     * Accepts raw EncryptInfo and HashInfo strings (not the Request object).
+     * Returns structured result array; the controller maps it to '1|OK' HTTP response.
+     *
+     * @return array{ success: bool, error: string }
      */
-    public function processNotify(Request $request): string
+    public function processNotify(string $encryptInfo, string $hashInfo): array
     {
-        $encryptInfo = $request->input('EncryptInfo', '');
-        $hashInfo    = $request->input('HashInfo', '');
-
         $data = $this->verifyAndDecrypt($encryptInfo, $hashInfo);
 
         if (!$data) {
             Log::warning('PayUni Notify: signature verification failed');
-            return '1|FAIL';
+            return ['success' => false, 'error' => 'signature_mismatch'];
         }
 
         Log::info('PayUni Notify: received', [
@@ -120,19 +118,19 @@ class PayuniService
         // Only process successful payments
         if (($data['Status'] ?? '') !== 'SUCCESS' || ($data['TradeStatus'] ?? '') != '1') {
             Log::info('PayUni Notify: non-success status, skipping', ['data' => $data]);
-            return '1|OK';
+            return ['success' => true, 'error' => ''];
         }
 
         $merTradeNo = $data['MerTradeNo'] ?? null;
         if (!$merTradeNo) {
             Log::error('PayUni Notify: missing MerTradeNo');
-            return '1|OK';
+            return ['success' => false, 'error' => 'missing_trade_no'];
         }
 
         // Idempotency check
         if (Purchase::where('payuni_trade_no', $merTradeNo)->exists()) {
             Log::info('PayUni Notify: duplicate, skipping', ['MerTradeNo' => $merTradeNo]);
-            return '1|OK';
+            return ['success' => true, 'error' => ''];
         }
 
         // Parse courseId from MerTradeNo
@@ -141,7 +139,7 @@ class PayuniService
 
         if (!$course) {
             Log::error('PayUni Notify: course not found', ['MerTradeNo' => $merTradeNo, 'courseId' => $courseId]);
-            return '1|OK';
+            return ['success' => false, 'error' => 'course_not_found'];
         }
 
         $email = $data['UsrMail'] ?? null;
@@ -150,7 +148,7 @@ class PayuniService
 
         if (!$email) {
             Log::error('PayUni Notify: missing email', ['MerTradeNo' => $merTradeNo]);
-            return '1|OK';
+            return ['success' => false, 'error' => 'missing_email'];
         }
 
         try {
@@ -178,20 +176,19 @@ class PayuniService
 
             // Auto-subscribe for drip courses
             if ($course->course_type === 'drip') {
-                $dripService = app(DripService::class);
+                $dripService = app(\App\Services\DripService::class);
                 $dripService->subscribe($user, $course);
             }
-
-            app(DripService::class)->checkAndConvert($user, $course);
 
         } catch (\Exception $e) {
             Log::error('PayUni Notify: failed to create purchase', [
                 'error'      => $e->getMessage(),
                 'MerTradeNo' => $merTradeNo,
             ]);
+            return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        return '1|OK';
+        return ['success' => true, 'error' => ''];
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\DripSubscription;
+use App\Models\Purchase;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -77,6 +78,12 @@ class CourseController extends Controller
                 'is_free' => !$course->portaly_product_id && $course->price == 0,
                 'display_price' => (float) $course->display_price,
             ],
+            'hasPurchased' => $user
+                ? Purchase::where('user_id', $user->id)
+                    ->where('course_id', $course->id)
+                    ->where('status', 'paid')
+                    ->exists()
+                : false,
             'isAdmin' => $isAdmin,
             'isPreviewMode' => $isPreviewMode,
             'isHidden' => !$course->is_visible,

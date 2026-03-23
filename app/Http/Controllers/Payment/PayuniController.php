@@ -72,16 +72,19 @@ class PayuniController extends Controller
         ]);
 
         try {
-            $result = $this->payuniService->processNotify($request);
+            $this->payuniService->processNotify(
+                $request->input('EncryptInfo', ''),
+                $request->input('HashInfo', '')
+            );
         } catch (\Exception $e) {
             Log::error('PayUni Notify: unexpected exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $result = '1|OK';
         }
 
-        return response($result, 200)->header('Content-Type', 'text/plain');
+        // Always return '1|OK' to prevent PayUni retry loops
+        return response('1|OK', 200)->header('Content-Type', 'text/plain');
     }
 
     /**
@@ -115,7 +118,12 @@ class PayuniController extends Controller
         ]);
 
         if ($isSuccess) {
-            return redirect('/member/learning')->with('flash', ['payuni_paid' => true]);
+            // Authenticated: go straight to learning page
+            if (auth()->check()) {
+                return redirect('/member/learning')->with('success', '付款成功！您的課程已開通。');
+            }
+            // Guest: redirect to login with hint so they know which email to use
+            return redirect('/login?hint=payuni');
         }
 
         $fallback = $courseId ? "/course/{$courseId}?payment_failed=1" : '/';
