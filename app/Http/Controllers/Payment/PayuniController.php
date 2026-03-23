@@ -113,43 +113,59 @@ class PayuniController extends Controller
         $encryptInfo = $request->input('EncryptInfo', '');
         $hashInfo    = $request->input('HashInfo', '');
 
-        Log::info('PayUni Return received', ['has_encrypt' => !empty($encryptInfo)]);
-
-        $data = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
-
-        if (!$data) {
-            Log::warning('PayUni Return: verification failed');
-            return redirect('/')->with('error', '付款驗證失敗，請聯絡客服。');
-        }
-
-        $isSuccess   = ($data['Status'] ?? '') === 'SUCCESS' && ($data['TradeStatus'] ?? '') == '1';
-        $merTradeNo  = $data['MerTradeNo'] ?? '';
-        $courseId    = $this->payuniService->parseCourseId($merTradeNo);
-
-        Log::info('PayUni Return: result', [
-            'Status'      => $data['Status'] ?? null,
-            'TradeStatus' => $data['TradeStatus'] ?? null,
-            'MerTradeNo'  => $merTradeNo,
+        Log::info('PayUni Return received', [
+            'has_encrypt' => !empty($encryptInfo),
+            'auth'        => auth()->check(),
+            'all_inputs'  => array_keys($request->all()),
         ]);
 
-        if ($isSuccess) {
-            // Process payment here too — handles race condition where
-            // ReturnURL arrives before NotifyURL. processNotify is idempotent.
-            try {
-                $this->payuniService->processNotify($encryptInfo, $hashInfo);
-            } catch (\Exception $e) {
-                Log::error('PayUni Return: processNotify failed', ['error' => $e->getMessage()]);
-            }
+        $data = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
+        $isSuccess = false;
+        $courseId = null;
 
-            // Now auth() works because this route is on web middleware
+        if ($data) {
+            $isSuccess = ($data['Status'] ?? '') === 'SUCCESS' && ($data['TradeStatus'] ?? '') == '1';
+            $merTradeNo = $data['MerTradeNo'] ?? '';
+            $courseId = $this->payuniService->parseCourseId($merTradeNo);
+
+            Log::info('PayUni Return: result', [
+                'Status'      => $data['Status'] ?? null,
+                'TradeStatus' => $data['TradeStatus'] ?? null,
+                'MerTradeNo'  => $merTradeNo,
+            ]);
+
+            // Process payment to handle race condition with NotifyURL (idempotent)
+            if ($isSuccess) {
+                try {
+                    $this->payuniService->processNotify($encryptInfo, $hashInfo);
+                } catch (\Exception $e) {
+                    Log::error('PayUni Return: processNotify failed', ['error' => $e->getMessage()]);
+                }
+            }
+        } else {
+            Log::warning('PayUni Return: verification failed, falling back to redirect');
+        }
+
+        // Success path: redirect to learning page or login
+        if ($isSuccess) {
             if (auth()->check()) {
                 return redirect('/member/learning')->with('success', '付款成功！您的課程已開通。');
             }
-            // Guest: redirect to login with hint
             return redirect('/login?hint=payuni');
         }
 
-        $fallback = $courseId ? "/course/{$courseId}?payment_failed=1" : '/';
-        return redirect($fallback);
+        // Verification failed but user is logged in — still send to learning page
+        // (NotifyURL handles the real payment processing; ReturnURL is just UX)
+        if (!$data && auth()->check()) {
+            return redirect('/member/learning')->with('success', '付款處理中，課程稍後開通。');
+        }
+
+        // Payment failed or unverified guest
+        if ($courseId) {
+            return redirect("/course/{$courseId}?payment_failed=1");
+        }
+
+        // Last resort for guests when verification fails
+        return redirect('/login?hint=payuni');
     }
 }
