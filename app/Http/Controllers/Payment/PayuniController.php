@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -51,6 +52,14 @@ class PayuniController extends Controller
         $name       = $validated['name'];
         $phone      = $validated['phone'];
         $merTradeNo = $this->payuniService->generateMerTradeNo($course->id);
+
+        // Store buyer info in cache so NotifyURL callback can look it up
+        // (PayUni notify does NOT include email/name in callback payload)
+        Cache::put("payuni_order_{$merTradeNo}", [
+            'email' => $email,
+            'name'  => $name,
+            'phone' => $phone,
+        ], now()->addHours(2));
 
         Log::info('PayUni: initiating payment', [
             'course_id'   => $course->id,

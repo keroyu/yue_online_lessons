@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class PayuniService
@@ -155,13 +156,14 @@ class PayuniService
             return ['success' => false, 'error' => 'course_not_found'];
         }
 
-        // PayUni may return email as 'Email' or 'UsrMail' depending on UPP version
-        $email = $data['Email'] ?? $data['UsrMail'] ?? null;
-        $name  = $data['UsrName'] ?? $data['Name'] ?? null;
-        $phone = $data['UsrMobile'] ?? $data['Mobile'] ?? null;
+        // PayUni notify does NOT include buyer email — look up from cache set during initiate
+        $cached = Cache::get("payuni_order_{$merTradeNo}");
+        $email  = $cached['email'] ?? $data['Email'] ?? $data['UsrMail'] ?? null;
+        $name   = $cached['name']  ?? $data['UsrName'] ?? null;
+        $phone  = $cached['phone'] ?? $data['UsrMobile'] ?? null;
 
         if (!$email) {
-            Log::error('PayUni Notify: missing email', ['MerTradeNo' => $merTradeNo]);
+            Log::error('PayUni Notify: missing email (not in cache or payload)', ['MerTradeNo' => $merTradeNo]);
             return ['success' => false, 'error' => 'missing_email'];
         }
 
