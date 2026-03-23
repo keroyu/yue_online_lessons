@@ -17,6 +17,7 @@
 **Updated**: 2026-03-19 - 販售頁 h3 標題加入左側色塊裝飾樣式（10px 深色長方形 + 15px 間距）
 **Updated**: 2026-03-22 - 販售頁新增懸浮購買面板（floating buy panel）：scroll 過頂部資訊區後從右側滑入，顯示價格、優惠倒數計時與購買按鈕；scroll 到底部購買區時自動收回
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（portaly_product_id 空且 price > 0）與免費課程直接報名（portaly_product_id 空且 price = 0）
+**Updated**: 2026-03-23 - PayUni 金流 debug 修正：MerTradeNo 縮短至 26 字元、NotifyURL 買家資訊改從 Cache 讀取、ReturnURL 移至 web 路由解決 auth/race condition、付款表單必填姓名電話、退款按鈕 HTTP method 修正
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -131,15 +132,18 @@
 **Acceptance Scenarios**:
 
 1. **Given** `portaly_product_id` 為空且 `price > 0`, **When** 訪客進入販售頁, **Then** 顯示「立即購買」按鈕，採用 PayUni 付費流程
-2. **Given** 已登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 以帳號 email 發起 PayUni 付款（導向 PayUni 付款頁）
-3. **Given** 未登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 頁面顯示 email 輸入欄，填寫後發起 PayUni 付款
+2. **Given** 已登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 以帳號 email 發起 PayUni 付款（導向 PayUni 付款頁），姓名/電話從帳號資料預填
+3. **Given** 未登入用戶在販售頁, **When** 已勾選同意條款並點擊購買, **Then** 頁面顯示 email / 姓名 / 電話必填欄位，填寫後發起 PayUni 付款
 4. **Given** 課程在優惠期間, **When** 發起 PayUni 付款, **Then** 傳給 PayUni 的金額為優惠價（display_price）
 5. **Given** 課程不在優惠期間, **When** 發起 PayUni 付款, **Then** 傳給 PayUni 的金額為原價
 6. **Given** PayUni 付款成功, **When** PayUni 發送 NotifyURL 回調, **Then** 後端驗證並建立購買紀錄（source=payuni），用戶可在「我的課程」看到課程
-7. **Given** 未登入用戶在 PayUni 完成付款, **When** NotifyURL 收到通知（含 email/姓名/電話）, **Then** 後端自動建立/更新用戶帳號（姓名電話以最新為準）
+7. **Given** 未登入用戶在 PayUni 完成付款, **When** NotifyURL 收到通知, **Then** 後端從 Cache 讀取買家資訊（email/姓名/電話，因 PayUni NotifyURL 不含買家資料），自動建立/更新用戶帳號
 8. **Given** PayUni 付款完成, **When** 用戶被 ReturnURL 導回, **Then** redirect 到 `/member/learning`；若未登入則系統自動轉到登入頁並顯示提示「請用購買時的 email 登入查看課程」
 9. **Given** PayUni 付款失敗, **When** 用戶被 ReturnURL 導回, **Then** redirect 回課程販售頁
 10. **Given** 相同 MerTradeNo 已存在, **When** 收到重複 PayUni 通知, **Then** 冪等處理，不重複建立購買紀錄
+11. **Given** 付款發起時, **When** 系統生成 MerTradeNo, **Then** 同時將買家 email/姓名/電話 存入 Cache（key: `payuni_order_{merTradeNo}`，TTL 2 小時），供 NotifyURL 回調時讀取
+12. **Given** ReturnURL 瀏覽器重導先於 NotifyURL 伺服器回調到達, **When** 用戶被導回網站, **Then** ReturnURL handler 也執行購買紀錄建立（冪等），確保用戶立即看到課程
+13. **Given** PayUni 付款表單, **When** 用戶填寫資料, **Then** 姓名和電話為必填欄位
 
 ---
 
@@ -203,6 +207,10 @@
 - 課程無任何 `is_preview = true` 小節時，`/course/{id}/preview` 不顯示 404，而是顯示「此課程目前沒有免費試閱內容」提示頁
 - PayUni NotifyURL 回調簽章驗證失敗時，記錄 warning 但回傳 200（避免 PayUni 重試風暴）；不建立任何購買紀錄
 - PayUni MerTradeNo 解析不到對應課程時，記錄 error 並回傳 200
+- PayUni NotifyURL 回調不包含買家 email/姓名/電話，系統 MUST 在發起付款時將買家資訊存入 Cache（database driver），NotifyURL 從 Cache 讀取；Cache 過期時 fallback 到 payload 欄位
+- PayUni MerTradeNo 格式為 `YC{courseId:04d}{YmdHis}{rand4}`（26 字元），PayUni 上限為 28 字元
+- PayUni ReturnURL 為 web 路由（非 API 路由），排除 CSRF 驗證，以獲得 session/auth 支援；ReturnURL handler 同時執行 processNotify（冪等）以解決與 NotifyURL 的 race condition
+- PayUni ReturnURL 驗證失敗時，已登入用戶仍導向 `/member/learning`（NotifyURL 負責真正驗證），未登入用戶導向 `/login?hint=payuni`，不導向首頁
 - 免費報名表單 email 欄位與已登入帳號 email 不一致時，以用戶填寫的 email 為準（可用於更換聯絡 email 場景，但不更動登入 email）
 - 免費報名表單的 email 若已存在其他帳號，以該帳號完成報名（合併報名意圖），並更新姓名/電話
 
@@ -246,6 +254,11 @@
 - **FR-034**: 當課程 `portaly_product_id` 為空且 `price = 0` 時，販售頁 MUST 顯示免費報名按鈕，點擊後展開 inline 表單，收集 email / 姓名 / 電話後直接建立購買紀錄（不通過金流，`source=free`, `amount=0`）
 - **FR-035**: 免費報名與 PayUni 付費 MUST 支援冪等處理（重複提交不重複建立購買紀錄）；已登入且已購買的用戶造訪販售頁時，購買按鈕 MUST 改為「前往學習」並導向 `/course/{id}/classroom`
 - **FR-036**: 用戶透過免費報名或 PayUni NotifyURL 回調提交的姓名/電話 MUST 更新用戶帳號資料（以最新填寫內容為準）
+- **FR-037**: PayUni 付款表單 MUST 要求填寫姓名和電話（必填欄位）；已登入用戶 MUST 從帳號資料預填姓名/電話
+- **FR-038**: PayUni 付款發起時，系統 MUST 將買家 email/姓名/電話 存入 Cache（key: `payuni_order_{merTradeNo}`），供 NotifyURL 回調讀取（因 PayUni NotifyURL 不回傳買家資訊）
+- **FR-039**: PayUni ReturnURL MUST 使用 web 路由（含 session middleware），以正確識別已登入用戶並導向 `/member/learning`
+- **FR-040**: PayUni ReturnURL handler MUST 同時執行購買紀錄建立（冪等），以解決 ReturnURL 與 NotifyURL 的 race condition
+- **FR-041**: Inertia shared auth props MUST 包含 `real_name` 和 `phone`，供前端表單預填
 
 ### Key Entities
 
@@ -343,6 +356,6 @@
 - Q: 付款管道判斷邏輯？ → A: portaly_product_id 有值 → Portaly；portaly_product_id 空且 price > 0 → PayUni；portaly_product_id 空且 price = 0 → 免費報名
 - Q: PayUni 付款金額如何決定？ → A: 使用 display_price（優惠期間為優惠價，否則為原價），以整數 NTD 傳遞
 - Q: 免費報名時 email 與登入帳號不同怎麼辦？ → A: 以填寫的 email 對應帳號完成報名，姓名/電話更新到該帳號
-- Q: PayUni MerTradeNo 格式？ → A: `YUE-C{courseId:06d}-{YmdHis}-{rand4}`，供 NotifyURL 回調解析 courseId
+- Q: PayUni MerTradeNo 格式？ → A: `YC{courseId:04d}{YmdHis}{rand4}`（26 字元，PayUni 上限 28），供 NotifyURL 回調解析 courseId；舊格式 `YUE-C{courseId}-...` 保留 backward-compatible 解析
 - Q: PayUni ReturnURL 行為？ → A: 付款成功 redirect /member/learning；付款失敗 redirect /course/{id}
 - Q: 免費報名未登入時的確認機制？ → A: 送出前顯示確認提示「請確認資料正確，email 將作為登入帳號」

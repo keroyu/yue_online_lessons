@@ -6,7 +6,7 @@ Read this file first to identify the relevant module, then search `specs/spec_in
 ---
 
 ## Course Platform (001)
-purpose: homepage, course listing, purchase flow, webhook processing, email login
+purpose: homepage, course listing, purchase flow (Portaly/PayUni/free), webhook processing, email login
 specs: specs/001-course-platform-mvp/
 
 main_files:
@@ -15,15 +15,24 @@ main_files:
 - app/Http/Controllers/HomeController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/SettingsController.php
+- app/Http/Controllers/Payment/PayuniController.php
+- app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/Webhook/PortalyController.php
+- app/Http/Middleware/HandleInertiaRequests.php
 - app/Models/Course.php
 - app/Models/Purchase.php
 - app/Models/User.php
 - app/Models/VerificationCode.php
+- app/Services/PayuniService.php
+- config/services.php
 - resources/js/Pages/Auth/
+- resources/js/Pages/Auth/Login.vue
 - resources/js/Pages/Course/
+- resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Home.vue
 - resources/js/Pages/Member/
+- routes/api.php
+- routes/web.php
 
 related_specs:
 - specs/001-course-platform-mvp/spec.md

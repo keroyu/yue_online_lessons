@@ -72,10 +72,19 @@
     "app/Http/Controllers/Member/SettingsController.php": [
       "001.us-4"
     ],
+    "app/Http/Controllers/Payment/PayuniController.php": [
+      "001.us-7"
+    ],
+    "app/Http/Controllers/Purchase/FreePurchaseController.php": [
+      "001.us-8"
+    ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "001.us-6",
       "005.us-2",
       "005.us-4"
+    ],
+    "app/Http/Middleware/HandleInertiaRequests.php": [
+      "001.us-7"
     ],
     "app/Http/Requests/Admin/StoreTransactionRequest.php": [
       "006.us-3"
@@ -145,9 +154,15 @@
     "app/Models/VerificationCode.php": [
       "001.us-2"
     ],
+    "app/Services/PayuniService.php": [
+      "001.us-7"
+    ],
     "app/Services/TransactionService.php": [
       "006.us-3",
       "006.us-4"
+    ],
+    "config/services.php": [
+      "001.us-7"
     ],
     "resources/js/Components/Admin/TransactionRefundModal.vue": [
       "006.us-4"
@@ -173,11 +188,18 @@
     "resources/js/Pages/Auth/": [
       "001.us-2"
     ],
+    "resources/js/Pages/Auth/Login.vue": [
+      "001.us-7"
+    ],
     "resources/js/Pages/Course/": [
       "001.us-5",
       "002.us-1",
       "002.us-2a",
       "002.us-2b"
+    ],
+    "resources/js/Pages/Course/Show.vue": [
+      "001.us-7",
+      "001.us-8"
     ],
     "resources/js/Pages/Drip/": [
       "005.us-1",
@@ -195,6 +217,13 @@
     ],
     "resources/views/emails/drip-lesson.blade.php": [
       "005.us-5"
+    ],
+    "routes/api.php": [
+      "001.us-7",
+      "001.us-8"
+    ],
+    "routes/web.php": [
+      "001.us-7"
     ]
   }
 }

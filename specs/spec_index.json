@@ -138,25 +138,52 @@
       "id": "001.us-7",
       "module": "001-course-platform-mvp",
       "title": "PayUni 統一金流付費",
-      "summary": "",
+      "summary": "PayUni UPP 信用卡/ATM 付費，Cache 存買家資訊供 NotifyURL 讀取，ReturnURL 使用 web 路由解決 auth 與 race condition",
       "heading": "### User Story 7 - PayUni 統一金流付費 (Priority: P2)",
       "file": "specs/001-course-platform-mvp/spec.md",
       "anchor": "user-story-7---payuni-統一金流付費-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "payuni",
+        "payment",
+        "金流",
+        "付費",
+        "信用卡",
+        "NotifyURL",
+        "ReturnURL",
+        "Cache"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Payment/PayuniController.php",
+        "app/Services/PayuniService.php",
+        "app/Http/Middleware/HandleInertiaRequests.php",
+        "resources/js/Pages/Course/Show.vue",
+        "resources/js/Pages/Auth/Login.vue",
+        "routes/api.php",
+        "routes/web.php",
+        "config/services.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "001.us-8",
       "module": "001-course-platform-mvp",
       "title": "免費課程直接報名",
-      "summary": "",
+      "summary": "price=0 課程展開 inline 表單免費報名，不通過金流",
       "heading": "### User Story 8 - 免費課程直接報名 (Priority: P2)",
       "file": "specs/001-course-platform-mvp/spec.md",
       "anchor": "user-story-8---免費課程直接報名-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "free",
+        "免費",
+        "報名",
+        "inline form"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Purchase/FreePurchaseController.php",
+        "resources/js/Pages/Course/Show.vue",
+        "routes/api.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "002.us-1",
