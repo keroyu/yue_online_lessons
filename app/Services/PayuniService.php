@@ -62,7 +62,7 @@ class PayuniService
             'TradeAmt'    => (int) $course->display_price,
             'ProdDesc'    => mb_substr($course->name, 0, 50),
             'UsrMail'     => $email,
-            'ReturnURL'   => url('/api/payment/payuni/return'),
+            'ReturnURL'   => url('/payment/payuni/return'),
             'NotifyURL'   => url('/api/webhooks/payuni'),
             'Timestamp'   => time(),
             'Lang'        => 'zh-tw',

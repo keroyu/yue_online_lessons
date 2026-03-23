@@ -14,8 +14,7 @@ Route::post('/payment/payuni/initiate', [PayuniController::class, 'initiate'])
     ->name('payuni.initiate');
 Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])
     ->name('payuni.notify');
-Route::post('/payment/payuni/return', [PayuniController::class, 'return'])
-    ->name('payuni.return');
+// ReturnURL moved to web.php for session/auth support
 
 // 免費課程報名
 Route::post('/purchase/free/{course}', [FreePurchaseController::class, 'store'])

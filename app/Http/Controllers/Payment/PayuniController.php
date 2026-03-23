@@ -104,9 +104,9 @@ class PayuniController extends Controller
 
     /**
      * Handle PayUni ReturnURL — browser redirect after payment.
-     * Decrypts result and redirects the user to the appropriate page.
+     * Also processes purchase creation to prevent race condition with NotifyURL.
      *
-     * POST /api/payment/payuni/return
+     * POST /payment/payuni/return (web route, CSRF excluded)
      */
     public function return(Request $request): RedirectResponse
     {
@@ -133,11 +133,19 @@ class PayuniController extends Controller
         ]);
 
         if ($isSuccess) {
-            // Authenticated: go straight to learning page
+            // Process payment here too — handles race condition where
+            // ReturnURL arrives before NotifyURL. processNotify is idempotent.
+            try {
+                $this->payuniService->processNotify($encryptInfo, $hashInfo);
+            } catch (\Exception $e) {
+                Log::error('PayUni Return: processNotify failed', ['error' => $e->getMessage()]);
+            }
+
+            // Now auth() works because this route is on web middleware
             if (auth()->check()) {
                 return redirect('/member/learning')->with('success', '付款成功！您的課程已開通。');
             }
-            // Guest: redirect to login with hint so they know which email to use
+            // Guest: redirect to login with hint
             return redirect('/login?hint=payuni');
         }
 
