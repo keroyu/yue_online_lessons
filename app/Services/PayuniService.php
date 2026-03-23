@@ -24,11 +24,11 @@ class PayuniService
 
     /**
      * Generate a unique MerTradeNo encoding the courseId for later parsing.
-     * Format: YUE-C{courseId:06d}-{YmdHis}-{rand4}
+     * Format: YC{courseId:04d}{YmdHis}{rand4} (26 chars, PayUni max = 28)
      */
     public function generateMerTradeNo(int $courseId): string
     {
-        return sprintf('YUE-C%06d-%s-%04d', $courseId, date('YmdHis'), rand(1000, 9999));
+        return sprintf('YC%04d%s%04d', $courseId, date('YmdHis'), rand(1000, 9999));
     }
 
     /**
@@ -36,6 +36,11 @@ class PayuniService
      */
     public function parseCourseId(string $merTradeNo): ?int
     {
+        // New format: YC{4-digit courseId}{14-digit datetime}{4-digit rand}
+        if (preg_match('/^YC(\d{4})/', $merTradeNo, $matches)) {
+            return (int) $matches[1];
+        }
+        // Legacy format: YUE-C{courseId}-...
         if (preg_match('/^YUE-C(\d+)-/', $merTradeNo, $matches)) {
             return (int) $matches[1];
         }
