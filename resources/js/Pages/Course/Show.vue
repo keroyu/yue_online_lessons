@@ -97,17 +97,25 @@ const openPortaly = () => {
 
 // ── PayUni ────────────────────────────────────────────────────────────────────
 const payuniEmail = ref(page.props.auth?.user?.email || '')
+const payuniName = ref(page.props.auth?.user?.real_name || '')
+const payuniPhone = ref(page.props.auth?.user?.phone || '')
 const payuniSubmitting = ref(false)
 const payuniError = ref('')
 
 const initiatePayuni = async () => {
   payuniError.value = ''
   if (!agreed.value || payuniSubmitting.value) return
+  if (!payuniName.value || !payuniPhone.value) {
+    payuniError.value = '請填寫姓名和電話以完成購買'
+    return
+  }
   payuniSubmitting.value = true
   try {
     const res = await window.axios.post('/api/payment/payuni/initiate', {
       course_id: props.course.id,
       email: payuniEmail.value,
+      name: payuniName.value,
+      phone: payuniPhone.value,
     })
     const { endpoint, fields } = res.data
     const form = document.createElement('form')
@@ -607,18 +615,38 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
               草稿課程，僅供預覽
             </div>
 
-            <!-- PayUni: email input for guests -->
-            <div v-if="usePayuni && !$page.props.auth?.user && !isPreviewMode" class="w-full sm:w-72">
-              <label class="block text-xs font-medium text-gray-600 mb-1">付款 Email（用於課程開通）</label>
-              <input
-                v-model="payuniEmail"
-                type="email"
-                placeholder="your@email.com"
-                class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-              />
-            </div>
-            <div v-else-if="usePayuni && $page.props.auth?.user && !isPreviewMode" class="text-sm text-gray-500">
-              付款 Email：<strong class="text-gray-700">{{ $page.props.auth.user.email }}</strong>
+            <!-- PayUni: user info fields -->
+            <div v-if="usePayuni && !isPreviewMode" class="w-full sm:w-72 space-y-2">
+              <div v-if="!$page.props.auth?.user">
+                <label class="block text-xs font-medium text-gray-600 mb-1">付款 Email <span class="text-red-500">*</span></label>
+                <input
+                  v-model="payuniEmail"
+                  type="email"
+                  placeholder="your@email.com"
+                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                />
+              </div>
+              <div v-else class="text-xs text-gray-500">
+                付款 Email：<strong class="text-gray-700">{{ $page.props.auth.user.email }}</strong>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">姓名 <span class="text-red-500">*</span></label>
+                <input
+                  v-model="payuniName"
+                  type="text"
+                  placeholder="請輸入姓名"
+                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">電話 <span class="text-red-500">*</span></label>
+                <input
+                  v-model="payuniPhone"
+                  type="tel"
+                  placeholder="0912345678"
+                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                />
+              </div>
             </div>
 
             <!-- Free form: inline enrollment -->

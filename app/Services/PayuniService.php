@@ -53,7 +53,7 @@ class PayuniService
      *
      * @return array{ endpoint: string, fields: array }
      */
-    public function buildPaymentForm(Course $course, string $email, string $merTradeNo): array
+    public function buildPaymentForm(Course $course, string $email, string $merTradeNo, ?string $name = null, ?string $phone = null): array
     {
         $params = [
             'MerID'       => config('services.payuni.merchant_id'),
@@ -66,6 +66,13 @@ class PayuniService
             'Timestamp'   => time(),
             'Lang'        => 'zh-tw',
         ];
+
+        if ($name) {
+            $params['UsrName'] = $name;
+        }
+        if ($phone) {
+            $params['UsrMobile'] = $phone;
+        }
 
         $encryptInfo = $this->encrypt($params);
         $hashInfo    = $this->hashInfo($encryptInfo);
@@ -118,6 +125,7 @@ class PayuniService
             'Status'       => $data['Status'] ?? null,
             'TradeStatus'  => $data['TradeStatus'] ?? null,
             'MerTradeNo'   => $data['MerTradeNo'] ?? null,
+            'all_keys'     => array_keys($data),
         ]);
 
         // Only process successful payments
@@ -147,9 +155,10 @@ class PayuniService
             return ['success' => false, 'error' => 'course_not_found'];
         }
 
-        $email = $data['UsrMail'] ?? null;
-        $name  = $data['UsrName'] ?? null;
-        $phone = $data['UsrMobile'] ?? null;
+        // PayUni may return email as 'Email' or 'UsrMail' depending on UPP version
+        $email = $data['Email'] ?? $data['UsrMail'] ?? null;
+        $name  = $data['UsrName'] ?? $data['Name'] ?? null;
+        $phone = $data['UsrMobile'] ?? $data['Mobile'] ?? null;
 
         if (!$email) {
             Log::error('PayUni Notify: missing email', ['MerTradeNo' => $merTradeNo]);

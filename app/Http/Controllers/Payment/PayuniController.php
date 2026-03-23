@@ -26,9 +26,13 @@ class PayuniController extends Controller
      */
     public function initiate(Request $request): JsonResponse
     {
+        $authUser = auth()->user();
+
         $validated = $request->validate([
             'course_id' => ['required', 'integer', 'exists:courses,id'],
             'email'     => ['required', 'email', 'max:255'],
+            'name'      => ['required', 'string', 'max:50'],
+            'phone'     => ['required', 'string', 'max:20'],
         ]);
 
         $course = Course::findOrFail($validated['course_id']);
@@ -43,7 +47,9 @@ class PayuniController extends Controller
             return response()->json(['error' => 'Course not available'], 422);
         }
 
-        $email      = auth()->user()?->email ?? $validated['email'];
+        $email      = $authUser?->email ?? $validated['email'];
+        $name       = $validated['name'];
+        $phone      = $validated['phone'];
         $merTradeNo = $this->payuniService->generateMerTradeNo($course->id);
 
         Log::info('PayUni: initiating payment', [
@@ -53,7 +59,7 @@ class PayuniController extends Controller
             'amount'      => $course->display_price,
         ]);
 
-        $formData = $this->payuniService->buildPaymentForm($course, $email, $merTradeNo);
+        $formData = $this->payuniService->buildPaymentForm($course, $email, $merTradeNo, $name, $phone);
 
         return response()->json($formData);
     }
