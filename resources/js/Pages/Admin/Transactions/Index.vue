@@ -183,7 +183,7 @@ const statusClass = (status, type) => {
 
 const handleRefund = (transaction) => {
   if (!window.confirm('確認將此交易標記為退款？退款後該會員的課程存取將被撤銷。')) return
-  router.post(`/admin/transactions/${transaction.id}/refund`, {}, { preserveScroll: true })
+  router.patch(`/admin/transactions/${transaction.id}/refund`, {}, { preserveScroll: true })
 }
 
 // Chart range helpers
