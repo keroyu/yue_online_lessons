@@ -7,6 +7,8 @@ import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
 
+const page = usePage()
+
 // Disable default layout - this page manages its own AppLayout with hideNav prop
 defineOptions({
   layout: false
@@ -242,8 +244,6 @@ const closeLegalModal = () => {
 // marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
 // Do NOT add DOMPurify here — admin content is trusted and iframes must be preserved.
 const renderedDescription = computed(() => marked(props.course.description_md || ''))
-
-const page = usePage()
 
 // Drip subscription
 const subscribing = ref(false)
