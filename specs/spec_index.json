@@ -1141,9 +1141,21 @@
       "heading": "### User Story 1 - Edit Hero Unit via Admin (Priority: P1)",
       "file": "specs/007-homepage-admin-settings/spec.md",
       "anchor": "user-story-1---edit-hero-unit-via-admin-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "hero",
+        "banner",
+        "upload",
+        "HomepageSettingController",
+        "SiteSetting"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
+        "app/Models/SiteSetting.php",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "resources/js/Layouts/AdminLayout.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "007.us-2",
@@ -1153,9 +1165,21 @@
       "heading": "### User Story 2 - Manage Social (SNS) Links via Admin (Priority: P1)",
       "file": "specs/007-homepage-admin-settings/spec.md",
       "anchor": "user-story-2---manage-social-sns-links-via-admin-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "SNS",
+        "social links",
+        "SocialLink",
+        "SocialLinkController"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/SocialLinkController.php",
+        "app/Http/Requests/Admin/StoreSocialLinkRequest.php",
+        "app/Http/Requests/Admin/UpdateSocialLinkRequest.php",
+        "app/Models/SocialLink.php",
+        "resources/js/Components/SocialLinks.vue",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "007.us-3",
@@ -1165,9 +1189,19 @@
       "heading": "### User Story 3 - Configure Blog RSS URL via Admin (Priority: P2)",
       "file": "specs/007-homepage-admin-settings/spec.md",
       "anchor": "user-story-3---configure-blog-rss-url-via-admin-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "RSS",
+        "blog",
+        "BlogRssService",
+        "blogArticles"
+      ],
+      "code_files": [
+        "app/Services/BlogRssService.php",
+        "app/Http/Controllers/HomeController.php",
+        "resources/js/Components/BlogArticles.vue",
+        "resources/js/Pages/Home.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "007.us-4",
@@ -1177,9 +1211,20 @@
       "heading": "### User Story 4 - View Homepage with New Hero Design (Priority: P2)",
       "file": "specs/007-homepage-admin-settings/spec.md",
       "anchor": "user-story-4---view-homepage-with-new-hero-design-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "hero",
+        "homepage",
+        "Home.vue",
+        "banner",
+        "EXPLORE"
+      ],
+      "code_files": [
+        "resources/js/Pages/Home.vue",
+        "resources/js/Components/SocialLinks.vue",
+        "resources/js/Components/BlogArticles.vue",
+        "app/Http/Controllers/HomeController.php"
+      ],
+      "status": "implemented"
     }
   ]
 }

@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PurchaseSeeder::class,
             ChapterSeeder::class,
             LessonSeeder::class,
+            HomepageSettingsSeeder::class,
         ]);
     }
 }

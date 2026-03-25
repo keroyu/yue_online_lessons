@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\HomepageSettingController;
+use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\Payment\PayuniController;
@@ -123,4 +125,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
+
+    // Homepage settings
+    Route::get('/homepage', [HomepageSettingController::class, 'edit'])->name('homepage.edit');
+    Route::post('/homepage', [HomepageSettingController::class, 'update'])->name('homepage.update');
+    Route::delete('/homepage/banner', [HomepageSettingController::class, 'deleteBanner'])->name('homepage.banner.destroy');
+
+    // Social links CRUD
+    Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');
+    Route::put('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'update'])->name('social-links.update');
+    Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'destroy'])->name('social-links.destroy');
 });

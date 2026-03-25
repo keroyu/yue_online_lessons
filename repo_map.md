@@ -103,6 +103,33 @@ related_specs:
 
 ---
 
+## Homepage Admin Settings (007)
+purpose: admin page to manage hero unit (banner image, title, description, CTA button), SNS social links CRUD, blog RSS URL; DB-backed via site_settings + social_links tables
+specs: specs/007-homepage-admin-settings/
+
+main_files:
+- app/Http/Controllers/Admin/HomepageSettingController.php
+- app/Http/Controllers/Admin/SocialLinkController.php
+- app/Http/Controllers/HomeController.php
+- app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
+- app/Http/Requests/Admin/StoreSocialLinkRequest.php
+- app/Http/Requests/Admin/UpdateSocialLinkRequest.php
+- app/Models/SiteSetting.php
+- app/Models/SocialLink.php
+- app/Services/BlogRssService.php
+- resources/js/Components/BlogArticles.vue
+- resources/js/Components/SocialLinks.vue
+- resources/js/Layouts/AdminLayout.vue
+- resources/js/Pages/Admin/HomepageSettings/Edit.vue
+- resources/js/Pages/Home.vue
+
+related_specs:
+- specs/007-homepage-admin-settings/spec.md
+- specs/007-homepage-admin-settings/data-model.md
+- specs/007-homepage-admin-settings/contracts/inertia-props.md
+
+---
+
 ## Drip Email System (005)
 purpose: free/paid subscription to drip courses, auto email sequences after purchase, admin configuration, tracking
 specs: specs/005-drip-email/

@@ -6,23 +6,27 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class SubstackRssService
+class BlogRssService
 {
-    private const RSS_URL = 'https://getwhealthy.substack.com/feed';
-    private const CACHE_KEY = 'substack_articles';
     private const CACHE_TTL = 3600; // 1 hour
     private const ARTICLE_COUNT = 5;
     private const TIMEOUT_SECONDS = 5;
 
     /**
-     * Get the latest Substack articles from RSS feed.
+     * Get the latest articles from the given RSS feed URL.
      *
      * @return array<int, array{title: string, url: string, published_at: string}>
      */
-    public function getArticles(): array
+    public function getArticles(string $rssUrl): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-            return $this->fetchArticles();
+        if (empty($rssUrl)) {
+            return [];
+        }
+
+        $cacheKey = 'blog_articles_' . md5($rssUrl);
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($rssUrl) {
+            return $this->fetchArticles($rssUrl);
         });
     }
 
@@ -31,13 +35,14 @@ class SubstackRssService
      *
      * @return array<int, array{title: string, url: string, published_at: string}>
      */
-    private function fetchArticles(): array
+    private function fetchArticles(string $rssUrl): array
     {
         try {
-            $response = Http::timeout(self::TIMEOUT_SECONDS)->get(self::RSS_URL);
+            $response = Http::timeout(self::TIMEOUT_SECONDS)->get($rssUrl);
 
             if (! $response->successful()) {
-                Log::warning('Substack RSS feed returned non-successful status', [
+                Log::warning('Blog RSS feed returned non-successful status', [
+                    'url'    => $rssUrl,
                     'status' => $response->status(),
                 ]);
 
@@ -46,7 +51,8 @@ class SubstackRssService
 
             return $this->parseRss($response->body());
         } catch (\Exception $e) {
-            Log::warning('Failed to fetch Substack RSS feed', [
+            Log::warning('Failed to fetch blog RSS feed', [
+                'url'   => $rssUrl,
                 'error' => $e->getMessage(),
             ]);
 
@@ -85,8 +91,8 @@ class SubstackRssService
                 }
 
                 $articles[] = [
-                    'title' => $title,
-                    'url' => $url,
+                    'title'        => $title,
+                    'url'          => $url,
                     'published_at' => $this->formatDate($pubDate),
                 ];
 
@@ -95,7 +101,7 @@ class SubstackRssService
 
             return $articles;
         } catch (\Exception $e) {
-            Log::warning('Failed to parse Substack RSS XML', [
+            Log::warning('Failed to parse blog RSS XML', [
                 'error' => $e->getMessage(),
             ]);
 

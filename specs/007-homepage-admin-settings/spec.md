@@ -2,7 +2,8 @@
 
 **Feature Branch**: `007-homepage-admin-settings`
 **Created**: 2026-03-25
-**Status**: Draft
+**Updated**: 2026-03-26 - 功能實作完成；新增 FR-021 banner 上傳失敗提示（前後端雙層驗證）
+**Status**: Implemented
 **Input**: User description: "對 004-homepage-enhancement 進行增量更新：管理後台新增首頁設定頁，可管理 Hero Unit（橫幅圖片、標題、說明、按鈕）、SNS 連結（新增/修改/排序）、Blog RSS 網址"
 **Depends On**: 004-homepage-enhancement (SNS links and RSS URL currently hardcoded; not yet migrated to config)
 
@@ -20,6 +21,7 @@ As the site administrator, I want to manage the homepage hero section through a 
 
 1. **Given** an admin visits the homepage settings page, **When** they upload a banner image (≥ 1200px wide), enter a title and description, fill in a button label and URL, then click Save, **Then** the homepage hero section reflects all the new content on next load.
 1a. **Given** an admin uploads an image narrower than 1200px, **When** they attempt to save, **Then** the upload is rejected with a message stating the minimum required width, and the existing banner is unchanged.
+1b. **Given** an admin selects a banner image file larger than 5MB, **When** they choose the file in the upload input, **Then** an error message is shown immediately ("圖片檔案過大，請壓縮後再上傳（上限 5MB）") and the form is not submitted — the existing banner remains unchanged.
 2. **Given** a banner image has been uploaded, **When** the admin clicks "刪除橫幅圖片", **Then** the homepage hero falls back to a solid-colour background while preserving the title and description.
 3. **Given** no banner image is set, **When** any visitor views the homepage, **Then** the hero section still displays the title and description against a plain background — no broken image or layout error.
 4. **Given** the hero button label or URL is left empty, **When** a visitor views the homepage, **Then** the EXPLORE button is not rendered at all.
@@ -82,6 +84,7 @@ As a homepage visitor, I want to see a visually engaging hero section with a ban
 
 - What happens when an uploaded image is in an unsupported format (e.g., GIF or PDF)? The system must reject it with a clear validation message and leave the current banner unchanged.
 - What happens when an uploaded image is under 1200px wide? The system must reject it with a message stating the minimum width requirement (1200px); the existing banner remains in place.
+- What happens when an uploaded image exceeds the server's PHP `upload_max_filesize` limit? PHP silently drops the file before Laravel sees it. The frontend MUST detect this via a client-side file size check (`file.size > 5MB`) on selection and display an error immediately. The backend MUST additionally detect `UPLOAD_ERR_INI_SIZE` via `$_FILES` and return a validation error — so the user is never left with a silent no-op save.
 - What happens when an RSS URL is syntactically valid but returns a malformed or empty feed? The section falls back to cached articles or is hidden — no error is exposed to visitors.
 - What happens if the SNS global toggle is on but no links have been added? The social links section is hidden — same result as toggling it off.
 - What happens if the admin tries to add a second link for the same platform (e.g., two Instagram entries)? This is allowed — the platform dropdown is a type selector for icon display only; duplicate platforms are permitted.
@@ -111,7 +114,8 @@ As a homepage visitor, I want to see a visually engaging hero section with a ban
 - **FR-017**: On hover over the hero area, the banner image MUST visibly darken and the call-to-action button MUST become visually brighter or more prominent.
 - **FR-018**: All homepage sections (hero, social links, articles) MUST be responsive across screen widths from 320px to 1920px.
 - **FR-019**: All settings (hero content, social links, RSS URL) MUST be persisted; changes MUST survive server restarts.
-- **FR-020**: Admin navigation MUST include a "首頁設定" entry that links to the homepage settings page.
+- **FR-020**: Admin navigation MUST include a "首頁設定" entry that links to the homepage settings page, positioned above "課程管理" in the sidebar.
+- **FR-021**: Banner image upload MUST fail with a clear error message in two scenarios: (a) client-side — when the selected file exceeds 5MB, detected immediately on file selection before form submission; (b) server-side — when PHP silently drops the file due to `upload_max_filesize` constraints (`UPLOAD_ERR_INI_SIZE`). In both cases the existing banner MUST remain unchanged.
 
 ### Key Entities
 
