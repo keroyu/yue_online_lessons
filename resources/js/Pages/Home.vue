@@ -55,6 +55,9 @@ defineProps({
         <!-- Fallback: solid colour when no image -->
         <div v-else class="h-[160px] sm:h-[240px] bg-brand-navy" />
 
+        <!-- Gradient shadow: bottom 60px, transparent → subtle black -->
+        <div class="absolute inset-x-0 bottom-0 h-[60px] z-10 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+
         <!-- Text block: bottom-left -->
         <div class="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-6 space-y-2">
           <!-- Title: white on solid black strip -->
