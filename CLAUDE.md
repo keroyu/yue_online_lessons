@@ -89,6 +89,8 @@ Need more search: yes/no
 - MySQL — 現有 `purchases` 表（`status` 欄位） (006-transactions-management)
 - PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 + `<script setup>`, Tailwind CSS v4, `chart.js` + `vue-chartjs`（新增） (006-transactions-management)
 - MySQL — 現有 `purchases` 表（無新增 migration） (006-transactions-management)
+- PHP 8.2 / Laravel 12 + Laravel 12, Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4 (007-homepage-admin-settings)
+- MySQL — two new tables (`site_settings`, `social_links`); `Storage::disk('public')` for banner images (007-homepage-admin-settings)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

@@ -1132,6 +1132,54 @@
       "keywords": [],
       "code_files": [],
       "status": "planned"
+    },
+    {
+      "id": "007.us-1",
+      "module": "007-homepage-admin-settings",
+      "title": "Edit Hero Unit via Admin",
+      "summary": "",
+      "heading": "### User Story 1 - Edit Hero Unit via Admin (Priority: P1)",
+      "file": "specs/007-homepage-admin-settings/spec.md",
+      "anchor": "user-story-1---edit-hero-unit-via-admin-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "007.us-2",
+      "module": "007-homepage-admin-settings",
+      "title": "Manage Social (SNS) Links via Admin",
+      "summary": "",
+      "heading": "### User Story 2 - Manage Social (SNS) Links via Admin (Priority: P1)",
+      "file": "specs/007-homepage-admin-settings/spec.md",
+      "anchor": "user-story-2---manage-social-sns-links-via-admin-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "007.us-3",
+      "module": "007-homepage-admin-settings",
+      "title": "Configure Blog RSS URL via Admin",
+      "summary": "",
+      "heading": "### User Story 3 - Configure Blog RSS URL via Admin (Priority: P2)",
+      "file": "specs/007-homepage-admin-settings/spec.md",
+      "anchor": "user-story-3---configure-blog-rss-url-via-admin-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "007.us-4",
+      "module": "007-homepage-admin-settings",
+      "title": "View Homepage with New Hero Design",
+      "summary": "",
+      "heading": "### User Story 4 - View Homepage with New Hero Design (Priority: P2)",
+      "file": "specs/007-homepage-admin-settings/spec.md",
+      "anchor": "user-story-4---view-homepage-with-new-hero-design-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
     }
   ]
 }
