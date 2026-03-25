@@ -16,6 +16,9 @@
     "app/Http/Controllers/Admin/DashboardController.php": [
       "002.us-5"
     ],
+    "app/Http/Controllers/Admin/HomepageSettingController.php": [
+      "007.us-1"
+    ],
     "app/Http/Controllers/Admin/LessonController.php": [
       "002.us-10",
       "002.us-3",
@@ -30,6 +33,9 @@
       "003.us-6",
       "003.us-7",
       "005.us-7"
+    ],
+    "app/Http/Controllers/Admin/SocialLinkController.php": [
+      "007.us-2"
     ],
     "app/Http/Controllers/Admin/TransactionController.php": [
       "006.us-1",
@@ -56,7 +62,9 @@
     "app/Http/Controllers/HomeController.php": [
       "001.us-1",
       "002.us-8",
-      "004.us-1"
+      "004.us-1",
+      "007.us-3",
+      "007.us-4"
     ],
     "app/Http/Controllers/Member/ClassroomController.php": [
       "001.us-3",
@@ -86,8 +94,17 @@
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "001.us-7"
     ],
+    "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
+      "007.us-2"
+    ],
     "app/Http/Requests/Admin/StoreTransactionRequest.php": [
       "006.us-3"
+    ],
+    "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
+      "007.us-1"
+    ],
+    "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
+      "007.us-2"
     ],
     "app/Models/Chapter.php": [
       "002.us-3"
@@ -146,6 +163,12 @@
       "003.us-7",
       "005.us-2"
     ],
+    "app/Models/SiteSetting.php": [
+      "007.us-1"
+    ],
+    "app/Models/SocialLink.php": [
+      "007.us-2"
+    ],
     "app/Models/User.php": [
       "001.us-2",
       "003.us-1",
@@ -153,6 +176,9 @@
     ],
     "app/Models/VerificationCode.php": [
       "001.us-2"
+    ],
+    "app/Services/BlogRssService.php": [
+      "007.us-3"
     ],
     "app/Services/PayuniService.php": [
       "001.us-7"
@@ -167,10 +193,25 @@
     "resources/js/Components/Admin/TransactionRefundModal.vue": [
       "006.us-4"
     ],
+    "resources/js/Components/BlogArticles.vue": [
+      "007.us-3",
+      "007.us-4"
+    ],
+    "resources/js/Components/SocialLinks.vue": [
+      "007.us-2",
+      "007.us-4"
+    ],
+    "resources/js/Layouts/AdminLayout.vue": [
+      "007.us-1"
+    ],
     "resources/js/Pages/Admin/": [
       "002.us-2",
       "002.us-3",
       "002.us-4"
+    ],
+    "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
+      "007.us-1",
+      "007.us-2"
     ],
     "resources/js/Pages/Admin/Member/": [
       "003.us-1",
@@ -209,7 +250,9 @@
       "001.us-1",
       "004.us-1",
       "004.us-2",
-      "004.us-3"
+      "004.us-3",
+      "007.us-3",
+      "007.us-4"
     ],
     "resources/js/Pages/Member/": [
       "001.us-3",

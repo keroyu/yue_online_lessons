@@ -111,8 +111,8 @@ main_files:
 - app/Http/Controllers/Admin/HomepageSettingController.php
 - app/Http/Controllers/Admin/SocialLinkController.php
 - app/Http/Controllers/HomeController.php
-- app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/StoreSocialLinkRequest.php
+- app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
 - app/Models/SiteSetting.php
 - app/Models/SocialLink.php
