@@ -231,7 +231,7 @@ class CourseController extends Controller
     public function destroy(Course $course): RedirectResponse
     {
         // Check if course has any paid purchases (exclude system_assigned and gift)
-        if ($course->purchases()->paid()->exists()) {
+        if ($course->purchases()->purchaseType()->paidStatus()->exists()) {
             return redirect()
                 ->route('admin.courses.index')
                 ->with('error', '此課程已有學員購買，無法刪除');
@@ -240,7 +240,7 @@ class CourseController extends Controller
         // Delete course and system-assigned purchases in a transaction
         DB::transaction(function () use ($course) {
             // Delete system-assigned purchases for this course
-            $course->purchases()->systemAssigned()->delete();
+            $course->purchases()->systemAssignedType()->delete();
 
             // Soft delete the course
             $course->delete();

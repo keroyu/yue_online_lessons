@@ -17,7 +17,7 @@ class LearningController extends Controller
         // Get user's purchases with course data
         $purchases = $user->purchases()
             ->with(['course.lessons'])
-            ->where('status', 'paid')
+            ->paidStatus()
             ->orderBy('created_at', 'desc')
             ->get();
 

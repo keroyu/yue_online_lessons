@@ -79,9 +79,10 @@ class CourseController extends Controller
                 'display_price' => (float) $course->display_price,
             ],
             'hasPurchased' => $user
-                ? Purchase::where('user_id', $user->id)
+                ? Purchase::query()
+                    ->paidStatus()
+                    ->where('user_id', $user->id)
                     ->where('course_id', $course->id)
-                    ->where('status', 'paid')
                     ->exists()
                 : false,
             'isAdmin' => $isAdmin,

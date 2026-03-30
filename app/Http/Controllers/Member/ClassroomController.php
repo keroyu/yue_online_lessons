@@ -32,8 +32,8 @@ class ClassroomController extends Controller
 
         // Check access: purchased OR drip subscription
         $hasPurchased = $user->purchases()
+            ->paidStatus()
             ->where('course_id', $course->id)
-            ->where('status', 'paid')
             ->exists();
 
         if ($isDrip) {
@@ -175,8 +175,8 @@ class ClassroomController extends Controller
     private function hasAccess(int $userId, Course $course): bool
     {
         $hasPurchased = $course->purchases()
+            ->paidStatus()
             ->where('user_id', $userId)
-            ->where('status', 'paid')
             ->exists();
 
         if ($hasPurchased) {

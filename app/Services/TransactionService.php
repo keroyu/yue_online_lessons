@@ -22,7 +22,7 @@ class TransactionService
         // Check if a paid purchase already exists
         $existingPaid = Purchase::where('user_id', $user->id)
             ->where('course_id', $course->id)
-            ->where('status', 'paid')
+            ->paidStatus()
             ->first();
 
         if ($existingPaid) {
@@ -32,7 +32,7 @@ class TransactionService
         // Check if a refunded purchase exists — update it instead of inserting to avoid UNIQUE constraint
         $existingRefunded = Purchase::where('user_id', $user->id)
             ->where('course_id', $course->id)
-            ->where('status', 'refunded')
+            ->refundedStatus()
             ->first();
 
         if ($existingRefunded) {

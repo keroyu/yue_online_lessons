@@ -48,25 +48,41 @@ class Purchase extends Model
     }
 
     /**
-     * Scope for paid purchases (normal purchases via Portaly)
+     * Scope for records whose payment status is paid.
      */
-    public function scopePaid(Builder $query): Builder
+    public function scopePaidStatus(Builder $query): Builder
+    {
+        return $query->where('status', 'paid');
+    }
+
+    /**
+     * Scope for records whose payment status is refunded.
+     */
+    public function scopeRefundedStatus(Builder $query): Builder
+    {
+        return $query->where('status', 'refunded');
+    }
+
+    /**
+     * Scope for purchases created through the normal checkout flow.
+     */
+    public function scopePurchaseType(Builder $query): Builder
     {
         return $query->where('type', 'paid');
     }
 
     /**
-     * Scope for system-assigned purchases (admin auto-ownership)
+     * Scope for system-assigned purchases (admin auto-ownership).
      */
-    public function scopeSystemAssigned(Builder $query): Builder
+    public function scopeSystemAssignedType(Builder $query): Builder
     {
         return $query->where('type', 'system_assigned');
     }
 
     /**
-     * Scope for gift purchases
+     * Scope for gift purchases.
      */
-    public function scopeGift(Builder $query): Builder
+    public function scopeGiftType(Builder $query): Builder
     {
         return $query->where('type', 'gift');
     }
@@ -76,7 +92,7 @@ class Purchase extends Model
      */
     public function scopeForSalesReport(Builder $query): Builder
     {
-        return $query->where('type', 'paid');
+        return $query->purchaseType()->paidStatus();
     }
 
     /**
