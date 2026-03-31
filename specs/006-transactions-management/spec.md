@@ -5,6 +5,7 @@
 **Updated**: 2026-03-11 - 交易列表「課程」欄位新增課程進度顯示（進度條 + X/Y 課）；交易列表每列新增「標記退款」快捷按鈕（置於「查看」按鈕左側）；修正「標記退款」按鈕 hover cursor 與「查看」連結一致；金額欄位強制顯示兩位小數（如 TWD 1200.00）；交易列表上方新增營收圖表（柱狀 + 折線雙軸），支援時間區間篩選（過去 7 / 30 / 90 天、自訂）
 **Updated**: 2026-03-11 - 營收圖表實作完成；圖表高度限制 360px；右 Y 軸整數刻度修正（`beginAtZero` + `stepSize: 1`，防止資料稀少時出現 0.1 小數刻度）
 **Updated**: 2026-03-23 - 修正交易列表「標記退款」按鈕 HTTP method（POST → PATCH），解決 405 Method Not Allowed 錯誤
+**Updated**: 2026-03-30 - 釐清 Purchase 的 `status` 與 `type` 語意；文件中的「有效交易」明確指 `status = paid`
 **Status**: Draft
 **Input**: User description: "在管理後台加上交易紀錄的檢視和管理功能"
 
@@ -119,7 +120,7 @@
 
 - 若某會員帳號已被刪除，交易紀錄仍應保留並顯示原始 buyer_email。
 - Portaly 訂單編號為空（手動建立的交易）時，詳情頁該欄位顯示「—」；CSV 中該欄位為空字串。
-- 同一會員同一課程只允許一筆有效（paid）交易，嘗試重複手動新增應被攔截。
+- 同一會員同一課程只允許一筆有效交易（定義：`status = paid`），嘗試重複手動新增應被攔截。
 - 退款後若管理員重新手動指派，視為新的 system_assigned 紀錄（不恢復舊紀錄）。
 - 選取大量交易（例如超過 5,000 筆）匯出時，系統應能正常處理，不發生逾時或資料截斷。
 - 當某時間區間內所有日期均無 paid 交易（count 全為 0）時，右側 Y 軸刻度 MUST 顯示整數（0, 1, 2...），不得出現 0.1、0.2 等小數。
@@ -156,10 +157,11 @@
 - **FR-026**: 圖表 MUST 在底部顯示圖例，標示柱狀（當日銷售額）與折線（當日銷售量）各自代表的意義。
 - **FR-027**: 銷售額統計卡片數字 MUST 以千分位格式呈現，前加貨幣符號（如 $20,330）；銷售量以純數字呈現。
 - **FR-028**: 營收圖表高度 MUST 固定為 360px，不隨視窗高度縮放。右 Y 軸（銷售量）刻度 MUST 為整數（`precision: 0`、`stepSize: 1`、`beginAtZero: true`），在資料量極少時亦不顯示小數刻度。
+- **FR-029**: 文件與實作 MUST 將 Purchase 的 `status`（paid/refunded）與 `type`（paid/system_assigned/gift）視為兩個獨立維度；權限與營收統計依 `status` 判斷，取得方式與 UI 標籤依 `type` 判斷。
 
 ### Key Entities
 
-- **Purchase（交易）**: 記錄一筆課程購買或指派。核心欄位：購買者、課程、金額、折扣、優惠碼、幣別、狀態（paid/refunded）、來源（source）、類型（paid/system_assigned/gift）、Portaly 訂單編號、Webhook 接收時間。
+- **Purchase（交易）**: 記錄一筆課程購買或指派。核心欄位：購買者、課程、金額、折扣、優惠碼、幣別、狀態（status：paid/refunded）、來源（source）、類型（type：paid/system_assigned/gift）、Portaly 訂單編號、Webhook 接收時間。`status` 表示交易是否仍有效，`type` 表示取得方式。
 - **User（會員）**: 交易的購買者，透過 user_id 關聯；buyer_email 作為備援顯示。
 - **Course（課程）**: 交易所對應的課程，透過 course_id 關聯。
 
@@ -187,3 +189,4 @@
 - 營收圖表僅計算狀態為 paid 的交易，refunded 交易不計入銷售額與銷售量。
 - 圖表日期以台灣時區（UTC+8）為準。
 - 自訂日期區間無上限限制，但超長區間（如超過 1 年）資料點可能較密集，不做額外處理。
+- Purchase 查詢遵循明確語意：`status=paid` 代表有效交易；`type=paid` 僅代表一般購買，不等同於所有可存取交易。

@@ -98,13 +98,13 @@ function changePage(page) {
 
 ### 4. Course Progress Calculation
 
-**Decision**: Calculate progress as aggregate query at list time, cache in member detail modal
+**Decision**: Reuse shared model-level progress summary helper in member detail flows; batch-load completed lesson IDs once per member detail request
 
 **Rationale**:
 - Progress = (completed lessons count) / (total lessons count) × 100
-- Use subquery for efficient calculation without N+1
-- Only show detailed breakdown in member modal (lazy load)
-- Existing `lesson_progress` table tracks completed lessons
+- Member detail modal and member learning page both need the same progress formula
+- Shared helper avoids re-implementing percentage math in multiple controllers
+- Batch-loading completed lesson IDs once keeps the per-course mapping cheap
 
 **Alternatives Considered**:
 - Store calculated progress in database: Rejected - stale data, sync complexity
@@ -113,19 +113,28 @@ function changePage(page) {
 
 **Implementation Pattern**:
 ```php
-// Efficient progress calculation per course
-$coursesWithProgress = $member->purchases()
+// Shared progress calculation with one preloaded progress map
+$courses = $member->purchases()
     ->with(['course.lessons'])
+    ->paidStatus()
     ->get()
-    ->map(function ($purchase) use ($member) {
-        $total = $purchase->course->lessons->count();
-        $completed = $member->lessonProgress()
-            ->whereIn('lesson_id', $purchase->course->lessons->pluck('id'))
-            ->count();
-        return [
-            'course' => $purchase->course,
-            'progress' => $total > 0 ? round($completed / $total * 100) : 0
-        ];
+    ->values();
+
+$progressMap = $member->lessonProgress()
+    ->pluck('lesson_id')
+    ->flip()
+    ->toArray();
+
+$coursesWithProgress = $courses->map(function ($purchase) use ($member, $progressMap) {
+    $progress = $member->getCourseProgressSummary($purchase->course, $progressMap);
+
+    return [
+        'course' => $purchase->course,
+        'progress' => $progress['progress_percent'],
+        'completed_lessons' => $progress['completed_lessons'],
+        'total_lessons' => $progress['total_lessons'],
+        'acquisition_type' => in_array($purchase->type, ['gift', 'system_assigned']) ? 'gift' : 'paid',
+    ];
     });
 ```
 
@@ -148,7 +157,7 @@ $coursesWithProgress = $member->purchases()
 
 **Implementation Pattern**:
 ```php
-$query = User::where('role', 'member')
+$query = User::members()
     ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
         $q->where('email', 'like', "%{$search}%")
           ->orWhere('real_name', 'like', "%{$search}%")
@@ -221,7 +230,7 @@ foreach ($memberIds as $memberId) {
     $member = User::find($memberId);
 
     // Skip if already owns course
-    if ($member->purchases()->where('course_id', $courseId)->exists()) {
+    if ($member->purchases()->paidStatus()->where('course_id', $courseId)->exists()) {
         $this->alreadyOwnedCount++;
         continue;
     }

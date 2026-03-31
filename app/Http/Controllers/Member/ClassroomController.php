@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
-use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Services\DripService;
@@ -24,25 +23,10 @@ class ClassroomController extends Controller
     public function show(Request $request, Course $course): Response|JsonResponse|HttpResponse
     {
         $user = $request->user();
-        $isDrip = $course->course_type === 'drip';
-        $dripSubscription = null;
-
-        // Admin can preview any course without purchase
-        $isAdmin = $user->role === 'admin';
-
-        // Check access: purchased OR drip subscription
-        $hasPurchased = $user->purchases()
-            ->paidStatus()
-            ->where('course_id', $course->id)
-            ->exists();
-
-        if ($isDrip) {
-            $dripSubscription = DripSubscription::where('user_id', $user->id)
-                ->where('course_id', $course->id)
-                ->first();
-        }
-
-        $hasAccess = $isAdmin || $hasPurchased || ($dripSubscription !== null);
+        $isAdmin = $user->isAdmin();
+        $isDrip = $course->is_drip;
+        $dripSubscription = $course->subscriptionForUser($user);
+        $hasAccess = $course->hasAccessForUser($user);
 
         if (!$hasAccess) {
             return Inertia::render('Member/ClassroomUnauthorized', [
@@ -170,29 +154,6 @@ class ClassroomController extends Controller
     }
 
     /**
-     * Check if user has access to a course (purchased or drip subscribed).
-     */
-    private function hasAccess(int $userId, Course $course): bool
-    {
-        $hasPurchased = $course->purchases()
-            ->paidStatus()
-            ->where('user_id', $userId)
-            ->exists();
-
-        if ($hasPurchased) {
-            return true;
-        }
-
-        if ($course->course_type === 'drip') {
-            return DripSubscription::where('user_id', $userId)
-                ->where('course_id', $course->id)
-                ->exists();
-        }
-
-        return false;
-    }
-
-    /**
      * Mark a lesson as complete.
      */
     public function markComplete(Request $request, Course $course, Lesson $lesson): JsonResponse
@@ -204,7 +165,7 @@ class ClassroomController extends Controller
             return response()->json(['error' => '小節不屬於此課程'], 404);
         }
 
-        if (!$this->hasAccess($user->id, $course)) {
+        if (!$course->hasAccessForUser($user)) {
             return response()->json(['error' => '您尚未購買此課程'], 403);
         }
 
@@ -229,7 +190,7 @@ class ClassroomController extends Controller
             return response()->json(['error' => '小節不屬於此課程'], 404);
         }
 
-        if (!$this->hasAccess($user->id, $course)) {
+        if (!$course->hasAccessForUser($user)) {
             return response()->json(['error' => '您尚未購買此課程'], 403);
         }
 
@@ -247,7 +208,7 @@ class ClassroomController extends Controller
     public function preview(Request $request, Course $course): Response
     {
         // Drip courses don't support preview
-        if ($course->course_type === 'drip') {
+        if ($course->is_drip) {
             abort(404);
         }
 

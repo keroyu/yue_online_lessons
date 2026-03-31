@@ -313,8 +313,9 @@ preorder/selling ──下架──→ draft
 | currency | varchar(10) | default: 'TWD' | 幣別 |
 | discount_code | varchar(50) | nullable | 折扣碼 |
 | discount_amount | int unsigned | default: 0 | 折扣金額 |
-| status | varchar(20) | default: 'paid' | 狀態 (paid, refunded) |
-| **type** | varchar(20) | default: 'paid' | 購買類型 |
+| status | varchar(20) | default: 'paid' | 付款狀態（paid, refunded） |
+| **type** | varchar(20) | default: 'paid' | 取得類型（paid, system_assigned, gift） |
+| source | varchar(20) | nullable | 建立來源（portaly, payuni, free, manual） |
 | created_at | timestamp | not null | 購買時間 |
 | updated_at | timestamp | not null | 更新時間 |
 
@@ -322,6 +323,10 @@ preorder/selling ──下架──→ draft
 - `paid` = 一般購買（透過 Portaly 付款）
 - `system_assigned` = 系統指派（管理員建立課程時自動獲得）
 - `gift` = 贈送（管理員後台手動指派）
+
+**語意區分（2026-03-30 補記）**:
+- `status` 決定該筆購買是否仍提供存取權（`paid` = 有效，`refunded` = 已撤銷）
+- `type` 僅描述取得方式，不應被拿來判斷退款或權限是否有效
 
 **系統指派特性**:
 - 金額為 $0
@@ -334,6 +339,7 @@ preorder/selling ──下架──→ draft
 - `course_id`
 - composite: `user_id, course_id` (unique)
 - `type` (for filtering in reports)
+- `status` (for access control and refund filtering)
 
 **Relationships**:
 - belongsTo: User

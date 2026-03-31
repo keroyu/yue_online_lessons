@@ -44,11 +44,11 @@ const form = useForm({
   promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
-  type: props.course?.type || 'lecture',
+  type: props.course?.product_type || props.course?.type || 'lecture',
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   is_visible: props.course?.is_visible ?? true,
-  course_type: props.course?.course_type || 'standard',
+  course_type: props.course?.delivery_mode || props.course?.course_type || 'standard',
   drip_interval_days: props.course?.drip_interval_days || '',
   target_course_ids: props.course?.target_course_ids || [],
 })
@@ -284,7 +284,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <p v-if="form.errors.description" :class="errorTextClasses">{{ form.errors.description }}</p>
         </div>
 
-        <!-- Two columns for Instructor & Type -->
+        <!-- Two columns for Instructor & Product Type -->
         <div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
           <!-- Instructor Name -->
           <div>
@@ -301,10 +301,10 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             <p v-if="form.errors.instructor_name" :class="errorTextClasses">{{ form.errors.instructor_name }}</p>
           </div>
 
-          <!-- Type -->
+          <!-- Product Type -->
           <div>
             <label for="type" :class="labelClasses">
-              課程類型 <span class="text-red-500">*</span>
+              產品類型 <span class="text-red-500">*</span>
             </label>
             <select
               id="type"
@@ -315,6 +315,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 {{ type.label }}
               </option>
             </select>
+            <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程」等產品分類。</p>
             <p v-if="form.errors.type" :class="errorTextClasses">{{ form.errors.type }}</p>
           </div>
         </div>

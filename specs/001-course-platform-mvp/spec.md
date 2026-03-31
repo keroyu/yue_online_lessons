@@ -18,6 +18,7 @@
 **Updated**: 2026-03-22 - 販售頁新增懸浮購買面板（floating buy panel）：scroll 過頂部資訊區後從右側滑入，顯示價格、優惠倒數計時與購買按鈕；scroll 到底部購買區時自動收回
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（portaly_product_id 空且 price > 0）與免費課程直接報名（portaly_product_id 空且 price = 0）
 **Updated**: 2026-03-23 - PayUni 金流 debug 修正：MerTradeNo 縮短至 26 字元、NotifyURL 買家資訊改從 Cache 讀取、ReturnURL 移至 web 路由解決 auth/race condition、付款表單必填姓名電話、退款按鈕 HTTP method 修正
+**Updated**: 2026-03-30 - 明確區分 Purchase 的付款狀態（status）與取得類型（type）；文件不再混用兩者語意
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -264,7 +265,7 @@
 
 - **User（會員）**: 代表平台用戶，包含 email、暱稱、真實姓名（選填）、電話（選填）、出生年月日、角色（管理員/編輯/一般會員）、建立時間、最後登入時間、最後登入 IP
 - **Course（課程）**: 代表販售的數位內容，包含名稱、一句話簡介、完整介紹、價格、縮圖、教師資訊、類型（講座/迷你課/大型課程）、上架狀態、排序順序、Portaly 產品頁連結、Portaly productId
-- **Purchase（購買紀錄）**: 代表會員與課程的購買關係，包含 Portaly 訂單編號（portaly_order_id）、PayUni 交易編號（payuni_trade_no）、購買時間、金額、幣別、折扣碼（選填）、折扣金額、付款狀態（已付款/已退款）、來源（portaly / payuni / free / system_assigned / gift）
+- **Purchase（購買紀錄）**: 代表會員與課程的購買關係，包含 Portaly 訂單編號（portaly_order_id）、PayUni 交易編號（payuni_trade_no）、購買時間、金額、幣別、折扣碼（選填）、折扣金額、付款狀態（status：paid / refunded）、取得類型（type：paid / system_assigned / gift）、來源（source：portaly / payuni / free / manual）
 
 ## Success Criteria *(mandatory)*
 
@@ -334,6 +335,7 @@
 - Portaly 可能將多個產品的 webhook 發送到同一端點，系統應靜默忽略不相關產品（productId 不在資料庫中的課程）
 - 課程 slug 若未設定，系統自動回退使用數字 ID（`resolveRouteBinding` fallback），舊有連結永不失效
 - slug 格式限制：英文小寫、數字、連字號（regex: `/^[a-z0-9\-]+$/`），唯一性在資料庫層保證
+- Purchase 查詢語意採雙軸：`status` 代表付款是否仍有效，`type` 代表取得方式；兩者不得混用
 
 ### Session 2026-01-31 (Webhook 處理優化)
 

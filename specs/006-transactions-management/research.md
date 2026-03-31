@@ -52,10 +52,10 @@ return response()->streamDownload(function () use ($query) {
 
 ## R-003: 手動新增交易的課程存取控制
 
-**Decision**: 手動新增（system_assigned / gift）的交易 status 為 `paid`，amount 為 `0`。存取控制沿用現有 Purchase 存在即有效的判斷邏輯（`purchases` 表有 paid 紀錄即可進入教室），無需額外欄位。
+**Decision**: 手動新增（system_assigned / gift）的交易 status 為 `paid`，amount 為 `0`。存取控制以 Purchase 的付款狀態為準，只要存在 `paidStatus()` 紀錄即可進入教室；`type` 僅表示取得方式，無需額外欄位。
 
 **Rationale**:
-- 現有 `Member\ClassroomController` 檢查 `$user->purchases()->where('course_id', ...)->where('status', 'paid')->exists()`
+- 現有 `Member\ClassroomController` 檢查 `$user->purchases()->paidStatus()->where('course_id', ...)->exists()`
 - 新建一筆 status=paid、amount=0 的 Purchase 即自動授予存取，不需改動已有存取邏輯
 - `source` 欄位記錄 `'manual'`，`type` 記錄 `'system_assigned'` 或 `'gift'`
 
@@ -67,7 +67,7 @@ return response()->streamDownload(function () use ($query) {
 
 ## R-004: 退款操作撤銷存取
 
-**Decision**: 退款 = 將該筆 Purchase 的 `status` 更新為 `refunded`。現有存取控制查詢 `where('status', 'paid')`，改為 `refunded` 後自動失效，無需刪除紀錄。
+**Decision**: 退款 = 將該筆 Purchase 的 `status` 更新為 `refunded`。現有存取控制查詢 `paidStatus()`，改為 `refunded` 後自動失效，無需刪除紀錄。
 
 **Rationale**:
 - 保留紀錄供對帳與審計追蹤（刪除會丟失歷史）

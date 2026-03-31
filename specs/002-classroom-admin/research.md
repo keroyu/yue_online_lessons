@@ -141,18 +141,19 @@ Course::where('status', 'preorder')
 ## Admin Middleware
 
 ### Decision
-使用自定義 Middleware 檢查 `role === 'admin'`。
+使用自定義 Middleware，但實作層優先透過 `User::isAdmin()` 判斷，而不是在 middleware 中直接比對 role 字串。
 
 ### Rationale
 - 簡單直接，符合現有 User model 的 role 欄位設計
 - 可複用於所有 admin 路由群組
+- 角色判斷集中在 User model，可避免 controller / middleware 散落重複字串
 
 ### Implementation
 ```php
 // app/Http/Middleware/AdminMiddleware.php
 public function handle($request, Closure $next)
 {
-    if (!auth()->check() || auth()->user()->role !== 'admin') {
+    if (!auth()->check() || !auth()->user()->isAdmin()) {
         return redirect('/')->with('error', '您沒有權限存取此頁面');
     }
     return $next($request);

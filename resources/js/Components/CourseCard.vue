@@ -90,7 +90,7 @@ const isHidden = computed(() => {
 
       <!-- Type badge -->
       <span class="absolute top-2 left-2 bg-brand-teal text-white text-xs px-2 py-1 rounded">
-        {{ getTypeLabel(course.type) }}
+        {{ getTypeLabel(course.product_type) }}
       </span>
 
       <!-- Status badge (admin only) -->

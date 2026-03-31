@@ -138,9 +138,9 @@
 | currency | varchar(10) | default: 'TWD' | 幣別 |
 | coupon_code | varchar(50) | nullable | 折扣碼 |
 | discount_amount | decimal(10,2) | default: 0 | 折扣金額 |
-| status | enum('paid','refunded') | not null | 付款狀態 |
-| type | varchar(20) | default: 'paid' | 付款類型（目前僅 'paid'） |
-| source | varchar(20) | nullable | 購買來源：`portaly` / `payuni` / `free` |
+| status | enum('paid','refunded') | not null | 付款狀態（是否仍有效） |
+| type | varchar(20) | default: 'paid' | 取得類型：`paid` / `system_assigned` / `gift` |
+| source | varchar(20) | nullable | 建立來源：`portaly` / `payuni` / `free` / `manual` |
 | webhook_received_at | timestamp | nullable | Webhook / 建立時間（除錯用） |
 | created_at | timestamp | not null | 購買時間 |
 | updated_at | timestamp | not null | 更新時間 |
@@ -161,6 +161,7 @@
 - `portaly_order_id` 改為 nullable（PayUni 和免費課程不使用）
 - `payuni_trade_no` 格式：`YUE-C{courseId:06d}-{YmdHis}-{rand4}`，供 NotifyURL 解析 courseId
 - `source` 欄位區分購買來源，便於報表和後台管理
+- `status` 與 `type` 為兩個獨立維度：`status=paid` 代表該筆權限仍有效，`type` 僅表示取得方式
 - `buyer_email` 記錄購買時的 email，方便追蹤
 - `webhook_received_at` 記錄 webhook 接收時間，便於除錯
 

@@ -44,7 +44,7 @@ class MemberController extends Controller
 
         // Build query for members only
         $query = User::query()
-            ->where('role', 'member');
+            ->members();
 
         // Apply search filter
         if ($search) {
@@ -96,7 +96,7 @@ class MemberController extends Controller
     public function show(User $member): JsonResponse
     {
         // Ensure we're only showing members (not admins/editors)
-        if ($member->role !== 'member') {
+        if (!$member->isMember()) {
             abort(404, '找不到該會員');
         }
 
@@ -105,23 +105,26 @@ class MemberController extends Controller
             ->with(['course.lessons'])
             ->paidStatus()
             ->get()
-            ->map(function ($purchase) use ($member) {
+            ->values();
+
+        $progressMap = $member->lessonProgress()
+            ->pluck('lesson_id')
+            ->flip()
+            ->toArray();
+
+        $courses = $courses
+            ->map(function ($purchase) use ($member, $progressMap) {
                 $course = $purchase->course;
-                $totalLessons = $course->lessons->count();
-                $completedLessons = $member->lessonProgress()
-                    ->whereIn('lesson_id', $course->lessons->pluck('id'))
-                    ->count();
+                $progress = $member->getCourseProgressSummary($course, $progressMap);
 
                 return [
                     'id' => $course->id,
                     'name' => $course->name,
                     'purchased_at' => $purchase->created_at->toIso8601String(),
                     'acquisition_type' => in_array($purchase->type, ['gift', 'system_assigned']) ? 'gift' : 'paid',
-                    'total_lessons' => $totalLessons,
-                    'completed_lessons' => $completedLessons,
-                    'progress_percent' => $totalLessons > 0
-                        ? (int) round($completedLessons / $totalLessons * 100)
-                        : 0,
+                    'total_lessons' => $progress['total_lessons'],
+                    'completed_lessons' => $progress['completed_lessons'],
+                    'progress_percent' => $progress['progress_percent'],
                 ];
             });
 
@@ -147,7 +150,7 @@ class MemberController extends Controller
     public function update(UpdateMemberRequest $request, User $member)
     {
         // Ensure we're only updating members (not admins/editors)
-        if ($member->role !== 'member') {
+        if (!$member->isMember()) {
             abort(403, '只能編輯會員資料');
         }
 
@@ -175,7 +178,7 @@ class MemberController extends Controller
 
         // Get members with valid emails (members only)
         $members = User::whereIn('id', $memberIds)
-            ->where('role', 'member')
+            ->members()
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->get();
@@ -222,7 +225,7 @@ class MemberController extends Controller
         $courseId = $request->input('course_id');
 
         $query = User::query()
-            ->where('role', 'member');
+            ->members();
 
         // Apply search filter
         if ($search) {
@@ -256,7 +259,7 @@ class MemberController extends Controller
 
         // Get valid members (members only)
         $validMembers = User::whereIn('id', $memberIds)
-            ->where('role', 'member')
+            ->members()
             ->get();
 
         if ($validMembers->isEmpty()) {

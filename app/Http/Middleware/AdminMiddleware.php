@@ -15,7 +15,7 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || auth()->user()->role !== 'admin') {
+        if (!auth()->check() || !auth()->user()->isAdmin()) {
             return redirect('/')
                 ->with('error', '您沒有權限存取此頁面');
         }

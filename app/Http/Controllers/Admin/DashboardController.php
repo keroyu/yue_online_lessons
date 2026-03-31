@@ -20,7 +20,7 @@ class DashboardController extends Controller
             'total_courses' => Course::count(),
             'published_courses' => Course::where('is_published', true)->count(),
             'draft_courses' => Course::where('status', 'draft')->count(),
-            'total_users' => User::where('role', 'member')->count(),
+            'total_users' => User::members()->count(),
             'total_purchases' => Purchase::count(),
         ];
 

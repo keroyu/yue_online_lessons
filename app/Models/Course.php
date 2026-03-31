@@ -87,9 +87,62 @@ class Course extends Model
         return $this->hasMany(DripSubscription::class);
     }
 
+    public function paidPurchases(): HasMany
+    {
+        return $this->purchases()->paidStatus();
+    }
+
     public function hasPreviewLessons(): bool
     {
         return $this->lessons()->where('is_preview', true)->exists();
+    }
+
+    public function subscriptionForUser(?User $user): ?DripSubscription
+    {
+        if (!$user || !$this->is_drip) {
+            return null;
+        }
+
+        return $this->dripSubscriptions()
+            ->where('user_id', $user->id)
+            ->first();
+    }
+
+    public function hasPaidAccessForUser(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $this->paidPurchases()
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    public function hasAccessForUser(?User $user, bool $includeAdmin = true): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($includeAdmin && $user->isAdmin()) {
+            return true;
+        }
+
+        if ($this->hasPaidAccessForUser($user)) {
+            return true;
+        }
+
+        return $this->subscriptionForUser($user) !== null;
+    }
+
+    public function canUserSubscribe(?User $user): bool
+    {
+        if (!$this->is_drip) {
+            return false;
+        }
+
+        return $this->subscriptionForUser($user) === null;
     }
 
     public function scopePublished(Builder $query): Builder

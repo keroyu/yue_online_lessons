@@ -149,6 +149,7 @@ Get member details including courses and progress (for modal).
     id: number
     name: string
     purchased_at: string  // ISO 8601
+    acquisition_type: 'paid' | 'gift'
     total_lessons: number
     completed_lessons: number
     progress_percent: number  // 0-100

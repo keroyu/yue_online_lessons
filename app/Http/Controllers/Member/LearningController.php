@@ -28,29 +28,16 @@ class LearningController extends Controller
             ->toArray();
 
         // Map to MyCourse format for frontend
-        $courses = $purchases->map(function ($purchase) use ($progressMap) {
+        $courses = $purchases->map(function ($purchase) use ($progressMap, $user) {
             $course = $purchase->course;
-            $totalLessons = $course->lessons->count();
-            $completedLessons = 0;
-
-            if ($totalLessons > 0) {
-                foreach ($course->lessons as $lesson) {
-                    if (isset($progressMap[$lesson->id])) {
-                        $completedLessons++;
-                    }
-                }
-            }
-
-            $progressPercent = $totalLessons > 0
-                ? round(($completedLessons / $totalLessons) * 100)
-                : 0;
+            $progress = $user->getCourseProgressSummary($course, $progressMap);
 
             return [
                 'id' => $course->id,
                 'name' => $course->name,
                 'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
-                'progress_percent' => $progressPercent,
+                'progress_percent' => $progress['progress_percent'],
                 'purchased_at' => $purchase->created_at->toIso8601String(),
             ];
         });

@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Models\DripSubscription;
-use App\Models\Purchase;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -27,24 +25,11 @@ class CourseController extends Controller
         $isPreviewMode = $isDraft && $isAdmin;
 
         // Drip course subscription info
-        $isDrip = $course->course_type === 'drip';
+        $isDrip = $course->is_drip;
         $hasPreviewLessons = !$isDraft && !$isDrip && $course->hasPreviewLessons();
-        $userSubscription = null;
-        $canSubscribe = false;
-
-        if ($isDrip && $user) {
-            $subscription = DripSubscription::where('user_id', $user->id)
-                ->where('course_id', $course->id)
-                ->first();
-
-            if ($subscription) {
-                $userSubscription = $subscription->status;
-            } else {
-                $canSubscribe = true;
-            }
-        } elseif ($isDrip && !$user) {
-            $canSubscribe = true;
-        }
+        $subscription = $course->subscriptionForUser($user);
+        $userSubscription = $subscription?->status;
+        $canSubscribe = $course->canUserSubscribe($user);
 
         view()->share('og', [
             'title' => $course->name . ' - Your Time Bank',
@@ -67,8 +52,8 @@ class CourseController extends Controller
                 'is_promo_active' => $course->is_promo_active,
                 'thumbnail' => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
-                'type' => $course->type,
-                'course_type' => $course->course_type,
+                'product_type' => $course->type,
+                'delivery_mode' => $course->course_type,
                 'status' => $course->status,
                 'is_published' => $course->is_published,
                 'duration_formatted' => $course->duration_formatted,
@@ -78,13 +63,7 @@ class CourseController extends Controller
                 'is_free' => !$course->portaly_product_id && $course->price == 0,
                 'display_price' => (float) $course->display_price,
             ],
-            'hasPurchased' => $user
-                ? Purchase::query()
-                    ->paidStatus()
-                    ->where('user_id', $user->id)
-                    ->where('course_id', $course->id)
-                    ->exists()
-                : false,
+            'hasPurchased' => $course->hasPaidAccessForUser($user),
             'isAdmin' => $isAdmin,
             'isPreviewMode' => $isPreviewMode,
             'isHidden' => !$course->is_visible,

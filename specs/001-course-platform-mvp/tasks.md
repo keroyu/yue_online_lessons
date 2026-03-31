@@ -747,7 +747,7 @@ Task: T018 "Create VerificationCode model"
   - 浮動面板條件：`showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction`
   - 按鈕 disabled: `!isPreviewMode && (!agreed || !hasBuyAction)`；免費課程不顯示同意條款
 - [x] T133 [US7] 後端傳入 `hasPurchased` prop + 前端「前往學習」按鈕 in `app/Http/Controllers/CourseController.php` + `resources/js/Pages/Course/Show.vue`
-  - `'hasPurchased' => $user ? Purchase::where('user_id', $user->id)->where('course_id', $course->id)->where('status', 'paid')->exists() : false`
+  - `'hasPurchased' => $user ? Purchase::query()->paidStatus()->where('user_id', $user->id)->where('course_id', $course->id)->exists() : false`
   - 前端：`hasPurchased` 為 true 時，主購買按鈕與浮動面板按鈕改為「前往學習」，導向 `/member/learning`
 - [x] T134 [P] [US7] 登入頁顯示 PayUni 購買完成提示 in `resources/js/Pages/Auth/Login.vue`
   - `PayuniController::return()` 已登入導向 `/member/learning`，未登入導向 `/login?hint=payuni`

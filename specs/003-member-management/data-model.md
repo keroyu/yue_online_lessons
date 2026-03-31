@@ -3,6 +3,7 @@
 **Feature**: 003-member-management
 **Date**: 2026-01-17
 **Updated**: 2026-01-18
+**Updated**: 2026-03-31 - 對齊目前實作：會員篩選改以 `User::members()` / `isMember()`，課程進度改用 `getCourseProgressSummary()`，擁有權判斷僅計入 `paidStatus()`
 
 ## Entities Overview
 
@@ -27,7 +28,7 @@ This feature primarily uses existing entities with minor extensions.
 
 ### User (as Member)
 
-Members are users with `role = 'member'`.
+Members are users with `role = 'member'`. In code, member-only queries should prefer the shared `User::members()` scope, and member checks should prefer `User::isMember()`.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
@@ -73,7 +74,7 @@ Links members to courses they own (via purchase or gift).
 - `belongsTo` User
 - `belongsTo` Course
 
-**Note**: The `type` field distinguishes between paid purchases ('paid'), gifted courses ('gift'), and system-assigned courses ('system_assigned'). All grant full course access.
+**Note**: Course ownership is determined by `status`, not `type`. Only purchases in paid status grant active access; `type` only distinguishes how the course was obtained.
 
 ---
 
@@ -136,20 +137,34 @@ Lesson entity (read-only for this feature).
 ### User Model Extensions
 
 ```php
-// New accessor: Course progress for a specific course
-public function getCourseProgress(Course $course): int
+// Shared summary for member/admin progress views
+public function getCourseProgressSummary(Course $course, ?array $completedLessonIds = null): array
 {
-    $totalLessons = $course->lessons()->count();
-    if ($totalLessons === 0) return 0;
-
-    $completedLessons = $this->lessonProgress()
-        ->whereIn('lesson_id', $course->lessons()->pluck('id'))
-        ->count();
-
-    return (int) round($completedLessons / $totalLessons * 100);
+    // returns:
+    // [
+    //   'completed_lessons' => int,
+    //   'total_lessons' => int,
+    //   'progress_percent' => int,
+    // ]
 }
 
-// New relationship: All lesson progress records
+// Backward-compatible convenience wrapper
+public function getCourseProgress(Course $course): int
+{
+    return $this->getCourseProgressSummary($course)['progress_percent'];
+}
+
+// Member predicates used by admin/member flows
+public function isMember(): bool
+{
+    return $this->role === 'member';
+}
+
+public function scopeMembers(Builder $query): Builder
+{
+    return $query->where('role', 'member');
+}
+
 public function lessonProgress(): HasMany
 {
     return $this->hasMany(LessonProgress::class);
@@ -165,7 +180,7 @@ public function lessonProgress(): HasMany
 ```php
 // Paginated member list with search and course filter
 User::query()
-    ->where('role', 'member')
+    ->members()
     ->when($search, fn ($q) =>
         $q->where('email', 'like', "%{$search}%")
           ->orWhere('real_name', 'like', "%{$search}%")
@@ -186,24 +201,35 @@ User::query()
 // Eager load courses with progress calculation
 $member->purchases()
     ->with('course.lessons')
+    ->paidStatus()
     ->get()
-    ->map(fn ($purchase) => [
+    ->values();
+
+$progressMap = $member->lessonProgress()
+    ->pluck('lesson_id')
+    ->flip()
+    ->toArray();
+
+$courses->map(function ($purchase) use ($member, $progressMap) {
+    $progress = $member->getCourseProgressSummary($purchase->course, $progressMap);
+
+    return [
         'course_id' => $purchase->course_id,
         'course_name' => $purchase->course->name,
-        'total_lessons' => $purchase->course->lessons->count(),
-        'completed_lessons' => $member->lessonProgress()
-            ->whereIn('lesson_id', $purchase->course->lessons->pluck('id'))
-            ->count(),
-        'progress_percent' => $member->getCourseProgress($purchase->course),
+        'acquisition_type' => in_array($purchase->type, ['gift', 'system_assigned']) ? 'gift' : 'paid',
+        'total_lessons' => $progress['total_lessons'],
+        'completed_lessons' => $progress['completed_lessons'],
+        'progress_percent' => $progress['progress_percent'],
         'purchased_at' => $purchase->created_at,
-    ]);
+    ];
+});
 ```
 
 ### Count Members Matching Filter
 
 ```php
 // For "Select all X matching members" display
-$count = User::where('role', 'member')
+$count = User::members()
     ->when($search, /* same as above */)
     ->when($courseId, /* same as above */)
     ->count();
@@ -238,13 +264,13 @@ Existing indexes are sufficient:
 
 ### Business Rules
 
-1. Only users with `role = 'member'` appear in member management
+1. Only users matching `User::members()` appear in member management
 2. Email must remain unique across all users (including admins)
 3. Members cannot be deleted if they have purchases (soft delete consideration for future)
 4. Progress calculation treats non-existent lesson_progress as 0% complete
 5. A member can only have one purchase record per course (prevents duplicate gifts)
 6. Purchase types: `type='paid'` (normal purchase), `type='gift'` (admin gifted), `type='system_assigned'` (auto-assigned to admin)
-7. All purchase types grant the same course access regardless of type
+7. Active course ownership is based on `Purchase.status = paid`; `type` only affects UI labels such as gifted vs purchased
 
 ---
 
@@ -255,8 +281,10 @@ Existing indexes are sufficient:
 ```php
 // Filter out members who already own the course
 $membersToGift = User::whereIn('id', $memberIds)
+    ->members()
     ->whereDoesntHave('purchases', fn ($q) =>
         $q->where('course_id', $courseId)
+          ->paidStatus()
     )
     ->get();
 ```
@@ -281,8 +309,10 @@ Purchase::create([
 ```php
 // Count members who already own the course
 $alreadyOwnedCount = User::whereIn('id', $memberIds)
+    ->members()
     ->whereHas('purchases', fn ($q) =>
         $q->where('course_id', $courseId)
+          ->paidStatus()
     )
     ->count();
 ```

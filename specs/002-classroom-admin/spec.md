@@ -24,6 +24,7 @@
 **Updated**: 2026-03-09 - 教室側欄新增展開/收合動態效果（桌機 width slide + 手機 translate slide）
 **Updated**: 2026-03-09 - 側欄右邊緣新增細長 toggle tab，內含方向性 chevron，hover 顯示手指游標
 **Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長改為 M:SS 文字輸入；課程總時長改為從影片小節自動計算，移除課程表單手動輸入欄位
+**Updated**: 2026-03-30 - 補充 Purchase 文件語意：status 與 type 為不同維度，避免存取權與取得方式混淆
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -482,7 +483,7 @@
 - **LessonProgress（學習進度）**: 會員點擊小節時新增一筆紀錄（會員 ID + 小節 ID），有紀錄即代表已完成
 - **CourseImage（課程圖片）**: 課程相簿中的圖片，包含課程 ID、圖片路徑、檔案名稱、上傳時間、圖片原始寬高（供前端計算比例）
 - **Course（課程）擴充**: 新增狀態欄位（草稿/預購中/熱賣中）、開賣時間、介紹 Markdown 內容、時間總長（duration_minutes, 整數，單位：分鐘）、Portaly 商品 ID（portaly_product_id，字串，用於產生購買連結）、優惠價（price, 整數）、原價（original_price, 整數，可為空）、優惠到期時間（promo_ends_at, 日期時間，可為空）、是否顯示（is_visible, 布林值，預設 true）
-- **Purchase（購買紀錄）擴充**: 新增購買類型欄位（type），支援「paid」（一般購買）、「system_assigned」（系統指派）、「gift」（贈送）；系統指派類型的紀錄不計入銷售統計
+- **Purchase（購買紀錄）擴充**: 購買紀錄同時包含付款狀態（status：`paid` / `refunded`）與取得類型（type：`paid` / `system_assigned` / `gift`）；`status` 決定權限是否有效，`type` 僅表示取得方式；系統指派類型的紀錄不計入銷售統計
 
 ## Success Criteria *(mandatory)*
 

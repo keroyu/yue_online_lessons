@@ -70,7 +70,7 @@ class ChapterController extends Controller
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
-                'course_type' => $course->course_type,
+                'delivery_mode' => $course->course_type,
                 'status' => $course->status,
             ],
             'chapters' => $chapters,

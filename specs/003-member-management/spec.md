@@ -6,6 +6,7 @@
 **Updated**: 2026-03-09 - 改為同步發送 Email（Mail::send），移除 Queue 依賴（FR-017, FR-027, SC-007）
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名錯誤（.text.blade.php → .blade.php）；批次 Email 支援 Markdown 格式輸入
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤（贈送／購買）
+**Updated**: 2026-03-30 - 補充 Purchase 語意：會員擁有權以 status 判斷，取得方式標籤以 type 判斷
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -186,7 +187,7 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 ### Key Entities
 
 - **Member (User)**: User with role "member". Key attributes: email, nickname, real_name, phone, birth_date, last_login_ip, last_login_at, created_at.
-- **Purchase**: Links member to course. Represents course ownership. Three types: 'paid' (normal purchase), 'gift' (admin gifted), 'system_assigned' (auto-assigned to course creator). Distinguished by type field.
+- **Purchase**: Links member to course. Represents course ownership. `status` indicates whether access is still active (`paid` / `refunded`); `type` indicates how the course was acquired (`paid` / `gift` / `system_assigned`). Member ownership filters use `status`; UI labels use `type`.
 - **Course**: The course product that members can purchase or receive as gift. Key attributes include name and description for gift notification emails.
 - **LessonProgress**: Tracks which lessons a member has completed for progress calculation.
 - **BatchEmail**: A record of batch email operations including subject, body, recipient count, and send status.

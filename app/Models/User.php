@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -55,6 +56,16 @@ class User extends Authenticatable
         return $this->role === 'editor';
     }
 
+    public function isMember(): bool
+    {
+        return $this->role === 'member';
+    }
+
+    public function scopeMembers(Builder $query): Builder
+    {
+        return $query->where('role', 'member');
+    }
+
     public function lessonProgress(): HasMany
     {
         return $this->hasMany(LessonProgress::class);
@@ -71,19 +82,51 @@ class User extends Authenticatable
     }
 
     /**
+     * Get course progress summary for a specific course.
+     */
+    public function getCourseProgressSummary(Course $course, ?array $completedLessonIds = null): array
+    {
+        $lessonIds = $course->relationLoaded('lessons')
+            ? $course->lessons->pluck('id')->all()
+            : $course->lessons()->pluck('id')->all();
+
+        $totalLessons = count($lessonIds);
+
+        if ($totalLessons === 0) {
+            return [
+                'completed_lessons' => 0,
+                'total_lessons' => 0,
+                'progress_percent' => 0,
+            ];
+        }
+
+        if ($completedLessonIds !== null) {
+            $completedLessons = 0;
+            foreach ($lessonIds as $lessonId) {
+                if (isset($completedLessonIds[$lessonId])) {
+                    $completedLessons++;
+                }
+            }
+        } else {
+            $completedLessons = $this->lessonProgress()
+                ->whereIn('lesson_id', $lessonIds)
+                ->count();
+        }
+
+        $progressPercent = (int) round($completedLessons / $totalLessons * 100);
+
+        return [
+            'completed_lessons' => $completedLessons,
+            'total_lessons' => $totalLessons,
+            'progress_percent' => $progressPercent,
+        ];
+    }
+
+    /**
      * Get the course completion progress percentage for a specific course.
      */
     public function getCourseProgress(Course $course): int
     {
-        $totalLessons = $course->lessons()->count();
-        if ($totalLessons === 0) {
-            return 0;
-        }
-
-        $completedLessons = $this->lessonProgress()
-            ->whereIn('lesson_id', $course->lessons()->pluck('id'))
-            ->count();
-
-        return (int) round($completedLessons / $totalLessons * 100);
+        return $this->getCourseProgressSummary($course)['progress_percent'];
     }
 }

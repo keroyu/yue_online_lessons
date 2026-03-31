@@ -20,7 +20,8 @@ interface Course {
   price: number;
   thumbnail: string;
   instructor_name: string;
-  type: string;
+  product_type: string;
+  delivery_mode: 'standard' | 'drip';
   status: string;
 }
 ```

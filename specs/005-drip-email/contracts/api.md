@@ -139,32 +139,54 @@
   course: {
     id: number;
     name: string;
-    course_type: 'standard' | 'drip';
-    drip_interval_days: number | null;
+    is_drip: boolean;
   };
-  lessons: Array<{
+  chapters: Array<{
     id: number;
-    title: string; // locked lessons: frontend displays as "******"
-    sort_order: number; // 0-based
+    title: string;
+    lessons: Array<{
+      id: number;
+      title: string | null;
+      duration_formatted: string | null;
+      has_video: boolean;
+      is_completed: boolean;
+      is_preview: boolean;
+    }>;
+  }>;
+  standaloneLessons: Array<{
+    id: number;
+    title: string | null;
+    duration_formatted: string | null;
+    has_video: boolean;
+    is_completed: boolean;
+    is_preview: boolean;
+  }>;
+  currentLesson: {
+    id: number;
+    title: string | null;
+    duration_formatted: string | null;
+    has_video: boolean;
     video_platform: string | null;
     video_id: string | null;
+    embed_url: string | null;
     md_content: string | null;
-    // Drip-specific fields
-    is_unlocked: boolean;
-    unlock_in_days: number | null; // null if already unlocked
-    // Promo block fields (all courses)
-    promo_delay_seconds: number | null; // null=disabled, 0=immediate, >0=delay
+    is_completed: boolean;
+    is_locked: boolean;
+    promo_delay_seconds: number | null;
     promo_html: string | null;
-    // Video access window (drip courses only, unlocked lessons with video)
-    video_access_expired: boolean; // true if free viewing window has passed
-    video_access_remaining_seconds: number | null; // null if expired or no video, seconds remaining otherwise
-  }>;
-  subscription: {
-    id: number;
-    subscribed_at: string; // ISO 8601
-    emails_sent: number;
+    promo_url: string | null;
+    video_access_hours: number | null;
+    video_access_expired: boolean;
+    video_access_remaining_seconds: number | null;
+    reward_html: string | null;
+    is_preview: boolean;
+  } | null;
+  hasContent: boolean;
+  dripSubscription?: {
     status: 'active' | 'converted' | 'completed' | 'unsubscribed';
-  } | null; // null if not subscribed (shouldn't happen for drip courses)
+    subscribed_at: string; // YYYY-MM-DD
+    emails_sent: number;
+  };
   // Video access urgency promo (drip courses only)
   videoAccessTargetCourses: Array<{
     id: number;
@@ -188,15 +210,25 @@
 ```typescript
 {
   // ... existing course edit props ...
+  course: {
+    product_type: 'lecture' | 'mini' | 'full';
+    delivery_mode: 'standard' | 'drip';
+    drip_interval_days: number | null;
+    target_course_ids: number[];
+  };
   availableCourses: Array<{
     id: number;
     name: string;
   }>; // courses that can be set as targets (excluding self)
-  targetCourseIds: number[]; // current target course IDs
+  courseLessons: Array<{
+    id: number;
+    title: string;
+    sort_order: number;
+  }>;
 }
 ```
 
-**Frontend Behavior**: When `course.course_type === 'drip'`, the edit page shows an additional drip settings section with interval days input, target course multi-select, and lesson schedule preview.
+**Frontend Behavior**: When `course.delivery_mode === 'drip'`, the edit page shows an additional drip settings section with interval days input, target course multi-select, and lesson schedule preview.
 
 ---
 

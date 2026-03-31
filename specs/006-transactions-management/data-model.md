@@ -202,7 +202,7 @@ $range = $request->input('chart_range', '30d');
 };
 
 $days = Purchase::query()
-    ->where('status', 'paid')
+    ->paidStatus()
     ->whereBetween('created_at', [$chartStart, $chartEnd])
     ->selectRaw('DATE(CONVERT_TZ(created_at, "+00:00", "+08:00")) as date')
     ->selectRaw('SUM(amount) as amount')
