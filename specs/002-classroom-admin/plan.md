@@ -24,6 +24,7 @@
 **Updated**: 2026-04-06 - 相簿批次上傳（batchStore）與批次刪除（batchDestroy）（Phase 35）
 **Updated**: 2026-04-06 - Gallery.vue 獨立相簿頁同步支援批次上傳與批次刪除（Phase 36）
 **Updated**: 2026-04-06 - 修正 Gallery.vue 勾選 UX：checkbox 左上角專責、工具列條件顯示（Phase 37）
+**Updated**: 2026-04-06 - 刪除相簿圖片時自動清除 description_md 中的圖片引用（Phase 38）
 
 ## Summary
 
