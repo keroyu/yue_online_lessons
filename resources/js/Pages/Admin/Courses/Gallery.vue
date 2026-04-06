@@ -1,5 +1,5 @@
 <script setup>
-import { Link, router, useForm } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { ref, computed } from 'vue'
 
@@ -16,9 +16,10 @@ const props = defineProps({
   },
 })
 
-const form = useForm({ images: [] })
 const fileInput = ref(null)
 const dragOver = ref(false)
+const uploading = ref(false)
+const uploadError = ref(null)
 const copiedId = ref(null)
 const selectedForDelete = ref(new Set())
 
@@ -35,12 +36,23 @@ const handleDrop = (event) => {
 }
 
 const uploadFiles = (files) => {
-  form.images = files
-  form.post(`/admin/courses/${props.course.id}/images/batch`, {
+  uploading.value = true
+  uploadError.value = null
+
+  const data = new FormData()
+  files.forEach(f => data.append('images[]', f))
+
+  router.post(`/admin/courses/${props.course.id}/images/batch`, data, {
     preserveScroll: true,
     onSuccess: () => {
-      form.reset()
+      uploading.value = false
       if (fileInput.value) fileInput.value.value = ''
+    },
+    onError: (errors) => {
+      uploading.value = false
+      uploadError.value = errors.images
+        || Object.values(errors)[0]
+        || '上傳失敗，請重試'
     },
   })
 }
@@ -162,7 +174,7 @@ const batchDelete = () => {
       <p class="mt-2 text-xs text-gray-500">
         支援 JPG, PNG, GIF, WebP，單張最大 10MB，一次最多 20 張
       </p>
-      <div v-if="form.processing" class="mt-4">
+      <div v-if="uploading" class="mt-4">
         <div class="inline-flex items-center text-sm text-indigo-600">
           <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -171,7 +183,7 @@ const batchDelete = () => {
           上傳中...
         </div>
       </div>
-      <p v-if="form.errors.images" class="mt-2 text-sm text-red-600">{{ form.errors.images }}</p>
+      <p v-if="uploadError" class="mt-2 text-sm text-red-600">{{ uploadError }}</p>
     </div>
 
     <!-- Batch delete toolbar：只在有勾選時顯示 -->

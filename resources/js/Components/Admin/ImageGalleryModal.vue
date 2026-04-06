@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
   courseId: {
@@ -27,12 +27,9 @@ const selectedImage = ref(null)
 const customWidth = ref('')
 const customHeight = ref('')
 const uploading = ref(false)
+const uploadError = ref(null)
 const fileInput = ref(null)
 const selectedForDelete = ref(new Set())
-
-const uploadForm = useForm({
-  images: [],
-})
 
 // Reset selection when modal opens/closes
 watch(() => props.show, (newVal) => {
@@ -95,29 +92,25 @@ const handleFileChange = (event) => {
   if (!files.length) return
 
   uploading.value = true
-  uploadForm.images = files
+  uploadError.value = null
 
-  uploadForm.post(`/admin/courses/${props.courseId}/images/batch`, {
+  const data = new FormData()
+  files.forEach(f => data.append('images[]', f))
+
+  router.post(`/admin/courses/${props.courseId}/images/batch`, data, {
     preserveScroll: true,
     onSuccess: () => {
       uploading.value = false
-      uploadForm.reset()
-      if (fileInput.value) {
-        fileInput.value.value = ''
-      }
+      if (fileInput.value) fileInput.value.value = ''
     },
-    onError: () => {
+    onError: (errors) => {
       uploading.value = false
+      uploadError.value = errors.images
+        || Object.values(errors)[0]
+        || '上傳失敗，請重試'
     },
   })
 }
-
-const uploadError = computed(() => {
-  if (uploadForm.errors.images) return uploadForm.errors.images
-  const firstFileError = Object.entries(uploadForm.errors)
-    .find(([k]) => k.startsWith('images.'))
-  return firstFileError ? firstFileError[1] : null
-})
 
 // Batch delete selection
 const toggleDeleteSelection = (event, image) => {
