@@ -386,6 +386,7 @@
         "app/Http/Controllers/Admin/CourseImageController.php",
         "app/Models/CourseImage.php",
         "resources/js/Components/Admin/ImageGalleryModal.vue",
+        "resources/js/Pages/Admin/Courses/Gallery.vue",
         "resources/js/Pages/Admin/"
       ],
       "status": "implemented"
