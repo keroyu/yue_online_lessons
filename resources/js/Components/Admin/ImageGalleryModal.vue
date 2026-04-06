@@ -23,7 +23,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'insert'])
 
-const selectedImage = ref(null)
+// Insert selection — ordered array, preserves click sequence
+const selectedForInsert = ref([])
 const customWidth = ref('')
 const customHeight = ref('')
 const uploading = ref(false)
@@ -31,59 +32,74 @@ const uploadError = ref(null)
 const fileInput = ref(null)
 const selectedForDelete = ref(new Set())
 
-// Reset selection when modal opens/closes
+// Single selected image — used for aspect ratio calculation and original dimensions display
+const primaryImage = computed(() =>
+  selectedForInsert.value.length === 1 ? selectedForInsert.value[0] : null
+)
+
+// Returns 1-based insertion order for an image, 0 if not selected
+const insertOrder = (image) =>
+  selectedForInsert.value.findIndex(i => i.id === image.id) + 1
+
+// Reset all selections when modal closes
 watch(() => props.show, (newVal) => {
   if (!newVal) {
-    selectedImage.value = null
+    selectedForInsert.value = []
     selectedForDelete.value = new Set()
     customWidth.value = ''
     customHeight.value = ''
   }
 })
 
-const selectImage = (image) => {
-  selectedImage.value = image
-  customWidth.value = ''
-  customHeight.value = ''
+const toggleInsertSelection = (image) => {
+  const idx = selectedForInsert.value.findIndex(i => i.id === image.id)
+  if (idx >= 0) {
+    selectedForInsert.value = selectedForInsert.value.filter((_, i) => i !== idx)
+  } else {
+    selectedForInsert.value = [...selectedForInsert.value, image]
+  }
+  // Clear dimensions when switching from single to multi (avoid applying wrong ratio)
+  if (selectedForInsert.value.length !== 1) {
+    customWidth.value = ''
+    customHeight.value = ''
+  }
 }
 
 const calculateHeight = () => {
-  if (customWidth.value && selectedImage.value?.width && selectedImage.value?.height) {
-    const ratio = selectedImage.value.height / selectedImage.value.width
+  if (customWidth.value && primaryImage.value?.width && primaryImage.value?.height) {
+    const ratio = primaryImage.value.height / primaryImage.value.width
     customHeight.value = Math.round(customWidth.value * ratio)
   }
 }
 
 const calculateWidth = () => {
-  if (customHeight.value && selectedImage.value?.width && selectedImage.value?.height) {
-    const ratio = selectedImage.value.width / selectedImage.value.height
+  if (customHeight.value && primaryImage.value?.width && primaryImage.value?.height) {
+    const ratio = primaryImage.value.width / primaryImage.value.height
     customWidth.value = Math.round(customHeight.value * ratio)
   }
 }
 
 const insertImage = () => {
-  if (!selectedImage.value) return
+  if (!selectedForInsert.value.length) return
 
-  const img = selectedImage.value
-  let text
-
-  if (props.markdownMode) {
-    if (!customWidth.value && !customHeight.value) {
-      text = `![${img.filename}](${img.url})`
+  const texts = selectedForInsert.value.map(img => {
+    if (props.markdownMode) {
+      if (!customWidth.value && !customHeight.value) {
+        return `![${img.filename}](${img.url})`
+      }
+      let t = `<img src="${img.url}" alt="${img.filename}"`
+      if (customWidth.value) t += ` width="${customWidth.value}"`
+      if (customHeight.value) t += ` height="${customHeight.value}"`
+      return t + '>'
     } else {
-      text = `<img src="${img.url}" alt="${img.filename}"`
-      if (customWidth.value) text += ` width="${customWidth.value}"`
-      if (customHeight.value) text += ` height="${customHeight.value}"`
-      text += '>'
+      let t = `<img src="${img.url}" alt="${img.filename}"`
+      if (customWidth.value) t += ` width="${customWidth.value}"`
+      if (customHeight.value) t += ` height="${customHeight.value}"`
+      return t + ' />'
     }
-  } else {
-    text = `<img src="${img.url}" alt="${img.filename}"`
-    if (customWidth.value) text += ` width="${customWidth.value}"`
-    if (customHeight.value) text += ` height="${customHeight.value}"`
-    text += ' />'
-  }
+  })
 
-  emit('insert', text)
+  emit('insert', texts.join('\n\n'))
   emit('close')
 }
 
@@ -137,13 +153,13 @@ const batchDelete = () => {
   const count = selectedForDelete.value.size
   if (!confirm(`確定要刪除 ${count} 張圖片嗎？`)) return
 
+  const deletingIds = new Set(selectedForDelete.value)
+
   router.delete('/admin/images/batch', {
-    data: { ids: [...selectedForDelete.value] },
+    data: { ids: [...deletingIds] },
     preserveScroll: true,
     onSuccess: () => {
-      if (selectedImage.value && selectedForDelete.value.has(selectedImage.value.id)) {
-        selectedImage.value = null
-      }
+      selectedForInsert.value = selectedForInsert.value.filter(img => !deletingIds.has(img.id))
       selectedForDelete.value = new Set()
     },
   })
@@ -155,9 +171,7 @@ const deleteImage = (image) => {
   router.delete(`/admin/images/${image.id}`, {
     preserveScroll: true,
     onSuccess: () => {
-      if (selectedImage.value?.id === image.id) {
-        selectedImage.value = null
-      }
+      selectedForInsert.value = selectedForInsert.value.filter(img => img.id !== image.id)
       const next = new Set(selectedForDelete.value)
       next.delete(image.id)
       selectedForDelete.value = next
@@ -258,8 +272,8 @@ const close = () => {
                 v-for="image in images"
                 :key="image.id"
                 class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer ring-2 transition-all"
-                :class="selectedImage?.id === image.id ? 'ring-indigo-500' : 'ring-transparent hover:ring-gray-300'"
-                @click="selectImage(image)"
+                :class="insertOrder(image) > 0 ? 'ring-indigo-500' : 'ring-transparent hover:ring-gray-300'"
+                @click="toggleInsertSelection(image)"
               >
                 <img
                   :src="image.url"
@@ -303,14 +317,12 @@ const close = () => {
                   </svg>
                 </button>
 
-                <!-- Selected checkmark for insert (bottom-right) -->
+                <!-- Insert order badge (bottom-right) -->
                 <div
-                  v-if="selectedImage?.id === image.id"
-                  class="absolute bottom-1 right-1 p-1 rounded-full bg-indigo-500 text-white"
+                  v-if="insertOrder(image) > 0"
+                  class="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center font-bold"
                 >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  {{ insertOrder(image) }}
                 </div>
               </div>
             </div>
@@ -323,7 +335,7 @@ const close = () => {
             </div>
 
             <!-- Dimension Settings -->
-            <div v-if="selectedImage" class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div v-if="selectedForInsert.length > 0" class="mt-6 p-4 bg-gray-50 rounded-lg">
               <h4 class="text-sm font-medium text-gray-900 mb-3">尺寸設定（選填）</h4>
               <div class="flex items-center gap-4">
                 <div class="flex-1">
@@ -355,9 +367,14 @@ const close = () => {
                 </div>
               </div>
               <p class="mt-2 text-xs text-gray-500">
-                原始尺寸: {{ selectedImage.width || '未知' }} x {{ selectedImage.height || '未知' }} px
-                <span class="mx-2">|</span>
-                僅填一項會自動等比計算
+                <template v-if="primaryImage">
+                  原始尺寸: {{ primaryImage.width || '未知' }} x {{ primaryImage.height || '未知' }} px
+                  <span class="mx-2">|</span>
+                  僅填一項會自動等比計算
+                </template>
+                <template v-else>
+                  已選 {{ selectedForInsert.length }} 張，尺寸將統一套用至所有圖片
+                </template>
               </p>
             </div>
           </div>
@@ -374,10 +391,10 @@ const close = () => {
             <button
               type="button"
               class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!selectedImage"
+              :disabled="selectedForInsert.length === 0"
               @click="insertImage"
             >
-              插入圖片
+              {{ selectedForInsert.length > 1 ? `插入 ${selectedForInsert.length} 張圖片` : '插入圖片' }}
             </button>
           </div>
         </div>

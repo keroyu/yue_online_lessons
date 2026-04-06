@@ -61,7 +61,9 @@ main_files:
 - app/Models/Lesson.php
 - app/Models/LessonProgress.php
 - app/Models/Purchase.php
+- resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Pages/Admin/
+- resources/js/Pages/Admin/Courses/Gallery.vue
 - resources/js/Pages/Course/
 
 related_specs:

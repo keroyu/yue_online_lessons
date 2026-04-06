@@ -190,6 +190,9 @@
     "config/services.php": [
       "001.us-7"
     ],
+    "resources/js/Components/Admin/ImageGalleryModal.vue": [
+      "002.us-4"
+    ],
     "resources/js/Components/Admin/TransactionRefundModal.vue": [
       "006.us-4"
     ],
@@ -207,6 +210,9 @@
     "resources/js/Pages/Admin/": [
       "002.us-2",
       "002.us-3",
+      "002.us-4"
+    ],
+    "resources/js/Pages/Admin/Courses/Gallery.vue": [
       "002.us-4"
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [

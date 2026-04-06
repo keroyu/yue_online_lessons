@@ -19,7 +19,7 @@ class CourseImageController extends Controller
     public function index(Course $course): Response
     {
         $images = $course->images()
-            ->latest()
+            ->orderByDesc('id')
             ->get()
             ->map(fn ($image) => [
                 'id' => $image->id,
@@ -89,7 +89,7 @@ class CourseImageController extends Controller
             'images.*.max'      => '單張圖片不可超過 10MB',
         ]);
 
-        foreach ($request->file('images') as $file) {
+        foreach (array_reverse($request->file('images')) as $file) {
             $path = $file->store("course-images/{$course->id}", 'public');
             $dimensions = getimagesize($file->getPathname());
 
