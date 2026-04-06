@@ -114,14 +114,22 @@ class CourseImageController extends Controller
             'ids.*' => ['required', 'integer', 'exists:course_images,id'],
         ]);
 
-        $images = CourseImage::whereIn('id', $request->input('ids'))->get();
+        $images = CourseImage::with('course')->whereIn('id', $request->input('ids'))->get();
+        $count  = $images->count();
+
+        // Capture URL → course pairs before deletion
+        $toClean = $images->map(fn ($img) => ['course' => $img->course, 'url' => $img->url]);
 
         foreach ($images as $image) {
             Storage::disk('public')->delete($image->path);
             $image->delete();
         }
 
-        return back()->with('success', $images->count() . ' 張圖片已刪除');
+        foreach ($toClean as ['course' => $course, 'url' => $url]) {
+            $this->purgeFromDescription($course, $url);
+        }
+
+        return back()->with('success', $count . ' 張圖片已刪除');
     }
 
     /**
@@ -129,15 +137,40 @@ class CourseImageController extends Controller
      */
     public function destroy(CourseImage $image): RedirectResponse
     {
-        $courseId = $image->course_id;
+        $course = $image->course;
+        $url    = $image->url;
 
-        // Delete file from storage
         Storage::disk('public')->delete($image->path);
-
         $image->delete();
 
+        $this->purgeFromDescription($course, $url);
+
         return redirect()
-            ->route('admin.images.index', $courseId)
+            ->route('admin.images.index', $course->id)
             ->with('success', '圖片已刪除');
+    }
+
+    /**
+     * Remove all references to $url from the course description_md.
+     * Handles both <img src="URL"> tags and ![alt](URL) markdown syntax.
+     */
+    private function purgeFromDescription(Course $course, string $url): void
+    {
+        if (empty($course->description_md)) {
+            return;
+        }
+
+        $escaped = preg_quote($url, '/');
+        $md = $course->description_md;
+
+        // Remove HTML <img> tags referencing this URL
+        $md = preg_replace('/<img\b[^>]*\bsrc="' . $escaped . '"[^>]*\/?>/i', '', $md);
+
+        // Remove Markdown image syntax ![alt](URL)
+        $md = preg_replace('/!\[[^\]]*\]\(' . $escaped . '\)/i', '', $md);
+
+        if ($md !== $course->description_md) {
+            $course->update(['description_md' => $md]);
+        }
     }
 }
