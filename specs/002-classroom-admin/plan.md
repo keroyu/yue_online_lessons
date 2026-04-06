@@ -23,6 +23,7 @@
 **Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長 M:SS 輸入格式 + 課程總時長自動計算（Phase 34）
 **Updated**: 2026-04-06 - 相簿批次上傳（batchStore）與批次刪除（batchDestroy）（Phase 35）
 **Updated**: 2026-04-06 - Gallery.vue 獨立相簿頁同步支援批次上傳與批次刪除（Phase 36）
+**Updated**: 2026-04-06 - 修正 Gallery.vue 勾選 UX：checkbox 左上角專責、工具列條件顯示（Phase 37）
 
 ## Summary
 

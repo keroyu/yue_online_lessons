@@ -174,28 +174,32 @@ const batchDelete = () => {
       <p v-if="form.errors.images" class="mt-2 text-sm text-red-600">{{ form.errors.images }}</p>
     </div>
 
-    <!-- Batch delete toolbar -->
-    <div v-if="images.length > 0" class="mb-4 flex items-center gap-4">
+    <!-- Batch delete toolbar：只在有勾選時顯示 -->
+    <div v-if="selectedForDelete.size > 0" class="mb-4 flex items-center gap-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+      <span class="text-sm font-medium text-red-700">已選 {{ selectedForDelete.size }} 張</span>
       <button
         type="button"
-        class="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+        class="text-sm text-red-600 hover:text-red-800 underline underline-offset-2"
         @click="toggleSelectAll"
       >
         {{ isAllSelected ? '取消全選' : '全選' }}
       </button>
-      <span v-if="selectedForDelete.size > 0" class="text-sm text-gray-500">
-        已選 {{ selectedForDelete.size }} 張
-      </span>
       <button
-        v-if="selectedForDelete.size > 0"
         type="button"
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+        class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
         @click="batchDelete"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
         刪除已選 ({{ selectedForDelete.size }})
+      </button>
+      <button
+        type="button"
+        class="text-sm text-gray-500 hover:text-gray-700"
+        @click="selectedForDelete = new Set()"
+      >
+        取消
       </button>
     </div>
 
@@ -204,9 +208,8 @@ const batchDelete = () => {
       <div
         v-for="image in images"
         :key="image.id"
-        class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer ring-2 transition-all"
+        class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden ring-2 transition-all"
         :class="selectedForDelete.has(image.id) ? 'ring-red-400' : 'ring-transparent'"
-        @click="toggleSelect(image)"
       >
         <img
           :src="image.url"
@@ -214,34 +217,30 @@ const batchDelete = () => {
           class="w-full h-full object-cover"
         />
 
-        <!-- Checkbox overlay -->
+        <!-- Checkbox（左上角，hover 顯示 / 已選時常駐） -->
         <div
-          class="absolute top-2 left-2 w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+          class="absolute top-2 left-2 w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all z-10"
           :class="selectedForDelete.has(image.id)
-            ? 'bg-red-500 border-red-500'
-            : 'bg-white border-gray-300 opacity-0 group-hover:opacity-100'"
+            ? 'bg-red-500 border-red-500 opacity-100'
+            : 'bg-white/90 border-gray-300 opacity-0 group-hover:opacity-100'"
+          @click.stop="toggleSelect(image)"
         >
           <svg
             v-if="selectedForDelete.has(image.id)"
             class="w-3 h-3 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
           </svg>
         </div>
 
-        <!-- Action buttons (hover) -->
-        <div
-          class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100"
-          @click.stop
-        >
+        <!-- Action buttons（hover overlay，不擋住 checkbox） -->
+        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
           <button
             type="button"
             class="mx-1 p-2 rounded-full bg-white text-gray-700 hover:bg-gray-100"
             title="複製 URL"
-            @click="copyUrl(image)"
+            @click.stop="copyUrl(image)"
           >
             <svg v-if="copiedId === image.id" class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -254,7 +253,7 @@ const batchDelete = () => {
             type="button"
             class="mx-1 p-2 rounded-full bg-white text-red-600 hover:bg-red-50"
             title="刪除"
-            @click="deleteImage(image)"
+            @click.stop="deleteImage(image)"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
