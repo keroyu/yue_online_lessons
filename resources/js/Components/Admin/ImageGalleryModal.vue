@@ -99,7 +99,7 @@ const insertImage = () => {
     }
   })
 
-  emit('insert', texts.join('\n\n'))
+  emit('insert', texts.join('\n'))
   emit('close')
 }
 

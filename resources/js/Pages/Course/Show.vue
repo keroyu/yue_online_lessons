@@ -314,15 +314,14 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
     </div>
 
     <!-- ============================================================ -->
-    <!-- 1. Title + instructor (above video, cream bg)                -->
+    <!-- 1. Title (above video, navy bg)                              -->
     <!-- ============================================================ -->
-    <div class="bg-brand-cream px-6 pt-8 pb-6 text-center">
-      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 max-w-3xl mx-auto leading-tight">
+    <div class="bg-[#373557] px-6 pt-8 pb-6 text-center">
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-3xl mx-auto leading-tight">
         {{ course.name }}
       </h1>
-      <p class="mt-3 text-gray-500 text-sm">
-        講師：{{ course.instructor_name }}
-        <span v-if="course.duration_formatted" class="ml-3">・{{ course.duration_formatted }}</span>
+      <p v-if="course.duration_formatted" class="mt-3 text-blue-200 text-sm">
+        {{ course.duration_formatted }}
       </p>
       <div v-if="course.status === 'preorder'" class="mt-3">
         <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-800">
