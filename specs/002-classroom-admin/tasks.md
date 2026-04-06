@@ -16,6 +16,7 @@
 **Updated**: 2026-03-09 - 免費試閱功能 is_preview + 試閱教室 (Phase 31)
 **Updated**: 2026-03-09 - 教室側欄動態效果 (Phase 32)
 **Updated**: 2026-03-09 - 側欄右邊緣 edge toggle tab (Phase 33)
+**Updated**: 2026-04-06 - 相簿批次上傳與批次刪除 (Phase 35)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 

@@ -385,6 +385,7 @@
       "code_files": [
         "app/Http/Controllers/Admin/CourseImageController.php",
         "app/Models/CourseImage.php",
+        "resources/js/Components/Admin/ImageGalleryModal.vue",
         "resources/js/Pages/Admin/"
       ],
       "status": "implemented"

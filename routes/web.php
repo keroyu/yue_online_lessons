@@ -102,6 +102,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Course Images
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
     Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
+    Route::post('/courses/{course}/images/batch', [CourseImageController::class, 'batchStore'])->name('images.batch-store');
+    Route::delete('/images/batch', [CourseImageController::class, 'batchDestroy'])->name('images.batch-destroy');
     Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
 
     // Drip subscribers

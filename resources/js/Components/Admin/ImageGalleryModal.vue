@@ -28,15 +28,17 @@ const customWidth = ref('')
 const customHeight = ref('')
 const uploading = ref(false)
 const fileInput = ref(null)
+const selectedForDelete = ref(new Set())
 
 const uploadForm = useForm({
-  image: null,
+  images: [],
 })
 
 // Reset selection when modal opens/closes
 watch(() => props.show, (newVal) => {
   if (!newVal) {
     selectedImage.value = null
+    selectedForDelete.value = new Set()
     customWidth.value = ''
     customHeight.value = ''
   }
@@ -89,13 +91,13 @@ const insertImage = () => {
 }
 
 const handleFileChange = (event) => {
-  const file = event.target.files[0]
-  if (!file) return
+  const files = Array.from(event.target.files)
+  if (!files.length) return
 
   uploading.value = true
-  uploadForm.image = file
+  uploadForm.images = files
 
-  uploadForm.post(`/admin/courses/${props.courseId}/images`, {
+  uploadForm.post(`/admin/courses/${props.courseId}/images/batch`, {
     preserveScroll: true,
     onSuccess: () => {
       uploading.value = false
@@ -110,6 +112,50 @@ const handleFileChange = (event) => {
   })
 }
 
+const uploadError = computed(() => {
+  if (uploadForm.errors.images) return uploadForm.errors.images
+  const firstFileError = Object.entries(uploadForm.errors)
+    .find(([k]) => k.startsWith('images.'))
+  return firstFileError ? firstFileError[1] : null
+})
+
+// Batch delete selection
+const toggleDeleteSelection = (event, image) => {
+  event.stopPropagation()
+  const next = new Set(selectedForDelete.value)
+  next.has(image.id) ? next.delete(image.id) : next.add(image.id)
+  selectedForDelete.value = next
+}
+
+const isAllSelected = computed(() =>
+  props.images.length > 0 && selectedForDelete.value.size === props.images.length
+)
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedForDelete.value = new Set()
+  } else {
+    selectedForDelete.value = new Set(props.images.map(i => i.id))
+  }
+}
+
+const batchDelete = () => {
+  if (!selectedForDelete.value.size) return
+  const count = selectedForDelete.value.size
+  if (!confirm(`確定要刪除 ${count} 張圖片嗎？`)) return
+
+  router.delete('/admin/images/batch', {
+    data: { ids: [...selectedForDelete.value] },
+    preserveScroll: true,
+    onSuccess: () => {
+      if (selectedImage.value && selectedForDelete.value.has(selectedImage.value.id)) {
+        selectedImage.value = null
+      }
+      selectedForDelete.value = new Set()
+    },
+  })
+}
+
 const deleteImage = (image) => {
   if (!confirm(`確定要刪除圖片「${image.filename}」嗎？`)) return
 
@@ -119,6 +165,9 @@ const deleteImage = (image) => {
       if (selectedImage.value?.id === image.id) {
         selectedImage.value = null
       }
+      const next = new Set(selectedForDelete.value)
+      next.delete(image.id)
+      selectedForDelete.value = next
     },
   })
 }
@@ -177,11 +226,37 @@ const close = () => {
                   type="file"
                   class="sr-only"
                   accept="image/jpeg,image/png,image/gif,image/webp"
+                  multiple
                   :disabled="uploading"
                   @change="handleFileChange"
                 />
               </label>
-              <p v-if="uploadForm.errors.image" class="mt-2 text-sm text-red-600">{{ uploadForm.errors.image }}</p>
+              <p v-if="uploadError" class="mt-2 text-sm text-red-600">{{ uploadError }}</p>
+            </div>
+
+            <!-- Batch delete toolbar -->
+            <div v-if="images.length > 0" class="flex items-center gap-3 mb-3">
+              <button
+                type="button"
+                class="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+                @click="toggleSelectAll"
+              >
+                {{ isAllSelected ? '取消全選' : '全選' }}
+              </button>
+              <span v-if="selectedForDelete.size > 0" class="text-sm text-gray-500">
+                已選 {{ selectedForDelete.size }} 張
+              </span>
+              <button
+                v-if="selectedForDelete.size > 0"
+                type="button"
+                class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                @click="batchDelete"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                刪除已選 ({{ selectedForDelete.size }})
+              </button>
             </div>
 
             <!-- Image Grid -->
@@ -199,7 +274,31 @@ const close = () => {
                   class="w-full h-full object-cover"
                 />
 
-                <!-- Delete button -->
+                <!-- Batch delete checkbox (top-left) -->
+                <div
+                  class="absolute top-1 left-1 transition-opacity"
+                  :class="selectedForDelete.has(image.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                  @click.stop="toggleDeleteSelection($event, image)"
+                >
+                  <div
+                    class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                    :class="selectedForDelete.has(image.id)
+                      ? 'bg-red-500 border-red-500'
+                      : 'bg-white border-gray-300 hover:border-red-400'"
+                  >
+                    <svg
+                      v-if="selectedForDelete.has(image.id)"
+                      class="w-3 h-3 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Single delete button (top-right) -->
                 <button
                   type="button"
                   class="absolute top-1 right-1 p-1 rounded-full bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -211,7 +310,7 @@ const close = () => {
                   </svg>
                 </button>
 
-                <!-- Selected checkmark -->
+                <!-- Selected checkmark for insert (bottom-right) -->
                 <div
                   v-if="selectedImage?.id === image.id"
                   class="absolute bottom-1 right-1 p-1 rounded-full bg-indigo-500 text-white"

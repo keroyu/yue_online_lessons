@@ -21,6 +21,7 @@
 **Updated**: 2026-03-09 - 教室側欄展開/收合動態效果（Phase 32）
 **Updated**: 2026-03-09 - 側欄右邊緣 edge toggle tab（Phase 33）
 **Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長 M:SS 輸入格式 + 課程總時長自動計算（Phase 34）
+**Updated**: 2026-04-06 - 相簿批次上傳（batchStore）與批次刪除（batchDestroy）（Phase 35）
 
 ## Summary
 

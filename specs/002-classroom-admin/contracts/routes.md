@@ -3,6 +3,7 @@
 **Branch**: `002-classroom-admin` | **Date**: 2026-01-17
 **Updated**: 2026-01-30 - 新增 is_visible 欄位支援課程顯示/隱藏設定
 **Updated**: 2026-03-09 - 新增 notify_members 欄位至 Store Chapter Request (US10)
+**Updated**: 2026-04-06 - 新增批次上傳（POST batch）與批次刪除（DELETE batch）兩條路由
 
 ## Overview
 
@@ -110,8 +111,10 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 | Method | URI | Name | Controller@Action | Description |
 |--------|-----|------|-------------------|-------------|
 | GET | `/admin/courses/{course}/images` | admin.images.index | Admin\CourseImageController@index | 相簿頁面 |
-| POST | `/admin/courses/{course}/images` | admin.images.store | Admin\CourseImageController@store | 上傳圖片 |
-| DELETE | `/admin/images/{image}` | admin.images.destroy | Admin\CourseImageController@destroy | 刪除圖片 |
+| POST | `/admin/courses/{course}/images` | admin.images.store | Admin\CourseImageController@store | 上傳單張圖片 |
+| POST | `/admin/courses/{course}/images/batch` | admin.images.batch-store | Admin\CourseImageController@batchStore | 批次上傳圖片（1–20 張） |
+| DELETE | `/admin/images/batch` | admin.images.batch-destroy | Admin\CourseImageController@batchDestroy | 批次刪除圖片 |
+| DELETE | `/admin/images/{image}` | admin.images.destroy | Admin\CourseImageController@destroy | 刪除單張圖片 |
 
 ---
 
@@ -199,9 +202,21 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 ### Upload Image Request
 
 ```php
-// POST /admin/courses/{course}/images
+// POST /admin/courses/{course}/images  (單張)
 [
     'image' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:10240',
+]
+
+// POST /admin/courses/{course}/images/batch  (批次，2026-04-06 新增)
+[
+    'images'   => 'required|array|min:1|max:20',
+    'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:10240',
+]
+
+// DELETE /admin/images/batch  (批次刪除，2026-04-06 新增)
+[
+    'ids'   => 'required|array|min:1',
+    'ids.*' => 'required|integer|exists:course_images,id',
 ]
 
 // Response includes auto-detected dimensions (2026-01-17 新增)
@@ -318,6 +333,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Course Images
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
     Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
+    Route::post('/courses/{course}/images/batch', [CourseImageController::class, 'batchStore'])->name('images.batch-store');
+    Route::delete('/images/batch', [CourseImageController::class, 'batchDestroy'])->name('images.batch-destroy');
     Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
 });
 ```

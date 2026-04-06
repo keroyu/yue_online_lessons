@@ -74,6 +74,57 @@ class CourseImageController extends Controller
     }
 
     /**
+     * Store multiple uploaded images at once.
+     */
+    public function batchStore(Request $request, Course $course): RedirectResponse
+    {
+        $request->validate([
+            'images'   => ['required', 'array', 'min:1', 'max:20'],
+            'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:10240'],
+        ], [
+            'images.required'   => '請選擇至少一張圖片',
+            'images.max'        => '單次最多上傳 20 張',
+            'images.*.image'    => '檔案必須是圖片',
+            'images.*.mimes'    => '僅支援 jpg、png、gif、webp',
+            'images.*.max'      => '單張圖片不可超過 10MB',
+        ]);
+
+        foreach ($request->file('images') as $file) {
+            $path = $file->store("course-images/{$course->id}", 'public');
+            $dimensions = getimagesize($file->getPathname());
+
+            $course->images()->create([
+                'path'     => $path,
+                'filename' => $file->getClientOriginalName(),
+                'width'    => $dimensions[0] ?? null,
+                'height'   => $dimensions[1] ?? null,
+            ]);
+        }
+
+        return back()->with('success', '圖片上傳成功');
+    }
+
+    /**
+     * Delete multiple images at once.
+     */
+    public function batchDestroy(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'exists:course_images,id'],
+        ]);
+
+        $images = CourseImage::whereIn('id', $request->input('ids'))->get();
+
+        foreach ($images as $image) {
+            Storage::disk('public')->delete($image->path);
+            $image->delete();
+        }
+
+        return back()->with('success', $images->count() . ' 張圖片已刪除');
+    }
+
+    /**
      * Remove the specified image.
      */
     public function destroy(CourseImage $image): RedirectResponse
