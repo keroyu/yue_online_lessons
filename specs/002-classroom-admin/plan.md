@@ -8,6 +8,7 @@
 **Updated**: 2026-01-30 - 優化優惠倒數計時 UI（卡片式設計 + 數字滾動動畫）
 **Updated**: 2026-01-30 - 新增課程顯示/隱藏設定功能 (US9)
 **Updated**: 2026-04-06 - 修正批次上傳圖片排列順序：反序插入 + orderByDesc('id')
+**Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片：有序多選 + 順序 badge + 空行分隔一次插入
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式
 **Updated**: 2026-03-02 - 教室切換 lesson 時影片自動播放
 **Updated**: 2026-03-08 - Bug Fix：獨立小節 md_content 欄位 key 錯誤
