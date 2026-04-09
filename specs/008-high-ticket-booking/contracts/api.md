@@ -2,6 +2,7 @@
 
 **Phase**: 1 — Design
 **Updated**: 2026-04-09
+**Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
 
 ---
 
@@ -28,7 +29,7 @@
 
 **Side effects**:
 - Sends confirmation email to visitor (sync) using `high_ticket_booking_confirmation` template
-- No database record created
+- Creates a `high_ticket_leads` record (name, email, course_id, status='pending', booked_at=now) — independent of email send result
 
 **Guards**:
 - Course must be of type `high_ticket`
@@ -104,6 +105,100 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 
 ---
 
+## Admin Leads Routes (under `auth + admin` middleware)
+
+### GET `/admin/high-ticket-leads`
+
+**Controller**: `Admin\HighTicketLeadController@index`
+**Returns**: Inertia `Admin/HighTicketLeads/Index`
+
+**Query params**:
+- `status` (optional): filter by `pending` | `contacted` | `converted` | `closed`
+
+**Props**:
+```json
+{
+  "leads": [
+    {
+      "id": "integer",
+      "name": "string",
+      "email": "string",
+      "course": { "id": "integer", "title": "string" },
+      "status": "string",
+      "booked_at": "datetime string"
+    }
+  ],
+  "filters": { "status": "string|null" },
+  "dripCourses": [
+    { "id": "integer", "title": "string" }
+  ]
+}
+```
+
+---
+
+### PATCH `/admin/high-ticket-leads/{lead}/status`
+
+**Controller**: `Admin\HighTicketLeadController@updateStatus`
+
+**Request body**:
+```json
+{ "status": "pending | contacted | converted | closed" }
+```
+
+**Response**: `200 OK` with updated lead JSON
+
+---
+
+### POST `/admin/high-ticket-leads/notify-slot`
+
+**Controller**: `Admin\HighTicketLeadController@notifySlot`
+**Target leads**: `pending` status only
+
+**Request body**:
+```json
+{ "lead_ids": [1, 2, 3] }
+```
+
+**Success** `200 OK`:
+```json
+{ "notified": 3 }
+```
+
+**Side effects** (per selected lead):
+1. Send email using `EmailTemplate::forEvent('high_ticket_slot_available')` with vars `{{user_name}}`, `{{course_name}}`
+2. Increment `notified_count` by 1
+3. Set `last_notified_at` to now
+
+---
+
+### POST `/admin/high-ticket-leads/subscribe-drip`
+
+**Controller**: `Admin\HighTicketLeadController@subscribeDrip`
+
+**Request body**:
+```json
+{
+  "lead_ids": [1, 2, 3],
+  "drip_course_id": "integer"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "subscribed": 2,
+  "skipped": 1
+}
+```
+
+**Side effects** (per selected lead):
+1. `User::firstOrCreate(['email' => $lead->email], ['nickname' => $lead->name])`
+2. `DripSubscription::firstOrCreate(['user_id' => ..., 'course_id' => ...])`
+3. Dispatch first drip lesson email (same as existing drip subscription flow)
+
+---
+
 ## Course Admin Changes
 
 ### PUT `/admin/courses/{course}` (existing — extended)
@@ -143,3 +238,4 @@ Flash key `high_ticket_booking_success` shown after successful booking submissio
 | `high_ticket_booking_confirmation` | `{{user_name}}`, `{{user_email}}`, `{{course_name}}` |
 | `course_gifted` | `{{user_name}}`, `{{course_name}}`, `{{course_description}}` |
 | `lesson_added` | `{{user_name}}`, `{{course_name}}`, `{{lesson_title}}`, `{{classroom_url}}` |
+| `high_ticket_slot_available` | `{{user_name}}`, `{{course_name}}` |

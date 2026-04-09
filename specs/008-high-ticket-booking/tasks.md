@@ -3,6 +3,8 @@
 **Branch**: `008-high-ticket-booking`
 **Input**: `specs/008-high-ticket-booking/` (spec.md, plan.md, data-model.md, contracts/, quickstart.md)
 **Tests**: Not requested — no test tasks generated.
+**Updated**: 2026-04-09 - 所有任務完成（Phase 7：post-implementation fixes — 非同步預約、UX 優化、MySQL 相容修正）
+**Updated**: 2026-04-09 - 規格擴充 US5/US6（Phase 8 待規劃：Lead 記錄 + Leads 管理後台 + 加入序列信）
 
 ## Format: `[ID] [P?] [Story] Description`
 

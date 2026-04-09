@@ -3,7 +3,22 @@
 **Feature Branch**: `008-high-ticket-booking`
 **Created**: 2026-04-08
 **Updated**: 2026-04-09
-**Status**: Draft
+**Updated**: 2026-04-09 - 新增 US5（預約儲存 Lead 記錄）、US6（後台 Leads 管理 + 加入序列信）；FR-011 修訂、FR-019～FR-032 新增
+**Updated**: 2026-04-10 - Clarifications：新增行程通知流程（notified_count / last_notified_at）、high_ticket_slot_available 模板、pending 冷掉後加入 drip 邏輯
+**Status**: Implemented (US1–US4); Specified (US5–US6)
+
+---
+
+## Clarifications
+
+### Session 2026-04-10
+
+- Q: pending leads 被通知「新時段釋出」的方式為何？ → A: 管理員在後台手動批次觸發；系統使用新增的 `high_ticket_slot_available` Email 模板發信，並記錄通知次數（`notified_count`）與最後通知時間（`last_notified_at`）。
+- Q: 「加入序列信（drip）」的目標 leads 為哪些 status？ → A: `pending`（通知 2 次後仍無回應、冷掉的）+ `closed`（面談後未成交）；`contacted` 和 `converted` 不加入。
+- Q: 「通知新時段」批次操作，UI 是否限制只能勾選 `pending` leads？ → A: 是，UI 限制只有 `pending` leads 可被勾選進行此操作，避免誤發給已聯繫或已結案的人。
+- Q: 「加入序列信」後 lead status 如何處理？是否需要防止同一 lead 加入兩條序列？ → A: 加入序列信成功後系統自動將 lead status 改為 `closed`，代表人工銷售線結束、交給自動化；搭配現有 drip subscription 去重檢查作為最後防線；不另設 nurturing 狀態，保持簡單。
+- Q: Leads 列表預設排序為何？ → A: 依預約時間（`booked_at`）降冪，最新的在最上面。
+- Q: Leads 列表是否需要分頁？ → A: 是，每頁 20 筆，與後台 Member 列表一致。
 
 ---
 
@@ -81,11 +96,53 @@
 
 ---
 
+### User Story 5 - 預約時系統儲存 Lead 記錄 (Priority: P2)
+
+訪客成功提交預約表單後，系統除了發送確認 Email，同時將訪客的姓名、Email、所預約課程、預約時間記錄至後台 Leads 名單，初始狀態為「待聯繫」。管理員可從此名單追蹤所有潛在客戶。
+
+**Why this priority**: Lead 記錄是後續銷售追蹤與序列信功能的資料基礎，不儲存則後續功能均無法進行。
+
+**Independent Test**: 訪客提交預約表單 → 後台 Leads 列表出現一筆新記錄，name、email、course_id、status='pending' 均正確。
+
+**Acceptance Scenarios**:
+
+1. **Given** 訪客成功提交預約表單，**When** 系統處理，**Then** 建立一筆 `high_ticket_leads` 記錄（name、email、course_id、status='pending'、booked_at=現在）。
+2. **Given** 同一 email 重複預約同一課程，**When** 再次提交，**Then** 建立新的一筆記錄（允許重複，保留每次預約紀錄）。
+3. **Given** Email 發送失敗，**When** 系統處理，**Then** Lead 記錄仍應儲存（Lead 記錄與 Email 發送獨立）。
+
+---
+
+### User Story 6 - 管理員管理 Leads 名單與加入序列信 (Priority: P3)
+
+管理員在後台「Leads 名單」頁面，可查看所有客製服務課程的預約者，按狀態（待聯繫/已聯繫/已成交/已關閉）篩選，並手動更新狀態。對於面談後尚未成交的潛在客戶，管理員可選定若干 leads，指定一個連鎖課程，批次將他們加入序列信發送佇列。
+
+**Why this priority**: 管理員手動追蹤是目前規模下最合適的銷售漏斗工具；序列信整合讓未成交潛在客戶有機會透過自動化培養轉換。
+
+**Independent Test**: 管理員篩選 status='contacted' 的 leads → 勾選 3 筆 → 選擇目標連鎖課程 → 確認 → 這 3 人各自建立 user 帳號（若不存在）並訂閱該連鎖課程，第一封序列信立即發出。
+
+**Acceptance Scenarios**:
+
+1. **Given** 管理員進入 Leads 名單頁，**When** 查看，**Then** 看到所有 leads 列表，含姓名、Email、課程名稱、狀態、通知次數、預約時間，可依狀態篩選。
+2. **Given** 管理員點擊某筆 lead 的狀態欄位，**When** 選擇新狀態，**Then** 狀態更新並即時反映。
+3. **Given** 管理員開放新時段，**When** 在 Leads 頁勾選若干 pending leads 並點擊「通知新時段」，**Then** 系統使用 `high_ticket_slot_available` 模板發送通知信，`notified_count` +1，`last_notified_at` 更新為現在。
+4. **Given** 某 pending lead 已被通知 2 次，7 天後仍無回應，**When** 管理員判斷冷掉，**Then** 管理員手動將其 status 改為 `closed`。
+5. **Given** 管理員勾選若干 `pending`（冷掉）或 `closed` 的 leads，**When** 點擊「加入序列信」，**Then** 出現選擇連鎖課程的下拉選單（列出所有 drip 類型課程）。
+6. **Given** 管理員選定連鎖課程並確認，**When** 系統處理，**Then** 對每筆 lead：(a) 以 email 查找或建立 user 帳號（帶入 lead.name 作為 nickname），(b) 建立 drip_subscription，(c) 立即觸發第一封序列信，(d) lead status 自動改為 `closed`。
+7. **Given** 某 lead 的 email 已有任何 active drip_subscription，**When** 系統處理，**Then** 跳過該筆 lead，不重複建立訂閱，避免兩條序列同時運行。
+8. **Given** 批次操作完成，**When** 系統回應，**Then** 顯示摘要：「已加入 N 人，略過 M 人（已訂閱）」。
+
+---
+
 ### Edge Cases
 
-- 客製服務無設定 Email 模板時，系統略過發送（不 crash），記錄警告日誌。
+- 客製服務無設定 Email 模板時，系統回傳 422 錯誤，前端顯示錯誤訊息；Lead 記錄仍照常儲存，不 crash。
 - 隱藏價格模式下，頂部資訊列的 PriceDisplay 也隱藏，避免洩漏價格。
 - 管理員將已存在的非客製服務課程改為客製服務，前台即時反映；購買記錄不受影響。
+- Email 模板預覽模式使用 `breaks: true` 渲染，使單行換行在預覽中與編輯區一致。
+- 生產環境舊版 MySQL（< 8.0.3）不支援 `ADD COLUMN IF NOT EXISTS`；migration 改用 `Schema::hasColumn()` 判斷。
+- 同一 email 重複預約同一課程，Lead 記錄允許重複（保留完整預約歷史），不做 upsert。
+- 「加入序列信」建立的 user 帳號無密碼，使用現有驗證碼登入機制，行為與一般會員帳號完全相同。
+- Lead email 若與現有 user email 相同，`firstOrCreate` 直接使用現有帳號，不重複建立，不覆蓋現有資料。
 
 ---
 
@@ -111,12 +168,12 @@
 - **FR-008**: 點擊「立即預約」後 MUST 顯示預約表單（姓名、Email，均為必填）。
 - **FR-009**: 成功提交後，系統 MUST 立即發送確認 Email 至訪客填寫的信箱。
 - **FR-010**: 確認 Email MUST 使用對應的 Email 模板，並將變數替換為實際資料後寄出。
-- **FR-011**: 系統 MUST NOT 建立任何資料庫預約記錄；Email 發送即為唯一動作。
+- **FR-011**: ~~系統 MUST NOT 建立任何資料庫預約記錄~~ **（已修訂，見 FR-019）**：系統 MUST NOT 建立付費訂單或購買記錄；預約的唯一產出為確認 Email 和一筆 Lead 記錄。
 
 **Email 模板管理**
 
 - **FR-012**: 後台 MUST 提供 Email 模板管理頁面，涵蓋所有可模板化的系統 Email。
-- **FR-013**: 納管的 event_type 包含：`high_ticket_booking_confirmation`、`course_gifted`、`lesson_added`。
+- **FR-013**: 納管的 event_type 包含：`high_ticket_booking_confirmation`、`course_gifted`、`lesson_added`、`high_ticket_slot_available`。
 - **FR-014**: 每個模板 MUST 包含：模板名稱、觸發事件（event_type，唯讀）、Email 主旨、純文字內容。
 - **FR-015**: 模板編輯器 MUST 提供該 event_type 對應的可用變數清單，點擊後插入游標位置。
 - **FR-016**: 系統 MUST 在初始化時 seed 三個預設模板，內容對應現有寫死的信件內容。
@@ -128,11 +185,33 @@
   | `high_ticket_booking_confirmation` | `{{user_name}}`、`{{user_email}}`、`{{course_name}}` |
   | `course_gifted` | `{{user_name}}`、`{{course_name}}`、`{{course_description}}` |
   | `lesson_added` | `{{user_name}}`、`{{course_name}}`、`{{lesson_title}}`、`{{classroom_url}}` |
+  | `high_ticket_slot_available` | `{{user_name}}`、`{{course_name}}` |
+
+**Lead 記錄（US5）**
+
+- **FR-019**: 訪客成功提交預約表單後，系統 MUST 建立一筆 `high_ticket_leads` 記錄，包含：name、email、course_id、status（預設 'pending'）、notified_count（預設 0）、booked_at。
+- **FR-020**: Lead 記錄 MUST 與 Email 發送獨立；Email 發送失敗不得影響 Lead 記錄的建立。
+- **FR-021**: 同一 email 重複預約，系統 MUST 允許建立新記錄（不做去重）。
+
+**Leads 管理後台（US6）**
+
+- **FR-022**: 後台 MUST 提供 Leads 名單頁面，列出所有 `high_ticket_leads` 記錄，顯示：姓名、Email、所屬課程、狀態、通知次數、預約時間；預設依 `booked_at` 降冪排列；每頁 20 筆分頁。
+- **FR-023**: Leads 名單 MUST 支援依狀態篩選：`pending`（待聯繫）、`contacted`（已聯繫）、`converted`（已成交）、`closed`（已關閉）。
+- **FR-024**: 管理員 MUST 能在列表中直接更新個別 lead 的狀態。
+- **FR-025**: 管理員 MUST 能勾選多筆 `pending` leads 並觸發「通知新時段」批次操作；UI MUST 限制只有 status='pending' 的 leads 可被勾選進行此操作；系統使用 `high_ticket_slot_available` Email 模板發信，每筆 lead 的 `notified_count` +1、`last_notified_at` 更新。
+- **FR-026**: 「通知新時段」操作 MUST 使用 Email 模板系統（`EmailTemplate::forEvent('high_ticket_slot_available')`），支援變數 `{{user_name}}`、`{{course_name}}`。
+- **FR-027**: `high_ticket_slot_available` 模板 MUST 在系統初始化時 seed 一筆預設內容，與其他三個預設模板一同納管。
+- **FR-028**: 管理員 MUST 能勾選多筆 `pending`（冷掉）或 `closed` 的 leads 並觸發「加入序列信」批次操作。
+- **FR-029**: 「加入序列信」操作 MUST 提供下拉選單，列出系統中所有 `drip` 類型的課程供選擇。
+- **FR-030**: 確認後，系統 MUST 對每筆選定的 lead：(a) 以 email 為 key `firstOrCreate` user 帳號（帶入 lead.name 作為 nickname）；(b) 建立 `drip_subscription`（user_id + course_id）；(c) 立即觸發第一封序列信；(d) 將 lead status 更新為 `closed`。
+- **FR-031**: 若 lead 的 email 已存在任何 active `drip_subscription`（任何課程），系統 MUST 跳過該筆，不重複建立，避免兩條序列同時運行破壞敘事。
+- **FR-032**: 批次操作完成後，系統 MUST 回應摘要訊息，說明已加入人數與已跳過人數（含跳過原因：已訂閱）。
 
 ### Key Entities
 
 - **Course（課程）**: 新增欄位：`type` 擴充客製服務選項、`high_ticket_hide_price`（布林）。
 - **EmailTemplate（Email 模板）**: 屬性：名稱、event_type、Email 主旨、純文字內容。
+- **HighTicketLead（潛在客戶）**: 屬性：name、email、course_id、status（pending/contacted/converted/closed）、notified_count（行程通知次數）、last_notified_at、booked_at。
 
 ---
 
@@ -145,6 +224,8 @@
 - **SC-003**: 客製服務銷售頁在隱藏價格模式下，100% 不洩漏任何原價/優惠價資訊。
 - **SC-004**: 管理員可在不修改程式碼的情況下，完整客製化客製服務預約確認、課程贈禮、新課程通知三種 Email 的主旨與內容。
 - **SC-005**: 現有非客製服務課程的購買流程，在本功能上線後 0% 功能回歸錯誤。
+- **SC-006**: 管理員可在 1 分鐘內完成篩選 leads、選定課程、觸發「加入序列信」的全流程操作。
+- **SC-007**: 「加入序列信」批次操作完成後，被加入的 leads 在 60 秒內收到第一封序列信。
 
 ---
 
@@ -152,6 +233,6 @@
 
 - Email 發送服務沿用現有 Resend.com 整合。
 - 預約後的後續流程（面談安排、外部平台對接）完全由 Email 模板內容引導，系統不介入。
-- 系統不儲存任何預約記錄，Email 發送即結束任務。
+- ~~系統不儲存任何預約記錄~~ **（已修訂）**：系統儲存 `high_ticket_leads` 記錄，但不儲存付費訂單或購買記錄。
 - 「優惠倒數」計時器在隱藏價格模式下，整個區塊被說明文字取代，不單獨保留倒數。
 - 客製服務顯示價格模式下，行為與一般課程完全相同（包含現有的立即購買流程）。

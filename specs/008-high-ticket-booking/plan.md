@@ -1,13 +1,17 @@
 # Implementation Plan: 客製服務預約系統
 
 **Branch**: `008-high-ticket-booking` | **Date**: 2026-04-08 | **Spec**: [spec.md](spec.md)
+**Updated**: 2026-04-09 - 實作完成；預約改 JSON API（axios）、說明文案更新、浮動面板文字修正、migration 相容舊版 MySQL
+**Updated**: 2026-04-10 - 增量計畫：US5（Lead 記錄）、US6（Leads 管理 + 通知新時段 + 加入序列信）
 **Input**: Feature specification from `/specs/008-high-ticket-booking/spec.md`
 
 ---
 
 ## Summary
 
-新增「客製服務」課程類別，支援隱藏價格、顯示說明文字、以「立即預約」取代「立即購買」按鈕；訪客提交預約表單後系統同步發送確認 Email；後台提供 Email 模板 CRUD（Markdown 編輯 + 變數插入）。技術上：擴充 `courses.type` ENUM、新增 `email_templates` 一張表，遵循現有 `BatchEmailMail` + CommonMark 模式。
+**US1–US4（已實作完成）**：客製服務課程類別、銷售頁展示、非同步預約表單 + Email 發送、後台 Email 模板 CRUD。
+
+**US5–US6（本次增量）**：訪客預約時同步儲存 `high_ticket_leads` 記錄；後台提供 Leads 管理頁（篩選/狀態更新/批次通知新時段/批次加入序列信）；新增 `high_ticket_slot_available` Email 模板。技術上：新增一張資料表、一個 Model、一個 Service、一個 Controller、一個 Vue 頁面、一個 Job。
 
 ---
 
@@ -15,13 +19,12 @@
 
 **Language/Version**: PHP 8.2 / Laravel 12
 **Primary Dependencies**: Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4, `league/commonmark` (existing), `marked` (existing)
-**Storage**: MySQL — alter `courses.type` enum, two new tables
+**Storage**: MySQL — new table `high_ticket_leads`
 **Testing**: `php artisan test` (PHPUnit)
 **Target Platform**: Web server (Linux via Laravel Forge)
-**Project Type**: Web application
-**Performance Goals**: Booking confirmation email delivered in < 60 seconds
-**Constraints**: Sync email send (user waiting); no new npm/composer packages
-**Scale/Scope**: Low volume (high-price, high-ticket services, individual bookings)
+**Performance Goals**: Batch notify/subscribe < 30 seconds for up to 100 leads
+**Constraints**: Batch emails → async Job (constitution §VI); no new npm/composer packages
+**Scale/Scope**: Low volume (high-ticket service leads, expected < 500 records)
 
 ---
 
@@ -29,16 +32,16 @@
 
 | Principle | Gate | Status |
 |-----------|------|--------|
-| I. Controller Layering | Booking has email side-effect → Service required | ✅ `HighTicketBookingService` created |
-| II. Service Layer | Cross-model + external I/O | ✅ Service handles booking creation + email |
-| III. Frontend Architecture | Composition API, local state only | ✅ No Pinia/Vuex introduced |
-| IV. Model Conventions | `$fillable`, `casts()`, scopes | ✅ Models follow existing patterns |
-| V. Job Discipline | Email is sync (user waiting) → no Job needed | ✅ No Job, per §VI rule |
-| VI. Email Delivery | Sync: user waiting for confirmation | ✅ `Mail::to()->send()` |
-| VII. Error Handling | Service returns `['success' => bool]` | ✅ Controller handles error display |
-| VIII. Authorization | Public booking endpoint; admin under `auth+admin` | ✅ Matches existing auth pattern |
-| IX. Security | No secrets in code; standard validation | ✅ Rate limit on public booking route |
-| X. YAGNI | No new packages; reuses existing components | ✅ Minimal scope |
+| I. Controller Layering | `notifySlot` + `subscribeDrip` span multiple models + external I/O → Service required | ✅ `HighTicketLeadService` created |
+| II. Service Layer | Cross-model (User, DripSubscription, HighTicketLead) + email side-effect | ✅ Service handles all batch logic |
+| III. Frontend Architecture | Composition API, local state only | ✅ No Pinia/Vuex |
+| IV. Model Conventions | `$fillable`, `casts()`, `scopeByStatus` | ✅ Follows existing patterns |
+| V. Job Discipline | Batch slot notification emails → async Job | ✅ `NotifyHighTicketSlotJob` dispatched per lead |
+| VI. Email Delivery | Bulk admin operation → async via Job dispatch | ✅ Follows `SendBatchEmailJob` / `GiftCourseJob` pattern |
+| VII. Error Handling | Service returns `['success' => bool]`; Job: per-item try/catch | ✅ |
+| VIII. Authorization | Admin routes under `auth + admin` middleware | ✅ |
+| IX. Security | No secrets in code; throttle on public booking (existing) | ✅ |
+| X. YAGNI | No new packages; reuses existing `DripService::subscribe()` for drip enrollment | ✅ |
 
 **Constitution Check Result**: PASS — no violations.
 
@@ -51,70 +54,60 @@
 ```text
 specs/008-high-ticket-booking/
 ├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
+├── research.md          # Phase 0 output (US1–US4, reused)
+├── data-model.md        # Updated: added high_ticket_leads table
+├── quickstart.md        # Phase 1 output (US1–US4, reused)
 ├── contracts/
-│   └── api.md           # API contracts
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+│   └── api.md           # Updated: added Leads admin routes
+└── tasks.md             # Phase 2 output (US5–US6 tasks pending)
 ```
 
-### Source Code
+### Source Code (incremental additions)
 
 ```text
 app/
 ├── Http/
 │   ├── Controllers/
-│   │   ├── HighTicketBookingController.php     [NEW] public booking
 │   │   └── Admin/
-│   │       ├── CourseController.php           [MODIFY] add high_ticket fields
-│   │       └── EmailTemplateController.php    [NEW] email template CRUD
+│   │       └── HighTicketLeadController.php    [NEW] leads CRUD + batch actions
 │   └── Requests/
 │       └── Admin/
-│           └── EmailTemplateRequest.php       [NEW] validation
+│           └── (inline validation in controller — simple enough)
+├── Jobs/
+│   └── NotifyHighTicketSlotJob.php             [NEW] async slot notification email
 ├── Models/
-│   ├── Course.php                             [MODIFY] +fillable, cast, accessor
-│   └── EmailTemplate.php                     [NEW]
-├── Services/
-│   └── HighTicketBookingService.php            [NEW]
-└── Mail/
-    └── HighTicketBookingMail.php               [NEW]
+│   └── HighTicketLead.php                      [NEW]
+└── Services/
+    ├── HighTicketBookingService.php            [MODIFY] also create lead record
+    └── HighTicketLeadService.php               [NEW] notifySlot + subscribeDrip
 
-database/migrations/
-├── 2026_04_09_000001_add_high_ticket_fields_to_courses_table.php  [NEW]
-└── 2026_04_09_000002_create_email_templates_table.php             [NEW]
+database/
+├── migrations/
+│   └── 2026_04_10_000001_create_high_ticket_leads_table.php  [NEW]
+└── seeders/
+    └── EmailTemplateSeeder.php                 [MODIFY] add high_ticket_slot_available
 
-database/seeders/
-└── EmailTemplateSeeder.php                   [NEW] 3 default templates
+resources/js/
+└── Pages/
+    └── Admin/
+        └── HighTicketLeads/
+            └── Index.vue                       [NEW] leads list + filter + batch actions
 
-resources/
-├── views/emails/
-│   └── high-ticket-booking.blade.php           [NEW]
-└── js/
-    ├── Components/Admin/
-    │   └── CourseForm.vue                    [MODIFY] add high_ticket fields
-    └── Pages/
-        ├── Course/
-        │   └── Show.vue                      [MODIFY] high_ticket UI branches
-        └── Admin/
-            └── EmailTemplates/
-                ├── Index.vue                 [NEW]
-                └── Edit.vue                  [NEW] (create + edit combined)
-
-routes/web.php                               [MODIFY] +booking route, +admin routes
+routes/web.php                                  [MODIFY] +4 admin leads routes
+resources/js/Layouts/AdminLayout.vue            [MODIFY] +Leads nav link
 ```
 
 ---
 
 ## Phase 0: Research Summary
 
-See [research.md](research.md) for full findings. Key decisions:
+No new research required. All integration points are known from US1–US4:
+- `DripService::subscribe()` — existing, handles find-or-create user + drip subscription + first email dispatch
+- `EmailTemplate::forEvent()` — existing, handles DB template lookup
+- `SendBatchEmailJob` pattern — reuse constructor/handle pattern for `NotifyHighTicketSlotJob`
+- `User::firstOrCreate(['email' => ...], ['nickname' => ...])` — standard Eloquent, no issues
 
-1. **`courses.type` enum**: Add `'high_ticket'` via `DB::statement()` migration.
-2. **New column**: `high_ticket_hide_price` (boolean) on `courses`. Button is always "立即預約" when hide_price=true.
-3. **Email**: Sync send using `Mail::to()->send()` — reuses `BatchEmailMail` / CommonMark pattern.
-4. **Template editor**: Plain `<textarea>` + cursor-insert for variables + reuse `ImageGalleryModal`.
-5. **No new packages**: `marked` and `league/commonmark` already installed.
+**Key decision**: `subscribeDrip` delegates to existing `DripService::subscribe()` for each lead. This reuses the entire drip subscription flow (create subscription → dispatch `SendDripEmailJob` for first lesson) without duplication.
 
 ---
 
@@ -122,96 +115,106 @@ See [research.md](research.md) for full findings. Key decisions:
 
 ### Data Model
 
-See [data-model.md](data-model.md) for full schema.
-
-**Summary**:
-- `courses` table: enum altered + 1 new column (`high_ticket_hide_price`)
-- `email_templates` table: new (name, event_type, subject, body_md, timestamps)
+See [data-model.md](data-model.md) — `high_ticket_leads` table already documented.
 
 ### API Contracts
 
-See [contracts/api.md](contracts/api.md) for full contracts.
-
-**Key routes**:
-- `POST /course/{course}/book` — public, throttled
-- `GET|POST|PUT|DELETE /admin/email-templates/...` — admin
-- `PUT /admin/courses/{course}` extended with high_ticket fields
+See [contracts/api.md](contracts/api.md) — 4 new admin routes already documented:
+- `GET /admin/high-ticket-leads` — paginated list with status filter
+- `PATCH /admin/high-ticket-leads/{lead}/status` — update individual status
+- `POST /admin/high-ticket-leads/notify-slot` — batch notify pending leads
+- `POST /admin/high-ticket-leads/subscribe-drip` — batch enroll to drip course
 
 ### Implementation Details
 
 #### Backend
 
-**HighTicketBookingService**:
+**HighTicketBookingService (modified)**:
 ```php
-// App\Services\HighTicketBookingService
-public function book(Course $course, array $data): array
-{
-    // 1. Validate course is high_ticket type with hide_price=true
-    // 2. Find email template for 'high_ticket_booking_confirmation'
-    // 3. Render subject + body with vars (user_name, user_email, course_name)
-    // 4. Mail::to($data['email'])->send(new HighTicketBookingMail(...))
-    // 5. Return ['success' => true] (no DB record created — FR-011)
-}
+// After sending confirmation email, always create lead record:
+HighTicketLead::create([
+    'name'       => $data['name'],
+    'email'      => $data['email'],
+    'course_id'  => $course->id,
+    'status'     => 'pending',
+    'booked_at'  => now(),
+]);
+// Lead creation is independent of email send result (try/catch email, always create lead)
 ```
 
-**HighTicketBookingMail** (follows BatchEmailMail pattern):
+**HighTicketLeadService**:
 ```php
-// Constructor receives: emailSubject (string), emailBody (string — Markdown)
-// Converts Markdown → HTML in constructor via CommonMarkConverter
-// envelope(): subject from $this->emailSubject
-// content(): view: 'emails.high-ticket-booking'
-// Blade: {!! $htmlBody !!}  (same as batch-email.blade.php)
+// notifySlot(array $leadIds): array
+// - Load leads where id IN $leadIds AND status='pending'
+// - Find EmailTemplate::forEvent('high_ticket_slot_available')
+// - If template missing: return ['success' => false, 'error' => '...']
+// - Per lead: dispatch NotifyHighTicketSlotJob(leadId, templateId)
+// - Return ['notified' => N]
+
+// subscribeDrip(array $leadIds, int $dripCourseId, User $admin): array
+// - Load leads where id IN $leadIds AND status IN ['pending','closed']
+// - Per lead:
+//   (a) $user = User::firstOrCreate(['email'=>$lead->email], ['nickname'=>$lead->name])
+//   (b) $result = app(DripService::class)->subscribe($user, Course::find($dripCourseId))
+//   (c) if $result['success']: $lead->update(['status'=>'closed']); $subscribed++
+//   (d) if already subscribed: $skipped++
+// - Return ['subscribed' => N, 'skipped' => M]
 ```
 
-**EmailTemplate::renderBody(array $vars)** on model:
+**NotifyHighTicketSlotJob**:
 ```php
-$body = str_replace(array_keys($vars), array_values($vars), $this->body_md);
-$converter = new CommonMarkConverter();
-return $converter->convert($body)->getContent();
+// Constructor: (int $leadId, int $templateId) — primitives only (constitution §V)
+// handle(): Load lead + template; render vars; Mail::to($lead->email)->send(...)
+//           $lead->increment('notified_count'); $lead->update(['last_notified_at'=>now()])
+// $tries = 3; $backoff = [60, 300, 900]
+// Per-item failure: Log::error, return (don't stop other items)
 ```
 
-**Admin\CourseController** — extend `store()` / `update()` validation:
+**Admin\HighTicketLeadController**:
 ```php
-'high_ticket_hide_price' => 'boolean',
+// index(): paginate(20), with('course:id,title'), filter by status, pass dripCourses
+// updateStatus(): validate status ENUM, update, return JSON
+// notifySlot(): validate lead_ids[], delegate to HighTicketLeadService::notifySlot()
+// subscribeDrip(): validate lead_ids[] + drip_course_id, delegate to HighTicketLeadService::subscribeDrip()
 ```
 
 #### Frontend
 
-**CourseForm.vue** changes:
-1. Add `{ value: 'high_ticket', label: '客製服務' }` to `courseTypes` array (line 116–119).
-2. Add `high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false` to `useForm()`.
-3. Add high_ticket config section (shown only when `form.type === 'high_ticket'`):
-   - Toggle: 隱藏原價/優惠價 (checkbox → `high_ticket_hide_price`)
+**Admin/HighTicketLeads/Index.vue**:
+- Status filter tabs (全部 / 待聯繫 / 已聯繫 / 已成交 / 已關閉)
+- Table: 姓名、Email、課程、狀態（inline dropdown）、通知次數、預約時間
+- Checkbox multi-select with two batch action buttons:
+  - 「通知新時段」(only enabled when all selected are `pending`)
+  - 「加入序列信」(enabled for `pending` + `closed`)
+- 「加入序列信」shows a modal with drip course dropdown before confirming
+- After batch action: show inline result summary (已加入 N 人，略過 M 人)
+- Pagination: standard Inertia paginator (same as Member Index)
 
-**Course/Show.vue** changes:
-1. Add computed `isHighTicket` = `course.type === 'high_ticket'`.
-2. Add computed `highTicketHidePrice` = `course.high_ticket_hide_price`.
-3. In top info row (PriceDisplay area, line ~439): wrap `PriceDisplay` with `v-if="!isHighTicket || !highTicketHidePrice"`.
-4. In bottom purchase section (line ~601), replace the `<!-- Price Block -->` div:
-   ```html
-   <!-- Workshop info block (replaces price) -->
-   <div v-if="isHighTicket && highTicketHidePrice" class="py-1 max-w-xs text-sm text-gray-600 leading-relaxed">
-     此為高價工作坊，請預約 1v1 面談了解，預約後必須立即收取 Email 完成任務，才是正式完成預約。
-   </div>
-   <div v-else class="py-1">
-     <PriceDisplay ... />
-   </div>
-   ```
-5. Workshop booking form: replace the `<!-- Consent & Purchase Button -->` section when `isHighTicket && !hasPurchased`:
-   - Show booking form inline (name, email, phone fields + submit button)
-   - Submit via `router.post(\`/course/${course.id}/book\`, { name, email, phone })`
-   - Show success state from flash `high_ticket_booking_success`
-6. Update buy button label: `isHighTicket ? '立即預約' : (isFree ? '免費報名' : '立即購買')`.
-7. Floating panel: add `v-if` condition to hide when `isHighTicket && highTicketHidePrice`.
+**Status inline update**: `axios.patch()` per lead (JSON, no page reload) — consistent with existing async patterns in 008.
 
-**Admin/EmailTemplates/Edit.vue** — key interactions:
-- `<textarea>` bound to `form.body_md` (same as CourseForm description_md pattern)
-- Variable insert: `insertAtCursor(variableKey)` — uses `textarea.selectionStart`/`selectionEnd`
-- Image insert: open `ImageGalleryModal` → on select, insert `![圖片](imageUrl)` at cursor
-- Preview panel: rendered via `computed(() => marked(form.body_md))`
+**AdminLayout.vue**: Add `Leads 名單` nav link (under 客製服務 section or after Email 模板).
+
+#### Email Template Seeder (modified)
+
+Add 4th default template:
+```php
+[
+    'name'       => '客製服務新時段通知',
+    'event_type' => 'high_ticket_slot_available',
+    'subject'    => '【新時段釋出】{{course_name}} 預約面談',
+    'body_md'    => "Hi {{user_name}}，\n\n感謝您之前預約 {{course_name}}。\n\n我們剛釋出了新的面談時段，歡迎重新預約！\n\n如有任何問題，歡迎回覆此信聯繫。",
+]
+```
 
 ---
 
 ## Complexity Tracking
 
 No constitution violations — no complexity justification required.
+
+**Integration note**: `subscribeDrip` delegates entirely to existing `DripService::subscribe()`. This service already handles:
+- Finding/creating users
+- Creating drip subscriptions with idempotency
+- Dispatching `SendDripEmailJob` for the first lesson
+
+No duplication, no new patterns introduced.
