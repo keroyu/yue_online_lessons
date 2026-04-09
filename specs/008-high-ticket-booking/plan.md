@@ -1,6 +1,7 @@
 # Implementation Plan: 客製服務預約系統
 
 **Branch**: `008-high-ticket-booking` | **Date**: 2026-04-08 | **Spec**: [spec.md](spec.md)
+**Updated**: 2026-04-09 - 實作完成；預約改 JSON API（axios）、說明文案更新、浮動面板文字修正、migration 相容舊版 MySQL
 **Input**: Feature specification from `/specs/008-high-ticket-booking/spec.md`
 
 ---
