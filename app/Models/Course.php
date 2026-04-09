@@ -25,6 +25,7 @@ class Course extends Model
         'thumbnail',
         'instructor_name',
         'type',
+        'high_ticket_hide_price',
         'is_published',
         'status',
         'is_visible',
@@ -44,6 +45,7 @@ class Course extends Model
             'original_price' => 'integer',
             'is_published' => 'boolean',
             'is_visible' => 'boolean',
+            'high_ticket_hide_price' => 'boolean',
             'sort_order' => 'integer',
             'sale_at' => 'datetime',
             'promo_ends_at' => 'datetime',
@@ -159,6 +161,13 @@ class Course extends Model
     {
         return Attribute::make(
             get: fn () => $this->course_type === 'drip'
+        );
+    }
+
+    protected function isHighTicket(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->type === 'high_ticket'
         );
     }
 

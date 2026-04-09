@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             ChapterSeeder::class,
             LessonSeeder::class,
             HomepageSettingsSeeder::class,
+            EmailTemplateSeeder::class,
         ]);
     }
 }

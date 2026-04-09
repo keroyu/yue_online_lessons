@@ -155,6 +155,8 @@ class CourseController extends Controller
                 'delivery_mode' => $course->course_type ?? 'standard',
                 'drip_interval_days' => $course->drip_interval_days,
                 'target_course_ids' => $targetCourseIds,
+                'high_ticket_hide_price' => $course->high_ticket_hide_price,
+                'is_high_ticket' => $course->is_high_ticket,
             ],
             'images' => $course->images()
                 ->latest()

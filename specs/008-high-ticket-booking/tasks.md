@@ -17,10 +17,10 @@
 
 **⚠️ CRITICAL**: All user story phases are blocked until this phase is complete.
 
-- [ ] T001 Migration: alter `courses.type` ENUM to add `'high_ticket'` and add `high_ticket_hide_price` boolean column in `database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php`
-- [ ] T002 [P] Migration: create `email_templates` table (name, event_type, subject, body_md, timestamps) in `database/migrations/2026_04_09_000002_create_email_templates_table.php`
-- [ ] T003 Update `Course` model: add `workshop_hide_price` → `high_ticket_hide_price` to `$fillable`, add `'high_ticket_hide_price' => 'boolean'` to `casts()`, add `isHighTicket` accessor — `app/Models/Course.php`
-- [ ] T004 [P] Create `EmailTemplate` model: `$fillable` (includes `body_md`), `scopeForEvent()`, `renderSubject(array $vars)` (str_replace into subject), `renderBody(array $vars)` (str_replace into `body_md`, then convert via `CommonMarkConverter` — same pattern as `BatchEmailMail`) — `app/Models/EmailTemplate.php`
+- [X] T001 Migration: alter `courses.type` ENUM to add `'high_ticket'` and add `high_ticket_hide_price` boolean column in `database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php`
+- [X] T002 [P] Migration: create `email_templates` table (name, event_type, subject, body_md, timestamps) in `database/migrations/2026_04_09_000002_create_email_templates_table.php`
+- [X] T003 Update `Course` model: add `workshop_hide_price` → `high_ticket_hide_price` to `$fillable`, add `'high_ticket_hide_price' => 'boolean'` to `casts()`, add `isHighTicket` accessor — `app/Models/Course.php`
+- [X] T004 [P] Create `EmailTemplate` model: `$fillable` (includes `body_md`), `scopeForEvent()`, `renderSubject(array $vars)` (str_replace into subject), `renderBody(array $vars)` (str_replace into `body_md`, then convert via `CommonMarkConverter` — same pattern as `BatchEmailMail`) — `app/Models/EmailTemplate.php`
 
 **Checkpoint**: Run `php artisan migrate` — both migrations pass. Course model has `is_high_ticket` accessor. EmailTemplate model resolves variables.
 
@@ -32,10 +32,10 @@
 
 **Independent Test**: Create a new course in admin → select type "客製服務" → enable "隱藏價格" toggle → save → confirm DB has `type='high_ticket'` and `high_ticket_hide_price=1`.
 
-- [ ] T005 [P] [US1] Update `StoreCourseRequest`: add `'high_ticket'` to `type` enum validation rule — `app/Http/Requests/Admin/StoreCourseRequest.php`
-- [ ] T006 [P] [US1] Update `UpdateCourseRequest`: add `'high_ticket'` to `type` enum; add `'high_ticket_hide_price' => 'nullable|boolean'` rule — `app/Http/Requests/Admin/UpdateCourseRequest.php`
-- [ ] T007 [US1] Update `Admin\CourseController`: accept + store `high_ticket_hide_price` in `store()` and `update()`; pass `high_ticket_hide_price` and `is_high_ticket` as props in `edit()` / `show()` — `app/Http/Controllers/Admin/CourseController.php`
-- [ ] T008 [US1] Update `CourseForm.vue`: add `{ value: 'high_ticket', label: '客製服務' }` to `courseTypes` array; add `high_ticket_hide_price` to `useForm()`; add conditional toggle section (shown only when `form.type === 'high_ticket'`) — `resources/js/Components/Admin/CourseForm.vue`
+- [X] T005 [P] [US1] Update `StoreCourseRequest`: add `'high_ticket'` to `type` enum validation rule — `app/Http/Requests/Admin/StoreCourseRequest.php`
+- [X] T006 [P] [US1] Update `UpdateCourseRequest`: add `'high_ticket'` to `type` enum; add `'high_ticket_hide_price' => 'nullable|boolean'` rule — `app/Http/Requests/Admin/UpdateCourseRequest.php`
+- [X] T007 [US1] Update `Admin\CourseController`: accept + store `high_ticket_hide_price` in `store()` and `update()`; pass `high_ticket_hide_price` and `is_high_ticket` as props in `edit()` / `show()` — `app/Http/Controllers/Admin/CourseController.php`
+- [X] T008 [US1] Update `CourseForm.vue`: add `{ value: 'high_ticket', label: '客製服務' }` to `courseTypes` array; add `high_ticket_hide_price` to `useForm()`; add conditional toggle section (shown only when `form.type === 'high_ticket'`) — `resources/js/Components/Admin/CourseForm.vue`
 
 **Checkpoint**: Admin can create/edit a course with type "客製服務" and toggle "隱藏價格" — data saved correctly.
 
@@ -49,11 +49,11 @@
 
 > Can be developed in parallel with Phase 2 after Phase 1 completes.
 
-- [ ] T009 [US2] Update `CourseController` (public): pass `is_high_ticket` and `high_ticket_hide_price` props to `Course/Show` page — `app/Http/Controllers/CourseController.php`
-- [ ] T010 [US2] Update `Course/Show.vue` — top section: add `isHighTicket` and `highTicketHidePrice` computed refs; wrap top `PriceDisplay` with `v-if="!isHighTicket || !highTicketHidePrice"` — `resources/js/Pages/Course/Show.vue`
-- [ ] T011 [US2] Update `Course/Show.vue` — bottom section: replace `<PriceDisplay />` block with conditional: when `isHighTicket && highTicketHidePrice` show info text div, otherwise show `<PriceDisplay />` — `resources/js/Pages/Course/Show.vue`
-- [ ] T012 [US2] Update `Course/Show.vue` — button label: update buy button text to show `'立即預約'` when `isHighTicket && highTicketHidePrice`; update floating panel to hide `PriceDisplay` with `v-if="!isHighTicket || !highTicketHidePrice"` in same condition — `resources/js/Pages/Course/Show.vue`
-- [ ] T013 [US2] Update `getTypeLabel()` in `Course/Show.vue`: add `high_ticket: '客製服務'` mapping — `resources/js/Pages/Course/Show.vue`
+- [X] T009 [US2] Update `CourseController` (public): pass `is_high_ticket` and `high_ticket_hide_price` props to `Course/Show` page — `app/Http/Controllers/CourseController.php`
+- [X] T010 [US2] Update `Course/Show.vue` — top section: add `isHighTicket` and `highTicketHidePrice` computed refs; wrap top `PriceDisplay` with `v-if="!isHighTicket || !highTicketHidePrice"` — `resources/js/Pages/Course/Show.vue`
+- [X] T011 [US2] Update `Course/Show.vue` — bottom section: replace `<PriceDisplay />` block with conditional: when `isHighTicket && highTicketHidePrice` show info text div, otherwise show `<PriceDisplay />` — `resources/js/Pages/Course/Show.vue`
+- [X] T012 [US2] Update `Course/Show.vue` — button label: update buy button text to show `'立即預約'` when `isHighTicket && highTicketHidePrice`; update floating panel to hide `PriceDisplay` with `v-if="!isHighTicket || !highTicketHidePrice"` in same condition — `resources/js/Pages/Course/Show.vue`
+- [X] T013 [US2] Update `getTypeLabel()` in `Course/Show.vue`: add `high_ticket: '客製服務'` mapping — `resources/js/Pages/Course/Show.vue`
 
 **Checkpoint**: Sales page renders correctly for all course types. No regression on existing lecture/mini/full courses.
 
@@ -65,12 +65,12 @@
 
 **Independent Test**: Visit a high_ticket+hide_price sales page → click "立即預約" → fill name + email → submit → check inbox for confirmation email with correct variable substitution.
 
-- [ ] T014 [P] [US3] Create `HighTicketBookingMail`: follows `BatchEmailMail` pattern — constructor accepts `(string $emailSubject, string $emailBody)`, converts Markdown to HTML via `CommonMarkConverter` in constructor, `envelope()` uses `$this->emailSubject`, `content()` uses `view: 'emails.high-ticket-booking'` — `app/Mail/HighTicketBookingMail.php`
-- [ ] T015 [P] [US3] Create HTML email blade view: renders `{!! $htmlBody !!}` (same as `batch-email.blade.php`) — `resources/views/emails/high-ticket-booking.blade.php`
-- [ ] T016 [P] [US3] Create `HighTicketBookingService::book(Course $course, array $data): array`: (1) validate course is `high_ticket` type with `hide_price=true`; (2) find `EmailTemplate::forEvent('high_ticket_booking_confirmation')`; (3) render subject + body with vars; (4) `Mail::to($data['email'])->send(new HighTicketBookingMail(...))`; (5) return `['success' => true]` — no DB record created (FR-011) — `app/Services/HighTicketBookingService.php`
-- [ ] T017 [US3] Create `HighTicketBookingController@store`: validate (name required, email required/valid), delegate to `HighTicketBookingService::book()`, redirect back with flash `high_ticket_booking_success` on success or `withErrors()` on failure — `app/Http/Controllers/HighTicketBookingController.php`
-- [ ] T018 [US3] Add route: `POST /course/{course}/book` → `HighTicketBookingController@store` with `throttle:5,1` — `routes/web.php`
-- [ ] T019 [US3] Update `Course/Show.vue`: add booking form (name + email inputs, submit button), booking submission via `router.post()`, show success message on `high_ticket_booking_success` flash — `resources/js/Pages/Course/Show.vue`
+- [X] T014 [P] [US3] Create `HighTicketBookingMail`: follows `BatchEmailMail` pattern — constructor accepts `(string $emailSubject, string $emailBody)`, converts Markdown to HTML via `CommonMarkConverter` in constructor, `envelope()` uses `$this->emailSubject`, `content()` uses `view: 'emails.high-ticket-booking'` — `app/Mail/HighTicketBookingMail.php`
+- [X] T015 [P] [US3] Create HTML email blade view: renders `{!! $htmlBody !!}` (same as `batch-email.blade.php`) — `resources/views/emails/high-ticket-booking.blade.php`
+- [X] T016 [P] [US3] Create `HighTicketBookingService::book(Course $course, array $data): array`: (1) validate course is `high_ticket` type with `hide_price=true`; (2) find `EmailTemplate::forEvent('high_ticket_booking_confirmation')`; (3) render subject + body with vars; (4) `Mail::to($data['email'])->send(new HighTicketBookingMail(...))`; (5) return `['success' => true]` — no DB record created (FR-011) — `app/Services/HighTicketBookingService.php`
+- [X] T017 [US3] Create `HighTicketBookingController@store`: validate (name required, email required/valid), delegate to `HighTicketBookingService::book()`, redirect back with flash `high_ticket_booking_success` on success or `withErrors()` on failure — `app/Http/Controllers/HighTicketBookingController.php`
+- [X] T018 [US3] Add route: `POST /course/{course}/book` → `HighTicketBookingController@store` with `throttle:5,1` — `routes/web.php`
+- [X] T019 [US3] Update `Course/Show.vue`: add booking form (name + email inputs, submit button), booking submission via `router.post()`, show success message on `high_ticket_booking_success` flash — `resources/js/Pages/Course/Show.vue`
 
 **Checkpoint**: Submit booking form on high_ticket course → email received → correct name and course name in email.
 
@@ -82,14 +82,14 @@
 
 **Independent Test**: Edit "課程贈禮通知" template in admin → change subject → gift a course → confirm received email uses new subject.
 
-- [ ] T020 [P] [US4] Create `EmailTemplateSeeder`: seed 3 default templates (`high_ticket_booking_confirmation`, `course_gifted`, `lesson_added`) with current hardcoded content as initial `body_md`; register seeder in `DatabaseSeeder::run()` — `database/seeders/EmailTemplateSeeder.php`
-- [ ] T021 [P] [US4] Create `EmailTemplateRequest`: validate `name` (required, max:100), `subject` (required, max:255), `body_md` (required) — `app/Http/Requests/Admin/EmailTemplateRequest.php`
-- [ ] T022 [P] [US4] Create `Admin\EmailTemplateController`: `index()` returns all templates; `edit()` returns template + availableVariables per event_type; `update(EmailTemplateRequest)` validates and saves — `app/Http/Controllers/Admin/EmailTemplateController.php`
-- [ ] T023 [US4] Add admin routes: `GET /admin/email-templates` (index), `GET /admin/email-templates/{template}/edit` (edit), `PUT /admin/email-templates/{template}` (update) — `routes/web.php`
-- [ ] T024 [P] [US4] Create `Admin/EmailTemplates/Index.vue`: list all templates with name, event_type label, edit button — `resources/js/Pages/Admin/EmailTemplates/Index.vue`
-- [ ] T025 [US4] Create `Admin/EmailTemplates/Edit.vue`: name field, subject field, `body_md` textarea (bound to `form.body_md`), variable insert buttons (per event_type, insert at cursor via `selectionStart`/`selectionEnd`), Markdown preview via `computed(() => marked(form.body_md))`, save via `router.put()` — `resources/js/Pages/Admin/EmailTemplates/Edit.vue`
-- [ ] T026 [US4] Refactor `CourseGiftedMail`: lookup `EmailTemplate::forEvent('course_gifted')` first; if found render subject+body (Markdown → HTML) and send; else fallback to current hardcoded content — `app/Mail/CourseGiftedMail.php` and `app/Http/Controllers/Admin/MemberController.php`
-- [ ] T027 [US4] Refactor `LessonAddedNotification`: same fallback pattern as T026 — `app/Mail/LessonAddedNotification.php` and `app/Http/Controllers/Admin/LessonController.php`
+- [X] T020 [P] [US4] Create `EmailTemplateSeeder`: seed 3 default templates (`high_ticket_booking_confirmation`, `course_gifted`, `lesson_added`) with current hardcoded content as initial `body_md`; register seeder in `DatabaseSeeder::run()` — `database/seeders/EmailTemplateSeeder.php`
+- [X] T021 [P] [US4] Create `EmailTemplateRequest`: validate `name` (required, max:100), `subject` (required, max:255), `body_md` (required) — `app/Http/Requests/Admin/EmailTemplateRequest.php`
+- [X] T022 [P] [US4] Create `Admin\EmailTemplateController`: `index()` returns all templates; `edit()` returns template + availableVariables per event_type; `update(EmailTemplateRequest)` validates and saves — `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [X] T023 [US4] Add admin routes: `GET /admin/email-templates` (index), `GET /admin/email-templates/{template}/edit` (edit), `PUT /admin/email-templates/{template}` (update) — `routes/web.php`
+- [X] T024 [P] [US4] Create `Admin/EmailTemplates/Index.vue`: list all templates with name, event_type label, edit button — `resources/js/Pages/Admin/EmailTemplates/Index.vue`
+- [X] T025 [US4] Create `Admin/EmailTemplates/Edit.vue`: name field, subject field, `body_md` textarea (bound to `form.body_md`), variable insert buttons (per event_type, insert at cursor via `selectionStart`/`selectionEnd`), Markdown preview via `computed(() => marked(form.body_md))`, save via `router.put()` — `resources/js/Pages/Admin/EmailTemplates/Edit.vue`
+- [X] T026 [US4] Refactor `CourseGiftedMail`: lookup `EmailTemplate::forEvent('course_gifted')` first; if found render subject+body (Markdown → HTML) and send; else fallback to current hardcoded content — `app/Mail/CourseGiftedMail.php` and `app/Http/Controllers/Admin/MemberController.php`
+- [X] T027 [US4] Refactor `LessonAddedNotification`: same fallback pattern as T026 — `app/Mail/LessonAddedNotification.php` and `app/Http/Controllers/Admin/LessonController.php`
 
 **Checkpoint**: All 3 templates editable in admin. Editing course_gifted template → gift a course → updated subject/body received.
 
@@ -97,8 +97,8 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T028 Add "Email 模板" nav link in admin sidebar/navigation — `resources/js/Layouts/AdminLayout.vue`
-- [ ] T029 Run `php artisan db:seed --class=EmailTemplateSeeder` — verify 3 default templates seeded correctly
+- [X] T028 Add "Email 模板" nav link in admin sidebar/navigation — `resources/js/Layouts/AdminLayout.vue`
+- [X] T029 Run `php artisan db:seed --class=EmailTemplateSeeder` — verify 3 default templates seeded correctly
 - [ ] T030 [P] Smoke test complete booking flow end-to-end: admin sets course to high_ticket + hide_price → visitor submits booking form → email arrives with correct content
 
 ---

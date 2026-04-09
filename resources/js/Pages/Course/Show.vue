@@ -68,6 +68,7 @@ const getTypeLabel = (type) => {
     lecture: '講座',
     mini: '迷你課',
     full: '完整課程',
+    high_ticket: '客製服務',
   }
   return labels[type] || type
 }
@@ -283,6 +284,37 @@ const subscriptionStatusLabel = computed(() => {
 })
 
 const ctaLabel = computed(() => props.course.tagline || props.course.name)
+
+const isHighTicket = computed(() => props.course.is_high_ticket === true)
+const highTicketHidePrice = computed(() => props.course.high_ticket_hide_price === true)
+
+// High ticket booking form
+const bookingName = ref(page.props.auth?.user?.real_name || '')
+const bookingEmail = ref(page.props.auth?.user?.email || '')
+const bookingSubmitting = ref(false)
+const bookingSuccess = ref(false)
+const bookingErrors = ref({})
+
+const submitBooking = async () => {
+  bookingErrors.value = {}
+  bookingSubmitting.value = true
+  try {
+    await window.axios.post(`/course/${props.course.id}/book`, {
+      name: bookingName.value,
+      email: bookingEmail.value,
+    })
+    bookingSuccess.value = true
+  } catch (e) {
+    const errors = e.response?.data?.errors
+    if (errors) {
+      bookingErrors.value = errors
+    } else {
+      bookingErrors.value = { booking: e.response?.data?.message || '預約失敗，請稍後再試。' }
+    }
+  } finally {
+    bookingSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -437,6 +469,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
         <!-- Right: Quick scroll-to-purchase button -->
         <div class="flex flex-col items-center sm:items-end gap-3 shrink-0 sm:pt-1">
           <PriceDisplay
+            v-if="!isHighTicket || !highTicketHidePrice"
             :price="course.price"
             :original-price="course.original_price"
             :promo-ends-at="course.promo_ends_at"
@@ -473,7 +506,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
               <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {{ isDrip ? '免費訂閱' : (isFree ? '免費報名' : '立即購買') }}
+              {{ isDrip ? '免費訂閱' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買')) }}
             </button>
           </div>
         </div>
@@ -599,8 +632,24 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
 
         <!-- ── Normal purchase UI ── -->
         <div v-else class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-          <!-- Price Block -->
-          <div class="py-1">
+          <!-- Left: High Ticket Info callout -->
+          <div v-if="isHighTicket && highTicketHidePrice" class="flex-1">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <div class="flex items-center gap-2 mb-3">
+                <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm font-bold text-amber-800">預約須知</span>
+              </div>
+              <p class="text-sm text-amber-900 leading-relaxed">
+                此為客製服務，請預約 1v1 面談了解。
+              </p>
+              <p class="mt-2 text-sm font-semibold text-amber-900 leading-relaxed">
+                預約後，請立即收取 Email 並按照指示完成後續任務，直到收到確認信，才是正式完成預約。
+              </p>
+            </div>
+          </div>
+          <div v-else class="py-1">
             <PriceDisplay
               :price="course.price"
               :original-price="course.original_price"
@@ -608,8 +657,62 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
             />
           </div>
 
+          <!-- Right: High Ticket booking form (replaces Consent & Purchase Button) -->
+          <div v-if="isHighTicket && highTicketHidePrice" class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm w-full sm:w-80 shrink-0">
+            <!-- Success state -->
+            <div v-if="bookingSuccess" class="text-center py-2">
+              <div class="mx-auto w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-gray-900 mb-1">預約申請已送出！</p>
+              <p class="text-sm text-gray-600">通知信已寄出，請立即前往收件匣查收並按照信中指示完成後續步驟。</p>
+            </div>
+            <!-- Form state -->
+            <template v-else>
+              <h3 class="text-base font-semibold text-gray-900 mb-4">預約 1v1 面談</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">姓名 <span class="text-red-500">*</span></label>
+                  <input
+                    v-model="bookingName"
+                    type="text"
+                    placeholder="請輸入姓名"
+                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                    :class="{ 'border-red-300': bookingErrors.name }"
+                  />
+                  <p v-if="bookingErrors.name" class="mt-1 text-sm text-red-600">{{ bookingErrors.name[0] ?? bookingErrors.name }}</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+                  <input
+                    v-model="bookingEmail"
+                    type="email"
+                    placeholder="your@email.com"
+                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                    :class="{ 'border-red-300': bookingErrors.email }"
+                  />
+                  <p v-if="bookingErrors.email" class="mt-1 text-sm text-red-600">{{ bookingErrors.email[0] ?? bookingErrors.email }}</p>
+                </div>
+                <p v-if="bookingErrors.booking" class="text-sm text-red-600">{{ bookingErrors.booking }}</p>
+                <button
+                  @click="submitBooking"
+                  :disabled="bookingSubmitting || !bookingName || !bookingEmail"
+                  class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg v-if="bookingSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  {{ bookingSubmitting ? '送出中...' : '送出預約' }}
+                </button>
+              </div>
+            </template>
+          </div>
+
           <!-- Consent & Purchase Button -->
-          <div class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
+          <div v-else class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
             <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
               草稿課程，僅供預覽
             </div>
@@ -754,7 +857,7 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
                 <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                {{ isPreviewMode ? '預覽購買按鈕' : (isFree ? '免費報名' : (payuniSubmitting ? '處理中...' : '立即購買')) }}
+                {{ isPreviewMode ? '預覽購買按鈕' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : (payuniSubmitting ? '處理中...' : '立即購買'))) }}
               </button>
             </div>
           </div>
@@ -774,10 +877,11 @@ const ctaLabel = computed(() => props.course.tagline || props.course.name)
         leave-to-class="translate-x-full opacity-0"
       >
         <div
-          v-if="showFloatingPanel && !isDrip && !isPreviewMode && hasBuyAction && !hasPurchased"
+          v-if="showFloatingPanel && !isDrip && !isPreviewMode && (hasBuyAction || (isHighTicket && highTicketHidePrice)) && !hasPurchased"
           class="fixed right-4 bottom-6 z-40 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4"
         >
           <PriceDisplay
+            v-if="!isHighTicket || !highTicketHidePrice"
             :price="course.price"
             :original-price="course.original_price"
             :promo-ends-at="course.promo_ends_at"

@@ -62,6 +62,8 @@ class CourseController extends Controller
                 'use_payuni' => !$course->portaly_product_id && $course->price > 0,
                 'is_free' => !$course->portaly_product_id && $course->price == 0,
                 'display_price' => (float) $course->display_price,
+                'is_high_ticket' => $course->is_high_ticket,
+                'high_ticket_hide_price' => $course->high_ticket_hide_price,
             ],
             'hasPurchased' => $course->hasPaidAccessForUser($user),
             'isAdmin' => $isAdmin,

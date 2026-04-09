@@ -45,6 +45,7 @@ const form = useForm({
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
   type: props.course?.product_type || props.course?.type || 'lecture',
+  high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   is_visible: props.course?.is_visible ?? true,
@@ -117,6 +118,7 @@ const courseTypes = [
   { value: 'lecture', label: '講座課程' },
   { value: 'mini', label: '迷你課程' },
   { value: 'full', label: '完整課程' },
+  { value: 'high_ticket', label: '客製服務' },
 ]
 
 const handleThumbnailChange = (event) => {
@@ -315,9 +317,22 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 {{ type.label }}
               </option>
             </select>
-            <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程」等產品分類。</p>
+            <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程 / 客製服務」等產品分類。</p>
             <p v-if="form.errors.type" :class="errorTextClasses">{{ form.errors.type }}</p>
           </div>
+        </div>
+
+        <!-- High Ticket Options (only when type = high_ticket) -->
+        <div v-if="form.type === 'high_ticket'" class="border border-indigo-100 bg-indigo-50 rounded-lg p-4">
+          <p class="text-sm font-semibold text-indigo-800 mb-3">客製服務設定</p>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.high_ticket_hide_price"
+              class="h-4 w-4 border-gray-300 text-indigo-600 rounded focus:ring-indigo-500"
+            />
+            <span class="text-sm text-gray-700">隱藏原價／優惠價，改顯示「立即預約」按鈕</span>
+          </label>
         </div>
 
         <!-- Thumbnail -->

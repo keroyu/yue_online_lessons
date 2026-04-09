@@ -33,7 +33,8 @@ class UpdateCourseRequest extends FormRequest
             'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
-            'type' => ['required', 'in:lecture,mini,full'],
+            'type' => ['required', 'in:lecture,mini,full,high_ticket'],
+            'high_ticket_hide_price' => ['nullable', 'boolean'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
