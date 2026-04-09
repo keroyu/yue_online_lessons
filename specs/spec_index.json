@@ -1227,6 +1227,66 @@
         "app/Http/Controllers/HomeController.php"
       ],
       "status": "implemented"
+    },
+    {
+      "id": "008.us-1",
+      "module": "008-high-ticket-booking",
+      "title": "管理員設定客製服務課程類別",
+      "summary": "",
+      "heading": "### User Story 1 - 管理員設定客製服務課程類別 (Priority: P1)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-1---管理員設定客製服務課程類別-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "008.us-2",
+      "module": "008-high-ticket-booking",
+      "title": "客製服務銷售頁前台展示",
+      "summary": "",
+      "heading": "### User Story 2 - 客製服務銷售頁前台展示 (Priority: P1)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-2---客製服務銷售頁前台展示-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "008.us-3",
+      "module": "008-high-ticket-booking",
+      "title": "訪客點擊預約後收到 Email",
+      "summary": "",
+      "heading": "### User Story 3 - 訪客點擊預約後收到 Email (Priority: P2)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-3---訪客點擊預約後收到-email-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "008.us-4",
+      "module": "008-high-ticket-booking",
+      "title": "管理員在後台統一管理 Email 模板",
+      "summary": "",
+      "heading": "### User Story 4 - 管理員在後台統一管理 Email 模板 (Priority: P2)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-4---管理員在後台統一管理-email-模板-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "008.us-5",
+      "module": "008-workshop-booking",
+      "title": "管理員查看工作坊預約記錄",
+      "summary": "",
+      "heading": "### User Story 5 - 管理員查看工作坊預約記錄 (Priority: P3)",
+      "file": "specs/008-workshop-booking/spec.md",
+      "anchor": "user-story-5---管理員查看工作坊預約記錄-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
     }
   ]
 }
