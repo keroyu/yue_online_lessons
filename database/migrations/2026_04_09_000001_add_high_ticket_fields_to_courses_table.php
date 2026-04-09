@@ -11,7 +11,9 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE courses MODIFY COLUMN type ENUM('lecture', 'mini', 'full', 'high_ticket') NOT NULL");
-            DB::statement("ALTER TABLE courses ADD COLUMN IF NOT EXISTS high_ticket_hide_price TINYINT(1) NOT NULL DEFAULT 0 AFTER type");
+            if (!Schema::hasColumn('courses', 'high_ticket_hide_price')) {
+                DB::statement("ALTER TABLE courses ADD COLUMN high_ticket_hide_price TINYINT(1) NOT NULL DEFAULT 0 AFTER type");
+            }
         } else {
             // SQLite: add column only (no ENUM support, type column already exists)
             if (!Schema::hasColumn('courses', 'high_ticket_hide_price')) {
@@ -25,7 +27,9 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE courses DROP COLUMN IF EXISTS high_ticket_hide_price");
+            if (Schema::hasColumn('courses', 'high_ticket_hide_price')) {
+                DB::statement("ALTER TABLE courses DROP COLUMN high_ticket_hide_price");
+            }
             DB::statement("ALTER TABLE courses MODIFY COLUMN type ENUM('lecture', 'mini', 'full') NOT NULL");
         } else {
             Schema::table('courses', function (Blueprint $table) {
