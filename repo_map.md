@@ -132,6 +132,28 @@ related_specs:
 
 ---
 
+## High Ticket Booking (008)
+purpose: 客製服務課程類別（隱藏價格模式）、銷售頁預約表單（非同步送出 + inline 成功提示）、確認 Email（DB 模板驅動）、後台 Email 模板 CRUD（Markdown 編輯器 + 變數插入）
+specs: specs/008-high-ticket-booking/
+
+main_files:
+- app/Http/Controllers/HighTicketBookingController.php
+- app/Http/Controllers/Admin/EmailTemplateController.php
+- app/Http/Requests/Admin/EmailTemplateRequest.php
+- app/Mail/HighTicketBookingMail.php
+- app/Models/EmailTemplate.php
+- app/Services/HighTicketBookingService.php
+- resources/js/Pages/Admin/EmailTemplates/Index.vue
+- resources/js/Pages/Admin/EmailTemplates/Edit.vue
+- resources/views/emails/high-ticket-booking.blade.php
+
+related_specs:
+- specs/008-high-ticket-booking/spec.md
+- specs/008-high-ticket-booking/data-model.md
+- specs/008-high-ticket-booking/contracts/api.md
+
+---
+
 ## Drip Email System (005)
 purpose: free/paid subscription to drip courses, auto email sequences after purchase, admin configuration, tracking
 specs: specs/005-drip-email/

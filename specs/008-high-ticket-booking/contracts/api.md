@@ -1,6 +1,7 @@
 # API Contracts: 客製服務預約系統
 
 **Phase**: 1 — Design
+**Updated**: 2026-04-09 - 預約端點改為 JSON API（非 Inertia redirect）；成功/失敗均回傳 JSON
 **Updated**: 2026-04-09
 **Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
 
@@ -23,9 +24,21 @@
 }
 ```
 
-**Success**: Redirect back with flash `high_ticket_booking_success = true`
+**Success** `200 OK`:
+```json
+{ "success": true }
+```
 
-**Error**: Redirect back with validation errors
+**Error** `422 Unprocessable Entity`:
+```json
+{ "message": "...", "errors": { "name": [...], "email": [...] } }
+```
+or
+```json
+{ "message": "預約確認信模板不存在，請聯絡管理員" }
+```
+
+> ⚠️ **Implementation note**: This endpoint returns JSON (not Inertia redirect). The frontend uses `axios.post()` and handles success/error inline without page navigation.
 
 **Side effects**:
 - Sends confirmation email to visitor (sync) using `high_ticket_booking_confirmation` template
