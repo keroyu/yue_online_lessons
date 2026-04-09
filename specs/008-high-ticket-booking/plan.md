@@ -7,7 +7,7 @@
 
 ## Summary
 
-新增「工作坊」課程類別，支援隱藏價格、顯示說明文字、以「立即預約」取代「立即購買」按鈕；訪客提交預約表單後系統同步發送確認 Email；後台提供 Email 模板 CRUD（Markdown 編輯 + 相簿圖片插入 + 變數插入）與預約記錄管理。技術上：擴充 `courses.type` ENUM、新增 `high_ticket_bookings` 與 `email_templates` 兩張表，遵循現有 `BatchEmailMail` + CommonMark 模式。
+新增「客製服務」課程類別，支援隱藏價格、顯示說明文字、以「立即預約」取代「立即購買」按鈕；訪客提交預約表單後系統同步發送確認 Email；後台提供 Email 模板 CRUD（Markdown 編輯 + 變數插入）。技術上：擴充 `courses.type` ENUM、新增 `email_templates` 一張表，遵循現有 `BatchEmailMail` + CommonMark 模式。
 
 ---
 
@@ -68,14 +68,12 @@ app/
 │   │   ├── HighTicketBookingController.php     [NEW] public booking
 │   │   └── Admin/
 │   │       ├── CourseController.php           [MODIFY] add high_ticket fields
-│   │       ├── HighTicketBookingController.php  [NEW] admin booking management
 │   │       └── EmailTemplateController.php    [NEW] email template CRUD
 │   └── Requests/
 │       └── Admin/
 │           └── EmailTemplateRequest.php       [NEW] validation
 ├── Models/
 │   ├── Course.php                             [MODIFY] +fillable, cast, accessor
-│   ├── HighTicketBooking.php                    [NEW]
 │   └── EmailTemplate.php                     [NEW]
 ├── Services/
 │   └── HighTicketBookingService.php            [NEW]
@@ -83,12 +81,11 @@ app/
     └── HighTicketBookingMail.php               [NEW]
 
 database/migrations/
-├── 2026_04_08_000001_add_high_ticket_fields_to_courses_table.php  [NEW]
-├── 2026_04_08_000002_create_high_ticket_bookings_table.php        [NEW]
-└── 2026_04_08_000003_create_email_templates_table.php          [NEW]
+├── 2026_04_09_000001_add_high_ticket_fields_to_courses_table.php  [NEW]
+└── 2026_04_09_000002_create_email_templates_table.php             [NEW]
 
 database/seeders/
-└── EmailTemplateSeeder.php                   [NEW] default booking confirmation template
+└── EmailTemplateSeeder.php                   [NEW] 3 default templates
 
 resources/
 ├── views/emails/
@@ -100,8 +97,6 @@ resources/
         ├── Course/
         │   └── Show.vue                      [MODIFY] high_ticket UI branches
         └── Admin/
-            ├── HighTicketBookings/
-            │   └── Index.vue                 [NEW]
             └── EmailTemplates/
                 ├── Index.vue                 [NEW]
                 └── Edit.vue                  [NEW] (create + edit combined)
@@ -130,8 +125,7 @@ See [research.md](research.md) for full findings. Key decisions:
 See [data-model.md](data-model.md) for full schema.
 
 **Summary**:
-- `courses` table: enum altered + 2 new columns
-- `high_ticket_bookings` table: new (course_id, name, email, phone, status, timestamps)
+- `courses` table: enum altered + 1 new column (`high_ticket_hide_price`)
 - `email_templates` table: new (name, event_type, subject, body_md, timestamps)
 
 ### API Contracts
@@ -152,19 +146,20 @@ See [contracts/api.md](contracts/api.md) for full contracts.
 // App\Services\HighTicketBookingService
 public function book(Course $course, array $data): array
 {
-    // 1. Validate course is high_ticket type
-    // 2. DB::transaction: create HighTicketBooking
-    // 3. Find email template for 'high_ticket_booking_confirmation'
-    // 4. Render template with variables
-    // 5. Mail::to($data['email'])->send(new HighTicketBookingMail(...))
-    // 6. Return ['success' => true, 'booking' => $booking]
+    // 1. Validate course is high_ticket type with hide_price=true
+    // 2. Find email template for 'high_ticket_booking_confirmation'
+    // 3. Render subject + body with vars (user_name, user_email, course_name)
+    // 4. Mail::to($data['email'])->send(new HighTicketBookingMail(...))
+    // 5. Return ['success' => true] (no DB record created — FR-011)
 }
 ```
 
 **HighTicketBookingMail** (follows BatchEmailMail pattern):
 ```php
-// Constructor receives: subject (string), htmlBody (string)
-// Template is pre-rendered by Service before passing to Mailable
+// Constructor receives: emailSubject (string), emailBody (string — Markdown)
+// Converts Markdown → HTML in constructor via CommonMarkConverter
+// envelope(): subject from $this->emailSubject
+// content(): view: 'emails.high-ticket-booking'
 // Blade: {!! $htmlBody !!}  (same as batch-email.blade.php)
 ```
 

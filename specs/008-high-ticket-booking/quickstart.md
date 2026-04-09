@@ -22,12 +22,13 @@ npm run dev
 2. `create_email_templates_table` — new table
 
 ### Step 2: Models
-1. Update `Course` — add fillable, cast, `isWorkshop` accessor
+1. Update `Course` — add fillable, cast, `isHighTicket` accessor
 2. Create `EmailTemplate` — with `renderSubject()` / `renderBody()` methods
 
 ### Step 3: Mailable & Controller
-1. Create `HighTicketBookingMail` — plain text mailable (subject + body, no HTML rendering)
-2. Create `HighTicketBookingController` (public) — handles form submit, sends email
+1. Create `HighTicketBookingMail` — Markdown mailable (follows BatchEmailMail pattern, CommonMark → HTML)
+2. Create `HighTicketBookingService` — validates course, finds template, sends email
+3. Create `HighTicketBookingController` (public) — validates form, delegates to service
 3. Create `Admin\EmailTemplateController` — CRUD
 4. Update `Admin\CourseController` — add `high_ticket_hide_price` to validation + store/update
 5. Update `routes/web.php`
@@ -44,10 +45,11 @@ npm run dev
 
 | File | Change | Description |
 |------|--------|-------------|
-| `app/Models/Course.php` | Modify | +fillable, cast, isWorkshop accessor |
+| `app/Models/Course.php` | Modify | +fillable, cast, isHighTicket accessor |
 | `app/Models/EmailTemplate.php` | Create | New model |
-| `app/Mail/HighTicketBookingMail.php` | Create | Plain text mailable |
-| `app/Http/Controllers/HighTicketBookingController.php` | Create | Public booking submit |
+| `app/Mail/HighTicketBookingMail.php` | Create | Markdown mailable (BatchEmailMail pattern) |
+| `app/Services/HighTicketBookingService.php` | Create | Booking logic + email send |
+| `app/Http/Controllers/HighTicketBookingController.php` | Create | Public booking submit (delegates to service) |
 | `app/Http/Controllers/Admin/EmailTemplateController.php` | Create | Template CRUD |
 | `app/Http/Controllers/Admin/CourseController.php` | Modify | +high_ticket_hide_price |
 | `app/Http/Requests/Admin/StoreCourseRequest.php` | Modify | +high_ticket to type enum |

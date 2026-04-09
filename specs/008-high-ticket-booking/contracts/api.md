@@ -73,7 +73,7 @@
     "name": "string",
     "event_type": "string",
     "subject": "string",
-    "body_text": "string"
+    "body_md": "string"
   },
   "availableVariables": [
     { "key": "{{user_name}}", "label": "收件人姓名" }
@@ -94,7 +94,7 @@ Note: `availableVariables` differs per `event_type` — controller resolves base
 {
   "name": "string, required, max:100",
   "subject": "string, required, max:255",
-  "body_text": "string, required"
+  "body_md": "string, required"
 }
 ```
 

@@ -34,7 +34,7 @@ CREATE TABLE email_templates (
   name VARCHAR(100) NOT NULL,
   event_type VARCHAR(50) NOT NULL,
   subject VARCHAR(255) NOT NULL,
-  body_text LONGTEXT NOT NULL,
+  body_md LONGTEXT NOT NULL,
   created_at TIMESTAMP NULL DEFAULT NULL,
   updated_at TIMESTAMP NULL DEFAULT NULL,
   INDEX idx_event_type (event_type)
@@ -48,9 +48,9 @@ CREATE TABLE email_templates (
 | `name` | VARCHAR(100) | Human-readable template name |
 | `event_type` | VARCHAR(50) | e.g. `high_ticket_booking_confirmation` |
 | `subject` | VARCHAR(255) | Email subject (supports variables) |
-| `body_text` | LONGTEXT | Plain text body with `{{variable}}` placeholders |
+| `body_md` | LONGTEXT | Markdown body with `{{variable}}` placeholders; converted to HTML via CommonMark before sending |
 
-**Note**: `body_text` is plain text (not Markdown rendered to HTML). Sent as-is. No image insertion.
+**Note**: `body_md` follows the same pattern as `BatchEmailMail` — stored as Markdown, rendered to HTML via `CommonMarkConverter` at send time.
 
 **Supported variables**:
 | Variable | Value |
@@ -71,7 +71,7 @@ Add to `casts()`: `'high_ticket_hide_price' => 'boolean'`
 
 Add accessor:
 ```php
-protected function isWorkshop(): Attribute
+protected function isHighTicket(): Attribute
 {
     return Attribute::make(
         get: fn () => $this->type === 'high_ticket'
@@ -89,14 +89,14 @@ Table: email_templates
 ```
 
 ```php
-$fillable = ['name', 'event_type', 'subject', 'body_text']
+$fillable = ['name', 'event_type', 'subject', 'body_md']
 
 Scopes:
 - scopeForEvent(Builder $query, string $eventType): where event_type = $eventType
 
 Methods:
 - renderSubject(array $vars): string  — str_replace vars into subject
-- renderBody(array $vars): string     — str_replace vars into body_text
+- renderBody(array $vars): string     — str_replace vars into body_md, then convert to HTML via CommonMarkConverter (same as BatchEmailMail)
 ```
 
 ---
