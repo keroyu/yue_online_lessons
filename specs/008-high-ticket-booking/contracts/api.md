@@ -4,6 +4,7 @@
 **Updated**: 2026-04-09 - 預約端點改為 JSON API（非 Inertia redirect）；成功/失敗均回傳 JSON
 **Updated**: 2026-04-09
 **Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
+**Updated**: 2026-04-10 - subscribe-drip 改為非同步（SubscribeDripLeadJob）；response 欄位 subscribed → dispatched；side effects 移至 Job 內執行
 
 ---
 
@@ -175,10 +176,12 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 
 **Success** `200 OK`:
 ```json
-{ "notified": 3 }
+{ "dispatched": 3 }
 ```
 
-**Side effects** (per selected lead):
+> ⚠️ **Implementation note**: `dispatched` = Jobs queued (not yet sent). Actual email send + `notified_count` increment happen async inside `NotifyHighTicketSlotJob`.
+
+**Side effects** (async, per dispatched lead — inside `NotifyHighTicketSlotJob`):
 1. Send email using `EmailTemplate::forEvent('high_ticket_slot_available')` with vars `{{user_name}}`, `{{course_name}}`
 2. Increment `notified_count` by 1
 3. Set `last_notified_at` to now
@@ -200,15 +203,17 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 **Success** `200 OK`:
 ```json
 {
-  "subscribed": 2,
+  "dispatched": 2,
   "skipped": 1
 }
 ```
 
-**Side effects** (per selected lead):
+> ⚠️ **Implementation note**: `dispatched` = Jobs queued (not yet completed). Actual drip enrollment happens async via `SubscribeDripLeadJob`. `skipped` = leads with an existing `status='active'` drip_subscription (checked synchronously before dispatch).
+
+**Side effects** (async, per dispatched lead — inside `SubscribeDripLeadJob`):
 1. `User::firstOrCreate(['email' => $lead->email], ['nickname' => $lead->name])`
-2. `DripSubscription::firstOrCreate(['user_id' => ..., 'course_id' => ...])`
-3. Dispatch first drip lesson email (same as existing drip subscription flow)
+2. `DripService::subscribe($user, $dripCourse)` — creates subscription + dispatches first lesson email
+3. `$lead->update(['status' => 'closed'])`
 
 ---
 

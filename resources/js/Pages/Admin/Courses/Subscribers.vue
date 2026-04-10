@@ -102,6 +102,12 @@ const goToPage = (page) => {
       <p class="mt-1 text-sm text-gray-600">{{ course.name }} - 共 {{ course.total_lessons }} 個小節</p>
     </div>
 
+    <!-- Email Timing Notice -->
+    <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <span class="font-medium">序列信發送時間：</span>
+      第一封在訂閱後立即發出；第二封起每天台北時間 17:00 自動判斷並發送。
+    </div>
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
       <div class="bg-white rounded-lg shadow-sm p-4">

@@ -5,6 +5,7 @@
 **Tests**: Not requested — no test tasks generated.
 **Updated**: 2026-04-09 - 所有任務完成（Phase 7：post-implementation fixes — 非同步預約、UX 優化、MySQL 相容修正）
 **Updated**: 2026-04-09 - 規格擴充 US5/US6（Phase 8 待規劃：Lead 記錄 + Leads 管理後台 + 加入序列信）
+**Updated**: 2026-04-10 - 新增 Phase 8（US5：Lead 記錄）、Phase 9（US6：Leads 管理後台）、Phase 10（Polish）共 13 個任務（T031–T043）
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -162,6 +163,87 @@ T020 (Seeder) || T021 (EmailTemplateRequest) || T022 (Controller) || T024 (Index
 
 ---
 
+---
+
+## Phase 8: User Story 5 — 預約時系統儲存 Lead 記錄 (Priority: P2)
+
+**Goal**: 訪客提交預約表單時，系統在發送確認 Email 後，無論 Email 是否成功，均建立一筆 `high_ticket_leads` 記錄（status='pending'）。
+
+**Independent Test**: 訪客送出預約表單 → 後台 DB `high_ticket_leads` 出現新紀錄，name、email、course_id、status='pending'、booked_at 均正確；即使 Email 發送失敗，記錄依然存在。
+
+- [ ] T031 [P] [US5] Migration: create `high_ticket_leads` table — 欄位：name VARCHAR(100)、email VARCHAR(255)、course_id BIGINT UNSIGNED、status ENUM('pending','contacted','converted','closed') DEFAULT 'pending'、notified_count TINYINT DEFAULT 0、last_notified_at TIMESTAMP NULL、booked_at TIMESTAMP NOT NULL、timestamps；加 idx_email、idx_status、idx_course_id 索引 — `database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php`
+- [ ] T032 [P] [US5] Create `HighTicketLead` model: `$fillable` (name, email, course_id, status, notified_count, last_notified_at, booked_at)、`casts()` (booked_at/last_notified_at → datetime, notified_count → integer)、`scopeByStatus(Builder $query, string $status)`、`belongsTo(Course::class)` — `app/Models/HighTicketLead.php`
+- [ ] T033 [US5] Add `hasMany(HighTicketLead::class)` relation to `Course` model — `app/Models/Course.php`
+- [ ] T034 [US5] Modify `HighTicketBookingService::book()`: wrap `Mail::to()->send()` in try/catch（失敗 log 但繼續）；try/catch 結束後，**無論成功失敗**，執行 `HighTicketLead::create(['name'=>..., 'email'=>..., 'course_id'=>..., 'status'=>'pending', 'booked_at'=>now()])` — `app/Services/HighTicketBookingService.php`
+
+**Checkpoint**: 訪客送出預約表單 → `high_ticket_leads` 出現新紀錄；模擬 Email 失敗（關閉 mail driver）→ 記錄依然建立。
+
+---
+
+## Phase 9: User Story 6 — 管理員管理 Leads 名單與加入序列信 (Priority: P3)
+
+**Goal**: 管理員可在後台查看、篩選、更新 Leads 狀態；批次「通知新時段」（async Job per lead）；批次「加入序列信」（async Job per lead，含 firstOrCreate user + DripService::subscribe + auto-close）。
+
+**Independent Test**: 管理員篩選 pending leads → 勾選 2 筆 → 點擊「加入序列信」→ 選擇 drip 課程 → 確認 → response 回傳 `{dispatched:2, skipped:0}` → 這 2 人各自建立 user 帳號（若不存在）並訂閱 drip 課程，Lead status 改為 'closed'，第一封序列信由 Queue Worker 發出。
+
+> **⚠️ 前置條件**: Phase 8（T031–T034）必須完成，T037 EmailTemplateSeeder 更新後需 re-seed。
+
+- [ ] T035 [P] [US6] Create `NotifyHighTicketSlotJob`: constructor `(int $leadId, int $templateId)`（primitives only）；`handle()`: load lead + template（找不到則 return）→ render vars `{{user_name}}`/`{{course_name}}` → `Mail::to($lead->email)->send(new HighTicketBookingMail(...))` → `$lead->increment('notified_count')` → `$lead->update(['last_notified_at'=>now()])`；`public int $tries = 3`、`public array $backoff = [60, 300, 900]`；失敗時 `Log::error` — `app/Jobs/NotifyHighTicketSlotJob.php`
+- [ ] T036 [P] [US6] Create `SubscribeDripLeadJob`: constructor `(int $leadId, int $dripCourseId)`（primitives only）；`handle()`: load lead（找不到則 return）→ `$user = User::firstOrCreate(['email'=>$lead->email], ['nickname'=>$lead->name])` → `$result = app(DripService::class)->subscribe($user, Course::find($dripCourseId))` → if success: `$lead->update(['status'=>'closed'])`；`public int $tries = 3`、`public array $backoff = [60, 300, 900]`；失敗時 `Log::error` — `app/Jobs/SubscribeDripLeadJob.php`
+- [ ] T037 [P] [US6] Update `EmailTemplateSeeder`: 新增第 4 筆模板 `['name'=>'客製服務新時段通知', 'event_type'=>'high_ticket_slot_available', 'subject'=>'【新時段釋出】{{course_name}} 預約面談', 'body_md'=>"Hi {{user_name}}，\n\n感謝您之前預約 {{course_name}}。\n\n我們剛釋出了新的面談時段，歡迎重新預約！\n\n如有任何問題，歡迎回覆此信聯繫。"]`；使用 `updateOrCreate(['event_type'=>...], [...])` 保持冪等 — `database/seeders/EmailTemplateSeeder.php`
+- [ ] T038 [US6] Create `HighTicketLeadService`: (1) `notifySlot(array $leadIds): array` — 載入 status='pending' 的 leads（id IN $leadIds）→ 找 `EmailTemplate::forEvent('high_ticket_slot_available')`（找不到回傳 `['success'=>false, 'error'=>'...']`）→ per lead: `NotifyHighTicketSlotJob::dispatch($lead->id, $template->id)` → 回傳 `['dispatched'=>N]`；(2) `subscribeDrip(array $leadIds, int $dripCourseId): array` — 載入 status IN ['pending','closed'] 的 leads → 對每筆 lead 先查 `$existingUser = User::where('email', $lead->email)->first()`，若存在且 `DripSubscription::where('user_id', $existingUser->id)->where('status','active')->exists()` 則 skip；否則 `SubscribeDripLeadJob::dispatch($lead->id, $dripCourseId)` → 回傳 `['dispatched'=>N, 'skipped'=>M]` — `app/Services/HighTicketLeadService.php`
+- [ ] T039 [US6] Create `Admin\HighTicketLeadController`: `index()` — `HighTicketLead::with('course:id,title')->when($status, scopeByStatus)->orderBy('booked_at','desc')->paginate(20)`，pass `leads`、`filters`、`dripCourses`（`Course::where('course_type','drip')->select('id','name')->get()`）→ Inertia render `Admin/HighTicketLeads/Index`；`updateStatus()` — validate status in ENUM，update，return JSON；`notifySlot()` — validate `lead_ids` array，delegate to `HighTicketLeadService::notifySlot()`，return JSON；`subscribeDrip()` — validate `lead_ids` array + `drip_course_id` integer，delegate to `HighTicketLeadService::subscribeDrip()`，return JSON — `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [ ] T040 [US6] Add 4 admin routes under `auth + admin` middleware: `GET /admin/high-ticket-leads` → `HighTicketLeadController@index` (name: `admin.high-ticket-leads.index`)；`PATCH /admin/high-ticket-leads/{lead}/status` → `@updateStatus`；`POST /admin/high-ticket-leads/notify-slot` → `@notifySlot`；`POST /admin/high-ticket-leads/subscribe-drip` → `@subscribeDrip` — `routes/web.php`
+- [ ] T041 [US6] Create `Admin/HighTicketLeads/Index.vue`: (a) status filter tabs（全部/待聯繫/已聯繫/已成交/已關閉）用 `router.get()` 帶 status query；(b) table 欄位：checkbox、姓名、Email、課程名稱、狀態 inline `<select>`（axios.patch updateStatus）、通知次數、預約時間；(c) checkbox 多選 + `selectedIds` ref；(d) 「通知新時段」按鈕（僅 selectedIds 全為 pending 時 enabled）→ `axios.post notify-slot`；(e) 「加入序列信」按鈕（selectedIds 含 pending 或 closed 時 enabled）→ 開 modal 選 drip 課程 → confirm → `axios.post subscribe-drip`；(f) 操作完成後顯示 inline 結果摘要；(g) Inertia 分頁器（同 Members/Index 模式）— `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+- [ ] T042 [P] [US6] Add `Leads 名單` nav link to admin sidebar (放在「Email 模板」連結下方) — `resources/js/Layouts/AdminLayout.vue`
+
+**Checkpoint**: 管理員進入 `/admin/high-ticket-leads` → 看到列表 → 篩選/更新狀態成功 → 批次通知時段 → 批次加入序列信（response 含 dispatched/skipped）→ Queue Worker 執行後 DB 出現 drip_subscription + user。
+
+---
+
+## Phase 10: Polish & Verification
+
+- [ ] T043 Run `php artisan db:seed --class=EmailTemplateSeeder` on production-like DB — verify 4 templates exist including `high_ticket_slot_available`
+- [ ] T044 [P] Smoke test US5: submit booking form → confirm `high_ticket_leads` record created with correct fields
+- [ ] T045 [P] Smoke test US6 end-to-end: admin selects pending lead → 「加入序列信」→ confirm Job dispatched → Queue processes → drip_subscription created → lead status = 'closed' → first drip email sent
+
+---
+
+## Dependencies & Execution Order (Phase 8–10)
+
+```
+Phase 8 (US5 — Foundational for US6)
+  T031 (migration) ‖ T032 (model)   ← parallel
+  T033 (Course relation)             ← after T032
+  T034 (modify BookingService)       ← after T032
+
+Phase 9 (US6)
+  T035 (NotifySlotJob) ‖ T036 (SubscribeDripJob) ‖ T037 (Seeder)  ← parallel
+  T038 (HighTicketLeadService)       ← after T035, T036
+  T039 (HighTicketLeadController)    ← after T038
+  T040 (routes)                      ← after T039
+  T041 (Index.vue) ‖ T042 (nav link) ← after T040, parallel with each other
+
+Phase 10 (Polish)
+  T043 (seed DB)                     ← before T044/T045
+  T044 ‖ T045 (smoke tests)         ← parallel
+```
+
+### Parallel Opportunities
+
+```bash
+# Phase 8 — run T031 and T032 together:
+T031 (migration) ‖ T032 (HighTicketLead model)
+
+# Phase 9 — run T035, T036, T037 together:
+T035 (NotifyHighTicketSlotJob) ‖ T036 (SubscribeDripLeadJob) ‖ T037 (EmailTemplateSeeder)
+
+# Phase 9 end — run T041 and T042 together:
+T041 (Index.vue) ‖ T042 (AdminLayout nav link)
+```
+
+---
+
 ## Task Summary
 
 | Phase | Story | Tasks | Parallelizable |
@@ -172,5 +254,8 @@ T020 (Seeder) || T021 (EmailTemplateRequest) || T022 (Controller) || T024 (Index
 | Phase 4: US3 (P2) | Booking → Email | T014–T019 | T014‖T015‖T016 |
 | Phase 5: US4 (P2) | Email template mgmt | T020–T027 | T020‖T021‖T022‖T024 |
 | Phase 6: Polish | — | T028–T030 | T028‖T030 |
+| Phase 8: US5 (P2) | Lead 記錄 | T031–T034 | T031‖T032 |
+| Phase 9: US6 (P3) | Leads 管理後台 | T035–T042 | T035‖T036‖T037, T041‖T042 |
+| Phase 10: Polish | — | T043–T045 | T044‖T045 |
 
-**Total**: 30 tasks
+**Total**: 45 tasks（T001–T030 已完成，T031–T045 待實作）

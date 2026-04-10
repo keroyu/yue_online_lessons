@@ -129,7 +129,7 @@
 5. **Given** 管理員勾選若干 `pending`（冷掉）或 `closed` 的 leads，**When** 點擊「加入序列信」，**Then** 出現選擇連鎖課程的下拉選單（列出所有 drip 類型課程）。
 6. **Given** 管理員選定連鎖課程並確認，**When** 系統處理，**Then** 對每筆 lead：(a) 以 email 查找或建立 user 帳號（帶入 lead.name 作為 nickname），(b) 建立 drip_subscription，(c) 立即觸發第一封序列信，(d) lead status 自動改為 `closed`。
 7. **Given** 某 lead 的 email 已有任何 active drip_subscription，**When** 系統處理，**Then** 跳過該筆 lead，不重複建立訂閱，避免兩條序列同時運行。
-8. **Given** 批次操作完成，**When** 系統回應，**Then** 顯示摘要：「已加入 N 人，略過 M 人（已訂閱）」。
+8. **Given** 批次操作完成，**When** 系統回應，**Then** 顯示摘要：「已派送 N 人，略過 M 人（已有 active 序列）」；實際加入結果非同步執行。
 
 ---
 
@@ -176,7 +176,7 @@
 - **FR-013**: 納管的 event_type 包含：`high_ticket_booking_confirmation`、`course_gifted`、`lesson_added`、`high_ticket_slot_available`。
 - **FR-014**: 每個模板 MUST 包含：模板名稱、觸發事件（event_type，唯讀）、Email 主旨、純文字內容。
 - **FR-015**: 模板編輯器 MUST 提供該 event_type 對應的可用變數清單，點擊後插入游標位置。
-- **FR-016**: 系統 MUST 在初始化時 seed 三個預設模板，內容對應現有寫死的信件內容。
+- **FR-016**: 系統 MUST 在初始化時 seed 四個預設模板，內容對應現有寫死的信件內容（含 `high_ticket_slot_available`）。
 - **FR-017**: 當對應事件觸發時，系統 MUST 優先讀取資料庫模板；若不存在則 fallback 至寫死內容並記錄警告。
 - **FR-018**: 各 event_type 的可用變數：
 
@@ -198,14 +198,14 @@
 - **FR-022**: 後台 MUST 提供 Leads 名單頁面，列出所有 `high_ticket_leads` 記錄，顯示：姓名、Email、所屬課程、狀態、通知次數、預約時間；預設依 `booked_at` 降冪排列；每頁 20 筆分頁。
 - **FR-023**: Leads 名單 MUST 支援依狀態篩選：`pending`（待聯繫）、`contacted`（已聯繫）、`converted`（已成交）、`closed`（已關閉）。
 - **FR-024**: 管理員 MUST 能在列表中直接更新個別 lead 的狀態。
-- **FR-025**: 管理員 MUST 能勾選多筆 `pending` leads 並觸發「通知新時段」批次操作；UI MUST 限制只有 status='pending' 的 leads 可被勾選進行此操作；系統使用 `high_ticket_slot_available` Email 模板發信，每筆 lead 的 `notified_count` +1、`last_notified_at` 更新。
+- **FR-025**: 管理員 MUST 能勾選多筆 `pending` leads 並觸發「通知新時段」批次操作；UI MUST 限制只有 status='pending' 的 leads 可被勾選進行此操作；系統使用 `high_ticket_slot_available` Email 模板非同步發信（Job per lead），每筆 lead 的 `notified_count` +1、`last_notified_at` 更新於 Job 執行時；操作立即回應 `{ "dispatched": N }`。
 - **FR-026**: 「通知新時段」操作 MUST 使用 Email 模板系統（`EmailTemplate::forEvent('high_ticket_slot_available')`），支援變數 `{{user_name}}`、`{{course_name}}`。
 - **FR-027**: `high_ticket_slot_available` 模板 MUST 在系統初始化時 seed 一筆預設內容，與其他三個預設模板一同納管。
 - **FR-028**: 管理員 MUST 能勾選多筆 `pending`（冷掉）或 `closed` 的 leads 並觸發「加入序列信」批次操作。
 - **FR-029**: 「加入序列信」操作 MUST 提供下拉選單，列出系統中所有 `drip` 類型的課程供選擇。
 - **FR-030**: 確認後，系統 MUST 對每筆選定的 lead：(a) 以 email 為 key `firstOrCreate` user 帳號（帶入 lead.name 作為 nickname）；(b) 建立 `drip_subscription`（user_id + course_id）；(c) 立即觸發第一封序列信；(d) 將 lead status 更新為 `closed`。
-- **FR-031**: 若 lead 的 email 已存在任何 active `drip_subscription`（任何課程），系統 MUST 跳過該筆，不重複建立，避免兩條序列同時運行破壞敘事。
-- **FR-032**: 批次操作完成後，系統 MUST 回應摘要訊息，說明已加入人數與已跳過人數（含跳過原因：已訂閱）。
+- **FR-031**: 若 lead 的 email 已存在任何 `status='active'` 的 `drip_subscription`（任何課程），系統 MUST 跳過該筆，不重複建立，避免兩條序列同時運行破壞敘事。
+- **FR-032**: 批次操作完成後，系統 MUST 回應摘要訊息，說明已派送（dispatched）人數與已跳過人數（含跳過原因：已有 active 序列訂閱）；實際加入結果由非同步 Job 執行，不在當下回報。
 
 ### Key Entities
 

@@ -37,7 +37,7 @@
 | III. Frontend Architecture | Composition API, local state only | ✅ No Pinia/Vuex |
 | IV. Model Conventions | `$fillable`, `casts()`, `scopeByStatus` | ✅ Follows existing patterns |
 | V. Job Discipline | Batch slot notification emails → async Job | ✅ `NotifyHighTicketSlotJob` dispatched per lead |
-| VI. Email Delivery | Bulk admin operation → async via Job dispatch | ✅ Follows `SendBatchEmailJob` / `GiftCourseJob` pattern |
+| VI. Email Delivery | Bulk admin operation → async via Job dispatch | ✅ `notifySlot` → `NotifyHighTicketSlotJob`; `subscribeDrip` → `SubscribeDripLeadJob` per lead |
 | VII. Error Handling | Service returns `['success' => bool]`; Job: per-item try/catch | ✅ |
 | VIII. Authorization | Admin routes under `auth + admin` middleware | ✅ |
 | IX. Security | No secrets in code; throttle on public booking (existing) | ✅ |
@@ -74,7 +74,8 @@ app/
 │       └── Admin/
 │           └── (inline validation in controller — simple enough)
 ├── Jobs/
-│   └── NotifyHighTicketSlotJob.php             [NEW] async slot notification email
+│   ├── NotifyHighTicketSlotJob.php             [NEW] async slot notification email
+│   └── SubscribeDripLeadJob.php                [NEW] async drip enrollment per lead
 ├── Models/
 │   └── HighTicketLead.php                      [NEW]
 └── Services/
@@ -149,16 +150,28 @@ HighTicketLead::create([
 // - Find EmailTemplate::forEvent('high_ticket_slot_available')
 // - If template missing: return ['success' => false, 'error' => '...']
 // - Per lead: dispatch NotifyHighTicketSlotJob(leadId, templateId)
-// - Return ['notified' => N]
+// - Return ['dispatched' => N]  ← async; actual send/count update in Job
 
 // subscribeDrip(array $leadIds, int $dripCourseId, User $admin): array
 // - Load leads where id IN $leadIds AND status IN ['pending','closed']
-// - Per lead:
-//   (a) $user = User::firstOrCreate(['email'=>$lead->email], ['nickname'=>$lead->name])
-//   (b) $result = app(DripService::class)->subscribe($user, Course::find($dripCourseId))
-//   (c) if $result['success']: $lead->update(['status'=>'closed']); $subscribed++
-//   (d) if already subscribed: $skipped++
-// - Return ['subscribed' => N, 'skipped' => M]
+// - Pre-check: for each lead, check if email has any status='active' drip_subscription
+//   → if yes: mark as skipped, do NOT dispatch Job
+// - Per eligible lead: dispatch SubscribeDripLeadJob(leadId, dripCourseId)
+//   (constitution §VI: bulk admin op with DB writes + email → async Job)
+// - Return ['dispatched' => N, 'skipped' => M]
+```
+
+**SubscribeDripLeadJob** *(new — constitution §VI compliance)*:
+```php
+// Constructor: (int $leadId, int $dripCourseId) — primitives only (constitution §V)
+// handle():
+//   (a) $lead = HighTicketLead::find($leadId); if (!$lead) return;
+//   (b) $user = User::firstOrCreate(['email'=>$lead->email], ['nickname'=>$lead->name])
+//   (c) $result = app(DripService::class)->subscribe($user, Course::find($dripCourseId))
+//   (d) if $result['success']: $lead->update(['status'=>'closed'])
+//   (e) if already subscribed (DripService returns success=false): Log::info, return
+// $tries = 3; $backoff = [60, 300, 900]
+// Per-item failure: Log::error, return
 ```
 
 **NotifyHighTicketSlotJob**:

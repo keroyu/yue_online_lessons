@@ -93,6 +93,7 @@ Need more search: yes/no
 - MySQL — two new tables (`site_settings`, `social_links`); `Storage::disk('public')` for banner images (007-homepage-admin-settings)
 - PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4, `league/commonmark` (existing), `marked` (existing) (008-high-ticket-booking)
 - MySQL — alter `courses.type` enum, two new tables (008-high-ticket-booking)
+- MySQL — new table `high_ticket_leads` (008-high-ticket-booking)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS
