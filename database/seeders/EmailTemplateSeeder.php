@@ -28,10 +28,16 @@ class EmailTemplateSeeder extends Seeder
                 'subject' => '您擁有的課程「{{course_name}}」新增了小節：{{lesson_title}}',
                 'body_md' => "您好，\n\n您擁有的課程「{{course_name}}」新增了小節：\n「{{lesson_title}}」\n\n歡迎回來繼續學習：\n{{classroom_url}}\n\n經營者時間銀行",
             ],
+            [
+                'name' => '客製服務新時段通知',
+                'event_type' => 'high_ticket_slot_available',
+                'subject' => '【新時段釋出】{{course_name}} 預約面談',
+                'body_md' => "Hi {{user_name}}，\n\n感謝您之前預約 {{course_name}}。\n\n我們剛釋出了新的面談時段，歡迎重新預約！\n\n如有任何問題，歡迎回覆此信聯繫。",
+            ],
         ];
 
         foreach ($templates as $template) {
-            EmailTemplate::firstOrCreate(
+            EmailTemplate::updateOrCreate(
                 ['event_type' => $template['event_type']],
                 $template
             );

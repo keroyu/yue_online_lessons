@@ -89,6 +89,11 @@ class Course extends Model
         return $this->hasMany(DripSubscription::class);
     }
 
+    public function highTicketLeads(): HasMany
+    {
+        return $this->hasMany(HighTicketLead::class);
+    }
+
     public function paidPurchases(): HasMany
     {
         return $this->purchases()->paidStatus();
