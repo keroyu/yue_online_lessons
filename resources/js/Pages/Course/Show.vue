@@ -670,6 +670,9 @@ const submitBooking = async () => {
               :original-price="course.original_price"
               :promo-ends-at="course.promo_ends_at"
             />
+            <p v-if="usePayuni" class="mt-2 text-xs text-gray-500">
+              支援 3/6/9 個月分期，建議使用台新銀行信用卡，其他銀行信用卡可能不支援。
+            </p>
           </div>
 
           <!-- Right: High Ticket booking form (replaces Consent & Purchase Button) -->
