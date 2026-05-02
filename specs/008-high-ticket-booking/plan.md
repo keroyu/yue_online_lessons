@@ -4,6 +4,7 @@
 **Updated**: 2026-04-09 - 實作完成；預約改 JSON API（axios）、說明文案更新、浮動面板文字修正、migration 相容舊版 MySQL
 **Updated**: 2026-04-10 - 增量計畫：US5（Lead 記錄）、US6（Leads 管理 + 通知新時段 + 加入序列信）
 **Updated**: 2026-05-02 - PayUni 分期提示（US2）；Email 模板列表補標籤（US4）；通知新時段確認 modal + 模板預覽（US6）
+**Updated**: 2026-05-03 - Leads 名單搜尋/課程篩選、「發送郵件」批次 modal；修復 PayUni 付款後 drip 未 checkAndConvert 的 bug
 **Input**: Feature specification from `/specs/008-high-ticket-booking/spec.md`
 
 ---

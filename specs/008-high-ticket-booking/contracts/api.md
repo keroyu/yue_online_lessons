@@ -6,6 +6,7 @@
 **Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
 **Updated**: 2026-04-10 - subscribe-drip 改為非同步（SubscribeDripLeadJob）；response 欄位 subscribed → dispatched；side effects 移至 Job 內執行
 **Updated**: 2026-05-02 - GET /admin/high-ticket-leads 新增 notifyTemplate prop
+**Updated**: 2026-05-03 - GET /admin/high-ticket-leads 新增 search/course_id 查詢參數與 highTicketCourses prop；新增 POST /admin/high-ticket-leads/batch-email
 
 ---
 
@@ -129,23 +130,19 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 
 **Query params**:
 - `status` (optional): filter by `pending` | `contacted` | `converted` | `closed`
+- `search` (optional): keyword search on `name` or `email` (LIKE)
+- `course_id` (optional): filter by high-ticket course ID
 
 **Props**:
 ```json
 {
-  "leads": [
-    {
-      "id": "integer",
-      "name": "string",
-      "email": "string",
-      "course": { "id": "integer", "title": "string" },
-      "status": "string",
-      "booked_at": "datetime string"
-    }
+  "leads": { "data": [...], "current_page": 1, "last_page": 1, "per_page": 20, "total": 0 },
+  "filters": { "status": "string|null", "search": "string|null", "course_id": "string|null" },
+  "highTicketCourses": [
+    { "id": "integer", "name": "string" }
   ],
-  "filters": { "status": "string|null" },
   "dripCourses": [
-    { "id": "integer", "title": "string" }
+    { "id": "integer", "name": "string" }
   ],
   "notifyTemplate": {
     "id": "integer",
@@ -156,9 +153,6 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 ```
 
 > `notifyTemplate` is `null` if `high_ticket_slot_available` template does not exist in DB. Frontend disables the confirm-send button in that case.
-
-```json
-```
 
 ---
 
@@ -225,6 +219,37 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 1. `User::firstOrCreate(['email' => $lead->email], ['nickname' => $lead->name])`
 2. `DripService::subscribe($user, $dripCourse)` — creates subscription + dispatches first lesson email
 3. `$lead->update(['status' => 'closed'])`
+
+---
+
+### POST `/admin/high-ticket-leads/batch-email`
+
+**Controller**: `Admin\HighTicketLeadController@batchEmail`
+
+**Request body**:
+```json
+{
+  "lead_ids": [1, 2, 3],
+  "subject": "string, required, max:200",
+  "body": "string, required, max:10000"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "success": true,
+  "message": "已發送 3 封郵件",
+  "sent_count": 3
+}
+```
+
+**Error** `422 Unprocessable Entity`:
+```json
+{ "message": "沒有可發送郵件的 Lead" }
+```
+
+> Sends `BatchEmailMail` (CommonMark Markdown rendered) directly to each lead's email address. Leads with empty email are silently skipped. Individual send failures are logged but do not abort the batch.
 
 ---
 

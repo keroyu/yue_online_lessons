@@ -6,6 +6,7 @@
 **Updated**: 2026-04-09 - 新增 US5（預約儲存 Lead 記錄）、US6（後台 Leads 管理 + 加入序列信）；FR-011 修訂、FR-019～FR-032 新增
 **Updated**: 2026-04-10 - Clarifications：新增行程通知流程（notified_count / last_notified_at）、high_ticket_slot_available 模板、pending 冷掉後加入 drip 邏輯
 **Updated**: 2026-05-02 - US2 銷售頁 PayUni 分期付款 hint；US4 Email 模板列表補 high_ticket_slot_available 中文標籤；US6 「通知新時段」改為先開確認 modal 並顯示模板預覽
+**Updated**: 2026-05-03 - US6 新增搜尋/課程篩選、「發送郵件」批次 modal（FR-036～FR-037）；修復 PayUni 付款後 drip 序列信未自動暫停的 bug（FR-038）
 **Status**: Implemented (US1–US6)
 
 ---
@@ -133,6 +134,10 @@
 6. **Given** 管理員選定連鎖課程並確認，**When** 系統處理，**Then** 對每筆 lead：(a) 以 email 查找或建立 user 帳號（帶入 lead.name 作為 nickname），(b) 建立 drip_subscription，(c) 立即觸發第一封序列信，(d) lead status 自動改為 `closed`。
 7. **Given** 某 lead 的 email 已有任何 active drip_subscription，**When** 系統處理，**Then** 跳過該筆 lead，不重複建立訂閱，避免兩條序列同時運行。
 8. **Given** 批次操作完成，**When** 系統回應，**Then** 顯示摘要：「已派送 N 人，略過 M 人（已有 active 序列）」；實際加入結果非同步執行。
+9. **Given** 管理員在 Leads 名單頁，**When** 在搜尋欄輸入姓名或 Email 片段，**Then** 列表即時（300ms debounce）縮小為符合條件的結果，並保留現有狀態篩選與課程篩選。
+10. **Given** 管理員選擇課程下拉篩選，**When** 選定某客製服務課程，**Then** 列表只顯示該課程的 leads；點擊 × 清除後恢復全部。
+11. **Given** 管理員勾選若干 leads（任意狀態），**When** 點擊「發送郵件」，**Then** 開啟批次郵件 modal，顯示收件人數量、主旨欄位（上限 200 字）、內容欄位（上限 10000 字）及字元計數。
+12. **Given** 管理員填寫主旨與內容後點擊「發送郵件」，**When** 系統處理，**Then** 對每位 lead 直接寄出客製化 Email，回應顯示「已發送 N 封郵件」。
 
 ---
 
@@ -146,6 +151,8 @@
 - 同一 email 重複預約同一課程，Lead 記錄允許重複（保留完整預約歷史），不做 upsert。
 - 「加入序列信」建立的 user 帳號無密碼，使用現有驗證碼登入機制，行為與一般會員帳號完全相同。
 - Lead email 若與現有 user email 相同，`firstOrCreate` 直接使用現有帳號，不重複建立，不覆蓋現有資料。
+- 後台手動新增交易（TransactionController）不觸發 `checkAndConvert()`；此為有意設計，手動操作語意與自動付款不同。
+- 「發送郵件」modal 對 lead 直接寄信（以 lead.email 為收件地址），不依賴 User 帳號存在；發送失敗的個別 lead 僅記錄 error log，不中斷其餘發送。
 
 ---
 
@@ -218,6 +225,19 @@
 
 - **FR-034**: 點擊「通知新時段」後，系統 MUST 先顯示確認 modal，內容包含：模板主旨、body_md Markdown 渲染預覽、收件人列表（姓名 + Email）、以及前往編輯模板的連結；管理員確認後才實際派送 Job。
 - **FR-035**: 若資料庫找不到 `high_ticket_slot_available` 模板，確認 modal MUST 顯示錯誤警告並停用「確認發送」按鈕。
+
+**Leads 名單搜尋與篩選（US6 擴充）**
+
+- **FR-036**: Leads 名單 MUST 支援依姓名或 Email 關鍵字搜尋（LIKE 模糊比對），並可同時與狀態篩選、課程篩選組合使用；搜尋輸入採 300ms debounce。
+- **FR-036a**: Leads 名單 MUST 支援依所屬課程篩選，下拉選單列出所有 `type='high_ticket'` 的課程；選定後以課程 ID 過濾列表。
+
+**Leads 批次發送客製郵件（US6 擴充）**
+
+- **FR-037**: 管理員 MUST 能勾選任意狀態的 leads，點擊「發送郵件」後開啟客製郵件 modal（主旨上限 200 字、內容上限 10000 字），確認後對每位 lead 直接發送 Email；使用 `BatchEmailMail` class，支援 CommonMark Markdown 渲染。
+
+**PayUni 付款後 drip 轉換（系統修復）**
+
+- **FR-038**: 透過統一金流（PayUni）完成購買後，系統 MUST 呼叫 `DripService::checkAndConvert()`，將任何以所購課程為轉換目標的 active drip 訂閱標記為 `converted`，停止繼續發送序列信。此行為與 Portaly Webhook 路徑一致。
 
 ### Key Entities
 

@@ -7,6 +7,7 @@
 **Updated**: 2026-04-09 - 規格擴充 US5/US6（Phase 8 待規劃：Lead 記錄 + Leads 管理後台 + 加入序列信）
 **Updated**: 2026-04-10 - 新增 Phase 8（US5：Lead 記錄）、Phase 9（US6：Leads 管理後台）、Phase 10（Polish）共 13 個任務（T031–T043）
 **Updated**: 2026-05-02 - 補充實作：PayUni 分期提示、Email 模板列表標籤、通知新時段確認 modal（Phase 11）
+**Updated**: 2026-05-03 - Leads 搜尋/課程篩選、批次發郵件 modal、modal z-index 修復、PayUni drip bug 修復（Phase 12）
 
 ## Format: `[ID] [P?] [Story] Description`
 
