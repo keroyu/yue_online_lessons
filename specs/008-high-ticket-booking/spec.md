@@ -5,7 +5,8 @@
 **Updated**: 2026-04-09
 **Updated**: 2026-04-09 - 新增 US5（預約儲存 Lead 記錄）、US6（後台 Leads 管理 + 加入序列信）；FR-011 修訂、FR-019～FR-032 新增
 **Updated**: 2026-04-10 - Clarifications：新增行程通知流程（notified_count / last_notified_at）、high_ticket_slot_available 模板、pending 冷掉後加入 drip 邏輯
-**Status**: Implemented (US1–US4); Specified (US5–US6)
+**Updated**: 2026-05-02 - US2 銷售頁 PayUni 分期付款 hint；US4 Email 模板列表補 high_ticket_slot_available 中文標籤；US6 「通知新時段」改為先開確認 modal 並顯示模板預覽
+**Status**: Implemented (US1–US6)
 
 ---
 
@@ -57,6 +58,7 @@
 2. **Given** 客製服務課程開啟隱藏價格，**When** 訪客看到右欄按鈕，**Then** 按鈕文字為「立即預約」。
 3. **Given** 客製服務課程關閉隱藏價格，**When** 訪客瀏覽銷售頁，**Then** 頁面與一般課程完全相同。
 4. **Given** 非客製服務課程，**When** 訪客瀏覽銷售頁，**Then** 頁面外觀與現有行為完全相同。
+5. **Given** 課程使用 PayUni 付款（`use_payuni=true`），**When** 訪客瀏覽銷售頁價格下方，**Then** 顯示分期付款提示：「支援 3/6/9 個月分期，建議使用台新銀行信用卡，其他銀行信用卡可能不支援。」
 
 ---
 
@@ -89,7 +91,7 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** 管理員進入 Email 模板列表，**When** 查看，**Then** 看到系統所有可管理的模板（含 3 種預設）。
+1. **Given** 管理員進入 Email 模板列表，**When** 查看，**Then** 看到系統所有可管理的模板（含 4 種預設），事件類型欄顯示中文標籤（含「客製服務新時段通知」）。
 2. **Given** 管理員點擊編輯某模板，**When** 進入編輯器，**Then** 顯示：模板名稱、觸發事件（唯讀標示）、Email 主旨、內容編輯區。
 3. **Given** 管理員在內容編輯區，**When** 使用插入變數功能，**Then** 顯示該 event_type 對應的可用變數清單，點擊後插入游標位置。
 4. **Given** 管理員儲存模板，**When** 對應事件觸發（如贈禮），**Then** 系統使用更新後的模板發送 Email，變數正確替換。
@@ -124,7 +126,8 @@
 
 1. **Given** 管理員進入 Leads 名單頁，**When** 查看，**Then** 看到所有 leads 列表，含姓名、Email、課程名稱、狀態、通知次數、預約時間，可依狀態篩選。
 2. **Given** 管理員點擊某筆 lead 的狀態欄位，**When** 選擇新狀態，**Then** 狀態更新並即時反映。
-3. **Given** 管理員開放新時段，**When** 在 Leads 頁勾選若干 pending leads 並點擊「通知新時段」，**Then** 系統使用 `high_ticket_slot_available` 模板發送通知信，`notified_count` +1，`last_notified_at` 更新為現在。
+3. **Given** 管理員開放新時段，**When** 在 Leads 頁勾選若干 pending leads 並點擊「通知新時段」，**Then** 先開確認 modal：顯示模板主旨、內容預覽（Markdown 渲染）、收件人列表、模板編輯連結；管理員確認後才派送 Job，`notified_count` +1，`last_notified_at` 更新為現在。
+3a. **Given** 管理員點擊「通知新時段」，**When** 資料庫找不到 `high_ticket_slot_available` 模板，**Then** modal 顯示警告並停用「確認發送」按鈕，引導至 Email 模板管理頁建立。
 4. **Given** 某 pending lead 已被通知 2 次，7 天後仍無回應，**When** 管理員判斷冷掉，**Then** 管理員手動將其 status 改為 `closed`。
 5. **Given** 管理員勾選若干 `pending`（冷掉）或 `closed` 的 leads，**When** 點擊「加入序列信」，**Then** 出現選擇連鎖課程的下拉選單（列出所有 drip 類型課程）。
 6. **Given** 管理員選定連鎖課程並確認，**When** 系統處理，**Then** 對每筆 lead：(a) 以 email 查找或建立 user 帳號（帶入 lead.name 作為 nickname），(b) 建立 drip_subscription，(c) 立即觸發第一封序列信，(d) lead status 自動改為 `closed`。
@@ -206,6 +209,15 @@
 - **FR-030**: 確認後，系統 MUST 對每筆選定的 lead：(a) 以 email 為 key `firstOrCreate` user 帳號（帶入 lead.name 作為 nickname）；(b) 建立 `drip_subscription`（user_id + course_id）；(c) 立即觸發第一封序列信；(d) 將 lead status 更新為 `closed`。
 - **FR-031**: 若 lead 的 email 已存在任何 `status='active'` 的 `drip_subscription`（任何課程），系統 MUST 跳過該筆，不重複建立，避免兩條序列同時運行破壞敘事。
 - **FR-032**: 批次操作完成後，系統 MUST 回應摘要訊息，說明已派送（dispatched）人數與已跳過人數（含跳過原因：已有 active 序列訂閱）；實際加入結果由非同步 Job 執行，不在當下回報。
+
+**PayUni 分期付款提示（US2 擴充）**
+
+- **FR-033**: 當課程使用 PayUni 付款（`use_payuni=true`）時，銷售頁底部 PriceDisplay 下方 MUST 顯示分期付款提示文字；非 PayUni 課程 MUST NOT 顯示。
+
+**通知新時段確認流程（US6 擴充）**
+
+- **FR-034**: 點擊「通知新時段」後，系統 MUST 先顯示確認 modal，內容包含：模板主旨、body_md Markdown 渲染預覽、收件人列表（姓名 + Email）、以及前往編輯模板的連結；管理員確認後才實際派送 Job。
+- **FR-035**: 若資料庫找不到 `high_ticket_slot_available` 模板，確認 modal MUST 顯示錯誤警告並停用「確認發送」按鈕。
 
 ### Key Entities
 

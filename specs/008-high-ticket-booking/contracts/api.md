@@ -5,6 +5,7 @@
 **Updated**: 2026-04-09
 **Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
 **Updated**: 2026-04-10 - subscribe-drip 改為非同步（SubscribeDripLeadJob）；response 欄位 subscribed → dispatched；side effects 移至 Job 內執行
+**Updated**: 2026-05-02 - GET /admin/high-ticket-leads 新增 notifyTemplate prop
 
 ---
 
@@ -145,8 +146,18 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
   "filters": { "status": "string|null" },
   "dripCourses": [
     { "id": "integer", "title": "string" }
-  ]
+  ],
+  "notifyTemplate": {
+    "id": "integer",
+    "subject": "string",
+    "body_md": "string"
+  }
 }
+```
+
+> `notifyTemplate` is `null` if `high_ticket_slot_available` template does not exist in DB. Frontend disables the confirm-send button in that case.
+
+```json
 ```
 
 ---
