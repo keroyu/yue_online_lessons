@@ -2,7 +2,7 @@
 import { router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import axios from 'axios'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 
 defineOptions({ layout: AdminLayout })
@@ -15,6 +15,10 @@ const props = defineProps({
   filters: {
     type: Object,
     required: true,
+  },
+  highTicketCourses: {
+    type: Array,
+    default: () => [],
   },
   dripCourses: {
     type: Array,
@@ -52,8 +56,31 @@ const tabs = [
   { label: '已關閉', value: 'closed' },
 ]
 
+// Search & course filter
+const search = ref(props.filters.search || '')
+const courseFilter = ref(props.filters.course_id || '')
+
+let searchTimeout = null
+watch(search, () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(applyFilters, 300)
+})
+
+const applyFilters = (overrides = {}) => {
+  router.get('/admin/high-ticket-leads', {
+    status: props.filters.status || undefined,
+    search: search.value || undefined,
+    course_id: courseFilter.value || undefined,
+    ...overrides,
+  }, { preserveState: true, replace: true })
+}
+
 const applyFilter = (status) => {
-  router.get('/admin/high-ticket-leads', { status: status || undefined }, {
+  router.get('/admin/high-ticket-leads', {
+    status: status || undefined,
+    search: search.value || undefined,
+    course_id: courseFilter.value || undefined,
+  }, {
     preserveState: true,
     replace: true,
   })
@@ -173,11 +200,54 @@ const subscribeDrip = async () => {
   }
 }
 
+// Batch email modal
+const showBatchEmailModal = ref(false)
+const batchEmailSubject = ref('')
+const batchEmailBody = ref('')
+const batchEmailErrors = ref({})
+const batchEmailSending = ref(false)
+
+const openBatchEmailModal = () => {
+  batchEmailSubject.value = ''
+  batchEmailBody.value = ''
+  batchEmailErrors.value = {}
+  showBatchEmailModal.value = true
+}
+
+const sendBatchEmail = async () => {
+  batchEmailErrors.value = {}
+  if (!batchEmailSubject.value.trim()) {
+    batchEmailErrors.value.subject = '主旨為必填'
+    return
+  }
+  if (!batchEmailBody.value.trim()) {
+    batchEmailErrors.value.body = '內容為必填'
+    return
+  }
+  batchEmailSending.value = true
+  try {
+    const res = await axios.post('/admin/high-ticket-leads/batch-email', {
+      lead_ids: selectedIds.value,
+      subject: batchEmailSubject.value,
+      body: batchEmailBody.value,
+    })
+    actionResult.value = res.data.message || `已發送 ${res.data.sent_count} 封郵件`
+    showBatchEmailModal.value = false
+    selectedIds.value = []
+  } catch (e) {
+    batchEmailErrors.value.general = e.response?.data?.message || '發送失敗，請稍後再試'
+  } finally {
+    batchEmailSending.value = false
+  }
+}
+
 // Pagination
 const goToPage = (page) => {
   router.get('/admin/high-ticket-leads', {
     page,
     status: props.filters.status || undefined,
+    search: search.value || undefined,
+    course_id: courseFilter.value || undefined,
   }, { preserveState: true })
 }
 
@@ -193,6 +263,40 @@ const formatDateTime = (str) => {
     <div class="mb-6">
       <h1 class="text-2xl font-semibold text-gray-900">Leads 名單</h1>
       <p class="mt-1 text-sm text-gray-600">客製服務預約訪客管理</p>
+    </div>
+
+    <!-- Search & course filter -->
+    <div class="mb-4 flex flex-col sm:flex-row gap-3">
+      <div class="flex-1">
+        <input
+          v-model="search"
+          type="text"
+          placeholder="搜尋姓名、Email..."
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+      <div class="flex items-center gap-2">
+        <select
+          v-model="courseFilter"
+          @change="applyFilters()"
+          class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        >
+          <option value="">所有課程</option>
+          <option v-for="course in highTicketCourses" :key="course.id" :value="course.id">
+            {{ course.name }}
+          </option>
+        </select>
+        <button
+          v-if="courseFilter"
+          @click="courseFilter = ''; applyFilters()"
+          class="text-gray-400 hover:text-gray-600"
+          title="清除篩選"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Status filter tabs -->
@@ -223,7 +327,7 @@ const formatDateTime = (str) => {
         @click="openNotifyModal"
         class="px-3 py-1.5 text-sm rounded-md border font-medium"
         :class="canNotifySlot && !actionLoading
-          ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+          ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 cursor-pointer'
           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
       >
         通知新時段
@@ -233,10 +337,20 @@ const formatDateTime = (str) => {
         @click="openDripModal"
         class="px-3 py-1.5 text-sm rounded-md border font-medium"
         :class="canSubscribeDrip && !actionLoading
-          ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+          ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 cursor-pointer'
           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
       >
         加入序列信
+      </button>
+      <button
+        :disabled="selectedIds.length === 0 || actionLoading"
+        @click="openBatchEmailModal"
+        class="px-3 py-1.5 text-sm rounded-md border font-medium"
+        :class="selectedIds.length > 0 && !actionLoading
+          ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
+          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
+      >
+        發送郵件
       </button>
       <span class="text-xs text-gray-400 leading-snug">
         新時段釋出時，你可以通知客戶來預約；<br class="hidden sm:inline">若無法聯絡客戶／未成交，考慮加入序列信進行自動轉化。
@@ -405,13 +519,137 @@ const formatDateTime = (str) => {
     </div>
   </div>
 
+  <!-- Batch email modal -->
+  <Teleport to="body">
+  <div
+    v-if="showBatchEmailModal"
+    class="fixed inset-0 z-50 overflow-y-auto"
+  >
+    <div class="fixed inset-0 bg-black/50" aria-hidden="true" @click="showBatchEmailModal = false" />
+    <div class="flex min-h-full items-center justify-center p-4">
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" @click.stop>
+      <!-- Header -->
+      <div class="px-6 py-5 border-b border-gray-200 flex justify-between items-start">
+        <div>
+          <h3 class="text-xl font-semibold text-gray-900">發送批次郵件</h3>
+          <p class="mt-1 text-sm text-gray-500">編輯郵件內容並發送給選取的 Leads</p>
+        </div>
+        <button
+          type="button"
+          class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
+          @click="showBatchEmailModal = false"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="px-6 py-6 overflow-y-auto space-y-5">
+        <!-- Recipient info -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-center gap-3">
+          <svg class="h-5 w-5 text-indigo-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <p class="text-sm text-indigo-800">
+            將發送郵件給 <strong>{{ selectedIds.length }}</strong> 位 Lead
+          </p>
+        </div>
+
+        <!-- General error -->
+        <div v-if="batchEmailErrors.general" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-600">
+          {{ batchEmailErrors.general }}
+        </div>
+
+        <!-- Subject -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900">
+            郵件主旨 <span class="text-red-500">*</span>
+          </label>
+          <input
+            v-model="batchEmailSubject"
+            type="text"
+            placeholder="請輸入郵件主旨"
+            :disabled="batchEmailSending"
+            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': batchEmailErrors.subject }"
+          />
+          <div class="mt-1 flex justify-between">
+            <span class="text-sm text-red-600">{{ batchEmailErrors.subject || '' }}</span>
+            <span class="text-sm" :class="batchEmailSubject.length > 200 ? 'text-red-600' : 'text-gray-400'">
+              {{ batchEmailSubject.length }} / 200
+            </span>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-900">
+            郵件內容 <span class="text-red-500">*</span>
+          </label>
+          <textarea
+            v-model="batchEmailBody"
+            rows="10"
+            placeholder="請輸入郵件內容..."
+            :disabled="batchEmailSending"
+            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500 leading-relaxed"
+            :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': batchEmailErrors.body }"
+          ></textarea>
+          <div class="mt-1 flex justify-between">
+            <span class="text-sm text-red-600">{{ batchEmailErrors.body || '' }}</span>
+            <span class="text-sm" :class="batchEmailBody.length > 10000 ? 'text-red-600' : 'text-gray-400'">
+              {{ batchEmailBody.length }} / 10000
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-5 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          type="button"
+          class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          @click="showBatchEmailModal = false"
+          :disabled="batchEmailSending"
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          @click="sendBatchEmail"
+          :disabled="batchEmailSending"
+        >
+          <template v-if="batchEmailSending">
+            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            發送中...
+          </template>
+          <template v-else>
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            發送郵件
+          </template>
+        </button>
+      </div>
+    </div>
+    </div>
+  </div>
+  </Teleport>
+
   <!-- Drip course selection modal -->
+  <Teleport to="body">
   <div
     v-if="showDripModal"
-    class="fixed inset-0 z-50 flex items-center justify-center"
+    class="fixed inset-0 z-50 overflow-y-auto"
   >
-    <div class="fixed inset-0 bg-black bg-opacity-40" @click="showDripModal = false" />
-    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+    <div class="fixed inset-0 bg-black/50" aria-hidden="true" @click="showDripModal = false" />
+    <div class="flex min-h-full items-center justify-center p-4">
+    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" @click.stop>
       <h3 class="text-lg font-semibold text-gray-900 mb-4">選擇序列課程</h3>
       <p class="text-sm text-gray-600 mb-4">
         將為 {{ selectedIds.length }} 位 Lead 加入序列信（已有 active 訂閱者將略過）。
@@ -446,5 +684,7 @@ const formatDateTime = (str) => {
         </button>
       </div>
     </div>
+    </div>
   </div>
+  </Teleport>
 </template>

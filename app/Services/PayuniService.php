@@ -190,11 +190,15 @@ class PayuniService
                 'MerTradeNo'  => $merTradeNo,
             ]);
 
-            // Auto-subscribe for drip courses
+            $dripService = app(\App\Services\DripService::class);
+
+            // Auto-subscribe if purchased course is itself a drip course
             if ($course->course_type === 'drip') {
-                $dripService = app(\App\Services\DripService::class);
                 $dripService->subscribe($user, $course);
             }
+
+            // Pause any active drip subscriptions that list this course as conversion target
+            $dripService->checkAndConvert($user, $course);
 
         } catch (\Exception $e) {
             Log::error('PayUni Notify: failed to create purchase', [
