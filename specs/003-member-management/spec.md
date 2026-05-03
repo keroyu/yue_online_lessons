@@ -234,16 +234,16 @@ As an admin, I want to import a list of email addresses to create member account
 - **FR-030**: System MUST display a permanent "匯出" dropdown button in the top-right of the member management page, visible at all times regardless of selection state.
 - **FR-031**: The "匯出" dropdown MUST contain two options: "匯出全部" and "匯出選定".
 - **FR-032**: "匯出全部" MUST export all members matching the current active filters (search keyword and/or course filter); if no filters are active, it exports all members in the system. The dropdown MUST display a hint describing the current export scope before the user clicks.
-- **FR-033**: "匯出選定" MUST export only the members currently checked on the page. This option MUST be disabled (unclickable) when no members are selected.
+- **FR-033**: "匯出選定" MUST export all currently selected members, including those selected via the cross-page "Select all N matching" mode (FR-012a). This option MUST be disabled (unclickable) when no members are selected (neither individual nor cross-page).
 - **FR-034**: The exported CSV MUST include the following columns in order: 暱稱 (nickname)、真實姓名 (real_name)、Email、加入日期 (created_at)、最後登入時間 (last_login_at). Fields with empty values MUST be exported as empty strings.
-- **FR-035**: Selecting either export option MUST trigger an immediate browser file download of a CSV file named `members-YYYY-MM-DD.csv`. No page navigation or reload should occur.
+- **FR-035**: Selecting either export option MUST trigger an immediate browser file download of a CSV file named `members-YYYY-MM-DD.csv`, encoded as UTF-8 with BOM for Excel compatibility. No page navigation or reload should occur.
 
 **匯入 Email 名單（US9）**
 
 - **FR-036**: System MUST display a permanent "匯入" button in the top-right of the member management page.
 - **FR-037**: Clicking "匯入" MUST open a modal with a textarea. The textarea MUST accept email addresses formatted as: one per line, comma-separated, or a mix of both.
 - **FR-038**: On import confirmation, the system MUST de-duplicate the parsed email list before processing (same email appearing twice counts as one).
-- **FR-039**: For each unique, valid email in the list, the system MUST: (a) skip if the email already exists in the system (count as "已存在"); (b) create a new member account with role="member", nickname defaulting to the part before "@" in the email, and a randomly generated password, if the email does not exist.
+- **FR-039**: For each unique, valid email in the list, the system MUST: (a) skip if the email already exists in the system (count as "已存在"); (b) create a new member account with role="member" and nickname defaulting to the part before "@" in the email, if the email does not exist. No password is required — members authenticate via email verification code.
 - **FR-040**: Emails that fail basic format validation (no "@", invalid structure) MUST be skipped and counted separately as "無效格式".
 - **FR-041**: After import completes, the system MUST display a result summary showing: 新增會員數、略過（已存在）數、無效格式數. The member list MUST refresh to reflect newly added members.
 
@@ -284,6 +284,12 @@ As an admin, I want to import a list of email addresses to create member account
 - Q: Should batch email and gift notification use async queue or synchronous sending? → A: Synchronous (Mail::send), consistent with login verification code. Platform member count is small; no Queue Worker complexity needed. Can be switched to `queue()` later without changing Mailable classes.
 - Q: What is the performance expectation for synchronous email sending? → A: Completes within 30 seconds for current member scale; SC-007 updated accordingly.
 
+### Session 2026-05-03 (Import / Export Feature)
+
+- Q: 當跨頁全選（FR-012a）啟用時，「匯出選定」匯出哪些人？ → A: 匯出全部 N 位符合條件的會員，尊重跨頁選取結果。FR-033 已更新。
+- Q: 匯入建立新會員時，是否需要發送通知或設定密碼？ → A: 不需要。系統採 email 驗證碼登入，無密碼欄位，被匯入的會員直接以 email 收驗證碼即可登入。FR-039 已移除隨機密碼描述。
+- Q: 匯出 CSV 的字元編碼？ → A: UTF-8 with BOM，確保 Excel 開啟中文欄位不亂碼。FR-035 已更新。
+
 ### Session 2026-01-18 (Gift Course Feature)
 
 - Q: How to distinguish gifted courses from purchased courses? → A: Use existing Purchase model with type='gift' to indicate gifted courses. Three types exist: 'paid' (normal purchase), 'gift' (admin gifted), 'system_assigned' (auto-assigned to course creator).
@@ -303,6 +309,7 @@ As an admin, I want to import a list of email addresses to create member account
 - Gifted courses grant immediate full access - no separate activation required.
 - Gift notification emails use a fixed template in Chinese (中文) matching the platform language.
 - Both batch emails and gift notification emails are sent synchronously (Mail::send), consistent with the login verification code approach. Member count is small; no Queue Worker required. If member base grows significantly, change `send()` to `queue()` without modifying the Mailable class.
+- Members authenticate via email verification code (magic link / OTP); there is no password field. Imported members can log in immediately with their email address without any additional setup.
 
 ## Deployment Notes
 
