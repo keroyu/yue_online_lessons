@@ -10,6 +10,7 @@
 **Updated**: 2026-05-03 - 新增 US8（匯出 CSV）、US9（匯入 Email 名單）；FR-030～039；SC-010～011
 **Updated**: 2026-05-03 - US9 補強：無效 Email 清單顯示（FR-040、FR-041、Scenario 5-6 更新）
 **Updated**: 2026-05-03 - 新增 US10（匯入 modal 新增 CSV 上傳模式）；FR-042～048；SC-012
+**Updated**: 2026-05-03 - ImportMembersModal 修正 z-index（Teleport to body）；CSV 格式提示改為表格視覺
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"

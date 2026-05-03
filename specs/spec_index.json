@@ -519,13 +519,24 @@
       "id": "003.us-10",
       "module": "003-member-management",
       "title": "Import Members from CSV File",
-      "summary": "",
+      "summary": "管理員可在匯入 modal 切換至 CSV 上傳 tab，客戶端解析預覽後批次匯入含姓名、電話的會員資料",
       "heading": "### User Story 10 - Import Members from CSV File (Priority: P3)",
       "file": "specs/003-member-management/spec.md",
       "anchor": "user-story-10---import-members-from-csv-file-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "csv upload",
+        "import",
+        "papaparse",
+        "phone validation",
+        "CSV 上傳",
+        "匯入 CSV",
+        "電話驗證"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Components/ImportMembersModal.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "003.us-2",
@@ -668,13 +679,24 @@
       "id": "003.us-9",
       "module": "003-member-management",
       "title": "Import Members from Email List",
-      "summary": "",
+      "summary": "管理員可貼上 Email 名單批次建立會員帳號，modal 顯示新增/略過/無效統計及無效清單",
       "heading": "### User Story 9 - Import Members from Email List (Priority: P3)",
       "file": "specs/003-member-management/spec.md",
       "anchor": "user-story-9---import-members-from-email-list-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "import",
+        "email list",
+        "bulk create",
+        "匯入",
+        "批次建立",
+        "會員匯入"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Components/ImportMembersModal.vue",
+        "resources/js/Pages/Admin/Members/Index.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "004.us-1",

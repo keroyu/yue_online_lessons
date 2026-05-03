@@ -125,10 +125,11 @@ const handleClose = () => {
 </script>
 
 <template>
+  <Teleport to="body">
   <div class="fixed inset-0 z-50 overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
       <!-- Backdrop -->
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="handleClose" />
+      <div class="fixed inset-0 bg-black/50 transition-opacity" @click="handleClose" />
 
       <!-- Modal panel -->
       <div class="relative w-full max-w-lg bg-white rounded-lg shadow-xl z-10">
@@ -322,4 +323,5 @@ const handleClose = () => {
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
