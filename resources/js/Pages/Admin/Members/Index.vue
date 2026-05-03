@@ -4,6 +4,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 import MemberDetailModal from '@/Components/MemberDetailModal.vue'
 import BatchEmailModal from '@/Components/BatchEmailModal.vue'
 import GiftCourseModal from '@/Components/GiftCourseModal.vue'
+import ImportMembersModal from '@/Components/ImportMembersModal.vue'
 import { ref, watch, computed, nextTick } from 'vue'
 
 defineOptions({ layout: AdminLayout })
@@ -342,6 +343,62 @@ const handleCourseGifted = (result) => {
 const selectedMemberIdsArray = computed(() => {
   return Array.from(selectedMemberIds.value)
 })
+
+// Import modal state
+const showImportModal = ref(false)
+
+const openImportModal = () => {
+  showImportModal.value = true
+}
+
+const closeImportModal = () => {
+  showImportModal.value = false
+}
+
+// Export dropdown state
+const showExportDropdown = ref(false)
+
+const toggleExportDropdown = () => {
+  showExportDropdown.value = !showExportDropdown.value
+}
+
+const closeExportDropdown = () => {
+  showExportDropdown.value = false
+}
+
+// Export hint text for dropdown
+const exportAllHint = computed(() => {
+  if (search.value || courseFilter.value) {
+    return `匯出符合篩選條件的 ${props.matchingCount} 位會員`
+  }
+  return '匯出全部會員'
+})
+
+// Trigger file download by navigating to export URL
+const doExport = (scope) => {
+  closeExportDropdown()
+
+  const params = new URLSearchParams()
+  params.set('scope', scope)
+
+  if (scope === 'selected') {
+    if (selectAllMatching.value) {
+      // Cross-page select-all: re-query with current filters (same as export all with filters)
+      params.set('scope', 'all')
+      if (search.value) params.set('search', search.value)
+      if (courseFilter.value) params.set('course_id', courseFilter.value)
+    } else {
+      // Individual selections
+      Array.from(selectedMemberIds.value).forEach(id => params.append('ids[]', id))
+    }
+  } else {
+    // Export all: pass current filters
+    if (search.value) params.set('search', search.value)
+    if (courseFilter.value) params.set('course_id', courseFilter.value)
+  }
+
+  window.location.href = `/admin/members/export?${params.toString()}`
+}
 </script>
 
 <template>
@@ -353,6 +410,77 @@ const selectedMemberIdsArray = computed(() => {
           <p class="mt-2 text-sm text-gray-700">
             管理所有會員資料、檢視課程進度、發送批次郵件。
           </p>
+        </div>
+        <!-- Import / Export buttons -->
+        <div class="mt-4 sm:mt-0 sm:ml-4 flex items-center gap-2">
+          <!-- Import button -->
+          <button
+            type="button"
+            @click="openImportModal"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 cursor-pointer"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            匯入
+          </button>
+
+          <!-- Export dropdown -->
+          <div class="relative">
+            <button
+              type="button"
+              @click="toggleExportDropdown"
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 cursor-pointer"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              匯出
+              <svg class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Transparent backdrop to close on outside click -->
+            <div
+              v-if="showExportDropdown"
+              class="fixed inset-0 z-10"
+              @click="closeExportDropdown"
+            />
+
+            <!-- Dropdown menu -->
+            <div
+              v-if="showExportDropdown"
+              class="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-20"
+            >
+              <!-- Export all -->
+              <button
+                type="button"
+                @click="doExport('all')"
+                class="w-full text-left px-4 py-3 hover:bg-gray-50 cursor-pointer"
+              >
+                <p class="text-sm font-medium text-gray-900">匯出全部</p>
+                <p class="text-xs text-gray-500 mt-0.5">{{ exportAllHint }}</p>
+              </button>
+
+              <div class="border-t border-gray-100" />
+
+              <!-- Export selected -->
+              <button
+                type="button"
+                :disabled="selectedCount === 0"
+                @click="selectedCount > 0 && doExport('selected')"
+                class="w-full text-left px-4 py-3 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                :class="selectedCount > 0 ? 'cursor-pointer' : ''"
+              >
+                <p class="text-sm font-medium text-gray-900">匯出選定</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  <template v-if="selectedCount > 0">匯出已選取的 {{ selectedCount }} 位會員</template>
+                  <template v-else>請先選取會員</template>
+                </p>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -792,5 +920,12 @@ const selectedMemberIdsArray = computed(() => {
       :courses="courses"
       @close="closeGiftCourseModal"
       @gifted="handleCourseGifted"
+    />
+
+    <!-- Import Members Modal -->
+    <ImportMembersModal
+      v-if="showImportModal"
+      @close="closeImportModal"
+      @imported="closeImportModal"
     />
 </template>

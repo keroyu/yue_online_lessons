@@ -101,6 +101,61 @@ directories captured above]
 
 ---
 
+### 2026-05-03: US8 匯出 CSV + US9 匯入 Email 名單
+
+**背景**：管理員需要批次匯出/匯入會員資料，以便與外部工具（Excel、CRM）串接或大量建立帳號。
+
+**Constitution Check**：
+
+| Principle | Gate | Status |
+|-----------|------|--------|
+| I. Controller Layering | Export = 單一 Model 查詢 + 檔案回應；Import = 單一 Model (User) 建立，無跨 Model 副作用、無外部 I/O → simple path 無需 Service | ✅ 直接在 Controller 處理 |
+| III. Frontend Architecture | 新增永久按鈕 + ImportMembersModal，local state only | ✅ |
+| IV. Model Conventions | 匯入時使用現有 User::create，nickname 預設為 email @ 前段 | ✅ |
+| VI. Email Delivery | Import 不發送 Email（OTP 登入，不需通知）| ✅ |
+| IX. Security | Export 以 admin middleware 保護；Import 僅建立 member 角色帳號 | ✅ |
+| X. YAGNI | 無新套件；CSV 以 PHP 原生 fputcsv 生成 | ✅ |
+
+**Constitution Check Result**: PASS — no violations.
+
+**新增檔案**：
+- `resources/js/Components/ImportMembersModal.vue` — 匯入 Email 名單 modal
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/MemberController.php` — 新增 `exportCsv()` + `importEmails()`
+- `routes/web.php` — 新增 2 條 admin 路由（export + import）
+- `resources/js/Pages/Admin/Members/Index.vue` — 新增右上角永久「匯入」按鈕 + 「匯出」下拉選單
+
+**設計決策**：
+
+1. **Export 觸發方式**：`window.location.href` + query string（非 Inertia router），瀏覽器直接下載檔案，頁面不跳轉。
+2. **Export scope=selected 的跨頁選取**：  
+   - 個別勾選：傳遞 `ids[]` 陣列  
+   - 全選符合條件（FR-012a）：傳 `scope=all` + 當前 filters（不傳 ids），後端重新查詢匯出，與 「匯出全部」邏輯一致  
+   → 前端判斷：`selectAllMatching === true` 時，「匯出選定」等同 「匯出全部（帶 filter）」
+3. **CSV 編碼**：回應前加 UTF-8 BOM（`"\xEF\xBB\xBF"`）確保 Excel 正確顯示中文。
+4. **Import 無密碼**：`User::create(['email' => ..., 'nickname' => ..., 'role' => 'member', 'email_verified_at' => now()])` — 與 OTP 登入流程一致（LoginController 同模式）。
+5. **Import 結果後重新整理**：`router.reload()` 讓新會員出現在列表中。
+
+**API 端點**：
+
+| Method | Route | Action |
+|--------|-------|--------|
+| GET | /admin/members/export | exportCsv — scope, ids[], search, course_id |
+| POST | /admin/members/import | importEmails — emails (raw text) |
+
+路由須加在 `{member}` wildcard 之前。
+
+**Import 解析邏輯（Controller inline）**：
+```
+$raw = $request->input('emails', '')
+$lines = preg_split('/[\r\n,]+/', $raw)
+→ trim each line → filter empty → array_unique
+→ foreach: filter_var(FILTER_VALIDATE_EMAIL) → invalid / User exists → skipped / create → created
+```
+
+---
+
 ### 2026-03-11: 會員詳情課程列表新增取得方式標籤
 
 **背景**：管理員在查看會員詳情時，需要一眼辨識每門課程的取得方式（贈送或購買），以便客服判斷處理方式。原設計只顯示課程名稱與進度，無法區分。

@@ -117,6 +117,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Members
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');
+    Route::get('/members/export', [MemberController::class, 'exportCsv'])->name('members.export');
+    Route::post('/members/import', [MemberController::class, 'importEmails'])->name('members.import');
     Route::get('/members', [MemberController::class, 'index'])->name('members.index');
     Route::patch('/members/{member}', [MemberController::class, 'update'])->name('members.update');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');

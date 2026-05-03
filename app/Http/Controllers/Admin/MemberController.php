@@ -13,8 +13,10 @@ use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -360,6 +362,138 @@ class MemberController extends Controller
             'already_owned_count' => $alreadyOwnedCount,
             'email_queued_count' => $emailSentCount,
             'skipped_no_email_count' => $skippedNoEmailCount,
+        ]);
+    }
+
+    /**
+     * Export members as a CSV download.
+     */
+    public function exportCsv(Request $request): HttpResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $scope = $request->input('scope', 'all');
+        $ids = $request->input('ids', []);
+        $search = $request->input('search');
+        $courseId = $request->input('course_id');
+
+        if ($scope === 'selected' && empty($ids)) {
+            abort(422, '請先選取要匯出的會員');
+        }
+
+        $query = User::query()->members();
+
+        if ($scope === 'selected') {
+            $query->whereIn('id', $ids);
+        } else {
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('email', 'like', "%{$search}%")
+                      ->orWhere('real_name', 'like', "%{$search}%")
+                      ->orWhere('nickname', 'like', "%{$search}%");
+                });
+            }
+            if ($courseId) {
+                $query->whereHas('purchases', function ($q) use ($courseId) {
+                    $q->where('course_id', $courseId)->paidStatus();
+                });
+            }
+        }
+
+        $filename = 'members-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            // UTF-8 BOM for Excel compatibility
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            // Header row
+            fputcsv($handle, ['暱稱', '真實姓名', 'Email', '加入日期', '最後登入時間']);
+
+            $query->orderBy('created_at', 'desc')
+                ->select(['nickname', 'real_name', 'email', 'created_at', 'last_login_at'])
+                ->chunk(200, function ($members) use ($handle) {
+                    foreach ($members as $member) {
+                        fputcsv($handle, [
+                            $member->nickname ?? '',
+                            $member->real_name ?? '',
+                            $member->email ?? '',
+                            $member->created_at ? $member->created_at->format('Y-m-d') : '',
+                            $member->last_login_at ? $member->last_login_at->format('Y-m-d H:i') : '',
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Import members from a pasted list of email addresses.
+     */
+    public function importEmails(Request $request): JsonResponse
+    {
+        $request->validate([
+            'emails' => 'required|string|max:50000',
+        ], [
+            'emails.required' => '請輸入至少一個 Email 地址',
+            'emails.max' => '輸入內容過長，請分批匯入',
+        ]);
+
+        $raw = $request->input('emails', '');
+
+        // Split by newlines and commas, trim, de-duplicate
+        $lines = preg_split('/[\r\n,]+/', $raw);
+        $emails = array_unique(array_filter(array_map('trim', $lines)));
+
+        if (empty($emails)) {
+            return response()->json([
+                'errors' => ['emails' => ['請輸入至少一個 Email 地址']],
+            ], 422);
+        }
+
+        $createdCount = 0;
+        $skippedCount = 0;
+        $invalidCount = 0;
+
+        foreach ($emails as $email) {
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalidCount++;
+                continue;
+            }
+
+            $email = strtolower($email);
+
+            if (User::where('email', $email)->exists()) {
+                $skippedCount++;
+                continue;
+            }
+
+            User::create([
+                'email' => $email,
+                'nickname' => Str::before($email, '@'),
+                'role' => 'member',
+                'email_verified_at' => now(),
+            ]);
+
+            $createdCount++;
+        }
+
+        $parts = ["新增 {$createdCount} 位會員"];
+        if ($skippedCount > 0) {
+            $parts[] = "略過 {$skippedCount} 位（已存在）";
+        }
+        if ($invalidCount > 0) {
+            $parts[] = "無效格式 {$invalidCount} 個";
+        }
+
+        return response()->json([
+            'success' => true,
+            'created_count' => $createdCount,
+            'skipped_count' => $skippedCount,
+            'invalid_count' => $invalidCount,
+            'message' => implode('，', $parts),
         ]);
     }
 }
