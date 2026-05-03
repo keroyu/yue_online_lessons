@@ -641,6 +641,30 @@
       "status": "implemented"
     },
     {
+      "id": "003.us-8",
+      "module": "003-member-management",
+      "title": "Export Member Data as CSV",
+      "summary": "",
+      "heading": "### User Story 8 - Export Member Data as CSV (Priority: P3)",
+      "file": "specs/003-member-management/spec.md",
+      "anchor": "user-story-8---export-member-data-as-csv-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "003.us-9",
+      "module": "003-member-management",
+      "title": "Import Members from Email List",
+      "summary": "",
+      "heading": "### User Story 9 - Import Members from Email List (Priority: P3)",
+      "file": "specs/003-member-management/spec.md",
+      "anchor": "user-story-9---import-members-from-email-list-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
       "id": "004.us-1",
       "module": "004-homepage-enhancement",
       "title": "View Recent Blog Articles",

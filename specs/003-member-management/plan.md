@@ -4,6 +4,7 @@
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 加入 Markdown 支援（league/commonmark）
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤
+**Updated**: 2026-05-03 - 新增 US8 匯出 CSV、US9 匯入 Email 名單規格（FR-030～041）
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 

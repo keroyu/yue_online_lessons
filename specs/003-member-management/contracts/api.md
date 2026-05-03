@@ -3,6 +3,7 @@
 **Feature**: 003-member-management
 **Date**: 2026-01-17
 **Updated**: 2026-01-18
+**Updated**: 2026-05-03 - 新增 GET /admin/members/export、POST /admin/members/import
 **Base Path**: `/admin/members`
 **Auth**: Requires admin role (middleware: `auth`, `admin`)
 
@@ -18,6 +19,8 @@
 | POST | /admin/members/batch-email | sendBatchEmail | Send email to selected members |
 | POST | /admin/members/gift-course | giftCourse | Gift course to selected members |
 | GET | /admin/members/count | count | Count members matching filter (for select all) |
+| GET | /admin/members/export | exportCsv | Download CSV of members (all/filtered/selected) |
+| POST | /admin/members/import | importEmails | Bulk-create members from pasted email list |
 
 ---
 
@@ -284,6 +287,76 @@ Get count of members matching current filter (for "Select all X members" display
   count: number
 }
 ```
+
+---
+
+### GET /admin/members/export
+
+Download a CSV file of member basic data. Returns a file download response (not JSON).
+
+**Query Parameters**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| scope | string | Yes | `all` = export all members matching current filters; `selected` = export specific IDs |
+| ids[] | integer[] | No | Required when scope=selected. Array of member IDs to export. |
+| search | string | No | Active search keyword (passed through when scope=all) |
+| course_id | integer | No | Active course filter (passed through when scope=all) |
+
+**Response**: `Content-Disposition: attachment; filename="members-YYYY-MM-DD.csv"`
+
+CSV columns (in order): `暱稱,真實姓名,Email,加入日期,最後登入時間`
+
+Empty values are exported as empty strings. Fields containing commas or line breaks are wrapped in double-quotes (RFC 4180).
+
+**Error Response** (422 — scope=selected with no ids):
+```json
+{ "message": "請先選取要匯出的會員" }
+```
+
+---
+
+### POST /admin/members/import
+
+Bulk-create member accounts from a pasted list of email addresses.
+
+**Request Body**:
+
+```typescript
+{
+  emails: string  // Raw text: one email per line, or comma-separated, or mixed
+}
+```
+
+**Validation Rules**:
+
+| Field | Rules |
+|-------|-------|
+| emails | required, string, max:50000 |
+
+**Success Response** (JSON):
+
+```typescript
+{
+  success: true
+  created_count: number    // New member accounts created
+  skipped_count: number    // Emails already in system (skipped)
+  invalid_count: number    // Emails that failed format validation
+  message: string          // Human-readable summary in Chinese
+}
+```
+
+**Error Response** (422 — empty input):
+
+```typescript
+{
+  errors: {
+    emails: ["請輸入至少一個 Email 地址"]
+  }
+}
+```
+
+> Newly created members receive: role="member", nickname = part before "@" in email, randomly generated password. No welcome email is sent on import (members must reset password via login page).
 
 ---
 

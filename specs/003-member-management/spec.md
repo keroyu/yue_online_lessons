@@ -7,6 +7,7 @@
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名錯誤（.text.blade.php → .blade.php）；批次 Email 支援 Markdown 格式輸入
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤（贈送／購買）
 **Updated**: 2026-03-30 - 補充 Purchase 語意：會員擁有權以 status 判斷，取得方式標籤以 type 判斷
+**Updated**: 2026-05-03 - 新增 US8（匯出 CSV）、US9（匯入 Email 名單）；FR-030～039；SC-010～011
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -136,6 +137,46 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 
 ---
 
+### User Story 8 - Export Member Data as CSV (Priority: P3)
+
+As an admin, I want to export member data to a CSV file so I can analyse, back up, or use the data in external tools.
+
+**Why this priority**: Useful operational tool but does not block any core management workflow. Depends on the member list (P1) being in place.
+
+**Independent Test**: Can be fully tested by clicking the Export button, choosing an export scope (all or selected), and verifying the downloaded CSV contains the correct members and fields.
+
+**Acceptance Scenarios**:
+
+1. **Given** I am on the member management page, **When** I look at the top-right area, **Then** I see a permanent "匯出" button regardless of whether any members are selected.
+2. **Given** I click the "匯出" button, **When** the dropdown opens, **Then** I see two options: "匯出全部" and "匯出選定".
+3. **Given** no search or filter is active, **When** I click "匯出全部", **Then** all members in the system are exported and the dropdown shows a hint "匯出全部會員".
+4. **Given** a search or filter is active, **When** I click "匯出全部", **Then** only members matching the current filters are exported and the dropdown shows a hint describing the current scope (e.g., "匯出符合篩選條件的 N 位會員").
+5. **Given** I have selected one or more members, **When** I click "匯出選定", **Then** only the selected members are exported.
+6. **Given** no members are selected, **When** the dropdown opens, **Then** the "匯出選定" option is visually disabled and cannot be clicked.
+7. **Given** any export is triggered, **When** the export runs, **Then** the browser immediately downloads a CSV file containing: 暱稱、真實姓名、Email、加入日期、最後登入時間.
+
+---
+
+### User Story 9 - Import Members from Email List (Priority: P3)
+
+As an admin, I want to import a list of email addresses to create member accounts in bulk so I can onboard existing contacts without requiring them to register individually.
+
+**Why this priority**: Useful for migrations and campaigns but does not affect existing member management functionality.
+
+**Independent Test**: Can be fully tested by pasting a list of emails into the import modal, confirming, and verifying that new accounts are created and existing emails are skipped.
+
+**Acceptance Scenarios**:
+
+1. **Given** I am on the member management page, **When** I look at the top-right area, **Then** I see a permanent "匯入" button.
+2. **Given** I click "匯入", **When** the modal opens, **Then** I see a textarea where I can paste email addresses.
+3. **Given** I paste a list of emails (one per line or comma-separated), **When** I confirm the import, **Then** the system creates a member account for each valid, new email.
+4. **Given** an email in the list already exists in the system, **When** the import runs, **Then** that email is skipped (no duplicate created) and counted in the "略過" summary.
+5. **Given** an email in the list is malformed (no "@" or invalid format), **When** the import runs, **Then** it is skipped and counted in the "無效格式" summary.
+6. **Given** the import completes, **When** I see the result, **Then** I see a summary showing: 新增會員數、略過（已存在）數、無效格式數.
+7. **Given** I submit an empty textarea, **When** I click confirm, **Then** the system shows a validation error and does not proceed.
+
+---
+
 ### Edge Cases
 
 - What happens when a member has no email set? Display warning and exclude from batch email.
@@ -146,6 +187,10 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - What happens when gifting a course to a member without an email? Gift the course (create purchase) but skip email notification; show warning in result summary.
 - What happens when all selected members already own the course? Show message "所有選取的會員都已擁有此課程" (All selected members already own this course) with no gifts created.
 - What happens when the course has no description? Display "（無課程簡介）" in the email instead of blank content.
+- What happens when "匯出選定" is clicked with no selection? The option is disabled — cannot be triggered.
+- What happens when CSV field values contain commas or line breaks? Wrap the field in double-quotes per RFC 4180.
+- What happens when the import textarea contains only whitespace or blank lines? Treat as empty input and show a validation error.
+- What happens when the same email appears twice in the import list? Process it once; the duplicate is silently de-duplicated before processing.
 
 ## Requirements *(mandatory)*
 
@@ -184,6 +229,24 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **FR-028**: System MUST display result summary showing: courses gifted count, already owned count, and email sent count.
 - **FR-029**: System MUST display an acquisition type label on each course in the member detail modal: "贈送" for purchases with type 'gift' or 'system_assigned', "購買" for all other types.
 
+**匯出 CSV（US8）**
+
+- **FR-030**: System MUST display a permanent "匯出" dropdown button in the top-right of the member management page, visible at all times regardless of selection state.
+- **FR-031**: The "匯出" dropdown MUST contain two options: "匯出全部" and "匯出選定".
+- **FR-032**: "匯出全部" MUST export all members matching the current active filters (search keyword and/or course filter); if no filters are active, it exports all members in the system. The dropdown MUST display a hint describing the current export scope before the user clicks.
+- **FR-033**: "匯出選定" MUST export only the members currently checked on the page. This option MUST be disabled (unclickable) when no members are selected.
+- **FR-034**: The exported CSV MUST include the following columns in order: 暱稱 (nickname)、真實姓名 (real_name)、Email、加入日期 (created_at)、最後登入時間 (last_login_at). Fields with empty values MUST be exported as empty strings.
+- **FR-035**: Selecting either export option MUST trigger an immediate browser file download of a CSV file named `members-YYYY-MM-DD.csv`. No page navigation or reload should occur.
+
+**匯入 Email 名單（US9）**
+
+- **FR-036**: System MUST display a permanent "匯入" button in the top-right of the member management page.
+- **FR-037**: Clicking "匯入" MUST open a modal with a textarea. The textarea MUST accept email addresses formatted as: one per line, comma-separated, or a mix of both.
+- **FR-038**: On import confirmation, the system MUST de-duplicate the parsed email list before processing (same email appearing twice counts as one).
+- **FR-039**: For each unique, valid email in the list, the system MUST: (a) skip if the email already exists in the system (count as "已存在"); (b) create a new member account with role="member", nickname defaulting to the part before "@" in the email, and a randomly generated password, if the email does not exist.
+- **FR-040**: Emails that fail basic format validation (no "@", invalid structure) MUST be skipped and counted separately as "無效格式".
+- **FR-041**: After import completes, the system MUST display a result summary showing: 新增會員數、略過（已存在）數、無效格式數. The member list MUST refresh to reflect newly added members.
+
 ### Key Entities
 
 - **Member (User)**: User with role "member". Key attributes: email, nickname, real_name, phone, birth_date, last_login_ip, last_login_at, created_at.
@@ -205,6 +268,8 @@ As an admin, I want to gift courses to selected members so I can provide free ac
 - **SC-007**: Gift course operation (including email sending) completes within 30 seconds for the platform's current member scale.
 - **SC-008**: 100% of gifted courses are accessible to members immediately after gift operation.
 - **SC-009**: Gift notification emails reach 100% of recipients with valid email addresses.
+- **SC-010**: Exporting up to 1,000 members triggers a file download within 5 seconds.
+- **SC-011**: Importing a list of up to 200 emails completes processing and displays the result summary within 10 seconds.
 
 ## Clarifications
 
