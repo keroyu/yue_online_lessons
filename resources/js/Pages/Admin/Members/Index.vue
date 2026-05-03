@@ -926,6 +926,5 @@ const doExport = (scope) => {
     <ImportMembersModal
       v-if="showImportModal"
       @close="closeImportModal"
-      @imported="closeImportModal"
     />
 </template>

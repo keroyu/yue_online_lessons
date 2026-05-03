@@ -4,7 +4,7 @@ import { router } from '@inertiajs/vue3'
 
 const axios = window.axios
 
-const emit = defineEmits(['close', 'imported'])
+const emit = defineEmits(['close'])
 
 const emailsText = ref('')
 const importing = ref(false)
@@ -24,10 +24,6 @@ const handleImport = async () => {
     })
 
     result.value = response.data
-    emit('imported', response.data)
-
-    // Refresh member list to show new accounts
-    router.reload({ only: ['members', 'matchingCount'] })
   } catch (err) {
     if (err.response?.data?.errors?.emails) {
       error.value = err.response.data.errors.emails[0]
@@ -40,6 +36,9 @@ const handleImport = async () => {
 }
 
 const handleClose = () => {
+  if (result.value?.created_count > 0) {
+    router.reload({ only: ['members', 'matchingCount'] })
+  }
   emit('close')
 }
 </script>
@@ -79,6 +78,14 @@ const handleClose = () => {
                 <p>{{ result.message }}</p>
               </div>
             </div>
+          </div>
+
+          <!-- Invalid emails list -->
+          <div v-if="result?.invalid_emails?.length > 0" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="text-sm font-medium text-yellow-800 mb-1">無效格式 Email（{{ result.invalid_emails.length }} 個）</p>
+            <ul class="text-xs text-yellow-700 font-mono space-y-0.5 max-h-32 overflow-y-auto">
+              <li v-for="email in result.invalid_emails" :key="email">{{ email }}</li>
+            </ul>
           </div>
 
           <!-- Error -->

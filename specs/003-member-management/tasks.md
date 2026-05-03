@@ -446,6 +446,40 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 ---
 
+## Phase 16: US8 匯出 CSV + US9 匯入 Email 名單 (2026-05-03 新增)
+
+**Purpose**: 管理員可將會員資料匯出為 CSV，或貼上 Email 名單批次建立會員帳號。
+
+**背景**: US8 = 右上角「匯出」下拉選單（匯出全部 / 匯出選定）；US9 = 右上角「匯入」按鈕 + modal（貼上 Email 名單、顯示結果、保持開啟直到使用者關閉）。
+
+**Independent Test (US8)**: 進入 `/admin/members`，點「匯出全部」應下載 CSV 並包含 BOM；套用篩選後匯出應只包含符合條件的會員；有勾選時「匯出選定」可用，否則 disabled。
+
+**Independent Test (US9)**: 點「匯入」開啟 modal，貼入含有效、無效、重複 Email 的混合名單，提交後 modal 保持開啟並顯示建立 N 筆、略過 N 筆、無效清單；點「關閉」後列表重新整理（僅在有新增時）。
+
+### US8 — 匯出 CSV
+
+- [X] T076 Add GET /admin/members/export and POST /admin/members/import routes to `routes/web.php` (before `{member}` wildcard)
+- [X] T077 [US8] Implement `exportCsv()` in `app/Http/Controllers/Admin/MemberController.php`: scope=all (with search/course_id filters) or scope=selected (by ids[]); UTF-8 BOM; fputcsv; chunk(200); streamDownload
+- [X] T078 [US8] Add 匯出 dropdown to `resources/js/Pages/Admin/Members/Index.vue`: transparent backdrop overlay, 匯出全部 (always enabled) + 匯出選定 (disabled when no selection), exportAllHint computed showing current filter scope
+- [X] T079 [US8] Implement `doExport(scope)` in `resources/js/Pages/Admin/Members/Index.vue`: build URLSearchParams, set `window.location.href` for file download (not Inertia router)
+
+### US9 — 匯入 Email 名單
+
+- [X] T080 [US9] Implement initial `importEmails()` in `app/Http/Controllers/Admin/MemberController.php`: preg_split + trim + array_unique; filter_var FILTER_VALIDATE_EMAIL; User::create for new members; return created/skipped/invalid counts
+- [X] T081 [US9] Fix `importEmails()` in `app/Http/Controllers/Admin/MemberController.php`: collect invalid email strings into `$invalidEmails[]` array and include `invalid_emails: $invalidEmails` in JSON response (FR-040)
+- [X] T082 [US9] Create initial `ImportMembersModal.vue` skeleton in `resources/js/Components/ImportMembersModal.vue`: textarea, submit button, result display structure
+- [X] T083 [US9] Fix `resources/js/Components/ImportMembersModal.vue` UX (FR-041):
+  - Remove `emit('imported', response.data)` and `router.reload()` from submit handler
+  - Set `result = response.data` to display summary in modal
+  - Show green summary box (created / skipped / invalid counts)
+  - Show yellow invalid email list when `result.invalid_emails.length > 0`
+  - Add `handleClose()` that: emits `close`; calls `router.reload()` only when `result?.created_count > 0`
+- [X] T084 [US9] Fix `resources/js/Pages/Admin/Members/Index.vue`: remove `@imported="closeImportModal"` event binding from `<ImportMembersModal>`; `closeImportModal` should only be called from the modal's `@close` event
+
+**Checkpoint**: 匯出 CSV 正確下載；匯入 modal 顯示結果並保持開啟直到使用者點關閉；關閉後列表自動更新（有新增時）✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -465,5 +499,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 13: 贈課 Email 純文字 MIME | T069-T070 | ✅ Completed |
 | Phase 14: 修正贈課 Email 檔名；批次 Email Markdown | T071-T073 | ✅ Completed |
 | Phase 15: 會員詳情課程取得方式標籤 | T074-T075 | ✅ Completed |
+| Phase 16: US8 匯出 CSV + US9 匯入 Email 名單 | T076-T084 | ✅ Completed |
 
-**Total**: 79 tasks (79 complete, 0 planned)
+**Total**: 88 tasks (88 complete, 0 pending)

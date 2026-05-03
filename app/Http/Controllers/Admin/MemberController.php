@@ -456,10 +456,12 @@ class MemberController extends Controller
         $createdCount = 0;
         $skippedCount = 0;
         $invalidCount = 0;
+        $invalidEmails = [];
 
         foreach ($emails as $email) {
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalidCount++;
+                $invalidEmails[] = $email;
                 continue;
             }
 
@@ -493,6 +495,7 @@ class MemberController extends Controller
             'created_count' => $createdCount,
             'skipped_count' => $skippedCount,
             'invalid_count' => $invalidCount,
+            'invalid_emails' => $invalidEmails,
             'message' => implode('，', $parts),
         ]);
     }

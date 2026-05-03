@@ -4,6 +4,7 @@
 **Date**: 2026-01-17
 **Updated**: 2026-01-18
 **Updated**: 2026-05-03 - 新增 GET /admin/members/export、POST /admin/members/import
+**Updated**: 2026-05-03 - POST /admin/members/import 回應新增 invalid_emails 陣列
 **Base Path**: `/admin/members`
 **Auth**: Requires admin role (middleware: `auth`, `admin`)
 
@@ -342,6 +343,7 @@ Bulk-create member accounts from a pasted list of email addresses.
   created_count: number    // New member accounts created
   skipped_count: number    // Emails already in system (skipped)
   invalid_count: number    // Emails that failed format validation
+  invalid_emails: string[] // Full list of invalid email strings (for frontend display)
   message: string          // Human-readable summary in Chinese
 }
 ```

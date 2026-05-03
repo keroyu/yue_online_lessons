@@ -8,6 +8,7 @@
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤（贈送／購買）
 **Updated**: 2026-03-30 - 補充 Purchase 語意：會員擁有權以 status 判斷，取得方式標籤以 type 判斷
 **Updated**: 2026-05-03 - 新增 US8（匯出 CSV）、US9（匯入 Email 名單）；FR-030～039；SC-010～011
+**Updated**: 2026-05-03 - US9 補強：無效 Email 清單顯示（FR-040、FR-041、Scenario 5-6 更新）
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -171,8 +172,8 @@ As an admin, I want to import a list of email addresses to create member account
 2. **Given** I click "匯入", **When** the modal opens, **Then** I see a textarea where I can paste email addresses.
 3. **Given** I paste a list of emails (one per line or comma-separated), **When** I confirm the import, **Then** the system creates a member account for each valid, new email.
 4. **Given** an email in the list already exists in the system, **When** the import runs, **Then** that email is skipped (no duplicate created) and counted in the "略過" summary.
-5. **Given** an email in the list is malformed (no "@" or invalid format), **When** the import runs, **Then** it is skipped and counted in the "無效格式" summary.
-6. **Given** the import completes, **When** I see the result, **Then** I see a summary showing: 新增會員數、略過（已存在）數、無效格式數.
+5. **Given** an email in the list is malformed (no "@" or invalid format), **When** the import runs, **Then** it is skipped; the result shows the count AND lists each invalid email so the admin can correct them.
+6. **Given** the import completes, **When** I see the result (still inside the modal), **Then** I see a summary showing: 新增會員數、略過（已存在）數、無效格式數; if any invalid emails exist, the full list is displayed below the summary. The modal stays open until I click "關閉".
 7. **Given** I submit an empty textarea, **When** I click confirm, **Then** the system shows a validation error and does not proceed.
 
 ---
@@ -244,8 +245,8 @@ As an admin, I want to import a list of email addresses to create member account
 - **FR-037**: Clicking "匯入" MUST open a modal with a textarea. The textarea MUST accept email addresses formatted as: one per line, comma-separated, or a mix of both.
 - **FR-038**: On import confirmation, the system MUST de-duplicate the parsed email list before processing (same email appearing twice counts as one).
 - **FR-039**: For each unique, valid email in the list, the system MUST: (a) skip if the email already exists in the system (count as "已存在"); (b) create a new member account with role="member" and nickname defaulting to the part before "@" in the email, if the email does not exist. No password is required — members authenticate via email verification code.
-- **FR-040**: Emails that fail basic format validation (no "@", invalid structure) MUST be skipped and counted separately as "無效格式".
-- **FR-041**: After import completes, the system MUST display a result summary showing: 新增會員數、略過（已存在）數、無效格式數. The member list MUST refresh to reflect newly added members.
+- **FR-040**: Emails that fail basic format validation (no "@", invalid structure) MUST be skipped and counted separately as "無效格式". The API response MUST include the full list of invalid email strings (not just a count) so the frontend can display them.
+- **FR-041**: After import completes, the system MUST display a result summary inside the modal showing: 新增會員數、略過（已存在）數、無效格式數. If there are invalid emails, their full list MUST be displayed below the summary so the admin can identify and correct them. The modal MUST remain open until the admin explicitly closes it. Closing the modal MUST trigger a member list refresh to reflect newly added members.
 
 ### Key Entities
 

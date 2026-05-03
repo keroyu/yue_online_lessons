@@ -5,6 +5,7 @@
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 加入 Markdown 支援（league/commonmark）
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤
 **Updated**: 2026-05-03 - 新增 US8 匯出 CSV、US9 匯入 Email 名單規格（FR-030～041）
+**Updated**: 2026-05-03 - US9 補強：無效 Email 清單列出（FR-040/041）；modal 保持開啟至使用者關閉後才 reload
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -151,8 +152,14 @@ directories captured above]
 $raw = $request->input('emails', '')
 $lines = preg_split('/[\r\n,]+/', $raw)
 → trim each line → filter empty → array_unique
-→ foreach: filter_var(FILTER_VALIDATE_EMAIL) → invalid / User exists → skipped / create → created
+→ foreach: filter_var(FILTER_VALIDATE_EMAIL) → collect into $invalidEmails[] / User exists → skipped / create → created
+→ return { created_count, skipped_count, invalid_count, invalid_emails: [], message }
 ```
+
+**Modal UX（補強）**：
+- 匯入完成後 modal 保持開啟，顯示結果（綠色摘要 + 若有無效 Email 則顯示黃色清單）
+- 使用者點「關閉」後才執行 `router.reload()`，避免列表在結果還在閱讀時閃動
+- `router.reload()` 僅在 `created_count > 0` 時執行（無新增則無需 reload）
 
 ---
 
