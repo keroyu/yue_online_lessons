@@ -68,7 +68,7 @@ class SendDripEmailJob implements ShouldQueue
 
         $hasVideo = (bool) $lesson->has_video;
         $converter = new CommonMarkConverter();
-        $rawMd = $lesson->md_content ?: '';
+        $rawMd = str_replace('{{classroom_url}}', $classroomUrl, $lesson->md_content ?: '');
         $htmlContent = $rawMd
             ? $this->stripStylesForEmail($converter->convert($rawMd)->getContent())
             : '';

@@ -8,6 +8,7 @@
 **Updated**: 2026-03-02 - 訂閱成功通知位置優化 (Phase 22)
 **Updated**: 2026-03-02 - 驗證碼寄件者提示 (Phase 23)
 **Updated**: 2026-03-10 - drip 信件加入退訂連結 (Phase 24)
+**Updated**: 2026-05-03 - Lesson 編輯器「插入教室連結」按鈕 + {{classroom_url}} 替換邏輯 + CourseForm 文案微調 (Phase 25)
 
 **Organization**: Tasks grouped by user story for independent implementation and testing.
 

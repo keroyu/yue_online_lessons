@@ -143,12 +143,14 @@ const formatPrice = (price) => {
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <div class="flex items-center justify-end space-x-2">
-                        <Link
-                          :href="`/member/classroom/${course.id}`"
+                        <a
+                          :href="`/course/${course.id}`"
+                          target="_blank"
+                          rel="noopener noreferrer"
                           class="text-orange-600 hover:text-orange-900"
                         >
-                          預覽
-                        </Link>
+                          銷售頁
+                        </a>
                         <Link
                           :href="`/admin/courses/${course.id}/edit`"
                           class="text-indigo-600 hover:text-indigo-900"

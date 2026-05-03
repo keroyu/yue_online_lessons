@@ -3,6 +3,11 @@
 **Phase**: 1 — Design
 **Updated**: 2026-04-09 - 預約端點改為 JSON API（非 Inertia redirect）；成功/失敗均回傳 JSON
 **Updated**: 2026-04-09
+**Updated**: 2026-04-09 - 新增 Leads 管理後台路由（US6）；booking 端點新增 Lead 記錄儲存副作用（US5）
+**Updated**: 2026-04-10 - subscribe-drip 改為非同步（SubscribeDripLeadJob）；response 欄位 subscribed → dispatched；side effects 移至 Job 內執行
+**Updated**: 2026-05-02 - GET /admin/high-ticket-leads 新增 notifyTemplate prop
+**Updated**: 2026-05-03 - GET /admin/high-ticket-leads 新增 search/course_id 查詢參數與 highTicketCourses prop；新增 POST /admin/high-ticket-leads/batch-email
+**Updated**: 2026-05-03 - GET /admin/high-ticket-leads 新增 dripByEmail、grantableCourses props；新增 POST /admin/high-ticket-leads/{lead}/convert；修復 notifyTemplate 使用 ->first(['cols'])?->toArray()
 
 ---
 
@@ -41,7 +46,7 @@ or
 
 **Side effects**:
 - Sends confirmation email to visitor (sync) using `high_ticket_booking_confirmation` template
-- No database record created
+- Creates a `high_ticket_leads` record (name, email, course_id, status='pending', booked_at=now) — independent of email send result
 
 **Guards**:
 - Course must be of type `high_ticket`
@@ -117,6 +122,172 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 
 ---
 
+## Admin Leads Routes (under `auth + admin` middleware)
+
+### GET `/admin/high-ticket-leads`
+
+**Controller**: `Admin\HighTicketLeadController@index`
+**Returns**: Inertia `Admin/HighTicketLeads/Index`
+
+**Query params**:
+- `status` (optional): filter by `pending` | `contacted` | `converted` | `closed`
+- `search` (optional): keyword search on `name` or `email` (LIKE)
+- `course_id` (optional): filter by high-ticket course ID
+
+**Props**:
+```json
+{
+  "leads": { "data": [...], "current_page": 1, "last_page": 1, "per_page": 20, "total": 0 },
+  "filters": { "status": "string|null", "search": "string|null", "course_id": "string|null" },
+  "highTicketCourses": [
+    { "id": "integer", "name": "string" }
+  ],
+  "dripCourses": [
+    { "id": "integer", "name": "string" }
+  ],
+  "notifyTemplate": {
+    "id": "integer",
+    "subject": "string",
+    "body_md": "string"
+  },
+  "dripByEmail": {
+    "<email>": [
+      { "course_name": "string", "status": "active|completed|converted|unsubscribed" }
+    ]
+  },
+  "grantableCourses": [
+    { "id": "integer", "name": "string" }
+  ]
+}
+```
+
+> `notifyTemplate` is `null` if `high_ticket_slot_available` template does not exist in DB. Frontend disables the confirm-send button in that case.
+> `dripByEmail` is keyed by email; entries only exist for leads whose email matches a user with drip subscriptions. Empty array entry = no subscriptions.
+> `grantableCourses` lists all courses (no filter) for the "開通" modal product selector.
+
+---
+
+### PATCH `/admin/high-ticket-leads/{lead}/status`
+
+**Controller**: `Admin\HighTicketLeadController@updateStatus`
+
+**Request body**:
+```json
+{ "status": "pending | contacted | converted | closed" }
+```
+
+**Response**: `200 OK` with updated lead JSON
+
+---
+
+### POST `/admin/high-ticket-leads/notify-slot`
+
+**Controller**: `Admin\HighTicketLeadController@notifySlot`
+**Target leads**: `pending` status only
+
+**Request body**:
+```json
+{ "lead_ids": [1, 2, 3] }
+```
+
+**Success** `200 OK`:
+```json
+{ "dispatched": 3 }
+```
+
+> ⚠️ **Implementation note**: `dispatched` = Jobs queued (not yet sent). Actual email send + `notified_count` increment happen async inside `NotifyHighTicketSlotJob`.
+
+**Side effects** (async, per dispatched lead — inside `NotifyHighTicketSlotJob`):
+1. Send email using `EmailTemplate::forEvent('high_ticket_slot_available')` with vars `{{user_name}}`, `{{course_name}}`
+2. Increment `notified_count` by 1
+3. Set `last_notified_at` to now
+
+---
+
+### POST `/admin/high-ticket-leads/subscribe-drip`
+
+**Controller**: `Admin\HighTicketLeadController@subscribeDrip`
+
+**Request body**:
+```json
+{
+  "lead_ids": [1, 2, 3],
+  "drip_course_id": "integer"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "dispatched": 2,
+  "skipped": 1
+}
+```
+
+> ⚠️ **Implementation note**: `dispatched` = Jobs queued (not yet completed). Actual drip enrollment happens async via `SubscribeDripLeadJob`. `skipped` = leads with an existing `status='active'` drip_subscription (checked synchronously before dispatch).
+
+**Side effects** (async, per dispatched lead — inside `SubscribeDripLeadJob`):
+1. `User::firstOrCreate(['email' => $lead->email], ['nickname' => $lead->name])`
+2. `DripService::subscribe($user, $dripCourse)` — creates subscription + dispatches first lesson email
+3. `$lead->update(['status' => 'closed'])`
+
+---
+
+### POST `/admin/high-ticket-leads/batch-email`
+
+**Controller**: `Admin\HighTicketLeadController@batchEmail`
+
+**Request body**:
+```json
+{
+  "lead_ids": [1, 2, 3],
+  "subject": "string, required, max:200",
+  "body": "string, required, max:10000"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "success": true,
+  "message": "已發送 3 封郵件",
+  "sent_count": 3
+}
+```
+
+**Error** `422 Unprocessable Entity`:
+```json
+{ "message": "沒有可發送郵件的 Lead" }
+```
+
+> Sends `BatchEmailMail` (CommonMark Markdown rendered) directly to each lead's email address. Leads with empty email are silently skipped. Individual send failures are logged but do not abort the batch.
+
+---
+
+### POST `/admin/high-ticket-leads/{lead}/convert`
+
+**Controller**: `Admin\HighTicketLeadController@convert`
+
+**Request body**:
+```json
+{
+  "course_id": "integer, required, exists:courses,id"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "success": true,
+  "user_created": true
+}
+```
+
+> `user_created: true` = a new member account was created (email did not exist in `users`); `false` = existing account reused.
+> Side effects (synchronous): `User::firstOrCreate` by email → `Purchase::updateOrCreate` (`type='gift'`, `status='paid'`, `amount=0`) → `lead.status = 'converted'`.
+
+---
+
 ## Course Admin Changes
 
 ### PUT `/admin/courses/{course}` (existing — extended)
@@ -156,3 +327,4 @@ Flash key `high_ticket_booking_success` shown after successful booking submissio
 | `high_ticket_booking_confirmation` | `{{user_name}}`, `{{user_email}}`, `{{course_name}}` |
 | `course_gifted` | `{{user_name}}`, `{{course_name}}`, `{{course_description}}` |
 | `lesson_added` | `{{user_name}}`, `{{course_name}}`, `{{lesson_title}}`, `{{classroom_url}}` |
+| `high_ticket_slot_available` | `{{user_name}}`, `{{course_name}}` |

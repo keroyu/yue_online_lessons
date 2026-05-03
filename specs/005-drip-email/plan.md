@@ -2,6 +2,7 @@
 
 **Branch**: `005-drip-email` | **Date**: 2026-02-05 | **Spec**: [spec.md](./spec.md)
 **Updated**: 2026-03-10 - drip 信件加入退訂連結（Phase 24）
+**Updated**: 2026-05-03 - Lesson 編輯器「插入教室連結」與 `{{classroom_url}}` 替換（Phase 25）
 
 ## Summary
 

@@ -61,7 +61,7 @@ const activeTab = ref('basic')
 const tabs = computed(() => [
   { key: 'basic', label: '基本資訊' },
   isDrip.value
-    ? { key: 'drip', label: '連鎖課程設定' }
+    ? { key: 'drip', label: '連鎖 Email 設定' }
     : { key: 'price', label: '價格' },
   { key: 'content', label: '課程介紹' },
 ])
@@ -539,8 +539,8 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
 
         <!-- Target Courses -->
         <div>
-          <label :class="labelClasses">目標課程（行銷漏斗）</label>
-          <p :class="helpTextClasses" class="!mt-1 mb-3">訂閱者購買以下任一課程後，連鎖課程將自動標記為已轉換，停止發信並解鎖全部內容。</p>
+          <label :class="labelClasses">目標商品（行銷漏斗）</label>
+          <p :class="helpTextClasses" class="!mt-1 mb-3">訂閱者購買以下任一商品後，連鎖 Email 將自動標記為已轉換，停止發信並解鎖全部內容。</p>
           <div v-if="availableCourses.length > 0" class="space-y-2">
             <label
               v-for="ac in availableCourses"
@@ -557,7 +557,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               <span class="text-sm text-gray-700">{{ ac.name }}</span>
             </label>
           </div>
-          <p v-else class="text-sm text-gray-400">目前沒有可選的目標課程</p>
+          <p v-else class="text-sm text-gray-400">目前沒有可選的目標商品</p>
           <p v-if="form.errors.target_course_ids" :class="errorTextClasses">{{ form.errors.target_course_ids }}</p>
         </div>
 

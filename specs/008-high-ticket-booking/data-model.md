@@ -2,6 +2,7 @@
 
 **Phase**: 1 — Design
 **Updated**: 2026-04-09
+**Updated**: 2026-04-09 - 新增 `high_ticket_leads` 資料表（US5）及 HighTicketLead 模型
 
 ---
 
@@ -61,6 +62,47 @@ CREATE TABLE email_templates (
 
 ---
 
+### 3. `high_ticket_leads` table — new
+
+```sql
+CREATE TABLE high_ticket_leads (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  course_id BIGINT UNSIGNED NOT NULL,
+  status ENUM('pending', 'contacted', 'converted', 'closed') NOT NULL DEFAULT 'pending',
+  booked_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NULL DEFAULT NULL,
+  updated_at TIMESTAMP NULL DEFAULT NULL,
+  INDEX idx_email (email),
+  INDEX idx_status (status),
+  INDEX idx_course_id (course_id)
+);
+```
+
+**Fields**:
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | VARCHAR(100) | — | Visitor's name as entered in booking form |
+| `email` | VARCHAR(255) | — | Visitor's email |
+| `course_id` | BIGINT UNSIGNED | — | FK to courses (no constraint — soft delete safe) |
+| `status` | ENUM | 'pending' | Sales pipeline stage |
+| `notified_count` | TINYINT | 0 | Number of "slot available" notifications sent |
+| `last_notified_at` | TIMESTAMP | NULL | Timestamp of last slot notification |
+| `booked_at` | TIMESTAMP | — | Submission timestamp |
+
+**Status values**:
+| Value | Label | Meaning |
+|-------|-------|---------|
+| `pending` | 待聯繫 | Newly booked, not yet contacted |
+| `contacted` | 已聯繫 | Admin has reached out / interview held |
+| `converted` | 已成交 | Lead purchased the service |
+| `closed` | 已關閉 | No deal, no further action |
+
+**Note**: Duplicate records (same email + course) are allowed — each booking creates a new row for complete history.
+
+---
+
 ## Eloquent Models
 
 ### `Course` (modified)
@@ -101,18 +143,42 @@ Methods:
 
 ---
 
+### `HighTicketLead` (new)
+
+```
+App\Models\HighTicketLead
+Table: high_ticket_leads
+```
+
+```php
+$fillable = ['name', 'email', 'course_id', 'status', 'notified_count', 'last_notified_at', 'booked_at']
+
+$casts = ['booked_at' => 'datetime', 'last_notified_at' => 'datetime', 'status' => 'string', 'notified_count' => 'integer']
+
+Scopes:
+- scopeByStatus(Builder $query, string $status): where status = $status
+
+Relations:
+- belongsTo(Course::class)  // for displaying course name in admin list
+```
+
+---
+
 ## Relationship Map (additions)
 
 ```
 Course (SoftDeletes)
 ├── (existing relationships — unchanged)
-└── (no new relationships — booking creates no DB record)
+└── hasMany(HighTicketLead::class)
 
 EmailTemplate (standalone — no model relationships)
+
+HighTicketLead
+└── belongsTo(Course::class)
 ```
 
 ## Removed from original design
 
-- ~~`HighTicketBooking` model~~ — removed (no DB record on booking)
-- ~~`high_ticket_bookings` table~~ — removed
+- ~~`HighTicketBooking` model~~ — removed in original design; **reinstated as `HighTicketLead`** (US5)
+- ~~`high_ticket_bookings` table~~ — replaced by `high_ticket_leads` table with status pipeline
 - ~~`workshop_button_text` column~~ — removed (always "立即預約" when hide_price=true)

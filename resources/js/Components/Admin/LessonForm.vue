@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
   lesson: {
@@ -52,6 +52,25 @@ const parseMMSS = (input) => {
     return minutes * 60 + seconds
   }
   return null
+}
+
+const mdContentRef = ref(null)
+
+const insertClassroomUrl = () => {
+  const textarea = mdContentRef.value
+  const placeholder = '{{classroom_url}}'
+  if (!textarea) {
+    form.value.md_content += placeholder
+    return
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = form.value.md_content
+  form.value.md_content = text.substring(0, start) + placeholder + text.substring(end)
+  nextTick(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + placeholder.length
+    textarea.focus()
+  })
 }
 
 const ctaUrl = ref('')
@@ -239,18 +258,37 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
 
               <!-- Markdown Content -->
               <div>
-                <label for="md_content" :class="labelClasses">
-                  Markdown 內容
-                </label>
+                <div class="flex items-center justify-between">
+                  <label for="md_content" :class="labelClasses">
+                    Markdown 內容
+                  </label>
+                  <button
+                    v-if="courseType === 'drip'"
+                    type="button"
+                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                    @click="insertClassroomUrl"
+                  >
+                    + 插入教室連結
+                  </button>
+                </div>
                 <textarea
                   id="md_content"
+                  ref="mdContentRef"
                   v-model="form.md_content"
                   rows="8"
                   placeholder="## 標題&#10;&#10;內容...&#10;&#10;- 項目一&#10;- 項目二"
                   class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
                 />
-                <p :class="helpTextClasses">
-                  如無影片連結，將顯示此 Markdown 內容（電子書或文章形式）
+                <p v-if="courseType === 'drip' && videoPlatform"
+                   class="mt-2 text-sm flex items-center gap-1.5 text-amber-600 font-medium"
+                >
+                  <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  此信有影片，記得用「插入教室連結」把觀看入口加入內容
+                </p>
+                <p v-else :class="helpTextClasses">
+                  內容會顯示在課程頁面，drip 課程也會作為 Email 正文發送給訂閱者
                 </p>
               </div>
 

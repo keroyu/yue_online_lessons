@@ -8,13 +8,20 @@
       "002.us-2a",
       "002.us-7",
       "002.us-9",
-      "005.us-3"
+      "005.us-3",
+      "008.us-1"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "002.us-4"
     ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "002.us-5"
+    ],
+    "app/Http/Controllers/Admin/EmailTemplateController.php": [
+      "008.us-4"
+    ],
+    "app/Http/Controllers/Admin/HighTicketLeadController.php": [
+      "008.us-6"
     ],
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
       "007.us-1"
@@ -49,7 +56,8 @@
     ],
     "app/Http/Controllers/CourseController.php": [
       "001.us-5",
-      "002.us-8"
+      "002.us-8",
+      "008.us-2"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
       "005.us-1",
@@ -58,6 +66,9 @@
     ],
     "app/Http/Controllers/DripTrackingController.php": [
       "005.us-14"
+    ],
+    "app/Http/Controllers/HighTicketBookingController.php": [
+      "008.us-3"
     ],
     "app/Http/Controllers/HomeController.php": [
       "001.us-1",
@@ -94,17 +105,35 @@
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "001.us-7"
     ],
+    "app/Http/Requests/Admin/EmailTemplateRequest.php": [
+      "008.us-4"
+    ],
+    "app/Http/Requests/Admin/StoreCourseRequest.php": [
+      "008.us-1"
+    ],
     "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
       "007.us-2"
     ],
     "app/Http/Requests/Admin/StoreTransactionRequest.php": [
       "006.us-3"
     ],
+    "app/Http/Requests/Admin/UpdateCourseRequest.php": [
+      "008.us-1"
+    ],
     "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
       "007.us-1"
     ],
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "007.us-2"
+    ],
+    "app/Jobs/NotifyHighTicketSlotJob.php": [
+      "008.us-6"
+    ],
+    "app/Jobs/SubscribeDripLeadJob.php": [
+      "008.us-6"
+    ],
+    "app/Mail/HighTicketBookingMail.php": [
+      "008.us-3"
     ],
     "app/Models/Chapter.php": [
       "002.us-3"
@@ -115,7 +144,8 @@
       "002.us-2",
       "002.us-2a",
       "002.us-9",
-      "005.us-3"
+      "005.us-3",
+      "008.us-1"
     ],
     "app/Models/CourseImage.php": [
       "002.us-4"
@@ -138,6 +168,12 @@
       "005.us-5",
       "005.us-6",
       "005.us-7"
+    ],
+    "app/Models/EmailTemplate.php": [
+      "008.us-4"
+    ],
+    "app/Models/HighTicketLead.php": [
+      "008.us-5"
     ],
     "app/Models/Lesson.php": [
       "002.us-10",
@@ -180,6 +216,13 @@
     "app/Services/BlogRssService.php": [
       "007.us-3"
     ],
+    "app/Services/HighTicketBookingService.php": [
+      "008.us-3",
+      "008.us-5"
+    ],
+    "app/Services/HighTicketLeadService.php": [
+      "008.us-6"
+    ],
     "app/Services/PayuniService.php": [
       "001.us-7"
     ],
@@ -189,6 +232,15 @@
     ],
     "config/services.php": [
       "001.us-7"
+    ],
+    "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php": [
+      "008.us-5"
+    ],
+    "database/seeders/EmailTemplateSeeder.php": [
+      "008.us-4"
+    ],
+    "resources/js/Components/Admin/CourseForm.vue": [
+      "008.us-1"
     ],
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "002.us-4"
@@ -214,6 +266,15 @@
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
       "002.us-4"
+    ],
+    "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
+      "008.us-4"
+    ],
+    "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
+      "008.us-4"
+    ],
+    "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
+      "008.us-6"
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
       "007.us-1",
@@ -246,7 +307,9 @@
     ],
     "resources/js/Pages/Course/Show.vue": [
       "001.us-7",
-      "001.us-8"
+      "001.us-8",
+      "008.us-2",
+      "008.us-3"
     ],
     "resources/js/Pages/Drip/": [
       "005.us-1",
@@ -267,12 +330,17 @@
     "resources/views/emails/drip-lesson.blade.php": [
       "005.us-5"
     ],
+    "resources/views/emails/high-ticket-booking.blade.php": [
+      "008.us-3"
+    ],
     "routes/api.php": [
       "001.us-7",
       "001.us-8"
     ],
     "routes/web.php": [
-      "001.us-7"
+      "001.us-7",
+      "008.us-3",
+      "008.us-6"
     ]
   }
 }

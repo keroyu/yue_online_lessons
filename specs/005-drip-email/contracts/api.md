@@ -3,6 +3,7 @@
 **Feature**: 005-drip-email
 **Date**: 2026-02-05
 **Updated**: 2026-02-16 (新增影片免費觀看期限)
+**Updated**: 2026-05-03 - Lesson `md_content` 支援 `{{classroom_url}}` 變數；`SendDripEmailJob` 發信前將其替換為 `{app_url}/member/classroom/{course_id}?lesson_id={lesson_id}`（無新路由）
 
 ## Overview
 

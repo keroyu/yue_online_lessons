@@ -1237,8 +1237,14 @@
       "file": "specs/008-high-ticket-booking/spec.md",
       "anchor": "user-story-1---管理員設定客製服務課程類別-priority-p1",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Models/Course.php",
+        "resources/js/Components/Admin/CourseForm.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "008.us-2",
@@ -1249,8 +1255,11 @@
       "file": "specs/008-high-ticket-booking/spec.md",
       "anchor": "user-story-2---客製服務銷售頁前台展示-priority-p1",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/CourseController.php",
+        "resources/js/Pages/Course/Show.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "008.us-3",
@@ -1261,8 +1270,15 @@
       "file": "specs/008-high-ticket-booking/spec.md",
       "anchor": "user-story-3---訪客點擊預約後收到-email-priority-p2",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Mail/HighTicketBookingMail.php",
+        "resources/views/emails/high-ticket-booking.blade.php",
+        "resources/js/Pages/Course/Show.vue",
+        "routes/web.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "008.us-4",
@@ -1273,20 +1289,50 @@
       "file": "specs/008-high-ticket-booking/spec.md",
       "anchor": "user-story-4---管理員在後台統一管理-email-模板-priority-p2",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "app/Http/Requests/Admin/EmailTemplateRequest.php",
+        "app/Models/EmailTemplate.php",
+        "database/seeders/EmailTemplateSeeder.php",
+        "resources/js/Pages/Admin/EmailTemplates/Index.vue",
+        "resources/js/Pages/Admin/EmailTemplates/Edit.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "008.us-5",
-      "module": "008-workshop-booking",
-      "title": "管理員查看工作坊預約記錄",
+      "module": "008-high-ticket-booking",
+      "title": "預約時系統儲存 Lead 記錄",
       "summary": "",
-      "heading": "### User Story 5 - 管理員查看工作坊預約記錄 (Priority: P3)",
-      "file": "specs/008-workshop-booking/spec.md",
-      "anchor": "user-story-5---管理員查看工作坊預約記錄-priority-p3",
+      "heading": "### User Story 5 - 預約時系統儲存 Lead 記錄 (Priority: P2)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-5---預約時系統儲存-lead-記錄-priority-p2",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Models/HighTicketLead.php",
+        "app/Services/HighTicketBookingService.php",
+        "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-6",
+      "module": "008-high-ticket-booking",
+      "title": "管理員管理 Leads 名單與加入序列信",
+      "summary": "",
+      "heading": "### User Story 6 - 管理員管理 Leads 名單與加入序列信 (Priority: P3)",
+      "file": "specs/008-high-ticket-booking/spec.md",
+      "anchor": "user-story-6---管理員管理-leads-名單與加入序列信-priority-p3",
+      "keywords": [],
+      "code_files": [
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "app/Services/HighTicketLeadService.php",
+        "app/Jobs/NotifyHighTicketSlotJob.php",
+        "app/Jobs/SubscribeDripLeadJob.php",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "routes/web.php"
+      ],
+      "status": "implemented"
     }
   ]
 }

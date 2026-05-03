@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\EmailTemplateController;
+use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\DripSubscriptionController;
@@ -132,6 +133,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
+
+    // High-ticket leads
+    Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');
+    Route::patch('/high-ticket-leads/{lead}/status', [HighTicketLeadController::class, 'updateStatus'])->name('high-ticket-leads.update-status');
+    Route::post('/high-ticket-leads/notify-slot', [HighTicketLeadController::class, 'notifySlot'])->name('high-ticket-leads.notify-slot');
+    Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');
+    Route::post('/high-ticket-leads/batch-email', [HighTicketLeadController::class, 'batchEmail'])->name('high-ticket-leads.batch-email');
+    Route::post('/high-ticket-leads/{lead}/convert', [HighTicketLeadController::class, 'convert'])->name('high-ticket-leads.convert');
 
     // Email templates
     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');

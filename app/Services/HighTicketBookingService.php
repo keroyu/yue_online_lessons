@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Mail\HighTicketBookingMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
+use App\Models\HighTicketLead;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class HighTicketBookingService
@@ -30,7 +32,23 @@ class HighTicketBookingService
         $subject = $template->renderSubject($vars);
         $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
 
-        Mail::to($data['email'])->send(new HighTicketBookingMail($subject, $body));
+        try {
+            Mail::to($data['email'])->send(new HighTicketBookingMail($subject, $body));
+        } catch (\Exception $e) {
+            Log::error('High ticket booking email failed', [
+                'email' => $data['email'],
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        HighTicketLead::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'course_id' => $course->id,
+            'status' => 'pending',
+            'booked_at' => now(),
+        ]);
 
         return ['success' => true];
     }
