@@ -9,6 +9,7 @@
 **Updated**: 2026-03-30 - 補充 Purchase 語意：會員擁有權以 status 判斷，取得方式標籤以 type 判斷
 **Updated**: 2026-05-03 - 新增 US8（匯出 CSV）、US9（匯入 Email 名單）；FR-030～039；SC-010～011
 **Updated**: 2026-05-03 - US9 補強：無效 Email 清單顯示（FR-040、FR-041、Scenario 5-6 更新）
+**Updated**: 2026-05-03 - 新增 US10（匯入 modal 新增 CSV 上傳模式）；FR-042～048；SC-012
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -178,6 +179,27 @@ As an admin, I want to import a list of email addresses to create member account
 
 ---
 
+### User Story 10 - Import Members from CSV File (Priority: P3)
+
+As an admin, I want to upload a CSV file to import member accounts with full profile data (name and phone) so I can onboard existing contacts from a spreadsheet in a single step.
+
+**Why this priority**: Extension of US9. Useful when the admin has structured contact data (name + phone) in spreadsheet format that cannot be expressed with the paste-only mode.
+
+**Independent Test**: Can be fully tested by switching to the CSV upload tab, uploading a valid 3-column file, reviewing the preview, confirming import, and verifying that new members have email, real name, and phone populated.
+
+**Acceptance Scenarios**:
+
+1. **Given** the import modal is open, **When** I look at the top of the modal, **Then** I see two tabs: "貼上 Email 名單" and "上傳 CSV 檔案".
+2. **Given** I click the "上傳 CSV 檔案" tab, **When** the tab becomes active, **Then** I see a file upload area and a format hint: "CSV 必須包含 3 欄（依序為 Email、姓名、電話），第一列為欄位標題列".
+3. **Given** I select a valid CSV file with 3 columns and at least one data row, **When** the file is parsed, **Then** I see a preview showing the 3 column headers and the total number of data rows to be imported.
+4. **Given** the preview is showing, **When** I click "確認匯入", **Then** the system imports each row: creating new accounts with email, real name, and phone; skipping rows where the email already exists; collecting rows with invalid email formats.
+5. **Given** a CSV row has a valid email that already exists in the system, **When** the import runs, **Then** that row is skipped and counted in "略過（已存在）".
+6. **Given** a CSV row has an invalid email format, **When** the import runs, **Then** that row is skipped and the invalid email is listed in the result the same way as the paste mode.
+7. **Given** I upload a CSV file with fewer than 3 columns, **When** the system parses it, **Then** I see an error: "CSV 格式錯誤：至少需要 3 欄（依序為 Email、姓名、電話）" and import is blocked.
+8. **Given** I upload a CSV file that contains only the header row and no data rows, **When** the system parses it, **Then** I see an error: "CSV 檔案不含任何資料列" and import is blocked.
+
+---
+
 ### Edge Cases
 
 - What happens when a member has no email set? Display warning and exclude from batch email.
@@ -192,6 +214,12 @@ As an admin, I want to import a list of email addresses to create member account
 - What happens when CSV field values contain commas or line breaks? Wrap the field in double-quotes per RFC 4180.
 - What happens when the import textarea contains only whitespace or blank lines? Treat as empty input and show a validation error.
 - What happens when the same email appears twice in the import list? Process it once; the duplicate is silently de-duplicated before processing.
+- What happens when a CSV row has a valid email but empty 姓名 or 電話 columns? Import the account with whatever fields are present; empty real name and phone are acceptable.
+- What happens when the uploaded CSV has more than 3 columns? Ignore any columns beyond the first 3; process only Email (col 1), 姓名 (col 2), 電話 (col 3).
+- What happens when a CSV row's email already exists and that row has updated name/phone data? Skip the row entirely — existing member data is never overwritten by import.
+- What happens when the user switches tabs (paste ↔ CSV) mid-flow? Each tab retains its own input state; switching tabs does not clear the other tab's content.
+- What happens when a CSV row's phone starts with "09" but has a digit count other than 10 (e.g., "091234567" = 9 digits)? Import the row with phone left empty; include the member's email in the import result's "電話格式有誤" list (FR-049a).
+- What happens when a CSV row's phone does not start with "09" (e.g., "+1-555-1234", "02-1234-5678")? Treat as international/non-mobile number, store as-is without format enforcement.
 
 ## Requirements *(mandatory)*
 
@@ -248,6 +276,18 @@ As an admin, I want to import a list of email addresses to create member account
 - **FR-040**: Emails that fail basic format validation (no "@", invalid structure) MUST be skipped and counted separately as "無效格式". The API response MUST include the full list of invalid email strings (not just a count) so the frontend can display them.
 - **FR-041**: After import completes, the system MUST display a result summary inside the modal showing: 新增會員數、略過（已存在）數、無效格式數. If there are invalid emails, their full list MUST be displayed below the summary so the admin can identify and correct them. The modal MUST remain open until the admin explicitly closes it. Closing the modal MUST trigger a member list refresh to reflect newly added members.
 
+**匯入 CSV 上傳（US10）**
+
+- **FR-042**: The import modal MUST provide two input mode tabs: "貼上 Email 名單" (existing textarea mode, selected by default) and "上傳 CSV 檔案" (new file upload mode). Each tab retains its own input state independently.
+- **FR-043**: The "上傳 CSV 檔案" tab MUST display a persistent format hint: "CSV 欄位順序固定：第 1 欄 Email、第 2 欄 姓名、第 3 欄 電話。第一列為標題列（名稱不限），第 2 列起為資料。"
+- **FR-044**: The CSV file MUST be parsed without a server round-trip for the preview step. Column mapping is position-based: column 1 = Email, column 2 = 姓名 (real name), column 3 = 電話 (phone). The first row is skipped as a header regardless of its content — header names are NOT validated. Columns beyond the first 3 are silently ignored. The system MUST reject the file if the column count is fewer than 3 (FR-048).
+- **FR-045**: After a CSV file is selected, the system MUST display a preview showing: the 3 expected column labels (Email, 姓名, 電話) and the total number of data rows parsed from the file.
+- **FR-046**: The preview MUST include a "確認匯入" button and a "取消" button. Confirming triggers import; cancelling clears the selected file and returns to the upload area.
+- **FR-047**: On CSV import, for each data row: (a) if the email is already in the system, skip the row (count as "略過"); (b) if the email is new, create a member account with email, real_name (from 姓名 column), and phone (from 電話 column) — empty 姓名 or 電話 values are accepted; nickname defaults to the part before "@". Import result display MUST follow the same format as paste mode (FR-041): existing member data is never modified by import.
+- **FR-048**: If the uploaded CSV has fewer than 3 columns or contains no data rows after the header, the system MUST reject the file immediately with a descriptive error message and block import.
+- **FR-049**: When the 電話 field in a CSV row is non-empty, the system MUST validate it before storing: (a) strip leading/trailing whitespace; (b) if the value starts with "09" and is exactly 10 digits → valid Taiwan mobile, store the normalized digit-only value; (c) if the value starts with "09" but is NOT exactly 10 digits → invalid Taiwan mobile format, apply FR-049a; (d) if the value does not start with "09" → treat as international number, store without further validation. Empty 電話 values are always accepted.
+- **FR-049a**: When a CSV row's phone fails Taiwan mobile validation (FR-049c), the row MUST still be imported — the member account is created with email and 姓名 as normal, but the phone field is stored as empty. The import result summary MUST include a list of the affected members' emails so the admin can identify and correct the phone data afterwards.
+
 ### Key Entities
 
 - **Member (User)**: User with role "member". Key attributes: email, nickname, real_name, phone, birth_date, last_login_ip, last_login_at, created_at.
@@ -271,6 +311,7 @@ As an admin, I want to import a list of email addresses to create member account
 - **SC-009**: Gift notification emails reach 100% of recipients with valid email addresses.
 - **SC-010**: Exporting up to 1,000 members triggers a file download within 5 seconds.
 - **SC-011**: Importing a list of up to 200 emails completes processing and displays the result summary within 10 seconds.
+- **SC-012**: Uploading and parsing a CSV file of up to 500 data rows displays the preview within 3 seconds (client-side parsing; no server round-trip required for preview).
 
 ## Clarifications
 
@@ -290,6 +331,14 @@ As an admin, I want to import a list of email addresses to create member account
 - Q: 當跨頁全選（FR-012a）啟用時，「匯出選定」匯出哪些人？ → A: 匯出全部 N 位符合條件的會員，尊重跨頁選取結果。FR-033 已更新。
 - Q: 匯入建立新會員時，是否需要發送通知或設定密碼？ → A: 不需要。系統採 email 驗證碼登入，無密碼欄位，被匯入的會員直接以 email 收驗證碼即可登入。FR-039 已移除隨機密碼描述。
 - Q: 匯出 CSV 的字元編碼？ → A: UTF-8 with BOM，確保 Excel 開啟中文欄位不亂碼。FR-035 已更新。
+
+### Session 2026-05-03 (CSV Import Feature)
+
+- Q: 若 CSV 某列的 email 已存在，該列的姓名/電話是否更新現有會員？ → A: 否，略過整列，不修改任何現有會員資料。FR-047 已明確。
+- Q: CSV 欄位超過 3 欄時如何處理？ → A: 第 4 欄以後靜默忽略，只取前 3 欄。Edge case 已記錄。
+- Q: CSV 上傳是 client-side 解析還是 server-side？ → A: 預覽階段在 client 解析（SC-012）；確認後將解析出的資料送後端，與貼上模式共用同一匯入 API（擴充欄位接受 real_name、phone）。
+- Q: CSV header 欄位名稱是否要驗證？ → A: 否，只驗證欄位數（≥3），header 名稱不限；欄位對應以位置（第 1 欄=Email、第 2 欄=姓名、第 3 欄=電話）決定。格式 hint 說明順序。另：電話須驗證格式——台灣手機（09 開頭、10 碼）強制規範，非台灣格式不驗證。FR-043、FR-044、FR-049 已更新。
+- Q: 電話格式錯誤時（09 開頭但非 10 碼），該列如何處理？ → A: 該列仍匯入（建立帳號），電話欄留空；結果摘要列出電話格式有誤的 email 供管理員修正。FR-049a 已更新。
 
 ### Session 2026-01-18 (Gift Course Feature)
 
@@ -311,6 +360,9 @@ As an admin, I want to import a list of email addresses to create member account
 - Gift notification emails use a fixed template in Chinese (中文) matching the platform language.
 - Both batch emails and gift notification emails are sent synchronously (Mail::send), consistent with the login verification code approach. Member count is small; no Queue Worker required. If member base grows significantly, change `send()` to `queue()` without modifying the Mailable class.
 - Members authenticate via email verification code (magic link / OTP); there is no password field. Imported members can log in immediately with their email address without any additional setup.
+- CSV upload parsing is performed entirely client-side (in the browser) before the admin confirms import; no server round-trip is required to display the preview.
+- The CSV import shares the same backend import endpoint as paste mode; the endpoint is extended to optionally accept real_name and phone per row.
+- CSV file size is not explicitly capped in the spec; SC-012 defines the performance target of ≤3 seconds for up to 500 rows, which serves as the effective practical limit.
 
 ## Deployment Notes
 

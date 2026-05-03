@@ -4,6 +4,7 @@
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/api.md, research.md
 **Updated**: 2026-01-18 (Added User Story 7 - Gift Course)
 **Updated**: 2026-05-03 - 實作 US8（匯出 CSV）、US9（匯入 Email 名單）(Phase 16)
+**Updated**: 2026-05-03 - 新增 US10（匯入 modal CSV 上傳模式）(Phase 17)
 **Updated**: 2026-03-09 - 改批次 Email 和贈課通知為同步發送，移除 Queue Job (Phase 11)
 **Updated**: 2026-03-09 - 精簡贈課 Email 模板 HTML (Phase 12)
 **Updated**: 2026-03-09 - 贈課 Email 改為純文字 MIME (Phase 13)
@@ -480,6 +481,32 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 ---
 
+## Phase 17: US10 匯入 modal CSV 上傳模式 (2026-05-03 新增)
+
+**Purpose**: 在「匯入會員 Email 名單」modal 新增第二種輸入方式——上傳 CSV 檔（含姓名、電話），與現有貼上 Email 名單並列以 tab 切換。
+
+**背景**: 管理員擁有含姓名/電話的聯絡人名單時，可直接上傳 CSV，客戶端解析後預覽，確認後送後端。後端擴充現有 import 端點支援 rows[] 輸入路徑，並加入電話格式驗證（台灣手機 09 開頭 10 碼）。
+
+**Independent Test**: 進入 `/admin/members`，點「匯入」→ 切換「上傳 CSV 檔案」tab → 選擇含 Email/姓名/電話 3 欄的 CSV → 顯示預覽（欄位標籤 + 筆數）→ 確認匯入 → modal 顯示結果（新增 N 筆、略過 N 筆；若有電話格式有誤顯示橘色清單）→ 關閉後列表更新。
+
+### 依賴關係
+
+- T085 (npm install papaparse) 必須在 T088 之前完成
+- T086 可與 T087 平行（不同檔案）
+- T087 → T088 → T089 循序執行（同一元件，後者依賴前者）
+
+### US10 — CSV 上傳匯入
+
+- [ ] T085 Install papaparse dependency: `npm install papaparse` (adds to package.json / package-lock.json)
+- [ ] T086 [P] [US10] Extend `importEmails()` in `app/Http/Controllers/Admin/MemberController.php` to handle `rows[]` input path: detect `$request->has('rows')`; loop rows with email validation (same as text path); phone validation: strip whitespace, if starts "09" + 10 digits → store; if starts "09" + wrong length → store empty + add email to `$phoneFormatErrors[]`; else store as-is; `User::create` with email/nickname/real_name/phone/role/email_verified_at; return existing fields + `phone_format_errors: $phoneFormatErrors`
+- [ ] T087 [US10] Add tab UI to `resources/js/Components/ImportMembersModal.vue`: add `activeTab` ref ('text'|'csv'), two tab buttons ("貼上 Email 名單" / "上傳 CSV 檔案") with active/inactive styling, conditionally render existing textarea section under `v-if="activeTab === 'text'"` and a new empty CSV panel placeholder under `v-else`
+- [ ] T088 [US10] Add CSV upload panel to `resources/js/Components/ImportMembersModal.vue`: format hint "CSV 欄位順序固定：第 1 欄 Email、第 2 欄 姓名、第 3 欄 電話。第一列為標題列（名稱不限）"; `<input type="file" accept=".csv">` ref; on file select → `Papa.parse(file, { header: false, skipEmptyLines: true })` → skip row[0] (header) → store remaining in `csvRows` ref; preview section (shown when csvRows.length > 0): display hardcoded labels (Email / 姓名 / 電話) + "共 N 筆資料"; validation errors: fewer than 3 columns → "CSV 格式錯誤：至少需要 3 欄"; zero data rows → "CSV 檔案不含任何資料列"
+- [ ] T089 [US10] Add CSV confirm/cancel and result display to `resources/js/Components/ImportMembersModal.vue`: "確認匯入" button (shown when csvRows valid) calls `handleCsvImport()` — builds `rows[]` array from csvRows (email=col[0], real_name=col[1], phone=col[2]), posts to `/admin/members/import` with `{ rows }`, sets `result`; "取消" button clears file input and `csvRows`; in result display section add orange warning box `v-if="result?.phone_format_errors?.length > 0"` showing "電話格式有誤（N 筆）" with list of affected emails
+
+**Checkpoint**: tab 切換正常；CSV 上傳後顯示欄位標籤 + 筆數；格式錯誤顯示提示；匯入成功後 modal 顯示綠色摘要 + 橘色電話有誤清單（若有）；關閉後列表更新 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -500,5 +527,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 14: 修正贈課 Email 檔名；批次 Email Markdown | T071-T073 | ✅ Completed |
 | Phase 15: 會員詳情課程取得方式標籤 | T074-T075 | ✅ Completed |
 | Phase 16: US8 匯出 CSV + US9 匯入 Email 名單 | T076-T084 | ✅ Completed |
+| Phase 17: US10 匯入 modal CSV 上傳模式 | T085-T089 | 0 complete, 5 pending |
 
-**Total**: 88 tasks (88 complete, 0 pending)
+**Total**: 93 tasks (88 complete, 5 pending — T085, T086, T087, T088, T089)

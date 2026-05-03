@@ -37,6 +37,12 @@
 - The specification leverages existing User, Purchase, Course, and LessonProgress models
 - A new BatchEmail entity is proposed for tracking email operations
 
+### Update 2026-05-03 (US10 — CSV Upload Import)
+
+- Added US10 with 8 acceptance scenarios, FR-042–048, SC-012, 5 new edge cases
+- All checklist items remain passing: requirements are testable, success criteria measurable, no implementation details in spec body
+- Note: "client-side parsing" is referenced in SC-012 parenthetical and Clarifications only — not in normative FR text
+
 ### Update 2026-01-18
 
 - Added User Story 7: Gift Course to Selected Members (Priority: P3)

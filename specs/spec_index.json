@@ -516,6 +516,18 @@
       "status": "implemented"
     },
     {
+      "id": "003.us-10",
+      "module": "003-member-management",
+      "title": "Import Members from CSV File",
+      "summary": "",
+      "heading": "### User Story 10 - Import Members from CSV File (Priority: P3)",
+      "file": "specs/003-member-management/spec.md",
+      "anchor": "user-story-10---import-members-from-csv-file-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
       "id": "003.us-2",
       "module": "003-member-management",
       "title": "Edit Member Information",

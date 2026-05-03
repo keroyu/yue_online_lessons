@@ -5,6 +5,7 @@
 **Updated**: 2026-01-18
 **Updated**: 2026-05-03 - 新增 GET /admin/members/export、POST /admin/members/import
 **Updated**: 2026-05-03 - POST /admin/members/import 回應新增 invalid_emails 陣列
+**Updated**: 2026-05-03 - POST /admin/members/import 擴充支援 rows[] 輸入（CSV 模式）；回應新增 phone_format_errors 陣列
 **Base Path**: `/admin/members`
 **Auth**: Requires admin role (middleware: `auth`, `admin`)
 
@@ -319,9 +320,14 @@ Empty values are exported as empty strings. Fields containing commas or line bre
 
 ### POST /admin/members/import
 
-Bulk-create member accounts from a pasted list of email addresses.
+Bulk-create member accounts from either a pasted email list or structured CSV rows.
 
-**Request Body**:
+Two mutually exclusive input modes — detected by which parameter is present:
+
+**Mode A — Paste (existing)**: send `emails` string.  
+**Mode B — CSV rows**: send `rows[]` array.
+
+**Request Body — Mode A (paste)**:
 
 ```typescript
 {
@@ -329,22 +335,39 @@ Bulk-create member accounts from a pasted list of email addresses.
 }
 ```
 
+**Request Body — Mode B (CSV rows)**:
+
+```typescript
+{
+  rows: Array<{
+    email: string       // Required per row
+    real_name?: string  // Optional; empty string accepted
+    phone?: string      // Optional; Taiwan mobile (09XXXXXXXX) enforced if starts with 09
+  }>
+}
+```
+
 **Validation Rules**:
 
-| Field | Rules |
-|-------|-------|
-| emails | required, string, max:50000 |
+| Field | Mode | Rules |
+|-------|------|-------|
+| emails | A | required, string, max:50000 |
+| rows | B | required, array, min:1, max:5000 |
+| rows.*.email | B | string |
+| rows.*.real_name | B | string, nullable |
+| rows.*.phone | B | string, nullable |
 
-**Success Response** (JSON):
+**Success Response** (JSON — both modes):
 
 ```typescript
 {
   success: true
-  created_count: number    // New member accounts created
-  skipped_count: number    // Emails already in system (skipped)
-  invalid_count: number    // Emails that failed format validation
-  invalid_emails: string[] // Full list of invalid email strings (for frontend display)
-  message: string          // Human-readable summary in Chinese
+  created_count: number       // New member accounts created
+  skipped_count: number       // Emails already in system (skipped)
+  invalid_count: number       // Emails that failed format validation
+  invalid_emails: string[]    // Full list of invalid email strings
+  phone_format_errors: string[] // Emails where phone was cleared (invalid Taiwan format); empty array in Mode A
+  message: string             // Human-readable summary in Chinese
 }
 ```
 
@@ -353,12 +376,15 @@ Bulk-create member accounts from a pasted list of email addresses.
 ```typescript
 {
   errors: {
-    emails: ["請輸入至少一個 Email 地址"]
+    emails: ["請輸入至少一個 Email 地址"]  // Mode A
+    // or
+    rows: ["請提供至少一列資料"]             // Mode B
   }
 }
 ```
 
-> Newly created members receive: role="member", nickname = part before "@" in email, randomly generated password. No welcome email is sent on import (members must reset password via login page).
+> Mode A: nickname defaults to part before "@". No password (OTP login).  
+> Mode B: real_name and phone stored as provided; nickname defaults to part before "@"; phone cleared if starts with 09 but is not exactly 10 digits.
 
 ---
 

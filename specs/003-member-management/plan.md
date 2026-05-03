@@ -6,6 +6,7 @@
 **Updated**: 2026-03-11 - 會員詳情課程列表新增取得方式標籤
 **Updated**: 2026-05-03 - 新增 US8 匯出 CSV、US9 匯入 Email 名單規格（FR-030～041）
 **Updated**: 2026-05-03 - US9 補強：無效 Email 清單列出（FR-040/041）；modal 保持開啟至使用者關閉後才 reload
+**Updated**: 2026-05-03 - 新增 US10 CSV 上傳匯入（FR-042～049a）；papaparse；importEmails() 擴充 rows[] 路徑
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -160,6 +161,59 @@ $lines = preg_split('/[\r\n,]+/', $raw)
 - 匯入完成後 modal 保持開啟，顯示結果（綠色摘要 + 若有無效 Email 則顯示黃色清單）
 - 使用者點「關閉」後才執行 `router.reload()`，避免列表在結果還在閱讀時閃動
 - `router.reload()` 僅在 `created_count > 0` 時執行（無新增則無需 reload）
+
+---
+
+### 2026-05-03: US10 匯入 modal 新增 CSV 上傳模式
+
+**背景**：管理員有時擁有含姓名、電話的完整聯絡人名單（Excel/Google Sheets），純貼上 Email 模式無法帶入其他欄位。新增 CSV 上傳模式，在同一個匯入 modal 內以 tab 切換，客戶端解析、預覽後再送後端，與既有的貼上模式共用同一 API 端點（擴充 `rows[]` 參數路徑）。
+
+**Constitution Check**：
+
+| Principle | Gate | Status |
+|-----------|------|--------|
+| I. Controller Layering | CSV 路徑同為單一 Model（User）操作，無跨 Model 副作用、無外部 I/O → simple path，直接在 Controller 處理 | ✅ |
+| III. Frontend Architecture | ImportMembersModal 新增 tab UI + CSV 解析 + 預覽，全為 local state；無新 Page 或跨元件共享狀態 | ✅ |
+| IV. Model Conventions | User.$fillable 已含 real_name、phone；User::create 直接使用，無需異動 Model | ✅ |
+| IX. Security | CSV 由前端解析後以 JSON rows 傳送，無檔案上傳至伺服器；同一 admin middleware 保護 | ✅ |
+| X. Simplicity & YAGNI | 新增 `papaparse` npm 套件：理由為 RFC 4180 解析（BOM、quoted fields、CRLF）手工實作易出錯；papaparse 為業界標準輕量套件（gzip 約 15KB），Constitution §X「implement what is needed now」 | ✅ 理由充分 |
+
+**Constitution Check Result**: PASS — no violations.
+
+**新增套件**：
+- `papaparse` — 客戶端 CSV 解析（npm install papaparse）
+
+**修改檔案**：
+- `app/Http/Controllers/Admin/MemberController.php` — `importEmails()` 擴充 `rows[]` 輸入路徑 + 電話驗證邏輯
+- `resources/js/Components/ImportMembersModal.vue` — 新增 tab UI、CSV 上傳區、Papa Parse 解析、預覽、phone_format_errors 結果顯示
+
+**設計決策**：
+
+1. **同一端點，雙輸入路徑**：`POST /admin/members/import` 擴充為：若請求包含 `rows[]`（JSON 陣列）→ CSV 路徑；否則沿用既有 `emails` 字串路徑。Controller 以 `$request->has('rows')` 分支處理。
+2. **CSV 解析 library**：前端使用 `Papa.parse(file, { header: false, skipEmptyLines: true })` 解析 File 物件，取前 3 欄，忽略其餘欄及 header 列。
+3. **電話驗證（台灣手機）**：Controller 中對每列的 phone 欄位：trim → 若以 `09` 開頭且恰好 10 碼 → 合法存入；若以 `09` 開頭但非 10 碼 → 存空字串，加入 `phone_format_errors[]`；其餘（國際或空白）→ 照原值存入（不驗證）。
+4. **回應擴充**：CSV 路徑新增 `phone_format_errors: string[]`（內含電話有誤的 email 清單），貼上路徑仍回傳既有欄位（此欄不出現或為空陣列）。
+5. **預覽顯示**：前端解析後顯示 3 個固定欄位標籤（Email、姓名、電話）+ 資料列數，不顯示實際資料內容（FR-045）。確認後才送後端。
+6. **Modal 結果顯示**：原有的綠色摘要 + 黃色無效 email 清單保持不變；CSV 路徑額外顯示橘色電話格式有誤清單（若 phone_format_errors 非空）。
+
+**CSV 路徑 Controller 邏輯（inline）**：
+```
+$rows = $request->input('rows', [])  // array of {email, real_name, phone}
+→ foreach $rows:
+    email = trim(row.email) → filter_var(FILTER_VALIDATE_EMAIL) → invalid / exists → skip / create
+    phone = trim(row.phone):
+        starts with '09' && strlen == 10 → store as-is
+        starts with '09' && strlen != 10 → store '' + add email to $phoneFormatErrors[]
+        else → store as-is (international)
+→ User::create([email, nickname=before('@'), real_name, phone, role='member', email_verified_at=now()])
+→ return { created_count, skipped_count, invalid_count, invalid_emails[], phone_format_errors[], message }
+```
+
+**API 端點異動**（同一路由，擴充 request body）：
+
+| Method | Route | 新增參數 |
+|--------|-------|---------|
+| POST | /admin/members/import | 新增 `rows[]`：`[{email, real_name, phone}]`（與 `emails` 互斥） |
 
 ---
 
