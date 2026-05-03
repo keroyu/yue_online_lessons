@@ -7,6 +7,7 @@
 **Updated**: 2026-04-10 - subscribe-drip 改為非同步（SubscribeDripLeadJob）；response 欄位 subscribed → dispatched；side effects 移至 Job 內執行
 **Updated**: 2026-05-02 - GET /admin/high-ticket-leads 新增 notifyTemplate prop
 **Updated**: 2026-05-03 - GET /admin/high-ticket-leads 新增 search/course_id 查詢參數與 highTicketCourses prop；新增 POST /admin/high-ticket-leads/batch-email
+**Updated**: 2026-05-03 - GET /admin/high-ticket-leads 新增 dripByEmail、grantableCourses props；新增 POST /admin/high-ticket-leads/{lead}/convert；修復 notifyTemplate 使用 ->first(['cols'])?->toArray()
 
 ---
 
@@ -148,11 +149,21 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
     "id": "integer",
     "subject": "string",
     "body_md": "string"
-  }
+  },
+  "dripByEmail": {
+    "<email>": [
+      { "course_name": "string", "status": "active|completed|converted|unsubscribed" }
+    ]
+  },
+  "grantableCourses": [
+    { "id": "integer", "name": "string" }
+  ]
 }
 ```
 
 > `notifyTemplate` is `null` if `high_ticket_slot_available` template does not exist in DB. Frontend disables the confirm-send button in that case.
+> `dripByEmail` is keyed by email; entries only exist for leads whose email matches a user with drip subscriptions. Empty array entry = no subscriptions.
+> `grantableCourses` lists all courses (no filter) for the "開通" modal product selector.
 
 ---
 
@@ -250,6 +261,30 @@ Note: `event_type` is NOT editable — it is fixed at seed time.
 ```
 
 > Sends `BatchEmailMail` (CommonMark Markdown rendered) directly to each lead's email address. Leads with empty email are silently skipped. Individual send failures are logged but do not abort the batch.
+
+---
+
+### POST `/admin/high-ticket-leads/{lead}/convert`
+
+**Controller**: `Admin\HighTicketLeadController@convert`
+
+**Request body**:
+```json
+{
+  "course_id": "integer, required, exists:courses,id"
+}
+```
+
+**Success** `200 OK`:
+```json
+{
+  "success": true,
+  "user_created": true
+}
+```
+
+> `user_created: true` = a new member account was created (email did not exist in `users`); `false` = existing account reused.
+> Side effects (synchronous): `User::firstOrCreate` by email → `Purchase::updateOrCreate` (`type='gift'`, `status='paid'`, `amount=0`) → `lead.status = 'converted'`.
 
 ---
 

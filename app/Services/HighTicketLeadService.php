@@ -7,7 +7,9 @@ use App\Jobs\SubscribeDripLeadJob;
 use App\Models\DripSubscription;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
+use App\Models\Purchase;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 class HighTicketLeadService
 {
@@ -72,5 +74,35 @@ class HighTicketLeadService
         }
 
         return ['dispatched' => $dispatched, 'skipped' => $skipped];
+    }
+
+    /**
+     * Register (or confirm) the lead as a member and grant them a course.
+     * Lead status is updated to converted.
+     */
+    public function convertLead(HighTicketLead $lead, int $courseId): array
+    {
+        $user = User::firstOrCreate(
+            ['email' => $lead->email],
+            ['nickname' => $lead->name, 'password' => Str::password(16)]
+        );
+
+        Purchase::updateOrCreate(
+            ['user_id' => $user->id, 'course_id' => $courseId],
+            [
+                'buyer_email' => $lead->email ?? '',
+                'amount'      => 0,
+                'currency'    => 'TWD',
+                'status'      => 'paid',
+                'type'        => 'gift',
+            ]
+        );
+
+        $lead->update(['status' => 'converted']);
+
+        return [
+            'success'      => true,
+            'user_created' => $user->wasRecentlyCreated,
+        ];
     }
 }

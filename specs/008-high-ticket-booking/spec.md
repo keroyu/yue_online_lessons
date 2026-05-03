@@ -7,6 +7,7 @@
 **Updated**: 2026-04-10 - Clarifications：新增行程通知流程（notified_count / last_notified_at）、high_ticket_slot_available 模板、pending 冷掉後加入 drip 邏輯
 **Updated**: 2026-05-02 - US2 銷售頁 PayUni 分期付款 hint；US4 Email 模板列表補 high_ticket_slot_available 中文標籤；US6 「通知新時段」改為先開確認 modal 並顯示模板預覽
 **Updated**: 2026-05-03 - US6 新增搜尋/課程篩選、「發送郵件」批次 modal（FR-036～FR-037）；修復 PayUni 付款後 drip 序列信未自動暫停的 bug（FR-038）
+**Updated**: 2026-05-03 - US6 新增序列信訂閱紀錄欄（FR-039）、「開通」功能（FR-040～FR-041）；修復 notifyTemplate 載入 500 bug
 **Status**: Implemented (US1–US6)
 
 ---
@@ -238,6 +239,15 @@
 **PayUni 付款後 drip 轉換（系統修復）**
 
 - **FR-038**: 透過統一金流（PayUni）完成購買後，系統 MUST 呼叫 `DripService::checkAndConvert()`，將任何以所購課程為轉換目標的 active drip 訂閱標記為 `converted`，停止繼續發送序列信。此行為與 Portaly Webhook 路徑一致。
+
+**Leads 序列信紀錄欄（US6 擴充）**
+
+- **FR-039**: Leads 名單 MUST 在「序列信紀錄」欄顯示每位 lead 曾加入的 drip 課程及其訂閱狀態（active／completed／converted／unsubscribed）；以 email 為 key 透過 `users` → `drip_subscriptions` 關聯查詢，不需額外 migration；若無紀錄顯示 `—`。
+
+**Lead 開通商品（US6 擴充）**
+
+- **FR-040**: 管理員 MUST 能在每筆非「已成交」的 lead 課程欄，點擊「開通」按鈕，透過確認 modal 選擇要開通的商品（列出所有課程），系統隨後：(a) 以 email 為 key `firstOrCreate` 會員帳號（nickname = lead.name，password 隨機產生）；(b) 以 `Purchase::updateOrCreate` 建立 `type='gift'`、`status='paid'`、`amount=0` 的購買記錄；(c) 將 lead status 更新為 `converted`。
+- **FR-041**: 「開通」確認 modal MUST 顯示：lead 姓名與 Email、三條操作說明（自動建立會員帳號、開通商品、狀態更新為已成交）、商品下拉選單；確認後 inline 更新列表該列狀態，並於頁面頂部顯示操作結果摘要。
 
 ### Key Entities
 

@@ -7,6 +7,7 @@ use App\Mail\BatchEmailMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
+use App\Models\User;
 use App\Services\HighTicketLeadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,8 +48,22 @@ class HighTicketLeadController extends Controller
             ->get();
 
         $notifyTemplate = EmailTemplate::forEvent('high_ticket_slot_available')
-            ->first()
-            ?->only(['id', 'subject', 'body_md']);
+            ->first(['id', 'subject', 'body_md'])
+            ?->toArray();
+
+        $emails = $leads->pluck('email')->filter()->unique()->values();
+        $dripByEmail = User::whereIn('email', $emails)
+            ->with(['dripSubscriptions' => fn ($q) => $q->with('course:id,name')])
+            ->get(['id', 'email'])
+            ->keyBy('email')
+            ->map(fn ($u) => $u->dripSubscriptions->map(fn ($s) => [
+                'course_name' => $s->course->name ?? '?',
+                'status'      => $s->status,
+            ])->values());
+
+        $grantableCourses = Course::select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/HighTicketLeads/Index', [
             'leads'             => $leads,
@@ -56,6 +71,8 @@ class HighTicketLeadController extends Controller
             'highTicketCourses' => $highTicketCourses,
             'dripCourses'       => $dripCourses,
             'notifyTemplate'    => $notifyTemplate,
+            'dripByEmail'       => $dripByEmail,
+            'grantableCourses'  => $grantableCourses,
         ]);
     }
 
@@ -137,6 +154,17 @@ class HighTicketLeadController extends Controller
             $validated['lead_ids'],
             $validated['drip_course_id']
         );
+
+        return response()->json($result);
+    }
+
+    public function convert(Request $request, HighTicketLead $lead): JsonResponse
+    {
+        $validated = $request->validate([
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+        ]);
+
+        $result = $this->leadService->convertLead($lead, $validated['course_id']);
 
         return response()->json($result);
     }

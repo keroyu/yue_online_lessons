@@ -28,6 +28,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  dripByEmail: {
+    type: Object,
+    default: () => ({}),
+  },
+  grantableCourses: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 // Status config
@@ -197,6 +205,40 @@ const subscribeDrip = async () => {
     actionResult.value = `失敗：${e.response?.data?.message || e.message}`
   } finally {
     actionLoading.value = false
+  }
+}
+
+// Convert lead modal
+const showConvertModal = ref(false)
+const convertingLead = ref(null)
+const convertCourseId = ref('')
+const convertLoading = ref(false)
+
+const openConvertModal = (lead) => {
+  convertingLead.value = lead
+  convertCourseId.value = props.grantableCourses[0]?.id ?? ''
+  showConvertModal.value = true
+}
+
+const confirmConvert = async () => {
+  if (!convertCourseId.value || !convertingLead.value) return
+  convertLoading.value = true
+  try {
+    const res = await axios.post(`/admin/high-ticket-leads/${convertingLead.value.id}/convert`, {
+      course_id: Number(convertCourseId.value),
+    })
+    const idx = props.leads.data.findIndex(l => l.id === convertingLead.value.id)
+    if (idx !== -1) {
+      props.leads.data[idx].status = 'converted'
+    }
+    actionResult.value = res.data.user_created
+      ? `已完成：為 ${convertingLead.value.name} 建立會員並開通商品`
+      : `已完成：為 ${convertingLead.value.name} 開通商品`
+    showConvertModal.value = false
+  } catch (e) {
+    actionResult.value = `開通失敗：${e.response?.data?.message || e.message}`
+  } finally {
+    convertLoading.value = false
   }
 }
 
@@ -372,9 +414,10 @@ const formatDateTime = (str) => {
             </th>
             <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">姓名</th>
             <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">Email</th>
-            <th class="hidden md:table-cell py-3.5 px-3 text-left text-sm font-semibold text-gray-900">課程</th>
+            <th class="hidden md:table-cell w-52 py-3.5 px-3 text-left text-sm font-semibold text-gray-900">課程</th>
             <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">狀態</th>
-            <th class="hidden sm:table-cell py-3.5 px-3 text-right text-sm font-semibold text-gray-900">通知次數</th>
+            <th class="hidden sm:table-cell w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
+            <th class="hidden xl:table-cell min-w-56 py-3.5 px-3 text-left text-sm font-semibold text-gray-900">序列信紀錄</th>
             <th class="hidden lg:table-cell py-3.5 px-3 text-left text-sm font-semibold text-gray-900">預約時間</th>
           </tr>
         </thead>
@@ -390,8 +433,17 @@ const formatDateTime = (str) => {
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">{{ lead.name }}</td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">{{ lead.email }}</td>
-            <td class="hidden md:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
-              {{ lead.course?.name ?? '-' }}
+            <td class="hidden md:table-cell w-52 py-4 px-3 text-sm text-gray-600">
+              <div class="flex items-center gap-2">
+                <span class="truncate">{{ lead.course?.name ?? '-' }}</span>
+                <button
+                  v-if="lead.status !== 'converted'"
+                  @click="openConvertModal(lead)"
+                  class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-white bg-indigo-600 rounded shadow-sm hover:bg-indigo-700 active:bg-indigo-800 transition-colors cursor-pointer"
+                >
+                  開通
+                </button>
+              </div>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm">
               <select
@@ -404,15 +456,36 @@ const formatDateTime = (str) => {
                 <option v-for="s in statusOptions" :key="s" :value="s">{{ statusLabels[s] }}</option>
               </select>
             </td>
-            <td class="hidden sm:table-cell whitespace-nowrap py-4 px-3 text-sm text-right text-gray-600">
+            <td class="hidden sm:table-cell w-20 whitespace-nowrap py-4 px-2 text-sm text-right text-gray-600">
               {{ lead.notified_count ?? 0 }}
+            </td>
+            <td class="hidden xl:table-cell min-w-56 py-4 px-3 text-sm">
+              <template v-if="dripByEmail[lead.email]?.length">
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="sub in dripByEmail[lead.email]"
+                    :key="sub.course_name + sub.status"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+                    :class="{
+                      'bg-blue-100 text-blue-800':   sub.status === 'active',
+                      'bg-green-100 text-green-800':  sub.status === 'completed',
+                      'bg-yellow-100 text-yellow-800': sub.status === 'converted',
+                      'bg-gray-100 text-gray-500':    sub.status === 'unsubscribed',
+                    }"
+                  >
+                    {{ sub.course_name }}
+                    <span class="opacity-70">·{{ { active: '訂閱中', completed: '已完成', converted: '已轉換', unsubscribed: '已退訂' }[sub.status] ?? sub.status }}</span>
+                  </span>
+                </div>
+              </template>
+              <span v-else class="text-gray-400">—</span>
             </td>
             <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-500">
               {{ formatDateTime(lead.booked_at) }}
             </td>
           </tr>
           <tr v-if="leads.data?.length === 0">
-            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
               {{ filters.status ? '沒有符合條件的 Leads' : '尚無預約記錄' }}
             </td>
           </tr>
@@ -681,6 +754,92 @@ const formatDateTime = (str) => {
           class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           確認加入
+        </button>
+      </div>
+    </div>
+    </div>
+  </div>
+  </Teleport>
+
+  <!-- Convert lead modal -->
+  <Teleport to="body">
+  <div
+    v-if="showConvertModal"
+    class="fixed inset-0 z-50 overflow-y-auto"
+  >
+    <div class="fixed inset-0 bg-black/50" aria-hidden="true" @click="showConvertModal = false" />
+    <div class="flex min-h-full items-center justify-center p-4">
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6" @click.stop>
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">開通商品</h3>
+      <p class="text-sm text-gray-500 mb-5">
+        確認後，系統將為此 Lead 完成以下操作：
+      </p>
+
+      <!-- Lead info -->
+      <div class="mb-5 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 space-y-1 text-sm">
+        <div class="flex gap-2">
+          <span class="text-gray-500 w-12 flex-shrink-0">姓名</span>
+          <span class="font-medium text-gray-900">{{ convertingLead?.name }}</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="text-gray-500 w-12 flex-shrink-0">Email</span>
+          <span class="text-gray-700">{{ convertingLead?.email }}</span>
+        </div>
+      </div>
+
+      <!-- Actions summary -->
+      <ul class="mb-5 space-y-2 text-sm text-gray-700">
+        <li class="flex items-start gap-2">
+          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>若尚未註冊，系統將自動建立會員帳號</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>開通所選商品（系統贈送）</span>
+        </li>
+        <li class="flex items-start gap-2">
+          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          <span>Lead 狀態更新為「已成交」</span>
+        </li>
+      </ul>
+
+      <!-- Course selector -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1">選擇要開通的商品</label>
+        <select
+          v-model="convertCourseId"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+        >
+          <option v-for="course in grantableCourses" :key="course.id" :value="course.id">
+            {{ course.name }}
+          </option>
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button
+          @click="showConvertModal = false"
+          :disabled="convertLoading"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+        >
+          取消
+        </button>
+        <button
+          @click="confirmConvert"
+          :disabled="!convertCourseId || convertLoading"
+          class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+        >
+          <svg v-if="convertLoading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          {{ convertLoading ? '處理中...' : '確認開通' }}
         </button>
       </div>
     </div>

@@ -140,6 +140,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/high-ticket-leads/notify-slot', [HighTicketLeadController::class, 'notifySlot'])->name('high-ticket-leads.notify-slot');
     Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');
     Route::post('/high-ticket-leads/batch-email', [HighTicketLeadController::class, 'batchEmail'])->name('high-ticket-leads.batch-email');
+    Route::post('/high-ticket-leads/{lead}/convert', [HighTicketLeadController::class, 'convert'])->name('high-ticket-leads.convert');
 
     // Email templates
     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
