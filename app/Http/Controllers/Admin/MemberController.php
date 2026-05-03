@@ -430,10 +430,14 @@ class MemberController extends Controller
     }
 
     /**
-     * Import members from a pasted list of email addresses.
+     * Import members from a pasted email list or parsed CSV rows.
      */
     public function importEmails(Request $request): JsonResponse
     {
+        if ($request->has('rows')) {
+            return $this->importFromRows($request->input('rows', []));
+        }
+
         $request->validate([
             'emails' => 'required|string|max:50000',
         ], [
@@ -496,7 +500,104 @@ class MemberController extends Controller
             'skipped_count' => $skippedCount,
             'invalid_count' => $invalidCount,
             'invalid_emails' => $invalidEmails,
+            'phone_format_errors' => [],
             'message' => implode('，', $parts),
         ]);
+    }
+
+    /**
+     * Import members from CSV rows sent as a JSON array.
+     * Each row: { email, real_name, phone }
+     */
+    private function importFromRows(array $rows): JsonResponse
+    {
+        if (empty($rows)) {
+            return response()->json([
+                'errors' => ['rows' => ['請提供至少一筆資料']],
+            ], 422);
+        }
+
+        $createdCount = 0;
+        $skippedCount = 0;
+        $invalidCount = 0;
+        $invalidEmails = [];
+        $phoneFormatErrors = [];
+
+        foreach ($rows as $row) {
+            $email = trim($row['email'] ?? '');
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalidCount++;
+                if ($email !== '') {
+                    $invalidEmails[] = $email;
+                }
+                continue;
+            }
+
+            $email = strtolower($email);
+
+            if (User::where('email', $email)->exists()) {
+                $skippedCount++;
+                continue;
+            }
+
+            $phone = $this->normalizePhone(trim($row['phone'] ?? ''), $email, $phoneFormatErrors);
+
+            User::create([
+                'email' => $email,
+                'nickname' => Str::before($email, '@'),
+                'real_name' => trim($row['real_name'] ?? ''),
+                'phone' => $phone,
+                'role' => 'member',
+                'email_verified_at' => now(),
+            ]);
+
+            $createdCount++;
+        }
+
+        $parts = ["新增 {$createdCount} 位會員"];
+        if ($skippedCount > 0) {
+            $parts[] = "略過 {$skippedCount} 位（已存在）";
+        }
+        if ($invalidCount > 0) {
+            $parts[] = "無效格式 {$invalidCount} 個";
+        }
+        if (count($phoneFormatErrors) > 0) {
+            $parts[] = '電話格式有誤 ' . count($phoneFormatErrors) . ' 筆';
+        }
+
+        return response()->json([
+            'success' => true,
+            'created_count' => $createdCount,
+            'skipped_count' => $skippedCount,
+            'invalid_count' => $invalidCount,
+            'invalid_emails' => $invalidEmails,
+            'phone_format_errors' => $phoneFormatErrors,
+            'message' => implode('，', $parts),
+        ]);
+    }
+
+    /**
+     * Validate and normalize a phone field from a CSV row.
+     * Taiwan mobile (starts with "09", exactly 10 digits) → stored as digit string.
+     * Taiwan mobile with wrong digit count → stored as empty, email added to errors.
+     * Other formats (international or empty) → stored as-is.
+     */
+    private function normalizePhone(string $raw, string $email, array &$phoneFormatErrors): string
+    {
+        if ($raw === '') {
+            return '';
+        }
+
+        if (str_starts_with($raw, '09')) {
+            $digits = preg_replace('/\D/', '', $raw);
+            if (strlen($digits) === 10) {
+                return $digits;
+            }
+            $phoneFormatErrors[] = $email;
+            return '';
+        }
+
+        return $raw;
     }
 }

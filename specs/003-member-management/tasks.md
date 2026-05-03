@@ -497,11 +497,11 @@ Task: "Add success/error feedback with counts in Index.vue"
 
 ### US10 — CSV 上傳匯入
 
-- [ ] T085 Install papaparse dependency: `npm install papaparse` (adds to package.json / package-lock.json)
-- [ ] T086 [P] [US10] Extend `importEmails()` in `app/Http/Controllers/Admin/MemberController.php` to handle `rows[]` input path: detect `$request->has('rows')`; loop rows with email validation (same as text path); phone validation: strip whitespace, if starts "09" + 10 digits → store; if starts "09" + wrong length → store empty + add email to `$phoneFormatErrors[]`; else store as-is; `User::create` with email/nickname/real_name/phone/role/email_verified_at; return existing fields + `phone_format_errors: $phoneFormatErrors`
-- [ ] T087 [US10] Add tab UI to `resources/js/Components/ImportMembersModal.vue`: add `activeTab` ref ('text'|'csv'), two tab buttons ("貼上 Email 名單" / "上傳 CSV 檔案") with active/inactive styling, conditionally render existing textarea section under `v-if="activeTab === 'text'"` and a new empty CSV panel placeholder under `v-else`
-- [ ] T088 [US10] Add CSV upload panel to `resources/js/Components/ImportMembersModal.vue`: format hint "CSV 欄位順序固定：第 1 欄 Email、第 2 欄 姓名、第 3 欄 電話。第一列為標題列（名稱不限）"; `<input type="file" accept=".csv">` ref; on file select → `Papa.parse(file, { header: false, skipEmptyLines: true })` → skip row[0] (header) → store remaining in `csvRows` ref; preview section (shown when csvRows.length > 0): display hardcoded labels (Email / 姓名 / 電話) + "共 N 筆資料"; validation errors: fewer than 3 columns → "CSV 格式錯誤：至少需要 3 欄"; zero data rows → "CSV 檔案不含任何資料列"
-- [ ] T089 [US10] Add CSV confirm/cancel and result display to `resources/js/Components/ImportMembersModal.vue`: "確認匯入" button (shown when csvRows valid) calls `handleCsvImport()` — builds `rows[]` array from csvRows (email=col[0], real_name=col[1], phone=col[2]), posts to `/admin/members/import` with `{ rows }`, sets `result`; "取消" button clears file input and `csvRows`; in result display section add orange warning box `v-if="result?.phone_format_errors?.length > 0"` showing "電話格式有誤（N 筆）" with list of affected emails
+- [X] T085 Install papaparse dependency: `npm install papaparse` (adds to package.json / package-lock.json)
+- [X] T086 [P] [US10] Extend `importEmails()` in `app/Http/Controllers/Admin/MemberController.php` to handle `rows[]` input path: detect `$request->has('rows')`; loop rows with email validation (same as text path); phone validation: strip whitespace, if starts "09" + 10 digits → store; if starts "09" + wrong length → store empty + add email to `$phoneFormatErrors[]`; else store as-is; `User::create` with email/nickname/real_name/phone/role/email_verified_at; return existing fields + `phone_format_errors: $phoneFormatErrors`
+- [X] T087 [US10] Add tab UI to `resources/js/Components/ImportMembersModal.vue`: add `activeTab` ref ('text'|'csv'), two tab buttons ("貼上 Email 名單" / "上傳 CSV 檔案") with active/inactive styling, conditionally render existing textarea section under `v-if="activeTab === 'text'"` and a new empty CSV panel placeholder under `v-else`
+- [X] T088 [US10] Add CSV upload panel to `resources/js/Components/ImportMembersModal.vue`: format hint "CSV 欄位順序固定：第 1 欄 Email、第 2 欄 姓名、第 3 欄 電話。第一列為標題列（名稱不限）"; `<input type="file" accept=".csv">` ref; on file select → `Papa.parse(file, { header: false, skipEmptyLines: true })` → skip row[0] (header) → store remaining in `csvRows` ref; preview section (shown when csvRows.length > 0): display hardcoded labels (Email / 姓名 / 電話) + "共 N 筆資料"; validation errors: fewer than 3 columns → "CSV 格式錯誤：至少需要 3 欄"; zero data rows → "CSV 檔案不含任何資料列"
+- [X] T089 [US10] Add CSV confirm/cancel and result display to `resources/js/Components/ImportMembersModal.vue`: "確認匯入" button (shown when csvRows valid) calls `handleCsvImport()` — builds `rows[]` array from csvRows (email=col[0], real_name=col[1], phone=col[2]), posts to `/admin/members/import` with `{ rows }`, sets `result`; "取消" button clears file input and `csvRows`; in result display section add orange warning box `v-if="result?.phone_format_errors?.length > 0"` showing "電話格式有誤（N 筆）" with list of affected emails
 
 **Checkpoint**: tab 切換正常；CSV 上傳後顯示欄位標籤 + 筆數；格式錯誤顯示提示；匯入成功後 modal 顯示綠色摘要 + 橘色電話有誤清單（若有）；關閉後列表更新 ✅
 
@@ -527,6 +527,6 @@ Task: "Add success/error feedback with counts in Index.vue"
 | Phase 14: 修正贈課 Email 檔名；批次 Email Markdown | T071-T073 | ✅ Completed |
 | Phase 15: 會員詳情課程取得方式標籤 | T074-T075 | ✅ Completed |
 | Phase 16: US8 匯出 CSV + US9 匯入 Email 名單 | T076-T084 | ✅ Completed |
-| Phase 17: US10 匯入 modal CSV 上傳模式 | T085-T089 | 0 complete, 5 pending |
+| Phase 17: US10 匯入 modal CSV 上傳模式 | T085-T089 | ✅ Completed |
 
-**Total**: 93 tasks (88 complete, 5 pending — T085, T086, T087, T088, T089)
+**Total**: 93 tasks (93 complete, 0 pending)

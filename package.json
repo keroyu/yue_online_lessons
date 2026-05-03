@@ -21,6 +21,7 @@
         "@inertiajs/vue3": "^2.3.10",
         "chart.js": "^4.5.1",
         "marked": "^17.0.3",
+        "papaparse": "^5.5.3",
         "vue": "^3.5.26",
         "vue-chartjs": "^5.3.3",
         "vuedraggable": "^4.1.0"
