@@ -364,11 +364,12 @@ Response props:
     "hash_key": "",
     "hash_iv": "",
     "env": "sandbox"
-  }
+  },
+  "meta_pixel_id": "1287511383482442"
 }
 ```
 
-**Note**: `hash_key` and `hash_iv` are returned as empty strings (never exposed in response per FR-022). The UI shows `<input type="password">` with placeholder "已儲存，輸入新值以更新".
+**Note**: `hash_key` and `hash_iv` are returned as empty strings (never exposed in response per FR-022). The UI shows `<input type="password">` with placeholder "已儲存，輸入新值以更新". `meta_pixel_id` is returned as-is (not sensitive).
 
 ---
 
@@ -387,12 +388,36 @@ Request:
   "newebpay_merchant_id": "MS1234567890",
   "newebpay_hash_key": "...",
   "newebpay_hash_iv": "...",
-  "newebpay_env": "sandbox"
+  "newebpay_env": "sandbox",
+  "meta_pixel_id": "1287511383482442"
 }
 ```
 
-Validation: all fields required. `newebpay_env` in `['sandbox', 'production']`.
+Validation: all fields optional (blank = keep existing). `newebpay_env` in `['sandbox', 'production']` if provided. `meta_pixel_id`: string, max:30, numeric characters only if provided (Facebook Pixel IDs are numeric strings).
 
-Behavior: For each field, call `SiteSetting::set(key, value)` only if value is non-empty (blank input = keep existing). Blank hash_key/hash_iv fields are skipped (merchant changed MerchantID without rotating keys).
+Behavior: For each non-empty field, call `SiteSetting::set(key, value)`. Blank hash_key/hash_iv skipped. `meta_pixel_id` may be explicitly cleared by saving an empty string (admin wants to disable Pixel).
 
 Response: redirect back with flash success.
+
+---
+
+## Global: Meta Pixel Script Injection
+
+**File**: `resources/views/app.blade.php`
+
+The hardcoded `fbq('init', '1287511383482442')` block is replaced with a conditional Blade snippet:
+
+```blade
+@php $pixelId = \App\Models\SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', '')); @endphp
+@if($pixelId)
+<!-- Meta Pixel -->
+<script>
+!function(f,b,e,v,n,t,s){...}(window,...);
+fbq('init','{{ $pixelId }}');
+fbq('track','PageView');
+</script>
+<noscript>...</noscript>
+@endif
+```
+
+If `meta_pixel_id` is empty, the entire block is omitted — no `fbq` global is created, so all `if (window.fbq)` guards in Vue components are safely skipped.

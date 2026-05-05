@@ -404,10 +404,10 @@ class NewebpayService
 
 ---
 
-## SiteSetting Keys for Payment Credentials
+## SiteSetting Keys
 
-| Key | Fallback `config()` path |
-|-----|--------------------------|
+| Key | Fallback `config()` / `env()` path |
+|-----|-------------------------------------|
 | `payuni_merchant_id` | `config('services.payuni.merchant_id')` |
 | `payuni_hash_key` | `config('services.payuni.hash_key')` |
 | `payuni_hash_iv` | `config('services.payuni.hash_iv')` |
@@ -415,8 +415,9 @@ class NewebpayService
 | `newebpay_hash_key` | `config('services.newebpay.hash_key')` |
 | `newebpay_hash_iv` | `config('services.newebpay.hash_iv')` |
 | `newebpay_env` | `config('services.newebpay.env', 'sandbox')` |
+| `meta_pixel_id` | `env('META_PIXEL_ID', '')` |
 
-SiteSetting value takes priority over `.env`. `.env` is initial default / fallback only.
+SiteSetting value takes priority over `.env`. `.env` is initial default / fallback only. If `meta_pixel_id` resolves to empty string, the entire Pixel `<script>` block in `app.blade.php` is omitted.
 
 ---
 

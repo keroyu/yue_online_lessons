@@ -123,20 +123,21 @@ resources/js/
 - `CartController` with POST `/api/cart/add`, DELETE `/api/cart/{courseId}`, POST `/api/cart/merge`
 - `cartCount` added to Inertia shared props
 
-### Phase C: Payment Gateway Credentials Admin
+### Phase C: Payment Gateway Credentials + Meta Pixel Admin
 - `SettingsController::showPayment()` + `updatePayment()`
-- `Admin/Settings/Payment.vue` with password inputs for key/IV
+- `Admin/Settings/Payment.vue`: password inputs for HashKey/HashIV; plain text input for Meta Pixel ID
 - Update `PayuniService::__construct()` to read from SiteSetting with .env fallback
+- Add `meta_pixel_id` to `site_settings` keys; `app.blade.php` changed from hardcoded `fbq('init', '...')` to conditional output via `SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', ''))`; if empty, entire `<script>` block is omitted
 
 ### Phase D: Sales Page Update
 - `Course/Show.vue` button logic for Portaly / free / high-ticket / cart courses
 - `useCart.js` composable encapsulating add/buyNow with auth-state branching
-- Meta Pixel `AddToCart` trigger
+- Meta Pixel `AddToCart` trigger (guard: `if (window.fbq)`)
 
 ### Phase E: Cart Frontend
 - `Cart/Index.vue` for both logged-in (Inertia props) and guest (localStorage)
 - Navigation badge (cartCount for logged-in; localStorage length for guest)
-- Meta Pixel `InitiateCheckout` trigger
+- Meta Pixel `InitiateCheckout` trigger (guard: `if (window.fbq)`)
 
 ### Phase F: CheckoutService + CheckoutController
 - `CheckoutService::createOrder()` with two-step merchant_order_no generation
