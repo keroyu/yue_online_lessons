@@ -213,21 +213,6 @@ onUnmounted(() => {
   if (observer) observer.disconnect()
 })
 
-onMounted(() => {
-  if (!window.fbq) {
-    const script = document.createElement('script')
-    script.async = true
-    script.src = 'https://connect.facebook.net/en_US/fbevents.js'
-    document.head.appendChild(script)
-    const n = window.fbq = window._fbq = function () {
-      n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-    }
-    n.push = n; n.loaded = true; n.version = '2.0'; n.queue = []
-    window.fbq('init', '1287511383482442')
-  }
-  window.fbq('track', 'PageView')
-})
-
 const handleBuyClick = () => {
   if (props.isPreviewMode) {
     showPreviewAlert.value = true

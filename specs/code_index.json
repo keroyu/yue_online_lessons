@@ -34,11 +34,13 @@
     ],
     "app/Http/Controllers/Admin/MemberController.php": [
       "003.us-1",
+      "003.us-10",
       "003.us-2",
       "003.us-3",
       "003.us-4",
       "003.us-6",
       "003.us-7",
+      "003.us-9",
       "005.us-7"
     ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
@@ -252,6 +254,10 @@
       "007.us-3",
       "007.us-4"
     ],
+    "resources/js/Components/ImportMembersModal.vue": [
+      "003.us-10",
+      "003.us-9"
+    ],
     "resources/js/Components/SocialLinks.vue": [
       "007.us-2",
       "007.us-4"
@@ -283,6 +289,9 @@
     "resources/js/Pages/Admin/Member/": [
       "003.us-1",
       "003.us-5"
+    ],
+    "resources/js/Pages/Admin/Members/Index.vue": [
+      "003.us-9"
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "006.us-1",

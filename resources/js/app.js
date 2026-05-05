@@ -2,8 +2,12 @@ import './bootstrap'
 import '../css/app.css'
 
 import { createApp, h } from 'vue'
-import { createInertiaApp } from '@inertiajs/vue3'
+import { createInertiaApp, router } from '@inertiajs/vue3'
 import AppLayout from './Components/Layout/AppLayout.vue'
+
+router.on('navigate', () => {
+  if (window.fbq) window.fbq('track', 'PageView')
+})
 
 createInertiaApp({
   title: (title) => title ? `${title} - Your Time Bank` : 'Your Time Bank',

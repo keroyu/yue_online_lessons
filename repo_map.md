@@ -82,7 +82,9 @@ main_files:
 - app/Models/LessonProgress.php
 - app/Models/Purchase.php
 - app/Models/User.php
+- resources/js/Components/ImportMembersModal.vue
 - resources/js/Pages/Admin/Member/
+- resources/js/Pages/Admin/Members/Index.vue
 
 related_specs:
 - specs/003-member-management/spec.md
