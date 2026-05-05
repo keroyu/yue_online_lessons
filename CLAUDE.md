@@ -96,6 +96,8 @@ Need more search: yes/no
 - MySQL — new table `high_ticket_leads` (008-high-ticket-booking)
 - MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 1 altered table (`courses`) (009-cart-checkout)
 - MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 2 altered tables (`courses` 新增 `payment_gateway`、`purchases` 新增 `order_id`) (009-cart-checkout)
+- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4, PayuniService (existing), NewebpayService (new) (009-cart-checkout)
+- MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 2 altered tables (`courses` + `payment_gateway`, `purchases` + `order_id`); `site_settings` table (existing) for gateway credentials (009-cart-checkout)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

@@ -1,366 +1,484 @@
+# Data Model: 009-cart-checkout
 
-# Data Model: 購物車結帳系統 (009-cart-checkout)
-
-**Branch**: `009-cart-checkout` | **Date**: 2026-05-05
-
-## New Migrations
-
-### 1. Add `payment_gateway` to `courses`
-
-```php
-// XXXX_add_payment_gateway_to_courses_table.php
-$table->string('payment_gateway', 20)->nullable()->default('payuni')->after('portaly_product_id');
-// Values: 'payuni' | 'newebpay' — NULL treated as 'payuni' fallback
-```
-
-**Rule**: Only applies when `portaly_product_id IS NULL`. Portaly courses ignore this field.
+**Feature Branch**: `009-cart-checkout`
+**Created**: 2026-05-06
 
 ---
 
-### 2. Create `cart_items`
+## Existing Tables (Reference)
 
-```php
-Schema::create('cart_items', function (Blueprint $table) {
-    $table->id();
-    $table->unsignedBigInteger('user_id');
-    $table->unsignedBigInteger('course_id');
-    $table->timestamp('created_at')->useCurrent();
+### `purchases` (existing, altered)
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| id | bigint PK | no | |
+| user_id | FK → users | no | |
+| course_id | FK → courses | no | |
+| portaly_order_id | varchar | yes | |
+| payuni_trade_no | varchar | yes | UNIQUE |
+| buyer_email | varchar(255) | yes | |
+| amount | decimal | no | |
+| currency | varchar(10) | no | |
+| coupon_code | varchar | yes | |
+| discount_amount | decimal | yes | |
+| status | enum | no | paid \| refunded |
+| source | varchar | yes | |
+| type | enum | no | paid \| system_assigned \| gift |
+| webhook_received_at | timestamp | yes | |
+| **order_id** | bigint unsigned FK → orders | **yes** | **new column; SET NULL on delete** |
+| created_at | timestamp | no | |
+| updated_at | timestamp | no | |
 
-    $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-    $table->foreign('course_id')->references('id')->on('courses')->cascadeOnDelete();
-    $table->unique(['user_id', 'course_id']); // prevent duplicates
-    $table->index('user_id');
-});
-```
+UNIQUE constraint: `(user_id, course_id)`
 
-**Notes**:
-- No `updated_at` — follows project pattern (`LessonProgress`, `CourseImage`)
-- `$timestamps = false` on Model, set `created_at` in `boot()`
-- `cascadeOnDelete` on both FKs — deleting a user or course cleans up cart
+### `site_settings` (existing, read-only)
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint PK | |
+| key | varchar | UNIQUE |
+| value | text | |
 
----
-
-### 3. Create `orders`
-
-```php
-Schema::create('orders', function (Blueprint $table) {
-    $table->id();
-    $table->unsignedBigInteger('user_id');
-    $table->unsignedInteger('total_amount');         // TWD, sum of order_items.price
-    $table->string('payment_gateway', 20);            // 'payuni' | 'newebpay'
-    $table->string('gateway_trade_no', 100)->nullable()->unique(); // MerTradeNo / MerchantOrderNo
-    $table->enum('status', ['pending', 'paid', 'failed'])->default('pending');
-    $table->timestamps();
-
-    $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-    $table->index('status');
-});
-```
-
-**Status transitions**:
-- `pending` → created when checkout initiated, before redirect to gateway
-- `paid` → set by NotifyURL/webhook handler after successful payment
-- `failed` → set if ReturnURL confirms failure (optional; kept for audit)
-
-**gateway_trade_no**: PayUni `MerTradeNo` or NewebPay `MerchantOrderNo`. Set at initiation time. Used by webhook handler to look up the Order.
+Used to store payment gateway credentials (see [SiteSetting Keys](#sitesetting-keys-for-payment-credentials)).
 
 ---
 
-### 4a. Add `order_id` to `purchases` (反查欄位 — Plan v2 增量)
+## New Tables
 
-```php
-// XXXX_add_order_id_to_purchases_table.php
-Schema::table('purchases', function (Blueprint $table) {
-    $table->unsignedBigInteger('order_id')->nullable()->after('course_id');
-    $table->foreign('order_id')->references('id')->on('orders')->nullOnDelete();
-    $table->index('order_id');
-});
-```
+### `cart_items`
 
-**Rule**:
-- 新 cart 流程建立的 Purchase: `order_id` = 對應 Order
-- 舊流程（YC PayUni、Portaly webhook、system_assigned、gift）: `order_id` = NULL
-- 純為反查/客服用途，不參與業務邏輯判斷
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| id | bigint PK | no | |
+| user_id | FK → users | no | ON DELETE CASCADE |
+| course_id | FK → courses | no | ON DELETE CASCADE |
+| created_at | timestamp | no | set manually; no `updated_at` |
 
-### 4. Create `order_items`
+**Constraints:** UNIQUE(`user_id`, `course_id`)
 
-```php
-Schema::create('order_items', function (Blueprint $table) {
-    $table->id();
-    $table->unsignedBigInteger('order_id');
-    $table->unsignedBigInteger('course_id');
-    $table->unsignedInteger('price');               // display_price at checkout moment (TWD)
-    $table->timestamp('created_at')->useCurrent();
+**Migration note:** No `updated_at` column. Model uses `$timestamps = false` and sets `created_at` in `booted()`.
 
-    $table->foreign('order_id')->references('id')->on('orders')->cascadeOnDelete();
-    $table->foreign('course_id')->references('id')->on('courses')->restrictOnDelete();
-    // No unique constraint — same course could theoretically appear in different orders
-});
-```
-
-**Notes**:
-- Price is locked at checkout time (not add-to-cart time) — spec clarification D-003
-- `course_id` uses `restrictOnDelete` (not cascade) to preserve order history if course is deleted
-
----
-
-## Model Definitions
-
-### CartItem
-
-```php
-// app/Models/CartItem.php
-protected $fillable = ['user_id', 'course_id'];
-public $timestamps = false;
-
-protected static function boot() {
-    parent::boot();
-    static::creating(fn($m) => $m->created_at = now());
-}
-
-// Relationships
-public function user(): BelongsTo
-public function course(): BelongsTo
-```
-
-### Order
-
-```php
-// app/Models/Order.php
-protected $fillable = ['user_id', 'total_amount', 'payment_gateway', 'gateway_trade_no', 'status'];
-
-protected function casts(): array {
-    return ['status' => 'string'];
-}
-
-// Relationships
-public function user(): BelongsTo
-public function items(): HasMany  // → OrderItem
-public function purchases(): HasMany  // → Purchase (after payment success)
-
-// Scopes
-public function scopePending($query)
-public function scopePaid($query)
-```
-
-### OrderItem
-
-```php
-// app/Models/OrderItem.php
-protected $fillable = ['order_id', 'course_id', 'price'];
-public $timestamps = false;
-
-protected static function boot() {
-    parent::boot();
-    static::creating(fn($m) => $m->created_at = now());
-}
-
-// Relationships
-public function order(): BelongsTo
-public function course(): BelongsTo
+```sql
+CREATE TABLE cart_items (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT UNSIGNED NOT NULL,
+    course_id   BIGINT UNSIGNED NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cart_items_user    FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
+    CONSTRAINT fk_cart_items_course  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_cart_user_course (user_id, course_id)
+);
 ```
 
 ---
 
-## Updated Model: Course
+### `orders`
 
-Add to `$fillable`: `'payment_gateway'`
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| id | bigint PK | no | |
+| user_id | FK → users | yes | null = guest order |
+| buyer_name | varchar(100) | no | snapshot from checkout form |
+| buyer_email | varchar(255) | no | snapshot |
+| buyer_phone | varchar(20) | no | snapshot |
+| total_amount | decimal(10,2) | no | |
+| currency | varchar(10) | no | default `'TWD'` |
+| payment_gateway | varchar(20) | no | `'payuni'` or `'newebpay'` |
+| merchant_order_no | varchar(30) | no | UNIQUE; format: `ord_{id}_{YYMMdd}` e.g. `ord_42_250506` |
+| status | enum | no | `pending` \| `paid` \| `failed`; default `pending` |
+| gateway_trade_no | varchar(100) | yes | PayUni MerTradeNo or NewebPay TradeNo from gateway |
+| webhook_received_at | timestamp | yes | |
+| created_at | timestamp | no | |
+| updated_at | timestamp | no | |
 
-Add accessor:
+**Important:** `merchant_order_no` requires the auto-increment `id`, so it is generated in a two-step process inside a transaction: INSERT the row first (with a placeholder or NULL), then UPDATE `merchant_order_no`.
+
+**State transitions:**
+
+```
+[created] → pending ──→ paid    (webhook success)
+                    └──→ failed  (gateway error / timeout)
+```
+
+- `pending → paid`: via webhook (PayUni notify / NewebPay NotifyURL)
+- `pending → failed`: explicit mark on ReturnURL failure (optional)
+- `paid` is terminal — no reversal. Refunds are handled at the `purchases` level.
+
+```sql
+CREATE TABLE orders (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id             BIGINT UNSIGNED NULL,
+    buyer_name          VARCHAR(100) NOT NULL,
+    buyer_email         VARCHAR(255) NOT NULL,
+    buyer_phone         VARCHAR(20) NOT NULL,
+    total_amount        DECIMAL(10,2) NOT NULL,
+    currency            VARCHAR(10) NOT NULL DEFAULT 'TWD',
+    payment_gateway     VARCHAR(20) NOT NULL,
+    merchant_order_no   VARCHAR(30) NOT NULL,
+    status              ENUM('pending','paid','failed') NOT NULL DEFAULT 'pending',
+    gateway_trade_no    VARCHAR(100) NULL,
+    webhook_received_at TIMESTAMP NULL,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_orders_merchant_order_no (merchant_order_no)
+);
+```
+
+---
+
+### `order_items`
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| id | bigint PK | no | |
+| order_id | FK → orders | no | ON DELETE CASCADE |
+| course_id | FK → courses | no | ON DELETE RESTRICT |
+| course_name | varchar(255) | no | snapshot at order time |
+| unit_price | decimal(10,2) | no | snapshot at order time |
+| created_at | timestamp | no | no `updated_at` |
+
+**Migration note:** No `updated_at`. Model uses `$timestamps = false` and sets `created_at` in `booted()`.
+
+```sql
+CREATE TABLE order_items (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id    BIGINT UNSIGNED NOT NULL,
+    course_id   BIGINT UNSIGNED NOT NULL,
+    course_name VARCHAR(255) NOT NULL,
+    unit_price  DECIMAL(10,2) NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_order_items_order  FOREIGN KEY (order_id)  REFERENCES orders(id)  ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE RESTRICT
+);
+```
+
+---
+
+## Altered Tables
+
+### `courses` — add `payment_gateway`
+
+```sql
+ALTER TABLE courses
+    ADD COLUMN payment_gateway VARCHAR(20) NOT NULL DEFAULT 'payuni'
+    AFTER portaly_product_id;
+```
+
+Values: `'payuni'` (default) or `'newebpay'`. Portaly courses set this to empty/ignored; the admin UI hides the selector when `portaly_product_id` is set.
+
+### `purchases` — add `order_id`
+
+```sql
+ALTER TABLE purchases
+    ADD COLUMN order_id BIGINT UNSIGNED NULL AFTER payuni_trade_no;
+
+ALTER TABLE purchases
+    ADD CONSTRAINT fk_purchases_order_id
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL;
+```
+
+---
+
+## Eloquent Models
+
+### `CartItem` (`app/Models/CartItem.php`)
+
 ```php
-protected function effectiveGateway(): Attribute
+class CartItem extends Model
 {
-    return Attribute::make(
-        get: fn () => $this->portaly_product_id ? null : ($this->payment_gateway ?? 'payuni')
-    );
+    public $timestamps = false;
+
+    protected $fillable = ['user_id', 'course_id'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (CartItem $item) {
+            $item->created_at = now();
+        });
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function scopeForUser(Builder $q, int $userId): Builder
+    {
+        return $q->where('user_id', $userId);
+    }
 }
 ```
 
-Add boolean check (Plan v2 — 統一 4 處判斷依據):
+### `Order` (`app/Models/Order.php`)
+
 ```php
-public function isCartEligible(): bool
+class Order extends Model
 {
-    return is_null($this->portaly_product_id)
-        && $this->price > 0
-        && $this->type !== 'high_ticket'
-        && $this->status === 'published';
+    protected $fillable = [
+        'user_id', 'buyer_name', 'buyer_email', 'buyer_phone',
+        'total_amount', 'currency', 'payment_gateway',
+        'merchant_order_no', 'status', 'gateway_trade_no',
+        'webhook_received_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'total_amount'        => 'decimal:2',
+            'webhook_received_at' => 'datetime',
+            'status'              => 'string',
+        ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function scopePending(Builder $q): Builder
+    {
+        return $q->where('status', 'pending');
+    }
+
+    public function scopePaid(Builder $q): Builder
+    {
+        return $q->where('status', 'paid');
+    }
+
+    public function isPaid(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->status === 'paid',
+        );
+    }
 }
 ```
 
-Add scope:
+### `OrderItem` (`app/Models/OrderItem.php`)
+
 ```php
-public function scopeCartEligible($query): void
+class OrderItem extends Model
 {
-    $query->whereNull('portaly_product_id')
-          ->where('price', '>', 0)
-          ->where('type', '!=', 'high_ticket')
-          ->where('status', 'published');
+    public $timestamps = false;
+
+    protected $fillable = ['order_id', 'course_id', 'course_name', 'unit_price'];
+
+    protected function casts(): array
+    {
+        return [
+            'unit_price' => 'decimal:2',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (OrderItem $item) {
+            $item->created_at = now();
+        });
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
 }
 ```
-
-## Updated Model: Purchase (Plan v2)
-
-Add to `$fillable`: `'order_id'`
-
-Add relationship:
-```php
-public function order(): BelongsTo
-{
-    return $this->belongsTo(Order::class);
-}
-```
-
-舊資料 NULL（Portaly、YC PayUni、system_assigned、gift），新 cart 流程設值。
 
 ---
 
-## Updated Model Relationship Map
+## Service Interfaces
 
-```
-User
-├── hasMany → CartItem (new)
-├── hasMany → Order (new)
-├── hasMany → Purchase (existing)
-...
-
-Order (new)
-├── belongsTo → User
-└── hasMany → OrderItem
-
-OrderItem (new)
-├── belongsTo → Order
-└── belongsTo → Course
-
-CartItem (new)
-├── belongsTo → User
-└── belongsTo → Course
-
-Course (updated)
-├── hasMany → CartItem (new)
-...
-```
-
----
-
-## Index Strategy
-
-| Table | Index | Reason |
-|-------|-------|--------|
-| `cart_items` | `user_id` | Load user's cart |
-| `cart_items` | `(user_id, course_id)` UNIQUE | Prevent duplicates |
-| `orders` | `gateway_trade_no` UNIQUE | Webhook lookup |
-| `orders` | `status` | Admin queries |
-| `order_items` | `order_id` | Load order contents |
-| `courses` | `payment_gateway` | (not needed — low cardinality) |
-
----
-
-## Incremental Update: 2026-05-05 — NewebPay Service Design
-
-### NewebPayService (`app/Services/NewebPayService.php`)
-
-**Constructor dependencies**:
-```php
-private string $merchantId;  // NEWEBPAY_MERCHANT_ID
-private string $hashKey;     // NEWEBPAY_HASH_KEY
-private string $hashIv;      // NEWEBPAY_HASH_IV
-private string $apiUrl;      // ccore (sandbox) or core (production)
-```
-
-**Core methods**:
+### `CartService` (`app/Services/CartService.php`)
 
 ```php
-// Build MPG form data for frontend auto-submit
-public function buildCheckoutForm(Order $order): array
-// Returns: ['action_url' => string, 'form_fields' => [...]]
-// form_fields: MerchantID, TradeInfo (AES encrypted), TradeSha (SHA256), Version=2.3
-
-// Generate unique MerchantOrderNo
-public function generateOrderNo(int $orderId): string
-// Format: YO{orderId:06d}{YmdHis}{rand4} — max 26 chars, alphanumeric+underscore
-
-// Process NotifyURL callback (server-to-server)
-public function processNotify(string $tradeInfo, string $tradeSha): array
-// Returns: ['success' => bool, 'error' => string]
-
-// Verify TradeSha signature
-private function verifyTradeSha(string $tradeInfo, string $tradeSha): bool
-// SHA256(HashKey={key}&{tradeInfo}&HashIV={iv}) uppercase
-
-// AES-256-CBC encrypt (returns hex)
-private function encrypt(string $data): string
-// openssl_encrypt($data, 'AES-256-CBC', $hashKey, OPENSSL_ZERO_PADDING, $hashIv) → bin2hex
-
-// AES-256-CBC decrypt (from hex)
-private function decrypt(string $hex): string
-// openssl_decrypt(hex2bin($hex), 'AES-256-CBC', $hashKey, OPENSSL_ZERO_PADDING, $hashIv)
-```
-
-**TradeInfo required parameters**:
-```
-MerchantID, RespondType=JSON, TimeStamp (Unix ±120s), Version=2.3,
-MerchantOrderNo, Amt (integer TWD), ItemDesc (UTF-8 ≤50 chars),
-Email, ReturnURL, NotifyURL, CREDIT=1
-```
-
-**Notification flow** (`processNotify`):
-1. Verify TradeSha — if fail: log warning, return success=true (prevent retry)
-2. Decrypt TradeInfo
-3. Check outer Status == "SUCCESS"
-4. Look up Order by `gateway_trade_no = MerchantOrderNo`
-5. Idempotency: if `order->status === 'paid'` → skip, return success=true
-6. For each OrderItem: `getOrCreateUser()` + `Purchase::create()`
-7. Update `order->status = 'paid'`
-8. Clear CartItems for paid courses
-9. Trigger DripService for drip courses (same as PayuniService)
-
-### Updated `orders` table — `gateway_trade_no` source by gateway
-
-| Gateway | Field stored in `gateway_trade_no` | Format |
-|---------|-------------------------------------|--------|
-| payuni | MerTradeNo | `YO{orderId:06d}{YmdHis}{rand4}` |
-| newebpay | MerchantOrderNo | `YO{orderId:06d}{YmdHis}{rand4}` |
-
-Same format, same prefix — webhook handlers can look up Order by this field regardless of gateway.
-
----
-
-## Incremental Update: 2026-05-05 — OrderFulfillmentService (Plan v2)
-
-### `OrderFulfillmentService` (`app/Services/OrderFulfillmentService.php`)
-
-**單一職責**：把已通過簽章驗證的 paid Order 轉換為 Purchase 記錄，並執行所有相關副作用。為兩個金流 service 共用，避免重複。
-
-**公開介面**：
-```php
-namespace App\Services;
-
-class OrderFulfillmentService
+class CartService
 {
-    public function fulfill(Order $order): array;
-    // Returns: ['success' => true, 'error' => '', 'idempotent' => bool]
+    /**
+     * Add a course to a user's cart.
+     * Idempotent: returns existing CartItem if already present.
+     */
+    public function add(int $userId, int $courseId): ?CartItem;
+
+    /**
+     * Remove a course from a user's cart.
+     *
+     * @return bool true if removed, false if not found
+     */
+    public function remove(int $userId, int $courseId): bool;
+
+    /**
+     * Get all cart items for a user with course eager-loaded.
+     *
+     * @return Collection<CartItem>
+     */
+    public function getItems(int $userId): Collection;
+
+    /**
+     * Count items in a user's cart.
+     */
+    public function count(int $userId): int;
+
+    /**
+     * Merge a guest cart (array of course_ids) into a user's cart.
+     * Skips courses already in cart or already purchased.
+     */
+    public function mergeGuestCart(int $userId, array $courseIds): void;
+
+    /**
+     * Remove specific course_ids from cart after successful payment.
+     */
+    public function clearPurchased(int $userId, array $courseIds): void;
 }
 ```
 
-**完整流程（`fulfill()` 內部）**:
-1. **冪等檢查 1**: `$order->status === 'paid'` → 直接 return `['idempotent' => true]`
-2. **DB transaction 包圍以下動作**:
-   1. eager load `items.course` 與 `user`
-   2. 對每個 OrderItem：
-      - **冪等檢查 2**: `Purchase::where(user_id, course_id, status='paid')->exists()` → skip
-      - 否則建立 Purchase（含 `order_id`、`source = $order->payment_gateway`、`payuni_trade_no` 僅 PayUni 設值）
-   3. `$order->update(['status' => 'paid'])`
-   4. 清空 cart：`CartItem::whereIn('course_id', $order->items->pluck('course_id'))->delete()`
-   5. Drip 觸發（與既有 PayuniService::processNotify 邏輯一致）：
-      - `$item->course->course_type === 'drip'` → `DripService::subscribe`
-      - 一律 `DripService::checkAndConvert($user, $course)`
-   6. `Log::info('OrderFulfillment: completed', [...])`
-3. Return `['success' => true, 'error' => '']`
+### `CheckoutService` (`app/Services/CheckoutService.php`)
 
-**呼叫者**:
-- `PayuniService::processNotify` 在 `MerTradeNo` 前綴為 `YO` 時呼叫
-- `NewebPayService::processNotify` 在簽章與 Status 驗證通過後呼叫
+```php
+class CheckoutService
+{
+    /**
+     * Create an Order + OrderItems from a cart or single-course purchase.
+     * buyer = ['name' => string, 'email' => string, 'phone' => string]
+     * Returns Order with merchant_order_no set.
+     */
+    public function createOrder(?int $userId, array $courseIds, array $buyer): Order;
 
-**為何不用 Trait**: Trait 無法乾淨地 inject `DripService` 與 `Log`；Service + DI 是 Constitution II 的標準。
+    /**
+     * Determine which payment gateway to use.
+     * Single item with newebpay course → 'newebpay'; otherwise → 'payuni'.
+     */
+    public function routeGateway(Order $order): string;
 
-**為何不用 Event/Listener**: Constitution X 明確禁止「為簡單流程引入 Event」。本邏輯為同步、結果驅動、需要 return 值給 webhook handler 用，Event 反而增加複雜度。
+    /**
+     * Called by webhook handlers on payment success.
+     * Creates Purchase records from OrderItems, sets Order.status = 'paid'.
+     *
+     * @return array<Purchase>
+     */
+    public function fulfillOrder(Order $order, string $gatewayTradeNo, string $gateway): array;
+}
+```
+
+### `NewebpayService` (`app/Services/NewebpayService.php`)
+
+```php
+class NewebpayService
+{
+    /**
+     * Reads credentials from SiteSetting first, falls back to config().
+     */
+    public function __construct();
+
+    /**
+     * Build MPG form fields for frontend POST submission.
+     *
+     * @return array{endpoint: string, fields: array{MerchantID: string, TradeInfo: string, TradeSha: string, Version: string}}
+     */
+    public function buildPaymentForm(Order $order, array $buyer): array;
+
+    /**
+     * Verify TradeSha from NotifyURL / ReturnURL.
+     */
+    public function verifyTradeSha(string $tradeSha, string $tradeInfo): bool;
+
+    /**
+     * Decrypt AES-256-CBC TradeInfo → decoded params array.
+     */
+    public function decryptTradeInfo(string $tradeInfo): array;
+}
+```
+
+---
+
+## SiteSetting Keys for Payment Credentials
+
+| Key | Fallback `config()` path |
+|-----|--------------------------|
+| `payuni_merchant_id` | `config('services.payuni.merchant_id')` |
+| `payuni_hash_key` | `config('services.payuni.hash_key')` |
+| `payuni_hash_iv` | `config('services.payuni.hash_iv')` |
+| `newebpay_merchant_id` | `config('services.newebpay.merchant_id')` |
+| `newebpay_hash_key` | `config('services.newebpay.hash_key')` |
+| `newebpay_hash_iv` | `config('services.newebpay.hash_iv')` |
+| `newebpay_env` | `config('services.newebpay.env', 'sandbox')` |
+
+SiteSetting value takes priority over `.env`. `.env` is initial default / fallback only.
+
+---
+
+## Frontend Props Schema
+
+### `Cart/Index.vue`
+
+```typescript
+interface CartProps {
+  items: CartItem[]
+  total: number
+}
+
+interface CartItem {
+  id: number            // cart_item.id
+  course: {
+    id: number
+    name: string
+    price: number
+    thumbnail: string | null
+    payment_gateway: string
+  }
+}
+```
+
+### `Checkout/Index.vue`
+
+```typescript
+interface CheckoutProps {
+  items: CartItem[]     // same CartItem shape as above
+  total: number
+  prefill: {
+    name: string | null
+    email: string | null
+    phone: string | null
+  }                     // populated from authenticated user if logged in
+}
+```
+
+### `Payment/Success.vue`
+
+```typescript
+interface PaymentSuccessProps {
+  order: {
+    merchant_order_no: string
+    buyer_name: string
+    buyer_email: string
+    buyer_phone: string
+    total_amount: string
+    payment_gateway: string
+    items: {
+      course_name: string
+      unit_price: string
+    }[]
+  }
+  isLoggedIn: boolean
+}
+```
+
+### Shared Props Addition (`HandleInertiaRequests`)
+
+```typescript
+// Added to existing shared props object
+cartCount: number   // authenticated users: server-side count; guests: 0 (badge driven by localStorage on client)
+```

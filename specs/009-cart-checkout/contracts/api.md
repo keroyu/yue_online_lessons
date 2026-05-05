@@ -1,157 +1,205 @@
-# API Contracts: 購物車結帳系統 (009-cart-checkout)
+# API Contracts: 009-cart-checkout
 
-**Branch**: `009-cart-checkout` | **Date**: 2026-05-05
+**Feature Branch**: `009-cart-checkout`
+**Created**: 2026-05-06
 
-## Route Summary
-
-### New API Routes (`routes/api.php`)
-
-| Method | Path | Controller | Auth | Description |
-|--------|------|------------|------|-------------|
-| GET | `/api/cart` | CartController@index | auth | 取得登入用戶購物車 |
-| POST | `/api/cart` | CartController@store | auth | 加入課程至購物車 |
-| DELETE | `/api/cart/{cartItem}` | CartController@destroy | auth | 移除購物車項目 |
-| POST | `/api/cart/merge` | CartController@merge | auth | 登入後合併 guest cart |
-| POST | `/api/checkout/initiate` | CheckoutController@initiate | auth | 建立 Order，回傳金流表單資料 |
-| POST | `/api/webhooks/newebpay` | NewebPayController@notify | public | 藍新背景通知（回應 "SUCCESS"） |
-
-### New Web Routes (`routes/web.php`)
-
-| Method | Path | Controller | Auth | Description |
-|--------|------|------------|------|-------------|
-| GET | `/cart` | CartController@show | — | 購物車 Inertia 頁（guest 可看） |
-| GET | `/checkout` | CheckoutController@show | auth | 結帳 Inertia 頁 |
-| POST | `/payment/newebpay/return` | NewebPayController@return | — | 藍新前台跳轉（CSRF 略過） |
-
-### Modified Existing Routes
-
-| Route | Change |
-|-------|--------|
-| `POST /payment/payuni/return` | Success redirect 改為 `/member/learning`（原為 `/member/learning`，邏輯不變但確認統一） |
-| `POST /api/payment/payuni/initiate` | 保留但廢棄（舊單一課程流程）；購物車流程改用 `/api/checkout/initiate` |
+All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 
 ---
 
-## Endpoint Specifications
+## Cart
 
-### GET /api/cart
+### `GET /cart`
 
-**Auth**: session (logged-in user only)
+**Type**: Inertia  
+**Auth**: none (public)  
+**Component**: `Cart/Index.vue`
 
-**Response 200**:
+Response props:
 ```json
 {
   "items": [
     {
-      "id": 1,
-      "course_id": 42,
+      "id": 3,
       "course": {
-        "id": 42,
-        "title": "課程名稱",
-        "display_price": 1980,
-        "cover_image_url": "https://...",
+        "id": 12,
+        "name": "Vue 3 實戰",
+        "price": 2980,
+        "thumbnail": "/storage/courses/12.jpg",
         "payment_gateway": "payuni"
-      },
-      "created_at": "2026-05-05T10:00:00Z"
+      }
     }
   ],
-  "total": 1980,
-  "count": 1
+  "total": 2980
 }
+```
+
+Note: For guests, the page renders with `items: []`; the frontend reads `localStorage.guest_cart` and displays items client-side. The server does not attempt to decode guest cart state.
+
+---
+
+### `POST /api/cart/add`
+
+**Type**: JSON API  
+**Auth**: `auth:web` (required — guest cart is client-only; this endpoint is for logged-in users)  
+**Controller**: `CartController@add`
+
+Request:
+```json
+{ "course_id": 12 }
+```
+
+Validation:
+- `course_id`: required, integer, exists in `courses`, `portaly_product_id` must be null, `price > 0`, not already purchased by `auth()->id()`, `status = published`
+
+Response `200`:
+```json
+{ "cartCount": 2 }
+```
+
+Response `409` (already in cart — idempotent):
+```json
+{ "cartCount": 2, "message": "already_in_cart" }
+```
+
+Response `422` (validation error):
+```json
+{ "message": "課程不可加入購物車", "errors": { "course_id": ["..."] } }
 ```
 
 ---
 
-### POST /api/cart
+### `DELETE /api/cart/{courseId}`
 
-**Auth**: session
+**Type**: JSON API  
+**Auth**: `auth:web`  
+**Controller**: `CartController@remove`
 
-**Request body**:
+Response `200`:
 ```json
-{ "course_id": 42 }
+{ "cartCount": 1 }
 ```
 
-**Validation**:
-- `course_id`: required, exists in courses, course must be published, not free, not high_ticket, not Portaly
+Response `404`: item not found in user's cart.
 
-**Response 200** (added or already in cart):
+---
+
+### `POST /api/cart/merge`
+
+**Type**: JSON API  
+**Auth**: `auth:web`  
+**Controller**: `CartController@merge`
+
+Called on login to merge guest cart (`localStorage.guest_cart`) into server-side cart.
+
+Request:
+```json
+{ "course_ids": [12, 15, 20] }
+```
+
+Validation: `course_ids` — array of integers, each must exist in `courses`.
+
+Behavior: For each course_id, skip if already in user's cart or already purchased by user. No error for skipped items.
+
+Response `200`:
+```json
+{ "cartCount": 3 }
+```
+
+---
+
+## Checkout
+
+### `GET /checkout`
+
+**Type**: Inertia  
+**Auth**: none (public)  
+**Component**: `Checkout/Index.vue`
+
+Query: none required. Reads cart server-side if authenticated; for guests, relies on frontend passing cart state (no server query).
+
+Response props:
 ```json
 {
-  "status": "added",   // or "already_in_cart"
-  "count": 2
+  "items": [
+    {
+      "id": 3,
+      "course": {
+        "id": 12,
+        "name": "Vue 3 實戰",
+        "price": 2980,
+        "thumbnail": "/storage/courses/12.jpg",
+        "payment_gateway": "payuni"
+      }
+    }
+  ],
+  "total": 2980,
+  "prefill": {
+    "name": "Wang Xiaoming",
+    "email": "wx@example.com",
+    "phone": "0912345678"
+  }
 }
 ```
 
-**Response 422** (already purchased):
-```json
-{ "message": "您已購買此課程" }
-```
+`prefill` is populated from `auth()->user()` if logged in; otherwise all `null`.
 
 ---
 
-### DELETE /api/cart/{cartItem}
+### `POST /api/checkout/initiate`
 
-**Auth**: session (ownership enforced: cartItem.user_id must equal auth user)
+**Type**: JSON API  
+**Auth**: none (public)  
+**Controller**: `CheckoutController@initiate`
 
-**Response 200**:
+Creates an Order snapshot and returns gateway-specific form fields for frontend auto-submit.
+
+Request:
 ```json
-{ "count": 1 }
+{
+  "buyer": {
+    "name": "Wang Xiaoming",
+    "email": "wx@example.com",
+    "phone": "0912345678"
+  },
+  "course_ids": [12],
+  "agree_terms": true
+}
 ```
 
-**Response 403**: cartItem belongs to another user
+Validation:
+- `buyer.name`: required, string, max:100
+- `buyer.email`: required, email, max:255
+- `buyer.phone`: required, string, max:20
+- `agree_terms`: required, `true`
+- `course_ids`: required, array, min:1; each must exist and be publishable/purchasable
 
----
+Behavior:
+1. Calls `CheckoutService::createOrder()` → creates `orders` + `order_items`, sets `merchant_order_no`.
+2. Calls `CheckoutService::routeGateway()` → returns `'payuni'` or `'newebpay'`.
+3. For `payuni`: calls `PayuniService::buildPaymentForm(order, buyer)` → `{endpoint, fields}`.
+4. For `newebpay`: calls `NewebpayService::buildPaymentForm(order, buyer)` → `{endpoint, fields}`.
 
-### POST /api/cart/merge
-
-**Auth**: session
-
-**Request body**:
-```json
-{ "course_ids": [42, 43, 44] }
-```
-
-**Behaviour**: For each course_id — skip if already in cart, skip if already purchased, skip if course ineligible. Silently insert the rest.
-
-**Response 200**:
-```json
-{ "merged": 2, "skipped": 1, "count": 3 }
-```
-
----
-
-### POST /api/checkout/initiate
-
-**Auth**: session
-
-**Request body**: empty (uses current server-side cart)
-
-**Behaviour**:
-1. Load user's CartItems with courses (eager load)
-2. Validate: at least 1 item, all courses published, all use same payment_gateway
-3. Create `Order` (status: pending) with `OrderItems` (price = course.display_price at this moment)
-4. Call `PayuniService::buildCheckoutForm($order)` or `NewebPayService::buildCheckoutForm($order)`
-5. Return form data
-
-**Response 200 (PayUni)**:
+Response `200`:
 ```json
 {
   "gateway": "payuni",
-  "action_url": "https://sandbox-api.payuni.com.tw/api/upp",
-  "form_fields": {
+  "endpoint": "https://api.payuni.com.tw/api/upp",
+  "fields": {
     "MerID": "...",
+    "Version": "1.0",
     "EncryptInfo": "...",
     "HashInfo": "..."
   }
 }
 ```
 
-**Response 200 (NewebPay)**:
+Or for newebpay:
 ```json
 {
   "gateway": "newebpay",
-  "action_url": "https://ccore.newebpay.com/MPG/mpg_gateway",
-  "form_fields": {
+  "endpoint": "https://ccore.newebpay.com/MPG/mpg_gateway",
+  "fields": {
     "MerchantID": "...",
     "TradeInfo": "...",
     "TradeSha": "...",
@@ -160,79 +208,191 @@
 }
 ```
 
-**Response 422**:
+Response `422`: validation errors.  
+Response `409`: a course in `course_ids` has already been purchased by this email (detected after `getOrCreateUser`). Body: `{ "message": "已購買的課程無法重複購買", "courses": [12] }`.
+
+---
+
+## Payment Webhooks
+
+### `POST /api/webhooks/payuni`
+
+**Type**: Webhook (JSON API)  
+**Auth**: none (CSRF exempt, verified via `HashInfo`)  
+**Controller**: `PayuniController@notify`
+
+Receives PayUni background notification. Controller delegates to `PayuniService::processNotify()`.
+
+New Order-based path (MerTradeNo starts with `ord_`):
+1. Verify `HashInfo` — if invalid, log warning, return `1|OK`.
+2. Decrypt `EncryptInfo`.
+3. Check `Status = 'SUCCESS'` and `TradeStatus = 1` — otherwise return `1|OK`.
+4. Look up `Order` by `merchant_order_no = MerTradeNo`.
+5. If `Order.status = 'paid'` (idempotency Layer 1) → return `1|OK`.
+6. Call `CheckoutService::fulfillOrder(order, tradeNo, 'payuni')`.
+7. Return `1|OK`.
+
+Legacy path (MerTradeNo starts with `YC`): preserved as-is.
+
+Response: always `200 1|OK`.
+
+---
+
+### `POST /payment/payuni/return`
+
+**Type**: Browser POST (Inertia redirect)  
+**Auth**: none  
+**Controller**: `PayuniController@return`
+
+Receives PayUni ReturnURL form POST (after user returns from payment page).
+
+Behavior:
+- Decrypt and check `TradeStatus`.
+- If success: redirect to `/payment/success?order={merchant_order_no}`.
+- If failure/cancel: redirect to `/cart` with flash `payment_failed`.
+
+---
+
+### `POST /api/webhooks/newebpay`
+
+**Type**: Webhook (JSON API)  
+**Auth**: none (CSRF exempt, verified via `TradeSha`)  
+**Controller**: `NewebpayController@notify`
+
+Receives NewebPay background notification.
+
+1. Verify `TradeSha` (see R-001 formula) — if invalid, log error, return `SUCCESS` (NewebPay requires this to stop retries).
+2. Decrypt `TradeInfo` (AES-256-CBC).
+3. Check `Status = 'SUCCESS'` — otherwise return `SUCCESS`.
+4. Look up `Order` by `merchant_order_no = MerchantOrderNo`.
+5. If `Order.status = 'paid'` (idempotency Layer 1) → return `SUCCESS`.
+6. Call `CheckoutService::fulfillOrder(order, tradeNo, 'newebpay')`.
+7. Return `SUCCESS`.
+
+Response: always `200 SUCCESS` (plain text, no Content-Type override).
+
+---
+
+### `POST /payment/newebpay/return`
+
+**Type**: Browser POST (Inertia redirect)  
+**Auth**: none  
+**Controller**: `NewebpayController@return`
+
+Receives NewebPay ReturnURL form POST.
+
+Behavior:
+- Decrypt `TradeInfo`.
+- If `Status = 'SUCCESS'`: redirect to `/payment/success?order={merchant_order_no}`.
+- If failure/cancel: redirect to `/cart` with flash `payment_failed`.
+
+---
+
+## Payment Success
+
+### `GET /payment/success`
+
+**Type**: Inertia  
+**Auth**: none (public)  
+**Component**: `Payment/Success.vue`
+
+Query param: `order` = `merchant_order_no` (e.g., `ord_42_250506`)
+
+Behavior: Look up `Order` with `order_items` by `merchant_order_no`. If not found or `status != 'paid'`, abort 404.
+
+Response props:
 ```json
-{ "message": "購物車是空的" }
-// or
-{ "message": "購物車中有無法結帳的課程，已自動移除" }
+{
+  "order": {
+    "merchant_order_no": "ord_42_250506",
+    "buyer_name": "Wang Xiaoming",
+    "buyer_email": "wx@example.com",
+    "buyer_phone": "0912345678",
+    "total_amount": "2980.00",
+    "payment_gateway": "payuni",
+    "items": [
+      { "course_name": "Vue 3 實戰", "unit_price": "2980.00" }
+    ]
+  },
+  "isLoggedIn": true
+}
 ```
 
 ---
 
-### POST /api/webhooks/newebpay (NotifyURL)
+## Admin: Course Payment Gateway
 
-**Auth**: none (public, signature verified internally)
+### `GET /admin/courses/{course}/edit`
 
-**Request**: `application/x-www-form-urlencoded`
+Existing route. Response props extended to include:
+
+```json
+{
+  "course": {
+    "payment_gateway": "payuni"
+  }
+}
 ```
-Status=SUCCESS&MerchantID=...&TradeInfo={AES encrypted}&TradeSha={SHA256}&Version=2.0
+
+The Vue component (`CourseForm.vue`) renders a `<select>` for `payment_gateway` (options: `payuni`, `newebpay`) that is hidden/cleared when `portaly_product_id` is non-empty.
+
+### `PUT /admin/courses/{course}`
+
+Existing route. `payment_gateway` added to validated fields:
+- `payment_gateway`: in `['payuni', 'newebpay']`; required unless `portaly_product_id` is present.
+
+---
+
+## Admin: Payment Credentials Settings
+
+### `GET /admin/settings/payment`
+
+**Type**: Inertia  
+**Auth**: `auth:web` + `role:admin`  
+**Component**: `Admin/Settings/Payment.vue`
+
+Response props:
+```json
+{
+  "payuni": {
+    "merchant_id": "M00001",
+    "hash_key": "",
+    "hash_iv": ""
+  },
+  "newebpay": {
+    "merchant_id": "MS1234567890",
+    "hash_key": "",
+    "hash_iv": "",
+    "env": "sandbox"
+  }
+}
 ```
 
-**Behaviour**:
-1. Verify TradeSha (SHA256 of `HashKey={key}&{TradeInfo}&HashIV={iv}`)
-2. Decrypt TradeInfo (AES-256-CBC)
-3. If Status == "SUCCESS": look up Order by `MerchantOrderNo`, mark `paid`, create Purchase records per OrderItem
-4. Remove paid CourseIds from user's CartItems
-
-**Response**: Plain text `"SUCCESS"` with 200 (藍新要求)
+**Note**: `hash_key` and `hash_iv` are returned as empty strings (never exposed in response per FR-022). The UI shows `<input type="password">` with placeholder "已儲存，輸入新值以更新".
 
 ---
 
-### POST /payment/newebpay/return (ReturnURL)
+### `POST /admin/settings/payment`
 
-**Web route**, CSRF excluded
+**Type**: JSON / Inertia form  
+**Auth**: `auth:web` + `role:admin`  
+**Controller**: `Admin\SettingsController@updatePayment`
 
-**Behaviour**: Same pattern as `PayuniController@return`:
-- Verify & decrypt payload
-- If success: redirect `/member/learning` with success flash
-- If failure: redirect `/cart` with error flash ("付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com")
+Request:
+```json
+{
+  "payuni_merchant_id": "M00001",
+  "payuni_hash_key": "...",
+  "payuni_hash_iv": "...",
+  "newebpay_merchant_id": "MS1234567890",
+  "newebpay_hash_key": "...",
+  "newebpay_hash_iv": "...",
+  "newebpay_env": "sandbox"
+}
+```
 
----
+Validation: all fields required. `newebpay_env` in `['sandbox', 'production']`.
 
-## Inertia Pages
+Behavior: For each field, call `SiteSetting::set(key, value)` only if value is non-empty (blank input = keep existing). Blank hash_key/hash_iv fields are skipped (merchant changed MerchantID without rotating keys).
 
-### GET /cart → `Pages/Cart/Index.vue`
-
-**Props (from CartController@show)**:
-- `items`: array of cart items (server-side for logged-in; empty array for guest — guest reads localStorage client-side)
-- `total`: integer (server-side total; 0 for guest)
-
-Note: flash is injected automatically via `HandleInertiaRequests` shared props — do NOT manually pass `session('flash')` in this controller.
-
-**Guest behaviour**: Vue component reads localStorage and displays guest cart; shows "登入後結帳" button.
-
-**Page behaviour**: On mount, fire `fbq('track', 'InitiateCheckout', { value: total, currency: 'TWD', num_items: items.length })` — this is the canonical trigger point per spec US3-AS1 ("用戶進入購物車頁").
-
----
-
-### GET /checkout → `Pages/Checkout/Index.vue`
-
-**Middleware**: auth
-
-**Props**:
-- `items`: cart items with course data
-- `total`: integer
-
-**Page behaviour**:
-1. Display order summary
-2. "前往付款" button: POST `/api/checkout/initiate` → receive `{ gateway, action_url, form_fields }` → auto-submit hidden form to `action_url` (each key in `form_fields` becomes a hidden input)
-
----
-
-## Meta Pixel Events
-
-| Event | Trigger | Data |
-|-------|---------|------|
-| `AddToCart` | `POST /api/cart` succeeds | `{ content_ids: [course_id], value: display_price, currency: 'TWD' }` |
-| `InitiateCheckout` | `/cart` page mounted (spec US3-AS1) | `{ num_items, value: total, currency: 'TWD' }` |
-| `Purchase` | PayUni 或藍新付款成功返回頁 | `{ value: order.total_amount, currency: 'TWD' }` |
+Response: redirect back with flash success.

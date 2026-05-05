@@ -1,143 +1,188 @@
-# Research: 購物車結帳系統 (009-cart-checkout)
+# Research: 009-cart-checkout
 
-**Date**: 2026-05-05
-**Branch**: `009-cart-checkout`
+**Feature Branch**: `009-cart-checkout`
+**Created**: 2026-05-06
+**Status**: Final
 
-## Decision Log
-
-### D-001: Guest Cart Storage
-- **Decision**: localStorage (client-side JSON array of course_ids)
-- **Rationale**: Constitution III explicitly permits localStorage for ephemeral client-side features. Guest cart is ephemeral by nature — it only exists to reduce friction before login. No server resource needed.
-- **Alternatives considered**: Server-side session cart (would require guest session tracking); cookie-based cart (less ergonomic, size limits)
-- **Merge on login**: `POST /api/cart/merge { course_ids: [] }` — server validates each course (published, not already owned, not duplicate), then bulk-inserts CartItems.
-
-### D-002: Multi-Course PayUni Order Model
-- **Decision**: One PayUni transaction per checkout (total amount of all cart items). Order entity created server-side before redirect; webhook looks up Order to create Purchase records.
-- **Rationale**: User confirmed: all non-Portaly courses route through a checkout page that sums the total and sends one PayUni request. Matches existing `display_price` → `Amt` pattern.
-- **Alternatives considered**: One PayUni transaction per course (rejected — requires multiple redirects, poor UX); no Order entity (rejected — webhook would have no way to know which courses to unlock).
-
-### D-003: Price Snapshot Policy
-- **Decision**: CartItem does NOT store price. OrderItem stores price at checkout moment (not add-to-cart moment).
-- **Rationale**: User confirmed — the platform has no obligation to hold a price just because a user added to cart. The price locked at checkout time is the price sent to PayUni, which is sufficient.
-- **Implication**: OrderItem.price = course.display_price at the moment `POST /api/checkout/initiate` is called.
-
-### D-004: Payment Failure Redirect
-- **Decision**: Both PayUni and NewebPay failure/cancel → redirect to `/cart` with flash message "付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com".
-- **Rationale**: User confirmed. Cart content is preserved (Order is not deleted — stays in `failed` status; CartItems remain untouched).
-
-### D-005: Cart Authorization
-- **Decision**: All server-side cart operations use `auth()->id()` from session. No `user_id` accepted from request body. Guest operations are client-side only.
-- **Rationale**: User confirmed. Prevents IDOR attacks.
-
-### D-006: Payment Gateway Routing
-- **Decision**: `CheckoutService` reads `course.payment_gateway` and dispatches to `PayuniService` or `NewebPayService`. Frontend only calls `POST /api/checkout/initiate`.
-- **Rationale**: Frontend should be gateway-agnostic. All cart items for a single checkout must share the same gateway (validated server-side: if cart has mixed gateways, reject — edge case, unlikely in practice since each course has one gateway).
-- **Constraint for MVP**: Only PayUni implemented. NewebPay service stub created but not wired.
-
-### D-007: NewebPay Architecture Compatibility
-- **Decision**: NewebPay uses same redirect model as PayUni. No architecture changes needed — add `NewebPayService`, `NewebPayController`, two new routes.
-- **Key differences from PayUni**:
-  - Encryption: AES-256-CBC (OPENSSL_ZERO_PADDING, hex output) + SHA256 TradeSha
-  - Form POST target: `https://ccore.newebpay.com/MPG/mpg_gateway` (test) / `https://core.newebpay.com/MPG/mpg_gateway` (prod)
-  - NotifyURL must respond string `"SUCCESS"` (not `1|OK` like PayUni)
-  - ReturnURL receives POST (same as PayUni)
-  - Required env vars: `NEWEBPAY_MERCHANT_ID`, `NEWEBPAY_HASH_KEY`, `NEWEBPAY_HASH_IV`
-  - Order number: alphanumeric + underscore, max 30 chars, must be unique
-
-### D-008: Route Design
-- **Decision**: Follow existing `/api/payment/{gateway}/` + `/api/webhooks/{gateway}` + `/payment/{gateway}/return` pattern.
-  - Checkout initiation: single gateway-agnostic `POST /api/checkout/initiate`
-  - Webhooks and return URLs remain gateway-specific (different encryption, different response format)
-- **Rationale**: Matches existing codebase conventions exactly. No dynamic dispatch needed.
-
-### D-009: Service Boundaries
-- **Decision**: `CheckoutService` is required (spans CartItem, Order, OrderItem, external gateway call). `CartController` handles simple CRUD directly without a Service.
-- **Rationale**: Constitution II mandates a Service when operation spans 2+ models or involves external I/O. Cart add/remove is single-model CRUD. Merge is borderline but simple enough for controller.
-
-### D-010: Post-Purchase Redirect
-- **Decision**: Payment success → redirect to `/member/learning` (existing "我的課程" page).
-- **Rationale**: User confirmed. This page is already auth-gated. User is always logged in at this point (login is required before checkout).
+This document records all design decisions reached through spec clarification sessions, analysis of existing code (PayuniService, SiteSetting, purchases schema), and the NewebPay PDF integration manual (NDNF-1.2.2).
 
 ---
 
-## Open Questions (Deferred to Implementation)
+## R-001: NewebPay AES-256-CBC Encryption
 
-- **Mixed-gateway cart**: What if a user somehow has courses from different gateways in the cart? Server should validate all cart items use the same `payment_gateway` before checkout; show user-friendly error if mixed. Implementation detail.
-- **NewebPay order number format**: Must be ≤ 30 chars alphanumeric+underscore. Use format `ORDER_{order_id}_{timestamp_last6}` — ensure uniqueness.
-- **PayUni existing `initiate` endpoint**: Deprecated in favor of new checkout flow. Keep route for now (may be used by Portaly-adjacent code). Can be removed in a future cleanup.
+**Decision**: Implement NewebPay MPG payment using AES-256-CBC encryption for TradeInfo and SHA-256 for TradeSha, with a separate `NewebpayService` class. Test endpoint: `https://ccore.newebpay.com/MPG/mpg_gateway`; production endpoint: `https://core.newebpay.com/MPG/mpg_gateway`.
 
----
+**Rationale**:
+- The NewebPay manual (NDNF-1.2.2) mandates AES-256-CBC with CBC mode, raw binary output, and hex encoding. The exact encrypt call is `bin2hex(openssl_encrypt(http_build_query($params), 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv))`.
+- TradeSha must be `strtoupper(hash('sha256', "HashKey={$key}&{$tradeInfo}&HashIV={$iv}"))` — uppercase SHA-256 wrapping the AES hex string.
+- Outer POST fields sent to MPG endpoint: `MerchantID`, `TradeInfo` (AES hex), `TradeSha` (SHA-256 uppercase), `Version="2.3"`. These match the form-post model used by PayUni and fit the same blade-based redirect pattern.
+- Decrypt (for NotifyURL webhook): `openssl_decrypt(hex2bin($tradeInfo), 'AES-256-CBC', $key, OPENSSL_RAW_DATA|OPENSSL_ZERO_PADDING, $iv)` followed by manual PKCS7 padding strip, because NewebPay does not strip padding automatically.
+- NotifyURL MUST return the plain string `"SUCCESS"` (not JSON); the controller must `return response('SUCCESS')` with no Content-Type override. Any other response causes NewebPay to retry.
+- ReturnURL receives the same encrypted POST payload, so `ReturnController` reuses the same decrypt helper.
+- Decided in spec session 2026-05-05: NewebPay is fully implemented in this version, not deferred.
 
-## Incremental Update: 2026-05-05 — NewebPay Promoted to Full Implementation
-
-### D-011: NewebPay Scope Change
-- **Decision**: NewebPay (藍新金流) is now fully implemented in this version (not deferred).
-- **Rationale**: User requested full implementation alongside PayUni.
-- **Impact on prior decisions**:
-  - D-007 updated: NewebPayService is fully implemented, not a skeleton
-  - D-006 updated: CheckoutService routes to both PayuniService AND NewebPayService in this version
-
-### D-012: Mixed-Gateway Cart Handling
-- **Decision**: If cart contains courses with different payment_gateway values (payuni + newebpay), system blocks checkout and prompts user to resolve the conflict. No automatic cart splitting.
-- **Rationale**: Simplest correct behavior. Cart splitting would require two separate Order records and two payment flows — over-engineered for current scale.
-- **Alternatives considered**: Auto-split cart (rejected — complex UX, double checkout redirects); allow mixed gateway with one gateway taking priority (rejected — confusing for merchant reconciliation).
-
-### D-013: NewebPay MerchantOrderNo Format
-- **Decision**: Use `YO{orderId:06d}{YmdHis}{rand4}` format (same prefix as PayUni Order-based trades).
-- **Rationale**: Consistent format across gateways. `YO` prefix distinguishes Order-based flow from legacy `YC` single-course PayUni flow. Max 30 chars — `YO` + 6 + 14 + 4 = 26 chars ✓.
-- **Idempotency**: Orders table `gateway_trade_no` unique constraint prevents duplicate processing.
-
-### D-014: NewebPayService — Supported Payment Methods (MVP)
-- **Decision**: Enable credit card (CREDIT=1) only for MVP. LINE Pay, ATM, convenience store are supported by NewebPay but not enabled in initial integration.
-- **Rationale**: Simplest viable integration. Other methods can be enabled via config without code changes.
-- **Future**: Add `LINEPAY`, `VACC`, `CVS` flags to NewebPayService config when merchant account supports them.
-
-### D-015: NewebPay Buyer Info Source
-- **Decision**: NewebPay NotifyURL payload includes buyer email in TradeInfo after decryption (unlike PayUni which omits it). No Cache needed for buyer lookup — use `Order → user → email`.
-- **Rationale**: NewebPay MPG includes `Email` in the encrypted TradeInfo. The Order record also has `user_id` linking to the user. Either source is reliable; use Order's user as primary, TradeInfo email as fallback.
+**Alternatives considered**:
+- **AES-256-GCM** (used by PayuniService): Not applicable — NewebPay mandates CBC mode per official spec. Cannot reuse PayuniService crypto logic.
+- **Symmetric JSON response for NotifyURL**: Rejected. NewebPay requires the literal string `SUCCESS`; JSON would cause retry loops.
+- **Shared encryption service**: Considered merging AES logic into a single `CryptoService`. Rejected (YAGNI) — the two gateways use different modes (GCM vs CBC), different padding requirements, and different hash schemes; sharing would add complexity without benefit.
 
 ---
 
-## Incremental Update: 2026-05-05 — Maintainability Optimizations (Plan v2)
+## R-002: PayuniService Refactoring Strategy
 
-### D-016: 抽出 `OrderFulfillmentService` 統一兩金流的履約邏輯
-- **Decision**: 新增 `App\Services\OrderFulfillmentService::fulfill(Order $order)`，由 `PayuniService::processNotify`（YO 分支）與 `NewebPayService::processNotify` 共同呼叫。
-- **Rationale**:
-  1. 兩個 caller 會做完全相同的 7 件事（建 Purchase / 清 cart / Drip subscribe / Drip convert / Order 狀態更新 / 雙層冪等檢查 / log）— 若不抽出將產生大量重複。
-  2. Constitution II 明確規定「跨 2+ models 或多步驟 workflow MUST 抽 Service」，本邏輯涵蓋 Order/OrderItem/Purchase/CartItem/User + DripService 副作用，符合門檻。
-  3. Constitution X (YAGNI)：抽出時機是「已有兩個 caller」，並非預先抽象，符合 YAGNI 原則。
-- **Alternatives considered**:
-  - Trait（被否決：trait 無法正確管理依賴注入 DripService）
-  - 各自重複（被否決：30+ 行邏輯複製，違反 DRY）
-  - 在 PayuniService 內呼叫共用，NewebPayService 透過 PayuniService 呼叫（被否決：服務間反向依賴破壞 Constitution A9 依賴方向）
+**Decision**: Extend the existing `PayuniService` to support the new Order-based flow while preserving backward compatibility for legacy single-course purchases.
 
-### D-017: 前端引入 `useCart()` composable
-- **Decision**: 新增 `resources/js/composables/useCart.js`，作為 4 個元件（Navigation、Course/Show、Cart/Index、Checkout/Index）的唯一購物車狀態與操作入口；統一觸發 Meta Pixel `AddToCart`。
-- **Rationale**:
-  1. 4 個使用點若分別實作 → guest/server 切換邏輯與 fbq 觸發都會在 4 處重複，維護災難。
-  2. composable 是 Vue 3 idiomatic pattern（非新依賴），不違反 Constitution III「不引入 Vuex/Pinia」。
-  3. 集中 Meta Pixel 觸發點 → 避免漏觸發導致行銷數據失準（grep 可直接驗證 `fbq.*AddToCart` 只出現在此檔）。
-- **Alternatives considered**:
-  - 4 處各自實作（被否決：重複 + 漏觸發風險）
-  - 引入 Pinia（被否決：違反 Constitution III + YAGNI，無需 store 級狀態）
-  - 放在 mixin（被否決：Vue 3 已不推薦 mixin，Composition API 是慣例）
+Concrete changes:
+- New MerTradeNo format for Orders: `ord_{order_id}_{YYMMdd}` (e.g., `ord_42_260506`), replacing the legacy `YC{courseId:4}{datetime}{rand4}` encoding.
+- Order snapshot (`orders.buyer_*` columns + `order_items` rows) stores buyer data, eliminating the Cache-based buyer lookup used in the old flow.
+- `processNotify()` now checks MerTradeNo prefix: if it starts with `ord_`, look up Order by `merchant_order_no`; otherwise fall through to legacy `parseCourseId()` path.
+- Per-webhook result creates one `Purchase` record per `OrderItem` (not one per webhook call).
+- Legacy `parseCourseId()` method is retained, not removed.
 
-### D-018: `purchases.order_id` 可空 FK（反查欄位）
-- **Decision**: 新增 migration `add_order_id_to_purchases_table`，欄位為 nullable `unsignedBigInteger` + FK references `orders(id) onDelete restrict`。
-- **Rationale**:
-  1. 新流程（YO Order）建立的 Purchase 可反查 Order；舊流程（YC、Portaly、system_assigned、gift）保持 NULL，零影響。
-  2. 退費/客服查詢場景需要從 Purchase 一鍵跳到 Order 看完整快照，否則只能用 `payuni_trade_no` 字串比對。
-  3. 成本：1 個 migration、1 個 fillable 欄位、1 個 BelongsTo 關係 — 極低；維護價值高。
-- **Alternatives considered**:
-  - 不加（被否決：未來退費功能會被迫追加，現在加成本最低）
-  - 用 `payuni_trade_no` LIKE 字串比對（被否決：藍新課程不會寫入此欄位，無法統一查詢）
+**Rationale**:
+- The old `parseCourseId()` approach was a workaround because PayUni notify does not include buyer email. With Orders, buyer data is already persisted before payment; no Cache needed.
+- Keeping the legacy path allows existing purchases (created before this version) to remain valid without a data migration.
+- `ord_` prefix gives `processNotify` an unambiguous branch signal with zero regex overhead.
+- The existing `payuni_trade_no` UNIQUE column on `purchases` continues to serve as DB-level idempotency for old single-course purchases. New purchases under the Order flow rely on Order.status='paid' as the primary gate (see R-005).
 
-### D-019: `Course::isCartEligible()` 模型布林方法
-- **Decision**: 在 `Course` model 新增 `isCartEligible(): bool` 方法，回傳是否可加入購物車的單一判斷依據。
-- **Rationale**:
-  1. 條件「非 Portaly + price > 0 + type !== high_ticket + status === published」會在 4 處用到：前端 Course/Show.vue 按鈕邏輯、`POST /api/cart` 驗證、`CheckoutService::initiate` 驗證、`scopeCartEligible` query scope。
-  2. 集中於 model 方法 → 條件變更時僅一處修改。
-  3. Constitution IV 明示「`is{Condition}()` 為布林檢查的命名慣例」，與既有 `isAdmin()`、`isExpired()` 一致。
-- **Alternatives considered**:
-  - 各處 inline 條件（被否決：4 處重複，條件變更易遺漏）
-  - 只用 scope（被否決：scope 是 query，前端 prop 用不到）
+**Alternatives considered**:
+- **Write a new `PayuniOrderService`**: Would avoid modifying existing service but creates two parallel services that share most code. Rejected — duplication outweighs isolation benefit.
+- **Encode order_id into the same `YC...` format**: Rejected — order IDs can exceed 4 digits; the format is brittle and not readable.
+- **Drop legacy path entirely and migrate old purchases**: Rejected — migration risk with no user benefit. Old purchases are already paid and complete.
+
+---
+
+## R-003: Guest Cart localStorage vs Session
+
+**Decision**: Guest cart uses `localStorage` with key `guest_cart` storing a JSON array of `{id, name, price, thumbnail}` objects. This is a **documented exception** to Constitution III ("localStorage: Used ONLY for ephemeral client-side features. Never for business state.").
+
+**Rationale**:
+- Guest cart is intentionally pre-authentication state. It is ephemeral by design: cleared on login (after merge) and cleared after successful payment.
+- PHP session alternative requires a session write on every anonymous page load, adding DB/file I/O for all visitors even if they never buy.
+- Industry-standard pattern (Shopify, WooCommerce, most e-commerce platforms) uses client-side storage for guest cart specifically because it is meant to be transient and user-owned.
+- The data stored is non-sensitive (public course metadata already visible on the page). Loss of this state (browser clear, private mode close) is acceptable and expected.
+- Merge-on-login (`POST /cart/merge`) converts guest cart to server-side state the moment authentication is established, so business logic runs server-side from that point forward.
+
+Exception documented in `plan.md` Complexity Tracking section per Constitution III protocol.
+
+**Alternatives considered**:
+- **PHP Session (file-based)**: Adds write-on-every-request overhead for anonymous users. Session ID must be sent in cookie, which has GDPR implications. No practical advantage over localStorage for this use case.
+- **Server-side anonymous cart with a random token**: More robust (survives browser close), but requires issuing and tracking anonymous tokens, adds a DB table or cache entry per visitor. Over-engineered for a platform where anonymous browsing converts to purchase in the same session the vast majority of the time.
+- **No guest cart (force login before add-to-cart)**: Rejected in spec clarification — the explicit requirement is that the entire purchase flow works without login.
+
+---
+
+## R-004: Payment Gateway Credentials in SiteSetting
+
+**Decision**: Payment gateway credentials (MerchantID, HashKey, HashIV) for both PayUni and NewebPay are stored in the existing `site_settings` DB table using key prefixes `payuni_merchant_id`, `payuni_hash_key`, `payuni_hash_iv`, `newebpay_merchant_id`, `newebpay_hash_key`, `newebpay_hash_iv`. Services read via `SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key'))` — DB value takes priority, `.env` is fallback. Admin UI uses `<input type="password">` for key/IV fields (FR-022) but transmits plaintext to the server.
+
+**Rationale**:
+- Decided in spec session 2026-05-06: credentials MUST be configurable via admin UI, not locked to `.env`.
+- `SiteSetting` already has `get(key, default)` and `set(key, value)` helpers; zero new infrastructure needed.
+- Fallback to `config('services.payuni.*')` (which reads `.env`) preserves zero-downtime deployment: existing `.env` values continue to work until overridden via UI.
+- No at-rest encryption of stored credentials: the `site_settings` table is admin-only (middleware-protected), consistent with how other sensitive settings (e.g., API keys for social links) are stored in this project. Adding encryption would require key management infrastructure (Constitution X: YAGNI).
+
+**Alternatives considered**:
+- **Keep credentials in `.env` only**: Rejected per explicit spec decision. Requires server SSH access to rotate keys; not suitable for an admin-managed platform.
+- **Separate `payment_credentials` DB table with at-rest encryption**: More secure, but requires Laravel `encryptUsing` setup or a vault integration. Over-engineered for the current threat model (admin panel is already behind auth + role check). Deferred to a future security hardening pass.
+- **Laravel `config/services.php` with cache-clearing on save**: Would work but bypasses the existing `SiteSetting` pattern and requires `artisan config:clear` on every credential update. Rejected for operational complexity.
+
+---
+
+## R-005: Webhook Idempotency Design (Two-Layer)
+
+**Decision**: Implement two-layer idempotency for payment webhook processing.
+
+- **Layer 1 (Order-level gate)**: At webhook entry, check `Order::where('merchant_order_no', $merTradeNo)->where('status', 'paid')->exists()`. If true, return success immediately without processing. This is the primary idempotency gate and prevents duplicate purchase creation on retry.
+- **Layer 2 (DB constraint)**: The `UNIQUE(user_id, course_id)` constraint on the `purchases` table (established in feature 006) catches any race condition that bypasses Layer 1 (e.g., simultaneous webhook retries). Handle with `updateOrCreate` or `try/catch QueryException` rather than letting it surface as a 500.
+
+**Rationale**:
+- Spec constraint SC-009 explicitly requires idempotent webhook handling.
+- Payment gateways (both PayUni and NewebPay) may send duplicate notify calls on timeout or when the merchant endpoint is slow. A single DB constraint check is insufficient because between the check and the INSERT there is a window where two concurrent webhook calls both pass the check.
+- The two-layer approach provides defense in depth: Layer 1 is a fast path exit for normal retries; Layer 2 is a fallback for the race condition window.
+- For NewebPay specifically: NotifyURL must return `"SUCCESS"` even for duplicate notifications (the gateway does not distinguish). Returning success on already-paid orders is therefore the correct behavior, not an error.
+- `Order.status='paid'` is the canonical truth for the new flow; `payuni_trade_no` UNIQUE on purchases remains the canonical truth for legacy single-course purchases.
+
+**Alternatives considered**:
+- **DB-constraint only (no Order status check)**: Insufficient alone — would throw `QueryException` on duplicate, requiring catch in every caller. Centralizing at the Order level is cleaner.
+- **Redis/Cache lock**: Would prevent the race but adds an infrastructure dependency (Redis) not currently used in this project. The DB-constraint fallback is sufficient and already present.
+- **Idempotency key in request header**: Not supported by NewebPay or PayUni — gateways do not send idempotency tokens. Must be inferred from MerTradeNo/MerchantOrderNo.
+
+---
+
+## R-006: Purchase Fields Mapping
+
+**Decision**: When webhook processing creates `Purchase` records from an Order, populate fields as follows (derived from analysis of the 006 `purchases` schema and `PayuniService::createPurchase()`):
+
+| Field | Value | Source |
+|---|---|---|
+| `user_id` | Order owner (find-or-created user) | Order |
+| `course_id` | Per OrderItem | OrderItem |
+| `buyer_email` | Order.buyer_email | Order |
+| `amount` | OrderItem.unit_price | OrderItem |
+| `currency` | `'TWD'` | Hard-coded |
+| `status` | `'paid'` | Constant |
+| `type` | `'paid'` | Constant |
+| `source` | `'payuni'` or `'newebpay'` | CheckoutService routing |
+| `webhook_received_at` | `now()` | Runtime |
+| `order_id` | FK to orders table | Order (new column) |
+| `payuni_trade_no` | PayUni ATM trade no (PayUni only) | Webhook payload |
+
+After each purchase record is created, call `DripService::checkAndConvert($purchase)` — this is the existing pattern in `PayuniService` and must be preserved for drip email enrollment.
+
+**Rationale**:
+- The `source` field is critical for the 006 transaction admin view, which filters by gateway. Without it, admins cannot distinguish PayUni from NewebPay revenue in the dashboard.
+- `order_id` FK links purchase back to the order for refund and audit workflows.
+- `payuni_trade_no` is left null for NewebPay purchases (no equivalent field in NewebPay payload); the UNIQUE constraint on this column is nullable-safe.
+- `webhook_received_at` is already expected by the 006 transaction admin — must not be omitted.
+- `DripService::checkAndConvert` call is non-optional: drip campaigns depend on purchase creation events. Omitting it would silently break email automation.
+
+**Alternatives considered**:
+- **Single Purchase per Order (not per OrderItem)**: Would break the 006 dashboard and classroom access checks, which operate at the `(user_id, course_id)` level. Rejected.
+- **Store gateway name in a new `gateway` column**: The existing `source` column already serves this purpose per 006 schema analysis. Adding a redundant column would require a migration with no benefit.
+- **Skip `DripService` call for cart purchases**: Rejected — drip logic must apply regardless of purchase path. Inconsistent automation would be a regression.
+
+---
+
+## R-007: CheckoutService Gateway Routing
+
+**Decision**: Implement gateway routing in `CheckoutService::routeToGateway()` with the following rule:
+
+- **Single item + `course.payment_gateway = 'newebpay'`** → `NewebpayService`
+- **All other cases** (single item with `payment_gateway = 'payuni'`, or multiple items regardless of gateway) → `PayuniService`
+
+MerchantOrderNo / MerTradeNo format: `ord_{order_id}_{YYMMdd}` for both gateways. Example: `ord_42_260506` (15 chars, safely under NewebPay's 30-char limit and PayUni's 20-char limit).
+
+**Rationale**:
+- Decided in spec session 2026-05-06: multi-item carts always use PayUni because NewebPay MPG requires a single amount with no line-item breakdown API suitable for mixed-gateway items.
+- Portaly courses are excluded from the cart at the entry layer (`courses.portaly_product_id IS NOT NULL` → no "Add to Cart" button rendered). There is no mixed-cart conflict to handle.
+- Consistent `ord_` format across both gateways means `processNotify` can identify the Order by MerTradeNo regardless of which gateway called back, with a single DB lookup.
+- The `_YYMMdd` suffix prevents collision if an order is somehow retried on a different day (though Order IDs are already globally unique; the suffix is defensive).
+
+**Alternatives considered**:
+- **Always use PayUni**: Simpler routing, but fails the explicit business requirement that some courses must use NewebPay.
+- **Let the merchant choose gateway per order regardless of item count**: Would require multi-currency / multi-gateway splitting logic in a single PayUni request, which PayUni does not support for a single MerTradeNo. Rejected.
+- **Separate MerTradeNo format per gateway**: Would require gateway detection in `processNotify` before the DB lookup. The unified `ord_` prefix allows a single lookup regardless of gateway. Rejected.
+
+---
+
+## R-008: Frontend Cart State Architecture
+
+**Decision**: Implement a dual-state cart architecture:
+
+- **Server-side (authenticated users)**: `cart_items` table with `(user_id, course_id)` unique constraint. Loaded via Inertia shared props `cartCount` in `HandleInertiaRequests::share()`.
+- **Client-side (guests)**: `localStorage` key `guest_cart` = JSON array of `{id, name, price, thumbnail}` objects.
+- **Cart badge in Navigation.vue**: For logged-in users, read `$page.props.cartCount` (integer, Inertia shared prop). For guests, compute badge count from `localStorage` guest cart length via a `computed` that checks auth state. No hydration mismatch risk because badge is purely presentational.
+- **Merge on login**: `POST /cart/merge` sends the guest cart array. Server deduplicates against existing `cart_items` and already-purchased courses, then clears the guest cart signal. Frontend clears `localStorage.guest_cart` after receiving 200.
+- **Vue composable `useCart()`**: Encapsulates add/remove/merge logic and abstracts the auth-state branching, so course page components do not need to check auth state directly.
+
+**Rationale**:
+- Inertia shared props (`HandleInertiaRequests`) is the established pattern in this project for per-request data (e.g., auth user, flash messages). Adding `cartCount` follows the same pattern with no new infrastructure.
+- Guest cart in localStorage (see R-003) means the badge must be computed client-side for guests. A `computed` property in Navigation.vue that switches on `$page.props.auth.user` is the minimal implementation.
+- The merge endpoint is idempotent: submitting the same guest cart twice only creates items not already present. This is safe to call on every login, regardless of whether the user had a guest cart.
+- `useCart()` composable avoids scattering auth-state checks across multiple page components and makes the logic testable in isolation.
+
+**Alternatives considered**:
+- **Emit cart count via Inertia for guests too (server-sets a guest_cart_count in session)**: Would eliminate the localStorage read in Navigation.vue but requires a session read on every page load for anonymous users. Rejected for same reasons as R-003 session alternative.
+- **Vuex / Pinia store for cart state**: No Pinia is currently used in this project. Adding a store for a single feature would be over-engineering. The composable pattern achieves the same isolation. Rejected.
+- **Polling or WebSocket for real-time badge updates**: Not needed — cart changes are user-initiated. Inertia's page reload on navigation naturally reflects the latest `cartCount` for logged-in users.
