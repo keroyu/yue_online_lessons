@@ -3,6 +3,7 @@
 **Feature Branch**: `009-cart-checkout`
 **Created**: 2026-05-06
 **Updated**: 2026-05-06 - 新增 /api/checkout/check-email、/api/checkout/order-status；/payment/success 加入 waiting prop（pending 緩衝）
+**Updated**: 2026-05-06 - 確認 GET /admin/settings/payment 回傳 merchant_id 明文；POST 接受 payuni_merchant_id / newebpay_merchant_id；HashKey/HashIV 以空字串代替（FR-022）
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 

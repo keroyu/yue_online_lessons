@@ -5,6 +5,7 @@
 **Updated**: 2026-05-06 - Course/Show.vue UI 微調：加入購物車按鈕 gold 樣式；懸浮面板買按鈕改為 scroll to bottom
 **Updated**: 2026-05-06 - 加入購物車後保留「直接購買」、「前往購物車」橘紅色、成功 toast、guest localStorage 還原修正
 **Updated**: 2026-05-06 - Phase 4-5 實作完成；付款成功頁加入 pending waiting overlay + polling；結帳頁 email blur 重複購買預查；CheckoutService 重複判斷擴展為 buyer_email + user_id
+**Updated**: 2026-05-06 - Phase 7 明確化：PayUni 與藍新金流後台設定均包含商店代號（MerchantID）可配置欄位；NewebpayService 所有三組憑證（merchant_id, hash_key, hash_iv）均從 SiteSetting 讀取
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`
 
 ## Summary
@@ -134,8 +135,8 @@ resources/js/
 ### Phase C: Payment Gateway Credentials + Meta Pixel Admin
 - **New file** `app/Http/Controllers/Admin/SettingsController.php` with `showPayment()` + `updatePayment()` (no existing Admin\SettingsController — create fresh)
 - Register routes in `routes/web.php` under the admin group: `GET /admin/settings/payment` + `POST /admin/settings/payment`
-- `Admin/Settings/Payment.vue`: password inputs for HashKey/HashIV; plain text input for Meta Pixel ID
-- Update `PayuniService::__construct()` to read from `SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key'))` (and same pattern for hash_iv, merchant_id)
+- `Admin/Settings/Payment.vue`: PayUni 區塊含三欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">` placeholder "已儲存，輸入新值以更新"）；NewebPay 區塊含四欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">`）、Env（`<select>` sandbox/production）；Meta Pixel ID（`<input type="text">`）；**MerchantID 為明文欄位，送出時納入 POST body；GET 回應中 MerchantID 可回傳現值，HashKey/HashIV 固定以空字串回應（FR-022）**
+- Update `PayuniService::__construct()` to read all three credentials from SiteSetting: `SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id'))`, `SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key'))`, `SiteSetting::get('payuni_hash_iv', config('services.payuni.hash_iv'))`
 - Add `newebpay` block to `config/services.php` (keys: `merchant_id`, `hash_key`, `hash_iv`, `env`; all read from env vars `NEWEBPAY_*`) — required for `NewebpayService` fallback
 - Add `meta_pixel_id` to `site_settings` keys; `app.blade.php` changed from hardcoded `fbq('init', '...')` to conditional output via `SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', ''))`; if empty, entire `<script>` block is omitted
 
@@ -168,7 +169,7 @@ resources/js/
   - `YC` prefix → preserve existing behavior (`/member/learning` or `/login?hint=payuni`)
 
 ### Phase I: NewebpayService + Controllers
-- `NewebpayService` with AES-256-CBC encrypt/decrypt and TradeSha verification (see R-001); reads credentials via `SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key'))` (config/services.php newebpay block added in Phase C)
+- `NewebpayService` with AES-256-CBC encrypt/decrypt and TradeSha verification (see R-001); reads **all three credentials** from SiteSetting with config fallback: `SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id'))`, `SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key'))`, `SiteSetting::get('newebpay_hash_iv', config('services.newebpay.hash_iv'))`; reads `SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox'))` for endpoint selection; (config/services.php newebpay block added in Phase C)
 - `NewebpayController::notify()` + `::return()`
 - Register routes in `routes/web.php` and `routes/api.php`: `POST /api/webhooks/newebpay` (CSRF exempt), `POST /payment/newebpay/return` (CSRF exempt, web middleware for session)
 - CSRF exemption for webhook + return routes
