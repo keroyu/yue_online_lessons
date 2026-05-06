@@ -39,7 +39,7 @@ class CartService
             if (CartItem::where('user_id', $userId)->where('course_id', $courseId)->exists()) {
                 continue;
             }
-            if (Purchase::where('user_id', $userId)->where('course_id', $courseId)->exists()) {
+            if (Purchase::where('user_id', $userId)->where('course_id', $courseId)->where('status', 'paid')->exists()) {
                 continue;
             }
             CartItem::create(['user_id' => $userId, 'course_id' => $courseId]);

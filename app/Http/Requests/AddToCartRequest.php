@@ -34,7 +34,7 @@ class AddToCartRequest extends FormRequest
                     if ($course->status !== 'selling' || !$course->is_published) {
                         return $fail('課程目前無法購買。');
                     }
-                    if ($userId && \App\Models\Purchase::where('user_id', $userId)->where('course_id', $value)->exists()) {
+                    if ($userId && \App\Models\Purchase::where('user_id', $userId)->where('course_id', $value)->where('status', 'paid')->exists()) {
                         return $fail('您已購買此課程。');
                     }
                 },
