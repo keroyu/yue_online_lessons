@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CartItem;
 use App\Models\Course;
+use App\Models\Purchase;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -59,6 +61,7 @@ class CourseController extends Controller
                 'duration_formatted' => $course->duration_formatted,
                 'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
+                'payment_gateway' => $course->payment_gateway,
                 'use_payuni' => !$course->portaly_product_id && $course->price > 0,
                 'is_free' => !$course->portaly_product_id && $course->price == 0,
                 'display_price' => (float) $course->display_price,
@@ -66,6 +69,8 @@ class CourseController extends Controller
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
             ],
             'hasPurchased' => $course->hasPaidAccessForUser($user),
+            'isOwned'      => $course->hasPaidAccessForUser($user),
+            'isInCart'     => $user ? CartItem::where('user_id', $user->id)->where('course_id', $course->id)->exists() : false,
             'isAdmin' => $isAdmin,
             'isPreviewMode' => $isPreviewMode,
             'isHidden' => !$course->is_visible,

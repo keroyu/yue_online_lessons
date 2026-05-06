@@ -46,4 +46,11 @@ return [
         'sandbox'     => env('PAYUNI_SANDBOX', false),
     ],
 
+    'newebpay' => [
+        'merchant_id' => env('NEWEBPAY_MERCHANT_ID'),
+        'hash_key'    => env('NEWEBPAY_HASH_KEY'),
+        'hash_iv'     => env('NEWEBPAY_HASH_IV'),
+        'env'         => env('NEWEBPAY_ENV', 'sandbox'),
+    ],
+
 ];

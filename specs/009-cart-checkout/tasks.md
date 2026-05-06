@@ -17,7 +17,7 @@
 
 **Purpose**: Confirm baseline before any new work.
 
-- [ ] T001 Confirm branch `009-cart-checkout` is active and `php artisan test` passes with no regressions
+- [X] T001 Confirm branch `009-cart-checkout` is active and `php artisan test` passes with no regressions
 
 ---
 
@@ -27,18 +27,18 @@
 
 ⚠️ CRITICAL: No user story work can begin until this phase is complete.
 
-- [ ] T002 [P] Create migration `create_cart_items_table` in `database/migrations/` — BIGINT id, user_id FK CASCADE, course_id FK CASCADE, created_at TIMESTAMP (no updated_at), UNIQUE(user_id, course_id)
-- [ ] T003 [P] Create migration `create_orders_table` in `database/migrations/` — columns per data-model.md; merchant_order_no NULLABLE VARCHAR(30) UNIQUE (nullable to support two-step INSERT→UPDATE pattern; NOT NULL enforced at app layer)
-- [ ] T004 [P] Create migration `create_order_items_table` in `database/migrations/` — order_id FK→orders CASCADE, course_id FK→courses RESTRICT, course_name/unit_price snapshots, created_at only (no updated_at)
-- [ ] T005 [P] Create migration `add_payment_gateway_to_courses_table` in `database/migrations/` — `VARCHAR(20) NOT NULL DEFAULT 'payuni'` AFTER portaly_product_id
-- [ ] T006 [P] Create migration `add_order_id_to_purchases_table` in `database/migrations/` — BIGINT UNSIGNED NULL, FK→orders ON DELETE SET NULL, placed AFTER payuni_trade_no
-- [ ] T007 Run `php artisan migrate` — confirm all 5 migrations succeed and schema matches data-model.md
-- [ ] T008 [P] Create `app/Models/CartItem.php` — `$timestamps = false`, `$fillable = ['user_id','course_id']`, `booted()` sets created_at, `user()` BelongsTo, `course()` BelongsTo, `scopeForUser(Builder, int): Builder`
-- [ ] T009 [P] Create `app/Models/Order.php` — $fillable, casts (total_amount decimal:2, webhook_received_at datetime), `user()` BelongsTo, `items()` HasMany→OrderItem, `scopePending`, `scopePaid`, `isPaid` Attribute
-- [ ] T010 [P] Create `app/Models/OrderItem.php` — `$timestamps = false`, $fillable, `unit_price` cast decimal:2, `booted()` sets created_at, `order()` BelongsTo, `course()` BelongsTo
-- [ ] T011 Update `app/Models/Course.php` — add `payment_gateway` to `$fillable`; add `cartItems(): HasMany` relationship
-- [ ] T012 Update `app/Models/Purchase.php` — add `order_id` to `$fillable`; add `order(): BelongsTo` relationship
-- [ ] T013 Add `newebpay` block to `config/services.php` — keys: `merchant_id`, `hash_key`, `hash_iv`, `env`; all read from `NEWEBPAY_*` env vars; `env` defaults to `'sandbox'`
+- [X] T002 [P] Create migration `create_cart_items_table` in `database/migrations/` — BIGINT id, user_id FK CASCADE, course_id FK CASCADE, created_at TIMESTAMP (no updated_at), UNIQUE(user_id, course_id)
+- [X] T003 [P] Create migration `create_orders_table` in `database/migrations/` — columns per data-model.md; merchant_order_no NULLABLE VARCHAR(30) UNIQUE (nullable to support two-step INSERT→UPDATE pattern; NOT NULL enforced at app layer)
+- [X] T004 [P] Create migration `create_order_items_table` in `database/migrations/` — order_id FK→orders CASCADE, course_id FK→courses RESTRICT, course_name/unit_price snapshots, created_at only (no updated_at)
+- [X] T005 [P] Create migration `add_payment_gateway_to_courses_table` in `database/migrations/` — `VARCHAR(20) NOT NULL DEFAULT 'payuni'` AFTER portaly_product_id
+- [X] T006 [P] Create migration `add_order_id_to_purchases_table` in `database/migrations/` — BIGINT UNSIGNED NULL, FK→orders ON DELETE SET NULL, placed AFTER payuni_trade_no
+- [X] T007 Run `php artisan migrate` — confirm all 5 migrations succeed and schema matches data-model.md
+- [X] T008 [P] Create `app/Models/CartItem.php` — `$timestamps = false`, `$fillable = ['user_id','course_id']`, `booted()` sets created_at, `user()` BelongsTo, `course()` BelongsTo, `scopeForUser(Builder, int): Builder`
+- [X] T009 [P] Create `app/Models/Order.php` — $fillable, casts (total_amount decimal:2, webhook_received_at datetime), `user()` BelongsTo, `items()` HasMany→OrderItem, `scopePending`, `scopePaid`, `isPaid` Attribute
+- [X] T010 [P] Create `app/Models/OrderItem.php` — `$timestamps = false`, $fillable, `unit_price` cast decimal:2, `booted()` sets created_at, `order()` BelongsTo, `course()` BelongsTo
+- [X] T011 Update `app/Models/Course.php` — add `payment_gateway` to `$fillable`; add `cartItems(): HasMany` relationship
+- [X] T012 Update `app/Models/Purchase.php` — add `order_id` to `$fillable`; add `order(): BelongsTo` relationship
+- [X] T013 Add `newebpay` block to `config/services.php` — keys: `merchant_id`, `hash_key`, `hash_iv`, `env`; all read from `NEWEBPAY_*` env vars; `env` defaults to `'sandbox'`
 
 **Checkpoint**: `php artisan tinker` can instantiate CartItem, Order, OrderItem without errors.
 
@@ -51,16 +51,16 @@
 
 **Independent Test**: 未登入加入 PayUni 課程 → `localStorage.guest_cart` 更新、Navigation badge +1；已登入加入 → `cart_items` 新增一筆、cartCount +1；Portaly 課程頁只顯示「立即購買」外部連結。
 
-- [ ] T014 Create `app/Http/Requests/AddToCartRequest.php` — validate `course_id`: exists in courses, `portaly_product_id` IS NULL, `price > 0`, `status = published`, not already purchased by `auth()->id()`
-- [ ] T015 Create `app/Services/CartService.php` — implement `add(int $userId, int $courseId): ?CartItem` (idempotent), `remove(int $userId, int $courseId): bool`, `getItems(int $userId): Collection` (with course eager-loaded), `count(int $userId): int`
-- [ ] T016 Create `app/Http/Controllers/CartController.php` — `add(AddToCartRequest)`: 200 `{cartCount}` or 409 `{cartCount, message}`; `remove(int $courseId)`: 200 `{cartCount}` or 404; `index()`: Inertia response with `items` + `total` for authenticated users (guests get `items:[]`)
-- [ ] T017 Register cart API routes in `routes/api.php` — `auth:web` middleware group: `POST /cart/add` → CartController@add, `DELETE /cart/{courseId}` → CartController@remove
-- [ ] T018 Register `GET /cart` in `routes/web.php` → CartController@index (public, no auth)
-- [ ] T019 Add `cartCount` to `app/Http/Middleware/HandleInertiaRequests.php` `share()` — `'cartCount' => fn () => auth()->check() ? app(CartService::class)->count(auth()->id()) : 0`
-- [ ] T020 Create `resources/js/composables/useCart.js` — `addToCart(courseId)`: auth → `POST /api/cart/add`; guest → push to `localStorage.guest_cart` array; on success fire `window.fbq && fbq('track','AddToCart',{content_ids:[courseId], value, currency:'TWD', content_type:'product'})`; `buyNow(courseId)`: addToCart then `router.visit('/checkout')`
-- [ ] T021 [US1] Update `resources/js/Pages/Course/Show.vue` — **remove all existing buyer form fields (email, phone, agree_terms checkbox) per FR-019** (these move exclusively to `/checkout`); replace buy-button section with full conditional logic: `portaly_product_id` → 「立即購買」external link (US2); `price==0` → 「免費領取」unchanged; `type=='high_ticket'` → 「預約諮詢」unchanged; otherwise: `isOwned` → 「進入課程」; `isInCart` → 「前往購物車」; else → 「加入購物車」+ 「直接購買」using useCart composable
-- [ ] T022 [US1] Update `app/Http/Controllers/CourseController.php` `show()` — add `isInCart` (bool, CartService check for auth users, false for guests) and `isOwned` (bool, purchases check) to Inertia response props
-- [ ] T023 [US1] Update `resources/js/Components/Layout/Navigation.vue` — add cart icon with badge: auth → `$page.props.cartCount`; guest → `computed(() => JSON.parse(localStorage.getItem('guest_cart') || '[]').length)`
+- [X] T014 Create `app/Http/Requests/AddToCartRequest.php` — validate `course_id`: exists in courses, `portaly_product_id` IS NULL, `price > 0`, `status = published`, not already purchased by `auth()->id()`
+- [X] T015 Create `app/Services/CartService.php` — implement `add(int $userId, int $courseId): ?CartItem` (idempotent), `remove(int $userId, int $courseId): bool`, `getItems(int $userId): Collection` (with course eager-loaded), `count(int $userId): int`
+- [X] T016 Create `app/Http/Controllers/CartController.php` — `add(AddToCartRequest)`: 200 `{cartCount}` or 409 `{cartCount, message}`; `remove(int $courseId)`: 200 `{cartCount}` or 404; `index()`: Inertia response with `items` + `total` for authenticated users (guests get `items:[]`)
+- [X] T017 Register cart API routes in `routes/api.php` — `auth:web` middleware group: `POST /cart/add` → CartController@add, `DELETE /cart/{courseId}` → CartController@remove
+- [X] T018 Register `GET /cart` in `routes/web.php` → CartController@index (public, no auth)
+- [X] T019 Add `cartCount` to `app/Http/Middleware/HandleInertiaRequests.php` `share()` — `'cartCount' => fn () => auth()->check() ? app(CartService::class)->count(auth()->id()) : 0`
+- [X] T020 Create `resources/js/composables/useCart.js` — `addToCart(courseId)`: auth → `POST /api/cart/add`; guest → push to `localStorage.guest_cart` array; on success fire `window.fbq && fbq('track','AddToCart',{content_ids:[courseId], value, currency:'TWD', content_type:'product'})`; `buyNow(courseId)`: addToCart then `router.visit('/checkout')`
+- [X] T021 [US1] Update `resources/js/Pages/Course/Show.vue` — **remove all existing buyer form fields (email, phone, agree_terms checkbox) per FR-019** (these move exclusively to `/checkout`); replace buy-button section with full conditional logic: `portaly_product_id` → 「立即購買」external link (US2); `price==0` → 「免費領取」unchanged; `type=='high_ticket'` → 「預約諮詢」unchanged; otherwise: `isOwned` → 「進入課程」; `isInCart` → 「前往購物車」; else → 「加入購物車」+ 「直接購買」using useCart composable
+- [X] T022 [US1] Update `app/Http/Controllers/CourseController.php` `show()` — add `isInCart` (bool, CartService check for auth users, false for guests) and `isOwned` (bool, purchases check) to Inertia response props
+- [X] T023 [US1] Update `resources/js/Components/Layout/Navigation.vue` — add cart icon with badge: auth → `$page.props.cartCount`; guest → `computed(() => JSON.parse(localStorage.getItem('guest_cart') || '[]').length)`
 
 **Checkpoint**: PayUni 課程加入購物車流程完整。Portaly 課程按鈕行為與重構前相同（US2 satisfied）。Badge 即時更新。
 

@@ -33,6 +33,7 @@ class Course extends Model
         'promo_ends_at',
         'sort_order',
         'portaly_product_id',
+        'payment_gateway',
         'duration_minutes',
         'course_type',
         'drip_interval_days',
@@ -62,6 +63,11 @@ class Course extends Model
     public function purchases(): HasMany
     {
         return $this->hasMany(Purchase::class);
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
     }
 
     public function chapters(): HasMany

@@ -17,15 +17,21 @@ use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\SocialLinkController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
 use App\Http\Controllers\Payment\PayuniController;
+use App\Http\Controllers\Payment\SuccessController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::get('/payment/success', [SuccessController::class, 'show'])->name('payment.success');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
 Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store'])
     ->middleware('throttle:5,1')
