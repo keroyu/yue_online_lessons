@@ -126,7 +126,9 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 // POST /admin/courses
 [
     'name' => 'required|string|max:255',
+    'slug' => 'nullable|string|max:200|unique:courses,slug|regex:/^[a-z0-9\-]+$/',
     'tagline' => 'required|string|max:255',
+    'meta_description' => 'nullable|string|max:160',
     'description' => 'required|string',
     'description_md' => 'nullable|string',
     'price' => 'required|numeric|min:0',                    // 優惠價（實際售價）
@@ -134,7 +136,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
     'promo_ends_at' => 'nullable|date|after:now',           // 優惠到期時間（2026-01-17 新增）
     'thumbnail' => 'nullable|image|max:10240',
     'instructor_name' => 'required|string|max:100',
-    'type' => 'required|in:lecture,mini,full',
+    'type' => 'required|in:lecture,mini,full,high_ticket',
     'duration_minutes' => 'nullable|integer|min:0',         // 時間總長（分鐘）
     'sale_at' => 'nullable|date|after:now',
     'portaly_product_id' => 'nullable|string|max:100',      // 前端產生完整 URL
@@ -165,14 +167,8 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 // POST /admin/courses/{course}/chapters
 [
     'title' => 'required|string|max:255',
-    'notify_members' => 'nullable|boolean',  // US10: 發送 Email 通知學員（2026-03-09 新增）
 ]
 ```
-
-**章節新增 Email 通知說明（2026-03-09 新增）**：
-- `notify_members` = true：章節儲存後，非同步發送通知 Email 給所有符合條件的課程學員
-- 僅在已發布課程（status = preorder 或 selling）時有效；草稿課程即使傳入 true，後端不發信
-- 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned'
 
 ### Store Lesson Request
 
@@ -184,8 +180,15 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
     'video_url' => 'nullable|url|max:500',
     'md_content' => 'nullable|string',
     'duration_seconds' => 'nullable|integer|min:0',
+    'is_preview' => 'nullable|boolean',
+    'notify_members' => 'nullable|boolean',  // US10: 發送 Email 通知學員（2026-03-09 新增）
 ]
 ```
+
+**小節新增 Email 通知說明（US10，2026-03-09 新增）**：
+- `notify_members` = true：小節儲存後，同步發送通知 Email 給所有符合條件的課程學員
+- 僅在已發布課程（status ≠ 'draft'）且課程類型為標準課程（course_type ≠ 'drip'）時有效
+- 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned'
 
 ### Reorder Request
 

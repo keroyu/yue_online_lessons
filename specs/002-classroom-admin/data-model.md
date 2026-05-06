@@ -309,10 +309,10 @@ preorder/selling ──下架──→ draft
 | user_id | bigint unsigned | FK → users.id, not null | 會員 ID |
 | course_id | bigint unsigned | FK → courses.id, not null | 課程 ID |
 | portaly_order_id | varchar(100) | unique, nullable | Portaly 訂單編號 |
-| amount | int unsigned | not null | 金額 |
+| amount | decimal(10,2) | not null | 金額 |
 | currency | varchar(10) | default: 'TWD' | 幣別 |
-| discount_code | varchar(50) | nullable | 折扣碼 |
-| discount_amount | int unsigned | default: 0 | 折扣金額 |
+| coupon_code | varchar(50) | nullable | 折扣碼（欄位名稱為 coupon_code，非 discount_code） |
+| discount_amount | decimal(10,2) | default: 0 | 折扣金額 |
 | status | varchar(20) | default: 'paid' | 付款狀態（paid, refunded） |
 | **type** | varchar(20) | default: 'paid' | 取得類型（paid, system_assigned, gift） |
 | source | varchar(20) | nullable | 建立來源（portaly, payuni, free, manual） |
@@ -346,8 +346,9 @@ preorder/selling ──下架──→ draft
 - belongsTo: Course
 
 **Scopes (new)**:
-- `paid()`: where type = 'paid'
-- `systemAssigned()`: where type = 'system_assigned'
+- `purchaseType()`: where type = 'paid'（scope 方法名稱為 purchaseType，非 paid）
+- `systemAssignedType()`: where type = 'system_assigned'（scope 方法名稱為 systemAssignedType，非 systemAssigned）
+- `giftType()`: where type = 'gift'
 - `forSalesReport()`: where type = 'paid' (排除系統指派和贈送)
 
 ---

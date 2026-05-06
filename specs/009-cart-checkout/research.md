@@ -128,7 +128,7 @@ Exception documented in `plan.md` Complexity Tracking section per Constitution I
 | `order_id` | FK to orders table | Order (new column) |
 | `payuni_trade_no` | PayUni ATM trade no (PayUni only) | Webhook payload |
 
-After each purchase record is created, call `DripService::checkAndConvert($purchase)` — this is the existing pattern in `PayuniService` and must be preserved for drip email enrollment.
+After each purchase record is created, call `DripService::checkAndConvert($user, $course)` — this is the existing pattern in `PayuniService` (see `DripService.php:138`: `checkAndConvert(User $user, Course $purchasedCourse): void`) and must be preserved for drip email enrollment. Note: the signature takes `(User, Course)`, NOT a Purchase object.
 
 **Rationale**:
 - The `source` field is critical for the 006 transaction admin view, which filters by gateway. Without it, admins cannot distinguish PayUni from NewebPay revenue in the dashboard.

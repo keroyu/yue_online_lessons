@@ -64,7 +64,7 @@ app/
 │   │   │   ├── NewebpayController.php           # new
 │   │   │   └── SuccessController.php            # new
 │   │   └── Admin/
-│   │       └── SettingsController.php           # existing or new — add updatePayment()
+│   │       └── SettingsController.php           # new — showPayment() + updatePayment()
 │   └── Requests/
 │       ├── AddToCartRequest.php                 # new
 │       ├── CheckoutRequest.php                  # new
@@ -81,6 +81,9 @@ app/
     ├── CheckoutService.php                      # new
     ├── NewebpayService.php                      # new
     └── PayuniService.php                        # existing — extend for Order-based flow
+
+config/
+└── services.php                                 # existing — add newebpay block (merchant_id, hash_key, hash_iv, env)
 
 database/
 └── migrations/
@@ -104,7 +107,8 @@ resources/js/
 ├── composables/
 │   └── useCart.js                              # new
 └── Components/
-    └── Navigation.vue                           # existing — add cart badge
+    └── Layout/
+        └── Navigation.vue                       # existing — add cart badge
 ```
 
 **Structure Decision**: Web application layout (Laravel backend + Inertia frontend). All new backend files go under `app/`; all new frontend files go under `resources/js/`.
@@ -124,9 +128,11 @@ resources/js/
 - `cartCount` added to Inertia shared props
 
 ### Phase C: Payment Gateway Credentials + Meta Pixel Admin
-- `SettingsController::showPayment()` + `updatePayment()`
+- **New file** `app/Http/Controllers/Admin/SettingsController.php` with `showPayment()` + `updatePayment()` (no existing Admin\SettingsController — create fresh)
+- Register routes in `routes/web.php` under the admin group: `GET /admin/settings/payment` + `POST /admin/settings/payment`
 - `Admin/Settings/Payment.vue`: password inputs for HashKey/HashIV; plain text input for Meta Pixel ID
-- Update `PayuniService::__construct()` to read from SiteSetting with .env fallback
+- Update `PayuniService::__construct()` to read from `SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key'))` (and same pattern for hash_iv, merchant_id)
+- Add `newebpay` block to `config/services.php` (keys: `merchant_id`, `hash_key`, `hash_iv`, `env`; all read from env vars `NEWEBPAY_*`) — required for `NewebpayService` fallback
 - Add `meta_pixel_id` to `site_settings` keys; `app.blade.php` changed from hardcoded `fbq('init', '...')` to conditional output via `SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', ''))`; if empty, entire `<script>` block is omitted
 
 ### Phase D: Sales Page Update
@@ -150,13 +156,17 @@ resources/js/
 - Auto-submit hidden form to gateway on 200 response from `/api/checkout/initiate`
 
 ### Phase H: PayUni Order Flow Refactor
-- Update `PayuniService::buildPaymentForm()` to accept `Order`
-- Update `PayuniService::processNotify()` to handle `ord_` prefix path
-- Update `PayuniController::return()` to redirect to `/payment/success`
+- **Add new method** `PayuniService::buildOrderPaymentForm(Order $order, array $buyer): array` — do NOT replace the existing `buildPaymentForm(Course, ...)` signature; that method is still called by the legacy `PayuniController::initiate()` and must be preserved.
+- Update `PayuniService::processNotify()` to branch on `ord_` prefix **first** (before the existing `payuni_trade_no` idempotency check): if `str_starts_with($merTradeNo, 'ord_')` → look up Order, check `Order.status = 'paid'`, call `CheckoutService::fulfillOrder()`; otherwise fall through to the legacy `YC` path unchanged.
+- Update `PayuniController::return()` with dual-path redirect:
+  - `ord_` prefix + success → `redirect('/payment/success?order={$merTradeNo}')`
+  - `ord_` prefix + failure → `redirect('/cart')->with('payment_failed', ...)`
+  - `YC` prefix → preserve existing behavior (`/member/learning` or `/login?hint=payuni`)
 
 ### Phase I: NewebpayService + Controllers
-- `NewebpayService` with AES-256-CBC encrypt/decrypt and TradeSha verification (see R-001)
+- `NewebpayService` with AES-256-CBC encrypt/decrypt and TradeSha verification (see R-001); reads credentials via `SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key'))` (config/services.php newebpay block added in Phase C)
 - `NewebpayController::notify()` + `::return()`
+- Register routes in `routes/web.php` and `routes/api.php`: `POST /api/webhooks/newebpay` (CSRF exempt), `POST /payment/newebpay/return` (CSRF exempt, web middleware for session)
 - CSRF exemption for webhook + return routes
 
 ### Phase J: Payment Success Page
