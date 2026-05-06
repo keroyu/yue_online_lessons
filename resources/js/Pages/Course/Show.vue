@@ -101,6 +101,18 @@ const { addToCart, buyNow } = useCart()
 const isInCartLocal = ref(props.isInCart)
 const cartAddError = ref('')
 
+// For guests, isInCart is always false from server — check localStorage on mount
+if (!page.props.auth?.user) {
+  try {
+    const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]')
+    if (guestCart.some((i) => i.id === props.course.id)) {
+      isInCartLocal.value = true
+    }
+  } catch {}
+}
+const cartAddSuccess = ref(false)
+let cartToastTimer = null
+
 const handleAddToCart = async () => {
   cartAddError.value = ''
   const result = await addToCart(props.course.id, {
@@ -110,6 +122,9 @@ const handleAddToCart = async () => {
   })
   if (result.success) {
     isInCartLocal.value = true
+    cartAddSuccess.value = true
+    clearTimeout(cartToastTimer)
+    cartToastTimer = setTimeout(() => { cartAddSuccess.value = false }, 2500)
   } else {
     cartAddError.value = result.error || '加入購物車失敗'
   }
@@ -806,13 +821,20 @@ const submitBooking = async () => {
                 >
                   進入課程
                 </Link>
-                <Link
-                  v-else-if="isInCartLocal"
-                  href="/cart"
-                  class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
-                >
-                  前往購物車
-                </Link>
+                <template v-else-if="isInCartLocal">
+                  <Link
+                    href="/cart"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-orange-600 hover:bg-orange-700 text-white border border-orange-700/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    前往購物車
+                  </Link>
+                  <button
+                    @click="handleBuyNow"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    直接購買
+                  </button>
+                </template>
                 <template v-else>
                   <button
                     @click="handleAddToCart"
@@ -838,6 +860,20 @@ const submitBooking = async () => {
                 預覽購買按鈕
               </button>
             </div>
+
+            <Transition
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="opacity-0 translate-y-1"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 translate-y-1"
+            >
+              <p v-if="cartAddSuccess" class="text-sm text-green-700 font-medium flex items-center gap-1 mt-1">
+                <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                已加入購物車！
+              </p>
+            </Transition>
           </div>
         </div>
       </div>
@@ -893,13 +929,20 @@ const submitBooking = async () => {
             >
               進入課程
             </Link>
-            <Link
-              v-else-if="isInCartLocal"
-              href="/cart"
-              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
-            >
-              前往購物車
-            </Link>
+            <template v-else-if="isInCartLocal">
+              <Link
+                href="/cart"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-orange-600 hover:bg-orange-700 text-white border border-orange-700/50 transition-all shadow-sm cursor-pointer text-sm"
+              >
+                前往購物車
+              </Link>
+              <button
+                @click="handleBuyNow"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
+              >
+                直接購買
+              </button>
+            </template>
             <button
               v-else
               @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"

@@ -4,6 +4,7 @@
 **Prerequisites**: plan.md ✅ spec.md ✅ data-model.md ✅ contracts/api.md ✅ research.md ✅ quickstart.md ✅
 **Updated**: 2026-05-06 - Phase 1-3（T001-T023）全部完成並標記 [X]
 **Updated**: 2026-05-06 - Course/Show.vue UI 微調（加入購物車 gold 樣式；懸浮面板 scroll to bottom）— 不產生新任務
+**Updated**: 2026-05-06 - 加入購物車後保留兩按鈕、橘紅色、toast、guest localStorage 還原 — 不產生新任務
 
 **Organization**: Tasks grouped by user story — each phase is independently deployable and testable.
 

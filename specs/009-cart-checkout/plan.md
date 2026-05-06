@@ -3,6 +3,7 @@
 **Branch**: `009-cart-checkout` | **Date**: 2026-05-06 | **Spec**: `specs/009-cart-checkout/spec.md`
 **Updated**: 2026-05-06 - Phase 1-3 實作完成（migrations, models, CartService, CartController, useCart.js, Course/Show.vue 改版, Navigation badge）
 **Updated**: 2026-05-06 - Course/Show.vue UI 微調：加入購物車按鈕 gold 樣式；懸浮面板買按鈕改為 scroll to bottom
+**Updated**: 2026-05-06 - 加入購物車後保留「直接購買」、「前往購物車」橘紅色、成功 toast、guest localStorage 還原修正
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`
 
 ## Summary
