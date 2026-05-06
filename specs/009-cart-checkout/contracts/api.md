@@ -2,6 +2,7 @@
 
 **Feature Branch**: `009-cart-checkout`
 **Created**: 2026-05-06
+**Updated**: 2026-05-06 - 新增 /api/checkout/check-email、/api/checkout/order-status；/payment/success 加入 waiting prop（pending 緩衝）
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 
@@ -209,7 +210,51 @@ Or for newebpay:
 ```
 
 Response `422`: validation errors.  
-Response `409`: a course in `course_ids` has already been purchased by this email (detected after `getOrCreateUser`). Body: `{ "message": "已購買的課程無法重複購買", "courses": [12] }`.
+Response `409`: a course in `course_ids` has already been purchased by this email. Body: `{ "message": "此 Email 已購買過部分課程，無需重複購買。若需存取課程請登入帳號，或聯絡客服。" }`.
+
+---
+
+### `POST /api/checkout/check-email`
+
+**Type**: JSON API  
+**Auth**: none (public)  
+**Controller**: `CheckoutController@checkEmail`
+
+Pre-submission duplicate purchase check. Called on email field blur in `Checkout/Index.vue`.
+
+Request:
+```json
+{
+  "email": "wx@example.com",
+  "course_ids": [12, 15]
+}
+```
+
+Behavior: Queries `purchases` where `buyer_email = email` OR (`user_id` matches a User found by email) AND `course_id IN course_ids` AND `status = 'paid'`.
+
+Response `200`:
+```json
+{ "purchased_course_ids": [12] }
+```
+Empty array means no duplicates found.
+
+---
+
+### `GET /api/checkout/order-status`
+
+**Type**: JSON API  
+**Auth**: none (public)  
+**Route**: closure in `routes/api.php`
+
+Polling endpoint used by `Payment/Success.vue` when `waiting = true`.
+
+Query param: `order` = `merchant_order_no`
+
+Response `200`:
+```json
+{ "status": "pending" }
+```
+Possible values: `"pending"`, `"paid"`, `"not_found"`.
 
 ---
 
@@ -298,11 +343,12 @@ Behavior:
 
 Query param: `order` = `merchant_order_no` (e.g., `ord_42_250506`)
 
-Behavior: Look up `Order` with `order_items` by `merchant_order_no`. If not found or `status != 'paid'`, abort 404.
+Behavior: Look up `Order` with `order_items` by `merchant_order_no`. If not found, abort 404. If `status = 'pending'` (webhook not yet received), return `waiting: true` for frontend polling. If `status = 'paid'`, return full order summary.
 
-Response props:
+Response props (paid):
 ```json
 {
+  "waiting": false,
   "order": {
     "merchant_order_no": "ord_42_250506",
     "buyer_name": "Wang Xiaoming",
@@ -314,6 +360,15 @@ Response props:
       { "course_name": "Vue 3 實戰", "unit_price": "2980.00" }
     ]
   },
+  "isLoggedIn": true
+}
+```
+
+Response props (pending — webhook not yet arrived):
+```json
+{
+  "waiting": true,
+  "order": null,
   "isLoggedIn": true
 }
 ```
