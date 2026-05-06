@@ -119,14 +119,14 @@ class PayuniController extends Controller
             'all_inputs'  => array_keys($request->all()),
         ]);
 
-        $data = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
-        $isSuccess = false;
-        $courseId = null;
+        $data       = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
+        $isSuccess  = false;
+        $merTradeNo = '';
+        $courseId   = null;
 
         if ($data) {
-            $isSuccess = ($data['Status'] ?? '') === 'SUCCESS' && ($data['TradeStatus'] ?? '') == '1';
+            $isSuccess  = ($data['Status'] ?? '') === 'SUCCESS' && ($data['TradeStatus'] ?? '') == '1';
             $merTradeNo = $data['MerTradeNo'] ?? '';
-            $courseId = $this->payuniService->parseCourseId($merTradeNo);
 
             Log::info('PayUni Return: result', [
                 'Status'      => $data['Status'] ?? null,
@@ -134,7 +134,16 @@ class PayuniController extends Controller
                 'MerTradeNo'  => $merTradeNo,
             ]);
 
-            // Process payment to handle race condition with NotifyURL (idempotent)
+            // New Order-based path (ord_ prefix)
+            if (str_starts_with($merTradeNo, 'ord_')) {
+                if ($isSuccess) {
+                    return redirect('/payment/success?order=' . $merTradeNo);
+                }
+                return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
+            }
+
+            // Legacy YC path — process on ReturnURL as idempotent safety net
+            $courseId = $this->payuniService->parseCourseId($merTradeNo);
             if ($isSuccess) {
                 try {
                     $this->payuniService->processNotify($encryptInfo, $hashInfo);
@@ -146,7 +155,7 @@ class PayuniController extends Controller
             Log::warning('PayUni Return: verification failed, falling back to redirect');
         }
 
-        // Success path: redirect to learning page or login
+        // Legacy success path
         if ($isSuccess) {
             if (auth()->check()) {
                 return redirect('/member/learning')->with('success', '付款成功！您的課程已開通。');
@@ -154,18 +163,16 @@ class PayuniController extends Controller
             return redirect('/login?hint=payuni');
         }
 
-        // Verification failed but user is logged in — still send to learning page
-        // (NotifyURL handles the real payment processing; ReturnURL is just UX)
+        // Verification failed but user is logged in
         if (!$data && auth()->check()) {
             return redirect('/member/learning')->with('success', '付款處理中，課程稍後開通。');
         }
 
-        // Payment failed or unverified guest
+        // Payment failed or unverified guest (legacy)
         if ($courseId) {
             return redirect("/course/{$courseId}?payment_failed=1");
         }
 
-        // Last resort for guests when verification fails
         return redirect('/login?hint=payuni');
     }
 }
