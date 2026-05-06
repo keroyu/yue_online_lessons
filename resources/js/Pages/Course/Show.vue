@@ -816,7 +816,7 @@ const submitBooking = async () => {
                 <template v-else>
                   <button
                     @click="handleAddToCart"
-                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
                   >
                     加入購物車
                   </button>
@@ -902,10 +902,10 @@ const submitBooking = async () => {
             </Link>
             <button
               v-else
-              @click="isFree ? openFreeForm() : handleAddToCart()"
+              @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
             >
-              {{ isFree ? '免費報名' : '加入購物車' }}
+              {{ isFree ? '免費報名' : '立即購買' }}
             </button>
           </div>
         </div>

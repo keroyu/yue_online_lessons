@@ -198,6 +198,43 @@ related_specs:
 - specs/005-drip-email/data-model.md
 - specs/005-drip-email/contracts/api.md
 
+## Cart & Checkout (009)
+purpose: 購物車結帳系統（guest + auth）、PayUni UPP + NewebPay MPG、訂單快照（orders/order_items/purchases）、金流憑證後台管理
+specs: specs/009-cart-checkout/
+
+main_files:
+- app/Http/Controllers/CartController.php
+- app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/Payment/NewebpayController.php
+- app/Http/Controllers/Payment/PayuniController.php
+- app/Http/Controllers/Payment/SuccessController.php
+- app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Requests/AddToCartRequest.php
+- app/Http/Requests/CheckoutRequest.php
+- app/Models/CartItem.php
+- app/Models/Order.php
+- app/Models/OrderItem.php
+- app/Models/Course.php
+- app/Models/Purchase.php
+- app/Services/CartService.php
+- app/Services/CheckoutService.php
+- app/Services/NewebpayService.php
+- app/Services/PayuniService.php
+- resources/js/composables/useCart.js
+- resources/js/Pages/Cart/Index.vue
+- resources/js/Pages/Checkout/Index.vue
+- resources/js/Pages/Payment/Success.vue
+- resources/js/Pages/Admin/Settings/Payment.vue
+- resources/js/Components/Layout/Navigation.vue
+- resources/js/Pages/Course/Show.vue
+
+related_specs:
+- specs/009-cart-checkout/spec.md
+- specs/009-cart-checkout/data-model.md
+- specs/009-cart-checkout/contracts/api.md
+
+---
+
 ## Transaction Management (006)
 purpose: admin transaction list with search/filter/pagination, transaction detail, manual create (gift/system_assigned), refund marking, batch CSV export
 specs: specs/006-transactions-management/
