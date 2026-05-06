@@ -39,6 +39,13 @@ Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
+// Cart API — must live in web.php (session-based auth:web requires StartSession middleware)
+Route::prefix('api')->middleware('auth')->name('api.')->group(function () {
+    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+    Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
+    Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
+});
+
 // PayUni ReturnURL — browser redirect after payment (needs web middleware for auth/session)
 Route::post('/payment/payuni/return', [PayuniController::class, 'return'])
     ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)

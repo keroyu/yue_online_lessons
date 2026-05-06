@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\CartController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Purchase\FreePurchaseController;
 use App\Http\Controllers\Webhook\PortalyController;
@@ -21,9 +20,3 @@ Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])
 Route::post('/purchase/free/{course}', [FreePurchaseController::class, 'store'])
     ->name('purchase.free');
 
-// Cart (auth required)
-Route::middleware('auth:web')->group(function () {
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
-    Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
-});
