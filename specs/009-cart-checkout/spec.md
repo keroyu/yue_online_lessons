@@ -26,6 +26,7 @@
 - Q: 購物車多商品時金流路由邏輯？Portaly 與其他商品是否可混合？→ A: 單一商品結帳時使用該課程的 payment_gateway（payuni 或 newebpay）；多個商品結帳時一律採用 PayUni，加總金額送出單一請求。Portaly 課程在前台完全不顯示「加入購物車」按鈕，從入口層即排除，不存在混合衝突問題。
 - Q: NewebPay MerchantOrderNo 格式？→ A: `ord_{Order.id}_{timestamp_6}`，例：`ord_42_250506`；含 Order.id 可從 webhook 直查訂單，timestamp 後綴防 ID 重複，總長約 15 字。
 - Q: PayUni 與 NewebPay 的 HashKey／HashIV／MerchantID 是否改為後台可設定？→ A: 是。兩組金流憑證（MerchantID、HashKey、HashIV）MUST 可在管理後台設定並儲存於資料庫（沿用既有 `site_settings` 表），不再依賴 `.env`；`.env` 僅作為初始預設或 fallback。後台設定值優先於 `.env`。
+- Q: Guest checkout 時，用戶帳號在哪個階段 find-or-create？→ A: 在 **webhook `fulfillOrder` 時**（付款確認後）。`createOrder()` 建立 `orders` 記錄時 `user_id` 保持 NULL（代表 guest 訂單）；webhook 回傳成功後 `fulfillOrder()` 以 `buyer_email` find-or-create 帳號並建立 `purchases` 記錄，`orders.user_id` 同步更新為新建帳號的 ID。
 
 ---
 

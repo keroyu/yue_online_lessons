@@ -82,7 +82,7 @@ CREATE TABLE cart_items (
 | total_amount | decimal(10,2) | no | |
 | currency | varchar(10) | no | default `'TWD'` |
 | payment_gateway | varchar(20) | no | `'payuni'` or `'newebpay'` |
-| merchant_order_no | varchar(30) | no | UNIQUE; format: `ord_{id}_{YYMMdd}` e.g. `ord_42_250506` |
+| merchant_order_no | varchar(30) | **yes** | UNIQUE; format: `ord_{id}_{YYMMdd}` e.g. `ord_42_250506`; NULL until two-step INSERT→UPDATE |
 | status | enum | no | `pending` \| `paid` \| `failed`; default `pending` |
 | gateway_trade_no | varchar(100) | yes | PayUni MerTradeNo or NewebPay TradeNo from gateway |
 | webhook_received_at | timestamp | yes | |
@@ -112,7 +112,7 @@ CREATE TABLE orders (
     total_amount        DECIMAL(10,2) NOT NULL,
     currency            VARCHAR(10) NOT NULL DEFAULT 'TWD',
     payment_gateway     VARCHAR(20) NOT NULL,
-    merchant_order_no   VARCHAR(30) NOT NULL,
+    merchant_order_no   VARCHAR(30) NULL,
     status              ENUM('pending','paid','failed') NOT NULL DEFAULT 'pending',
     gateway_trade_no    VARCHAR(100) NULL,
     webhook_received_at TIMESTAMP NULL,
