@@ -283,6 +283,8 @@ class TransactionController extends Controller
             fputcsv($handle, [
                 '訂單 ID',
                 '商店訂單編號',
+                '金流交易序號',
+                '金流渠道',
                 'PayUni 交易序號',
                 'Portaly 訂單編號',
                 '購買者姓名',
@@ -304,6 +306,8 @@ class TransactionController extends Controller
                     fputcsv($handle, [
                         $purchase->id,
                         $purchase->order?->merchant_order_no ?? '',
+                        $purchase->order?->gateway_trade_no ?? '',
+                        $purchase->order?->payment_gateway ?? '',
                         $purchase->payuni_trade_no ?? '',
                         $purchase->portaly_order_id ?? '',
                         $purchase->user?->real_name ?? $purchase->user?->nickname ?? '',
