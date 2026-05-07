@@ -39,6 +39,17 @@ onMounted(() => {
       guestItems.value = []
     }
   }
+
+  // Meta Pixel InitiateCheckout event — fired after guest cart is loaded
+  if (window.fbq) {
+    window.fbq('track', 'InitiateCheckout', {
+      value:        displayTotal.value,
+      currency:     'TWD',
+      content_ids:  courseIds.value,
+      content_type: 'product',
+      num_items:    courseIds.value.length,
+    })
+  }
 })
 
 // Buyer form

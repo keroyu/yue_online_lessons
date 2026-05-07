@@ -204,6 +204,18 @@ const showFloatingPanel = computed(() => !topInfoVisible.value && !bottomPurchas
 let observer = null
 
 onMounted(() => {
+  // Meta Pixel ViewContent event
+  if (window.fbq && !props.isPreviewMode) {
+    window.fbq('track', 'ViewContent', {
+      value:        parseFloat(props.course.price) || 0,
+      currency:     'TWD',
+      content_ids:  [props.course.id],
+      content_type: 'product',
+      content_name: props.course.name,
+      content_category: getTypeLabel(props.course.type),
+    })
+  }
+
   observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {

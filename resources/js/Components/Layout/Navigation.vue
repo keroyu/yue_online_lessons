@@ -1,22 +1,14 @@
 <script setup>
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import { useCart } from '@/composables/useCart'
 
 const page = usePage()
 const auth = computed(() => page.props.auth)
 const user = computed(() => auth.value?.user)
 const mobileMenuOpen = ref(false)
 
-const cartCount = computed(() => {
-  if (user.value) {
-    return page.props.cartCount ?? 0
-  }
-  try {
-    return JSON.parse(localStorage.getItem('guest_cart') || '[]').length
-  } catch {
-    return 0
-  }
-})
+const { cartCount } = useCart()
 
 const logout = () => {
   router.post('/logout')

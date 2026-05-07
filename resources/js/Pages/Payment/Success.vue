@@ -46,8 +46,10 @@ onMounted(() => {
     window.fbq('track', 'Purchase', {
       value:        parseFloat(props.order.total_amount),
       currency:     'TWD',
-      content_ids:  props.order.items.map((_, i) => i),
-    })
+      content_ids:  props.order.items.map((i) => i.course_id),
+      content_type: 'product',
+      num_items:    props.order.items.length,
+    }, { eventID: `purchase_${props.order.merchant_order_no}` })
   }
 })
 

@@ -46,6 +46,7 @@ class SuccessController extends Controller
                 'total_amount'      => $order->total_amount,
                 'payment_gateway'   => $order->payment_gateway,
                 'items'             => $order->items->map(fn ($item) => [
+                    'course_id'   => $item->course_id,
                     'course_name' => $item->course_name,
                     'unit_price'  => $item->unit_price,
                 ])->toArray(),

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
+import { useCart } from '@/composables/useCart'
 
 defineOptions({ layout: false })
 
@@ -37,39 +38,25 @@ onMounted(() => {
       guestItems.value = []
     }
   }
-
-  // Meta Pixel InitiateCheckout
-  if (window.fbq && displayItems.value.length > 0) {
-    window.fbq('track', 'InitiateCheckout', {
-      num_items: displayItems.value.length,
-      value: displayTotal.value,
-      currency: 'TWD',
-    })
-  }
 })
 
+const { removeFromCart } = useCart()
 const removing = ref(new Set())
 
 const removeItem = async (item) => {
   if (removing.value.has(item.id)) return
+  removing.value.add(item.id)
+  try {
+    const result = await removeFromCart(item.course.id)
+    if (!result.success) return
 
-  if (isAuthenticated.value) {
-    removing.value.add(item.id)
-    try {
-      await window.axios.delete(`/api/cart/${item.course.id}`)
+    if (isAuthenticated.value) {
       router.reload({ only: ['items', 'total'] })
-    } catch {
-      // ignore
-    } finally {
-      removing.value.delete(item.id)
+    } else {
+      guestItems.value = guestItems.value.filter(i => i.id !== item.course.id)
     }
-  } else {
-    try {
-      const cart = JSON.parse(localStorage.getItem('guest_cart') || '[]')
-      const updated = cart.filter(i => i.id !== item.course.id)
-      localStorage.setItem('guest_cart', JSON.stringify(updated))
-      guestItems.value = updated
-    } catch {}
+  } finally {
+    removing.value.delete(item.id)
   }
 }
 </script>
