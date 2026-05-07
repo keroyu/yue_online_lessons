@@ -180,12 +180,12 @@ class CourseController extends Controller
     private function gatewayConfigured(): array
     {
         return [
-            'payuni'   => !empty(SiteSetting::get('payuni_merchant_id'))
-                       && !empty(SiteSetting::get('payuni_hash_key'))
-                       && !empty(SiteSetting::get('payuni_hash_iv')),
-            'newebpay' => !empty(SiteSetting::get('newebpay_merchant_id'))
-                       && !empty(SiteSetting::get('newebpay_hash_key'))
-                       && !empty(SiteSetting::get('newebpay_hash_iv')),
+            'payuni'   => !empty(SiteSetting::get('payuni_merchant_id',   config('services.payuni.merchant_id')))
+                       && !empty(SiteSetting::get('payuni_hash_key',      config('services.payuni.hash_key')))
+                       && !empty(SiteSetting::get('payuni_hash_iv',       config('services.payuni.hash_iv'))),
+            'newebpay' => !empty(SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id')))
+                       && !empty(SiteSetting::get('newebpay_hash_key',    config('services.newebpay.hash_key')))
+                       && !empty(SiteSetting::get('newebpay_hash_iv',     config('services.newebpay.hash_iv'))),
         ];
     }
 
