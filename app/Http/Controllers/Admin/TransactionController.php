@@ -284,7 +284,7 @@ class TransactionController extends Controller
                 '訂單 ID',
                 '商店訂單編號',
                 '金流交易序號',
-                '金流渠道',
+                '金流管道',
                 'PayUni 交易序號',
                 'Portaly 訂單編號',
                 '購買者姓名',

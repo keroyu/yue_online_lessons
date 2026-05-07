@@ -240,7 +240,7 @@ const statusClass = (status, type) => {
             <dd class="mt-1 text-sm text-gray-900 font-mono">{{ order_info.gateway_trade_no || '-' }}</dd>
           </div>
           <div>
-            <dt class="text-sm font-medium text-gray-500">金流渠道</dt>
+            <dt class="text-sm font-medium text-gray-500">金流管道</dt>
             <dd class="mt-1 text-sm text-gray-900">{{ gatewayLabel(order_info.payment_gateway) }}</dd>
           </div>
           <div v-if="order_info.tax_id">
