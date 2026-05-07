@@ -186,7 +186,7 @@ const copiedId = ref(null)
 
 const badgeConfig = (transaction) => {
   // Data-driven: use whatever order id is available rather than depend on source field
-  // (source can be null/inconsistent on legacy Portaly webhook records).
+  // (source can be null/inconsistent on legacy webhook records).
   if (transaction.portaly_order_id) {
     return { label: 'Portaly', orderId: transaction.portaly_order_id, classes: 'bg-slate-100 text-slate-700' }
   }
@@ -197,6 +197,10 @@ const badgeConfig = (transaction) => {
   }
   if (merchantOrderNo && gateway === 'newebpay') {
     return { label: 'NewebPay', orderId: merchantOrderNo, classes: 'bg-blue-100 text-blue-700' }
+  }
+  // Legacy PayUni single-course purchase: no Order, only payuni_trade_no on Purchase
+  if (transaction.payuni_trade_no) {
+    return { label: 'PayUni', orderId: transaction.payuni_trade_no, classes: 'bg-indigo-100 text-indigo-700' }
   }
   return null
 }

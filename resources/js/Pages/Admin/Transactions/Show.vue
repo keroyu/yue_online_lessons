@@ -117,6 +117,12 @@ const statusClass = (status, type) => {
             <dd class="mt-1 text-sm text-gray-900">{{ transaction.portaly_order_id || '-' }}</dd>
           </div>
 
+          <!-- Legacy PayUni trade no (single-course direct buy, pre-cart-checkout) -->
+          <div v-if="transaction.payuni_trade_no">
+            <dt class="text-sm font-medium text-gray-500">PayUni 交易序號</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ transaction.payuni_trade_no }}</dd>
+          </div>
+
           <!-- Buyer info -->
           <div>
             <dt class="text-sm font-medium text-gray-500">購買者</dt>
