@@ -114,6 +114,13 @@ class NewebpayService
             return [];
         }
 
+        // RespondType=JSON → NewebPay encrypts a JSON string; decode accordingly.
+        $json = json_decode($decrypted, true);
+        if (is_array($json)) {
+            return $json;
+        }
+
+        // Fallback: RespondType=String produces a URL-encoded query string.
         $result = [];
         parse_str($decrypted, $result);
         return $result;
