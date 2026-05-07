@@ -48,10 +48,13 @@ class NewebpayController extends Controller
             return $this->successResponse();
         }
 
+        // RespondType=JSON 的回應業務欄位在 Result 子物件；Status 在頂層
+        $result = $params['Result'] ?? $params;
+
         Log::info('NewebPay Notify: decrypted', [
             'Status'          => $params['Status'] ?? null,
-            'MerchantOrderNo' => $params['MerchantOrderNo'] ?? null,
-            'TradeNo'         => $params['TradeNo'] ?? null,
+            'MerchantOrderNo' => $result['MerchantOrderNo'] ?? null,
+            'TradeNo'         => $result['TradeNo'] ?? null,
         ]);
 
         if (($params['Status'] ?? '') !== 'SUCCESS') {
@@ -60,7 +63,7 @@ class NewebpayController extends Controller
         }
 
         // Risk: field is MerchantOrderNo (NewebPay), not MerTradeNo (PayUni).
-        $merchantOrderNo = $params['MerchantOrderNo'] ?? null;
+        $merchantOrderNo = $result['MerchantOrderNo'] ?? null;
         if (!$merchantOrderNo) {
             Log::error('NewebPay Notify: missing MerchantOrderNo in decrypted params');
             return $this->successResponse();
@@ -73,7 +76,7 @@ class NewebpayController extends Controller
         }
 
         try {
-            $gatewayTradeNo = $params['TradeNo'] ?? $merchantOrderNo;
+            $gatewayTradeNo = $result['TradeNo'] ?? $merchantOrderNo;
             app(CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'newebpay');
             Log::info('NewebPay Notify: order fulfilled', [
                 'MerchantOrderNo' => $merchantOrderNo,
@@ -116,8 +119,10 @@ class NewebpayController extends Controller
             return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
         }
 
+        // RespondType=JSON 的回應業務欄位在 Result 子物件；Status 在頂層
+        $result          = $params['Result'] ?? $params;
         $isSuccess       = ($params['Status'] ?? '') === 'SUCCESS';
-        $merchantOrderNo = $params['MerchantOrderNo'] ?? '';
+        $merchantOrderNo = $result['MerchantOrderNo'] ?? '';
 
         Log::info('NewebPay Return: result', [
             'Status'          => $params['Status'] ?? null,
@@ -130,7 +135,7 @@ class NewebpayController extends Controller
             $order = Order::where('merchant_order_no', $merchantOrderNo)->first();
             if ($order && $order->status !== 'paid') {
                 try {
-                    $gatewayTradeNo = $params['TradeNo'] ?? $merchantOrderNo;
+                    $gatewayTradeNo = $result['TradeNo'] ?? $merchantOrderNo;
                     app(CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'newebpay');
                     Log::info('NewebPay Return: order fulfilled (fallback)', [
                         'MerchantOrderNo' => $merchantOrderNo,
