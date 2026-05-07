@@ -19,6 +19,7 @@ class CheckoutRequest extends FormRequest
             'buyer.name'   => ['required', 'string', 'max:100'],
             'buyer.email'  => ['required', 'email', 'max:255'],
             'buyer.phone'  => ['required', 'string', 'max:20'],
+            'buyer.tax_id' => ['nullable', 'string', 'regex:/^\d{8}$/'],
             'agree_terms'  => ['required', 'accepted'],
             'course_ids'   => ['required', 'array', 'min:1'],
             'course_ids.*' => [

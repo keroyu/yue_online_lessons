@@ -193,6 +193,7 @@ class TransactionController extends Controller
                 'merchant_order_no' => $transaction->order->merchant_order_no,
                 'gateway_trade_no'  => $transaction->order->gateway_trade_no,
                 'payment_gateway'   => $transaction->order->payment_gateway,
+                'tax_id'            => $transaction->order->tax_id,
             ] : null,
         ]);
     }
@@ -281,6 +282,7 @@ class TransactionController extends Controller
                 'Portaly 訂單編號',
                 '購買者姓名',
                 '購買者 Email',
+                '公司統編',
                 '課程名稱',
                 '金額',
                 '折扣金額',
@@ -300,6 +302,7 @@ class TransactionController extends Controller
                         $purchase->portaly_order_id ?? '',
                         $purchase->user?->real_name ?? $purchase->user?->nickname ?? '',
                         $purchase->buyer_email ?? $purchase->user?->email ?? '',
+                        $purchase->order?->tax_id ?? '',
                         $purchase->course?->name ?? '',
                         $purchase->amount,
                         $purchase->discount_amount,

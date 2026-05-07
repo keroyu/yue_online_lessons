@@ -45,7 +45,10 @@ onMounted(() => {
 const name       = ref(props.prefill?.name  ?? '')
 const email      = ref(props.prefill?.email ?? '')
 const phone      = ref(props.prefill?.phone ?? '')
+const taxId      = ref('')
 const agreeTerms = ref(false)
+
+const taxIdValid = computed(() => taxId.value.trim() === '' || /^\d{8}$/.test(taxId.value.trim()))
 
 const emailPurchaseError = ref('')
 
@@ -71,6 +74,7 @@ const formValid = computed(() =>
   email.value.trim().length > 0 &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value) &&
   phone.value.trim().length > 0 &&
+  taxIdValid.value &&
   agreeTerms.value &&
   courseIds.value.length > 0 &&
   !emailPurchaseError.value
@@ -90,9 +94,10 @@ const submitCheckout = async () => {
   try {
     const res = await window.axios.post('/api/checkout/initiate', {
       buyer: {
-        name:  name.value.trim(),
-        email: email.value.trim(),
-        phone: phone.value.trim(),
+        name:   name.value.trim(),
+        email:  email.value.trim(),
+        phone:  phone.value.trim(),
+        tax_id: taxId.value.trim() || null,
       },
       agree_terms: true,
       course_ids:  courseIds.value,
@@ -205,6 +210,21 @@ const submitCheckout = async () => {
               :class="errors['buyer.phone'] ? 'border-red-400' : 'border-gray-300'"
             />
             <p v-if="errors['buyer.phone']" class="mt-1 text-xs text-red-500">{{ errors['buyer.phone'][0] }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">公司統編 <span class="text-gray-400 font-normal">（如要報帳）</span></label>
+            <input
+              v-model="taxId"
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="8 位數字，可留空"
+              class="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
+              :class="(!taxIdValid || errors['buyer.tax_id']) ? 'border-red-400' : 'border-gray-300'"
+            />
+            <p v-if="!taxIdValid" class="mt-1 text-xs text-red-500">統編需為 8 位數字</p>
+            <p v-else-if="errors['buyer.tax_id']" class="mt-1 text-xs text-red-500">{{ errors['buyer.tax_id'][0] }}</p>
           </div>
 
           <!-- Agree terms -->

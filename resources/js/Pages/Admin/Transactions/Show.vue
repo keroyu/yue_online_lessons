@@ -237,6 +237,10 @@ const statusClass = (status, type) => {
             <dt class="text-sm font-medium text-gray-500">金流渠道</dt>
             <dd class="mt-1 text-sm text-gray-900">{{ gatewayLabel(order_info.payment_gateway) }}</dd>
           </div>
+          <div v-if="order_info.tax_id">
+            <dt class="text-sm font-medium text-gray-500">公司統編</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ order_info.tax_id }}</dd>
+          </div>
         </dl>
       </div>
     </div>

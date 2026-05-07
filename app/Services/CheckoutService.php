@@ -62,6 +62,7 @@ class CheckoutService
                 'buyer_name'        => $buyer['name'],
                 'buyer_email'       => $buyer['email'],
                 'buyer_phone'       => $buyer['phone'],
+                'tax_id'            => !empty($buyer['tax_id']) ? $buyer['tax_id'] : null,
                 'total_amount'      => $totalAmount,
                 'currency'          => 'TWD',
                 'payment_gateway'   => $gateway,

@@ -140,6 +140,10 @@ const formatPrice = (val) => {
             <dt class="text-gray-500">電話</dt>
             <dd class="text-gray-700">{{ order.buyer_phone }}</dd>
           </div>
+          <div v-if="order.tax_id" class="flex justify-between">
+            <dt class="text-gray-500">公司統編</dt>
+            <dd class="text-gray-700 font-mono">{{ order.tax_id }}</dd>
+          </div>
         </dl>
 
         <!-- Items -->

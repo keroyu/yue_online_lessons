@@ -42,6 +42,7 @@ class SuccessController extends Controller
                 'buyer_name'        => $order->buyer_name,
                 'buyer_email'       => $order->buyer_email,
                 'buyer_phone'       => $order->buyer_phone,
+                'tax_id'            => $order->tax_id,
                 'total_amount'      => $order->total_amount,
                 'payment_gateway'   => $order->payment_gateway,
                 'items'             => $order->items->map(fn ($item) => [
