@@ -11,7 +11,17 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  order_info: {
+    type: Object,
+    default: null,
+  },
 })
+
+const gatewayLabel = (gateway) => {
+  if (gateway === 'payuni')   return '統一金流（PayUni）'
+  if (gateway === 'newebpay') return '藍新金流（NewebPay）'
+  return gateway || '-'
+}
 
 const page = usePage()
 const flash = computed(() => page.props.flash)
@@ -203,6 +213,29 @@ const statusClass = (status, type) => {
           <div>
             <dt class="text-sm font-medium text-gray-500">最後更新</dt>
             <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(transaction.updated_at) }}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Cart order info block (only for PayUni / NewebPay purchases) -->
+    <div v-if="order_info?.merchant_order_no" class="mt-6 bg-white shadow sm:rounded-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-base font-semibold text-gray-900">購物車訂單資訊</h2>
+      </div>
+      <div class="px-6 py-6">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">商店訂單編號</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ order_info.merchant_order_no }}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">金流交易序號</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono">{{ order_info.gateway_trade_no || '-' }}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">金流渠道</dt>
+            <dd class="mt-1 text-sm text-gray-900">{{ gatewayLabel(order_info.payment_gateway) }}</dd>
           </div>
         </dl>
       </div>

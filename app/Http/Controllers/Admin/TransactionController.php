@@ -34,10 +34,11 @@ class TransactionController extends Controller
         $courseId = $request->input('course_id');
         $perPage  = min($request->input('per_page', 20), 100);
 
-        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'course.lessons:id,course_id'])
+        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'course.lessons:id,course_id', 'order:id,merchant_order_no'])
             ->when($search, fn ($q) => $q->where(fn ($q2) =>
                 $q2->where('buyer_email', 'like', "%{$search}%")
                    ->orWhere('portaly_order_id', 'like', "%{$search}%")
+                   ->orWhereHas('order', fn ($q3) => $q3->where('merchant_order_no', 'like', "%{$search}%"))
             ))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->when($type,   fn ($q) => $q->where('type', $type))
@@ -91,6 +92,7 @@ class TransactionController extends Controller
             }
             $t->progress_completed = $completed;
             $t->progress_total     = $total;
+            $t->order              = ['merchant_order_no' => $t->order?->merchant_order_no];
             return $t;
         });
 
@@ -158,7 +160,7 @@ class TransactionController extends Controller
      */
     public function show(Purchase $transaction): InertiaResponse
     {
-        $transaction->load(['user:id,real_name,nickname,email', 'course:id,name']);
+        $transaction->load(['user:id,real_name,nickname,email', 'course:id,name', 'order']);
 
         return Inertia::render('Admin/Transactions/Show', [
             'transaction' => [
@@ -187,6 +189,11 @@ class TransactionController extends Controller
                 'created_at'          => $transaction->created_at->toIso8601String(),
                 'updated_at'          => $transaction->updated_at->toIso8601String(),
             ],
+            'order_info' => $transaction->order ? [
+                'merchant_order_no' => $transaction->order->merchant_order_no,
+                'gateway_trade_no'  => $transaction->order->gateway_trade_no,
+                'payment_gateway'   => $transaction->order->payment_gateway,
+            ] : null,
         ]);
     }
 
@@ -236,7 +243,7 @@ class TransactionController extends Controller
             abort(422, '請選擇要匯出的交易，或勾選「全選符合條件」');
         }
 
-        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name'])
+        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'order'])
             ->orderBy('created_at', 'desc');
 
         if ($selectAll) {
@@ -250,6 +257,7 @@ class TransactionController extends Controller
                 ->when($search, fn ($q) => $q->where(fn ($q2) =>
                     $q2->where('buyer_email', 'like', "%{$search}%")
                        ->orWhere('portaly_order_id', 'like', "%{$search}%")
+                       ->orWhereHas('order', fn ($q3) => $q3->where('merchant_order_no', 'like', "%{$search}%"))
                 ))
                 ->when($status,   fn ($q) => $q->where('status', $status))
                 ->when($type,     fn ($q) => $q->where('type', $type))
@@ -269,6 +277,7 @@ class TransactionController extends Controller
             // Header row
             fputcsv($handle, [
                 '訂單 ID',
+                '商店訂單編號',
                 'Portaly 訂單編號',
                 '購買者姓名',
                 '購買者 Email',
@@ -287,6 +296,7 @@ class TransactionController extends Controller
                 foreach ($purchases as $purchase) {
                     fputcsv($handle, [
                         $purchase->id,
+                        $purchase->order?->merchant_order_no ?? '',
                         $purchase->portaly_order_id ?? '',
                         $purchase->user?->real_name ?? $purchase->user?->nickname ?? '',
                         $purchase->buyer_email ?? $purchase->user?->email ?? '',

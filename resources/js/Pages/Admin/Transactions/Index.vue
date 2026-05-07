@@ -181,6 +181,31 @@ const statusClass = (status, type) => {
     : 'inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800'
 }
 
+// Badge copy-to-clipboard
+const copiedId = ref(null)
+
+const badgeConfig = (transaction) => {
+  const src = transaction.source
+  if (src === 'portaly' && transaction.portaly_order_id) {
+    return { label: 'Portaly', orderId: transaction.portaly_order_id, classes: 'bg-slate-100 text-slate-700' }
+  }
+  if (src === 'payuni' && transaction.order?.merchant_order_no) {
+    return { label: 'PayUni', orderId: transaction.order.merchant_order_no, classes: 'bg-indigo-100 text-indigo-700' }
+  }
+  if (src === 'newebpay' && transaction.order?.merchant_order_no) {
+    return { label: 'NewebPay', orderId: transaction.order.merchant_order_no, classes: 'bg-blue-100 text-blue-700' }
+  }
+  return null
+}
+
+const copyOrderId = (orderId) => {
+  if (!orderId) return
+  navigator.clipboard?.writeText(orderId).then(() => {
+    copiedId.value = orderId
+    setTimeout(() => { copiedId.value = null }, 1500)
+  }).catch(() => {})
+}
+
 const handleRefund = (transaction) => {
   if (!window.confirm('確認將此交易標記為退款？退款後該會員的課程存取將被撤銷。')) return
   router.patch(`/admin/transactions/${transaction.id}/refund`, {}, { preserveScroll: true })
@@ -450,7 +475,18 @@ const submitCreate = () => {
                   </td>
                   <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                     {{ transaction.id }}
-                    <div v-if="transaction.portaly_order_id" class="text-xs text-gray-500">{{ transaction.portaly_order_id }}</div>
+                    <template v-if="badgeConfig(transaction)">
+                      <button
+                        type="button"
+                        :title="badgeConfig(transaction).orderId"
+                        :class="['mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium cursor-pointer select-none', badgeConfig(transaction).classes]"
+                        @click="copyOrderId(badgeConfig(transaction).orderId)"
+                      >
+                        <template v-if="copiedId === badgeConfig(transaction).orderId">已複製 ✓</template>
+                        <template v-else>[{{ badgeConfig(transaction).label }}]</template>
+                      </button>
+                    </template>
+                    <span v-else class="mt-1 block text-xs text-gray-400">—</span>
                   </td>
                   <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                     <div>{{ transaction.user?.real_name || transaction.user?.nickname || '-' }}</div>
