@@ -113,6 +113,17 @@ if (!page.props.auth?.user) {
 const cartAddSuccess = ref(false)
 let cartToastTimer = null
 
+const handlePreviewClick = () => {
+  if (window.fbq) {
+    window.fbq('trackCustom', 'PreviewClick', {
+      content_ids:     [props.course.id],
+      content_type:    'product',
+      content_name:    props.course.name,
+      content_category: getTypeLabel(props.course.type),
+    })
+  }
+}
+
 const handleAddToCart = async () => {
   cartAddError.value = ''
   const result = await addToCart(props.course.id, {
@@ -498,6 +509,7 @@ const submitBooking = async () => {
               :href="`/course/${course.id}/preview`"
               target="_blank"
               rel="noopener noreferrer"
+              @click="handlePreviewClick"
               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all"
             >
               <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -795,6 +807,7 @@ const submitBooking = async () => {
                 :href="`/course/${course.id}/preview`"
                 target="_blank"
                 rel="noopener noreferrer"
+                @click="handlePreviewClick"
                 class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all"
               >
                 <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -918,6 +931,7 @@ const submitBooking = async () => {
               :href="`/course/${course.id}/preview`"
               target="_blank"
               rel="noopener noreferrer"
+              @click="handlePreviewClick"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-all text-sm"
             >
               <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
