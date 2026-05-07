@@ -160,6 +160,7 @@ class CourseController extends Controller
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
                 'is_high_ticket' => $course->is_high_ticket,
+                'payment_gateway' => $course->payment_gateway,
             ],
             'images' => $course->images()
                 ->latest()
