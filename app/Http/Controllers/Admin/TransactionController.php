@@ -34,7 +34,7 @@ class TransactionController extends Controller
         $courseId = $request->input('course_id');
         $perPage  = min($request->input('per_page', 20), 100);
 
-        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'course.lessons:id,course_id', 'order:id,merchant_order_no'])
+        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'course.lessons:id,course_id', 'order:id,merchant_order_no,payment_gateway'])
             ->when($search, fn ($q) => $q->where(fn ($q2) =>
                 $q2->where('buyer_email', 'like', "%{$search}%")
                    ->orWhere('portaly_order_id', 'like', "%{$search}%")
@@ -92,7 +92,10 @@ class TransactionController extends Controller
             }
             $t->progress_completed = $completed;
             $t->progress_total     = $total;
-            $t->order              = ['merchant_order_no' => $t->order?->merchant_order_no];
+            $t->order              = $t->order ? [
+                'merchant_order_no' => $t->order->merchant_order_no,
+                'payment_gateway'   => $t->order->payment_gateway,
+            ] : null;
             return $t;
         });
 

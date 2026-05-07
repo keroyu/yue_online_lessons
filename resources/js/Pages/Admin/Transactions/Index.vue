@@ -185,15 +185,18 @@ const statusClass = (status, type) => {
 const copiedId = ref(null)
 
 const badgeConfig = (transaction) => {
-  const src = transaction.source
-  if (src === 'portaly' && transaction.portaly_order_id) {
+  // Data-driven: use whatever order id is available rather than depend on source field
+  // (source can be null/inconsistent on legacy Portaly webhook records).
+  if (transaction.portaly_order_id) {
     return { label: 'Portaly', orderId: transaction.portaly_order_id, classes: 'bg-slate-100 text-slate-700' }
   }
-  if (src === 'payuni' && transaction.order?.merchant_order_no) {
-    return { label: 'PayUni', orderId: transaction.order.merchant_order_no, classes: 'bg-indigo-100 text-indigo-700' }
+  const merchantOrderNo = transaction.order?.merchant_order_no
+  const gateway         = transaction.order?.payment_gateway
+  if (merchantOrderNo && gateway === 'payuni') {
+    return { label: 'PayUni', orderId: merchantOrderNo, classes: 'bg-indigo-100 text-indigo-700' }
   }
-  if (src === 'newebpay' && transaction.order?.merchant_order_no) {
-    return { label: 'NewebPay', orderId: transaction.order.merchant_order_no, classes: 'bg-blue-100 text-blue-700' }
+  if (merchantOrderNo && gateway === 'newebpay') {
+    return { label: 'NewebPay', orderId: merchantOrderNo, classes: 'bg-blue-100 text-blue-700' }
   }
   return null
 }

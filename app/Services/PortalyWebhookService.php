@@ -146,6 +146,7 @@ class PortalyWebhookService
             'discount_amount' => $data['discount'] ?? 0,
             'status' => 'paid',
             'type' => 'paid',
+            'source' => 'portaly',
             'webhook_received_at' => now(),
         ]);
     }
