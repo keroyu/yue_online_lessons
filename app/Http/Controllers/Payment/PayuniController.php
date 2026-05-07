@@ -137,6 +137,21 @@ class PayuniController extends Controller
             // New Order-based path (ord_ prefix)
             if (str_starts_with($merTradeNo, 'ord_')) {
                 if ($isSuccess) {
+                    // Safety net: fulfill order on ReturnURL too. fulfillOrder() is idempotent
+                    // (checks order.status === 'paid'), so duplicate calls are safe.
+                    $order = \App\Models\Order::where('merchant_order_no', $merTradeNo)->first();
+                    if ($order && $order->status !== 'paid') {
+                        try {
+                            $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
+                            app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
+                            Log::info('PayUni Return: order fulfilled (fallback)', ['MerTradeNo' => $merTradeNo]);
+                        } catch (\Exception $e) {
+                            Log::error('PayUni Return: fallback fulfillOrder failed', [
+                                'error'      => $e->getMessage(),
+                                'MerTradeNo' => $merTradeNo,
+                            ]);
+                        }
+                    }
                     return redirect('/payment/success?order=' . $merTradeNo);
                 }
                 return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');

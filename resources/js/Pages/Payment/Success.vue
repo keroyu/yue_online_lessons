@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
 
@@ -12,11 +12,21 @@ const props = defineProps({
 })
 
 let pollTimer = null
+const pollTimedOut = ref(false)
+const POLL_INTERVAL_MS = 2000
+const POLL_MAX_ATTEMPTS = 30 // 30 × 2s = 60s
 
 onMounted(() => {
   if (props.waiting) {
     const orderNo = new URLSearchParams(window.location.search).get('order')
+    let attempts = 0
     pollTimer = setInterval(async () => {
+      attempts++
+      if (attempts > POLL_MAX_ATTEMPTS) {
+        clearInterval(pollTimer)
+        pollTimedOut.value = true
+        return
+      }
       try {
         const res = await window.axios.get('/api/checkout/order-status', { params: { order: orderNo } })
         if (res.data.status === 'paid') {
@@ -24,7 +34,7 @@ onMounted(() => {
           window.location.reload()
         }
       } catch { /* ignore */ }
-    }, 2000)
+    }, POLL_INTERVAL_MS)
     return
   }
 
@@ -57,13 +67,43 @@ const formatPrice = (val) => {
 
     <!-- Waiting overlay -->
     <Teleport v-if="waiting" to="body">
-      <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
-        <svg class="animate-spin w-12 h-12 text-brand-teal mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-        </svg>
-        <p class="text-brand-navy font-semibold text-lg">正在確認付款結果…</p>
-        <p class="text-gray-500 text-sm mt-1">請稍候，勿關閉此頁面</p>
+      <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm px-6">
+        <template v-if="!pollTimedOut">
+          <svg class="animate-spin w-12 h-12 text-brand-teal mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          <p class="text-brand-navy font-semibold text-lg">正在確認付款結果…</p>
+          <p class="text-gray-500 text-sm mt-1">請稍候，勿關閉此頁面</p>
+        </template>
+        <template v-else>
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-100 mb-4">
+            <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p class="text-brand-navy font-semibold text-lg text-center">付款結果尚未確認</p>
+          <p class="text-gray-600 text-sm mt-2 text-center max-w-sm">
+            金流系統處理時間較久。您的款項若已扣款，課程將在數分鐘內自動開通。
+          </p>
+          <p class="text-gray-500 text-xs mt-3 text-center">
+            如有疑問請聯絡客服 <a href="mailto:themustbig+learn@gmail.com" class="underline">themustbig+learn@gmail.com</a>
+          </p>
+          <div class="mt-5 flex gap-3">
+            <button
+              @click="() => window.location.reload()"
+              class="px-4 py-2 rounded-lg bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal/80 transition-colors"
+            >
+              重新確認
+            </button>
+            <Link
+              :href="isLoggedIn ? '/member/learning' : '/'"
+              class="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              {{ isLoggedIn ? '前往我的課程' : '回首頁' }}
+            </Link>
+          </div>
+        </template>
       </div>
     </Teleport>
 

@@ -125,6 +125,23 @@ class NewebpayController extends Controller
         ]);
 
         if ($isSuccess && $merchantOrderNo) {
+            // Safety net: fulfill order on ReturnURL too. fulfillOrder() is idempotent
+            // (checks order.status === 'paid'), so duplicate calls are safe.
+            $order = Order::where('merchant_order_no', $merchantOrderNo)->first();
+            if ($order && $order->status !== 'paid') {
+                try {
+                    $gatewayTradeNo = $params['TradeNo'] ?? $merchantOrderNo;
+                    app(CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'newebpay');
+                    Log::info('NewebPay Return: order fulfilled (fallback)', [
+                        'MerchantOrderNo' => $merchantOrderNo,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('NewebPay Return: fallback fulfillOrder failed', [
+                        'error'           => $e->getMessage(),
+                        'MerchantOrderNo' => $merchantOrderNo,
+                    ]);
+                }
+            }
             return redirect('/payment/success?order=' . $merchantOrderNo);
         }
 

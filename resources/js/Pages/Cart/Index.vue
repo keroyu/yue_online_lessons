@@ -27,7 +27,7 @@ const displayTotal = computed(() =>
   isAuthenticated.value ? props.total : guestTotal.value
 )
 
-const paymentFailed = computed(() => page.props.payment_failed ?? null)
+const paymentFailed = computed(() => page.props.flash?.payment_failed ?? null)
 
 onMounted(() => {
   if (!isAuthenticated.value) {

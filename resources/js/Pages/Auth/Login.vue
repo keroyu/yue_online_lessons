@@ -6,7 +6,10 @@ import { useCart } from '@/composables/useCart'
 
 const page = usePage()
 const flash = computed(() => page.props.flash)
-const payuniHint = computed(() => new URLSearchParams(window.location.search).get('hint') === 'payuni')
+const payuniHint = computed(() => {
+  const hint = new URLSearchParams(window.location.search).get('hint')
+  return hint === 'payuni' || hint === 'purchase'
+})
 const { mergeGuestCartOnLogin } = useCart()
 
 const step = ref('email') // 'email' or 'code'
