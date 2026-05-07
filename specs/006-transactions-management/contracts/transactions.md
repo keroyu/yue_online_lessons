@@ -2,6 +2,7 @@
 
 **Phase**: 1 — Design
 **Date**: 2026-03-10
+**Updated**: 2026-05-07 - CSV 匯出欄位擴充：商店訂單編號 / 金流交易序號 / 金流管道 / PayUni 交易序號 / 公司統編；show() 回傳 transaction.payuni_trade_no 與 order_info.tax_id（FR-035~039）
 **Transport**: Inertia.js (server-side rendered props) + direct HTTP (CSV export)
 
 ---
@@ -115,9 +116,19 @@ router.visit(url, {
 
 **CSV Columns**:
 ```
-訂單 ID, Portaly 訂單編號, 購買者姓名, 購買者 Email, 課程名稱,
+訂單 ID, 商店訂單編號, 金流交易序號, 金流管道, PayUni 交易序號,
+Portaly 訂單編號, 購買者姓名, 購買者 Email, 公司統編, 課程名稱,
 金額, 折扣金額, 優惠碼, 幣別, 狀態, 來源, 類型, 購買時間
 ```
+
+| 欄位 | 來源 | 涵蓋資料 |
+|---|---|---|
+| 商店訂單編號 | `order.merchant_order_no` | 新 PayUni / NewebPay（009+）|
+| 金流交易序號 | `order.gateway_trade_no` | 新 PayUni / NewebPay（金流方對帳序號）|
+| 金流管道 | `order.payment_gateway` | `payuni` / `newebpay` |
+| PayUni 交易序號 | `purchases.payuni_trade_no` | Legacy 單堂直購（009 之前）|
+| Portaly 訂單編號 | `purchases.portaly_order_id` | Portaly 課程 |
+| 公司統編 | `order.tax_id` | 新訂單若有填寫（009 FR-036）|
 
 **Validation**:
 - 模式 A：`ids` 必須非空陣列

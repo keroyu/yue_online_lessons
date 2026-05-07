@@ -12,6 +12,9 @@
 **Updated**: 2026-05-07 - CourseForm pill button + gatewayConfigured hint（不產生新任務，屬 T046 延伸 UI 調整）(Phase 7)
 **Updated**: 2026-05-07 - Phase 8（T049-T052）全部完成：NewebpayService（AES-256-CBC + PKCS7 unpad + TradeSha 驗章）、NewebpayController（notify 回 SUCCESS、return 僅 redirect 不重複 fulfillOrder）、路由（notify 在 api.php、return 在 web.php withoutMiddleware CSRF）；Phase 9（T056 T058 T059）完成；T057 待 sandbox 手動驗證
 **Updated**: 2026-05-07 - 增量追加 Phase 10（US8 T060-T064）：Portaly Webhook Key 後台設定；`config/services.php` key 改名、`.env.example` 更名、`PortalyWebhookService` 改讀 SiteSetting、`SettingsController` + `Payment.vue` 擴充
+**Updated**: 2026-05-07 - NewebpayService JSON decode 修正（RespondType=JSON）— 不產生新任務（屬 T049 hotfix） (Phase 11)
+**Updated**: 2026-05-07 - 金流體質強化（Cart flash 路徑、ReturnURL fallback fulfill、Success 輪詢 60s 上限、Login hint）— 不產生新任務 (Phase 12)
+**Updated**: 2026-05-07 - 結帳新增公司統編 orders.tax_id 欄位（migration + Model + Request + Service + 前端）— 不產生新任務（屬 US3 增量延伸） (Phase 13)
 
 **Organization**: Tasks grouped by user story — each phase is independently deployable and testable.
 

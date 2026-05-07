@@ -2,6 +2,7 @@
 
 **Feature Branch**: `009-cart-checkout`
 **Created**: 2026-05-06
+**Updated**: 2026-05-07 - orders 新增 `tax_id` varchar(8) nullable（公司統編）；Order::$fillable 對應加入；PaymentSuccessProps 補上 `tax_id`、`waiting` 欄位
 
 ---
 
@@ -79,6 +80,7 @@ CREATE TABLE cart_items (
 | buyer_name | varchar(100) | no | snapshot from checkout form |
 | buyer_email | varchar(255) | no | snapshot |
 | buyer_phone | varchar(20) | no | snapshot |
+| tax_id | varchar(8) | yes | optional 公司統編（如要報帳）；填寫時必為 8 位數字（前後端驗證） |
 | total_amount | decimal(10,2) | no | |
 | currency | varchar(10) | no | default `'TWD'` |
 | payment_gateway | varchar(20) | no | `'payuni'` or `'newebpay'` |
@@ -109,6 +111,7 @@ CREATE TABLE orders (
     buyer_name          VARCHAR(100) NOT NULL,
     buyer_email         VARCHAR(255) NOT NULL,
     buyer_phone         VARCHAR(20) NOT NULL,
+    tax_id              VARCHAR(8) NULL,
     total_amount        DECIMAL(10,2) NOT NULL,
     currency            VARCHAR(10) NOT NULL DEFAULT 'TWD',
     payment_gateway     VARCHAR(20) NOT NULL,
@@ -219,7 +222,7 @@ class CartItem extends Model
 class Order extends Model
 {
     protected $fillable = [
-        'user_id', 'buyer_name', 'buyer_email', 'buyer_phone',
+        'user_id', 'buyer_name', 'buyer_email', 'buyer_phone', 'tax_id',
         'total_amount', 'currency', 'payment_gateway',
         'merchant_order_no', 'status', 'gateway_trade_no',
         'webhook_received_at',
@@ -469,6 +472,7 @@ interface PaymentSuccessProps {
     buyer_name: string
     buyer_email: string
     buyer_phone: string
+    tax_id: string | null   // 公司統編，optional
     total_amount: string
     payment_gateway: string
     items: {
@@ -477,6 +481,7 @@ interface PaymentSuccessProps {
     }[]
   }
   isLoggedIn: boolean
+  waiting?: boolean         // true 表示等待 webhook 確認；前端啟動 60 秒輪詢
 }
 ```
 

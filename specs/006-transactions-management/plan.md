@@ -1,6 +1,7 @@
 # Implementation Plan: 交易紀錄管理（含營收圖表）
 
 **Branch**: `006-transactions-management` | **Date**: 2026-03-11 | **Spec**: [spec.md](./spec.md)
+**Updated**: 2026-05-07 - Badge 改 data-driven（不依賴 source）；支援 legacy PayUni payuni_trade_no fallback；詳情頁加 PayUni 交易序號；CSV 加金流交易序號 / 金流管道 / PayUni 交易序號 / 公司統編；文案「金流渠道」→「金流管道」（FR-035~039）
 **Input**: Feature specification from `/specs/006-transactions-management/spec.md`
 
 ## Summary

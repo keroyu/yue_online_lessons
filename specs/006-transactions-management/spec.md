@@ -7,6 +7,7 @@
 **Updated**: 2026-03-23 - 修正交易列表「標記退款」按鈕 HTTP method（POST → PATCH），解決 405 Method Not Allowed 錯誤
 **Updated**: 2026-03-30 - 釐清 Purchase 的 `status` 與 `type` 語意；文件中的「有效交易」明確指 `status = paid`
 **Updated**: 2026-05-07 - 增量更新：因應 009 購物車結帳流程上線，交易詳情頁新增 merchant_order_no / gateway_trade_no / payment_gateway 顯示；搜尋功能擴展支援 merchant_order_no；CSV 匯出新增 merchant_order_no 欄位；交易列表訂單 ID 欄位改為金流來源標籤（[Portaly] / [PayUni] / [NewebPay]）搭配點擊複製訂單編號
+**Updated**: 2026-05-07 - 列表 badge 改為 data-driven 邏輯（不依賴 source 欄位）：依序檢查 `portaly_order_id` → `order.payment_gateway` → `payuni_trade_no`；新增支援 legacy PayUni 單堂直購交易（無 Order 但有 payuni_trade_no）顯示 [PayUni] badge；詳情頁新增「PayUni 交易序號」欄位；CSV 匯出新增「金流交易序號」「金流管道」「PayUni 交易序號」三欄；公司統編欄（009 FR-036）顯示於詳情頁與 CSV；UI 文案「金流渠道」統一改為「金流管道」；新增 FR-035~FR-039
 **Status**: Draft
 **Input**: User description: "在管理後台加上交易紀錄的檢視和管理功能"
 
@@ -166,11 +167,16 @@
 - **FR-027**: 銷售額統計卡片數字 MUST 以千分位格式呈現，前加貨幣符號（如 $20,330）；銷售量以純數字呈現。
 - **FR-028**: 營收圖表高度 MUST 固定為 360px，不隨視窗高度縮放。右 Y 軸（銷售量）刻度 MUST 為整數（`precision: 0`、`stepSize: 1`、`beginAtZero: true`），在資料量極少時亦不顯示小數刻度。
 - **FR-029**: 文件與實作 MUST 將 Purchase 的 `status`（paid/refunded）與 `type`（paid/system_assigned/gift）視為兩個獨立維度；權限與營收統計依 `status` 判斷，取得方式與 UI 標籤依 `type` 判斷。
-- **FR-030**: 交易詳情頁 MUST 支援來自購物車結帳的交易（source = payuni 或 newebpay）：有關聯 Order 時顯示「購物車訂單資訊」區塊，包含商店訂單編號（merchant_order_no）、金流交易序號（gateway_trade_no）、金流渠道（payment_gateway）；無關聯 Order（或非購物車來源）時不顯示此區塊。
+- **FR-030**: 交易詳情頁 MUST 支援來自購物車結帳的交易（source = payuni 或 newebpay）：有關聯 Order 時顯示「購物車訂單資訊」區塊，包含商店訂單編號（merchant_order_no）、金流交易序號（gateway_trade_no）、金流管道（payment_gateway）；無關聯 Order（或非購物車來源）時不顯示此區塊。
 - **FR-031**: 系統 MUST 在關鍵字搜尋時，同時比對 buyer_email、portaly_order_id、以及關聯 Order 的 merchant_order_no，三者任一符合即納入結果。
 - **FR-032**: 匯出 CSV 時，MUST 為每筆交易填入 merchant_order_no（來自關聯 Order 記錄），無關聯 Order 時該欄位為空字串。
 - **FR-033**: 交易列表的訂單欄位 MUST 以圓角標籤（badge）顯示金流來源（Portaly / PayUni / NewebPay），替代原本的純文字訂單 ID 顯示。手動指派交易（無訂單編號）顯示「—」，不顯示標籤。
 - **FR-034**: 管理員 MUST 能點擊列表中的訂單標籤或編號，將完整訂單編號複製到剪貼簿；複製成功後 MUST 顯示短暫的「已複製」視覺回饋（不需要頁面跳轉或彈窗）。
+- **FR-035**: 列表訂單欄位的 badge 判斷 MUST 為 data-driven，不依賴 `purchases.source` 欄位（避免 legacy 資料 source 不一致導致誤判）：依序判斷 `transaction.portaly_order_id`（→ Portaly badge，複製 portaly_order_id）→ `transaction.order.payment_gateway === 'payuni'`（→ PayUni badge）/ `'newebpay'`（→ NewebPay badge）→ `transaction.payuni_trade_no`（legacy 單堂直購 → PayUni badge）→ 否則顯示「—」。Controller 端 eager load `order:id,merchant_order_no,payment_gateway` 並由 `->through()` closure 顯式暴露給前端。
+- **FR-036**: 詳情頁 MUST 顯示「PayUni 交易序號」欄位（`v-if="transaction.payuni_trade_no"`），用於 009 之前的 legacy PayUni 單堂直購交易；TransactionController::show() MUST 將 `payuni_trade_no` 加入 transaction prop。
+- **FR-037**: CSV 匯出 MUST 新增三欄位：「金流交易序號」（`order.gateway_trade_no`，金流方對帳用）、「金流管道」（`order.payment_gateway`：payuni / newebpay）、「PayUni 交易序號」（`payuni_trade_no`，legacy 單堂直購）。順序：商店訂單編號 → 金流交易序號 → 金流管道 → PayUni 交易序號 → Portaly 訂單編號。
+- **FR-038**: 詳情頁與 CSV 匯出 MUST 顯示公司統編（`order.tax_id`，由 009 FR-036 寫入），無值時不顯示（詳情頁 v-if）／空字串（CSV）。
+- **FR-039**: UI 文案中的「金流渠道」MUST 統一稱為「金流管道」（含詳情頁與 CSV 欄位 header）。
 
 ### Key Entities
 

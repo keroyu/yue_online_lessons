@@ -4,6 +4,7 @@
 **Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
 **Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)；列表「標記退款」快捷按鈕 (Phase 10)；修正退款按鈕 cursor-pointer (T026 補丁)；金額格式化 (Phase 11)；營收圖表 (Phase 12)；圖表 UI 修正：高度 360px + 右 Y 軸整數刻度 (Phase 13)
 **Updated**: 2026-05-07 - 009 整合：訂單資料顯示 + Badge UI + 搜尋擴展 + CSV 欄位 (Phase 14, T035–T040)
+**Updated**: 2026-05-07 - Badge data-driven 修正 + legacy PayUni fallback + CSV 補金流交易序號/金流管道/PayUni 交易序號 + 文案統一「金流管道」— 不產生新任務（屬 Phase 14 hotfix） (Phase 15)
 
 **Tests**: Not requested — no test tasks included.
 

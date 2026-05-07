@@ -7,6 +7,7 @@
 **Updated**: 2026-05-07 - GET /admin/courses/{course}/edit 加入 gatewayConfigured prop；CourseForm 改為 pill button；GET /admin/courses/create 亦注入 gatewayConfigured
 **Updated**: 2026-05-07 - GET /admin/settings/payment 回應新增 hash_key_preview / hash_iv_preview（前 5 碼 + 星號遮蔽）；空字串表示尚未設定（FR-033）；後台標題格式統一為「中文名稱（英文）」
 **Updated**: 2026-05-07 - 增量 US8：GET /admin/settings/payment 回應新增 `portaly` 區塊（含 `webhook_key_preview`）；POST 新增 `portaly_webhook_key` 欄位（FR-034）
+**Updated**: 2026-05-07 - POST /api/checkout/initiate 的 `buyer` 物件新增 optional `tax_id` 欄位（恰好 8 位數字 regex 驗證；留空允許）；存入 `orders.tax_id`（FR-036）
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 
@@ -165,7 +166,8 @@ Request:
   "buyer": {
     "name": "Wang Xiaoming",
     "email": "wx@example.com",
-    "phone": "0912345678"
+    "phone": "0912345678",
+    "tax_id": "12345678"
   },
   "course_ids": [12],
   "agree_terms": true
@@ -176,6 +178,7 @@ Validation:
 - `buyer.name`: required, string, max:100
 - `buyer.email`: required, email, max:255
 - `buyer.phone`: required, string, max:20
+- `buyer.tax_id`: nullable, string, regex `/^\d{8}$/`（恰好 8 位數字；可留空）
 - `agree_terms`: required, `true`
 - `course_ids`: required, array, min:1; each must exist and be publishable/purchasable
 

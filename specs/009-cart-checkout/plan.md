@@ -9,6 +9,9 @@
 **Updated**: 2026-05-06 - Phase 6-7 實作完成（T038-T041b guest cart merge on login；T042-T048 T055 後台金流設定 + PayuniService SiteSetting 讀取 + CourseForm 金流選擇器 + app.blade.php 條件 Pixel）
 **Updated**: 2026-05-07 - CourseForm 金流選擇器改為 pill button（非 select）；新增 gatewayConfigured prop（CourseController 注入，Edit + Create 頁共用）；未完成憑證設定時顯示紅色 hint 含設定頁連結
 **Updated**: 2026-05-07 - 增量追加 US8：Portaly Webhook Key 納入後台金流設定頁（Phase C 擴充）；`PortalyWebhookService::verifySignature()` 改讀 `site_settings`（key: `portaly_webhook_key`），fallback `config('services.portaly.webhook_key')`
+**Updated**: 2026-05-07 - NewebpayService::decryptTradeInfo 改用 json_decode 為主、parse_str fallback（RespondType=JSON 修正，FR-039）
+**Updated**: 2026-05-07 - 金流流程體質強化：Cart payment_failed flash 路徑修正、ReturnURL fallback fulfill、Success.vue 60s 輪詢上限、Login hint 接受 'purchase'（FR-037 / FR-038 / FR-040）
+**Updated**: 2026-05-07 - 結帳新增公司統編欄位（orders.tax_id varchar(8) nullable migration；CheckoutRequest + CheckoutService + Checkout/Index.vue + Payment/Success.vue）（FR-036）
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`
 
 ## Summary
