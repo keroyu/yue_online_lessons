@@ -3,6 +3,7 @@
 **Input**: Design documents from `/specs/006-transactions-management/`
 **Prerequisites**: plan.md ✅ spec.md ✅ research.md ✅ data-model.md ✅ contracts/ ✅ quickstart.md ✅
 **Updated**: 2026-03-11 - 新增課程進度顯示 (Phase 9)；列表「標記退款」快捷按鈕 (Phase 10)；修正退款按鈕 cursor-pointer (T026 補丁)；金額格式化 (Phase 11)；營收圖表 (Phase 12)；圖表 UI 修正：高度 360px + 右 Y 軸整數刻度 (Phase 13)
+**Updated**: 2026-05-07 - 009 整合：訂單資料顯示 + Badge UI + 搜尋擴展 + CSV 欄位 (Phase 14, T035–T040)
 
 **Tests**: Not requested — no test tasks included.
 
@@ -185,6 +186,28 @@
 
 ---
 
+## Phase 14: 009 整合 — 訂單資料顯示 + Badge UI + 搜尋擴展 (2026-05-07 增量更新)
+
+**Purpose**: 因應 009 購物車結帳上線，在交易後台顯示 merchant_order_no / gateway_trade_no / payment_gateway；列表訂單欄位改為金流來源 badge（`[Portaly]` / `[PayUni]` / `[NewebPay]`）+ 點擊複製；搜尋擴展到 merchant_order_no；CSV 新增 merchant_order_no 欄位
+
+**背景**: 009 新增 `orders` 表，透過 `purchases.order_id` 關聯。購物車結帳的 Purchase：`source = payuni / newebpay`，`portaly_order_id = null`，`order_id` 有值。新增 FR-030–034。
+
+**⚠️ 前提**：feature/009-cart-checkout 必須已 merge；`orders` 表、`Order` model、`purchases.order_id` 欄位需存在於資料庫。
+
+- [x] T035 ~~確認 `Purchase::order()` belongsTo 關聯~~（已確認存在：`app/Models/Purchase.php:52`，`Order` model 已建立於 009）— 無需實作
+- [ ] T036 [US2] 更新 `TransactionController::show()` — 新增 `->with('order')` eager load；Inertia props 新增 `order_info` 物件（`merchant_order_no`、`gateway_trade_no`、`payment_gateway`，各取自 `$purchase->order?->...`，無值時為 `null`） in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T037 [US1] 更新 `TransactionController::index()` — (a) eager load 補上 `'order:id,merchant_order_no'`；若 index() 使用 `->through()` transform closure（參見 T024 pattern），需在 closure 中顯式加入 `'order' => ['merchant_order_no' => $p->order?->merchant_order_no]`，確保前端 `transaction.order.merchant_order_no` 可存取；(b) 在現有 search where-group 末尾追加 `->orWhereHas('order', fn($q) => $q->where('merchant_order_no', 'like', "%{$search}%"))` in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T038 [P] [US5] 更新 `TransactionController::export()` — (a) eager load 補上 `order`；(b) CSV header 在 `portaly_order_id` 前插入 `merchant_order_no`；(c) 每列填入 `$purchase->order?->merchant_order_no ?? ''` in `app/Http/Controllers/Admin/TransactionController.php`
+- [ ] T039 [P] [US1] 更新 `Index.vue` 訂單欄位 — 移除純文字 ID 顯示，改為根據 `transaction.source` 動態顯示圓角 badge：`source = 'portaly'` → 灰藍 `[Portaly]` badge，複製 `portaly_order_id`；`source = 'payuni'` → `[PayUni]` badge，複製 `transaction.order.merchant_order_no`；`source = 'newebpay'` → `[NewebPay]` badge，複製 `transaction.order.merchant_order_no`；其他或無訂單編號（source = 'manual' 或 orderId 為空）→ 顯示「—」（不顯示 badge）；badge `title` 屬性帶完整訂單編號；點擊觸發 `navigator.clipboard.writeText(orderId)` → 200ms 顯示「已複製 ✓」後恢復 in `resources/js/Pages/Admin/Transactions/Index.vue`
+- [ ] T040 [P] [US2] 更新 `Show.vue` — 僅當 `order_info` 存在且 `order_info.merchant_order_no` 不為 null 時渲染「購物車訂單資訊」卡片區塊（含 merchant_order_no、gateway_trade_no、payment_gateway 三欄，payment_gateway 顯示對應中文：payuni→統一金流 / newebpay→藍新金流）；無關聯 Order 時不顯示此區塊（v-if，不顯示「—」佔位）；確認 portaly_order_id 欄位在 source = payuni/newebpay 時顯示「—」 in `resources/js/Pages/Admin/Transactions/Show.vue`
+
+**Checkpoint**:
+- 列表：Portaly 交易顯示 `[Portaly]` badge 可複製 portaly_order_id；PayUni 交易顯示 `[PayUni]` 可複製 merchant_order_no；搜尋 merchant_order_no 可找到對應交易；手動指派顯示「—」
+- 詳情：PayUni / NewebPay 交易顯示「購物車訂單資訊」區塊含三欄位；Portaly 交易不顯示此區塊
+- CSV：下載檔含 merchant_order_no 欄位；Portaly 交易該欄為空字串
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -197,6 +220,7 @@
 - **Phase 6 (US3)**: Depends on Phase 3 (modal on list page)
 - **Phase 7 (US4)**: Depends on Phase 4 (refund button on detail page)
 - **Phase 8 (Polish)**: Depends on all desired user stories being complete
+- **Phase 14 (009 整合)**: 依賴 Phase 3 (US1 list), Phase 4 (US2 detail), Phase 5 (US5 export) 已完成（現有實作）；另須確認 009 branch 已 merge（orders 表存在）
 
 ### Parallel Opportunities
 
@@ -248,4 +272,5 @@
 | Phase 11: 金額格式化 | US1, US2 | T027–T028 | 2026-03-11 新增 |
 | Phase 12: 營收圖表 | US6 | T029–T032 | 2026-03-11 新增 ✅ |
 | Phase 13: 圖表 UI 修正 | US6 | T033–T034 | 2026-03-11 新增 ✅ |
-| **Total** | **6 stories** | **34 tasks** | 全部完成 ✅ |
+| Phase 14: 009 整合 | US1, US2, US5 | T035–T040 | 2026-05-07 新增 |
+| **Total** | **6 stories** | **40 tasks** | Phase 14 待實作 |
