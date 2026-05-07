@@ -3,6 +3,13 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 import CourseForm from '@/Components/Admin/CourseForm.vue'
 
 defineOptions({ layout: AdminLayout })
+
+defineProps({
+  gatewayConfigured: {
+    type: Object,
+    default: () => ({ payuni: true, newebpay: true }),
+  },
+})
 </script>
 
 <template>
@@ -15,6 +22,7 @@ defineOptions({ layout: AdminLayout })
       </div>
 
       <CourseForm
+        :gateway-configured="gatewayConfigured"
         submit-url="/admin/courses"
         method="post"
       />

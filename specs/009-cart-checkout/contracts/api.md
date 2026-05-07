@@ -4,6 +4,7 @@
 **Created**: 2026-05-06
 **Updated**: 2026-05-06 - 新增 /api/checkout/check-email、/api/checkout/order-status；/payment/success 加入 waiting prop（pending 緩衝）
 **Updated**: 2026-05-06 - 確認 GET /admin/settings/payment 回傳 merchant_id 明文；POST 接受 payuni_merchant_id / newebpay_merchant_id；HashKey/HashIV 以空字串代替（FR-022）
+**Updated**: 2026-05-07 - GET /admin/courses/{course}/edit 加入 gatewayConfigured prop；CourseForm 改為 pill button；GET /admin/courses/create 亦注入 gatewayConfigured
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 
@@ -378,19 +379,23 @@ Response props (pending — webhook not yet arrived):
 
 ## Admin: Course Payment Gateway
 
-### `GET /admin/courses/{course}/edit`
+### `GET /admin/courses/{course}/edit` and `GET /admin/courses/create`
 
-Existing route. Response props extended to include:
+Existing routes. Response props extended to include:
 
 ```json
 {
   "course": {
     "payment_gateway": "payuni"
+  },
+  "gatewayConfigured": {
+    "payuni": true,
+    "newebpay": false
   }
 }
 ```
 
-The Vue component (`CourseForm.vue`) renders a `<select>` for `payment_gateway` (options: `payuni`, `newebpay`) that is hidden/cleared when `portaly_product_id` is non-empty.
+`gatewayConfigured` is computed by `CourseController::gatewayConfigured()` which checks `SiteSetting` for non-empty `merchant_id` + `hash_key` + `hash_iv` per gateway. `CourseForm.vue` renders `payment_gateway` as pill buttons (not `<select>`); when the selected gateway's `gatewayConfigured[gateway] === false`, a red warning with link to `/admin/settings/payment` is shown inline next to the label. The selector is hidden/cleared when `portaly_product_id` is non-empty.
 
 ### `PUT /admin/courses/{course}`
 

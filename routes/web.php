@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageSettingController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -171,4 +172,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');
     Route::put('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'update'])->name('social-links.update');
     Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'destroy'])->name('social-links.destroy');
+
+    // Payment settings
+    Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
+    Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
 });

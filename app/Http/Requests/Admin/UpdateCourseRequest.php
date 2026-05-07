@@ -38,6 +38,7 @@ class UpdateCourseRequest extends FormRequest
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
+            'payment_gateway' => ['nullable', 'string', 'in:payuni,newebpay'],
             'is_visible' => ['nullable', 'boolean'],
             'course_type' => ['required', 'in:standard,drip'],
             'drip_interval_days' => ['nullable', 'required_if:course_type,drip', 'integer', 'min:1', 'max:30'],

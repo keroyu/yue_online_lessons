@@ -7,6 +7,9 @@
 **Updated**: 2026-05-06 - 加入購物車後保留兩按鈕、橘紅色、toast、guest localStorage 還原 — 不產生新任務
 **Updated**: 2026-05-06 - Phase 4-5（T024-T037）全部完成；新增 pending waiting overlay、email check endpoint、重複購買雙查邏輯 — 不產生新任務 (Phase 5)
 **Updated**: 2026-05-06 - T049 明確化 NewebpayService 三組憑證（merchant_id, hash_key, hash_iv）均從 SiteSetting 讀取；T044 商店代號欄位確認為明文 text 輸入（非 password）(Phase 7)
+**Updated**: 2026-05-06 - Phase 6（T038-T041b）全部完成：mergeGuestCart、CartController@merge、路由、useCart.mergeGuestCartOnLogin、Login.vue onSuccess 觸發合併 (Phase 6)
+**Updated**: 2026-05-06 - Phase 7（T042-T048, T055）全部完成：SettingsController、admin 路由、AdminLayout 金流設定連結、Payment.vue、PayuniService SiteSetting 讀取、CourseForm payment_gateway、StoreCourse/UpdateCourseRequest、app.blade.php 條件 Pixel (Phase 7)
+**Updated**: 2026-05-07 - CourseForm pill button + gatewayConfigured hint（不產生新任務，屬 T046 延伸 UI 調整）(Phase 7)
 
 **Organization**: Tasks grouped by user story — each phase is independently deployable and testable.
 
@@ -113,11 +116,11 @@
 
 **Independent Test**: 未登入加入 2 門課程 → 登入 → `/api/cart/merge` 呼叫 → server cart 有 2 筆 → `localStorage.guest_cart` 清除；重複呼叫 merge 不產生重複 cart_items。
 
-- [ ] T038 [US5] Add `mergeGuestCart(int $userId, array $courseIds): void` to `app/Services/CartService.php` — for each courseId: skip if already in cart (`CartItem::where(user+course)->exists()`) or already purchased (`Purchase::where(user+course)->exists()`); else `CartItem::create()`
-- [ ] T039 [US5] Add `merge(Request $request)` to `app/Http/Controllers/CartController.php` — validate `course_ids` array of integers each exists in courses; call `CartService::mergeGuestCart()`; return `{cartCount}`
-- [ ] T040 [US5] Register `POST /api/cart/merge` in `routes/api.php` under `auth:web` middleware → CartController@merge
-- [ ] T041 [US5] Update `resources/js/composables/useCart.js` — add `mergeGuestCartOnLogin()`: read `localStorage.guest_cart`, if non-empty call `POST /api/cart/merge` with `{course_ids:[...ids]}`, on 200 `localStorage.removeItem('guest_cart')`; export function for Login.vue
-- [ ] T041b [US5] Update `resources/js/Pages/Auth/Login.vue` — after successful auth response (before Inertia navigation), call `useCart.mergeGuestCartOnLogin()` to trigger `POST /api/cart/merge` and clear `localStorage.guest_cart`; without this task US5 guest cart merge never fires
+- [X] T038 [US5] Add `mergeGuestCart(int $userId, array $courseIds): void` to `app/Services/CartService.php` — for each courseId: skip if already in cart (`CartItem::where(user+course)->exists()`) or already purchased (`Purchase::where(user+course)->exists()`); else `CartItem::create()`
+- [X] T039 [US5] Add `merge(Request $request)` to `app/Http/Controllers/CartController.php` — validate `course_ids` array of integers each exists in courses; call `CartService::mergeGuestCart()`; return `{cartCount}`
+- [X] T040 [US5] Register `POST /api/cart/merge` in `routes/api.php` under `auth:web` middleware → CartController@merge
+- [X] T041 [US5] Update `resources/js/composables/useCart.js` — add `mergeGuestCartOnLogin()`: read `localStorage.guest_cart`, if non-empty call `POST /api/cart/merge` with `{course_ids:[...ids]}`, on 200 `localStorage.removeItem('guest_cart')`; export function for Login.vue
+- [X] T041b [US5] Update `resources/js/Pages/Auth/Login.vue` — after successful auth response (before Inertia navigation), call `useCart.mergeGuestCartOnLogin()` to trigger `POST /api/cart/merge` and clear `localStorage.guest_cart`; without this task US5 guest cart merge never fires
 
 **Checkpoint**: 登入合併流程完整。`localStorage.guest_cart` 在登入後清除。server cart 跨登出/登入持久。
 
@@ -129,14 +132,14 @@
 
 **Independent Test**: 後台設定 PayUni HashKey → `site_settings` 有對應 key；PayuniService 讀取 DB 值而非 .env；Portaly 課程表單金流選擇器隱藏；非 Portaly 課程選 newebpay 儲存後 `courses.payment_gateway = 'newebpay'`；`meta_pixel_id` 空時 `app.blade.php` 不輸出任何 fbq 代碼。
 
-- [ ] T042 [US6] Create `app/Http/Controllers/Admin/SettingsController.php` — `showPayment()`: load via `SiteSetting::get(key, default)` for all 8 keys (data-model.md SiteSetting Keys table); return hash_key/hash_iv as empty string in Inertia props (FR-022); `updatePayment()`: for each submitted non-empty field call `SiteSetting::set(key, value)`; meta_pixel_id allows explicit empty string to disable Pixel
-- [ ] T043 [US6] Register admin routes in `routes/web.php` under admin auth middleware — `GET /admin/settings/payment` → SettingsController@showPayment; `POST /admin/settings/payment` → SettingsController@updatePayment
-- [ ] T055 [US6] Add nav link to `/admin/settings/payment` in `resources/js/Layouts/AdminLayout.vue` sidebar — required for FR-021 to be discoverable; moved here from Polish phase so US6 is complete without extra steps
-- [ ] T044 [US6] Create `resources/js/Pages/Admin/Settings/Payment.vue` — PayUni 區塊：merchant_id（`<input type="text">`，顯示現值）、hash_key/hash_iv（`<input type="password">` placeholder "已儲存，輸入新值以更新"）；NewebPay 區塊：merchant_id（`<input type="text">`，顯示現值）、hash_key/hash_iv（`<input type="password">`）、env（`<select>` sandbox/production）；Meta Pixel ID 區塊：`<input type="text">`；提交時 empty hash_key/hash_iv 視為保留現值（server 端跳過更新），empty merchant_id 視為清除；submit via Inertia `useForm().post('/admin/settings/payment')`
-- [ ] T045 [US6] Update `app/Services/PayuniService.php` `__construct()` — replace direct config reads with `SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id'))` pattern for all three credentials (merchant_id, hash_key, hash_iv)
-- [ ] T046 [US6] Update `resources/js/Components/Admin/CourseForm.vue` — add `payment_gateway` `<select>` with options `payuni`(PayUni) / `newebpay`(藍新金流); `watch(form.portaly_product_id, val => { if (val) { show=false; form.payment_gateway='' } else { show=true; form.payment_gateway ||= 'payuni' } })`
-- [ ] T047 [US6] Update `app/Http/Requests/Admin/StoreCourseRequest.php` and `app/Http/Requests/Admin/UpdateCourseRequest.php` — add `payment_gateway`: `Rule::in(['payuni','newebpay'])`, `required_without:portaly_product_id`; update `app/Http/Controllers/Admin/CourseController.php` store/update to include `payment_gateway` in validated fields saved to model
-- [ ] T048 [US6] Update `resources/views/app.blade.php` — replace hardcoded `fbq('init','1287511383482442')` block with: `@php $pixelId = \App\Models\SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', '')) @endphp` → `@if($pixelId)` output full Meta Pixel `<script>` block with `fbq('init','{{ $pixelId }}')` `@endif`; omit entire block (including `<noscript>`) when empty
+- [X] T042 [US6] Create `app/Http/Controllers/Admin/SettingsController.php` — `showPayment()`: load via `SiteSetting::get(key, default)` for all 8 keys (data-model.md SiteSetting Keys table); return hash_key/hash_iv as empty string in Inertia props (FR-022); `updatePayment()`: for each submitted non-empty field call `SiteSetting::set(key, value)`; meta_pixel_id allows explicit empty string to disable Pixel
+- [X] T043 [US6] Register admin routes in `routes/web.php` under admin auth middleware — `GET /admin/settings/payment` → SettingsController@showPayment; `POST /admin/settings/payment` → SettingsController@updatePayment
+- [X] T055 [US6] Add nav link to `/admin/settings/payment` in `resources/js/Layouts/AdminLayout.vue` sidebar — required for FR-021 to be discoverable; moved here from Polish phase so US6 is complete without extra steps
+- [X] T044 [US6] Create `resources/js/Pages/Admin/Settings/Payment.vue` — PayUni 區塊：merchant_id（`<input type="text">`，顯示現值）、hash_key/hash_iv（`<input type="password">` placeholder "已儲存，輸入新值以更新"）；NewebPay 區塊：merchant_id（`<input type="text">`，顯示現值）、hash_key/hash_iv（`<input type="password">`）、env（`<select>` sandbox/production）；Meta Pixel ID 區塊：`<input type="text">`；提交時 empty hash_key/hash_iv 視為保留現值（server 端跳過更新），empty merchant_id 視為清除；submit via Inertia `useForm().post('/admin/settings/payment')`
+- [X] T045 [US6] Update `app/Services/PayuniService.php` `__construct()` — replace direct config reads with `SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id'))` pattern for all three credentials (merchant_id, hash_key, hash_iv)
+- [X] T046 [US6] Update `resources/js/Components/Admin/CourseForm.vue` — add `payment_gateway` `<select>` with options `payuni`(PayUni) / `newebpay`(藍新金流); `watch(form.portaly_product_id, val => { if (val) { show=false; form.payment_gateway='' } else { show=true; form.payment_gateway ||= 'payuni' } })`
+- [X] T047 [US6] Update `app/Http/Requests/Admin/StoreCourseRequest.php` and `app/Http/Requests/Admin/UpdateCourseRequest.php` — add `payment_gateway`: `Rule::in(['payuni','newebpay'])`, `required_without:portaly_product_id`; update `app/Http/Controllers/Admin/CourseController.php` store/update to include `payment_gateway` in validated fields saved to model
+- [X] T048 [US6] Update `resources/views/app.blade.php` — replace hardcoded `fbq('init','1287511383482442')` block with: `@php $pixelId = \App\Models\SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', '')) @endphp` → `@if($pixelId)` output full Meta Pixel `<script>` block with `fbq('init','{{ $pixelId }}')` `@endif`; omit entire block (including `<noscript>`) when empty
 
 **Checkpoint**: 後台 `/admin/settings/payment` 可存取。憑證儲存至 site_settings。PayuniService 優先讀 DB 值。Portaly 課程隱藏金流選擇器。`meta_pixel_id` 空時頁面原始碼無任何 fbq 代碼。
 

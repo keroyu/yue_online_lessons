@@ -6,6 +6,8 @@
 **Updated**: 2026-05-06 - 加入購物車後保留「直接購買」、「前往購物車」橘紅色、成功 toast、guest localStorage 還原修正
 **Updated**: 2026-05-06 - Phase 4-5 實作完成；付款成功頁加入 pending waiting overlay + polling；結帳頁 email blur 重複購買預查；CheckoutService 重複判斷擴展為 buyer_email + user_id
 **Updated**: 2026-05-06 - Phase 7 明確化：PayUni 與藍新金流後台設定均包含商店代號（MerchantID）可配置欄位；NewebpayService 所有三組憑證（merchant_id, hash_key, hash_iv）均從 SiteSetting 讀取
+**Updated**: 2026-05-06 - Phase 6-7 實作完成（T038-T041b guest cart merge on login；T042-T048 T055 後台金流設定 + PayuniService SiteSetting 讀取 + CourseForm 金流選擇器 + app.blade.php 條件 Pixel）
+**Updated**: 2026-05-07 - CourseForm 金流選擇器改為 pill button（非 select）；新增 gatewayConfigured prop（CourseController 注入，Edit + Create 頁共用）；未完成憑證設定時顯示紅色 hint 含設定頁連結
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`
 
 ## Summary

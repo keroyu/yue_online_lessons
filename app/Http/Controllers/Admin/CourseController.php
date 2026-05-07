@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\DripConversionTarget;
 use App\Models\DripSubscription;
 use App\Models\Purchase;
+use App\Models\SiteSetting;
 use App\Services\DripService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,7 +58,9 @@ class CourseController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Admin/Courses/Create');
+        return Inertia::render('Admin/Courses/Create', [
+            'gatewayConfigured' => $this->gatewayConfigured(),
+        ]);
     }
 
     /**
@@ -170,7 +173,20 @@ class CourseController extends Controller
                 ]),
             'availableCourses' => $availableCourses,
             'courseLessons' => $courseLessons,
+            'gatewayConfigured' => $this->gatewayConfigured(),
         ]);
+    }
+
+    private function gatewayConfigured(): array
+    {
+        return [
+            'payuni'   => !empty(SiteSetting::get('payuni_merchant_id'))
+                       && !empty(SiteSetting::get('payuni_hash_key'))
+                       && !empty(SiteSetting::get('payuni_hash_iv')),
+            'newebpay' => !empty(SiteSetting::get('newebpay_merchant_id'))
+                       && !empty(SiteSetting::get('newebpay_hash_key'))
+                       && !empty(SiteSetting::get('newebpay_hash_iv')),
+        ];
     }
 
     /**

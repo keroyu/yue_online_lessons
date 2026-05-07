@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Course;
 use App\Models\Order;
 use App\Models\Purchase;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -17,8 +18,8 @@ class PayuniService
 
     public function __construct()
     {
-        $this->merKey = config('services.payuni.hash_key', '');
-        $this->merIV  = config('services.payuni.hash_iv', '');
+        $this->merKey = SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key', ''));
+        $this->merIV  = SiteSetting::get('payuni_hash_iv', config('services.payuni.hash_iv', ''));
         $sandbox      = config('services.payuni.sandbox', false);
         $prefix       = $sandbox ? 'https://sandbox-' : 'https://';
         $this->apiUrl = $prefix . 'api.payuni.com.tw/api/upp';
@@ -57,8 +58,9 @@ class PayuniService
      */
     public function buildPaymentForm(Course $course, string $email, string $merTradeNo, ?string $name = null, ?string $phone = null): array
     {
+        $merchantId = SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', ''));
         $params = [
-            'MerID'       => config('services.payuni.merchant_id'),
+            'MerID'       => $merchantId,
             'MerTradeNo'  => $merTradeNo,
             'TradeAmt'    => (int) $course->display_price,
             'ProdDesc'    => mb_substr($course->name, 0, 50),
@@ -82,7 +84,7 @@ class PayuniService
         return [
             'endpoint' => $this->apiUrl,
             'fields'   => [
-                'MerID'       => config('services.payuni.merchant_id'),
+                'MerID'       => $merchantId,
                 'Version'     => '1.0',
                 'EncryptInfo' => $encryptInfo,
                 'HashInfo'    => $hashInfo,
@@ -105,8 +107,9 @@ class PayuniService
             $prodDesc = mb_substr($prodDesc, 0, 40) . ' 等 ' . $order->items->count() . ' 門課程';
         }
 
+        $merchantId = SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', ''));
         $params = [
-            'MerID'       => config('services.payuni.merchant_id'),
+            'MerID'       => $merchantId,
             'MerTradeNo'  => $order->merchant_order_no,
             'TradeAmt'    => (int) $order->total_amount,
             'ProdDesc'    => $prodDesc,
@@ -125,7 +128,7 @@ class PayuniService
         return [
             'endpoint' => $this->apiUrl,
             'fields'   => [
-                'MerID'       => config('services.payuni.merchant_id'),
+                'MerID'       => $merchantId,
                 'Version'     => '1.0',
                 'EncryptInfo' => $encryptInfo,
                 'HashInfo'    => $hashInfo,

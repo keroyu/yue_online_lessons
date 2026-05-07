@@ -2,10 +2,12 @@
 import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 import VerificationCodeInput from '@/Components/VerificationCodeInput.vue'
+import { useCart } from '@/composables/useCart'
 
 const page = usePage()
 const flash = computed(() => page.props.flash)
 const payuniHint = computed(() => new URLSearchParams(window.location.search).get('hint') === 'payuni')
+const { mergeGuestCartOnLogin } = useCart()
 
 const step = ref('email') // 'email' or 'code'
 const isNewUser = ref(false)
@@ -40,6 +42,9 @@ const sendCode = () => {
 const verifyCode = () => {
   loading.value = true
   codeForm.post('/login/verify', {
+    onSuccess: () => {
+      mergeGuestCartOnLogin()
+    },
     onFinish: () => {
       loading.value = false
     },

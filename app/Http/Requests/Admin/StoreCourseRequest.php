@@ -37,6 +37,7 @@ class StoreCourseRequest extends FormRequest
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
+            'payment_gateway' => ['nullable', 'string', 'in:payuni,newebpay'],
             'is_visible' => ['nullable', 'boolean'],
         ];
     }
