@@ -8,6 +8,7 @@
 **Updated**: 2026-05-06 - Phase 7 明確化：PayUni 與藍新金流後台設定均包含商店代號（MerchantID）可配置欄位；NewebpayService 所有三組憑證（merchant_id, hash_key, hash_iv）均從 SiteSetting 讀取
 **Updated**: 2026-05-06 - Phase 6-7 實作完成（T038-T041b guest cart merge on login；T042-T048 T055 後台金流設定 + PayuniService SiteSetting 讀取 + CourseForm 金流選擇器 + app.blade.php 條件 Pixel）
 **Updated**: 2026-05-07 - CourseForm 金流選擇器改為 pill button（非 select）；新增 gatewayConfigured prop（CourseController 注入，Edit + Create 頁共用）；未完成憑證設定時顯示紅色 hint 含設定頁連結
+**Updated**: 2026-05-07 - 增量追加 US8：Portaly Webhook Key 納入後台金流設定頁（Phase C 擴充）；`PortalyWebhookService::verifySignature()` 改讀 `site_settings`（key: `portaly_webhook_key`），fallback `config('services.portaly.webhook_key')`
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`
 
 ## Summary
@@ -87,7 +88,8 @@ app/
     ├── CartService.php                          # new
     ├── CheckoutService.php                      # new
     ├── NewebpayService.php                      # new
-    └── PayuniService.php                        # existing — extend for Order-based flow
+    ├── PayuniService.php                        # existing — extend for Order-based flow
+    └── PortalyWebhookService.php               # existing — verifySignature() reads SiteSetting (US8)
 
 config/
 └── services.php                                 # existing — add newebpay block (merchant_id, hash_key, hash_iv, env)
@@ -137,10 +139,11 @@ resources/js/
 ### Phase C: Payment Gateway Credentials + Meta Pixel Admin
 - **New file** `app/Http/Controllers/Admin/SettingsController.php` with `showPayment()` + `updatePayment()` (no existing Admin\SettingsController — create fresh)
 - Register routes in `routes/web.php` under the admin group: `GET /admin/settings/payment` + `POST /admin/settings/payment`
-- `Admin/Settings/Payment.vue`: PayUni 區塊含三欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">` placeholder "已儲存，輸入新值以更新"）；NewebPay 區塊含四欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">`）、Env（`<select>` sandbox/production）；Meta Pixel ID（`<input type="text">`）；**MerchantID 為明文欄位，送出時納入 POST body；GET 回應中 MerchantID 可回傳現值，HashKey/HashIV 固定以空字串回應（FR-022）**
+- `Admin/Settings/Payment.vue`: PayUni 區塊含三欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">` placeholder "已儲存，輸入新值以更新"）；NewebPay 區塊含四欄 — MerchantID（`<input type="text">`）、HashKey/HashIV（`<input type="password">`）、Env（`<select>` sandbox/production）；**Portaly 區塊含一欄** — Webhook Key（`<input type="password">`，顯示規則同 HashKey/HashIV：preview 前 5 碼加星號，尚未設定顯示「尚未設定」）；Meta Pixel ID（`<input type="text">`）；**MerchantID 為明文欄位，送出時納入 POST body；GET 回應中 MerchantID 可回傳現值，HashKey/HashIV 固定以空字串回應（FR-022）**
 - Update `PayuniService::__construct()` to read all three credentials from SiteSetting: `SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id'))`, `SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key'))`, `SiteSetting::get('payuni_hash_iv', config('services.payuni.hash_iv'))`
 - Add `newebpay` block to `config/services.php` (keys: `merchant_id`, `hash_key`, `hash_iv`, `env`; all read from env vars `NEWEBPAY_*`) — required for `NewebpayService` fallback
 - Add `meta_pixel_id` to `site_settings` keys; `app.blade.php` changed from hardcoded `fbq('init', '...')` to conditional output via `SiteSetting::get('meta_pixel_id', env('META_PIXEL_ID', ''))`; if empty, entire `<script>` block is omitted
+- **(US8 追加)** Update `PortalyWebhookService::verifySignature()` to replace `config('services.portaly.webhook_secret')` with `SiteSetting::get('portaly_webhook_key', config('services.portaly.webhook_key'))`; update `config/services.php` portaly block: rename key from `webhook_secret` to `webhook_key` (reads `PORTALY_WEBHOOK_KEY` env var); `.env.example` rename `PORTALY_WEBHOOK_SECRET` → `PORTALY_WEBHOOK_KEY`
 
 ### Phase D: Sales Page Update
 - `Course/Show.vue` button logic for Portaly / free / high-ticket / cart courses

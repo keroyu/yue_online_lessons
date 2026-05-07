@@ -2,7 +2,7 @@
 
 **Feature Branch**: `009-cart-checkout`
 **Created**: 2026-05-06
-**Status**: Final
+**Status**: Final (R-009 追加 2026-05-07)
 
 This document records all design decisions reached through spec clarification sessions, analysis of existing code (PayuniService, SiteSetting, purchases schema), and the NewebPay PDF integration manual (NDNF-1.2.2).
 
@@ -186,3 +186,26 @@ MerchantOrderNo / MerTradeNo format: `ord_{order_id}_{YYMMdd}` for both gateways
 - **Emit cart count via Inertia for guests too (server-sets a guest_cart_count in session)**: Would eliminate the localStorage read in Navigation.vue but requires a session read on every page load for anonymous users. Rejected for same reasons as R-003 session alternative.
 - **Vuex / Pinia store for cart state**: No Pinia is currently used in this project. Adding a store for a single feature would be over-engineering. The composable pattern achieves the same isolation. Rejected.
 - **Polling or WebSocket for real-time badge updates**: Not needed — cart changes are user-initiated. Inertia's page reload on navigation naturally reflects the latest `cartCount` for logged-in users.
+
+---
+
+## R-009: Portaly Webhook Key in SiteSetting (US8)
+
+**Decision**: Move the Portaly webhook verification key from `.env` (`PORTALY_WEBHOOK_KEY`) to `site_settings` (key: `portaly_webhook_key`), following the identical pattern established in R-004 for PayUni / NewebPay credentials.
+
+Concrete changes:
+- `config/services.php` portaly block: rename key from `webhook_secret` → `webhook_key` (reads `PORTALY_WEBHOOK_KEY` env var).
+- `PortalyWebhookService::verifySignature()`: replace `config('services.portaly.webhook_secret')` with `SiteSetting::get('portaly_webhook_key', config('services.portaly.webhook_key'))`.
+- `Admin/Settings/Payment.vue`: add Portaly Webhook 區塊，one `<input type="password">` field.
+- `Admin\SettingsController@showPayment` / `@updatePayment`: handle `portaly_webhook_key` with the same preview/mask logic as HashKey/HashIV (FR-034).
+- `.env.example`: rename `PORTALY_WEBHOOK_SECRET` → `PORTALY_WEBHOOK_KEY`.
+
+**Rationale**:
+- `PortalyWebhookService` (module 001) already exists with `verifySignature()` reading from `config()`. The only change is the credential source — no webhook logic, routes, or PortalyController are touched.
+- `SiteSetting` already has `get()` / `set()` helpers; the admin settings page (`/admin/settings/payment`) and controller already exist from Phase C. This is a pure additive extension with no new infrastructure.
+- Consistent with the platform principle: all third-party credentials are admin-configurable via `site_settings`, not locked to server `.env`.
+- No at-rest encryption: same rationale as R-004 (admin-only access, consistent with existing pattern, encryption would be YAGNI).
+
+**Alternatives considered**:
+- **Keep in `.env` only**: Requires SSH access to rotate the key after Portaly credential rotation. Rejected — violates the established credential management pattern.
+- **Separate admin page for Portaly settings**: Unnecessary — the existing `/admin/settings/payment` page already groups third-party gateway credentials. Adding one more field to the existing page is simpler than creating a new page.

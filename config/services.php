@@ -36,7 +36,7 @@ return [
     ],
 
     'portaly' => [
-        'webhook_secret' => env('PORTALY_WEBHOOK_SECRET'),
+        'webhook_key' => env('PORTALY_WEBHOOK_KEY'),
     ],
 
     'payuni' => [

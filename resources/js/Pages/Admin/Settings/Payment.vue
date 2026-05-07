@@ -7,6 +7,7 @@ defineOptions({ layout: AdminLayout })
 const props = defineProps({
   payuni: { type: Object, required: true },
   newebpay: { type: Object, required: true },
+  portaly: { type: Object, required: true },
   meta_pixel_id: { type: String, default: '' },
 })
 
@@ -18,6 +19,7 @@ const form = useForm({
   newebpay_hash_key: '',
   newebpay_hash_iv: '',
   newebpay_env: props.newebpay.env,
+  portaly_webhook_key: '',
   meta_pixel_id: props.meta_pixel_id,
 })
 
@@ -37,7 +39,7 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
     <form @submit.prevent="submit" class="space-y-6">
       <!-- PayUni -->
       <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">PayUni 統一金流</h2>
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">統一金流（PayUni）</h2>
 
         <div>
           <label :class="labelClasses">商店代號（MerchantID）</label>
@@ -47,13 +49,13 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
 
         <div>
           <label :class="labelClasses">HashKey</label>
-          <input type="password" v-model="form.payuni_hash_key" :class="inputClasses" placeholder="已儲存，輸入新值以更新" autocomplete="new-password" />
+          <input type="password" v-model="form.payuni_hash_key" :class="inputClasses" :placeholder="payuni.hash_key_preview || '尚未設定'" autocomplete="new-password" />
           <p v-if="form.errors.payuni_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_key }}</p>
         </div>
 
         <div>
           <label :class="labelClasses">HashIV</label>
-          <input type="password" v-model="form.payuni_hash_iv" :class="inputClasses" placeholder="已儲存，輸入新值以更新" autocomplete="new-password" />
+          <input type="password" v-model="form.payuni_hash_iv" :class="inputClasses" :placeholder="payuni.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
           <p v-if="form.errors.payuni_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_iv }}</p>
         </div>
       </div>
@@ -70,13 +72,13 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
 
         <div>
           <label :class="labelClasses">HashKey</label>
-          <input type="password" v-model="form.newebpay_hash_key" :class="inputClasses" placeholder="已儲存，輸入新值以更新" autocomplete="new-password" />
+          <input type="password" v-model="form.newebpay_hash_key" :class="inputClasses" :placeholder="newebpay.hash_key_preview || '尚未設定'" autocomplete="new-password" />
           <p v-if="form.errors.newebpay_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_key }}</p>
         </div>
 
         <div>
           <label :class="labelClasses">HashIV</label>
-          <input type="password" v-model="form.newebpay_hash_iv" :class="inputClasses" placeholder="已儲存，輸入新值以更新" autocomplete="new-password" />
+          <input type="password" v-model="form.newebpay_hash_iv" :class="inputClasses" :placeholder="newebpay.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
           <p v-if="form.errors.newebpay_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_iv }}</p>
         </div>
 
@@ -87,6 +89,18 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
             <option value="production">Production（正式）</option>
           </select>
           <p v-if="form.errors.newebpay_env" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_env }}</p>
+        </div>
+      </div>
+
+      <!-- Portaly -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Portaly（Webhook）</h2>
+
+        <div>
+          <label :class="labelClasses">Webhook 金鑰</label>
+          <input type="password" v-model="form.portaly_webhook_key" :class="inputClasses" :placeholder="portaly.webhook_key_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰</p>
+          <p v-if="form.errors.portaly_webhook_key" class="mt-1 text-sm text-red-600">{{ form.errors.portaly_webhook_key }}</p>
         </div>
       </div>
 

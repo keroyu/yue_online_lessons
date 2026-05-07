@@ -23,6 +23,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
+use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Payment\SuccessController;
 use App\Http\Controllers\SitemapController;
@@ -51,6 +52,11 @@ Route::prefix('api')->middleware('auth')->name('api.')->group(function () {
 Route::post('/payment/payuni/return', [PayuniController::class, 'return'])
     ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
     ->name('payuni.return');
+
+// NewebPay ReturnURL — browser redirect after payment (CSRF excluded; NotifyURL is in api.php)
+Route::post('/payment/newebpay/return', [NewebpayController::class, 'return'])
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+    ->name('newebpay.return');
 
 // Drip subscription routes (public)
 Route::prefix('drip')->name('drip.')->group(function () {

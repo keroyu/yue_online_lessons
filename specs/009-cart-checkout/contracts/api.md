@@ -5,6 +5,8 @@
 **Updated**: 2026-05-06 - 新增 /api/checkout/check-email、/api/checkout/order-status；/payment/success 加入 waiting prop（pending 緩衝）
 **Updated**: 2026-05-06 - 確認 GET /admin/settings/payment 回傳 merchant_id 明文；POST 接受 payuni_merchant_id / newebpay_merchant_id；HashKey/HashIV 以空字串代替（FR-022）
 **Updated**: 2026-05-07 - GET /admin/courses/{course}/edit 加入 gatewayConfigured prop；CourseForm 改為 pill button；GET /admin/courses/create 亦注入 gatewayConfigured
+**Updated**: 2026-05-07 - GET /admin/settings/payment 回應新增 hash_key_preview / hash_iv_preview（前 5 碼 + 星號遮蔽）；空字串表示尚未設定（FR-033）；後台標題格式統一為「中文名稱（英文）」
+**Updated**: 2026-05-07 - 增量 US8：GET /admin/settings/payment 回應新增 `portaly` 區塊（含 `webhook_key_preview`）；POST 新增 `portaly_webhook_key` 欄位（FR-034）
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
 
@@ -418,19 +420,27 @@ Response props:
   "payuni": {
     "merchant_id": "M00001",
     "hash_key": "",
-    "hash_iv": ""
+    "hash_iv": "",
+    "hash_key_preview": "3oJT3***************************",
+    "hash_iv_preview": "NGbzP***********"
   },
   "newebpay": {
     "merchant_id": "MS1234567890",
     "hash_key": "",
     "hash_iv": "",
+    "hash_key_preview": "abcde***************************",
+    "hash_iv_preview": "",
     "env": "sandbox"
+  },
+  "portaly": {
+    "webhook_key": "",
+    "webhook_key_preview": "sk_li***************************"
   },
   "meta_pixel_id": "1287511383482442"
 }
 ```
 
-**Note**: `hash_key` and `hash_iv` are returned as empty strings (never exposed in response per FR-022). The UI shows `<input type="password">` with placeholder "已儲存，輸入新值以更新". `meta_pixel_id` is returned as-is (not sensitive).
+**Note**: `hash_key` and `hash_iv` are always returned as empty strings (never exposed per FR-022). `hash_key_preview` / `hash_iv_preview` return the first 5 chars of the stored value followed by asterisks (e.g. `"3oJT3***...***"`); empty string means not yet configured. `portaly.webhook_key` is always returned as empty string; `portaly.webhook_key_preview` follows the same masking rule. The UI shows `<input type="password">` with placeholder bound to `preview || '尚未設定'` (FR-033、FR-034). `meta_pixel_id` is returned as-is (not sensitive).
 
 ---
 
@@ -450,11 +460,12 @@ Request:
   "newebpay_hash_key": "...",
   "newebpay_hash_iv": "...",
   "newebpay_env": "sandbox",
+  "portaly_webhook_key": "...",
   "meta_pixel_id": "1287511383482442"
 }
 ```
 
-Validation: all fields optional (blank = keep existing). `newebpay_env` in `['sandbox', 'production']` if provided. `meta_pixel_id`: string, max:30, numeric characters only if provided (Facebook Pixel IDs are numeric strings).
+Validation: all fields optional (blank = keep existing). `newebpay_env` in `['sandbox', 'production']` if provided. `portaly_webhook_key`: string; blank = keep existing (same rule as hash_key/hash_iv). `meta_pixel_id`: string, max:30, numeric characters only if provided (Facebook Pixel IDs are numeric strings).
 
 Behavior: For each non-empty field, call `SiteSetting::set(key, value)`. Blank hash_key/hash_iv skipped. `meta_pixel_id` may be explicitly cleared by saving an empty string (admin wants to disable Pixel).
 

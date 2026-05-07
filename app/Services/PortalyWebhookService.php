@@ -17,7 +17,7 @@ class PortalyWebhookService
     public function verifySignature(Request $request): bool
     {
         $signature = $request->header('X-Portaly-Signature');
-        $secret = config('services.portaly.webhook_secret');
+        $secret = \App\Models\SiteSetting::get('portaly_webhook_key', config('services.portaly.webhook_key'));
 
         if (!$signature || !$secret) {
             Log::warning('Webhook: Missing signature or secret', [

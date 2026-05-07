@@ -15,15 +15,23 @@ class SettingsController extends Controller
     {
         return Inertia::render('Admin/Settings/Payment', [
             'payuni' => [
-                'merchant_id' => SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', '')),
-                'hash_key'    => '',
-                'hash_iv'     => '',
+                'merchant_id'      => SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', '')),
+                'hash_key'         => '',
+                'hash_iv'          => '',
+                'hash_key_preview' => $this->maskSecret(SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key', ''))),
+                'hash_iv_preview'  => $this->maskSecret(SiteSetting::get('payuni_hash_iv', config('services.payuni.hash_iv', ''))),
             ],
             'newebpay' => [
-                'merchant_id' => SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id', '')),
-                'hash_key'    => '',
-                'hash_iv'     => '',
-                'env'         => SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox')),
+                'merchant_id'      => SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id', '')),
+                'hash_key'         => '',
+                'hash_iv'          => '',
+                'hash_key_preview' => $this->maskSecret(SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key', ''))),
+                'hash_iv_preview'  => $this->maskSecret(SiteSetting::get('newebpay_hash_iv', config('services.newebpay.hash_iv', ''))),
+                'env'              => SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox')),
+            ],
+            'portaly' => [
+                'webhook_key'         => '',
+                'webhook_key_preview' => $this->maskSecret(SiteSetting::get('portaly_webhook_key', '')),
             ],
             'meta_pixel_id' => SiteSetting::get('meta_pixel_id', ''),
         ]);
@@ -39,6 +47,7 @@ class SettingsController extends Controller
             'newebpay_hash_key'    => ['nullable', 'string', 'max:200'],
             'newebpay_hash_iv'     => ['nullable', 'string', 'max:200'],
             'newebpay_env'         => ['nullable', 'string', 'in:sandbox,production'],
+            'portaly_webhook_key'  => ['nullable', 'string', 'max:200'],
             'meta_pixel_id'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9]*$/'],
         ]);
 
@@ -49,7 +58,7 @@ class SettingsController extends Controller
             }
         }
 
-        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv'];
+        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key'];
         foreach ($secretFields as $key) {
             $value = $request->input($key, '');
             if ($value !== '') {
@@ -60,5 +69,13 @@ class SettingsController extends Controller
         SiteSetting::set('meta_pixel_id', $request->input('meta_pixel_id', ''));
 
         return redirect()->back()->with('success', '金流設定已儲存');
+    }
+
+    private function maskSecret(?string $value): string
+    {
+        if (!$value) {
+            return '';
+        }
+        return mb_substr($value, 0, 5) . str_repeat('*', max(0, mb_strlen($value) - 5));
     }
 }

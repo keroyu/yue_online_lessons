@@ -350,6 +350,108 @@ Step-by-step guide for implementing the cart + checkout feature. Follow phases A
 
 ---
 
+## Phase L — Portaly Webhook Key 後台設定（US8）
+
+**Goal**: 管理員可在後台金流設定頁設定 Portaly Webhook Key，取代 `.env` 的 `PORTALY_WEBHOOK_KEY`。`PortalyWebhookService` 優先讀取 DB 值，不中斷現有 webhook 流程。
+
+**Scope**: 僅修改憑證讀取層，不動 `PortalyController`、webhook 路由、或 `PortalyWebhookService` 的簽章驗證邏輯本身。
+
+**Module 001 files touched** (per repo_map.md):
+- `app/Services/PortalyWebhookService.php`
+- `config/services.php`
+- `.env.example`
+
+**Module 009 files touched**:
+- `app/Http/Controllers/Admin/SettingsController.php`
+- `resources/js/Pages/Admin/Settings/Payment.vue`
+
+---
+
+1. **`config/services.php`** — portaly block:
+
+   ```php
+   // Before:
+   'portaly' => [
+       'webhook_secret' => env('PORTALY_WEBHOOK_SECRET'),
+   ],
+
+   // After:
+   'portaly' => [
+       'webhook_key' => env('PORTALY_WEBHOOK_KEY'),
+   ],
+   ```
+
+2. **`.env.example`** — rename env var:
+
+   ```
+   # Before:
+   PORTALY_WEBHOOK_SECRET=
+
+   # After:
+   PORTALY_WEBHOOK_KEY=
+   ```
+
+   > ⚠️ 同步更新伺服器 `.env`：將既有 `PORTALY_WEBHOOK_SECRET` 值複製到 `PORTALY_WEBHOOK_KEY`，再刪除舊 key。
+
+3. **`app/Services/PortalyWebhookService.php`** — `verifySignature()` 改讀 SiteSetting：
+
+   ```php
+   // Before:
+   $secret = config('services.portaly.webhook_secret');
+
+   // After:
+   $secret = \App\Models\SiteSetting::get('portaly_webhook_key', config('services.portaly.webhook_key'));
+   ```
+
+   其餘 HMAC 驗證邏輯完全不動。
+
+4. **`app/Http/Controllers/Admin/SettingsController.php`** — `showPayment()` 加入 portaly preview：
+
+   ```php
+   $portalyKey = SiteSetting::get('portaly_webhook_key', '');
+   // 在回傳 props 中加入：
+   'portaly' => [
+       'webhook_key'         => '',            // never expose plaintext
+       'webhook_key_preview' => $portalyKey
+           ? substr($portalyKey, 0, 5) . str_repeat('*', max(0, strlen($portalyKey) - 5))
+           : '',
+   ],
+   ```
+
+   `updatePayment()` 加入：
+
+   ```php
+   if (!empty($validated['portaly_webhook_key'])) {
+       SiteSetting::set('portaly_webhook_key', $validated['portaly_webhook_key']);
+   }
+   ```
+
+5. **`resources/js/Pages/Admin/Settings/Payment.vue`** — 新增「Portaly（Webhook）」區塊：
+
+   ```vue
+   <!-- Portaly Webhook Key 區塊，放在 NewebPay 區塊之後、Meta Pixel 之前 -->
+   <section>
+     <h3 class="...">Portaly（Webhook）</h3>
+     <div>
+       <label>Webhook Key</label>
+       <input
+         type="password"
+         v-model="form.portaly_webhook_key"
+         :placeholder="portaly.webhook_key_preview || '尚未設定'"
+       />
+     </div>
+   </section>
+   ```
+
+   `form` 初始值：`portaly_webhook_key: ''`（空白 = 保留既有）。
+
+6. **驗證**：
+   - 後台填入新 Portaly Webhook Key → 送出 → 確認 `site_settings` 有 `portaly_webhook_key` 記錄。
+   - 用正確金鑰打一次模擬 Portaly webhook → `POST /api/webhooks/portaly` 回應 200、`success: true`。
+   - 清空 `site_settings` 中的 key → 再打 webhook → 系統 fallback 使用 `.env` 值，仍驗證通過。
+
+---
+
 ## Verification Checklist (Post-implementation)
 
 - [ ] `php artisan test` passes (no regressions).
@@ -367,3 +469,5 @@ Step-by-step guide for implementing the cart + checkout feature. Follow phases A
 - [ ] Guest checkout with existing email silently binds to existing account.
 - [ ] Payment failure redirects to `/cart` with error message.
 - [ ] Transaction admin (`/admin/transactions`) correctly shows `source = 'payuni'` / `'newebpay'`.
+- [ ] Admin sets Portaly Webhook Key via `/admin/settings/payment`, value persists in `site_settings` as `portaly_webhook_key` (SC-010).
+- [ ] `PortalyWebhookService` reads key from `site_settings` when set; falls back to `.env` `PORTALY_WEBHOOK_KEY` when not set.

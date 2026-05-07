@@ -415,9 +415,12 @@ class NewebpayService
 | `newebpay_hash_key` | `config('services.newebpay.hash_key')` |
 | `newebpay_hash_iv` | `config('services.newebpay.hash_iv')` |
 | `newebpay_env` | `config('services.newebpay.env', 'sandbox')` |
+| `portaly_webhook_key` | `config('services.portaly.webhook_key')` |
 | `meta_pixel_id` | `env('META_PIXEL_ID', '')` |
 
 SiteSetting value takes priority over `.env`. `.env` is initial default / fallback only. If `meta_pixel_id` resolves to empty string, the entire Pixel `<script>` block in `app.blade.php` is omitted.
+
+`portaly_webhook_key`: used by `PortalyWebhookService::verifySignature()` (module 001, `app/Services/PortalyWebhookService.php`) for HMAC-SHA256 signature verification. If not set in `site_settings`, falls back to `config('services.portaly.webhook_key')` → `PORTALY_WEBHOOK_KEY` env var. Displayed in admin UI as `webhook_key_preview` (first 5 chars + asterisks; empty string = not set).
 
 ---
 

@@ -10,6 +10,8 @@
 **Updated**: 2026-05-06 - Phase 6（T038-T041b）全部完成：mergeGuestCart、CartController@merge、路由、useCart.mergeGuestCartOnLogin、Login.vue onSuccess 觸發合併 (Phase 6)
 **Updated**: 2026-05-06 - Phase 7（T042-T048, T055）全部完成：SettingsController、admin 路由、AdminLayout 金流設定連結、Payment.vue、PayuniService SiteSetting 讀取、CourseForm payment_gateway、StoreCourse/UpdateCourseRequest、app.blade.php 條件 Pixel (Phase 7)
 **Updated**: 2026-05-07 - CourseForm pill button + gatewayConfigured hint（不產生新任務，屬 T046 延伸 UI 調整）(Phase 7)
+**Updated**: 2026-05-07 - Phase 8（T049-T052）全部完成：NewebpayService（AES-256-CBC + PKCS7 unpad + TradeSha 驗章）、NewebpayController（notify 回 SUCCESS、return 僅 redirect 不重複 fulfillOrder）、路由（notify 在 api.php、return 在 web.php withoutMiddleware CSRF）；Phase 9（T056 T058 T059）完成；T057 待 sandbox 手動驗證
+**Updated**: 2026-05-07 - 增量追加 Phase 10（US8 T060-T064）：Portaly Webhook Key 後台設定；`config/services.php` key 改名、`.env.example` 更名、`PortalyWebhookService` 改讀 SiteSetting、`SettingsController` + `Payment.vue` 擴充
 
 **Organization**: Tasks grouped by user story — each phase is independently deployable and testable.
 
@@ -151,10 +153,10 @@
 
 **Independent Test**: 後台將一門課程設為 newebpay → 加入購物車 → 結帳 → 跳轉 `ccore.newebpay.com` sandbox MPG → 付款成功 → `orders.status = paid`、`purchases` 建立、`/payment/success` 顯示正確。
 
-- [ ] T049 [US7] Create `app/Services/NewebpayService.php` — `__construct()`: read all three credentials from SiteSetting with config fallback: `SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id'))`, `SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key'))`, `SiteSetting::get('newebpay_hash_iv', config('services.newebpay.hash_iv'))`; read `SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox'))` to set endpoint (sandbox: `ccore.newebpay.com`, production: `core.newebpay.com`); `buildPaymentForm(Order, array $buyer): array`: build $tradeParams (MerchantID, RespondType=JSON, TimeStamp, Version=2.3, MerchantOrderNo, Amt, ItemDesc, Email, LoginType=0); `TradeInfo = bin2hex(openssl_encrypt(http_build_query($tradeParams), 'AES-256-CBC', $hashKey, OPENSSL_RAW_DATA, $hashIV))`; `TradeSha = strtoupper(hash('sha256', "HashKey={$hashKey}&{$tradeInfo}&HashIV={$hashIV}"))` return `{endpoint, fields:{MerchantID, TradeInfo, TradeSha, Version:'2.3'}}`; `verifyTradeSha(string, string): bool`; `decryptTradeInfo(string): array`: `openssl_decrypt(hex2bin($tradeInfo), 'AES-256-CBC', $key, OPENSSL_RAW_DATA|OPENSSL_ZERO_PADDING, $iv)` + manual PKCS7 strip + `parse_str()`
-- [ ] T050 [US7] Create `app/Http/Controllers/Payment/NewebpayController.php` — `notify(Request)`: verify TradeSha (fail → log + `return response('SUCCESS')`); decrypt TradeInfo; check `Status='SUCCESS'`; look up Order by MerchantOrderNo; idempotency Layer 1 check; `CheckoutService::fulfillOrder($order, $tradeNo, 'newebpay')`; `return response('SUCCESS')`; `return(Request)`: decrypt TradeInfo; success → `redirect('/payment/success?order='.$merchantOrderNo)`; failure → `redirect('/cart')->with('payment_failed', '付款未完成...')`
-- [ ] T051 [US7] Register NewebPay routes in `routes/web.php` — `Route::post('/api/webhooks/newebpay', ...)->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])`; `Route::post('/payment/newebpay/return', ...)->withoutMiddleware([VerifyCsrfToken::class])`
-- [ ] T052 [US7] Update `app/Http/Controllers/CheckoutController.php` `initiate()` — wire NewebPay branch: when `CheckoutService::routeGateway()` returns `'newebpay'`, call `app(NewebpayService::class)->buildPaymentForm($order, $buyer)` and return `{gateway:'newebpay', endpoint, fields}`
+- [X] T049 [US7] Create `app/Services/NewebpayService.php` — `__construct()`: read all three credentials from SiteSetting with config fallback: `SiteSetting::get('newebpay_merchant_id', config('services.newebpay.merchant_id'))`, `SiteSetting::get('newebpay_hash_key', config('services.newebpay.hash_key'))`, `SiteSetting::get('newebpay_hash_iv', config('services.newebpay.hash_iv'))`; read `SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox'))` to set endpoint (sandbox: `ccore.newebpay.com`, production: `core.newebpay.com`); `buildPaymentForm(Order, array $buyer): array`: build $tradeParams (MerchantID, RespondType=JSON, TimeStamp, Version=2.3, MerchantOrderNo, Amt, ItemDesc, Email, LoginType=0); `TradeInfo = bin2hex(openssl_encrypt(http_build_query($tradeParams), 'AES-256-CBC', $hashKey, OPENSSL_RAW_DATA, $hashIV))`; `TradeSha = strtoupper(hash('sha256', "HashKey={$hashKey}&{$tradeInfo}&HashIV={$hashIV}"))` return `{endpoint, fields:{MerchantID, TradeInfo, TradeSha, Version:'2.3'}}`; `verifyTradeSha(string, string): bool`; `decryptTradeInfo(string): array`: `openssl_decrypt(hex2bin($tradeInfo), 'AES-256-CBC', $key, OPENSSL_RAW_DATA|OPENSSL_ZERO_PADDING, $iv)` + manual PKCS7 strip + `parse_str()`
+- [X] T050 [US7] Create `app/Http/Controllers/Payment/NewebpayController.php` — `notify(Request)`: verify TradeSha (fail → log + `return response('SUCCESS')`); decrypt TradeInfo; check `Status='SUCCESS'`; look up Order by MerchantOrderNo; idempotency Layer 1 check; `CheckoutService::fulfillOrder($order, $tradeNo, 'newebpay')`; `return response('SUCCESS')`; `return(Request)`: decrypt TradeInfo; success → `redirect('/payment/success?order='.$merchantOrderNo)`; failure → `redirect('/cart')->with('payment_failed', '付款未完成...')`
+- [X] T051 [US7] Register NewebPay routes in `routes/web.php` — `Route::post('/api/webhooks/newebpay', ...)->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])`; `Route::post('/payment/newebpay/return', ...)->withoutMiddleware([VerifyCsrfToken::class])`
+- [X] T052 [US7] Update `app/Http/Controllers/CheckoutController.php` `initiate()` — wire NewebPay branch: when `CheckoutService::routeGateway()` returns `'newebpay'`, call `app(NewebpayService::class)->buildPaymentForm($order, $buyer)` and return `{gateway:'newebpay', endpoint, fields}`
 
 **Checkpoint**: 藍新完整購買閉環可驗證。PayUni + NewebPay 兩條路徑均正常。E2E 驗證步驟見 `specs/009-cart-checkout/quickstart.md` Phase I。
 
@@ -162,10 +164,29 @@
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T056 Verify `resources/js/Pages/Cart/Index.vue` renders `$page.props.flash.payment_failed` error banner when present (失敗訊息含客服 email `themustbig+learn@gmail.com`)
-- [ ] T057 Run full verification checklist per `specs/009-cart-checkout/quickstart.md` — confirm all 14 checklist items pass
-- [ ] T058 Run `php artisan test` — confirm no regressions across all existing features
-- [ ] T059 Add `NEWEBPAY_MERCHANT_ID=`, `NEWEBPAY_HASH_KEY=`, `NEWEBPAY_HASH_IV=`, `NEWEBPAY_ENV=sandbox` to `.env.example` with placeholder values alongside existing `PAYUNI_*` entries
+- [X] T056 Verify `resources/js/Pages/Cart/Index.vue` renders `$page.props.flash.payment_failed` error banner when present (失敗訊息含客服 email `themustbig+learn@gmail.com`)
+- [ ] T057 Run full verification checklist per `specs/009-cart-checkout/quickstart.md` — confirm all 16 checklist items pass (14 original + 2 US8 items)
+- [X] T058 Run `php artisan test` — confirm no regressions across all existing features
+- [X] T059 Add `NEWEBPAY_MERCHANT_ID=`, `NEWEBPAY_HASH_KEY=`, `NEWEBPAY_HASH_IV=`, `NEWEBPAY_ENV=sandbox` to `.env.example` with placeholder values alongside existing `PAYUNI_*` entries
+
+---
+
+## Phase 10: User Story 8 — Portaly Webhook Key 後台設定 (Priority: P2)
+
+**Goal**: 管理員可在後台金流設定頁（`/admin/settings/payment`）設定 Portaly Webhook Key，取代原 `.env` 的 `PORTALY_WEBHOOK_KEY`；`PortalyWebhookService::verifySignature()` 改為優先讀取 `site_settings`，`.env` 保留為 fallback，不中斷現有 Portaly webhook 流程。
+
+**Module 001 files** (per repo_map.md): `app/Services/PortalyWebhookService.php`, `config/services.php`  
+**Module 009 files**: `app/Http/Controllers/Admin/SettingsController.php`, `resources/js/Pages/Admin/Settings/Payment.vue`
+
+**Independent Test**: 後台填入 Portaly Webhook Key → 儲存 → 確認 `site_settings` 有 `portaly_webhook_key` 記錄；清空 `site_settings` 值後，系統 fallback 讀 `.env` 值，`POST /api/webhooks/portaly` 仍通過驗證。
+
+- [X] T060 [P] [US8] Update `config/services.php` — portaly block: rename key `webhook_secret` → `webhook_key`（對應 env var 從 `PORTALY_WEBHOOK_SECRET` 改為 `PORTALY_WEBHOOK_KEY`）；其他 portaly 設定不動
+- [X] T061 [P] [US8] Update `.env.example` — 將 `PORTALY_WEBHOOK_SECRET=` 改名為 `PORTALY_WEBHOOK_KEY=`（placeholder 值保持空白）；同步在 `.env` 中執行同樣改名（若尚未完成）
+- [X] T062 [P] [US8] Update `app/Services/PortalyWebhookService.php` `verifySignature()` — 將 `$secret = config('services.portaly.webhook_secret')` 替換為 `$secret = \App\Models\SiteSetting::get('portaly_webhook_key', config('services.portaly.webhook_key'))`；其餘 HMAC 驗證邏輯完全不動；depends on T060
+- [X] T063 [P] [US8] Update `app/Http/Controllers/Admin/SettingsController.php` — `showPayment()` 加入 portaly prop：讀取 `SiteSetting::get('portaly_webhook_key', '')` 並計算 `webhook_key_preview`（前 5 碼加星號，空字串表示尚未設定，與 HashKey/HashIV preview 邏輯一致）；`updatePayment()` 加入：若 `portaly_webhook_key` 非空則呼叫 `SiteSetting::set('portaly_webhook_key', $value)`（空值略過，保留既有）；depends on T060
+- [X] T064 [US8] Update `resources/js/Pages/Admin/Settings/Payment.vue` — 在 NewebPay 區塊之後、Meta Pixel 之前新增「Portaly（Webhook）」區塊；含一個 `<input type="password">` 欄位（v-model: `form.portaly_webhook_key`），placeholder 綁定 `props.portaly.webhook_key_preview || '尚未設定'`；`form` 初始值 `portaly_webhook_key: ''`（空白 = 保留既有）；送出時加入 `portaly_webhook_key` 至 POST body；區塊標題格式遵循既有規範「中文名稱（英文）」；depends on T063
+
+**Checkpoint**: 後台 Portaly 欄位可見、可儲存、preview 正確顯示；`PortalyWebhookService` SiteSetting 優先、`.env` fallback；`php artisan test` 無 regression。
 
 ---
 
@@ -183,6 +204,7 @@ Phase 1 (Setup)
         ├── Phase 7 (US6) ← requires only SiteSetting pattern (can start after Phase 2)
         └── Phase 8 (US7) ← requires Phase 4 (CheckoutService::routeGateway) + Phase 7 (SiteSetting credentials)
 Phase 9 (Polish) ← depends on all phases complete
+Phase 10 (US8) ← independent; only requires SiteSetting pattern (can start after Phase 7 is established)
 ```
 
 ### User Story Dependencies
@@ -195,6 +217,7 @@ Phase 9 (Polish) ← depends on all phases complete
 | US5 (Phase 6) | Phase 3 complete | US4 Phase 5 |
 | US6 (Phase 7) | Phase 2 complete | US1+US2, US3, US4, US5 |
 | US7 (Phase 8) | Phase 4 + Phase 7 complete | — |
+| US8 (Phase 10) | Phase 7 (SiteSetting pattern established) | US7 Phase 8 |
 
 ### Within Each User Story
 
@@ -250,6 +273,21 @@ T046 CourseForm.vue                       ← T045+T046+T047 parallel (different
 T047 StoreCourseRequest + UpdateCourseRequest
 ```
 
+### Phase 10 (US8) — config rename first, then parallel service + controller, then frontend
+```
+T060 config/services.php rename
+T061 .env.example rename                  ← T060+T061 parallel
+```
+Then:
+```
+T062 PortalyWebhookService SiteSetting read
+T063 SettingsController portaly section   ← T062+T063 parallel (different files)
+```
+Then:
+```
+T064 Payment.vue portaly 區塊             ← depends on T063 API shape
+```
+
 ---
 
 ## Implementation Strategy
@@ -269,6 +307,7 @@ T047 StoreCourseRequest + UpdateCourseRequest
 - Add Phase 7 (US6 — Admin credentials + Meta Pixel) → Test admin UI
 - Add Phase 8 (US7 — NewebPay flow) → Test NewebPay sandbox
 - Phase 9 (Polish) → Final verification + regression test
+- Phase 10 (US8) → Portaly Webhook Key 後台設定（5 tasks，可在 Phase 7 完成後任何時間執行）
 
 ### Single-Developer Execution Order (Recommended)
 
@@ -281,4 +320,5 @@ T001 → T002-T006 (parallel) → T007 → T008-T010 (parallel) → T011-T013
 → T042-T048 + T055 (mostly parallel per file, T055 after T043)
 → T049 → T050-T051 (parallel) → T052
 → T056-T059
+→ T060-T061 (parallel) → T062-T063 (parallel) → T064
 ```
