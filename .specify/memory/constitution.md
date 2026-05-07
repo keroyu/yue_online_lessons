@@ -106,6 +106,15 @@ Services MUST NOT:
 Commands (`ProcessDripEmails`), Controllers, and webhooks all call the
 same Service, guaranteeing consistent behavior.
 
+**Simple-path exception**: A Service method MAY return a domain object
+directly (`?Model`, `Collection`, `int`, `bool`) — instead of a
+structured array — when it performs a **single-model operation with no
+external I/O and no multi-step side effects**. The caller MUST handle
+`null`/`false` return values explicitly. This parallels the §I simple-path
+rule for controllers. Write methods that coordinate multiple models or
+trigger side-effects MUST still use structured result arrays.
+Evidence: `CartService` read/write methods (feature 009).
+
 ---
 
 ### III. Frontend Component Architecture
@@ -131,6 +140,14 @@ All frontend code MUST use Vue 3 Composition API with `<script setup>`.
   shared props or `localStorage`.
 - **localStorage**: Used ONLY for ephemeral client-side features (promo
   block unlock timers). Never for business state.
+- **Documented exception — Guest Cart (feature 009)**: Pre-authentication
+  guest cart (`localStorage.guest_cart`) stores public course metadata
+  `{id, name, price, thumbnail}` before user login. Permitted because:
+  (a) data is non-sensitive public metadata already visible on the page;
+  (b) state is designed to be merged server-side and cleared on login;
+  (c) server-side anonymous session cart adds per-request write overhead
+  for all visitors. This exception is **scoped exclusively** to the
+  `guest_cart` key. All other business state MUST remain server-side.
 - **Optimistic UI**: Allowed for non-critical UX (lesson completion
   checkbox) with server reconciliation on next page load.
 

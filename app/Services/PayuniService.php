@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Course;
+use App\Models\Order;
 use App\Models\Purchase;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -16,8 +18,8 @@ class PayuniService
 
     public function __construct()
     {
-        $this->merKey = config('services.payuni.hash_key', '');
-        $this->merIV  = config('services.payuni.hash_iv', '');
+        $this->merKey = SiteSetting::get('payuni_hash_key', config('services.payuni.hash_key', ''));
+        $this->merIV  = SiteSetting::get('payuni_hash_iv', config('services.payuni.hash_iv', ''));
         $sandbox      = config('services.payuni.sandbox', false);
         $prefix       = $sandbox ? 'https://sandbox-' : 'https://';
         $this->apiUrl = $prefix . 'api.payuni.com.tw/api/upp';
@@ -56,8 +58,9 @@ class PayuniService
      */
     public function buildPaymentForm(Course $course, string $email, string $merTradeNo, ?string $name = null, ?string $phone = null): array
     {
+        $merchantId = SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', ''));
         $params = [
-            'MerID'       => config('services.payuni.merchant_id'),
+            'MerID'       => $merchantId,
             'MerTradeNo'  => $merTradeNo,
             'TradeAmt'    => (int) $course->display_price,
             'ProdDesc'    => mb_substr($course->name, 0, 50),
@@ -81,7 +84,51 @@ class PayuniService
         return [
             'endpoint' => $this->apiUrl,
             'fields'   => [
-                'MerID'       => config('services.payuni.merchant_id'),
+                'MerID'       => $merchantId,
+                'Version'     => '1.0',
+                'EncryptInfo' => $encryptInfo,
+                'HashInfo'    => $hashInfo,
+            ],
+        ];
+    }
+
+    /**
+     * Build PayUni UPP form fields for Order-based checkout.
+     * Uses Order snapshot data; preserves existing buildPaymentForm() signature.
+     *
+     * @return array{ endpoint: string, fields: array }
+     */
+    public function buildOrderPaymentForm(Order $order, array $buyer): array
+    {
+        $order->loadMissing('items');
+        $firstItem = $order->items->first();
+        $prodDesc  = $firstItem ? mb_substr($firstItem->course_name, 0, 50) : '課程購買';
+        if ($order->items->count() > 1) {
+            $prodDesc = mb_substr($prodDesc, 0, 40) . ' 等 ' . $order->items->count() . ' 門課程';
+        }
+
+        $merchantId = SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', ''));
+        $params = [
+            'MerID'       => $merchantId,
+            'MerTradeNo'  => $order->merchant_order_no,
+            'TradeAmt'    => (int) $order->total_amount,
+            'ProdDesc'    => $prodDesc,
+            'UsrMail'     => $order->buyer_email,
+            'UsrName'     => $order->buyer_name,
+            'UsrMobile'   => $order->buyer_phone,
+            'ReturnURL'   => url('/payment/payuni/return'),
+            'NotifyURL'   => url('/api/webhooks/payuni'),
+            'Timestamp'   => time(),
+            'Lang'        => 'zh-tw',
+        ];
+
+        $encryptInfo = $this->encrypt($params);
+        $hashInfo    = $this->hashInfo($encryptInfo);
+
+        return [
+            'endpoint' => $this->apiUrl,
+            'fields'   => [
+                'MerID'       => $merchantId,
                 'Version'     => '1.0',
                 'EncryptInfo' => $encryptInfo,
                 'HashInfo'    => $hashInfo,
@@ -141,7 +188,27 @@ class PayuniService
             return ['success' => false, 'error' => 'missing_trade_no'];
         }
 
-        // Idempotency check
+        // New Order-based path (ord_ prefix)
+        if (str_starts_with($merTradeNo, 'ord_')) {
+            $order = Order::where('merchant_order_no', $merTradeNo)->first();
+            if (!$order) {
+                Log::error('PayUni Notify: order not found', ['MerTradeNo' => $merTradeNo]);
+                return ['success' => false, 'error' => 'order_not_found'];
+            }
+
+            try {
+                $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
+                app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
+                Log::info('PayUni Notify: order fulfilled', ['MerTradeNo' => $merTradeNo, 'order_id' => $order->id]);
+            } catch (\Exception $e) {
+                Log::error('PayUni Notify: fulfillOrder failed', ['error' => $e->getMessage(), 'MerTradeNo' => $merTradeNo]);
+                return ['success' => false, 'error' => $e->getMessage()];
+            }
+
+            return ['success' => true, 'error' => ''];
+        }
+
+        // Legacy YC path — idempotency check
         if (Purchase::where('payuni_trade_no', $merTradeNo)->exists()) {
             Log::info('PayUni Notify: duplicate, skipping', ['MerTradeNo' => $merTradeNo]);
             return ['success' => true, 'error' => ''];

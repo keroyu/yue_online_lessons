@@ -11,7 +11,7 @@
 
 **Language/Version**: PHP 8.2 / Laravel 12
 **Primary Dependencies**: Inertia.js v2, Vue 3 + `<script setup>`, Tailwind CSS v4, `chart.js` + `vue-chartjs`（新增）
-**Storage**: MySQL — 現有 `purchases` 表（無新增 migration）
+**Storage**: MySQL — 現有 `purchases` 表 + 009 新增的 `orders` 表（透過 `purchases.order_id` 關聯，無新增 migration）
 **Testing**: `php artisan test`（PHPUnit）
 **Target Platform**: Web browser（管理後台，桌面優先，支援 RWD）
 **Performance Goals**: 圖表資料在切換區間後 1 秒內更新（SC-009）；列表 10,000 筆 2 秒內載入（SC-002）
@@ -114,6 +114,55 @@ package.json                               ← 新增 chart.js + vue-chartjs
 4. **前端：Index.vue 整合** ✅
    - 掛載 `<RevenueChart>` + 監聽 events → Inertia partial reload（`only: ['chartData', 'chartFilters']`）
 
+### Phase C — 009 整合：訂單資料顯示 + 搜尋 + 匯出 + Badge UI
+
+**背景**: 009 購物車結帳功能上線後，透過 PayUni / NewebPay 完成的交易會在 `orders` 表建立紀錄（merchant_order_no、gateway_trade_no、payment_gateway），並以 `purchases.order_id` 關聯。現有 006 後台看不到這些欄位。
+
+**Affected Files**:
+
+```text
+app/Http/Controllers/Admin/TransactionController.php
+resources/js/Pages/Admin/Transactions/Index.vue
+resources/js/Pages/Admin/Transactions/Show.vue
+```
+
+**Tasks**:
+
+1. **後端 — TransactionController::show()** (FR-030)
+   - 加入 `->with('order')` eager load
+   - Inertia props 新增 `order_info` 物件：
+     - `merchant_order_no`: `$purchase->order?->merchant_order_no ?? null`
+     - `gateway_trade_no`: `$purchase->order?->gateway_trade_no ?? null`
+     - `payment_gateway`: `$purchase->order?->payment_gateway ?? null`
+
+2. **後端 — TransactionController::index() 搜尋擴展** (FR-031)
+   - 現有 `->where(fn => $q->where('buyer_email', 'like', ...)->orWhere('portaly_order_id', 'like', ...))`
+   - 追加 `->orWhereHas('order', fn($q) => $q->where('merchant_order_no', 'like', "%{$search}%"))`
+   - index() 的 `->with(...)` 補上 `order`（only 取 merchant_order_no 用於列表 badge）
+
+3. **後端 — TransactionController::export()** (FR-032)
+   - eager load 補上 `order`
+   - CSV header 新增 `merchant_order_no`（置於 `portaly_order_id` 前）
+   - 每列填入 `$purchase->order?->merchant_order_no ?? ''`
+
+4. **前端 — Index.vue 訂單 Badge** (FR-033, FR-034)
+   - 訂單欄位由純文字 ID 改為 badge 元件
+   - Badge 顯示規則：
+     - `source = 'portaly'` → 灰藍色 badge `[Portaly]`，複製 `portaly_order_id`
+     - `source = 'payuni'` → 品牌色 badge `[PayUni]`，複製 `merchant_order_no`（來自 `order.merchant_order_no`）
+     - `source = 'newebpay'` → badge `[NewebPay]`，複製 `merchant_order_no`
+     - `source = 'manual'` 或無訂單編號 → 顯示「—」，無 badge
+   - 點擊 badge 觸發 `navigator.clipboard.writeText()`，成功後 200ms 顯示「已複製 ✓」tooltip/提示，然後恢復原樣
+   - 完整訂單編號以 `title` 屬性（tooltip）顯示，badge 內只顯示標籤文字
+
+5. **前端 — Show.vue 購物車訂單資訊區塊** (FR-030)
+   - 判斷 `order_info.merchant_order_no` 存在時，顯示「購物車訂單資訊」卡片區塊
+   - 區塊包含：商店訂單編號（merchant_order_no）、金流交易序號（gateway_trade_no）、金流渠道（payment_gateway 以對應中文顯示）
+   - Portaly 來源：不顯示此區塊（或 merchant_order_no 為 null 時隱藏）
+
+**Purchase Model**（確認）:
+- `order()` belongsTo 關聯應已存在（009 建立）；若尚未，需在 `Purchase` model 新增 `public function order(): BelongsTo`
+
 ## Dependencies & Risks
 
 | Risk | Impact | Mitigation |
@@ -122,10 +171,27 @@ package.json                               ← 新增 chart.js + vue-chartjs
 | 自訂日期區間過長（如數年）導致查詢慢 | 低 | 無上限限制（per Assumption），但 GROUP BY + index on `created_at` 足夠快 |
 | chart.js bundle size | 低 | 只 import 使用的模組（tree-shaking） |
 | Inertia partial reload 與現有列表篩選 params 衝突 | 中 | 使用 `URLSearchParams` 保留現有 params，只覆寫 chart_* params |
+| `Purchase::order()` 關聯尚未建立（009 可能未加） | 低 | 實作前先確認；若缺少，在 Phase C Task 1 補上 `belongsTo(Order::class)` |
+| index() N+1：列表每列 eager load order | 低 | `with('order:id,merchant_order_no')` 限制欄位；列表每頁 20 筆，影響可忽略 |
+| Clipboard API 在 http:// 本機開發環境可能受限 | 低 | 本機用 localhost（Chrome 允許），staging/prod 為 https；若不支援則靜默失敗 |
 
 ---
 
 ## Incremental Update Summary
+
+### 2026-05-07: Phase C — 009 整合規劃
+
+**背景**: 009 購物車結帳上線，新增 `orders` 表；006 需更新以顯示購物車訂單資料、擴展搜尋、更新 CSV，並重新設計列表訂單欄位為 badge + 點擊複製。
+
+**規劃範圍**:
+- 詳情頁（Show.vue + TransactionController::show）：顯示 merchant_order_no / gateway_trade_no / payment_gateway
+- 列表搜尋（index()）：擴展 merchant_order_no 搜尋
+- CSV 匯出（export()）：新增 merchant_order_no 欄
+- 列表 UI（Index.vue）：訂單 ID 欄位改為金流來源 badge（Portaly / PayUni / NewebPay）+ 點擊複製
+
+**新增 FR**: FR-030（詳情擴展）、FR-031（搜尋擴展）、FR-032（CSV）、FR-033（badge UI）、FR-034（複製功能）
+
+---
 
 ### 2026-03-11: Phase 12 — 營收圖表實作完成（含 UI 修正）
 

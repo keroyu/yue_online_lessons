@@ -12,6 +12,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  gatewayConfigured: {
+    type: Object,
+    default: () => ({ payuni: true, newebpay: true }),
+  },
   availableCourses: {
     type: Array,
     default: () => [],
@@ -48,6 +52,7 @@ const form = useForm({
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
+  payment_gateway: props.course?.payment_gateway || 'payuni',
   is_visible: props.course?.is_visible ?? true,
   course_type: props.course?.delivery_mode || props.course?.course_type || 'standard',
   drip_interval_days: props.course?.drip_interval_days || '',
@@ -55,6 +60,15 @@ const form = useForm({
 })
 
 const isDrip = computed(() => form.course_type === 'drip')
+const showPaymentGateway = computed(() => !form.portaly_product_id)
+
+watch(() => form.portaly_product_id, (val) => {
+  if (val) {
+    form.payment_gateway = ''
+  } else {
+    form.payment_gateway = form.payment_gateway || 'payuni'
+  }
+})
 
 const activeTab = ref('basic')
 
@@ -497,6 +511,40 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">https://portaly.cc/kyontw/product/{ID}</code>
           </p>
           <p v-if="form.errors.portaly_product_id" :class="errorTextClasses">{{ form.errors.portaly_product_id }}</p>
+        </div>
+
+        <!-- Payment Gateway -->
+        <div v-if="showPaymentGateway">
+          <div class="flex items-center gap-2">
+            <label :class="labelClasses">金流方式</label>
+            <span
+              v-if="form.payment_gateway && gatewayConfigured[form.payment_gateway] === false"
+              class="text-xs text-red-600 font-medium"
+            >
+              ⚠ 尚未完成金流設定，請先至
+              <a href="/admin/settings/payment" class="underline hover:text-red-800">金流設定</a>
+              填寫憑證
+            </span>
+          </div>
+          <div class="mt-3 flex gap-3">
+            <label
+              v-for="option in [{ value: 'payuni', label: 'PayUni 統一金流' }, { value: 'newebpay', label: '藍新金流' }]"
+              :key="option.value"
+              class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border text-sm font-medium transition-colors"
+              :class="form.payment_gateway === option.value
+                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+            >
+              <input
+                v-model="form.payment_gateway"
+                type="radio"
+                :value="option.value"
+                class="sr-only"
+              />
+              {{ option.label }}
+            </label>
+          </div>
+          <p v-if="form.errors.payment_gateway" :class="errorTextClasses">{{ form.errors.payment_gateway }}</p>
         </div>
 
         <!-- Actions -->

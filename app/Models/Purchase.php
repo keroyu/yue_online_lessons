@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\Order;
 
 class Purchase extends Model
 {
@@ -26,6 +27,7 @@ class Purchase extends Model
         'source',
         'type',
         'webhook_received_at',
+        'order_id',
     ];
 
     protected function casts(): array
@@ -45,6 +47,11 @@ class Purchase extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 
     /**

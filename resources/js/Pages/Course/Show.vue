@@ -6,6 +6,7 @@ import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
+import { useCart } from '@/composables/useCart'
 
 const page = usePage()
 
@@ -51,6 +52,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isOwned: {
+    type: Boolean,
+    default: false,
+  },
+  isInCart: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Landing Page mode detection
@@ -86,56 +95,61 @@ const usePayuni = computed(() => props.course.use_payuni === true)
 const isFree = computed(() => props.course.is_free === true)
 const hasBuyAction = computed(() => !!portalyUrl.value || usePayuni.value || isFree.value)
 
+// Cart composable
+const { addToCart, buyNow } = useCart()
+// Local cart state — initialised from server prop, updated after add-to-cart
+const isInCartLocal = ref(props.isInCart)
+const cartAddError = ref('')
+
+// For guests, isInCart is always false from server — check localStorage on mount
+if (!page.props.auth?.user) {
+  try {
+    const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]')
+    if (guestCart.some((i) => i.id === props.course.id)) {
+      isInCartLocal.value = true
+    }
+  } catch {}
+}
+const cartAddSuccess = ref(false)
+let cartToastTimer = null
+
+const handleAddToCart = async () => {
+  cartAddError.value = ''
+  const result = await addToCart(props.course.id, {
+    name: props.course.name,
+    price: props.course.price,
+    thumbnail: props.course.thumbnail,
+  })
+  if (result.success) {
+    isInCartLocal.value = true
+    cartAddSuccess.value = true
+    clearTimeout(cartToastTimer)
+    cartToastTimer = setTimeout(() => { cartAddSuccess.value = false }, 2500)
+  } else {
+    cartAddError.value = result.error || '加入購物車失敗'
+  }
+}
+
+const handleBuyNow = async () => {
+  cartAddError.value = ''
+  await buyNow(props.course.id, {
+    name: props.course.name,
+    price: props.course.price,
+    thumbnail: props.course.thumbnail,
+  })
+}
+
 const openPortaly = () => {
   if (props.isPreviewMode) {
     showPreviewAlert.value = true
     return
   }
-  if (portalyUrl.value && agreed.value) {
+  if (portalyUrl.value) {
     window.open(portalyUrl.value, '_blank')
   }
 }
 
-// ── PayUni ────────────────────────────────────────────────────────────────────
-const payuniEmail = ref(page.props.auth?.user?.email || '')
-const payuniName = ref(page.props.auth?.user?.real_name || '')
-const payuniPhone = ref(page.props.auth?.user?.phone || '')
-const payuniSubmitting = ref(false)
-const payuniError = ref('')
-
-const initiatePayuni = async () => {
-  payuniError.value = ''
-  if (!agreed.value || payuniSubmitting.value) return
-  if (!payuniName.value || !payuniPhone.value) {
-    payuniError.value = '請填寫姓名和電話以完成購買'
-    return
-  }
-  payuniSubmitting.value = true
-  try {
-    const res = await window.axios.post('/api/payment/payuni/initiate', {
-      course_id: props.course.id,
-      email: payuniEmail.value,
-      name: payuniName.value,
-      phone: payuniPhone.value,
-    })
-    const { endpoint, fields } = res.data
-    const form = document.createElement('form')
-    form.method = 'POST'
-    form.action = endpoint
-    Object.entries(fields).forEach(([k, v]) => {
-      const input = document.createElement('input')
-      input.type = 'hidden'
-      input.name = k
-      input.value = v
-      form.appendChild(input)
-    })
-    document.body.appendChild(form)
-    form.submit()
-  } catch (e) {
-    payuniError.value = e.response?.data?.message || '付款初始化失敗，請稍後再試。'
-    payuniSubmitting.value = false
-  }
-}
+// ── Legacy PayUni direct-initiate (preserved for YC-prefix orders only; cart flow uses /checkout) ──
 
 // ── Free enrollment ───────────────────────────────────────────────────────────
 const showFreeForm = ref(false)
@@ -220,14 +234,6 @@ const handleBuyClick = () => {
   }
   if (isFree.value) {
     openFreeForm()
-    return
-  }
-  if (!agreed.value) {
-    purchaseSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    return
-  }
-  if (usePayuni.value) {
-    initiatePayuni()
     return
   }
   openPortaly()
@@ -655,9 +661,6 @@ const submitBooking = async () => {
               :original-price="course.original_price"
               :promo-ends-at="course.promo_ends_at"
             />
-            <p v-if="usePayuni" class="mt-2 text-xs text-gray-500">
-              支援 3/6/9 個月分期，建議使用台新銀行信用卡，其他銀行信用卡可能不支援。
-            </p>
           </div>
 
           <!-- Right: High Ticket booking form (replaces Consent & Purchase Button) -->
@@ -714,44 +717,10 @@ const submitBooking = async () => {
             </template>
           </div>
 
-          <!-- Consent & Purchase Button -->
+          <!-- Cart / Purchase Buttons -->
           <div v-else class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
             <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
               草稿課程，僅供預覽
-            </div>
-
-            <!-- PayUni: user info fields -->
-            <div v-if="usePayuni && !isPreviewMode" class="w-full sm:w-72 space-y-2">
-              <div v-if="!$page.props.auth?.user">
-                <label class="block text-xs font-medium text-gray-600 mb-1">付款 Email <span class="text-red-500">*</span></label>
-                <input
-                  v-model="payuniEmail"
-                  type="email"
-                  placeholder="your@email.com"
-                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                />
-              </div>
-              <div v-else class="text-xs text-gray-500">
-                付款 Email：<strong class="text-gray-700">{{ $page.props.auth.user.email }}</strong>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">姓名 <span class="text-red-500">*</span></label>
-                <input
-                  v-model="payuniName"
-                  type="text"
-                  placeholder="請輸入姓名"
-                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">電話 <span class="text-red-500">*</span></label>
-                <input
-                  v-model="payuniPhone"
-                  type="tel"
-                  placeholder="0912345678"
-                  class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                />
-              </div>
             </div>
 
             <!-- Free form: inline enrollment -->
@@ -806,30 +775,7 @@ const submitBooking = async () => {
               </div>
             </div>
 
-            <p v-if="payuniError" class="text-sm text-red-600">{{ payuniError }}</p>
-
-            <!-- Consent checkbox (non-free, non-preview) -->
-            <label v-if="!isPreviewMode && !isFree" class="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                v-model="agreed"
-                class="mt-1 h-4 w-4 text-brand-teal border-gray-300 rounded focus:ring-brand-teal"
-              />
-              <span class="text-sm text-gray-600">
-                我已閱讀並同意
-                <button
-                  type="button"
-                  class="text-brand-teal hover:underline"
-                  @click.prevent="openLegalModal('terms')"
-                >服務條款</button>
-                和
-                <button
-                  type="button"
-                  class="text-brand-teal hover:underline"
-                  @click.prevent="openLegalModal('purchase')"
-                >購買須知</button>
-              </span>
-            </label>
+            <p v-if="cartAddError" class="text-sm text-red-600">{{ cartAddError }}</p>
 
             <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
               <a
@@ -844,25 +790,90 @@ const submitBooking = async () => {
                 </svg>
                 免費試閱
               </a>
-              <!-- Main buy / enroll button -->
-              <button
-                @click="isFree ? openFreeForm() : (usePayuni ? handleBuyClick() : openPortaly())"
-                :disabled="isPreviewMode || (!isFree && (!agreed || !hasBuyAction))"
-                :class="[
-                  'flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold transition-all shadow-sm',
-                  isPreviewMode
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : (isFree || (agreed && hasBuyAction)
-                        ? 'bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
-                ]"
+
+              <!-- Portaly course: external buy link (US2) -->
+              <a
+                v-if="course.portaly_product_id && !isPreviewMode"
+                :href="portalyUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
               >
-                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {{ isPreviewMode ? '預覽購買按鈕' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : (payuniSubmitting ? '處理中...' : '立即購買'))) }}
+                立即購買
+              </a>
+
+              <!-- Free course: enroll button -->
+              <button
+                v-else-if="isFree"
+                @click="openFreeForm"
+                :disabled="isPreviewMode"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                免費報名
+              </button>
+
+              <!-- Paid cart-flow course: owned / in-cart / add -->
+              <template v-else-if="!isPreviewMode">
+                <Link
+                  v-if="isOwned"
+                  href="/member/learning"
+                  class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold bg-brand-teal text-white hover:bg-brand-teal/80 transition-all shadow-sm"
+                >
+                  進入課程
+                </Link>
+                <template v-else-if="isInCartLocal">
+                  <Link
+                    href="/cart"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-orange-600 hover:bg-orange-700 text-white border border-orange-700/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    前往購物車
+                  </Link>
+                  <button
+                    @click="handleBuyNow"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    直接購買
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    @click="handleAddToCart"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    加入購物車
+                  </button>
+                  <button
+                    @click="handleBuyNow"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-7 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 hover:shadow-md active:scale-[0.98] cursor-pointer transition-all shadow-sm"
+                  >
+                    直接購買
+                  </button>
+                </template>
+              </template>
+
+              <!-- Preview mode placeholder -->
+              <button
+                v-else
+                disabled
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-10 py-3 rounded-lg font-semibold bg-gray-300 text-gray-500 cursor-not-allowed transition-all"
+              >
+                預覽購買按鈕
               </button>
             </div>
+
+            <Transition
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="opacity-0 translate-y-1"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 translate-y-1"
+            >
+              <p v-if="cartAddSuccess" class="text-sm text-green-700 font-medium flex items-center gap-1 mt-1">
+                <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                已加入購物車！
+              </p>
+            </Transition>
           </div>
         </div>
       </div>
@@ -902,14 +913,42 @@ const submitBooking = async () => {
               </svg>
               免費試閱
             </a>
-            <button
-              @click="handleBuyClick"
+            <a
+              v-if="course.portaly_product_id"
+              :href="portalyUrl"
+              target="_blank"
+              rel="noopener noreferrer"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
             >
-              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              {{ isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買') }}
+              立即購買
+            </a>
+            <Link
+              v-else-if="isOwned"
+              href="/member/learning"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-teal text-white hover:bg-brand-teal/80 transition-all shadow-sm text-sm"
+            >
+              進入課程
+            </Link>
+            <template v-else-if="isInCartLocal">
+              <Link
+                href="/cart"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-orange-600 hover:bg-orange-700 text-white border border-orange-700/50 transition-all shadow-sm cursor-pointer text-sm"
+              >
+                前往購物車
+              </Link>
+              <button
+                @click="handleBuyNow"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
+              >
+                直接購買
+              </button>
+            </template>
+            <button
+              v-else
+              @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
+            >
+              {{ isFree ? '免費報名' : '立即購買' }}
             </button>
           </div>
         </div>

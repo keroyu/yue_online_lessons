@@ -16,16 +16,24 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageSettingController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SocialLinkController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
+use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
+use App\Http\Controllers\Payment\SuccessController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::get('/payment/success', [SuccessController::class, 'show'])->name('payment.success');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
 Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store'])
     ->middleware('throttle:5,1')
@@ -33,10 +41,22 @@ Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
+// Cart API — must live in web.php (session-based auth:web requires StartSession middleware)
+Route::prefix('api')->middleware('auth')->name('api.')->group(function () {
+    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+    Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
+    Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
+});
+
 // PayUni ReturnURL — browser redirect after payment (needs web middleware for auth/session)
 Route::post('/payment/payuni/return', [PayuniController::class, 'return'])
     ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
     ->name('payuni.return');
+
+// NewebPay ReturnURL — browser redirect after payment (CSRF excluded; NotifyURL is in api.php)
+Route::post('/payment/newebpay/return', [NewebpayController::class, 'return'])
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class)
+    ->name('newebpay.return');
 
 // Drip subscription routes (public)
 Route::prefix('drip')->name('drip.')->group(function () {
@@ -158,4 +178,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');
     Route::put('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'update'])->name('social-links.update');
     Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'destroy'])->name('social-links.destroy');
+
+    // Payment settings
+    Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
+    Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
 });
