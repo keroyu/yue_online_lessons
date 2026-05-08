@@ -55,11 +55,12 @@ class PayuniController extends Controller
 
         // Store buyer info in cache so NotifyURL callback can look it up
         // (PayUni notify does NOT include email/name in callback payload)
+        // ATM transfers can take up to 7 days — keep for 8 days to be safe
         Cache::put("payuni_order_{$merTradeNo}", [
             'email' => $email,
             'name'  => $name,
             'phone' => $phone,
-        ], now()->addHours(2));
+        ], now()->addDays(8));
 
         Log::info('PayUni: initiating payment', [
             'course_id'   => $course->id,
