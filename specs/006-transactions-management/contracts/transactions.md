@@ -3,6 +3,7 @@
 **Phase**: 1 — Design
 **Date**: 2026-03-10
 **Updated**: 2026-05-07 - CSV 匯出欄位擴充：商店訂單編號 / 金流交易序號 / 金流管道 / PayUni 交易序號 / 公司統編；show() 回傳 transaction.payuni_trade_no 與 order_info.tax_id（FR-035~039）
+**Updated**: 2026-05-08 - CSV Columns 新增「購買者電話」（users.phone，位於「購買者 Email」後）（FR-040）
 **Transport**: Inertia.js (server-side rendered props) + direct HTTP (CSV export)
 
 ---
@@ -117,7 +118,7 @@ router.visit(url, {
 **CSV Columns**:
 ```
 訂單 ID, 商店訂單編號, 金流交易序號, 金流管道, PayUni 交易序號,
-Portaly 訂單編號, 購買者姓名, 購買者 Email, 公司統編, 課程名稱,
+Portaly 訂單編號, 購買者姓名, 購買者 Email, 購買者電話, 公司統編, 課程名稱,
 金額, 折扣金額, 優惠碼, 幣別, 狀態, 來源, 類型, 購買時間
 ```
 

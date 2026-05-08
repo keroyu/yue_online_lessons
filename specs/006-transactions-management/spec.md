@@ -8,6 +8,7 @@
 **Updated**: 2026-03-30 - 釐清 Purchase 的 `status` 與 `type` 語意；文件中的「有效交易」明確指 `status = paid`
 **Updated**: 2026-05-07 - 增量更新：因應 009 購物車結帳流程上線，交易詳情頁新增 merchant_order_no / gateway_trade_no / payment_gateway 顯示；搜尋功能擴展支援 merchant_order_no；CSV 匯出新增 merchant_order_no 欄位；交易列表訂單 ID 欄位改為金流來源標籤（[Portaly] / [PayUni] / [NewebPay]）搭配點擊複製訂單編號
 **Updated**: 2026-05-07 - 列表 badge 改為 data-driven 邏輯（不依賴 source 欄位）：依序檢查 `portaly_order_id` → `order.payment_gateway` → `payuni_trade_no`；新增支援 legacy PayUni 單堂直購交易（無 Order 但有 payuni_trade_no）顯示 [PayUni] badge；詳情頁新增「PayUni 交易序號」欄位；CSV 匯出新增「金流交易序號」「金流管道」「PayUni 交易序號」三欄；公司統編欄（009 FR-036）顯示於詳情頁與 CSV；UI 文案「金流渠道」統一改為「金流管道」；新增 FR-035~FR-039
+**Updated**: 2026-05-08 - CSV 匯出新增「購買者電話」欄位（users.phone，位於「購買者 Email」後）；新增 FR-040
 **Status**: Draft
 **Input**: User description: "在管理後台加上交易紀錄的檢視和管理功能"
 
@@ -177,6 +178,7 @@
 - **FR-037**: CSV 匯出 MUST 新增三欄位：「金流交易序號」（`order.gateway_trade_no`，金流方對帳用）、「金流管道」（`order.payment_gateway`：payuni / newebpay）、「PayUni 交易序號」（`payuni_trade_no`，legacy 單堂直購）。順序：商店訂單編號 → 金流交易序號 → 金流管道 → PayUni 交易序號 → Portaly 訂單編號。
 - **FR-038**: 詳情頁與 CSV 匯出 MUST 顯示公司統編（`order.tax_id`，由 009 FR-036 寫入），無值時不顯示（詳情頁 v-if）／空字串（CSV）。
 - **FR-039**: UI 文案中的「金流渠道」MUST 統一稱為「金流管道」（含詳情頁與 CSV 欄位 header）。
+- **FR-040**: 匯出 CSV 時，MUST 包含「購買者電話」欄位（來源 `users.phone`），位置緊接在「購買者 Email」之後；會員無電話號碼時該欄位輸出空字串。
 
 ### Key Entities
 

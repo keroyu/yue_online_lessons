@@ -248,7 +248,7 @@ class TransactionController extends Controller
             abort(422, '請選擇要匯出的交易，或勾選「全選符合條件」');
         }
 
-        $query = Purchase::with(['user:id,real_name,nickname,email', 'course:id,name', 'order'])
+        $query = Purchase::with(['user:id,real_name,nickname,email,phone', 'course:id,name', 'order'])
             ->orderBy('created_at', 'desc');
 
         if ($selectAll) {
@@ -289,6 +289,7 @@ class TransactionController extends Controller
                 'Portaly 訂單編號',
                 '購買者姓名',
                 '購買者 Email',
+                '購買者電話',
                 '公司統編',
                 '課程名稱',
                 '金額',
@@ -312,6 +313,7 @@ class TransactionController extends Controller
                         $purchase->portaly_order_id ?? '',
                         $purchase->user?->real_name ?? $purchase->user?->nickname ?? '',
                         $purchase->buyer_email ?? $purchase->user?->email ?? '',
+                        $purchase->user?->phone ?? '',
                         $purchase->order?->tax_id ?? '',
                         $purchase->course?->name ?? '',
                         $purchase->amount,
