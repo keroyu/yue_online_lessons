@@ -15,6 +15,8 @@ class Order extends Model
         'total_amount', 'currency', 'payment_gateway',
         'merchant_order_no', 'status', 'gateway_trade_no',
         'webhook_received_at',
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+        'referrer_domain', 'gclid', 'fbclid', 'ttclid',
     ];
 
     protected function casts(): array

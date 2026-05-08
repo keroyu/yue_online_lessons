@@ -169,6 +169,13 @@ const formatPrice = (price) => {
                         >
                           相簿
                         </Link>
+                        <Link
+                          v-if="!course.portaly_product_id"
+                          :href="`/admin/courses/${course.id}/traffic`"
+                          class="text-teal-600 hover:text-teal-900"
+                        >
+                          來源
+                        </Link>
                         <button
                           type="button"
                           class="text-red-600 hover:text-red-900"

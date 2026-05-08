@@ -135,6 +135,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Drip subscribers
     Route::get('/courses/{course}/subscribers', [AdminCourseController::class, 'subscribers'])->name('courses.subscribers');
 
+    // Traffic source analytics
+    Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');
+    Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');
+
     // Members
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');
     Route::get('/members/export', [MemberController::class, 'exportCsv'])->name('members.export');

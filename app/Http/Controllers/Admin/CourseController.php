@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Models\Order;
+use App\Models\OrderItem;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,6 +48,7 @@ class CourseController extends Controller
                 'sale_at' => $course->sale_at?->format('Y-m-d H:i'),
                 'deleted_at' => $course->deleted_at,
                 'duration_formatted' => $course->duration_formatted,
+                'portaly_product_id' => $course->portaly_product_id,
             ]);
 
         return Inertia::render('Admin/Courses/Index', [
@@ -374,5 +377,137 @@ class CourseController extends Controller
                 'status' => $statusFilter,
             ],
         ]);
+    }
+
+    public function traffic(Course $course, Request $request): Response
+    {
+        $days = $request->input('days');
+        $days = in_array((int) $days, [7, 30, 90], true) ? (int) $days : null;
+
+        $query = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('order_items.course_id', $course->id)
+            ->where('orders.status', 'paid')
+            ->when($days, fn ($q) => $q->where('orders.created_at', '>=', now()->subDays($days)));
+
+        $totalOrders = (clone $query)->distinct()->count('orders.id');
+
+        $trackedOrders = (clone $query)
+            ->where(function ($q) {
+                $q->whereNotNull('orders.utm_source')
+                  ->orWhereNotNull('orders.referrer_domain')
+                  ->orWhereNotNull('orders.gclid')
+                  ->orWhereNotNull('orders.fbclid')
+                  ->orWhereNotNull('orders.ttclid');
+            })
+            ->distinct()
+            ->count('orders.id');
+
+        $sources = (clone $query)
+            ->select(
+                'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
+                'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
+                'orders.gclid', 'orders.fbclid', 'orders.ttclid',
+                DB::raw('COUNT(DISTINCT orders.id) as order_count'),
+                DB::raw('SUM(order_items.unit_price) as revenue')
+            )
+            ->groupBy(
+                'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
+                'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
+                'orders.gclid', 'orders.fbclid', 'orders.ttclid'
+            )
+            ->get()
+            ->map(function ($row) {
+                $hasClickId = $row->gclid || $row->fbclid || $row->ttclid;
+                if ($hasClickId) {
+                    $displaySource = $row->utm_source ?: ($row->gclid ? 'google' : ($row->fbclid ? 'facebook' : 'tiktok'));
+                } elseif ($row->utm_source) {
+                    $displaySource = $row->utm_source;
+                } elseif ($row->referrer_domain) {
+                    $displaySource = "(外部連結) {$row->referrer_domain}";
+                } else {
+                    $displaySource = '(直接造訪)';
+                }
+
+                return [
+                    'utm_source'       => $row->utm_source,
+                    'utm_medium'       => $row->utm_medium,
+                    'utm_campaign'     => $row->utm_campaign,
+                    'utm_term'         => $row->utm_term,
+                    'utm_content'      => $row->utm_content,
+                    'referrer_domain'  => $row->referrer_domain,
+                    'gclid'            => $row->gclid,
+                    'fbclid'           => $row->fbclid,
+                    'ttclid'           => $row->ttclid,
+                    'display_source'   => $displaySource,
+                    'order_count'      => (int) $row->order_count,
+                    'revenue'          => (float) $row->revenue,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return Inertia::render('Admin/Courses/Traffic', [
+            'course'  => ['id' => $course->id, 'name' => $course->name],
+            'filters' => ['days' => $days],
+            'traffic' => [
+                'total_orders'   => $totalOrders,
+                'tracked_orders' => $trackedOrders,
+                'sources'        => $sources,
+            ],
+        ]);
+    }
+
+    public function trafficExport(Course $course, Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $days = $request->input('days');
+        $days = in_array((int) $days, [7, 30, 90], true) ? (int) $days : null;
+
+        $query = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('users', 'users.id', '=', 'orders.user_id')
+            ->where('order_items.course_id', $course->id)
+            ->where('orders.status', 'paid')
+            ->when($days, fn ($q) => $q->where('orders.created_at', '>=', now()->subDays($days)))
+            ->select(
+                'orders.merchant_order_no', 'orders.created_at', 'orders.buyer_email',
+                'order_items.unit_price',
+                'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
+                'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
+                'orders.gclid', 'orders.fbclid', 'orders.ttclid'
+            )
+            ->orderByDesc('orders.created_at');
+
+        $filename = 'course-' . $course->id . '-traffic-' . now()->format('Ymd') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, [
+                '訂單編號', '購買時間', '購買者 Email', '金額',
+                'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                'referrer_domain', 'gclid', 'fbclid', 'ttclid',
+            ]);
+            $query->chunk(200, function ($rows) use ($handle) {
+                foreach ($rows as $row) {
+                    fputcsv($handle, [
+                        $row->merchant_order_no ?? '',
+                        $row->created_at,
+                        $row->buyer_email,
+                        $row->unit_price,
+                        $row->utm_source ?? '',
+                        $row->utm_medium ?? '',
+                        $row->utm_campaign ?? '',
+                        $row->utm_term ?? '',
+                        $row->utm_content ?? '',
+                        $row->referrer_domain ?? '',
+                        $row->gclid ?? '',
+                        $row->fbclid ?? '',
+                        $row->ttclid ?? '',
+                    ]);
+                }
+            });
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

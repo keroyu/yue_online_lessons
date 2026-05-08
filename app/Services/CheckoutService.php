@@ -15,8 +15,10 @@ class CheckoutService
     /**
      * Create an Order + OrderItems snapshot.
      * Determines payment gateway and sets merchant_order_no in a two-step INSERT→UPDATE.
+     *
+     * @param array<string, ?string> $trafficSource 來源資料；keys: utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid
      */
-    public function createOrder(?int $userId, array $courseIds, array $buyer): Order
+    public function createOrder(?int $userId, array $courseIds, array $buyer, array $trafficSource = []): Order
     {
         $courses = Course::whereIn('id', $courseIds)->get()->keyBy('id');
 
@@ -56,8 +58,15 @@ class CheckoutService
 
         $totalAmount = $courses->sum(fn ($c) => $c->display_price);
 
-        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $totalAmount) {
-            $order = Order::create([
+        $sourceKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'];
+
+        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $totalAmount, $trafficSource, $sourceKeys) {
+            $sourceData = [];
+            foreach ($sourceKeys as $key) {
+                $sourceData[$key] = $trafficSource[$key] ?? null;
+            }
+
+            $order = Order::create(array_merge([
                 'user_id'           => $userId,
                 'buyer_name'        => $buyer['name'],
                 'buyer_email'       => $buyer['email'],
@@ -68,7 +77,7 @@ class CheckoutService
                 'payment_gateway'   => $gateway,
                 'merchant_order_no' => null,
                 'status'            => 'pending',
-            ]);
+            ], $sourceData));
 
             $order->update([
                 'merchant_order_no' => 'ord_' . $order->id . '_' . date('ymd'),

@@ -86,9 +86,10 @@ class CheckoutController extends Controller
         $userId    = auth()->id();
 
         $checkoutService = app(CheckoutService::class);
+        $trafficSource = session('traffic_source', []);
 
         try {
-            $order = $checkoutService->createOrder($userId, $courseIds, $buyer);
+            $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         }

@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\CartItem;
 use App\Models\Course;
 use App\Models\Purchase;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class CourseController extends Controller
 {
-    public function show(Course $course): Response
+    public function show(Request $request, Course $course): Response
     {
         $user = auth()->user();
         $isAdmin = $user && $user->isAdmin();
@@ -25,6 +26,8 @@ class CourseController extends Controller
 
         // Preview mode: draft course being viewed by admin
         $isPreviewMode = $isDraft && $isAdmin;
+
+        $this->captureTrafficSource($request);
 
         // Drip course subscription info
         $isDrip = $course->is_drip;
@@ -79,5 +82,43 @@ class CourseController extends Controller
             'userSubscription' => $userSubscription,
             'canSubscribe' => $canSubscribe,
         ]);
+    }
+
+    private function captureTrafficSource(Request $request): void
+    {
+        $trafficData = [];
+
+        $utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        foreach ($utmKeys as $key) {
+            $val = $request->query($key);
+            if ($val !== null && trim($val) !== '') {
+                $trafficData[$key] = mb_substr(trim($val), 0, 100);
+            }
+        }
+
+        $clickIdKeys = ['gclid', 'fbclid', 'ttclid'];
+        foreach ($clickIdKeys as $key) {
+            $val = $request->query($key);
+            if ($val !== null && trim($val) !== '') {
+                $trafficData[$key] = mb_substr(trim($val), 0, 255);
+            }
+        }
+
+        $referer = $request->server('HTTP_REFERER');
+        if ($referer) {
+            $host = parse_url($referer, PHP_URL_HOST);
+            if ($host) {
+                $host = preg_replace('/^www\./', '', $host);
+                $ownHost = preg_replace('/^www\./', '', parse_url(config('app.url'), PHP_URL_HOST) ?? '');
+                $blacklist = [$ownHost, 'payuni.com.tw', 'newebpay.com'];
+                if (!in_array($host, $blacklist, true)) {
+                    $trafficData['referrer_domain'] = mb_substr($host, 0, 255);
+                }
+            }
+        }
+
+        if (!empty($trafficData)) {
+            $request->session()->put('traffic_source', $trafficData);
+        }
     }
 }
