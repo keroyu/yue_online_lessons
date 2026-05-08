@@ -1525,14 +1525,22 @@ Within Phase 15:
 **背景**：管理員需要知道行銷管道投資回報。在 orders 表加 4 個 UTM 欄位，CourseController 捕捉來源存入 session，結帳時寫入訂單。後台課程管理列表加「來源」按鈕，點擊後進入統計頁。
 
 - [ ] T234 [P] [US12] Create migration `2026_05_08_000001_add_utm_to_orders_table.php` in `database/migrations/`
-  - 新增 4 欄位：`utm_source VARCHAR(100) NULL`、`utm_medium VARCHAR(100) NULL`、`utm_campaign VARCHAR(100) NULL`、`referrer_domain VARCHAR(255) NULL`，全部 AFTER `webhook_received_at`
-  - 實作 down()：`dropColumn(['utm_source', 'utm_medium', 'utm_campaign', 'referrer_domain'])`
-- [ ] T235 [US12] Add 4 UTM fields to `$fillable` in `app/Models/Order.php`
-  - 在 $fillable 末尾加：`'utm_source', 'utm_medium', 'utm_campaign', 'referrer_domain'`
-- [ ] T236 [US12] Modify `app/Http/Controllers/CourseController.php` — capture UTM + Referer
+  - 新增 9 欄位（全部 AFTER `webhook_received_at`，全 nullable）：
+    - 5 UTM：`utm_source VARCHAR(100)`、`utm_medium VARCHAR(100)`、`utm_campaign VARCHAR(100)`、`utm_term VARCHAR(100)`、`utm_content VARCHAR(100)`
+    - `referrer_domain VARCHAR(255)`
+    - 3 Click ID：`gclid VARCHAR(255)`、`fbclid VARCHAR(255)`、`ttclid VARCHAR(255)`
+  - 加索引：`->index('utm_source')`、`->index('referrer_domain')`
+  - 實作 down()：`dropIndex` 後 `dropColumn` 9 欄位
+- [ ] T235 [US12] Add 9 source fields to `$fillable` in `app/Models/Order.php`
+  - 在 $fillable 末尾加：`'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'`
+- [ ] T236 [US12] Modify `app/Http/Controllers/CourseController.php` — capture UTM + Click ID + Referer (with blacklist)
   - 加 `use Illuminate\Http\Request;`
   - show() 簽名改為 `show(Request $request, Course $course)`
-  - 方法開頭捕捉 UTM params（最多 100 字元）+ parse HTTP_REFERER host（移除 www.）
+  - 捕捉 5 個 UTM params（utm_source/medium/campaign/term/content，最多 100 字元）
+  - 捕捉 3 個 Click ID（gclid/fbclid/ttclid，最多 255 字元）
+  - 解析 HTTP_REFERER host（移除 www.），但需通過黑名單過濾：
+    - `$blacklist = [parse_url(config('app.url'), PHP_URL_HOST), 'payuni.com.tw', 'newebpay.com'];`
+    - host 在黑名單中或為自家網域 → 不寫入 referrer_domain
   - 若 $trafficData 非空則 `$request->session()->put('traffic_source', $trafficData)`
 - [ ] T237 [US12] Add `portaly_product_id` to course mapping in `app/Http/Controllers/Admin/CourseController.php`
   - index() 的 `->map()` 內加：`'portaly_product_id' => $course->portaly_product_id`
@@ -1541,26 +1549,40 @@ Within Phase 15:
   - createOrder() 呼叫加第 4 參數：`$checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource)`
 - [ ] T239 [P] [US12] Modify `app/Services/CheckoutService.php` — write UTM to Order
   - createOrder() 簽名加：`array $trafficSource = []`
-  - 加 docstring：`@param array<string, ?string> $trafficSource UTM + referrer 來源資料；keys: utm_source, utm_medium, utm_campaign, referrer_domain`
-  - Order::create() 加 4 個 UTM 欄位：`'utm_source' => $trafficSource['utm_source'] ?? null` 等
-- [ ] T240 [US12] Add `traffic(Course $course)` method to existing `app/Http/Controllers/Admin/CourseController.php`
-  - 與既有 `subscribers()` 方法並列（不另建 controller，沿用「課程域操作集中於同一 controller」pattern）
-  - 用 QueryBuilder JOIN order_items + orders WHERE status='paid'
-  - GROUP BY 4 個 UTM 欄位，SELECT COUNT(DISTINCT orders.id)、SUM(unit_price)
+  - 加 docstring：`@param array<string, ?string> $trafficSource 來源資料；keys: utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid`
+  - Order::create() 加 9 個來源欄位：迴圈寫入 `'<key>' => $trafficSource['<key>'] ?? null`
+- [ ] T240 [US12] Add `traffic(Course $course, Request $request)` method to existing `app/Http/Controllers/Admin/CourseController.php`
+  - 與既有 `subscribers()` 方法並列（不另建 controller）
+  - 讀 `?days=7|30|90|null` query param；若有則加 `WHERE orders.created_at >= now()->subDays($days)`
+  - QueryBuilder JOIN order_items + orders WHERE status='paid'
+  - GROUP BY 9 個來源欄位，SELECT COUNT(DISTINCT orders.id)、SUM(unit_price)
   - PHP map() 產生 display_source（全中文）：utm_source 有值 → utm_source；否則 referrer_domain 有值 → `(外部連結) {referrer_domain}`；都無 → `(直接造訪)`
-  - Inertia::render('Admin/Courses/Traffic', ['course' => [...], 'traffic' => ['total_orders' => N, 'tracked_orders' => M, 'sources' => [...]]])
+  - Inertia::render('Admin/Courses/Traffic', ['course' => [...], 'filters' => ['days' => $days], 'traffic' => ['total_orders' => N, 'tracked_orders' => M, 'sources' => [...]]])
 - [ ] T241 [P] [US12] Create `resources/js/Pages/Admin/Courses/Traffic.vue`
-  - AdminLayout + `defineProps({ course: Object, traffic: Object })`
+  - AdminLayout + `defineProps({ course: Object, filters: Object, traffic: Object })`
   - 兩個 summary cards（總訂單數、有來源標記比例 = tracked_orders / total_orders）
-  - 來源明細表（來源/中介/活動/訂單數/金額），空狀態顯示「尚無訂單來源資料」
+  - 4 個時間 preset 按鈕：「最近 7 天 / 30 天 / 90 天 / 全部」，使用 `router.get(url, { days })` 切換
+  - 「依來源 / 依管道分類」切換 toggle（純前端 Vue computed）
+  - Channel Group mapping（前端常數）：社群、搜尋引擎、電子報、影音、付費廣告（gclid/fbclid/ttclid 任一有值）、其他
+  - 來源明細表欄位：來源/中介/活動/關鍵字/內容/訂單數/金額；表頭根據切換 toggle 顯示不同分組
+  - 「匯出 CSV」按鈕（連到 traffic.export route，帶當前 days param）
+  - 空狀態顯示「尚無訂單來源資料」
   - RWD：表格 overflow-x-auto
-- [ ] T242 [US12] Add traffic route to `routes/web.php`
-  - admin middleware group 加：`Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');`
-  - 不需新增 use（沿用既有 `App\Http\Controllers\Admin\CourseController as AdminCourseController`）
+- [ ] T242 [US12] Add traffic routes to `routes/web.php`
+  - admin middleware group 加 2 條：
+    - `Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');`
+    - `Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');`
+  - 不需新增 use
+- [ ] T244 [US12] Add `trafficExport(Course $course, Request $request)` method to `app/Http/Controllers/Admin/CourseController.php`
+  - 仿 `Admin\TransactionController::export()` pattern：`response()->streamDownload(...)` + `fputcsv` + UTF-8 BOM
+  - 同 traffic() 邏輯讀 `?days=N` 篩選，但回傳每筆訂單一列（非聚合）
+  - 13 個 CSV 欄位：訂單編號、購買時間、購買者 Email、金額、utm_source、utm_medium、utm_campaign、utm_term、utm_content、referrer_domain、gclid、fbclid、ttclid
+  - filename：`course-{id}-traffic-{YYYYMMdd}.csv`
+  - 用 `chunk(200)` 避免大量訂單時 OOM
 - [ ] T243 [US12] Update `resources/js/Pages/Admin/Courses/Index.vue` — add 「來源」button
   - 在「相簿」與「刪除」之間加：`<Link v-if="!course.portaly_product_id" :href="\`/admin/courses/${course.id}/traffic\`" class="text-teal-600 hover:text-teal-900">來源</Link>`
 
-**Checkpoint**: 用帶 UTM 連結完成測試購買 → 後台 `/admin/courses/{id}/traffic` 顯示對應來源行；Portaly 課程不顯示「來源」按鈕 ✅
+**Checkpoint**: 用帶 UTM 連結（含 utm_term、utm_content）+ Click ID 完成測試購買 → 後台 `/admin/courses/{id}/traffic` 顯示對應來源行；切換時間範圍 preset 即時更新；切換「依管道分類」顯示中文群組；點擊匯出 CSV 下載 UTF-8 BOM 檔案；Portaly 課程不顯示「來源」按鈕；自家網域跳轉與金流回跳不污染 referrer_domain ✅
 
 ---
 
@@ -1594,5 +1616,5 @@ Within Phase 15:
 | Phase 32 (教室側欄動態效果) | T228 | ✅ Completed |
 | Phase 33 (側欄 edge toggle tab) | T229 | ✅ Completed |
 | Phase 34 (小節時長 M:SS + 課程總時長自動計算) | T230-T233 | ✅ Completed |
-| Phase 39 (US12 課程連結來源追蹤) | T234-T243 | ⏳ Planned |
-| **Total** | **243 tasks** | 233 completed, 10 pending |
+| Phase 39 (US12 課程連結來源追蹤 + 行銷強化) | T234-T244 | ⏳ Planned |
+| **Total** | **244 tasks** | 233 completed, 11 pending |

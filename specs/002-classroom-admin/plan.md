@@ -28,6 +28,7 @@
 **Updated**: 2026-04-06 - 修正 Gallery.vue 勾選 UX：checkbox 左上角專責、工具列條件顯示（Phase 37）
 **Updated**: 2026-04-06 - 刪除相簿圖片時自動清除 description_md 中的圖片引用（Phase 38）
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：UTM session 捕捉、orders 表 4 欄位、後台統計頁（Phase 39）
+**Updated**: 2026-05-08 - US12 行銷強化：5 UTM + 3 Click ID（共 9 欄）、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group 分類
 
 ## Summary
 
@@ -523,7 +524,7 @@ Documented in [research.md](./research.md):
 14. **Course Visibility Toggle**: is_visible field in Course model
 15. **Chapter Email Notification**: Resend Mailable 同步發送（Mail::send），admin opt-in，學員數少不需 Queue ← **New**
 16. **Course Duration Auto-Calculation**: 課程 `duration_minutes` 不由管理員手動輸入，改由 `LessonController` 在 store/update/destroy 後自動從有影片的小節（`duration_seconds`）加總計算；小節時長輸入格式為 `M:SS`（如 `3:50`），存為 `duration_seconds` 整數
-17. **UTM Purchase Attribution**: 訪客進入 `/course/{id}` 時，`CourseController::show()` 捕捉 UTM params + HTTP Referer domain → `session('traffic_source')`；結帳時 `CheckoutController::initiate()` 讀取 session 傳入 `CheckoutService::createOrder()` 第 4 參數；UTM 以 4 個 nullable 欄位寫入 `orders` 表；後台 `Admin\CourseController::traffic()`（與 `subscribers()` 並列）用 QueryBuilder GROUP BY 聚合；Portaly 課程不顯示來源按鈕（不建立 orders）；顯示字串全中文：utm_source → `(外部連結) {domain}` → `(直接造訪)`
+17. **UTM Purchase Attribution**: 訪客進入 `/course/{id}` 時，`CourseController::show()` 捕捉 5 UTM 參數（source/medium/campaign/term/content）+ 3 Click ID（gclid/fbclid/ttclid）+ HTTP Referer domain（過濾自家與金流網域）→ `session('traffic_source')`；結帳時 `CheckoutController::initiate()` 讀取 session 傳入 `CheckoutService::createOrder()` 第 4 參數；以 9 個 nullable 欄位寫入 `orders` 表；後台 `Admin\CourseController::traffic()` 支援 `?days=7|30|90|null` 時間篩選 + CSV 匯出（`Admin\CourseController::trafficExport()`）；前端 Traffic.vue 提供「依來源 / 依管道分類」切換（中文 Channel Group：社群／搜尋／電子報／影音／付費廣告／其他）；Portaly 課程不顯示來源按鈕；顯示字串全中文：utm_source → `(外部連結) {domain}` → `(直接造訪)`
 
 ---
 
@@ -547,6 +548,14 @@ Documented in [research.md](./research.md):
 ### Phase 39 Plan — US12: 課程連結來源追蹤 (2026-05-08)
 
 **背景**：管理員需要知道每個課程的購買者從哪裡來（UTM 參數優先，fallback HTTP Referer）。在課程管理列表加「來源」按鈕，點擊後進入聚合統計頁。追蹤只針對建立 orders 的結帳流程（PayUni / 藍新），Portaly 課程不適用。
+
+**行銷強化（2026-05-08 同日加入）**：
+1. 補齊標準 5 個 UTM 參數（加 `utm_term`、`utm_content`）
+2. 記錄 3 個付費廣告 Click ID（`gclid`、`fbclid`、`ttclid`）
+3. HTTP Referrer 黑名單過濾（自家網域、PayUni、藍新）
+4. 統計頁時間篩選 4 個 preset（7 / 30 / 90 / 全部）
+5. CSV 匯出（仿 006 TransactionController::export pattern）
+6. 前端「依來源 / 依管道分類」切換顯示
 
 **Data Flow**:
 ```
@@ -574,10 +583,20 @@ GET /admin/courses/{course}/traffic → Admin\CourseController::traffic()
 - `resources/js/Pages/Admin/Courses/Traffic.vue`
 
 **修改檔案**：
-- `app/Http/Controllers/CourseController.php` — show() 加 Request 參數，捕捉 UTM + Referer
-- `app/Http/Controllers/Admin/CourseController.php` — (a) index() 補 `portaly_product_id`；(b) 新增 `traffic(Course $course)` 方法
+- `app/Http/Controllers/CourseController.php` — show() 加 Request 參數，捕捉 5 UTM + 3 Click ID + Referer（含黑名單過濾）
+- `app/Http/Controllers/Admin/CourseController.php` — (a) index() 補 `portaly_product_id`；(b) 新增 `traffic(Course $course, Request $request)` 方法（支援 `?days=N`）；(c) 新增 `trafficExport(Course $course, Request $request)` 方法（CSV stream download）
 - `app/Http/Controllers/CheckoutController.php` — initiate() 讀 session，傳 $trafficSource
-- `app/Services/CheckoutService.php` — createOrder() 加第 4 參數 `array $trafficSource = []`，加 `@param` docstring
-- `app/Models/Order.php` — $fillable 加 4 個 UTM 欄位
+- `app/Services/CheckoutService.php` — createOrder() 加第 4 參數 `array $trafficSource = []`，加 `@param` docstring；Order::create() 寫入 9 欄位
+- `app/Models/Order.php` — $fillable 加 9 個來源欄位
 - `resources/js/Pages/Admin/Courses/Index.vue` — 加「來源」按鈕（v-if="!course.portaly_product_id"）
-- `routes/web.php` — admin group 加 `courses.traffic` 路由（handler: `Admin\CourseController@traffic`）
+- `routes/web.php` — admin group 加 2 條路由：`courses.traffic`、`courses.traffic.export`
+
+**Channel Group 分類規則（前端純展示層 mapping）**：
+| Channel Group（中文）| 觸發 utm_source 或條件 |
+|---|---|
+| 社群 | instagram, ig, facebook, fb, threads, twitter, x |
+| 搜尋引擎 | google, bing, yahoo, duckduckgo |
+| 電子報 | email, newsletter, edm, mailchimp, resend |
+| 影音 | youtube, tiktok, vimeo |
+| 付費廣告 | gclid / fbclid / ttclid 任一有值 |
+| 其他 | 以上皆未匹配 |

@@ -3,6 +3,7 @@
 **Branch**: `002-classroom-admin` | **Date**: 2026-01-17
 **Updated**: 2026-01-30 - 新增 Course Visibility Toggle 設計決策
 **Updated**: 2026-05-08 - 新增 UTM Purchase Attribution 設計決策（Phase 39）
+**Updated**: 2026-05-08 - US12 行銷強化決策：5 UTM + 3 Click ID、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group
 
 ## Video Embedding (Vimeo/YouTube)
 
@@ -817,7 +818,11 @@ public function scopeVisibleToUser($query, $user = null)
 | **Auto-Assign Ownership** | Purchase type extension | None (Laravel) |
 | **Admin Frontend Preview** | Conditional query + UI badges | None (Vue conditional) |
 | **Course Visibility Toggle** | is_visible boolean field | None (Laravel scope) |
-| **UTM Purchase Attribution** | Laravel session + 4 DB columns on orders | None (native Laravel + QueryBuilder) |
+| **UTM Purchase Attribution** | Laravel session + 9 DB columns on orders（5 UTM + 3 Click ID + referrer_domain）| None (native Laravel + QueryBuilder) |
+| **Referrer Blacklist** | Hardcoded list（self-domain + payuni + newebpay）| None |
+| **Time Range Preset** | `?days=7\|30\|90\|null` query param + 4 buttons | None |
+| **CSV Export** | `streamDownload` + `fputcsv` + UTF-8 BOM（仿 006）| None (zero deps) |
+| **Channel Group** | Frontend Vue computed mapping table | None (純展示層) |
 
 ---
 
@@ -846,3 +851,116 @@ public function scopeVisibleToUser($query, $user = null)
 - 後台顯示邏輯（全中文，符合 CLAUDE.md「UI 文案：中文」）：utm_source → `(外部連結) {referrer_domain}` → `(直接造訪)`
 - `CheckoutService::createOrder()` 第 4 參數加 `@param array<string, ?string> $trafficSource` docstring，明列允許的 keys（utm_source, utm_medium, utm_campaign, referrer_domain）
 - Inertia prop 結構：`{ course: {...}, traffic: { total_orders, tracked_orders, sources: [...] } }`，nested traffic 物件避免和 Dashboard `stats` 命名衝突
+
+---
+
+## UTM 行銷強化決策（Phase 39 補充，2026-05-08）
+
+### Decision A: 5 個標準 UTM 參數
+
+採用 GA4 標準的 5 個 UTM 參數（`utm_source / utm_medium / utm_campaign / utm_term / utm_content`），而非簡化為 3 個。
+
+### Rationale
+- `utm_term` 是 Google Ads 付費搜尋帶入關鍵字的標準欄位；缺它就無法分析「哪些搜尋詞帶來成交」
+- `utm_content` 是 A/B 測試廣告創意的標準欄位（同一活動下，不同 banner / 文案的識別）
+- 多 2 個 nullable 欄位幾乎零成本（VARCHAR(100)），但保留與 GA4、Looker Studio 等業界工具的相容性
+- 若未來需匯入 Google Ads UTM Builder 自動產生的連結，欄位齊全才不會丟資料
+
+### Alternatives Considered
+- **只存 3 個**：節省 schema 但喪失與業界工具相容性，行銷人會頻繁問「為何缺資料」
+- **JSON 欄位存所有 UTM**：查詢與 GROUP BY 較麻煩，犧牲索引能力
+
+---
+
+### Decision B: 記錄 3 個付費廣告 Click ID
+
+額外捕捉 `gclid`（Google Ads）、`fbclid`（Meta Ads）、`ttclid`（TikTok Ads），三者皆 `VARCHAR(255) NULL`。
+
+### Rationale
+- Click ID 是廣告平台「自動加掛」於連結的識別碼，使用者不會手動帶入；只要客戶從廣告點進來就會帶
+- 可反向匯入 Google Ads / Meta Ads 後台做「離線轉換」對帳，計算 ROAS（廣告投資回報率）
+- 即使 utm_source 沒設定，只要有 Click ID 就能歸因到廣告管道
+- VARCHAR(255) 是因 Google gclid 可長達 100+ 字元，預留空間
+
+### Alternatives Considered
+- **只存 gclid + fbclid**：TikTok 在台灣電商成長快，預先納入比未來 migration 划算
+- **存所有平台**：msclkid（Bing）、twclid（Twitter/X）使用率低，YAGNI
+
+---
+
+### Decision C: Referrer 網域黑名單過濾
+
+捕捉 HTTP Referrer 後，過濾以下三類網域，避免污染統計：
+1. **自家網域**：`config('app.url')` 解析後的 host（內部跳轉 e.g. 首頁 → 課程頁）
+2. **PayUni 網域**：`payuni.com.tw`（金流頁面返回）
+3. **藍新網域**：`newebpay.com`（金流頁面返回）
+
+### Rationale
+- 不過濾的話，「(外部連結) www.yourdomain.com」會出現在統計，毫無分析價值
+- 金流回跳特別嚴重：每筆付費訂單都會經過金流頁面，等於每筆都有 referrer = 金流網域，完全淹沒真實外部來源
+- 黑名單寫在 controller 為硬編碼（簡單）；若未來新增金流，extend 一行即可
+
+### Alternatives Considered
+- **白名單模式**：只允許已知社群/搜尋網域。但維護成本高，且漏掉新網域風險大
+- **完全不存 referrer**：喪失「無 UTM 但有外部來源」的資訊
+- **存 raw referrer，前端過濾**：DB 累積無用資料，且每次查詢都要算
+
+---
+
+### Decision D: 時間範圍 preset 篩選
+
+統計頁支援 `?days=7|30|90|null`，預設 null = 全部。前端僅 4 個 preset 按鈕，不提供自由日期選擇器。
+
+### Rationale
+- 90% 行銷分析場景是「最近 7/30 天 vs 上週期」；preset 按鈕單擊比 date picker 快多了
+- 自由日期選擇器需 datepicker 元件依賴 + 兩個欄位驗證，過度設計
+- query string 設計符合 RESTful；可被 bookmark、可分享連結
+
+### Alternatives Considered
+- **完整 date range picker**：多 1 天工作量但 UX 沒比 preset 好多少
+- **後端固定 30 天視窗**：不允許自訂，行銷會抱怨
+
+---
+
+### Decision E: CSV 匯出（仿 TransactionController pattern）
+
+複用 006 已驗證的 `streamDownload + fputcsv + UTF-8 BOM` 模式，每筆訂單一列。
+
+### Rationale
+- 行銷人最終會匯入 Excel / Looker Studio / Google Sheets 做進階分析
+- UTF-8 BOM 解決 Excel 開啟中文亂碼問題（已在 006 驗證）
+- `chunk(200)` 避免大量訂單時 OOM
+- Stream download 不佔記憶體
+
+### CSV 欄位設計（每筆訂單一列）
+訂單編號、購買時間、購買者 Email、金額、utm_source、utm_medium、utm_campaign、utm_term、utm_content、referrer_domain、gclid、fbclid、ttclid（共 13 欄）
+
+### Alternatives Considered
+- **聚合後匯出（每來源一列）**：資料較精簡但失去 raw data 價值
+- **Excel xlsx**：需第三方 package（`maatwebsite/excel`），CSV 已足夠且零依賴
+
+---
+
+### Decision F: Channel Group 分類於前端 Vue computed
+
+`Admin/Courses/Traffic.vue` 內以 mapping table 將 utm_source 自動分類為中文 Channel Group，提供「依來源 / 依管道分類」切換。
+
+### Rationale
+- 純展示層邏輯，不需 DB 欄位、不需後端參與
+- mapping table 集中於 Vue 檔案最上方，調整 1 行即可加新分類規則
+- 「付費廣告」群組以「gclid / fbclid / ttclid 任一有值」判定，與 utm_source 互補
+- 若未來規則複雜化（例：依 utm_medium 細分），可遷移到後端
+
+### Channel Group Mapping
+| Group | 關鍵字（utm_source 含子字串即匹配） |
+|-------|--------------------------------|
+| 社群 | instagram, ig, facebook, fb, threads, twitter, x |
+| 搜尋引擎 | google, bing, yahoo, duckduckgo |
+| 電子報 | email, newsletter, edm, mailchimp, resend |
+| 影音 | youtube, tiktok, vimeo |
+| 付費廣告 | （特殊規則：gclid / fbclid / ttclid 任一有值）|
+| 其他 | 以上皆未匹配 |
+
+### Alternatives Considered
+- **後端 ChannelGroupService**：服務層設計過重；目前僅前端展示需求
+- **DB 加 channel_group 欄位**：違反 normalization；utm_source 已是事實，分類僅是視角

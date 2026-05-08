@@ -32,6 +32,7 @@
 **Updated**: 2026-04-06 - 刪除相簿圖片（單張/批次）時自動清除 description_md 中對應的 img 與 markdown 圖片語法
 **Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片：依點擊順序選取多張圖片，一次插入所有代碼（以空行分隔），底部顯示選取順序數字 badge
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：課程管理列表新增「來源」按鈕，追蹤付款訂單的 UTM 來源與 HTTP Referrer；新增 FR-087~FR-094、SC-020~SC-022
+**Updated**: 2026-05-08 - US12 行銷強化：補齊 5 個 UTM 參數、3 個付費廣告 Click ID、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group 分類；新增 FR-095~FR-099、SC-023~SC-025
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -539,12 +540,20 @@
 **課程連結來源追蹤（2026-05-08 新增）：**
 - **FR-087**: 課程管理後台列表中，使用 PayUni 或藍新金流（非 Portaly）的課程列 MUST 顯示「來源」操作按鈕；Portaly 課程（有 `portaly_product_id`）MUST NOT 顯示此按鈕
 - **FR-088**: 點擊「來源」按鈕後，系統 MUST 進入課程連結來源統計頁（`/admin/courses/{course}/traffic`），顯示該課程的來源分析資料
-- **FR-089**: 系統 MUST 在訪客進入課程販售頁時，自動捕捉並暫存來源資訊：優先讀取 UTM 參數（utm_source、utm_medium、utm_campaign），若無 UTM 則捕捉來源網域（HTTP Referrer 解析後的主機名稱，移除 www. 前綴）
+- **FR-089**: 系統 MUST 在訪客進入課程販售頁時，自動捕捉並暫存以下來源資訊：
+  - 完整 5 個 UTM 參數：utm_source、utm_medium、utm_campaign、utm_term、utm_content
+  - 3 個付費廣告 Click ID：gclid（Google Ads）、fbclid（Meta Ads）、ttclid（TikTok Ads）
+  - HTTP Referrer 解析後的主機名稱（移除 www. 前綴），但需經過 FR-096 黑名單過濾
 - **FR-090**: 系統 MUST 在訪客完成付款結帳時，將暫存的來源資訊寫入對應訂單紀錄，與訂單永久關聯
 - **FR-091**: 來源統計頁 MUST 顯示依來源分組的統計表，每列欄位包含：來源（utm_source）、中介（utm_medium）、活動名稱（utm_campaign）、訂單數、總金額（TWD）
 - **FR-092**: 來源顯示邏輯 MUST 遵循以下優先序（全中文，符合 CLAUDE.md「UI 文案：中文」）：utm_source 有值 → 顯示 UTM 資訊；utm_source 為空但有 referrer 網域 → 顯示 "(外部連結) [網域]"；兩者皆無 → 顯示 "(直接造訪)"
 - **FR-093**: 統計表 MUST 按訂單數降冪排列；訂單數相同時按總金額降冪排列
 - **FR-094**: 來源統計頁 MUST 僅統計付款狀態為 paid 的訂單，不含 pending 或 failed 狀態
+- **FR-095**: 系統 MUST 將 3 個 Click ID（gclid、fbclid、ttclid）獨立儲存於訂單，便於日後與 Google Ads / Meta Ads / TikTok Ads 後台對帳；Click ID 欄位 MAY 為空字串（非廣告流量）
+- **FR-096**: HTTP Referrer 捕捉時 MUST 過濾以下網域，避免污染統計：(a) 系統自身網域（`config('app.url')` 解析）；(b) 金流閘道網域（`payuni.com.tw`、`newebpay.com`）；過濾後若 referrer 為空則不寫入 referrer_domain
+- **FR-097**: 來源統計頁 MUST 提供時間範圍 preset 篩選按鈕：「最近 7 天 / 30 天 / 90 天 / 全部」；預設為「全部」；切換時透過 query string `?days=N`（N=7|30|90，省略表示全部）
+- **FR-098**: 來源統計頁 MUST 提供「匯出 CSV」按鈕，下載目前篩選條件下的訂單明細；CSV 為 UTF-8 with BOM（Excel 中文相容）；每筆訂單一列；欄位包含訂單編號、購買時間、購買者 Email、金額、5 個 UTM 參數、referrer_domain、3 個 Click ID
+- **FR-099**: 來源統計頁 MUST 提供「依來源 / 依管道分類」切換顯示；「管道分類」自動將 utm_source 歸類為以下中文群組：社群（instagram、facebook、threads 等）、搜尋引擎（google、bing 等）、電子報（email、newsletter、edm 等）、影音（youtube、tiktok 等）、付費廣告（含 gclid/fbclid/ttclid 的訂單）、其他（無法歸類）
 
 ### Key Entities
 
@@ -554,7 +563,7 @@
 - **CourseImage（課程圖片）**: 課程相簿中的圖片，包含課程 ID、圖片路徑、檔案名稱、上傳時間、圖片原始寬高（供前端計算比例）
 - **Course（課程）擴充**: 新增狀態欄位（草稿/預購中/熱賣中）、開賣時間、介紹 Markdown 內容、時間總長（duration_minutes, 整數，單位：分鐘）、Portaly 商品 ID（portaly_product_id，字串，用於產生購買連結）、優惠價（price, 整數）、原價（original_price, 整數，可為空）、優惠到期時間（promo_ends_at, 日期時間，可為空）、是否顯示（is_visible, 布林值，預設 true）
 - **Purchase（購買紀錄）擴充**: 購買紀錄同時包含付款狀態（status：`paid` / `refunded`）與取得類型（type：`paid` / `system_assigned` / `gift`）；`status` 決定權限是否有效，`type` 僅表示取得方式；系統指派類型的紀錄不計入銷售統計
-- **Order（訂單）— UTM 來源擴充**: 訂單紀錄新增四個來源追蹤欄位：utm_source（來源識別碼，如 instagram）、utm_medium（媒介類型，如 social）、utm_campaign（活動名稱）、referrer_domain（來源網域，如 facebook.com）；四個欄位均可為空，代表訪客直接造訪
+- **Order（訂單）— UTM 與 Click ID 來源擴充**: 訂單紀錄新增 9 個來源追蹤欄位：(a) 5 個 UTM 參數 utm_source / utm_medium / utm_campaign / utm_term / utm_content；(b) referrer_domain（HTTP Referrer 主機，已過濾自家網域與金流網域）；(c) 3 個付費廣告 Click ID：gclid（Google Ads）、fbclid（Meta Ads）、ttclid（TikTok Ads）；所有欄位均可為空，代表訪客為直接造訪或非該管道流量
 
 ## Success Criteria *(mandatory)*
 
@@ -583,8 +592,11 @@
 - **SC-018**: 管理員勾選通知並儲存小節後，通知 Email 在 60 秒內送達所有符合資格的會員信箱
 - **SC-019**: Email 通知流程不影響章節儲存操作的回應時間（章節儲存回應仍在 3 秒內完成）
 - **SC-020**: 管理員可在 5 秒內從課程管理列表進入並查看課程連結來源統計頁
-- **SC-021**: 來源統計頁的資料查詢回應時間不超過 3 秒（即使有 1000 筆訂單）
+- **SC-021**: 來源統計頁的資料查詢回應時間不超過 3 秒（即使有 1000 筆訂單），時間篩選切換 < 1 秒
 - **SC-022**: 訪客使用帶 UTM 參數連結完成購買後，來源資訊應在下次頁面載入時即時反映於統計頁
+- **SC-023**: 5 個 UTM 參數（含 utm_term、utm_content）與 3 個 Click ID（gclid、fbclid、ttclid）有出現在 URL 時 MUST 100% 完整捕捉
+- **SC-024**: CSV 匯出 1000 筆訂單明細應在 5 秒內完成下載
+- **SC-025**: HTTP Referrer 經自家網域與金流網域過濾後，無因內部跳轉或金流回跳而誤計入「(外部連結)」的紀錄
 
 ## Clarifications
 

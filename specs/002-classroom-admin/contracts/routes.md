@@ -5,6 +5,7 @@
 **Updated**: 2026-03-09 - 新增 notify_members 欄位至 Store Chapter Request (US10)
 **Updated**: 2026-04-06 - 新增批次上傳（POST batch）與批次刪除（DELETE batch）兩條路由
 **Updated**: 2026-05-08 - 新增 GET /admin/courses/{course}/traffic 路由支援課程連結來源統計（US12）
+**Updated**: 2026-05-08 - US12 行銷強化：新增 traffic.export CSV 匯出路由；traffic 路由支援 ?days=N 時間篩選
 
 ## Overview
 
@@ -87,7 +88,8 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 | DELETE | `/admin/courses/{course}` | admin.courses.destroy | Admin\CourseController@destroy | 刪除課程 |
 | POST | `/admin/courses/{course}/publish` | admin.courses.publish | Admin\CourseController@publish | 發佈課程 |
 | POST | `/admin/courses/{course}/unpublish` | admin.courses.unpublish | Admin\CourseController@unpublish | 下架為草稿 |
-| GET | `/admin/courses/{course}/traffic` | admin.courses.traffic | Admin\CourseController@traffic | 課程連結來源統計頁（US12，與 subscribers() 並列） |
+| GET | `/admin/courses/{course}/traffic` | admin.courses.traffic | Admin\CourseController@traffic | 課程連結來源統計頁（US12，與 subscribers() 並列；query: `?days=7\|30\|90` 為 preset 時間篩選，省略則全部） |
+| GET | `/admin/courses/{course}/traffic/export` | admin.courses.traffic.export | Admin\CourseController@trafficExport | CSV 匯出每筆訂單來源明細（13 欄；UTF-8 BOM；同樣支援 `?days=N`） |
 
 #### Chapter Management
 
@@ -244,45 +246,75 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 #### Course Traffic Page Data (US12，2026-05-08 新增)
 
 ```php
-// GET /admin/courses/{course}/traffic
+// GET /admin/courses/{course}/traffic?days=7|30|90 (omit for all-time)
 // Returns Inertia page with:
 [
     'course' => [
         'id'   => 1,
         'name' => '課程名稱',
     ],
+    'filters' => [
+        'days' => 30,  // null when no filter
+    ],
     'traffic' => [
         'total_orders'   => 20,
         'tracked_orders' => 15,  // orders with at least one non-null source field
         'sources' => [
             [
-                'display_source'   => 'instagram',           // pre-formatted display string
-                'utm_source'       => 'instagram',           // null if none
-                'utm_medium'       => 'social',              // null if none
-                'utm_campaign'     => 'spring_2026',         // null if none
-                'referrer_domain'  => 'instagram.com',       // null if no referrer
+                'display_source'   => 'instagram',
+                'utm_source'       => 'instagram',
+                'utm_medium'       => 'social',
+                'utm_campaign'     => 'spring_2026',
+                'utm_term'         => null,
+                'utm_content'      => 'banner_a',
+                'referrer_domain'  => 'instagram.com',
+                'gclid'            => null,
+                'fbclid'           => 'IwAR...',  // 含 fbclid → 視為「付費廣告」管道
+                'ttclid'           => null,
                 'order_count'      => 12,
-                'total_amount'     => '24,000',              // formatted (no decimals)
+                'total_amount'     => '24,000',
             ],
             [
                 'display_source'   => '(外部連結) facebook.com',
                 'utm_source'       => null,
                 'utm_medium'       => null,
                 'utm_campaign'     => null,
+                'utm_term'         => null,
+                'utm_content'      => null,
                 'referrer_domain'  => 'facebook.com',
+                'gclid'            => null,
+                'fbclid'           => null,
+                'ttclid'           => null,
                 'order_count'      => 3,
                 'total_amount'     => '6,000',
             ],
-            // ... (直接造訪) when all four are null
+            // ... (直接造訪) when all 9 are null
         ],
     ],
 ]
 ```
 
-**Source Display Logic** (全中文，符合 CLAUDE.md「UI 文案：中文」)：
+**Source Display Logic** (全中文)：
 - `utm_source` 有值 → 顯示 `utm_source`（中介/活動分別欄位呈現）
 - `utm_source` 為 null 且 `referrer_domain` 有值 → 顯示 `(外部連結) facebook.com`
-- 四個欄位皆 null → 顯示 `(直接造訪)`
+- 9 個欄位皆 null → 顯示 `(直接造訪)`
+
+**Channel Group Mapping**（前端 Vue computed，純展示層）：
+- 若 `gclid / fbclid / ttclid` 任一有值 → 「付費廣告」
+- 否則依 `utm_source` 子字串匹配：instagram/ig/facebook/fb/threads → 「社群」；google/bing/yahoo → 「搜尋引擎」；email/newsletter/edm → 「電子報」；youtube/tiktok/vimeo → 「影音」；皆未匹配 → 「其他」
+
+#### Course Traffic CSV Export (US12，2026-05-08 新增)
+
+```
+GET /admin/courses/{course}/traffic/export?days=7|30|90 (omit for all-time)
+Content-Type: text/csv; charset=UTF-8
+Filename: course-{id}-traffic-{YYYYMMdd}.csv
+
+CSV header（13 欄）：
+訂單編號, 購買時間, 購買者 Email, 金額, utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid
+
+每筆訂單一列；UTF-8 with BOM；用 chunk(200) 串流避免 OOM。
+```
 
 ---
 
@@ -365,6 +397,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/courses/{course}/publish', [CourseController::class, 'publish'])->name('courses.publish');
     Route::post('/courses/{course}/unpublish', [CourseController::class, 'unpublish'])->name('courses.unpublish');
     Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic'); // US12
+    Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export'); // US12 行銷強化
 
     // Chapters
     Route::get('/courses/{course}/chapters', [ChapterController::class, 'index'])->name('chapters.index');

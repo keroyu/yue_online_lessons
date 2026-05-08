@@ -4,6 +4,7 @@
 **Updated**: 2026-01-26 - 新增 Purchase.type 欄位支援系統指派
 **Updated**: 2026-01-30 - 新增 Course.is_visible 欄位支援課程顯示/隱藏設定
 **Updated**: 2026-05-08 - 新增 Order UTM 來源欄位（utm_source、utm_medium、utm_campaign、referrer_domain）支援課程連結來源追蹤（US12）
+**Updated**: 2026-05-08 - US12 行銷強化：擴充至 9 欄（補 utm_term、utm_content、gclid、fbclid、ttclid）；referrer_domain 加自家網域與金流網域黑名單過濾
 
 ## Entity Relationship Diagram
 
@@ -378,41 +379,50 @@ public function scopeVisibleToUser($query, $user = null)
 
 ---
 
-## Order（訂單）— UTM 來源欄位擴充（2026-05-08 新增，US12）
+## Order（訂單）— UTM / Click ID 來源欄位擴充（2026-05-08 新增，US12）
+
+訂單表新增 9 個來源追蹤欄位，全部 nullable，全部 AFTER `webhook_received_at`：
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | utm_source | varchar(100) | nullable | UTM 來源識別碼（如 instagram、google、newsletter） |
 | utm_medium | varchar(100) | nullable | UTM 媒介類型（如 social、cpc、email） |
 | utm_campaign | varchar(100) | nullable | UTM 活動名稱（如 spring_2026、launch） |
-| referrer_domain | varchar(255) | nullable | HTTP Referrer 解析後的主機名稱（移除 www. 前綴） |
+| utm_term | varchar(100) | nullable | UTM 關鍵字（付費搜尋的搜尋詞） |
+| utm_content | varchar(100) | nullable | UTM 內容變體（A/B 測試廣告創意） |
+| referrer_domain | varchar(255) | nullable | HTTP Referrer 主機名稱（移除 www.；已過濾自家網域與金流網域） |
+| gclid | varchar(255) | nullable | Google Ads Click ID（用於 Google Ads 後台對帳） |
+| fbclid | varchar(255) | nullable | Meta（Facebook / Instagram）Ads Click ID |
+| ttclid | varchar(255) | nullable | TikTok Ads Click ID |
 
-**來源捕捉邏輯說明（2026-05-08 新增）**:
-- 訪客進入課程販售頁時，系統優先讀取 URL 的 UTM 參數（utm_source / utm_medium / utm_campaign）
-- 若無 UTM 參數但有 HTTP Referrer，則解析 Referrer 的主機名稱儲存至 referrer_domain
-- UTM 與 Referrer 可同時被捕捉：有 UTM 時 utm_* 欄位有值，同時也可能有 referrer_domain
+**來源捕捉邏輯說明**:
+- 訪客進入課程販售頁（`/course/{id}`）時，`CourseController::show()` 一次讀取以下 query string 參數，凡有值即存入 `session('traffic_source')`：
+  - 5 個 UTM：`utm_source / utm_medium / utm_campaign / utm_term / utm_content`
+  - 3 個 Click ID：`gclid / fbclid / ttclid`
+- 若無 UTM 但有 HTTP Referrer，解析 host 並通過 FR-096 黑名單過濾後存入 `referrer_domain`
+- 黑名單包含：`config('app.url')` 自家網域、`payuni.com.tw`、`newebpay.com`
 - 來源資訊暫存於 server session，在訪客完成結帳時寫入 orders 表（Last-touch 歸因）
-- 四個欄位皆為 nullable，代表訪客直接造訪（no UTM, no Referrer）
+- 9 個欄位皆為 nullable，全部為 null 代表訪客直接造訪
 
 **Indexes（新增）**:
-- `utm_source`
-- `referrer_domain`
+- `utm_source`（GROUP BY 統計查詢用）
+- `referrer_domain`（GROUP BY 統計查詢用）
 
 **來源統計查詢模式**:
 ```sql
--- 按來源分組統計某課程的訂單數與金額
+-- 按來源分組統計某課程的訂單數與金額（含時間範圍篩選）
 SELECT
-    o.utm_source,
-    o.utm_medium,
-    o.utm_campaign,
-    o.referrer_domain,
-    COUNT(*) AS order_count,
+    o.utm_source, o.utm_medium, o.utm_campaign, o.utm_term, o.utm_content,
+    o.referrer_domain, o.gclid, o.fbclid, o.ttclid,
+    COUNT(DISTINCT o.id) AS order_count,
     SUM(oi.unit_price) AS revenue
 FROM order_items oi
 JOIN orders o ON oi.order_id = o.id
 WHERE oi.course_id = :course_id
   AND o.status = 'paid'
-GROUP BY o.utm_source, o.utm_medium, o.utm_campaign, o.referrer_domain
+  AND (:days IS NULL OR o.created_at >= NOW() - INTERVAL :days DAY)
+GROUP BY o.utm_source, o.utm_medium, o.utm_campaign, o.utm_term, o.utm_content,
+         o.referrer_domain, o.gclid, o.fbclid, o.ttclid
 ORDER BY order_count DESC, revenue DESC;
 ```
 
