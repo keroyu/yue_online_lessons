@@ -4,6 +4,7 @@
 **Updated**: 2026-01-30 - 新增 Course Visibility Toggle 設計決策
 **Updated**: 2026-05-08 - 新增 UTM Purchase Attribution 設計決策（Phase 39）
 **Updated**: 2026-05-08 - US12 行銷強化決策：5 UTM + 3 Click ID、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group
+**Updated**: 2026-05-08 - US12 規格修正：空字串→NULL 標準化、Channel Group 互斥優先序、Last-touch FR 化、v-html XSS 防護
 
 ## Video Embedding (Vimeo/YouTube)
 

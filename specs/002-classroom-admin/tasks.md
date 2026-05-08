@@ -1538,12 +1538,15 @@ Within Phase 15:
   - show() 簽名改為 `show(Request $request, Course $course)`
   - 捕捉 5 個 UTM params（utm_source/medium/campaign/term/content，最多 100 字元）
   - 捕捉 3 個 Click ID（gclid/fbclid/ttclid，最多 255 字元）
+  - **空字串標準化（FR-095）**：捕捉時若 `trim($value) === ''` 則跳過寫入（不存入 trafficData），確保 NULL 一致性
   - 解析 HTTP_REFERER host（移除 www.），但需通過黑名單過濾：
     - `$blacklist = [parse_url(config('app.url'), PHP_URL_HOST), 'payuni.com.tw', 'newebpay.com'];`
     - host 在黑名單中或為自家網域 → 不寫入 referrer_domain
-  - 若 $trafficData 非空則 `$request->session()->put('traffic_source', $trafficData)`
+  - **Last-touch 覆蓋（FR-100）**：直接 `$request->session()->put('traffic_source', $trafficData)` 即可，Laravel session put 為完全覆蓋語意，符合後次蓋前次需求
+  - 若 $trafficData 非空才執行 put（避免空訪問清除既有資料）
 - [ ] T237 [US12] Add `portaly_product_id` to course mapping in `app/Http/Controllers/Admin/CourseController.php`
   - index() 的 `->map()` 內加：`'portaly_product_id' => $course->portaly_product_id`
+  - 目的：讓前端 `Admin/Courses/Index.vue`（T243）能用 `v-if="!course.portaly_product_id"` 條件渲染「來源」按鈕（FR-087）
 - [ ] T238 [P] [US12] Modify `app/Http/Controllers/CheckoutController.php` — read session
   - initiate() 的 `try {` 前加：`$trafficSource = session('traffic_source', []);`
   - createOrder() 呼叫加第 4 參數：`$checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource)`
@@ -1570,9 +1573,17 @@ Within Phase 15:
   - 兩個 summary cards（總訂單數、有來源標記比例 = tracked_orders / total_orders）
   - 4 個時間 preset 按鈕：「最近 7 天 / 30 天 / 90 天 / 全部」，使用 `router.get(url, { days })` 切換
   - 「依來源 / 依管道分類」切換 toggle（純前端 Vue computed）
-  - Channel Group mapping（前端常數）：社群、搜尋引擎、電子報、影音、付費廣告（gclid/fbclid/ttclid 任一有值）、其他
-  - 來源明細表欄位：來源/中介/活動/關鍵字/內容/訂單數/金額；表頭根據切換 toggle 顯示不同分組
+  - **Channel Group 優先序（FR-099）**：規則互斥，由上而下匹配，匹配即停止：
+    1. 付費廣告（gclid/fbclid/ttclid 任一有值，即使同時帶 utm_source 仍歸此類）
+    2. 社群（instagram/ig/facebook/fb/threads/twitter/x）
+    3. 搜尋引擎（google/bing/yahoo/duckduckgo）
+    4. 電子報（email/newsletter/edm/mailchimp/resend）
+    5. 影音（youtube/tiktok/vimeo）
+    6. 其他（有 utm_source 或 referrer_domain 但未匹配）
+    7. (直接造訪)（9 欄全 NULL）
+  - 來源明細表 7 欄：來源/中介/活動/**關鍵字**/**內容**/訂單數/金額（FR-091）
   - 「匯出 CSV」按鈕（連到 `route('admin.courses.traffic.export', course.id)`，帶當前 days param）
+  - **XSS 防護（FR-101）**：所有來源字串（utm_*、referrer_domain、display_source）MUST 用 `{{ }}` 插值；嚴禁使用 `v-html`
   - 空狀態顯示「尚無訂單來源資料」
   - RWD：表格 overflow-x-auto
 - [ ] T242 [US12] Add traffic routes to `routes/web.php`

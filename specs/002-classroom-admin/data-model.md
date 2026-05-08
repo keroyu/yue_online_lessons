@@ -399,8 +399,10 @@ public function scopeVisibleToUser($query, $user = null)
 - 訪客進入課程販售頁（`/course/{id}`）時，`CourseController::show()` 一次讀取以下 query string 參數，凡有值即存入 `session('traffic_source')`：
   - 5 個 UTM：`utm_source / utm_medium / utm_campaign / utm_term / utm_content`
   - 3 個 Click ID：`gclid / fbclid / ttclid`
+- **空字串標準化（FR-095）**：捕捉時若 `trim($value) === ''` 則跳過寫入 → 寫入 DB 時為 NULL；確保 GROUP BY 不會把 '' 與 NULL 拆成兩個分組
 - 若無 UTM 但有 HTTP Referrer，解析 host 並通過 FR-096 黑名單過濾後存入 `referrer_domain`
 - 黑名單包含：`config('app.url')` 自家網域、`payuni.com.tw`、`newebpay.com`
+- **Last-touch 歸因（FR-100）**：session put 為完全覆蓋語意；同 session 後次訪問完全取代前次資料
 - 來源資訊暫存於 server session，在訪客完成結帳時寫入 orders 表（Last-touch 歸因）
 - 9 個欄位皆為 nullable，全部為 null 代表訪客直接造訪
 
