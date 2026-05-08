@@ -4,6 +4,7 @@
 **Updated**: 2026-01-30 - 新增 is_visible 欄位支援課程顯示/隱藏設定
 **Updated**: 2026-03-09 - 新增 notify_members 欄位至 Store Chapter Request (US10)
 **Updated**: 2026-04-06 - 新增批次上傳（POST batch）與批次刪除（DELETE batch）兩條路由
+**Updated**: 2026-05-08 - 新增 GET /admin/courses/{course}/traffic 路由支援課程連結來源統計（US12）
 
 ## Overview
 
@@ -86,6 +87,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 | DELETE | `/admin/courses/{course}` | admin.courses.destroy | Admin\CourseController@destroy | 刪除課程 |
 | POST | `/admin/courses/{course}/publish` | admin.courses.publish | Admin\CourseController@publish | 發佈課程 |
 | POST | `/admin/courses/{course}/unpublish` | admin.courses.unpublish | Admin\CourseController@unpublish | 下架為草稿 |
+| GET | `/admin/courses/{course}/traffic` | admin.courses.traffic | Admin\CourseTrafficController@show | 課程連結來源統計頁（US12） |
 
 #### Chapter Management
 
@@ -239,6 +241,45 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 - 上傳時自動偵測並儲存原始寬高
 - 相簿 Modal 選擇圖片時，可根據原始比例計算自適應尺寸
 
+#### Course Traffic Page Data (US12，2026-05-08 新增)
+
+```php
+// GET /admin/courses/{course}/traffic
+// Returns Inertia page with:
+[
+    'course' => [
+        'id'   => 1,
+        'name' => '課程名稱',
+    ],
+    'trafficSources' => [
+        [
+            'utm_source'       => 'instagram',   // null if none
+            'utm_medium'       => 'social',      // null if none
+            'utm_campaign'     => 'spring_2026', // null if none
+            'referrer_domain'  => 'instagram.com', // null if no referrer
+            'order_count'      => 12,
+            'revenue'          => '24000.00',
+        ],
+        [
+            'utm_source'       => null,
+            'utm_medium'       => null,
+            'utm_campaign'     => null,
+            'referrer_domain'  => 'facebook.com',
+            'order_count'      => 3,
+            'revenue'          => '6000.00',
+        ],
+        // ... (直接造訪 when all four are null)
+    ],
+    'totalOrders' => 20,
+    'trackedOrders' => 15,  // orders with at least one non-null source field
+]
+```
+
+**Source Display Logic**:
+- `utm_source` 有值 → 顯示 UTM 資訊（utm_source / utm_medium / utm_campaign）
+- `utm_source` 為 null 且 `referrer_domain` 有值 → 顯示 `(referral) facebook.com`
+- 四個欄位皆 null → 顯示 `(直接造訪)`
+
 ---
 
 ## Error Responses
@@ -319,6 +360,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('courses', CourseController::class);
     Route::post('/courses/{course}/publish', [CourseController::class, 'publish'])->name('courses.publish');
     Route::post('/courses/{course}/unpublish', [CourseController::class, 'unpublish'])->name('courses.unpublish');
+    Route::get('/courses/{course}/traffic', [CourseTrafficController::class, 'show'])->name('courses.traffic'); // US12
 
     // Chapters
     Route::get('/courses/{course}/chapters', [ChapterController::class, 'index'])->name('chapters.index');

@@ -3,6 +3,7 @@
 **Branch**: `002-classroom-admin` | **Date**: 2026-01-17
 **Updated**: 2026-01-26 - 新增 Purchase.type 欄位支援系統指派
 **Updated**: 2026-01-30 - 新增 Course.is_visible 欄位支援課程顯示/隱藏設定
+**Updated**: 2026-05-08 - 新增 Order UTM 來源欄位（utm_source、utm_medium、utm_campaign、referrer_domain）支援課程連結來源追蹤（US12）
 
 ## Entity Relationship Diagram
 
@@ -371,6 +372,48 @@ public function scopeVisibleToUser($query, $user = null)
 }
 
 // visible() scope 已更新為同時檢查 is_visible = true
+```
+
+---
+
+---
+
+## Order（訂單）— UTM 來源欄位擴充（2026-05-08 新增，US12）
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| utm_source | varchar(100) | nullable | UTM 來源識別碼（如 instagram、google、newsletter） |
+| utm_medium | varchar(100) | nullable | UTM 媒介類型（如 social、cpc、email） |
+| utm_campaign | varchar(100) | nullable | UTM 活動名稱（如 spring_2026、launch） |
+| referrer_domain | varchar(255) | nullable | HTTP Referrer 解析後的主機名稱（移除 www. 前綴） |
+
+**來源捕捉邏輯說明（2026-05-08 新增）**:
+- 訪客進入課程販售頁時，系統優先讀取 URL 的 UTM 參數（utm_source / utm_medium / utm_campaign）
+- 若無 UTM 參數但有 HTTP Referrer，則解析 Referrer 的主機名稱儲存至 referrer_domain
+- UTM 與 Referrer 可同時被捕捉：有 UTM 時 utm_* 欄位有值，同時也可能有 referrer_domain
+- 來源資訊暫存於 server session，在訪客完成結帳時寫入 orders 表（Last-touch 歸因）
+- 四個欄位皆為 nullable，代表訪客直接造訪（no UTM, no Referrer）
+
+**Indexes（新增）**:
+- `utm_source`
+- `referrer_domain`
+
+**來源統計查詢模式**:
+```sql
+-- 按來源分組統計某課程的訂單數與金額
+SELECT
+    o.utm_source,
+    o.utm_medium,
+    o.utm_campaign,
+    o.referrer_domain,
+    COUNT(*) AS order_count,
+    SUM(oi.unit_price) AS revenue
+FROM order_items oi
+JOIN orders o ON oi.order_id = o.id
+WHERE oi.course_id = :course_id
+  AND o.status = 'paid'
+GROUP BY o.utm_source, o.utm_medium, o.utm_campaign, o.referrer_domain
+ORDER BY order_count DESC, revenue DESC;
 ```
 
 ---

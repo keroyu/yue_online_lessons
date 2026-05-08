@@ -256,6 +256,18 @@
       "status": "implemented"
     },
     {
+      "id": "002.us-12",
+      "module": "002-classroom-admin",
+      "title": "課程連結來源追蹤",
+      "summary": "",
+      "heading": "### User Story 12 - 課程連結來源追蹤 (Priority: P2)",
+      "file": "specs/002-classroom-admin/spec.md",
+      "anchor": "user-story-12---課程連結來源追蹤-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
       "id": "002.us-1a",
       "module": "002-classroom-admin",
       "title": "課程完成狀態節流機制",

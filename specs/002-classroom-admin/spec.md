@@ -31,6 +31,7 @@
 **Updated**: 2026-04-06 - 修正相簿批次上傳圖片排列順序：改用反序插入 + orderByDesc('id')，確保顯示順序與選取順序一致
 **Updated**: 2026-04-06 - 刪除相簿圖片（單張/批次）時自動清除 description_md 中對應的 img 與 markdown 圖片語法
 **Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片：依點擊順序選取多張圖片，一次插入所有代碼（以空行分隔），底部顯示選取順序數字 badge
+**Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：課程管理列表新增「來源」按鈕，追蹤付款訂單的 UTM 來源與 HTTP Referrer；新增 FR-087~FR-094、SC-020~SC-022
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -331,6 +332,28 @@
 
 ---
 
+### User Story 12 - 課程連結來源追蹤 (Priority: P2)
+
+管理員在課程管理列表，點擊每個課程列右側的「來源」按鈕，可查看該課程的購買連結來源統計。系統在訪客進入課程販售頁時記錄來源資訊（UTM 參數優先，若無則記錄來源網域）；當訪客完成付款後，這些來源資訊與訂單一同儲存。管理員可透過來源統計頁了解哪些行銷管道（社群、搜尋、電子報等）帶來實際購買，以及各管道的訂單數量與金額。
+
+**Why this priority**: 連結來源追蹤協助管理員評估各行銷管道的投資回報，是重要的行銷分析工具，但不影響核心銷售流程，故定為 P2。
+
+**Independent Test**: 管理員以帶有 UTM 參數的連結分享課程販售頁 → 測試用戶點擊連結並完成購買 → 管理員查看「來源」統計頁，可見對應的來源與訂單紀錄。
+
+**Acceptance Scenarios**:
+
+1. **Given** 管理員在後台課程管理列表, **When** 觀察每個課程列的操作按鈕區域, **Then** 可看到「來源」按鈕
+2. **Given** 管理員點擊某課程的「來源」按鈕, **When** 頁面載入完成, **Then** 進入課程連結來源統計頁，顯示課程名稱與返回課程列表連結
+3. **Given** 來源統計頁已載入, **When** 管理員查看統計表, **Then** 顯示依來源分組的購買資料，欄位包含：來源、中介、活動名稱、訂單數、總金額
+4. **Given** 訪客透過帶 UTM 參數連結（如 `?utm_source=instagram&utm_medium=social`）進入課程販售頁, **When** 訪客完成付款購買, **Then** 來源統計頁顯示 instagram / social 群組的訂單數增加
+5. **Given** 訪客從外部網站（如 Facebook 貼文）點擊連結進入課程販售頁但連結無 UTM 參數, **When** 訪客完成付款購買, **Then** 來源統計頁顯示來源網域（如 facebook.com）
+6. **Given** 訪客直接輸入 URL 或無任何來源資訊地進入課程販售頁, **When** 訪客完成付款購買, **Then** 來源統計頁顯示「(直接造訪)」
+7. **Given** 來源統計表有多個來源群組, **When** 觀察排列順序, **Then** 訂單數多的排最前；訂單數相同時，金額多的排前
+8. **Given** 管理員查看某課程的來源統計頁, **When** 該課程尚無任何付款完成的訂單, **Then** 顯示空白提示「尚無訂單來源資料」
+9. **Given** 管理員使用手機瀏覽來源統計頁, **When** 查看統計表, **Then** 表格能適配小螢幕正常呈現（可橫向捲動或自適應排版）
+
+---
+
 ### Edge Cases
 
 - 會員嘗試進入未購買課程的上課頁面時，顯示「您尚未購買此課程」並引導至課程販售頁
@@ -513,6 +536,16 @@
 - **FR-085**: 點擊「插入」時，系統 MUST 依選取順序將所有圖片代碼以空行（`\n\n`）分隔後一次性插入編輯器；尺寸設定統一套用至所有選取的圖片
 - **FR-086**: 尺寸設定區塊顯示條件 MUST 為「至少選取一張圖片」；選取 1 張時顯示該圖片原始尺寸與等比計算提示，選取多張時顯示「已選 N 張，尺寸將統一套用」說明
 
+**課程連結來源追蹤（2026-05-08 新增）：**
+- **FR-087**: 課程管理後台列表中，使用 PayUni 或藍新金流（非 Portaly）的課程列 MUST 顯示「來源」操作按鈕；Portaly 課程（有 `portaly_product_id`）MUST NOT 顯示此按鈕
+- **FR-088**: 點擊「來源」按鈕後，系統 MUST 進入課程連結來源統計頁（`/admin/courses/{course}/traffic`），顯示該課程的來源分析資料
+- **FR-089**: 系統 MUST 在訪客進入課程販售頁時，自動捕捉並暫存來源資訊：優先讀取 UTM 參數（utm_source、utm_medium、utm_campaign），若無 UTM 則捕捉來源網域（HTTP Referrer 解析後的主機名稱，移除 www. 前綴）
+- **FR-090**: 系統 MUST 在訪客完成付款結帳時，將暫存的來源資訊寫入對應訂單紀錄，與訂單永久關聯
+- **FR-091**: 來源統計頁 MUST 顯示依來源分組的統計表，每列欄位包含：來源（utm_source）、中介（utm_medium）、活動名稱（utm_campaign）、訂單數、總金額（TWD）
+- **FR-092**: 來源顯示邏輯 MUST 遵循以下優先序：utm_source 有值 → 顯示 UTM 資訊；utm_source 為空但有 referrer 網域 → 顯示 "(referral) [網域]"；兩者皆無 → 顯示 "(直接造訪)"
+- **FR-093**: 統計表 MUST 按訂單數降冪排列；訂單數相同時按總金額降冪排列
+- **FR-094**: 來源統計頁 MUST 僅統計付款狀態為 paid 的訂單，不含 pending 或 failed 狀態
+
 ### Key Entities
 
 - **Chapter（章）**: 課程的大單元分類，包含標題、排序順序，一個課程可有多章
@@ -521,6 +554,7 @@
 - **CourseImage（課程圖片）**: 課程相簿中的圖片，包含課程 ID、圖片路徑、檔案名稱、上傳時間、圖片原始寬高（供前端計算比例）
 - **Course（課程）擴充**: 新增狀態欄位（草稿/預購中/熱賣中）、開賣時間、介紹 Markdown 內容、時間總長（duration_minutes, 整數，單位：分鐘）、Portaly 商品 ID（portaly_product_id，字串，用於產生購買連結）、優惠價（price, 整數）、原價（original_price, 整數，可為空）、優惠到期時間（promo_ends_at, 日期時間，可為空）、是否顯示（is_visible, 布林值，預設 true）
 - **Purchase（購買紀錄）擴充**: 購買紀錄同時包含付款狀態（status：`paid` / `refunded`）與取得類型（type：`paid` / `system_assigned` / `gift`）；`status` 決定權限是否有效，`type` 僅表示取得方式；系統指派類型的紀錄不計入銷售統計
+- **Order（訂單）— UTM 來源擴充**: 訂單紀錄新增四個來源追蹤欄位：utm_source（來源識別碼，如 instagram）、utm_medium（媒介類型，如 social）、utm_campaign（活動名稱）、referrer_domain（來源網域，如 facebook.com）；四個欄位均可為空，代表訪客直接造訪
 
 ## Success Criteria *(mandatory)*
 
@@ -548,6 +582,9 @@
 - **SC-017**: 管理員可在 5 秒內完成課程顯示/隱藏狀態的切換
 - **SC-018**: 管理員勾選通知並儲存小節後，通知 Email 在 60 秒內送達所有符合資格的會員信箱
 - **SC-019**: Email 通知流程不影響章節儲存操作的回應時間（章節儲存回應仍在 3 秒內完成）
+- **SC-020**: 管理員可在 5 秒內從課程管理列表進入並查看課程連結來源統計頁
+- **SC-021**: 來源統計頁的資料查詢回應時間不超過 3 秒（即使有 1000 筆訂單）
+- **SC-022**: 訪客使用帶 UTM 參數連結完成購買後，來源資訊應在下次頁面載入時即時反映於統計頁
 
 ## Clarifications
 
@@ -616,6 +653,17 @@
 - Q: drip 連鎖課程是否也可以發通知？ → A: 否，drip 課程有自己的訂閱排程發信系統，手動通知會造成訂閱者混亂，因此前端不顯示選項，後端也不執行發信
 - Q: 通知的觸發點是章（Chapter）還是節（Lesson）？ → A: 小節（Lesson）。章（ep）只是容器結構，真正代表新內容的是小節。因此通知在 LessonController@store() 觸發，而非 ChapterController@store()
 
+### Session 2026-05-08 (Update - 課程連結來源追蹤)
+
+- Q: 來源追蹤的歸因方式為何？ → A: Last-touch（最後一次帶 UTM 或有 Referrer 的課程販售頁造訪），只追蹤完成付款的訂單，不追蹤所有頁面瀏覽
+- Q: 訪客造訪多個課程頁後購買，來源如何歸因？ → A: 以最後一次造訪任一課程販售頁的來源為準（session-based，後次覆蓋前次），適用 Last-touch 模型
+- Q: 免費課程或系統指派課程是否追蹤來源？ → A: 否，只追蹤建立訂單（orders 表）的付款結帳流程；免費課程與系統指派不建立訂單，不在統計範圍
+- Q: 舊訂單（功能上線前）如何處理？ → A: UTM 欄位為 null，統計時歸類為「(直接造訪)」，與無來源資訊的新訂單相同顯示
+- Q: UTM 應追蹤到 orders 還是 purchases？Portaly 課程（不建立 orders）是否納入統計？ → A: UTM 只存 orders（PayUni / 藍新結帳流程）。Portaly 課程因不建立 orders，不顯示「來源」按鈕，不納入統計範圍（Portaly 是遺留系統，正被新結帳流程取代）
+- Q: 多課程購物車（A+B 同一筆 order）在各課程來源統計頁顯示相同來源，是否符合預期？ → A: 是，訂單層級歸因，同一次結帳行為共用來源合理
+- Q: UTM 捕捉範圍是否擴大到全站？ → A: 否，只在課程販售頁（`/course/{id}`）捕捉；行銷連結應直接指向課程頁，擴大範圍反而干擾準確度
+- Q: 來源統計頁是否需要時間區間篩選？ → A: 否，顯示全部時間資料即可，符合先完成再優化原則
+
 ## Assumptions
 
 - Vimeo 和 YouTube 影片嵌入使用官方 embed iframe，不需處理播放器自定義
@@ -652,3 +700,11 @@
 - 通知對象：Purchase.status ≠ 'refunded' 且 Purchase.type ≠ 'system_assigned' 的所有購買紀錄持有者
 - Email 的「前往上課」連結指向 `/member/classroom/{courseId}`（需登入後才能進入上課頁面）
 - 若課程無符合資格的會員（如全數退款），勾選通知後系統靜默成功，不報錯
+- Portaly 課程（有 `portaly_product_id`）不顯示「來源」按鈕，因其付款不建立 orders 紀錄，UTM 無從寫入
+- 來源追蹤採 Last-touch 歸因：以訪客最後一次進入課程販售頁時的 UTM 或 Referrer 為準
+- UTM 參數由行銷人員手動加入分享連結，系統不自動生成 UTM 連結
+- Referrer 網域解析後移除 www. 前綴（如 www.instagram.com → instagram.com），保留子網域（如 t.co → t.co）
+- 來源資訊暫存於伺服器端 session（而非瀏覽器 storage），避免因 JS 被阻擋或 storage 清除而遺失
+- 訪客在同一 session 多次造訪課程頁，後次造訪覆蓋前次來源資訊（Last-touch）
+- 來源統計僅顯示 status = paid 的訂單；pending 與 failed 訂單排除在外
+- 舊訂單（功能上線前）的 UTM 欄位為 null，統計時歸類為「(直接造訪)」
