@@ -542,7 +542,7 @@
 - **FR-089**: 系統 MUST 在訪客進入課程販售頁時，自動捕捉並暫存來源資訊：優先讀取 UTM 參數（utm_source、utm_medium、utm_campaign），若無 UTM 則捕捉來源網域（HTTP Referrer 解析後的主機名稱，移除 www. 前綴）
 - **FR-090**: 系統 MUST 在訪客完成付款結帳時，將暫存的來源資訊寫入對應訂單紀錄，與訂單永久關聯
 - **FR-091**: 來源統計頁 MUST 顯示依來源分組的統計表，每列欄位包含：來源（utm_source）、中介（utm_medium）、活動名稱（utm_campaign）、訂單數、總金額（TWD）
-- **FR-092**: 來源顯示邏輯 MUST 遵循以下優先序：utm_source 有值 → 顯示 UTM 資訊；utm_source 為空但有 referrer 網域 → 顯示 "(referral) [網域]"；兩者皆無 → 顯示 "(直接造訪)"
+- **FR-092**: 來源顯示邏輯 MUST 遵循以下優先序（全中文，符合 CLAUDE.md「UI 文案：中文」）：utm_source 有值 → 顯示 UTM 資訊；utm_source 為空但有 referrer 網域 → 顯示 "(外部連結) [網域]"；兩者皆無 → 顯示 "(直接造訪)"
 - **FR-093**: 統計表 MUST 按訂單數降冪排列；訂單數相同時按總金額降冪排列
 - **FR-094**: 來源統計頁 MUST 僅統計付款狀態為 paid 的訂單，不含 pending 或 failed 狀態
 

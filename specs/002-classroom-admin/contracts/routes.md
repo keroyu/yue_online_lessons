@@ -87,7 +87,7 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
 | DELETE | `/admin/courses/{course}` | admin.courses.destroy | Admin\CourseController@destroy | 刪除課程 |
 | POST | `/admin/courses/{course}/publish` | admin.courses.publish | Admin\CourseController@publish | 發佈課程 |
 | POST | `/admin/courses/{course}/unpublish` | admin.courses.unpublish | Admin\CourseController@unpublish | 下架為草稿 |
-| GET | `/admin/courses/{course}/traffic` | admin.courses.traffic | Admin\CourseTrafficController@show | 課程連結來源統計頁（US12） |
+| GET | `/admin/courses/{course}/traffic` | admin.courses.traffic | Admin\CourseController@traffic | 課程連結來源統計頁（US12，與 subscribers() 並列） |
 
 #### Chapter Management
 
@@ -251,33 +251,37 @@ All routes use Inertia.js for page rendering. API-style routes return JSON for A
         'id'   => 1,
         'name' => '課程名稱',
     ],
-    'trafficSources' => [
-        [
-            'utm_source'       => 'instagram',   // null if none
-            'utm_medium'       => 'social',      // null if none
-            'utm_campaign'     => 'spring_2026', // null if none
-            'referrer_domain'  => 'instagram.com', // null if no referrer
-            'order_count'      => 12,
-            'revenue'          => '24000.00',
+    'traffic' => [
+        'total_orders'   => 20,
+        'tracked_orders' => 15,  // orders with at least one non-null source field
+        'sources' => [
+            [
+                'display_source'   => 'instagram',           // pre-formatted display string
+                'utm_source'       => 'instagram',           // null if none
+                'utm_medium'       => 'social',              // null if none
+                'utm_campaign'     => 'spring_2026',         // null if none
+                'referrer_domain'  => 'instagram.com',       // null if no referrer
+                'order_count'      => 12,
+                'total_amount'     => '24,000',              // formatted (no decimals)
+            ],
+            [
+                'display_source'   => '(外部連結) facebook.com',
+                'utm_source'       => null,
+                'utm_medium'       => null,
+                'utm_campaign'     => null,
+                'referrer_domain'  => 'facebook.com',
+                'order_count'      => 3,
+                'total_amount'     => '6,000',
+            ],
+            // ... (直接造訪) when all four are null
         ],
-        [
-            'utm_source'       => null,
-            'utm_medium'       => null,
-            'utm_campaign'     => null,
-            'referrer_domain'  => 'facebook.com',
-            'order_count'      => 3,
-            'revenue'          => '6000.00',
-        ],
-        // ... (直接造訪 when all four are null)
     ],
-    'totalOrders' => 20,
-    'trackedOrders' => 15,  // orders with at least one non-null source field
 ]
 ```
 
-**Source Display Logic**:
-- `utm_source` 有值 → 顯示 UTM 資訊（utm_source / utm_medium / utm_campaign）
-- `utm_source` 為 null 且 `referrer_domain` 有值 → 顯示 `(referral) facebook.com`
+**Source Display Logic** (全中文，符合 CLAUDE.md「UI 文案：中文」)：
+- `utm_source` 有值 → 顯示 `utm_source`（中介/活動分別欄位呈現）
+- `utm_source` 為 null 且 `referrer_domain` 有值 → 顯示 `(外部連結) facebook.com`
 - 四個欄位皆 null → 顯示 `(直接造訪)`
 
 ---
@@ -360,7 +364,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('courses', CourseController::class);
     Route::post('/courses/{course}/publish', [CourseController::class, 'publish'])->name('courses.publish');
     Route::post('/courses/{course}/unpublish', [CourseController::class, 'unpublish'])->name('courses.unpublish');
-    Route::get('/courses/{course}/traffic', [CourseTrafficController::class, 'show'])->name('courses.traffic'); // US12
+    Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic'); // US12
 
     // Chapters
     Route::get('/courses/{course}/chapters', [ChapterController::class, 'index'])->name('chapters.index');

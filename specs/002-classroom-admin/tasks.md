@@ -1541,20 +1541,22 @@ Within Phase 15:
   - createOrder() 呼叫加第 4 參數：`$checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource)`
 - [ ] T239 [P] [US12] Modify `app/Services/CheckoutService.php` — write UTM to Order
   - createOrder() 簽名加：`array $trafficSource = []`
+  - 加 docstring：`@param array<string, ?string> $trafficSource UTM + referrer 來源資料；keys: utm_source, utm_medium, utm_campaign, referrer_domain`
   - Order::create() 加 4 個 UTM 欄位：`'utm_source' => $trafficSource['utm_source'] ?? null` 等
-- [ ] T240 [P] [US12] Create `app/Http/Controllers/Admin/CourseTrafficController.php`
-  - show(Course $course) 用 QueryBuilder JOIN order_items + orders WHERE status='paid'
+- [ ] T240 [US12] Add `traffic(Course $course)` method to existing `app/Http/Controllers/Admin/CourseController.php`
+  - 與既有 `subscribers()` 方法並列（不另建 controller，沿用「課程域操作集中於同一 controller」pattern）
+  - 用 QueryBuilder JOIN order_items + orders WHERE status='paid'
   - GROUP BY 4 個 UTM 欄位，SELECT COUNT(DISTINCT orders.id)、SUM(unit_price)
-  - PHP map() 產生 display_source（utm_source → `(referral) domain` → `(直接造訪)`）
-  - Inertia::render('Admin/Courses/Traffic', [course, stats])
+  - PHP map() 產生 display_source（全中文）：utm_source 有值 → utm_source；否則 referrer_domain 有值 → `(外部連結) {referrer_domain}`；都無 → `(直接造訪)`
+  - Inertia::render('Admin/Courses/Traffic', ['course' => [...], 'traffic' => ['total_orders' => N, 'tracked_orders' => M, 'sources' => [...]]])
 - [ ] T241 [P] [US12] Create `resources/js/Pages/Admin/Courses/Traffic.vue`
-  - AdminLayout + defineProps(course, stats)
-  - 兩個 summary cards（總訂單數、有來源標記比例）
+  - AdminLayout + `defineProps({ course: Object, traffic: Object })`
+  - 兩個 summary cards（總訂單數、有來源標記比例 = tracked_orders / total_orders）
   - 來源明細表（來源/中介/活動/訂單數/金額），空狀態顯示「尚無訂單來源資料」
   - RWD：表格 overflow-x-auto
 - [ ] T242 [US12] Add traffic route to `routes/web.php`
-  - admin middleware group 加：`Route::get('/courses/{course}/traffic', [CourseTrafficController::class, 'show'])->name('courses.traffic');`
-  - 補 use：`use App\Http\Controllers\Admin\CourseTrafficController;`
+  - admin middleware group 加：`Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');`
+  - 不需新增 use（沿用既有 `App\Http\Controllers\Admin\CourseController as AdminCourseController`）
 - [ ] T243 [US12] Update `resources/js/Pages/Admin/Courses/Index.vue` — add 「來源」button
   - 在「相簿」與「刪除」之間加：`<Link v-if="!course.portaly_product_id" :href="\`/admin/courses/${course.id}/traffic\`" class="text-teal-600 hover:text-teal-900">來源</Link>`
 

@@ -842,4 +842,7 @@ public function scopeVisibleToUser($query, $user = null)
 - `CourseController::show()` 捕捉邏輯：UTM params 先讀，若有則存入 session；若無 UTM 但有 HTTP Referer，解析 host（移除 www.）存入 session
 - Session key `traffic_source` 後次造訪覆蓋前次（Last-touch）
 - `portaly_product_id` 欄位需加入 `Admin\CourseController::index()` 的 course mapping，前端才能條件性顯示「來源」按鈕
-- 後台顯示邏輯：utm_source → `(referral) {referrer_domain}` → `(直接造訪)`
+- **後台 controller 不另建檔**：`traffic()` 方法加在現有 `Admin\CourseController`，與 `subscribers()` 並列，沿用既有「課程域操作集中於同一 controller」pattern
+- 後台顯示邏輯（全中文，符合 CLAUDE.md「UI 文案：中文」）：utm_source → `(外部連結) {referrer_domain}` → `(直接造訪)`
+- `CheckoutService::createOrder()` 第 4 參數加 `@param array<string, ?string> $trafficSource` docstring，明列允許的 keys（utm_source, utm_medium, utm_campaign, referrer_domain）
+- Inertia prop 結構：`{ course: {...}, traffic: { total_orders, tracked_orders, sources: [...] } }`，nested traffic 物件避免和 Dashboard `stats` 命名衝突

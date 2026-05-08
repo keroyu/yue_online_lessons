@@ -523,7 +523,7 @@ Documented in [research.md](./research.md):
 14. **Course Visibility Toggle**: is_visible field in Course model
 15. **Chapter Email Notification**: Resend Mailable 同步發送（Mail::send），admin opt-in，學員數少不需 Queue ← **New**
 16. **Course Duration Auto-Calculation**: 課程 `duration_minutes` 不由管理員手動輸入，改由 `LessonController` 在 store/update/destroy 後自動從有影片的小節（`duration_seconds`）加總計算；小節時長輸入格式為 `M:SS`（如 `3:50`），存為 `duration_seconds` 整數
-17. **UTM Purchase Attribution**: 訪客進入 `/course/{id}` 時，`CourseController::show()` 捕捉 UTM params + HTTP Referer domain → `session('traffic_source')`；結帳時 `CheckoutController::initiate()` 讀取 session 傳入 `CheckoutService::createOrder()`；UTM 以 4 個 nullable 欄位寫入 `orders` 表；後台 `/admin/courses/{course}/traffic` 用 QueryBuilder GROUP BY 聚合；Portaly 課程不顯示來源按鈕（不建立 orders）
+17. **UTM Purchase Attribution**: 訪客進入 `/course/{id}` 時，`CourseController::show()` 捕捉 UTM params + HTTP Referer domain → `session('traffic_source')`；結帳時 `CheckoutController::initiate()` 讀取 session 傳入 `CheckoutService::createOrder()` 第 4 參數；UTM 以 4 個 nullable 欄位寫入 `orders` 表；後台 `Admin\CourseController::traffic()`（與 `subscribers()` 並列）用 QueryBuilder GROUP BY 聚合；Portaly 課程不顯示來源按鈕（不建立 orders）；顯示字串全中文：utm_source → `(外部連結) {domain}` → `(直接造訪)`
 
 ---
 
@@ -556,7 +556,7 @@ CheckoutController::initiate()
   → session('traffic_source', []) → createOrder(..., $trafficSource)
 CheckoutService::createOrder()
   → Order::create([..., utm_source, utm_medium, utm_campaign, referrer_domain])
-GET /admin/courses/{course}/traffic → CourseTrafficController::show()
+GET /admin/courses/{course}/traffic → Admin\CourseController::traffic()
   → DB GROUP BY 聚合 → Inertia::render('Admin/Courses/Traffic')
 ```
 
@@ -564,18 +564,20 @@ GET /admin/courses/{course}/traffic → CourseTrafficController::show()
 - `portaly_product_id` 不在 Admin\CourseController::index() mapping → 需補上，前端才能判斷是否顯示「來源」按鈕
 - Session 不主動清除；Last-touch：後次造訪課程頁覆蓋前次來源
 - SQL 聚合用 `COUNT(DISTINCT orders.id)` + `SUM(order_items.unit_price)`；PHP 負責 display_source 格式化
-- 顯示優先序：utm_source → `(referral) {referrer_domain}` → `(直接造訪)`
+- 顯示優先序：utm_source → `(外部連結) {referrer_domain}` → `(直接造訪)` — 全中文，符合 CLAUDE.md「UI 文案：中文」
+- **不新增 controller**：`traffic()` 方法加在現有 `Admin\CourseController`，與 `subscribers()`（既有方法）並列；統一課程相關後台操作的入口
+- **Inertia prop 結構**：用 nested `traffic` 物件包裝（`{ total_orders, tracked_orders, sources }`），避免和 Dashboard 的 `stats` 命名衝突
+- **CheckoutService 簽名 docstring**：第 4 參數 `array $trafficSource = []` 加 `@param array<string, ?string>` 註解說明 keys
 
 **新建檔案**：
 - `database/migrations/2026_05_08_000001_add_utm_to_orders_table.php`
-- `app/Http/Controllers/Admin/CourseTrafficController.php`
 - `resources/js/Pages/Admin/Courses/Traffic.vue`
 
 **修改檔案**：
 - `app/Http/Controllers/CourseController.php` — show() 加 Request 參數，捕捉 UTM + Referer
-- `app/Http/Controllers/Admin/CourseController.php` — index() 補 `portaly_product_id` 欄位
+- `app/Http/Controllers/Admin/CourseController.php` — (a) index() 補 `portaly_product_id`；(b) 新增 `traffic(Course $course)` 方法
 - `app/Http/Controllers/CheckoutController.php` — initiate() 讀 session，傳 $trafficSource
-- `app/Services/CheckoutService.php` — createOrder() 加第 4 參數 array $trafficSource = []
+- `app/Services/CheckoutService.php` — createOrder() 加第 4 參數 `array $trafficSource = []`，加 `@param` docstring
 - `app/Models/Order.php` — $fillable 加 4 個 UTM 欄位
 - `resources/js/Pages/Admin/Courses/Index.vue` — 加「來源」按鈕（v-if="!course.portaly_product_id"）
-- `routes/web.php` — admin group 加 courses.traffic 路由
+- `routes/web.php` — admin group 加 `courses.traffic` 路由（handler: `Admin\CourseController@traffic`）
