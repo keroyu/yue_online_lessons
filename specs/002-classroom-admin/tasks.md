@@ -1518,6 +1518,50 @@ Within Phase 15:
 
 ---
 
+## Phase 39: US12 課程連結來源追蹤 (2026-05-08 新增)
+
+**Purpose**: 追蹤每個課程付款訂單的連結來源（UTM 參數優先，fallback HTTP Referer），後台提供聚合統計頁
+
+**背景**：管理員需要知道行銷管道投資回報。在 orders 表加 4 個 UTM 欄位，CourseController 捕捉來源存入 session，結帳時寫入訂單。後台課程管理列表加「來源」按鈕，點擊後進入統計頁。
+
+- [ ] T234 [P] [US12] Create migration `2026_05_08_000001_add_utm_to_orders_table.php` in `database/migrations/`
+  - 新增 4 欄位：`utm_source VARCHAR(100) NULL`、`utm_medium VARCHAR(100) NULL`、`utm_campaign VARCHAR(100) NULL`、`referrer_domain VARCHAR(255) NULL`，全部 AFTER `webhook_received_at`
+  - 實作 down()：`dropColumn(['utm_source', 'utm_medium', 'utm_campaign', 'referrer_domain'])`
+- [ ] T235 [US12] Add 4 UTM fields to `$fillable` in `app/Models/Order.php`
+  - 在 $fillable 末尾加：`'utm_source', 'utm_medium', 'utm_campaign', 'referrer_domain'`
+- [ ] T236 [US12] Modify `app/Http/Controllers/CourseController.php` — capture UTM + Referer
+  - 加 `use Illuminate\Http\Request;`
+  - show() 簽名改為 `show(Request $request, Course $course)`
+  - 方法開頭捕捉 UTM params（最多 100 字元）+ parse HTTP_REFERER host（移除 www.）
+  - 若 $trafficData 非空則 `$request->session()->put('traffic_source', $trafficData)`
+- [ ] T237 [US12] Add `portaly_product_id` to course mapping in `app/Http/Controllers/Admin/CourseController.php`
+  - index() 的 `->map()` 內加：`'portaly_product_id' => $course->portaly_product_id`
+- [ ] T238 [US12] Modify `app/Http/Controllers/CheckoutController.php` — read session
+  - initiate() 的 `try {` 前加：`$trafficSource = session('traffic_source', []);`
+  - createOrder() 呼叫加第 4 參數：`$checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource)`
+- [ ] T239 [P] [US12] Modify `app/Services/CheckoutService.php` — write UTM to Order
+  - createOrder() 簽名加：`array $trafficSource = []`
+  - Order::create() 加 4 個 UTM 欄位：`'utm_source' => $trafficSource['utm_source'] ?? null` 等
+- [ ] T240 [P] [US12] Create `app/Http/Controllers/Admin/CourseTrafficController.php`
+  - show(Course $course) 用 QueryBuilder JOIN order_items + orders WHERE status='paid'
+  - GROUP BY 4 個 UTM 欄位，SELECT COUNT(DISTINCT orders.id)、SUM(unit_price)
+  - PHP map() 產生 display_source（utm_source → `(referral) domain` → `(直接造訪)`）
+  - Inertia::render('Admin/Courses/Traffic', [course, stats])
+- [ ] T241 [P] [US12] Create `resources/js/Pages/Admin/Courses/Traffic.vue`
+  - AdminLayout + defineProps(course, stats)
+  - 兩個 summary cards（總訂單數、有來源標記比例）
+  - 來源明細表（來源/中介/活動/訂單數/金額），空狀態顯示「尚無訂單來源資料」
+  - RWD：表格 overflow-x-auto
+- [ ] T242 [US12] Add traffic route to `routes/web.php`
+  - admin middleware group 加：`Route::get('/courses/{course}/traffic', [CourseTrafficController::class, 'show'])->name('courses.traffic');`
+  - 補 use：`use App\Http\Controllers\Admin\CourseTrafficController;`
+- [ ] T243 [US12] Update `resources/js/Pages/Admin/Courses/Index.vue` — add 「來源」button
+  - 在「相簿」與「刪除」之間加：`<Link v-if="!course.portaly_product_id" :href="\`/admin/courses/${course.id}/traffic\`" class="text-teal-600 hover:text-teal-900">來源</Link>`
+
+**Checkpoint**: 用帶 UTM 連結完成測試購買 → 後台 `/admin/courses/{id}/traffic` 顯示對應來源行；Portaly 課程不顯示「來源」按鈕 ✅
+
+---
+
 ## Task Summary
 
 | Phase | Tasks | Status |
@@ -1548,4 +1592,5 @@ Within Phase 15:
 | Phase 32 (教室側欄動態效果) | T228 | ✅ Completed |
 | Phase 33 (側欄 edge toggle tab) | T229 | ✅ Completed |
 | Phase 34 (小節時長 M:SS + 課程總時長自動計算) | T230-T233 | ✅ Completed |
-| **Total** | **233 tasks** | 233 completed, 0 pending |
+| Phase 39 (US12 課程連結來源追蹤) | T234-T243 | ⏳ Planned |
+| **Total** | **243 tasks** | 233 completed, 10 pending |

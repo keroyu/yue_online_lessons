@@ -27,6 +27,7 @@
 **Updated**: 2026-04-06 - Gallery.vue 獨立相簿頁同步支援批次上傳與批次刪除（Phase 36）
 **Updated**: 2026-04-06 - 修正 Gallery.vue 勾選 UX：checkbox 左上角專責、工具列條件顯示（Phase 37）
 **Updated**: 2026-04-06 - 刪除相簿圖片時自動清除 description_md 中的圖片引用（Phase 38）
+**Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：UTM session 捕捉、orders 表 4 欄位、後台統計頁（Phase 39）
 
 ## Summary
 
@@ -180,7 +181,7 @@ database/migrations/
 
 ## Implementation Summary
 
-### Completed Phases (1-15)
+### Completed Phases (1-39)
 
 | Phase | Focus | Status |
 |-------|-------|--------|
@@ -205,8 +206,11 @@ database/migrations/
 | Phase 19 | Bug Fixes & UI Polish | ✅ Complete |
 | Phase 20 | US8 擴充 - 後臺課程管理頁預覽按鈕 | ✅ Complete |
 | Phase 21 | Markdown 內嵌影片 iframe 響應式樣式 | ✅ Complete |
-| Phase 22 | 教室切換 lesson 時影片自動播放 | ✅ Complete |
+| Phase 22 | 教室切換 lesson 自動播放 | ✅ Complete |
 | Phase 23 | US10 - 小節新增 Email 通知會員 | ✅ Complete |
+| Phase 24–34 | Bug Fixes, SEO, US11 試閱, 側欄動效, 時長計算 | ✅ Complete |
+| Phase 35–38 | 相簿批次上傳/刪除, Gallery UX 優化 | ✅ Complete |
+| Phase 39 | US12 - 課程連結來源追蹤 | ⏳ Planned |
 
 **Phase 13 Details** (2026-01-18 完成, 2026-01-30 調整門檻):
 - 前端樂觀更新：點擊小節後立即顯示綠色勾勾
@@ -519,6 +523,7 @@ Documented in [research.md](./research.md):
 14. **Course Visibility Toggle**: is_visible field in Course model
 15. **Chapter Email Notification**: Resend Mailable 同步發送（Mail::send），admin opt-in，學員數少不需 Queue ← **New**
 16. **Course Duration Auto-Calculation**: 課程 `duration_minutes` 不由管理員手動輸入，改由 `LessonController` 在 store/update/destroy 後自動從有影片的小節（`duration_seconds`）加總計算；小節時長輸入格式為 `M:SS`（如 `3:50`），存為 `duration_seconds` 整數
+17. **UTM Purchase Attribution**: 訪客進入 `/course/{id}` 時，`CourseController::show()` 捕捉 UTM params + HTTP Referer domain → `session('traffic_source')`；結帳時 `CheckoutController::initiate()` 讀取 session 傳入 `CheckoutService::createOrder()`；UTM 以 4 個 nullable 欄位寫入 `orders` 表；後台 `/admin/courses/{course}/traffic` 用 QueryBuilder GROUP BY 聚合；Portaly 課程不顯示來源按鈕（不建立 orders）
 
 ---
 
@@ -536,3 +541,41 @@ Documented in [research.md](./research.md):
 - **M:SS 格式**：比秒數更直覺，管理員不需心算換算
 - **自動重算時機**：每次小節 store/update/destroy 後同步計算，確保資料即時正確
 - **計算範圍**：只加總有 `video_id`（有影片）的小節，純文字小節不計入時長
+
+---
+
+### Phase 39 Plan — US12: 課程連結來源追蹤 (2026-05-08)
+
+**背景**：管理員需要知道每個課程的購買者從哪裡來（UTM 參數優先，fallback HTTP Referer）。在課程管理列表加「來源」按鈕，點擊後進入聚合統計頁。追蹤只針對建立 orders 的結帳流程（PayUni / 藍新），Portaly 課程不適用。
+
+**Data Flow**:
+```
+CourseController::show(Request, Course)
+  → session()->put('traffic_source', [utm_source, utm_medium, utm_campaign, referrer_domain])
+CheckoutController::initiate()
+  → session('traffic_source', []) → createOrder(..., $trafficSource)
+CheckoutService::createOrder()
+  → Order::create([..., utm_source, utm_medium, utm_campaign, referrer_domain])
+GET /admin/courses/{course}/traffic → CourseTrafficController::show()
+  → DB GROUP BY 聚合 → Inertia::render('Admin/Courses/Traffic')
+```
+
+**關鍵設計決策**：
+- `portaly_product_id` 不在 Admin\CourseController::index() mapping → 需補上，前端才能判斷是否顯示「來源」按鈕
+- Session 不主動清除；Last-touch：後次造訪課程頁覆蓋前次來源
+- SQL 聚合用 `COUNT(DISTINCT orders.id)` + `SUM(order_items.unit_price)`；PHP 負責 display_source 格式化
+- 顯示優先序：utm_source → `(referral) {referrer_domain}` → `(直接造訪)`
+
+**新建檔案**：
+- `database/migrations/2026_05_08_000001_add_utm_to_orders_table.php`
+- `app/Http/Controllers/Admin/CourseTrafficController.php`
+- `resources/js/Pages/Admin/Courses/Traffic.vue`
+
+**修改檔案**：
+- `app/Http/Controllers/CourseController.php` — show() 加 Request 參數，捕捉 UTM + Referer
+- `app/Http/Controllers/Admin/CourseController.php` — index() 補 `portaly_product_id` 欄位
+- `app/Http/Controllers/CheckoutController.php` — initiate() 讀 session，傳 $trafficSource
+- `app/Services/CheckoutService.php` — createOrder() 加第 4 參數 array $trafficSource = []
+- `app/Models/Order.php` — $fillable 加 4 個 UTM 欄位
+- `resources/js/Pages/Admin/Courses/Index.vue` — 加「來源」按鈕（v-if="!course.portaly_product_id"）
+- `routes/web.php` — admin group 加 courses.traffic 路由

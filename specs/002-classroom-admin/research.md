@@ -2,6 +2,7 @@
 
 **Branch**: `002-classroom-admin` | **Date**: 2026-01-17
 **Updated**: 2026-01-30 - 新增 Course Visibility Toggle 設計決策
+**Updated**: 2026-05-08 - 新增 UTM Purchase Attribution 設計決策（Phase 39）
 
 ## Video Embedding (Vimeo/YouTube)
 
@@ -816,3 +817,29 @@ public function scopeVisibleToUser($query, $user = null)
 | **Auto-Assign Ownership** | Purchase type extension | None (Laravel) |
 | **Admin Frontend Preview** | Conditional query + UI badges | None (Vue conditional) |
 | **Course Visibility Toggle** | is_visible boolean field | None (Laravel scope) |
+| **UTM Purchase Attribution** | Laravel session + 4 DB columns on orders | None (native Laravel + QueryBuilder) |
+
+---
+
+## UTM Purchase Attribution (Phase 39)
+
+### Decision
+使用 Laravel server-side session 暫存來源資訊，在 `orders` 表加 4 個 nullable 欄位（utm_source、utm_medium、utm_campaign、referrer_domain），以 QueryBuilder GROUP BY 在後台聚合統計。
+
+### Rationale
+- **Session 而非 localStorage**：server-side session 不受瀏覽器隱私模式、廣告攔截器、JS 錯誤影響，可靠性更高
+- **Last-touch 歸因**：每次造訪課程頁覆蓋 session，最直覺且實作最簡單
+- **orders 表而非 purchases 表**：UTM 在結帳時（CheckoutController::initiate()）已可取得；purchases 在 webhook 後才建立（server-to-server，無 session 上下文）
+- **QueryBuilder GROUP BY 而非 PHP groupBy**：讓資料庫做聚合，避免把大量 raw rows 載入 PHP 記憶體
+- **Portaly 排除**：Portaly 課程不建立 orders，webhook 是 server-to-server（無使用者 session），架構上無法追蹤
+
+### Alternatives Considered
+- **前端 dataLayer / GA4**：不需後端改動，但需要 GTM 設定，且跨頁面追蹤依賴第三方 cookie（隱私政策限制）
+- **purchases 表新增 UTM 欄位**：purchases 在 webhook 後建立，此時使用者 session 已不存在，技術上無法寫入
+- **獨立 traffic_sources 資料表**：過度設計，4 個 nullable 欄位已足夠；不需獨立關聯表
+
+### Implementation Notes
+- `CourseController::show()` 捕捉邏輯：UTM params 先讀，若有則存入 session；若無 UTM 但有 HTTP Referer，解析 host（移除 www.）存入 session
+- Session key `traffic_source` 後次造訪覆蓋前次（Last-touch）
+- `portaly_product_id` 欄位需加入 `Admin\CourseController::index()` 的 course mapping，前端才能條件性顯示「來源」按鈕
+- 後台顯示邏輯：utm_source → `(referral) {referrer_domain}` → `(直接造訪)`
