@@ -11,6 +11,7 @@ const props = defineProps({
   traffic: { type: Object, required: true },
 })
 
+// ── 統計篩選 ──────────────────────────────────────────────
 const currentDays = computed(() => props.filters.days)
 
 const trackedPct = computed(() => {
@@ -57,39 +58,231 @@ const exportUrl = computed(() => {
   const base = `/admin/courses/${props.course.id}/traffic/export`
   return currentDays.value ? `${base}?days=${currentDays.value}` : base
 })
+
+// ── UTM 連結生成器 ─────────────────────────────────────────
+const platformPresets = [
+  { label: 'Threads', source: 'threads', medium: 'social' },
+  { label: 'Instagram', source: 'instagram', medium: 'social' },
+  { label: 'Facebook', source: 'facebook', medium: 'social' },
+  { label: 'YouTube', source: 'youtube', medium: 'video' },
+  { label: 'EDM', source: 'email', medium: 'email' },
+  { label: 'LINE', source: 'line', medium: 'social' },
+]
+
+const utm = ref({ source: '', medium: '', campaign: '', content: '', term: '' })
+const copied = ref(false)
+
+function applyPreset(preset) {
+  utm.value.source = preset.source
+  utm.value.medium = preset.medium
+}
+
+const generatedUrl = computed(() => {
+  const base = props.course.url
+  const params = new URLSearchParams()
+  if (utm.value.source.trim())   params.set('utm_source',   utm.value.source.trim())
+  if (utm.value.medium.trim())   params.set('utm_medium',   utm.value.medium.trim())
+  if (utm.value.campaign.trim()) params.set('utm_campaign', utm.value.campaign.trim())
+  if (utm.value.content.trim())  params.set('utm_content',  utm.value.content.trim())
+  if (utm.value.term.trim())     params.set('utm_term',     utm.value.term.trim())
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
+})
+
+const hasParams = computed(() =>
+  utm.value.source || utm.value.medium || utm.value.campaign || utm.value.content || utm.value.term
+)
+
+async function copyUrl() {
+  await navigator.clipboard.writeText(generatedUrl.value)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+function resetUtm() {
+  utm.value = { source: '', medium: '', campaign: '', content: '', term: '' }
+}
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto px-4 py-6">
-    <div class="flex items-center justify-between mb-6">
+  <div class="max-w-5xl mx-auto px-4 py-6 space-y-8">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between">
       <div>
-        <h1 class="text-xl font-bold text-gray-900">連結來源追蹤</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ course.name }}</p>
+        <nav class="flex" aria-label="Breadcrumb">
+          <ol class="flex items-center space-x-4">
+            <li>
+              <Link href="/admin/courses" class="text-sm font-medium text-gray-500 hover:text-gray-700">
+                課程管理
+              </Link>
+            </li>
+            <li>
+              <div class="flex items-center">
+                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span class="ml-4 text-sm font-medium text-gray-500">{{ course.name }}</span>
+              </div>
+            </li>
+            <li>
+              <div class="flex items-center">
+                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span class="ml-4 text-sm font-medium text-gray-900">連結來源追蹤</span>
+              </div>
+            </li>
+          </ol>
+        </nav>
+        <h1 class="mt-2 text-2xl font-semibold text-gray-900">連結來源追蹤</h1>
       </div>
-      <a :href="exportUrl" class="px-3 py-1.5 text-sm bg-teal-600 text-white rounded hover:bg-teal-700">
+      <a :href="exportUrl" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">
         匯出 CSV
       </a>
     </div>
 
+    <!-- ── UTM 連結生成器 ── -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+        <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+        <h2 class="text-sm font-semibold text-gray-800">追蹤連結生成器</h2>
+        <span class="text-xs text-gray-400 ml-1">— 貼到 Threads / IG 貼文或 EDM，追蹤各來源轉換</span>
+      </div>
+
+      <div class="p-5 space-y-4">
+
+        <!-- 平台快速選擇 -->
+        <div>
+          <p class="text-xs font-medium text-gray-500 mb-2">快速套用平台</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="p in platformPresets"
+              :key="p.label"
+              @click="applyPreset(p)"
+              :class="[
+                'px-3 py-1.5 text-xs rounded-full border transition-colors',
+                utm.source === p.source
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600',
+              ]"
+            >
+              {{ p.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 參數欄位 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              來源 <span class="text-gray-400 font-normal">utm_source</span>
+            </label>
+            <input
+              v-model="utm.source"
+              type="text"
+              placeholder="threads、instagram、email…"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              管道 <span class="text-gray-400 font-normal">utm_medium</span>
+            </label>
+            <input
+              v-model="utm.medium"
+              type="text"
+              placeholder="social、email、video…"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              活動名稱 <span class="text-gray-400 font-normal">utm_campaign</span>
+            </label>
+            <input
+              v-model="utm.campaign"
+              type="text"
+              placeholder="2026-launch、母親節優惠…"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              貼文識別 <span class="text-gray-400 font-normal">utm_content</span>
+              <span class="text-indigo-400 ml-1">← 區分不同貼文用這欄</span>
+            </label>
+            <input
+              v-model="utm.content"
+              type="text"
+              placeholder="post-001、bio-link、限動…"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+          </div>
+        </div>
+
+        <!-- 產生結果 -->
+        <div class="rounded-lg bg-gray-50 border border-gray-200 p-3">
+          <p class="text-xs font-medium text-gray-500 mb-2">產生的追蹤連結</p>
+          <p class="text-xs text-gray-700 break-all font-mono leading-relaxed">{{ generatedUrl }}</p>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="flex gap-2">
+          <button
+            @click="copyUrl"
+            :class="[
+              'flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg font-medium transition-colors',
+              copied
+                ? 'bg-green-600 text-white'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700',
+            ]"
+          >
+            <svg v-if="copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            {{ copied ? '已複製！' : '複製連結' }}
+          </button>
+          <button
+            v-if="hasParams"
+            @click="resetUtm"
+            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+          >
+            清除
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 統計區 ── -->
     <!-- Time preset buttons -->
-    <div class="flex gap-2 mb-6">
-      <button
-        v-for="p in dayPresets"
-        :key="p.label"
-        @click="setDays(p.value)"
-        :class="[
-          'px-3 py-1.5 text-sm rounded border',
-          currentDays === p.value
-            ? 'bg-indigo-600 text-white border-indigo-600'
-            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
-        ]"
-      >
-        {{ p.label }}
-      </button>
+    <div>
+      <p class="text-xs font-medium text-gray-500 mb-2">時間範圍</p>
+      <div class="flex gap-2">
+        <button
+          v-for="p in dayPresets"
+          :key="p.label"
+          @click="setDays(p.value)"
+          :class="[
+            'px-3 py-1.5 text-sm rounded border',
+            currentDays === p.value
+              ? 'bg-indigo-600 text-white border-indigo-600'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
+          ]"
+        >
+          {{ p.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Summary cards -->
-    <div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="grid grid-cols-2 gap-4">
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <p class="text-sm text-gray-500">總訂單數</p>
         <p class="text-2xl font-bold text-gray-900">{{ traffic.total_orders }}</p>
@@ -102,7 +295,7 @@ const exportUrl = computed(() => {
     </div>
 
     <!-- Toggle -->
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2">
       <button
         @click="viewMode = 'source'"
         :class="['px-3 py-1.5 text-sm rounded border', viewMode === 'source' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300']"
@@ -165,5 +358,6 @@ const exportUrl = computed(() => {
         </tbody>
       </table>
     </div>
+
   </div>
 </template>

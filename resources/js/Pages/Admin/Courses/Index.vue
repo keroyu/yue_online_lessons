@@ -142,15 +142,17 @@ const formatPrice = (price) => {
                       {{ course.duration_formatted || '-' }}
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <div class="flex items-center justify-end space-x-2">
+                      <div class="flex items-center justify-end space-x-3">
+                        <!-- 瀏覽 -->
                         <a
                           :href="`/course/${course.id}`"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="text-orange-600 hover:text-orange-900"
+                          class="text-gray-500 hover:text-gray-800"
                         >
                           銷售頁
                         </a>
+                        <!-- 內容管理 -->
                         <Link
                           :href="`/admin/courses/${course.id}/edit`"
                           class="text-indigo-600 hover:text-indigo-900"
@@ -159,26 +161,28 @@ const formatPrice = (price) => {
                         </Link>
                         <Link
                           :href="`/admin/courses/${course.id}/chapters`"
-                          class="text-green-600 hover:text-green-900"
+                          class="text-indigo-600 hover:text-indigo-900"
                         >
                           章節
                         </Link>
                         <Link
                           :href="`/admin/courses/${course.id}/images`"
-                          class="text-blue-600 hover:text-blue-900"
+                          class="text-indigo-600 hover:text-indigo-900"
                         >
                           相簿
                         </Link>
+                        <!-- 數據分析 -->
                         <Link
                           v-if="!course.portaly_product_id"
                           :href="`/admin/courses/${course.id}/traffic`"
-                          class="text-teal-600 hover:text-teal-900"
+                          class="text-violet-600 hover:text-violet-900"
                         >
                           來源
                         </Link>
+                        <!-- 危險操作 -->
                         <button
                           type="button"
-                          class="text-red-600 hover:text-red-900"
+                          class="text-red-500 hover:text-red-700"
                           @click="confirmDelete(course)"
                         >
                           刪除

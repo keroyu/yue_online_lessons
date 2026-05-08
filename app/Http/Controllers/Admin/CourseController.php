@@ -448,7 +448,7 @@ class CourseController extends Controller
             ->all();
 
         return Inertia::render('Admin/Courses/Traffic', [
-            'course'  => ['id' => $course->id, 'name' => $course->name],
+            'course'  => ['id' => $course->id, 'name' => $course->name, 'url' => route('course.show', $course)],
             'filters' => ['days' => $days],
             'traffic' => [
                 'total_orders'   => $totalOrders,
