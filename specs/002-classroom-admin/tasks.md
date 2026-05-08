@@ -1531,9 +1531,9 @@ Within Phase 15:
     - 3 Click ID：`gclid VARCHAR(255)`、`fbclid VARCHAR(255)`、`ttclid VARCHAR(255)`
   - 加索引：`->index('utm_source')`、`->index('referrer_domain')`
   - 實作 down()：`dropIndex` 後 `dropColumn` 9 欄位
-- [ ] T235 [US12] Add 9 source fields to `$fillable` in `app/Models/Order.php`
+- [ ] T235 [P] [US12] Add 9 source fields to `$fillable` in `app/Models/Order.php`
   - 在 $fillable 末尾加：`'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'`
-- [ ] T236 [US12] Modify `app/Http/Controllers/CourseController.php` — capture UTM + Click ID + Referer (with blacklist)
+- [ ] T236 [P] [US12] Modify `app/Http/Controllers/CourseController.php` — capture UTM + Click ID + Referer (with blacklist)
   - 加 `use Illuminate\Http\Request;`
   - show() 簽名改為 `show(Request $request, Course $course)`
   - 捕捉 5 個 UTM params（utm_source/medium/campaign/term/content，最多 100 字元）
@@ -1544,20 +1544,27 @@ Within Phase 15:
   - 若 $trafficData 非空則 `$request->session()->put('traffic_source', $trafficData)`
 - [ ] T237 [US12] Add `portaly_product_id` to course mapping in `app/Http/Controllers/Admin/CourseController.php`
   - index() 的 `->map()` 內加：`'portaly_product_id' => $course->portaly_product_id`
-- [ ] T238 [US12] Modify `app/Http/Controllers/CheckoutController.php` — read session
+- [ ] T238 [P] [US12] Modify `app/Http/Controllers/CheckoutController.php` — read session
   - initiate() 的 `try {` 前加：`$trafficSource = session('traffic_source', []);`
   - createOrder() 呼叫加第 4 參數：`$checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource)`
 - [ ] T239 [P] [US12] Modify `app/Services/CheckoutService.php` — write UTM to Order
   - createOrder() 簽名加：`array $trafficSource = []`
   - 加 docstring：`@param array<string, ?string> $trafficSource 來源資料；keys: utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid`
   - Order::create() 加 9 個來源欄位：迴圈寫入 `'<key>' => $trafficSource['<key>'] ?? null`
-- [ ] T240 [US12] Add `traffic(Course $course, Request $request)` method to existing `app/Http/Controllers/Admin/CourseController.php`
+- [ ] T240 [US12] Add `traffic(Course $course, Request $request)` method to `app/Http/Controllers/Admin/CourseController.php`
   - 與既有 `subscribers()` 方法並列（不另建 controller）
   - 讀 `?days=7|30|90|null` query param；若有則加 `WHERE orders.created_at >= now()->subDays($days)`
   - QueryBuilder JOIN order_items + orders WHERE status='paid'
   - GROUP BY 9 個來源欄位，SELECT COUNT(DISTINCT orders.id)、SUM(unit_price)
   - PHP map() 產生 display_source（全中文）：utm_source 有值 → utm_source；否則 referrer_domain 有值 → `(外部連結) {referrer_domain}`；都無 → `(直接造訪)`
   - Inertia::render('Admin/Courses/Traffic', ['course' => [...], 'filters' => ['days' => $days], 'traffic' => ['total_orders' => N, 'tracked_orders' => M, 'sources' => [...]]])
+- [ ] T244 [US12] Add `trafficExport(Course $course, Request $request)` method to `app/Http/Controllers/Admin/CourseController.php`
+  - 與 T240 同檔（不可平行；先 T240 後 T244）；仿 `Admin\TransactionController::export()` pattern
+  - `response()->streamDownload(...)` + `fputcsv` + UTF-8 BOM
+  - 同 traffic() 邏輯讀 `?days=N` 篩選，但回傳每筆訂單一列（非聚合）
+  - 13 個 CSV 欄位：訂單編號、購買時間、購買者 Email、金額、utm_source、utm_medium、utm_campaign、utm_term、utm_content、referrer_domain、gclid、fbclid、ttclid
+  - filename：`course-{id}-traffic-{YYYYMMdd}.csv`
+  - 用 `chunk(200)` 避免大量訂單時 OOM
 - [ ] T241 [P] [US12] Create `resources/js/Pages/Admin/Courses/Traffic.vue`
   - AdminLayout + `defineProps({ course: Object, filters: Object, traffic: Object })`
   - 兩個 summary cards（總訂單數、有來源標記比例 = tracked_orders / total_orders）
@@ -1565,22 +1572,24 @@ Within Phase 15:
   - 「依來源 / 依管道分類」切換 toggle（純前端 Vue computed）
   - Channel Group mapping（前端常數）：社群、搜尋引擎、電子報、影音、付費廣告（gclid/fbclid/ttclid 任一有值）、其他
   - 來源明細表欄位：來源/中介/活動/關鍵字/內容/訂單數/金額；表頭根據切換 toggle 顯示不同分組
-  - 「匯出 CSV」按鈕（連到 traffic.export route，帶當前 days param）
+  - 「匯出 CSV」按鈕（連到 `route('admin.courses.traffic.export', course.id)`，帶當前 days param）
   - 空狀態顯示「尚無訂單來源資料」
   - RWD：表格 overflow-x-auto
 - [ ] T242 [US12] Add traffic routes to `routes/web.php`
-  - admin middleware group 加 2 條：
+  - 依賴 T240 + T244（兩個方法都需存在）；admin middleware group 加 2 條：
     - `Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');`
     - `Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');`
-  - 不需新增 use
-- [ ] T244 [US12] Add `trafficExport(Course $course, Request $request)` method to `app/Http/Controllers/Admin/CourseController.php`
-  - 仿 `Admin\TransactionController::export()` pattern：`response()->streamDownload(...)` + `fputcsv` + UTF-8 BOM
-  - 同 traffic() 邏輯讀 `?days=N` 篩選，但回傳每筆訂單一列（非聚合）
-  - 13 個 CSV 欄位：訂單編號、購買時間、購買者 Email、金額、utm_source、utm_medium、utm_campaign、utm_term、utm_content、referrer_domain、gclid、fbclid、ttclid
-  - filename：`course-{id}-traffic-{YYYYMMdd}.csv`
-  - 用 `chunk(200)` 避免大量訂單時 OOM
-- [ ] T243 [US12] Update `resources/js/Pages/Admin/Courses/Index.vue` — add 「來源」button
-  - 在「相簿」與「刪除」之間加：`<Link v-if="!course.portaly_product_id" :href="\`/admin/courses/${course.id}/traffic\`" class="text-teal-600 hover:text-teal-900">來源</Link>`
+  - 不需新增 use（沿用既有 alias）
+- [ ] T243 [P] [US12] Update `resources/js/Pages/Admin/Courses/Index.vue` — add 「來源」button
+  - 依賴 T237（portaly_product_id 已加入 props）；在「相簿」與「刪除」之間加：
+    `<Link v-if="!course.portaly_product_id" :href="\`/admin/courses/${course.id}/traffic\`" class="text-teal-600 hover:text-teal-900">來源</Link>`
+
+**Implementation Order & Parallel Groups**:
+1. **Block 1（須最先完成）**: T234（migration）
+2. **Block 2（並行可）**: T235 [P] / T236 [P] / T238 [P] / T239 [P] — 各檔獨立
+3. **Block 3（同檔順序）**: T237 → T240 → T244 — 都動 `Admin\CourseController.php`
+4. **Block 4（並行可）**: T241 [P] / T243 [P] — 各 Vue 檔獨立
+5. **Block 5（最後接線）**: T242 — 路由註冊（需 T240 + T244 完成）
 
 **Checkpoint**: 用帶 UTM 連結（含 utm_term、utm_content）+ Click ID 完成測試購買 → 後台 `/admin/courses/{id}/traffic` 顯示對應來源行；切換時間範圍 preset 即時更新；切換「依管道分類」顯示中文群組；點擊匯出 CSV 下載 UTF-8 BOM 檔案；Portaly 課程不顯示「來源」按鈕；自家網域跳轉與金流回跳不污染 referrer_domain ✅
 
