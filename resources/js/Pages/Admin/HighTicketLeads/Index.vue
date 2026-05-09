@@ -347,9 +347,9 @@ const formatDateTime = (str) => {
         v-for="tab in tabs"
         :key="tab.value"
         @click="applyFilter(tab.value)"
-        class="px-4 py-1.5 rounded-full text-sm font-medium border"
+        class="px-4 py-1.5 rounded-full text-sm font-medium border cursor-pointer"
         :class="filters.status === (tab.value || null) || (!filters.status && !tab.value)
-          ? 'bg-indigo-600 text-white border-indigo-600'
+          ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
           : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
       >
         {{ tab.label }}

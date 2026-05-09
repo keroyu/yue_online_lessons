@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
@@ -269,6 +269,42 @@ const handleToggleComplete = async (lesson) => {
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
 }
+
+// Ordered flat list of all lessons: chapters first, then standalone
+const allLessonsOrdered = computed(() => {
+  const lessons = []
+  for (const chapter of localChapters.value) {
+    lessons.push(...chapter.lessons)
+  }
+  lessons.push(...localStandaloneLessons.value)
+  return lessons
+})
+
+// Auto-advance to next lesson when video ends
+const handleVideoEnded = () => {
+  if (!selectedLesson.value || props.isFreePreview) return
+
+  const lesson = selectedLesson.value
+
+  // Mark current lesson complete optimistically (finished watching = done)
+  if (!lesson.is_completed && !localCompletedLessons.value.has(lesson.id)) {
+    cancelLessonTimer(lesson.id)
+    localCompletedLessons.value.add(lesson.id)
+    updateLessonCompletion(lesson.id, true)
+    fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        'Accept': 'application/json',
+      },
+    }).catch(err => console.error('Failed to mark lesson complete:', err))
+  }
+
+  const idx = allLessonsOrdered.value.findIndex(l => l.id === lesson.id)
+  if (idx !== -1 && idx < allLessonsOrdered.value.length - 1) {
+    handleSelectLesson(allLessonsOrdered.value[idx + 1])
+  }
+}
 </script>
 
 <template>
@@ -452,6 +488,7 @@ const toggleSidebar = () => {
                 :embed-url="selectedLesson.embed_url"
                 :platform="selectedLesson.video_platform"
                 :title="selectedLesson.title"
+                @ended="handleVideoEnded"
               />
             </div>
 

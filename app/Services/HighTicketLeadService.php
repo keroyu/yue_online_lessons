@@ -94,7 +94,7 @@ class HighTicketLeadService
                 'amount'      => 0,
                 'currency'    => 'TWD',
                 'status'      => 'paid',
-                'type'        => 'gift',
+                'type'        => 'lead_conversion',
             ]
         );
 

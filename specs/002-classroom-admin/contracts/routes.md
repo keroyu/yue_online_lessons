@@ -5,6 +5,7 @@
 **Updated**: 2026-03-09 - 新增 notify_members 欄位至 Store Chapter Request (US10)
 **Updated**: 2026-04-06 - 新增批次上傳（POST batch）與批次刪除（DELETE batch）兩條路由
 **Updated**: 2026-05-08 - 新增 GET /admin/courses/{course}/traffic 路由支援課程連結來源統計（US12）
+**Updated**: 2026-05-09 - 架構備注（FR-104）：POST /api/checkout/initiate 定義於 routes/web.php（web middleware 含 StartSession），保持 /api/* URL 前綴但不可改放 routes/api.php
 **Updated**: 2026-05-08 - US12 行銷強化：新增 traffic.export CSV 匯出路由；traffic 路由支援 ?days=N 時間篩選
 
 ## Overview

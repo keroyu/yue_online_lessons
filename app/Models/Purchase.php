@@ -133,6 +133,7 @@ class Purchase extends Model
                     'paid' => '已付款',
                     'system_assigned' => '系統指派',
                     'gift' => '贈送',
+                    'lead_conversion' => '顧問轉換',
                     default => $this->type,
                 };
             }

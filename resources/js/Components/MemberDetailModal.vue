@@ -381,13 +381,13 @@ const handleBackdropClick = (e) => {
                               <h4 class="font-medium text-gray-900">{{ course.name }}</h4>
                               <span
                                 class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
-                                :class="course.acquisition_type === 'gift' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
+                                :class="course.acquisition_type === 'gift' ? 'bg-purple-100 text-purple-700' : course.acquisition_type === 'lead_conversion' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'"
                               >
-                                {{ course.acquisition_type === 'gift' ? '贈送' : '購買' }}
+                                {{ course.acquisition_type === 'gift' ? '贈送' : course.acquisition_type === 'lead_conversion' ? '顧問轉換' : '購買' }}
                               </span>
                             </div>
                             <p class="text-sm text-gray-500">
-                              {{ course.acquisition_type === 'gift' ? '取得於' : '購買於' }} {{ formatDate(course.purchased_at) }}
+                              {{ course.acquisition_type === 'paid' ? '購買於' : '取得於' }} {{ formatDate(course.purchased_at) }}
                             </p>
                           </div>
                           <span class="text-sm font-medium" :class="course.progress_percent === 100 ? 'text-green-600' : 'text-gray-600'">

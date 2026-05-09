@@ -46,23 +46,16 @@ const formatAmount = (amount, currency) => {
 }
 
 const getStatusText = (order) => {
-  // For system_assigned or gift, show type label instead of status
-  if (order.type === 'system_assigned') {
-    return '系統指派'
-  }
-  if (order.type === 'gift') {
-    return '贈送'
-  }
+  if (order.type === 'system_assigned') return '系統指派'
+  if (order.type === 'gift') return '贈送'
+  if (order.type === 'lead_conversion') return '顧問轉換'
   return order.status === 'paid' ? '已付款' : '已退款'
 }
 
 const getStatusClass = (order) => {
-  if (order.type === 'system_assigned') {
-    return 'bg-gray-100 text-gray-800'
-  }
-  if (order.type === 'gift') {
-    return 'bg-purple-100 text-purple-800'
-  }
+  if (order.type === 'system_assigned') return 'bg-gray-100 text-gray-800'
+  if (order.type === 'gift') return 'bg-purple-100 text-purple-800'
+  if (order.type === 'lead_conversion') return 'bg-teal-100 text-teal-800'
   return order.status === 'paid'
     ? 'bg-green-100 text-green-800'
     : 'bg-red-100 text-red-800'

@@ -8,6 +8,7 @@
 **Updated**: 2026-05-02 - US2 銷售頁 PayUni 分期付款 hint；US4 Email 模板列表補 high_ticket_slot_available 中文標籤；US6 「通知新時段」改為先開確認 modal 並顯示模板預覽
 **Updated**: 2026-05-03 - US6 新增搜尋/課程篩選、「發送郵件」批次 modal（FR-036～FR-037）；修復 PayUni 付款後 drip 序列信未自動暫停的 bug（FR-038）
 **Updated**: 2026-05-03 - US6 新增序列信訂閱紀錄欄（FR-039）、「開通」功能（FR-040～FR-041）；修復 notifyTemplate 載入 500 bug
+**Updated**: 2026-05-09 - 「開通」購買類型改為 `lead_conversion`（原 `gift`）；FR-040 修訂、FR-042 新增（FR-043：filter button hover 修正）
 **Status**: Implemented (US1–US6)
 
 ---
@@ -246,8 +247,10 @@
 
 **Lead 開通商品（US6 擴充）**
 
-- **FR-040**: 管理員 MUST 能在每筆非「已成交」的 lead 課程欄，點擊「開通」按鈕，透過確認 modal 選擇要開通的商品（列出所有課程），系統隨後：(a) 以 email 為 key `firstOrCreate` 會員帳號（nickname = lead.name，password 隨機產生）；(b) 以 `Purchase::updateOrCreate` 建立 `type='gift'`、`status='paid'`、`amount=0` 的購買記錄；(c) 將 lead status 更新為 `converted`。
+- **FR-040**: 管理員 MUST 能在每筆非「已成交」的 lead 課程欄，點擊「開通」按鈕，透過確認 modal 選擇要開通的商品（列出所有課程），系統隨後：(a) 以 email 為 key `firstOrCreate` 會員帳號（nickname = lead.name，password 隨機產生）；(b) 以 `Purchase::updateOrCreate` 建立 `type='lead_conversion'`、`status='paid'`、`amount=0` 的購買記錄；(c) 將 lead status 更新為 `converted`。
 - **FR-041**: 「開通」確認 modal MUST 顯示：lead 姓名與 Email、三條操作說明（自動建立會員帳號、開通商品、狀態更新為已成交）、商品下拉選單；確認後 inline 更新列表該列狀態，並於頁面頂部顯示操作結果摘要。
+- **FR-042**: `Purchase` 模型 MUST 支援 `lead_conversion` 購買類型，`typeLabel()` 回傳「顧問轉換」；後台交易明細、會員課程列表（`MemberDetailModal`）、會員設定頁均 MUST 以獨立樣式（青色 teal）顯示此類型，與「贈送」（紫色）及「購買」（藍色）明確區分。
+- **FR-043**: Leads 名單狀態篩選按鈕（全部、待聯繫等）MUST 在 active 與非 active 狀態下均顯示 `cursor-pointer`；active 狀態 MUST 提供 hover 深化效果（`hover:bg-indigo-700`）。
 
 ### Key Entities
 

@@ -37,6 +37,7 @@
 **Updated**: 2026-05-09 - US12 UTM 追蹤 bug 修正：POST /api/checkout/initiate 改移至 routes/web.php（api middleware 不含 StartSession 導致 session 永遠為空）；新增 FR-104；新增 CheckoutTrafficSourceTest 覆蓋完整 UTM 流程
 **Updated**: 2026-05-09 - US12 UI 增強：Traffic 頁新增 UTM 追蹤連結生成器（FR-102）與麵包屑導航（FR-103）；課程管理頁按鈕語意配色統一（灰=瀏覽、靛=管理、紫=分析、紅=刪除）
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController 回傳 lesson 資料時漏傳 `is_preview` 欄位，導致重新編輯小節時試閱設定遺失
+**Updated**: 2026-05-09 - US1 影片播放結束自動跳至下一小節（Vimeo/YouTube postMessage API）；新增 FR-105~FR-107、SC-012~SC-014、Edge Cases
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -61,6 +62,9 @@
 9. **Given** 會員在桌機使用教室, **When** 點擊 header 的漢堡選單按鈕, **Then** 左側章節側欄以平滑的水平滑動動畫展開或收合
 10. **Given** 會員在手機使用教室, **When** 點擊漢堡選單開啟或關閉側欄, **Then** 側欄從左側以滑入/滑出動畫顯示或隱藏，背景遮罩同步淡入淡出
 11. **Given** 會員在桌機使用教室, **When** 將游標移至側欄右邊緣的細長 toggle tab 上, **Then** 游標變為手指，tab 背景色加深，chevron 顏色加深；點擊後側欄收合或展開
+12. **Given** 會員在上課頁面觀看有影片的小節（Vimeo 或 YouTube）, **When** 影片自然播放完畢, **Then** 系統自動切換至章節側欄中的下一個小節並開始播放 *(SC-012)*
+13. **Given** 影片播放結束並自動跳至下一小節, **When** 切換發生時, **Then** 原小節立即標記為已完成（樂觀更新 + 即時 POST，不等待 2 分鐘計時器）*(SC-013)*
+14. **Given** 目前小節為課程最後一個小節, **When** 影片播放完畢, **Then** 不發生任何跳轉，停留於原小節 *(SC-014)*
 
 ---
 
@@ -410,6 +414,10 @@
 - drip 課程存取 `/course/{id}/preview` 時回傳 404，不顯示試閱教室
 - 試閱教室不記錄任何 `lesson_progress`，完成勾勾按鈕不顯示，計時器不啟動
 - 試閱教室的返回連結指向課程販售頁（`/course/{id}`），而非「我的課程」頁
+- 影片播放結束後自動跳至下一小節：若下一小節無影片（純文字），仍正常切換並顯示文字內容
+- 免費試閱模式下，影片結束不觸發自動跳轉（下一小節可能為付費內容）
+- YouTube postMessage 監聽需在 embed URL 加入 `?enablejsapi=1`；Vimeo 需加入 `?api=1` 並於收到 `ready` 事件後訂閱 `finish`
+- 自動跳轉複用 `handleSelectLesson` 邏輯（Inertia partial reload），與手動點擊行為一致
 
 ## Requirements *(mandatory)*
 
@@ -429,6 +437,9 @@
 - **FR-006e**: 會員離開頁面時，未達 2 分鐘門檻的小節 MUST NOT 記錄為完成
 - **FR-007**: 小節如無影片，MUST 能顯示自定義 Markdown 內容
 - **FR-008**: 上課頁面 MUST 支援 RWD，手機版左欄可折疊
+- **FR-105**: 影片（Vimeo 或 YouTube）自然播放完畢時，系統 MUST 自動切換至章節側欄排序中的下一個小節
+- **FR-106**: 影片自然結束觸發跳轉時，系統 MUST 立即將當前小節標記為已完成（不受 2 分鐘節流限制）
+- **FR-107**: 若當前小節為課程最後一個小節，或處於免費試閱模式（`isFreePreview=true`），影片結束時 MUST NOT 執行自動跳轉
 
 **管理員後臺：**
 - **FR-009**: 系統 MUST 提供管理員後臺 (/admin)，僅 admin 角色可進入

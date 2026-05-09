@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   embedUrl: {
@@ -16,23 +16,67 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['ended'])
+const iframeRef = ref(null)
+let vimeoListening = false
+
 const iframeSrc = computed(() => {
   if (!props.embedUrl) return null
 
-  // Add autoplay and other params based on platform
   const url = new URL(props.embedUrl)
 
   if (props.platform === 'vimeo') {
     url.searchParams.set('autoplay', '1')
     url.searchParams.set('quality', 'auto')
     url.searchParams.set('texttrack', 'zh-TW')
+    url.searchParams.set('api', '1')
   } else if (props.platform === 'youtube') {
     url.searchParams.set('autoplay', '1')
     url.searchParams.set('rel', '0')
     url.searchParams.set('modestbranding', '1')
+    url.searchParams.set('enablejsapi', '1')
   }
 
   return url.toString()
+})
+
+const handleMessage = (event) => {
+  const iframe = iframeRef.value
+  if (!iframe || event.source !== iframe.contentWindow) return
+
+  let data
+  try {
+    data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+  } catch { return }
+
+  if (props.platform === 'vimeo') {
+    if (data.event === 'ready' && !vimeoListening) {
+      vimeoListening = true
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ method: 'addEventListener', value: 'finish' }),
+        'https://player.vimeo.com'
+      )
+    } else if (data.event === 'finish') {
+      emit('ended')
+    }
+  } else if (props.platform === 'youtube') {
+    if (data.event === 'onStateChange' && data.info === 0) {
+      emit('ended')
+    }
+  }
+}
+
+// Reset Vimeo listener flag when lesson changes so we re-subscribe on new iframe load
+watch(() => props.embedUrl, () => {
+  vimeoListening = false
+})
+
+onMounted(() => {
+  window.addEventListener('message', handleMessage)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('message', handleMessage)
 })
 </script>
 
@@ -40,6 +84,7 @@ const iframeSrc = computed(() => {
   <div class="relative w-full bg-black rounded-lg overflow-hidden" style="padding-top: 56.25%;">
     <iframe
       v-if="iframeSrc"
+      ref="iframeRef"
       :src="iframeSrc"
       :title="title"
       class="absolute inset-0 w-full h-full"

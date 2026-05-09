@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Purchase\FreePurchaseController;
@@ -31,9 +30,5 @@ Route::get('/checkout/order-status', function (\Illuminate\Http\Request $request
     return response()->json(['status' => $order?->status ?? 'not_found']);
 })->name('checkout.order-status');
 
-// 購物車結帳 (public — guest checkout supported)
-Route::post('/checkout/check-email', [CheckoutController::class, 'checkEmail'])
-    ->name('checkout.check-email');
-Route::post('/checkout/initiate', [CheckoutController::class, 'initiate'])
-    ->name('checkout.initiate');
+// 購物車結帳路由已移至 web.php（需要 session 讀取 UTM traffic_source）
 

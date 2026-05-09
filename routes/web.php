@@ -41,11 +41,19 @@ Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
-// Cart API — must live in web.php (session-based auth:web requires StartSession middleware)
-Route::prefix('api')->middleware('auth')->name('api.')->group(function () {
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
-    Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
+// Cart & Checkout API — must live in web.php (api middleware group has no StartSession;
+// checkout/initiate reads session('traffic_source') for UTM tracking)
+Route::prefix('api')->name('api.')->group(function () {
+    // Cart (auth required)
+    Route::middleware('auth')->group(function () {
+        Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+        Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
+        Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
+    });
+
+    // Checkout (public — guest checkout supported)
+    Route::post('/checkout/check-email', [CheckoutController::class, 'checkEmail'])->name('checkout.check-email');
+    Route::post('/checkout/initiate', [CheckoutController::class, 'initiate'])->name('checkout.initiate');
 });
 
 // PayUni ReturnURL — browser redirect after payment (needs web middleware for auth/session)

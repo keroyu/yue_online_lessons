@@ -160,8 +160,6 @@ const openPortaly = () => {
   }
 }
 
-// ── Legacy PayUni direct-initiate (preserved for YC-prefix orders only; cart flow uses /checkout) ──
-
 // ── Free enrollment ───────────────────────────────────────────────────────────
 const showFreeForm = ref(false)
 const freeFormEmail = ref(page.props.auth?.user?.email || '')
@@ -212,6 +210,13 @@ const topInfoVisible = ref(true)
 const bottomPurchaseVisible = ref(false)
 const showFloatingPanel = computed(() => !topInfoVisible.value && !bottomPurchaseVisible.value)
 const floatingCollapsed = ref(false)
+const floatingPanelVisible = computed(() =>
+  showFloatingPanel.value
+  && !props.isDrip
+  && !props.isPreviewMode
+  && (hasBuyAction.value || (isHighTicket.value && highTicketHidePrice.value))
+  && !props.hasPurchased,
+)
 
 let observer = null
 
@@ -915,10 +920,13 @@ const submitBooking = async () => {
         leave-active-class="transition-all duration-300"
         leave-from-class="translate-x-0 opacity-100"
         leave-to-class="translate-x-full opacity-0"
+        mode="out-in"
       >
         <!-- Collapsed tab -->
         <button
-          v-if="showFloatingPanel && !isDrip && !isPreviewMode && (hasBuyAction || (isHighTicket && highTicketHidePrice)) && !hasPurchased && floatingCollapsed"
+          v-if="floatingPanelVisible && floatingCollapsed"
+          key="floating-tab"
+          type="button"
           @click="floatingCollapsed = false"
           class="fixed right-0 bottom-24 z-40 flex flex-col items-center gap-1 bg-brand-gold text-brand-navy font-semibold text-xs px-2 py-3 rounded-l-xl shadow-lg border border-brand-gold-dark/40"
         >
@@ -927,23 +935,18 @@ const submitBooking = async () => {
           </svg>
           <span style="writing-mode:vertical-rl;letter-spacing:0.05em;">購買</span>
         </button>
-      </Transition>
-      <Transition
-        enter-active-class="transition-all duration-300"
-        enter-from-class="translate-x-full opacity-0"
-        enter-to-class="translate-x-0 opacity-100"
-        leave-active-class="transition-all duration-300"
-        leave-from-class="translate-x-0 opacity-100"
-        leave-to-class="translate-x-full opacity-0"
-      >
+
+        <!-- Expanded panel -->
         <div
-          v-if="showFloatingPanel && !isDrip && !isPreviewMode && (hasBuyAction || (isHighTicket && highTicketHidePrice)) && !hasPurchased && !floatingCollapsed"
+          v-else-if="floatingPanelVisible && !floatingCollapsed"
+          key="floating-panel"
           class="fixed right-4 bottom-6 z-40 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4"
         >
           <!-- Collapse button -->
           <button
+            type="button"
             @click="floatingCollapsed = true"
-            class="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            class="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors z-10"
             title="收合"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -994,6 +997,7 @@ const submitBooking = async () => {
                 前往購物車
               </Link>
               <button
+                type="button"
                 @click="handleBuyNow"
                 class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
               >
@@ -1002,6 +1006,7 @@ const submitBooking = async () => {
             </template>
             <button
               v-else
+              type="button"
               @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
             >

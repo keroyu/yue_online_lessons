@@ -51,6 +51,7 @@ main_files:
 - app/Http/Controllers/Admin/CourseImageController.php
 - app/Http/Controllers/Admin/DashboardController.php
 - app/Http/Controllers/Admin/LessonController.php
+- app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/CourseController.php
 - app/Http/Controllers/HomeController.php
 - app/Http/Controllers/Member/ClassroomController.php
@@ -60,12 +61,17 @@ main_files:
 - app/Models/CourseImage.php
 - app/Models/Lesson.php
 - app/Models/LessonProgress.php
+- app/Models/Order.php
 - app/Models/Purchase.php
+- app/Services/CheckoutService.php
+- database/migrations/2026_05_08_000001_add_utm_to_orders_table.php
 - resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Pages/Admin/
 - resources/js/Pages/Admin/Courses/Gallery.vue
+- resources/js/Pages/Admin/Courses/Index.vue
 - resources/js/Pages/Admin/Courses/Traffic.vue
 - resources/js/Pages/Course/
+- routes/web.php
 
 related_specs:
 - specs/002-classroom-admin/spec.md

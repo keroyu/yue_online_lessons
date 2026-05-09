@@ -207,7 +207,8 @@
         "app/Http/Controllers/Member/ClassroomController.php",
         "app/Http/Controllers/Member/LearningController.php",
         "app/Models/LessonProgress.php",
-        "resources/js/Pages/Course/"
+        "resources/js/Pages/Member/Classroom.vue",
+        "resources/js/Components/Classroom/VideoPlayer.vue"
       ],
       "status": "implemented"
     },

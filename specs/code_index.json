@@ -1,9 +1,11 @@
 {
   "files": {
     "app/Http/Controllers/Admin/ChapterController.php": [
+      "002.us-11",
       "002.us-3"
     ],
     "app/Http/Controllers/Admin/CourseController.php": [
+      "002.us-12",
       "002.us-2",
       "002.us-2a",
       "002.us-7",
@@ -56,8 +58,12 @@
     "app/Http/Controllers/Auth/LoginController.php": [
       "001.us-2"
     ],
+    "app/Http/Controllers/CheckoutController.php": [
+      "002.us-12"
+    ],
     "app/Http/Controllers/CourseController.php": [
       "001.us-5",
+      "002.us-12",
       "002.us-8",
       "008.us-2"
     ],
@@ -192,6 +198,9 @@
       "002.us-1a",
       "003.us-3"
     ],
+    "app/Models/Order.php": [
+      "002.us-12"
+    ],
     "app/Models/Purchase.php": [
       "001.us-3",
       "001.us-6",
@@ -218,6 +227,9 @@
     "app/Services/BlogRssService.php": [
       "007.us-3"
     ],
+    "app/Services/CheckoutService.php": [
+      "002.us-12"
+    ],
     "app/Services/HighTicketBookingService.php": [
       "008.us-3",
       "008.us-5"
@@ -237,6 +249,9 @@
     ],
     "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php": [
       "008.us-5"
+    ],
+    "database/migrations/2026_05_08_000001_add_utm_to_orders_table.php": [
+      "002.us-12"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "008.us-4"
@@ -272,6 +287,12 @@
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
       "002.us-4"
+    ],
+    "resources/js/Pages/Admin/Courses/Index.vue": [
+      "002.us-12"
+    ],
+    "resources/js/Pages/Admin/Courses/Traffic.vue": [
+      "002.us-12"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
       "008.us-4"
@@ -348,6 +369,7 @@
     ],
     "routes/web.php": [
       "001.us-7",
+      "002.us-12",
       "008.us-3",
       "008.us-6"
     ]

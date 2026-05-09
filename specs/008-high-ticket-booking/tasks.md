@@ -9,6 +9,7 @@
 **Updated**: 2026-05-02 - 補充實作：PayUni 分期提示、Email 模板列表標籤、通知新時段確認 modal（Phase 11）
 **Updated**: 2026-05-03 - Leads 搜尋/課程篩選、批次發郵件 modal、modal z-index 修復、PayUni drip bug 修復（Phase 12）
 **Updated**: 2026-05-03 - 序列信紀錄欄、「開通」功能、notifyTemplate bug fix（Phase 13）
+**Updated**: 2026-05-09 - 「開通」購買類型改為 lead_conversion、Purchase 模型補型別支援、前端顯示更新、filter hover 修正（Phase 14）
 
 ## Format: `[ID] [P?] [Story] Description`
 
