@@ -37,21 +37,23 @@ const vimeoSrc = computed(() => {
 })
 
 const handleVimeoMessage = (event) => {
-  const iframe = iframeRef.value
-  if (!iframe || event.source !== iframe.contentWindow) return
+  // Check origin instead of event.source: Vimeo uses nested iframes internally,
+  // so the ready event may arrive from a child frame, not iframeRef.contentWindow
+  if (!event.origin.includes('vimeo.com')) return
   let data
   try {
     data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
   } catch { return }
   if (data.event === 'ready' && !vimeoListening) {
     vimeoListening = true
-    iframe.contentWindow.postMessage(
+    const player = iframeRef.value?.contentWindow
+    if (!player) return
+    player.postMessage(
       JSON.stringify({ method: 'addEventListener', value: 'finish' }),
       'https://player.vimeo.com'
     )
-    // Programmatically enable zh-TW subtitle track (more reliable than texttrack= URL param)
-    iframe.contentWindow.postMessage(
-      JSON.stringify({ method: 'enableTextTrack', value: { language: 'zh-TW' } }),
+    player.postMessage(
+      JSON.stringify({ method: 'enableTextTrack', value: { language: 'zh-TW', kind: 'subtitles' } }),
       'https://player.vimeo.com'
     )
   } else if (data.event === 'finish') {
