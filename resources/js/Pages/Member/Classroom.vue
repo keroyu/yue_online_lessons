@@ -282,12 +282,12 @@ const allLessonsOrdered = computed(() => {
 
 // Auto-advance to next lesson when video ends
 const handleVideoEnded = () => {
-  if (!selectedLesson.value || props.isFreePreview) return
+  if (!selectedLesson.value) return
 
   const lesson = selectedLesson.value
 
-  // Mark current lesson complete optimistically (finished watching = done)
-  if (!lesson.is_completed && !localCompletedLessons.value.has(lesson.id)) {
+  // Mark current lesson complete immediately — only in authenticated classroom, not free preview
+  if (!props.isFreePreview && !lesson.is_completed && !localCompletedLessons.value.has(lesson.id)) {
     cancelLessonTimer(lesson.id)
     localCompletedLessons.value.add(lesson.id)
     updateLessonCompletion(lesson.id, true)
@@ -300,6 +300,7 @@ const handleVideoEnded = () => {
     }).catch(err => console.error('Failed to mark lesson complete:', err))
   }
 
+  // Navigate to next lesson; handleSelectLesson guards preview-locked lessons automatically
   const idx = allLessonsOrdered.value.findIndex(l => l.id === lesson.id)
   if (idx !== -1 && idx < allLessonsOrdered.value.length - 1) {
     handleSelectLesson(allLessonsOrdered.value[idx + 1])
