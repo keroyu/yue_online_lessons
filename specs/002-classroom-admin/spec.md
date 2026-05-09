@@ -34,6 +34,7 @@
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：課程管理列表新增「來源」按鈕，追蹤付款訂單的 UTM 來源與 HTTP Referrer；新增 FR-087~FR-094、SC-020~SC-022
 **Updated**: 2026-05-08 - US12 行銷強化：補齊 5 個 UTM 參數、3 個付費廣告 Click ID、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group 分類；新增 FR-095~FR-099、SC-023~SC-025
 **Updated**: 2026-05-08 - US12 規格修正：FR-091/AS3 補齊 7 欄；新增 FR-100（Last-touch 歸因）、FR-101（v-html XSS 防護）；FR-095 標準化空字串為 NULL；FR-099 補 Channel Group 優先序；SC-022 措辭明確化
+**Updated**: 2026-05-09 - US12 UI 增強：Traffic 頁新增 UTM 追蹤連結生成器（FR-102）與麵包屑導航（FR-103）；課程管理頁按鈕語意配色統一（灰=瀏覽、靛=管理、紫=分析、紅=刪除）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -564,6 +565,8 @@
   7. **(直接造訪)**：所有 9 個來源欄位皆為 NULL
 - **FR-100**: 來源歸因採 Last-touch 模型：訪客在同一 session 多次訪問課程販售頁時，後次訪問的 UTM / Click ID / Referer 資訊 MUST 完全覆蓋 session 中前次訪問的資料；session key 名稱固定為 `traffic_source`；session 不主動清除，使下次造訪的訊息能持續用於後續結帳行為（直至被新訪問覆蓋或 Laravel session lifetime 過期）
 - **FR-101**: 來源資訊（5 UTM、3 Click ID、referrer_domain）在 admin 統計頁與相關 UI 元件 MUST 透過 Vue `{{ }}` 文字插值渲染（自動 HTML escape）；MUST NOT 使用 `v-html` 指令，避免來源字串中潛在的 XSS payload 被執行
+- **FR-102**: 來源統計頁 MUST 提供 UTM 追蹤連結生成器工具，包含：(a) 平台快速預設按鈕（Threads / Instagram / Facebook / YouTube / EDM / LINE，各自填入 utm_source 與 utm_medium）；(b) 自訂欄位（utm_source、utm_medium、utm_campaign、utm_content）；(c) 即時預覽完整 URL（`course.url` + query string）；(d) 「複製連結」按鈕（成功後 2 秒綠色回饋）；utm_content 欄位 SHOULD 標示「區分不同貼文用這欄」提示文字
+- **FR-103**: 來源統計頁 MUST 顯示三層麵包屑導航（課程管理 › 課程名稱 › 連結來源追蹤），使用與 Gallery、Chapters 頁一致的導航樣式
 
 ### Key Entities
 

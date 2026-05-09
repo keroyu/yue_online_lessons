@@ -8,6 +8,7 @@
 **Updated**: 2026-03-08 - Vimeo 影片自動顯示 zh-TW CC 字幕 (Phase 24)
 **Updated**: 2026-03-10 - 補記 2026-03-08 實作：小節時長 M:SS 輸入 + 課程總時長自動計算 (Phase 34)
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
+**Updated**: 2026-05-09 - US12 Traffic 頁 UTM 生成器、麵包屑、課程管理按鈕配色；PayUni ATM cache TTL 修正（Phase 40）
 **Updated**: 2026-03-09 - US10 小節新增 Email 通知會員 (Phase 26)
 **Updated**: 2026-03-09 - 修正：通知觸發點從 ChapterController 改為 LessonController，排除 drip 課程 (Phase 27)
 **Updated**: 2026-03-09 - 精簡 Email 模板 HTML (Phase 28)

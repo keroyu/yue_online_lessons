@@ -10,6 +10,7 @@
 **Updated**: 2026-03-01 - 販售頁版面重設計（H1 移至影片上方、移除促銷區塊、h2 全寬深色標題）
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示優化（優惠價 NTD$）、按鈕樣式統一
 **Updated**: 2026-03-08 - 課程縮圖統一改為 16:9 比例
+**Updated**: 2026-05-09 - PayUni ATM cache TTL 從 2 小時延長至 8 天（FR-038 修正），避免 ATM 付款 webhook 到達時 cache 已過期；新增 FR-042（販售頁懸浮購買面板收合按鈕）
 **Updated**: 2026-03-09 - 新增課程 SEO 欄位（slug URL + meta_description）
 **Updated**: 2026-03-09 - 販售頁新增「免費試閱」按鈕，未購買訪客可另開視窗體驗教室介面
 **Updated**: 2026-03-09 - 我的課程頁面課程 card 等比例增大為約 500px 寬（最多 2 欄）
@@ -256,10 +257,11 @@
 - **FR-035**: 免費報名與 PayUni 付費 MUST 支援冪等處理（重複提交不重複建立購買紀錄）；已登入且已購買的用戶造訪販售頁時，購買按鈕 MUST 改為「前往學習」並導向 `/course/{id}/classroom`
 - **FR-036**: 用戶透過免費報名或 PayUni NotifyURL 回調提交的姓名/電話 MUST 更新用戶帳號資料（以最新填寫內容為準）
 - **FR-037**: PayUni 付款表單 MUST 要求填寫姓名和電話（必填欄位）；已登入用戶 MUST 從帳號資料預填姓名/電話
-- **FR-038**: PayUni 付款發起時，系統 MUST 將買家 email/姓名/電話 存入 Cache（key: `payuni_order_{merTradeNo}`），供 NotifyURL 回調讀取（因 PayUni NotifyURL 不回傳買家資訊）
+- **FR-038**: PayUni 付款發起時，系統 MUST 將買家 email/姓名/電話 存入 Cache（key: `payuni_order_{merTradeNo}`，TTL: **8 天**），供 NotifyURL 回調讀取（因 PayUni NotifyURL 不回傳買家資訊）；TTL 設為 8 天以涵蓋 ATM 轉帳最長 7 天到期的情境，避免 cache 在付款到達前過期
 - **FR-039**: PayUni ReturnURL MUST 使用 web 路由（含 session middleware），以正確識別已登入用戶並導向 `/member/learning`
 - **FR-040**: PayUni ReturnURL handler MUST 同時執行購買紀錄建立（冪等），以解決 ReturnURL 與 NotifyURL 的 race condition
 - **FR-041**: Inertia shared auth props MUST 包含 `real_name` 和 `phone`，供前端表單預填
+- **FR-042**: 課程販售頁懸浮購買面板 MUST 提供收合/展開功能：(a) 展開狀態：面板右上角顯示 `›` 收合按鈕，點擊後面板縮至右側邊緣；(b) 收合狀態：右側邊緣顯示金色小標籤「購買」帶左箭頭，點擊後重新展開完整面板；(c) 兩者皆有 slide-in/out 動畫；此功能讓行動裝置用戶在閱讀課程介紹時可臨時收合遮擋面板
 
 ### Key Entities
 

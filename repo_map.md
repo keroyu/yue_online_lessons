@@ -64,6 +64,7 @@ main_files:
 - resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Pages/Admin/
 - resources/js/Pages/Admin/Courses/Gallery.vue
+- resources/js/Pages/Admin/Courses/Traffic.vue
 - resources/js/Pages/Course/
 
 related_specs:

@@ -10,6 +10,7 @@
 **Updated**: 2026-03-09 - 課程 SEO 欄位：slug URL + meta_description
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕（FR-029, FR-030）
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大（Phase 18）
+**Updated**: 2026-05-09 - PayUni ATM cache TTL 修正（8 天）；販售頁懸浮面板新增收合/展開功能（FR-042）
 **Updated**: 2026-03-11 - 我的課程頁面未登入 client-side 防護（Phase 19）
 **Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式（Phase 20）
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（US7）與免費課程直接報名（US8）（Phase 21）

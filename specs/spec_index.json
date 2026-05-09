@@ -259,13 +259,34 @@
       "id": "002.us-12",
       "module": "002-classroom-admin",
       "title": "課程連結來源追蹤",
-      "summary": "",
+      "summary": "管理員追蹤課程付款訂單的 UTM 來源、Click ID、HTTP Referrer；後台統計頁含時間篩選、管道分類、CSV 匯出與 UTM 連結生成器",
       "heading": "### User Story 12 - 課程連結來源追蹤 (Priority: P2)",
       "file": "specs/002-classroom-admin/spec.md",
       "anchor": "user-story-12---課程連結來源追蹤-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "utm",
+        "traffic",
+        "source",
+        "tracking",
+        "來源追蹤",
+        "行銷",
+        "utm_source",
+        "referrer",
+        "gclid",
+        "fbclid"
+      ],
+      "code_files": [
+        "database/migrations/2026_05_08_000001_add_utm_to_orders_table.php",
+        "app/Models/Order.php",
+        "app/Http/Controllers/CourseController.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Services/CheckoutService.php",
+        "resources/js/Pages/Admin/Courses/Traffic.vue",
+        "resources/js/Pages/Admin/Courses/Index.vue",
+        "routes/web.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "002.us-1a",
