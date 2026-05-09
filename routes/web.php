@@ -16,8 +16,11 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageSettingController;
+use App\Http\Controllers\Admin\HomeworkController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SocialLinkController;
+use App\Http\Controllers\Member\AssignmentCommentController;
+use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DripSubscriptionController;
@@ -109,6 +112,14 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
 
     // Drip subscription (logged-in member one-click subscribe)
     Route::post('/drip/subscribe/{course}', [DripSubscriptionController::class, 'memberSubscribe'])->name('drip.subscribe');
+
+    // Assignment comments
+    Route::post('/classroom/{course}/assignment/{assignment}/comments', [AssignmentCommentController::class, 'store'])->name('comments.store');
+    Route::put('/classroom/{course}/assignment/{assignment}/comments/{comment}', [AssignmentCommentController::class, 'update'])->name('comments.update');
+    Route::delete('/classroom/{course}/assignment/{assignment}/comments/{comment}', [AssignmentCommentController::class, 'destroy'])->name('comments.destroy');
+
+    // Notifications
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 });
 
 // Admin routes (Admin only)
@@ -194,4 +205,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
     Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
+
+    // Homework / grading
+    Route::get('/homework', [HomeworkController::class, 'index'])->name('homework.index');
+    Route::post('/lessons/{lesson}/assignment', [HomeworkController::class, 'store'])->name('homework.store');
+    Route::put('/homework/{assignment}', [HomeworkController::class, 'update'])->name('homework.update');
+    Route::post('/homework/{assignment}/publish', [HomeworkController::class, 'publish'])->name('homework.publish');
+    Route::post('/homework/{assignment}/unpublish', [HomeworkController::class, 'unpublish'])->name('homework.unpublish');
+    Route::post('/homework/{assignment}/comments', [HomeworkController::class, 'storeComment'])->name('homework.comments.store');
+    Route::put('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'updateComment'])->name('homework.comments.update');
+    Route::delete('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'destroyComment'])->name('homework.comments.destroy');
+    Route::post('/homework/{assignment}/completions/{user}', [HomeworkController::class, 'markComplete'])->name('homework.completions.store');
 });

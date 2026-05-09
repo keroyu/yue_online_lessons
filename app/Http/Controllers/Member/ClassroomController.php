@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
@@ -10,6 +11,7 @@ use App\Services\DripService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -113,6 +115,24 @@ class ClassroomController extends Controller
             }
         }
 
+        $isFreePreview = false;
+        $assignment = null;
+        $assignmentComments = collect();
+        $isAssignmentCompleted = false;
+
+        if ($currentLesson) {
+            $assignment = $currentLesson->assignment()->published()->first();
+            if ($assignment && !$isFreePreview) {
+                $assignmentComments = $assignment->comments()
+                    ->where('user_id', $user->id)
+                    ->with('replies.user')
+                    ->get();
+                $isAssignmentCompleted = $assignment->completions()
+                    ->where('user_id', $user->id)
+                    ->exists();
+            }
+        }
+
         $pageProps = [
             'course' => [
                 'id' => $course->id,
@@ -121,7 +141,7 @@ class ClassroomController extends Controller
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,
-            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription) : null,
+            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription, $assignment, $assignmentComments, $isAssignmentCompleted) : null,
             'hasContent' => $allLessons->count() > 0,
         ];
 
@@ -316,8 +336,15 @@ class ClassroomController extends Controller
     /**
      * Format lesson with full content for display.
      */
-    private function formatLessonFull(Lesson $lesson, array $completedLessonIds, array $lessonUnlockMap = [], ?DripSubscription $dripSubscription = null): array
-    {
+    private function formatLessonFull(
+        Lesson $lesson,
+        array $completedLessonIds,
+        array $lessonUnlockMap = [],
+        ?DripSubscription $dripSubscription = null,
+        ?Assignment $assignment = null,
+        Collection $assignmentComments = new Collection(),
+        bool $isAssignmentCompleted = false,
+    ): array {
         $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id];
         $isConverted = $dripSubscription?->status === 'converted';
         $hasVideo = !empty($lesson->video_id);
@@ -348,6 +375,34 @@ class ClassroomController extends Controller
             'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $lesson->reward_html
                 : null,
+            'assignment' => $assignment ? [
+                'id' => $assignment->id,
+                'md_content' => $assignment->md_content,
+                'is_completed' => $isAssignmentCompleted,
+            ] : null,
+            'assignment_comments' => $assignmentComments->map(fn ($comment) => [
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'is_edited' => $comment->is_edited,
+                'created_at' => $comment->created_at,
+                'user' => [
+                    'id' => $comment->user_id,
+                    'nickname' => $comment->user?->nickname,
+                    'is_admin' => $comment->user?->isAdmin() ?? false,
+                ],
+                'replies' => $comment->replies->map(fn ($reply) => [
+                    'id' => $reply->id,
+                    'content' => $reply->content,
+                    'is_edited' => $reply->is_edited,
+                    'created_at' => $reply->created_at,
+                    'user' => [
+                        'id' => $reply->user_id,
+                        'nickname' => $reply->user?->nickname,
+                        'is_admin' => $reply->user?->isAdmin() ?? false,
+                    ],
+                    'replies' => [],
+                ])->values()->toArray(),
+            ])->values()->toArray(),
         ];
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Lesson extends Model
@@ -54,6 +55,11 @@ class Lesson extends Model
     public function progress(): HasMany
     {
         return $this->hasMany(LessonProgress::class);
+    }
+
+    public function assignment(): HasOne
+    {
+        return $this->hasOne(Assignment::class);
     }
 
     /**

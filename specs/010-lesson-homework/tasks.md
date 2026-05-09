@@ -17,7 +17,7 @@
 
 **Purpose**: 確認環境、branch、依賴均就緒，無需新建專案。
 
-- [ ] T001 確認已在 `010-lesson-homework` branch (`git checkout 010-lesson-homework`)
+- [X] T001 確認已在 `010-lesson-homework` branch (`git checkout 010-lesson-homework`)
 
 ---
 
@@ -29,24 +29,24 @@
 
 ### Migrations
 
-- [ ] T002 建立 `database/migrations/2026_05_10_000001_add_points_to_users_table.php`：`users` 加入 `points` unsignedInteger 欄位，預設 0
-- [ ] T003 [P] 建立 `database/migrations/2026_05_10_000002_create_assignments_table.php`：`id, lesson_id (unique FK), md_content text, is_published bool default true, timestamps`
-- [ ] T004 [P] 建立 `database/migrations/2026_05_10_000003_create_comments_table.php`：`id, assignment_id FK cascadeOnDelete, user_id FK cascadeOnDelete, parent_id nullable FK→comments cascadeOnDelete, content text, is_edited bool default false, timestamps`
-- [ ] T005 [P] 建立 `database/migrations/2026_05_10_000004_create_assignment_completions_table.php`：`id, assignment_id FK, user_id FK, created_at timestamp; UNIQUE(assignment_id, user_id)`（`$timestamps = false`）
-- [ ] T006 [P] 建立 `database/migrations/2026_05_10_000005_create_homework_notifications_table.php`：`id, user_id FK cascadeOnDelete, type enum('reply','completion'), course_name string, lesson_id FK cascadeOnDelete, is_read bool default false, timestamps`
-- [ ] T007 執行 `php artisan migrate`，確認 5 個 migration 順利執行
+- [X] T002 建立 `database/migrations/2026_05_10_000001_add_points_to_users_table.php`：`users` 加入 `points` unsignedInteger 欄位，預設 0
+- [X] T003 [P] 建立 `database/migrations/2026_05_10_000002_create_assignments_table.php`：`id, lesson_id (unique FK), md_content text, is_published bool default true, timestamps`
+- [X] T004 [P] 建立 `database/migrations/2026_05_10_000003_create_comments_table.php`：`id, assignment_id FK cascadeOnDelete, user_id FK cascadeOnDelete, parent_id nullable FK→comments cascadeOnDelete, content text, is_edited bool default false, timestamps`
+- [X] T005 [P] 建立 `database/migrations/2026_05_10_000004_create_assignment_completions_table.php`：`id, assignment_id FK, user_id FK, created_at timestamp; UNIQUE(assignment_id, user_id)`（`$timestamps = false`）
+- [X] T006 [P] 建立 `database/migrations/2026_05_10_000005_create_homework_notifications_table.php`：`id, user_id FK cascadeOnDelete, type enum('reply','completion'), course_name string, lesson_id FK cascadeOnDelete, is_read bool default false, timestamps`
+- [X] T007 執行 `php artisan migrate`，確認 5 個 migration 順利執行
 
 ### Models
 
-- [ ] T008 建立 `app/Models/Assignment.php`：`$fillable, casts(), lesson(), comments()（whereNull parent_id）, completions(), isCompletedBy(User), scopePublished()`
-- [ ] T009 [P] 建立 `app/Models/Comment.php`：`$fillable, casts(), user(), assignment(), parent(), replies()（orderBy created_at）, scopeTopLevel(), isOwnedBy(User)`
-- [ ] T010 [P] 建立 `app/Models/AssignmentCompletion.php`：`$timestamps = false; $fillable; boot()（static::creating → freshTimestamp）; assignment(), user()`（參照 `LessonProgress` 的 `boot()` 寫法）
-- [ ] T011 [P] 建立 `app/Models/HomeworkNotification.php`：`$table = 'homework_notifications'; $fillable; casts(); user(), lesson(); scopeForUser(), scopeUnread()`
+- [X] T008 建立 `app/Models/Assignment.php`：`$fillable, casts(), lesson(), comments()（whereNull parent_id）, completions(), isCompletedBy(User), scopePublished()`
+- [X] T009 [P] 建立 `app/Models/Comment.php`：`$fillable, casts(), user(), assignment(), parent(), replies()（orderBy created_at）, scopeTopLevel(), isOwnedBy(User)`
+- [X] T010 [P] 建立 `app/Models/AssignmentCompletion.php`：`$timestamps = false; $fillable; boot()（static::creating → freshTimestamp）; assignment(), user()`（參照 `LessonProgress` 的 `boot()` 寫法）
+- [X] T011 [P] 建立 `app/Models/HomeworkNotification.php`：`$table = 'homework_notifications'; $fillable; casts(); user(), lesson(); scopeForUser(), scopeUnread()`
 
 ### Existing Model Updates
 
-- [ ] T012 修改 `app/Models/User.php`：`$fillable` 加入 `'points'`；加入 `assignmentCompletions(): HasMany` 和 `homeworkNotifications(): HasMany`
-- [ ] T013 [P] 修改 `app/Models/Lesson.php`：加入 `assignment(): HasOne` 關聯
+- [X] T012 修改 `app/Models/User.php`：`$fillable` 加入 `'points'`；加入 `assignmentCompletions(): HasMany` 和 `homeworkNotifications(): HasMany`
+- [X] T013 [P] 修改 `app/Models/Lesson.php`：加入 `assignment(): HasOne` 關聯
 
 **Checkpoint**: `php artisan tinker` 確認 `Assignment::first()`, `Comment::first()`, `AssignmentCompletion::first()`, `HomeworkNotification::first()` 均可執行（回傳 null）；`User::first()->points` 為 0
 
@@ -58,8 +58,8 @@
 
 **Independent Test**: 後台 `/admin/homework` 顯示 sidebar 入口；為某小節建立題目，前往 `/member/classroom/{course}?lesson_id={id}` 確認作業區塊出現；下架後確認作業區塊完全消失。
 
-- [ ] T014 建立 `app/Http/Requests/Admin/AssignmentRequest.php`：驗證 `md_content`（required, string, max 50000）；store/update 共用同一 Request class
-- [ ] T015 建立 `app/Http/Controllers/Admin/HomeworkController.php`（初版）：
+- [X] T014 建立 `app/Http/Requests/Admin/AssignmentRequest.php`：驗證 `md_content`（required, string, max 50000）；store/update 共用同一 Request class
+- [X] T015 建立 `app/Http/Controllers/Admin/HomeworkController.php`（初版）：
   - `index(Request $request)` — 顯示所有課程/小節，預留 submissions 位置（Phase 5 補充）
   - `store(AssignmentRequest $request, Lesson $lesson)` — 建立 assignment（僅 create；若 `$lesson->assignment` 已存在，redirect back with error `'此小節已有作業題目，請使用編輯功能'`，不做 upsert）
   - `update(AssignmentRequest $request, Assignment $assignment)` — 更新題目
@@ -67,7 +67,7 @@
   - `unpublish(Assignment $assignment)` — `is_published = false`
   - 注入 `AssignmentService` constructor：`__construct(protected AssignmentService $assignmentService) {}`
   - **同時建立空的 `app/Services/AssignmentService.php` 存根**（僅含 `public function markComplete(): array { return []; }` 方法簽名），避免 Phase 3–8 期間 Laravel DI 拋 class not found；Phase 9 再填入完整實作
-- [ ] T016 修改 `routes/web.php`（admin group）：加入以下路由
+- [X] T016 修改 `routes/web.php`（admin group）：加入以下路由
   ```
   GET    /admin/homework                            admin.homework.index
   POST   /admin/lessons/{lesson}/assignment         admin.homework.store
@@ -75,8 +75,8 @@
   POST   /admin/homework/{assignment}/publish       admin.homework.publish
   POST   /admin/homework/{assignment}/unpublish     admin.homework.unpublish
   ```
-- [ ] T017 [P] 修改 `resources/js/Layouts/AdminLayout.vue`：在 navigation array 加入 `{ name: '作業批改專區', href: '/admin/homework', icon: '...' }`（書本或鉛筆 SVG icon）
-- [ ] T018 建立 `resources/js/Pages/Admin/Homework/Index.vue`（初版）：
+- [X] T017 [P] 修改 `resources/js/Layouts/AdminLayout.vue`：在 navigation array 加入 `{ name: '作業批改專區', href: '/admin/homework', icon: '...' }`（書本或鉛筆 SVG icon）
+- [X] T018 建立 `resources/js/Pages/Admin/Homework/Index.vue`（初版）：
   - 顯示課程/小節選擇器（下拉篩選）
   - 對尚無作業的小節顯示「新增題目」按鈕
   - Markdown 編輯器（textarea + 即時預覽 toggle，使用 `marked()`）
@@ -93,7 +93,7 @@
 
 **Independent Test**: 以學員帳號進入有作業的小節，確認題目區塊出現且 Markdown 正確渲染；送出作業，確認留言列表即時更新，Markdown 渲染正確；以試閱模式進入，確認作業區不顯示。
 
-- [ ] T019 修改 `app/Http/Controllers/Member/ClassroomController.php`：
+- [X] T019 修改 `app/Http/Controllers/Member/ClassroomController.php`：
   - `show()` 方法末尾，在 `formatLessonFull()` 呼叫前，查詢：
     - `$assignment = $currentLesson?->assignment()->published()->first()`
     - `$assignmentComments = ($assignment && !$isFreePreview) ? $assignment->comments()->where('user_id', $user->id)->with('replies.user')->get() : collect()`
@@ -101,29 +101,29 @@
   - 修改 `formatLessonFull()` 簽名：加入 `?Assignment $assignment = null, Collection $assignmentComments = ..., bool $isAssignmentCompleted = false`
   - `formatLessonFull()` 回傳陣列加入 `'assignment'` 和 `'assignment_comments'` 和 `'is_assignment_completed'` key
   - Preview 模式（`isFreePreview`）：`assignment` 永遠為 `null`
-- [ ] T020 建立 `app/Http/Requests/Member/StoreCommentRequest.php`：驗證 `content`（required, string, max 5000）；`parent_id`（nullable, exists:comments,id，且該 comment 的 assignment_id 必須匹配，且 parent 必須為頂層）
-- [ ] T021 建立 `app/Http/Controllers/Member/AssignmentCommentController.php`（初版，只含 `store`）：
+- [X] T020 建立 `app/Http/Requests/Member/StoreCommentRequest.php`：驗證 `content`（required, string, max 5000）；`parent_id`（nullable, exists:comments,id，且該 comment 的 assignment_id 必須匹配，且 parent 必須為頂層）
+- [X] T021 建立 `app/Http/Controllers/Member/AssignmentCommentController.php`（初版，只含 `store`）：
   - Route model binding: `Course, Assignment`
   - 授權：`$course->hasAccessForUser($user)`，確認 `$assignment->lesson->course_id === $course->id`
   - 確認 `$assignment->is_published`（已下架作業不接受新提交）
   - 建立 `Comment`，`redirect()->back()->with('success', '作業已提交')`
-- [ ] T022 修改 `routes/web.php`（member group）：加入
+- [X] T022 修改 `routes/web.php`（member group）：加入
   ```
   POST /member/classroom/{course}/assignment/{assignment}/comments   member.comments.store
   ```
-- [ ] T023 [P] 建立 `resources/js/Components/Classroom/AssignmentSection.vue`：
+- [X] T023 [P] 建立 `resources/js/Components/Classroom/AssignmentSection.vue`：
   - Props: `assignment`（含 `md_content`, `is_completed`）, `comments`（array）, `courseId`, `lessonId`
   - 作業題目區塊：獨立樣式容器（Tailwind prose utility classes），渲染 `###/####` 標題、清單、連結、blockquote、粗體
   - Markdown 題目用 `HtmlContent.vue` 渲染
   - 提交表單：textarea（Markdown 輸入），submit button，用 `router.post()` 提交
   - 顯示 `CommentThread` 元件（props 傳入 comments）
   - Phase 8 補充：is_completed badge（先佔位）
-- [ ] T024 [P] 建立 `resources/js/Components/Classroom/CommentThread.vue`（初版，只顯示，無 edit/delete）：
+- [X] T024 [P] 建立 `resources/js/Components/Classroom/CommentThread.vue`（初版，只顯示，無 edit/delete）：
   - Props: `comments`（array of top-level + replies）, `assignmentId`, `courseId`
   - 逐筆顯示 top-level comment（Markdown 渲染用 `marked()`），及其 replies
   - 顯示留言者 nickname、時間、`已編輯` badge（if `is_edited`）
   - 在 top-level comment 下方顯示 reply 表單（for 追加補充，parent_id = comment.id）
-- [ ] T025 修改 `resources/js/Pages/Member/Classroom.vue`：在 lesson content 後加入 `<AssignmentSection>` 元件，僅在 `currentLesson.assignment` 存在時渲染
+- [X] T025 修改 `resources/js/Pages/Member/Classroom.vue`：在 lesson content 後加入 `<AssignmentSection>` 元件，僅在 `currentLesson.assignment` 存在時渲染
 
 **Checkpoint**: 學員可看到題目且成功提交作業，試閱模式不顯示作業區
 
@@ -135,14 +135,14 @@
 
 **Independent Test**: 以管理員身份進入 `/admin/homework`，確認看到所有學員提交；篩選課程/小節後正確過濾；對一筆提交送出回覆，以學員帳號進入教室確認看到該回覆。
 
-- [ ] T026 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：
+- [X] T026 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：
   - `index()` 加入分頁提交列表邏輯：`Comment::topLevel()->with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])` 支援 course_id/lesson_id filter，`->paginate(20)`
   - `storeComment(Request $request, Assignment $assignment)` — 建立 admin 回覆（parent_id 必填），接著建立 `HomeworkNotification`（type='reply'）給被回覆的學員；被通知學員的 user_id 取法：`$parentComment = Comment::find($request->parent_id); $studentId = $parentComment->user_id;`；課程快照：`$course = $assignment->lesson->course; 'course_name' => $course->name, 'course_id' => $course->id, 'lesson_id' => $assignment->lesson_id`
-- [ ] T027 修改 `routes/web.php`（admin group）：加入
+- [X] T027 修改 `routes/web.php`（admin group）：加入
   ```
   POST /admin/homework/{assignment}/comments   admin.homework.comments.store
   ```
-- [ ] T028 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：
+- [X] T028 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：
   - 新增分頁提交列表（每頁 20 筆）
   - 每筆顯示：學員姓名、提交內容（Markdown 渲染）、時間
   - 每筆下方 inline 回覆表單（textarea + 送出按鈕，`router.post()`）
@@ -158,15 +158,15 @@
 
 **Independent Test**: 學員編輯一筆提交，確認顯示「已編輯」標記；刪除含老師回覆的提交，確認出現確認對話框，確認後留言連回覆一起消失。
 
-- [ ] T029 擴充 `app/Http/Controllers/Member/AssignmentCommentController.php`：加入
+- [X] T029 擴充 `app/Http/Controllers/Member/AssignmentCommentController.php`：加入
   - `update()` — 授權（isOwnedBy），更新 content + `is_edited = true`，redirect back
   - `destroy()` — 授權（isOwnedBy），delete（DB cascade 自動刪 replies），redirect back
-- [ ] T030 修改 `routes/web.php`（member group）：加入
+- [X] T030 修改 `routes/web.php`（member group）：加入
   ```
   PUT    /member/classroom/{course}/assignment/{assignment}/comments/{comment}   member.comments.update
   DELETE /member/classroom/{course}/assignment/{assignment}/comments/{comment}   member.comments.destroy
   ```
-- [ ] T031 [P] 擴充 `resources/js/Components/Classroom/CommentThread.vue`：
+- [X] T031 [P] 擴充 `resources/js/Components/Classroom/CommentThread.vue`：
   - 自己的留言顯示「編輯」、「刪除」按鈕（根據 `comment.user.id === auth.user.id` 判斷）
   - 編輯：inline textarea 取代原內容，儲存用 `router.put()`
   - 刪除：若 comment 有 replies，顯示確認 `window.confirm('刪除後老師批改也將消失，確認刪除？')`，再 `router.delete()`

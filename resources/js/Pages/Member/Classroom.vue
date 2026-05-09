@@ -6,6 +6,7 @@ import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
 import VideoAccessNotice from '@/Components/Classroom/VideoAccessNotice.vue'
+import AssignmentSection from '@/Components/Classroom/AssignmentSection.vue'
 
 // Completion threshold: 75% of lesson duration; fallback 2 min for lessons with no duration set
 const getCompletionThresholdMs = (lesson) => {
@@ -560,6 +561,15 @@ const handleVideoEnded = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
+
+            <!-- Assignment Section (authenticated, not free preview) -->
+            <AssignmentSection
+              v-if="!isFreePreview && selectedLesson.assignment"
+              :assignment="selectedLesson.assignment"
+              :comments="selectedLesson.assignment_comments || []"
+              :course-id="course.id"
+              :lesson-id="selectedLesson.id"
+            />
 
             <!-- Free Preview CTA -->
             <div v-if="isFreePreview" class="mt-8 p-6 bg-brand-cream rounded-xl border border-amber-200 text-center">

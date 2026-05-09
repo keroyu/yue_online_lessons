@@ -22,6 +22,7 @@ class User extends Authenticatable
         'phone',
         'birth_date',
         'role',
+        'points',
         'last_login_at',
         'last_login_ip',
     ];
@@ -69,6 +70,16 @@ class User extends Authenticatable
     public function lessonProgress(): HasMany
     {
         return $this->hasMany(LessonProgress::class);
+    }
+
+    public function assignmentCompletions(): HasMany
+    {
+        return $this->hasMany(AssignmentCompletion::class);
+    }
+
+    public function homeworkNotifications(): HasMany
+    {
+        return $this->hasMany(HomeworkNotification::class);
     }
 
     public function dripSubscriptions(): HasMany
