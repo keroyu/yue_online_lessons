@@ -250,6 +250,7 @@
         "免費"
       ],
       "code_files": [
+        "app/Http/Controllers/Admin/ChapterController.php",
         "app/Http/Controllers/Member/ClassroomController.php",
         "app/Models/Lesson.php"
       ],

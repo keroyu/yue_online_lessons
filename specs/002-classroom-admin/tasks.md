@@ -23,6 +23,7 @@
 **Updated**: 2026-04-06 - 刪除相簿圖片時自動清除 description_md 圖片引用 (Phase 38)
 **Updated**: 2026-04-06 - 修正批次上傳圖片排列順序（反序插入 + orderByDesc id）(Phase 39)
 **Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片（有序多選、順序 badge、空行分隔一次插入）(Phase 40)
+**Updated**: 2026-05-09 - Bug fix US11：ChapterController lesson mapping 補加 is_preview (Phase 41)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
