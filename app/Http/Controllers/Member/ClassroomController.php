@@ -286,6 +286,7 @@ class ClassroomController extends Controller
             'id' => $lesson->id,
             'title' => $lesson->title,
             'duration_formatted' => $lesson->duration_formatted,
+            'duration_seconds' => $lesson->duration_seconds,
             'has_video' => $lesson->has_video,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_preview' => $lesson->is_preview,

@@ -7,8 +7,13 @@ import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
 import VideoAccessNotice from '@/Components/Classroom/VideoAccessNotice.vue'
 
-// Throttling: 2-minute threshold before marking lesson as complete on server
-const COMPLETION_THRESHOLD_MS = 2 * 60 * 1000
+// Completion threshold: 75% of lesson duration; fallback 2 min for lessons with no duration set
+const getCompletionThresholdMs = (lesson) => {
+  if (lesson.duration_seconds && lesson.duration_seconds > 0) {
+    return Math.round(lesson.duration_seconds * 0.75 * 1000)
+  }
+  return 2 * 60 * 1000
+}
 
 const props = defineProps({
   course: {
@@ -193,7 +198,7 @@ const handleSelectLesson = async (lesson) => {
       } catch (error) {
         console.error('Failed to mark lesson complete:', error)
       }
-    }, COMPLETION_THRESHOLD_MS)
+    }, getCompletionThresholdMs(lesson))
   }
 
   // Close sidebar on mobile
@@ -260,7 +265,7 @@ const handleToggleComplete = async (lesson) => {
         } catch (error) {
           console.error('Failed to mark lesson complete:', error)
         }
-      }, COMPLETION_THRESHOLD_MS)
+      }, getCompletionThresholdMs(lesson))
     }
   }
 }
