@@ -269,6 +269,9 @@
       "007.us-3",
       "007.us-4"
     ],
+    "resources/js/Components/Classroom/VideoPlayer.vue": [
+      "002.us-1"
+    ],
     "resources/js/Components/ImportMembersModal.vue": [
       "003.us-10",
       "003.us-9"
@@ -331,7 +334,6 @@
     ],
     "resources/js/Pages/Course/": [
       "001.us-5",
-      "002.us-1",
       "002.us-2a",
       "002.us-2b"
     ],
@@ -356,6 +358,9 @@
     "resources/js/Pages/Member/": [
       "001.us-3",
       "001.us-4"
+    ],
+    "resources/js/Pages/Member/Classroom.vue": [
+      "002.us-1"
     ],
     "resources/views/emails/drip-lesson.blade.php": [
       "005.us-5"

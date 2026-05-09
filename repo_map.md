@@ -66,11 +66,13 @@ main_files:
 - app/Services/CheckoutService.php
 - database/migrations/2026_05_08_000001_add_utm_to_orders_table.php
 - resources/js/Components/Admin/ImageGalleryModal.vue
+- resources/js/Components/Classroom/VideoPlayer.vue
 - resources/js/Pages/Admin/
 - resources/js/Pages/Admin/Courses/Gallery.vue
 - resources/js/Pages/Admin/Courses/Index.vue
 - resources/js/Pages/Admin/Courses/Traffic.vue
 - resources/js/Pages/Course/
+- resources/js/Pages/Member/Classroom.vue
 - routes/web.php
 
 related_specs:
