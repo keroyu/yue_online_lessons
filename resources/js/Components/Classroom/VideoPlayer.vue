@@ -49,6 +49,11 @@ const handleVimeoMessage = (event) => {
       JSON.stringify({ method: 'addEventListener', value: 'finish' }),
       'https://player.vimeo.com'
     )
+    // Programmatically enable zh-TW subtitle track (more reliable than texttrack= URL param)
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ method: 'enableTextTrack', value: { language: 'zh-TW' } }),
+      'https://player.vimeo.com'
+    )
   } else if (data.event === 'finish') {
     emit('ended')
   }
