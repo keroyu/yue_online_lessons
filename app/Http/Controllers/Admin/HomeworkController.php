@@ -98,6 +98,7 @@ class HomeworkController extends Controller
                     ($a->chapter?->sort_order ?? 0) <=> ($b->chapter?->sort_order ?? 0)
                     ?: $a->sort_order <=> $b->sort_order
                 )
+                ->values()
                 ->map(fn ($l) => [
                     'id' => $l->id,
                     'title' => $l->title,
