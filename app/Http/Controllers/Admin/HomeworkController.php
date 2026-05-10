@@ -93,8 +93,11 @@ class HomeworkController extends Controller
         $allLessonsForCourse = $courseId
             ? Lesson::where('course_id', $courseId)
                 ->with('chapter:id,title,sort_order')
-                ->orderBy('sort_order')
                 ->get(['id', 'title', 'chapter_id', 'sort_order'])
+                ->sort(fn ($a, $b) =>
+                    ($a->chapter?->sort_order ?? 0) <=> ($b->chapter?->sort_order ?? 0)
+                    ?: $a->sort_order <=> $b->sort_order
+                )
                 ->map(fn ($l) => [
                     'id' => $l->id,
                     'title' => $l->title,
