@@ -564,6 +564,7 @@ const handleVideoEnded = () => {
             <!-- Video Player -->
             <div v-if="selectedLesson.has_video" class="mb-6">
               <VideoPlayer
+                :key="selectedLesson.id"
                 :embed-url="selectedLesson.embed_url"
                 :platform="selectedLesson.video_platform"
                 :title="selectedLesson.title"
