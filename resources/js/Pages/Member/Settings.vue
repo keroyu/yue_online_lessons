@@ -15,6 +15,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  completions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const form = useForm({
@@ -237,6 +241,45 @@ const getStatusClass = (order) => {
           </svg>
         </div>
         <p class="text-gray-500">尚無訂單紀錄</p>
+      </div>
+    </div>
+
+    <!-- Points & Homework Completions -->
+    <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-brand-navy">積分與作業完成記錄</h2>
+        <span class="text-2xl font-bold text-green-600">{{ user.points ?? 0 }} 分</span>
+      </div>
+
+      <div v-if="completions.length > 0" class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-gray-200">
+              <th class="text-left py-3 px-2 text-sm font-medium text-gray-500">完成時間</th>
+              <th class="text-left py-3 px-2 text-sm font-medium text-gray-500">課程</th>
+              <th class="text-left py-3 px-2 text-sm font-medium text-gray-500">小節</th>
+              <th class="text-right py-3 px-2 text-sm font-medium text-gray-500">積分</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(c, idx) in completions"
+              :key="idx"
+              class="border-b border-gray-100 hover:bg-gray-50"
+            >
+              <td class="py-3 px-2 text-sm text-gray-600 whitespace-nowrap">
+                {{ formatDate(c.completed_at) }}
+              </td>
+              <td class="py-3 px-2 text-sm text-gray-900">{{ c.course_name }}</td>
+              <td class="py-3 px-2 text-sm text-gray-700">{{ c.lesson_title }}</td>
+              <td class="py-3 px-2 text-sm text-right font-semibold text-green-600">+{{ c.points_awarded }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-else class="text-center py-8 text-gray-500 text-sm">
+        尚無完成記錄
       </div>
     </div>
   </div>

@@ -91,7 +91,7 @@ const deleteItem = (commentId, hasReplies) => {
 
 <template>
   <div class="mt-8 mb-[10px]">
-    <div class="rounded-lg bg-indigo-50 border border-indigo-100 overflow-hidden">
+    <div class="rounded-lg bg-white border border-indigo-100 overflow-hidden">
 
       <!-- ── Question ──────────────────────────────────────────────── -->
       <div class="px-6 pt-6 pb-5">
@@ -121,7 +121,7 @@ const deleteItem = (commentId, hasReplies) => {
       </div>
 
       <!-- ── Thread ────────────────────────────────────────────────── -->
-      <div v-if="comments.length > 0 && showThread" class="px-6 pb-4 space-y-3">
+      <div v-if="comments.length > 0 && showThread" class="bg-indigo-50 px-6 pt-[10px] pb-4 space-y-3">
         <template v-for="comment in comments" :key="comment.id">
 
           <!-- Student top-level submission -->
@@ -195,12 +195,12 @@ const deleteItem = (commentId, hasReplies) => {
       </div>
 
       <!-- ── Input ─────────────────────────────────────────────────── -->
-      <div v-show="showThread" class="px-6 py-5 border-t border-indigo-100">
+      <div v-show="showThread" class="bg-indigo-50 px-6 py-5 border-t border-indigo-100">
         <textarea
           v-model="inputContent"
           :rows="comments.length === 0 ? 5 : 3"
           :placeholder="comments.length === 0 ? placeholder : followUpPlaceholder"
-          class="w-full bg-white rounded-lg border border-indigo-100 px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
+          class="w-full bg-white border border-indigo-100 px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
         />
         <div class="mt-3 flex justify-end">
           <button

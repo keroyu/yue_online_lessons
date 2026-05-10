@@ -270,11 +270,9 @@ specs: specs/010-lesson-homework/
 main_files:
 - app/Http/Controllers/Admin/HomeworkController.php
 - app/Http/Controllers/Member/AssignmentCommentController.php
-- app/Http/Controllers/Member/NotificationController.php
 - app/Http/Requests/Member/StoreCommentRequest.php
 - app/Services/AssignmentService.php
 - resources/js/Components/Classroom/AssignmentSection.vue
-- resources/js/composables/useNotifications.js
 - resources/js/Pages/Admin/Homework/Index.vue
 
 related_specs:

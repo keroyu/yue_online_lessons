@@ -134,6 +134,16 @@ class MemberController extends Controller
                 ];
             });
 
+        $homeworkCompletions = $member->assignmentCompletions()
+            ->with('assignment.lesson.course')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($c) => [
+                'course_name' => $c->assignment->lesson->course->name,
+                'lesson_title' => $c->assignment->lesson->title,
+                'completed_at' => $c->created_at->toIso8601String(),
+            ]);
+
         return response()->json([
             'member' => [
                 'id' => $member->id,
@@ -145,8 +155,10 @@ class MemberController extends Controller
                 'last_login_ip' => $member->last_login_ip,
                 'last_login_at' => $member->last_login_at?->toIso8601String(),
                 'created_at' => $member->created_at->toIso8601String(),
+                'points' => $member->points,
             ],
             'courses' => $courses,
+            'homework_completions' => $homeworkCompletions,
         ]);
     }
 

@@ -33,6 +33,17 @@ class SettingsController extends Controller
                 ];
             });
 
+        $completions = $user->assignmentCompletions()
+            ->with('assignment.lesson.course')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($c) => [
+                'course_name' => $c->assignment->lesson->course->name,
+                'lesson_title' => $c->assignment->lesson->title,
+                'points_awarded' => 100,
+                'completed_at' => $c->created_at->toIso8601String(),
+            ]);
+
         return Inertia::render('Member/Settings', [
             'user' => [
                 'id' => $user->id,
@@ -41,8 +52,10 @@ class SettingsController extends Controller
                 'real_name' => $user->real_name,
                 'phone' => $user->phone,
                 'birth_date' => $user->birth_date?->format('Y-m-d'),
+                'points' => $user->points,
             ],
             'orders' => $orders,
+            'completions' => $completions,
         ]);
     }
 

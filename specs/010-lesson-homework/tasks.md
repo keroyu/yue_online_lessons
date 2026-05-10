@@ -1,6 +1,7 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-10 - Phase 9-11 完成：T041-T055 全部實作；AssignmentService.markComplete 積分+通知；Settings 積分頁；MemberDetailModal 作業完成記錄；測試通過
 **Updated**: 2026-05-10 - Phase 7-8 完成：T032-T040 全部實作；通知對所有登入者開放（移除 admin 限制）；Classroom.vue header 獨立加入通知鈴鐺 (Phase 12)
 **Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目白底、input 直角、留言間距 (Phase 11)
 **Updated**: 2026-05-10 - 作業區細節：展開/收合、Markdown 渲染修正（h1/h2 + 後台）、parent_id bug fix、色系 indigo (Phase 10)
@@ -239,7 +240,7 @@
 
 **Independent Test**: 管理員點擊「標記已完成」後：(1) 按鈕消失顯示「✓ 已完成」；(2) 學員積分 +100（`User::find($id)->points` 為 100）；(3) 學員有新的完成通知；(4) 嘗試再次標記 → 系統拒絕（422 / flash error）。
 
-- [ ] T041 填充 `app/Services/AssignmentService.php` 完整實作（存根已在 T015 建立）：
+- [X] T041 填充 `app/Services/AssignmentService.php` 完整實作（存根已在 T015 建立）：
   - `markComplete(User $student, Assignment $assignment): array`
   - 幂等檢查：`AssignmentCompletion::where(...)->exists()` → return `['success' => false, 'error' => '此學員的作業已標記為完成']`
   - 成功流程：`DB::transaction()` 包住：
@@ -248,13 +249,13 @@
     3. `HomeworkNotification::create(['user_id' => $student->id, 'type' => 'completion', 'course_name' => $course->name, 'course_id' => $course->id, 'lesson_id' => $assignment->lesson_id])`
   - 成功 return `['success' => true]`
   - 注入 constructor：`HomeworkController` 的 `__construct(protected AssignmentService $assignmentService) {}`
-- [ ] T042 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：
+- [X] T042 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：
   - `markComplete(Assignment $assignment, User $user)` — 呼叫 `$this->assignmentService->markComplete($user, $assignment)`，失敗 redirect back with errors，成功 redirect back with flash
-- [ ] T043 修改 `routes/web.php`（admin group）：加入
+- [X] T043 修改 `routes/web.php`（admin group）：加入
   ```
   POST /admin/homework/{assignment}/completions/{user}   admin.homework.completions.store
   ```
-- [ ] T044 [P] 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：
+- [X] T044 [P] 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：
   - 每位學員的提交區塊：若 `completion === null` 顯示「標記已完成」按鈕（`router.post()`）；若已完成顯示「✓ 已完成」標籤（綠色）及完成日期
 
 **Checkpoint**: 積分機制完整：單次+100，重複標記被擋，通知記錄建立
@@ -267,16 +268,16 @@
 
 **Independent Test**: 完成標記後：(1) `/member/settings` 顯示積分 100 和完成記錄；(2) 進入該小節教室，作業區右上角出現綠色勳章；(3) `/admin/members/{id}` 顯示該會員的完成記錄。
 
-- [ ] T045 修改 `app/Http/Controllers/Member/SettingsController.php`：
+- [X] T045 修改 `app/Http/Controllers/Member/SettingsController.php`：
   - `index()` 加入：
     - `'user' => [...existing..., 'points' => $user->points]`
     - `'completions'` prop：`$user->assignmentCompletions()->with('assignment.lesson.course')->orderByDesc('created_at')->get()` → map 成 `{course_name, lesson_title, points_awarded: 100, completed_at}`
-- [ ] T046 [P] 修改 `resources/js/Pages/Member/Settings.vue`：在訂單記錄區塊後加入「積分與作業完成記錄」區塊，顯示：積分總數（`user.points`）、完成記錄列表（課程名稱、小節名稱、+100、完成日期，新到舊）；無記錄時顯示「尚無完成記錄」
-- [ ] T047 修改 `resources/js/Components/Classroom/AssignmentSection.vue`：
+- [X] T046 [P] 修改 `resources/js/Pages/Member/Settings.vue`：在訂單記錄區塊後加入「積分與作業完成記錄」區塊，顯示：積分總數（`user.points`）、完成記錄列表（課程名稱、小節名稱、+100、完成日期，新到舊）；無記錄時顯示「尚無完成記錄」
+- [X] T047 修改 `resources/js/Components/Classroom/AssignmentSection.vue`：
   - 題目區塊右上角加入 `v-if="assignment.is_completed"` 的綠色打勾勳章（`✓` SVG 或 emoji），使用 Tailwind 定位（`absolute top-2 right-2`）
-- [ ] T048 修改 `app/Http/Controllers/Admin/MemberController.php`：
+- [X] T048 修改 `app/Http/Controllers/Admin/MemberController.php`：
   - `show()` 方法加入：`'homework_completions'`（完成記錄，含課程名、小節名、完成日期）和 `'points'`（member 的積分）
-- [ ] T049 [P] 修改 `resources/js/Pages/Admin/Members/Index.vue`：在會員詳情 modal 中加入「作業完成記錄」區塊，列出完成記錄與積分總計
+- [X] T049 [P] 修改 `resources/js/Pages/Admin/Members/Index.vue`：在會員詳情 modal 中加入「作業完成記錄」區塊，列出完成記錄與積分總計
 
 **Checkpoint**: 學員積分頁、勳章、後台會員完成記錄三處均正確顯示
 
@@ -287,9 +288,9 @@
 - [ ] T050 [P] 驗證 `AssignmentSection.vue` 的 Markdown 渲染：測試 `###` 標題、有序/無序清單、超連結、blockquote、粗體均正確渲染，且樣式不與課程內文 (`HtmlContent`) 混用
 - [ ] T051 [P] 邊界情境測試（手動）：下架作業後前台不顯示、重複 markComplete 被 422 擋回、學員試圖存取他人留言 API 回傳 403、已下架作業的通知點擊跳轉正常不報錯、**學員刪除含老師回覆的頂層提交 → `window.confirm` 對話框出現，確認後該提交與所有回覆均消失**
 - [ ] T052 分頁驗證：確認批改專區在提交量大時正確分頁（每頁 20 筆，第 2 頁可點）
-- [ ] T053 [P] 執行 `php artisan test` 確認無現有測試 regression
-- [ ] T054 [P] 更新 `repo_map.md`：執行 `python3 plugins/spec_index_plugin.py`，確認 010-lesson-homework 的新 code_files 被索引
-- [ ] T055 [P] N+1 查詢驗證：確認以下 eager loading 正確設置：(1) `ClassroomController::show()` 的 assignment comments 查詢使用 `with('replies.user')`；(2) `HomeworkController::index()` 使用 `with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])`；(3) `SettingsController::index()` 的 completions 使用 `with('assignment.lesson.course')`
+- [X] T053 [P] 執行 `php artisan test` 確認無現有測試 regression
+- [X] T054 [P] 更新 `repo_map.md`：執行 `python3 plugins/spec_index_plugin.py`，確認 010-lesson-homework 的新 code_files 被索引
+- [X] T055 [P] N+1 查詢驗證：確認以下 eager loading 正確設置：(1) `ClassroomController::show()` 的 assignment comments 查詢使用 `with('replies.user')`；(2) `HomeworkController::index()` 使用 `with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])`；(3) `SettingsController::index()` 的 completions 使用 `with('assignment.lesson.course')`
 
 ---
 

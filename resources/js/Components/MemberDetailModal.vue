@@ -22,6 +22,7 @@ const emit = defineEmits(['close'])
 const loading = ref(false)
 const member = ref(null)
 const courses = ref([])
+const homeworkCompletions = ref([])
 const error = ref(null)
 
 // Edit mode state
@@ -41,6 +42,7 @@ watch(() => [props.show, props.memberId], async ([show, memberId]) => {
     // Reset state when modal closes
     member.value = null
     courses.value = []
+    homeworkCompletions.value = []
     error.value = null
     editMode.value = false
     editErrors.value = {}
@@ -54,6 +56,7 @@ const fetchMemberDetails = async () => {
     const response = await axios.get(`/admin/members/${props.memberId}`)
     member.value = response.data.member
     courses.value = response.data.courses
+    homeworkCompletions.value = response.data.homework_completions ?? []
     // Initialize edit form with current values
     editForm.value = {
       nickname: member.value.nickname || '',
@@ -353,6 +356,38 @@ const handleBackdropClick = (e) => {
                         <span v-if="saving">儲存中...</span>
                         <span v-else>儲存</span>
                       </button>
+                    </div>
+                  </div>
+
+                  <!-- Points Section -->
+                  <div class="border-t border-gray-200 pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold text-gray-900">積分</h3>
+                      <span class="text-xl font-bold text-green-600">{{ member.points ?? 0 }} 分</span>
+                    </div>
+                  </div>
+
+                  <!-- Homework Completions Section -->
+                  <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">作業完成記錄</h3>
+                    <div v-if="homeworkCompletions.length === 0" class="text-center py-6 bg-gray-50 rounded-lg text-sm text-gray-500">
+                      尚無作業完成記錄
+                    </div>
+                    <div v-else class="space-y-2">
+                      <div
+                        v-for="(c, idx) in homeworkCompletions"
+                        :key="idx"
+                        class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 text-sm"
+                      >
+                        <div>
+                          <span class="font-medium text-gray-900">{{ c.lesson_title }}</span>
+                          <span class="text-gray-500 ml-1">— {{ c.course_name }}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-gray-400">
+                          <span class="font-semibold text-green-600">+100 分</span>
+                          <span>{{ formatDate(c.completed_at) }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
