@@ -1,6 +1,10 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-10 - 作業區細節：展開/收合、Markdown 渲染修正（h1/h2 + 後台）、parent_id bug fix、色系 indigo (Phase 10)
+**Updated**: 2026-05-10 - AssignmentSection.vue 重設計為統一卡片（氣泡對話 UX）(Phase 9)
+**Updated**: 2026-05-10 - 教室作業區移至影片正下方 (Phase 8)
+**Updated**: 2026-05-10 - UX 優化與 bug fix（章節分組、partial reload、分頁改 10 筆、flash 重複修復）(Phase 7)  
 **Input**: Design documents from `/specs/010-lesson-homework/`  
 **Tests**: No test tasks (spec does not request TDD)  
 **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)

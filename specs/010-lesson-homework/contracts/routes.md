@@ -1,7 +1,8 @@
 # API Contracts: 課程作業與批改系統 (010-lesson-homework)
 
 **Branch**: `010-lesson-homework`  
-**Date**: 2026-05-10
+**Date**: 2026-05-10  
+**Updated**: 2026-05-10 - 所有後台寫入操作及學員提交操作改為 Inertia partial reload；submissions 分頁改每頁 10 筆；lessons 回傳新增 chapter_id / chapter_title 欄位
 
 ---
 
@@ -232,11 +233,20 @@ Or for a reply:
     ],
     "current_page": 1,
     "last_page": 3,
-    "per_page": 20,
+    "per_page": 10,
     "total": 45
   },
   "courses": [{ "id": 3, "name": "Python 入門" }],
-  "filters": { "course_id": null, "lesson_id": null }
+  "filters": { "course_id": null, "lesson_id": null },
+  "lessons": [
+    {
+      "id": 42,
+      "title": "第一節：基礎概念",
+      "chapter_id": 5,
+      "chapter_title": "第一章：入門",
+      "chapter_sort_order": 1
+    }
+  ]
 }
 ```
 
@@ -256,7 +266,7 @@ When a student has been marked complete, `"completion"` contains:
 { "md_content": "## 本週作業\n\n..." }
 ```
 
-**Response**: Redirect to `admin.homework.index` with flash `['success' => '題目已建立']`.
+**Response**: `redirect()->back()` with flash `['success' => '題目已建立']`。前端使用 `only: ['assignmentsMap', 'flash']` partial reload，篩選狀態保留。
 
 ---
 

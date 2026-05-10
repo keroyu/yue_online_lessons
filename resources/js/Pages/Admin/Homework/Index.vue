@@ -4,6 +4,8 @@ import { router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { marked } from 'marked'
 
+defineOptions({ layout: AdminLayout })
+
 const props = defineProps({
   submissions: Object,
   courses: Array,
@@ -13,7 +15,6 @@ const props = defineProps({
 })
 
 const page = usePage()
-const flash = computed(() => page.props.flash)
 
 const selectedCourseId = ref(props.filters.course_id ?? '')
 const selectedLessonId = ref(props.filters.lesson_id ?? '')
@@ -42,15 +43,22 @@ const lessonsWithoutAssignment = computed(() => {
   return props.lessons.filter(l => !assignedLessonIds.has(l.id))
 })
 
-// Unified lesson table: all lessons for selected course, with assignment status merged in
-const lessonTableRows = computed(() => {
+// Group lessons by chapter, with assignment status merged in
+const lessonGroups = computed(() => {
   if (!selectedCourseId.value || !props.lessons.length) return []
   const assignedMap = Object.fromEntries(props.assignmentsMap.map(a => [a.lesson_id, a]))
-  return props.lessons.map((lesson, index) => ({
-    ...lesson,
-    ep: index + 1,
-    assignment: assignedMap[lesson.id] ?? null,
-  }))
+
+  const groups = []
+  let currentChapterId = undefined
+
+  for (const lesson of props.lessons) {
+    if (lesson.chapter_id !== currentChapterId) {
+      currentChapterId = lesson.chapter_id
+      groups.push({ chapterId: lesson.chapter_id, chapterTitle: lesson.chapter_title, lessons: [] })
+    }
+    groups.at(-1).lessons.push({ ...lesson, assignment: assignedMap[lesson.id] ?? null })
+  }
+  return groups
 })
 
 const openCreateForm = (lessonId) => {
@@ -109,6 +117,9 @@ const submitReply = (assignmentId, parentId) => {
     content: form.content,
     parent_id: parentId,
   }, {
+    only: ['submissions', 'flash'],
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => { form.content = ''; form.show = false },
   })
 }
@@ -124,201 +135,33 @@ const openEditComment = (comment) => {
 
 const submitEditComment = (assignmentId, commentId) => {
   router.put(`/admin/homework/${assignmentId}/comments/${commentId}`, editCommentForm.value, {
+    only: ['submissions', 'flash'],
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => { editingComment.value = null },
   })
 }
 
 const deleteComment = (assignmentId, commentId) => {
   if (!confirm('確定刪除此留言？')) return
-  router.delete(`/admin/homework/${assignmentId}/comments/${commentId}`)
+  router.delete(`/admin/homework/${assignmentId}/comments/${commentId}`, {
+    only: ['submissions', 'flash'],
+    preserveState: true,
+    preserveScroll: true,
+  })
 }
 
 const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+  <div class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">作業批改專區</h1>
       </div>
 
-      <!-- Flash -->
-      <div v-if="flash?.success" class="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-        {{ flash.success }}
-      </div>
-      <div v-if="flash?.error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-        {{ flash.error }}
-      </div>
-
-      <!-- Assignment Management Section -->
-      <div class="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
-          <h2 class="font-semibold text-gray-700">作業題目管理</h2>
-          <div class="flex items-center gap-2 ml-auto">
-            <label class="text-sm text-gray-500">篩選課程：</label>
-            <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-              <option value="">請選擇課程</option>
-              <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- No course selected -->
-        <div v-if="!selectedCourseId" class="px-6 py-10 text-center text-sm text-gray-400">
-          請先選擇課程，以管理各小節的作業題目
-        </div>
-
-        <!-- Lesson table -->
-        <div v-else-if="lessonTableRows.length">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
-                <th class="px-4 py-2.5 text-center w-16">EP</th>
-                <th class="px-4 py-2.5 text-left">小節標題</th>
-                <th class="px-4 py-2.5 text-center w-28">已完成學員</th>
-                <th class="px-4 py-2.5 text-right w-40">操作</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <template v-for="row in lessonTableRows" :key="row.id">
-                <!-- Main row -->
-                <tr class="hover:bg-gray-50 transition-colors">
-                  <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center justify-center w-8 h-6 rounded bg-gray-100 text-gray-600 text-xs font-mono font-medium">
-                      {{ row.ep }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class="font-medium text-gray-800">{{ row.title }}</span>
-                  </td>
-                  <td class="px-4 py-3 text-center">
-                    <span
-                      v-if="row.assignment"
-                      class="inline-flex items-center gap-1.5 text-sm font-semibold"
-                      :class="row.assignment.completions_count > 0 ? 'text-indigo-700' : 'text-gray-400'"
-                    >
-                      <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                      </svg>
-                      {{ row.assignment.completions_count }}
-                    </span>
-                    <span v-else class="text-xs text-gray-400">—</span>
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <!-- Has assignment -->
-                    <div v-if="row.assignment" class="flex items-center justify-end gap-2">
-                      <button
-                        class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
-                        @click="openEditForm(row.assignment)"
-                      >編輯</button>
-                      <span class="text-gray-300">|</span>
-                      <button
-                        v-if="row.assignment.is_published"
-                        class="text-xs text-orange-500 hover:text-orange-700 hover:underline"
-                        @click="router.post(`/admin/homework/${row.assignment.id}/unpublish`, {}, { only: ['assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
-                      >下架</button>
-                      <button
-                        v-else
-                        class="text-xs text-green-600 hover:text-green-800 hover:underline"
-                        @click="router.post(`/admin/homework/${row.assignment.id}/publish`, {}, { only: ['assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
-                      >上架</button>
-                    </div>
-                    <!-- No assignment -->
-                    <button
-                      v-else
-                      class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
-                      @click="openCreateForm(row.id)"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                      </svg>
-                      新增題目
-                    </button>
-                  </td>
-                </tr>
-
-                <!-- Inline edit form -->
-                <tr v-if="editingAssignment === row.assignment?.id" :key="`edit-${row.id}`">
-                  <td colspan="4" class="px-4 pb-4 pt-0 bg-indigo-50/40">
-                    <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
-                      <div class="flex items-center justify-between mb-3">
-                        <p class="text-sm font-semibold text-gray-800">編輯題目 — {{ row.title }}</p>
-                        <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
-                          <button
-                            class="text-xs px-3 py-1 rounded"
-                            :class="!editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'"
-                            @click="editPreview = false"
-                          >編輯</button>
-                          <button
-                            class="text-xs px-3 py-1 rounded"
-                            :class="editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'"
-                            @click="editPreview = true"
-                          >預覽</button>
-                        </div>
-                      </div>
-                      <textarea
-                        v-if="!editPreview"
-                        v-model="editForm.md_content"
-                        rows="8"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Markdown 格式..."
-                      />
-                      <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
-                      <div class="mt-3 flex gap-2">
-                        <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
-                        <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-
-                <!-- Inline create form -->
-                <tr v-if="showAssignmentForm === row.id" :key="`create-${row.id}`">
-                  <td colspan="4" class="px-4 pb-4 pt-0 bg-indigo-50/40">
-                    <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
-                      <div class="flex items-center justify-between mb-3">
-                        <p class="text-sm font-semibold text-gray-800">新增題目 — {{ row.title }}</p>
-                        <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
-                          <button
-                            class="text-xs px-3 py-1 rounded"
-                            :class="!previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'"
-                            @click="previewMode = false"
-                          >編輯</button>
-                          <button
-                            class="text-xs px-3 py-1 rounded"
-                            :class="previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'"
-                            @click="previewMode = true"
-                          >預覽</button>
-                        </div>
-                      </div>
-                      <textarea
-                        v-if="!previewMode"
-                        v-model="assignmentForm.md_content"
-                        rows="8"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Markdown 格式..."
-                      />
-                      <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
-                      <div class="mt-3 flex gap-2">
-                        <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitAssignment(row.id)">建立題目</button>
-                        <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="showAssignmentForm = null">取消</button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-else class="px-6 py-8 text-center text-sm text-gray-400">
-          此課程目前沒有小節
-        </div>
-      </div>
-
       <!-- Submissions List -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <h2 class="font-semibold text-gray-700">學員提交列表</h2>
           <div class="flex gap-2">
@@ -355,25 +198,25 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                 <span v-if="sub.completion" class="text-green-600 font-medium">✓ 已完成 {{ formatDate(sub.completion.created_at) }}</span>
                 <button
                   v-else
-                  class="text-xs bg-green-50 border border-green-200 text-green-700 px-2 py-1 rounded hover:bg-green-100"
-                  @click="router.post(`/admin/homework/${sub.assignment.id}/completions/${sub.user.id}`)"
+                  class="text-xs bg-green-50 border border-green-200 text-green-700 px-2 py-1 rounded hover:bg-green-100 hover:border-green-300 transition-colors"
+                  @click="router.post(`/admin/homework/${sub.assignment.id}/completions/${sub.user.id}`, {}, { only: ['submissions', 'assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
                 >標記已完成</button>
               </div>
             </div>
 
             <!-- Submission content -->
             <div v-if="editingComment !== sub.id">
-              <div class="prose prose-sm max-w-none bg-gray-50 border border-gray-100 rounded p-3" v-html="renderMd(sub.content)" />
-              <div class="mt-1 flex gap-2">
-                <button class="text-xs text-indigo-600 hover:underline" @click="openEditComment(sub)">編輯</button>
-                <button class="text-xs text-red-500 hover:underline" @click="deleteComment(sub.assignment.id, sub.id)">刪除</button>
+              <div class="assignment-content bg-gray-50 border border-gray-100 rounded p-3" v-html="renderMd(sub.content)" />
+              <div class="mt-1 flex gap-1">
+                <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(sub)">編輯</button>
+                <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, sub.id)">刪除</button>
               </div>
             </div>
             <div v-else class="mt-1">
               <textarea v-model="editCommentForm.content" rows="4" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
               <div class="mt-1 flex gap-2">
-                <button class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
-                <button class="text-sm text-gray-500 hover:underline" @click="editingComment = null">取消</button>
+                <button class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
+                <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
               </div>
             </div>
 
@@ -387,17 +230,17 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                   <span class="ml-auto">{{ formatDate(reply.created_at) }}</span>
                 </div>
                 <div v-if="editingComment !== reply.id">
-                  <div class="text-gray-700">{{ reply.content }}</div>
-                  <div class="mt-0.5 flex gap-2">
-                    <button class="text-xs text-indigo-600 hover:underline" @click="openEditComment(reply)">編輯</button>
-                    <button class="text-xs text-red-500 hover:underline" @click="deleteComment(sub.assignment.id, reply.id)">刪除</button>
+                  <div class="assignment-content" v-html="renderMd(reply.content)" />
+                  <div class="mt-0.5 flex gap-1">
+                    <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(reply)">編輯</button>
+                    <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, reply.id)">刪除</button>
                   </div>
                 </div>
                 <div v-else>
                   <textarea v-model="editCommentForm.content" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                   <div class="mt-1 flex gap-2">
-                    <button class="text-sm bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
-                    <button class="text-sm text-gray-500 hover:underline" @click="editingComment = null">取消</button>
+                    <button class="text-sm bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
+                    <button class="text-sm text-gray-500 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
                   </div>
                 </div>
               </div>
@@ -407,7 +250,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
             <div class="mt-3">
               <button
                 v-if="!getReplyForm(sub.id).show"
-                class="text-xs text-indigo-600 hover:underline"
+                class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
                 @click="getReplyForm(sub.id).show = true"
               >回覆批改</button>
               <div v-else class="mt-1">
@@ -419,10 +262,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                 />
                 <div class="mt-1 flex gap-2">
                   <button
-                    class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700"
+                    class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors"
                     @click="submitReply(sub.assignment.id, sub.id)"
                   >送出回覆</button>
-                  <button class="text-sm text-gray-500 hover:underline" @click="getReplyForm(sub.id).show = false">取消</button>
+                  <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="getReplyForm(sub.id).show = false">取消</button>
                 </div>
               </div>
             </div>
@@ -431,18 +274,168 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
         <!-- Pagination -->
         <div v-if="submissions.last_page > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm">
-          <span class="text-gray-500">共 {{ submissions.total }} 筆</span>
+          <span class="text-gray-500">第 {{ submissions.current_page }} / {{ submissions.last_page }} 頁，共 {{ submissions.total }} 筆</span>
           <div class="flex gap-1">
+            <button
+              :disabled="submissions.current_page === 1"
+              class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="router.get('/admin/homework', { ...filters, page: submissions.current_page - 1 }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
+            >‹</button>
             <button
               v-for="page in submissions.last_page"
               :key="page"
               class="px-3 py-1 rounded"
               :class="page === submissions.current_page ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-              @click="router.get('/admin/homework', { ...filters, page }, { preserveState: true })"
+              @click="router.get('/admin/homework', { ...filters, page }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
             >{{ page }}</button>
+            <button
+              :disabled="submissions.current_page === submissions.last_page"
+              class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="router.get('/admin/homework', { ...filters, page: submissions.current_page + 1 }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
+            >›</button>
           </div>
         </div>
       </div>
-    </div>
-  </AdminLayout>
+
+      <!-- Assignment Management Section -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
+          <h2 class="font-semibold text-gray-700">作業題目管理</h2>
+          <div class="flex items-center gap-2 ml-auto">
+            <label class="text-sm text-gray-500">篩選課程：</label>
+            <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="">請選擇課程</option>
+              <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- No course selected -->
+        <div v-if="!selectedCourseId" class="px-6 py-10 text-center text-sm text-gray-400">
+          請先選擇課程，以管理各小節的作業題目
+        </div>
+
+        <!-- Lesson table grouped by chapter -->
+        <div v-else-if="lessonGroups.length">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
+                <th class="px-4 py-2.5 text-left">小節標題</th>
+                <th class="px-4 py-2.5 text-center w-28">已完成學員</th>
+                <th class="px-4 py-2.5 text-right w-40">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="group in lessonGroups" :key="group.chapterId ?? 'standalone'">
+                <!-- Chapter header row -->
+                <tr class="bg-gray-50 border-y border-gray-200">
+                  <td colspan="3" class="px-4 py-2 text-xs font-semibold text-gray-500 tracking-wide">
+                    {{ group.chapterTitle ?? '獨立小節' }}
+                  </td>
+                </tr>
+                <!-- Lesson rows -->
+                <template v-for="row in group.lessons" :key="row.id">
+                  <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 pl-7">
+                      <span class="font-medium text-gray-800">{{ row.title }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span
+                        v-if="row.assignment"
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold"
+                        :class="row.assignment.completions_count > 0 ? 'text-indigo-700' : 'text-gray-400'"
+                      >
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                        {{ row.assignment.completions_count }}
+                      </span>
+                      <span v-else class="text-xs text-gray-400">—</span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <div v-if="row.assignment" class="flex items-center justify-end gap-2">
+                        <button
+                          class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                          @click="openEditForm(row.assignment)"
+                        >編輯</button>
+                        <button
+                          v-if="row.assignment.is_published"
+                          class="text-xs text-orange-600 border border-orange-200 bg-orange-50 px-2.5 py-1 rounded hover:bg-orange-100 hover:border-orange-300 transition-colors"
+                          @click="router.post(`/admin/homework/${row.assignment.id}/unpublish`, {}, { only: ['assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
+                        >下架</button>
+                        <button
+                          v-else
+                          class="text-xs text-green-700 border border-green-200 bg-green-50 px-2.5 py-1 rounded hover:bg-green-100 hover:border-green-300 transition-colors"
+                          @click="router.post(`/admin/homework/${row.assignment.id}/publish`, {}, { only: ['assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
+                        >上架</button>
+                      </div>
+                      <button
+                        v-else
+                        class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                        @click="openCreateForm(row.id)"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        新增題目
+                      </button>
+                    </td>
+                  </tr>
+
+                  <!-- Inline edit form -->
+                  <tr v-if="editingAssignment === row.assignment?.id" :key="`edit-${row.id}`">
+                    <td colspan="3" class="px-4 pb-4 pt-0 bg-indigo-50/40">
+                      <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                          <p class="text-sm font-semibold text-gray-800">編輯題目 — {{ row.title }}</p>
+                          <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
+                            <button class="text-xs px-3 py-1 rounded" :class="!editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="editPreview = false">編輯</button>
+                            <button class="text-xs px-3 py-1 rounded" :class="editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="editPreview = true">預覽</button>
+                          </div>
+                        </div>
+                        <textarea v-if="!editPreview" v-model="editForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Markdown 格式..." />
+                        <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
+                        <div class="mt-3 flex gap-2">
+                          <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
+                          <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Inline create form -->
+                  <tr v-if="showAssignmentForm === row.id" :key="`create-${row.id}`">
+                    <td colspan="3" class="px-4 pb-4 pt-0 bg-indigo-50/40">
+                      <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                          <p class="text-sm font-semibold text-gray-800">新增題目 — {{ row.title }}</p>
+                          <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
+                            <button class="text-xs px-3 py-1 rounded" :class="!previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="previewMode = false">編輯</button>
+                            <button class="text-xs px-3 py-1 rounded" :class="previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="previewMode = true">預覽</button>
+                          </div>
+                        </div>
+                        <textarea v-if="!previewMode" v-model="assignmentForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Markdown 格式..." />
+                        <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
+                        <div class="mt-3 flex gap-2">
+                          <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitAssignment(row.id)">建立題目</button>
+                          <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="showAssignmentForm = null">取消</button>
+                        </div>
+              </div>
+                    </td>
+                  </tr>
+                </template>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="px-6 py-8 text-center text-sm text-gray-400">
+          此課程目前沒有小節
+        </div>
+      </div>
+  </div>
 </template>
+
+<style scoped>
+button { cursor: pointer; }
+</style>

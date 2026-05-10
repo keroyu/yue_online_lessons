@@ -45,8 +45,10 @@ const submitReply = (parentId) => {
     content: form.content,
     parent_id: parentId,
   }, {
-    onSuccess: () => { form.content = ''; form.show = false },
+    only: ['currentLesson'],
+    preserveState: true,
     preserveScroll: true,
+    onSuccess: () => { form.content = ''; form.show = false },
   })
 }
 
@@ -61,14 +63,18 @@ const openEdit = (comment) => {
 
 const submitEdit = (commentId) => {
   router.put(`/member/classroom/${props.courseId}/assignment/${props.assignmentId}/comments/${commentId}`, editForm.value, {
-    onSuccess: () => { editingId.value = null },
+    only: ['currentLesson'],
+    preserveState: true,
     preserveScroll: true,
+    onSuccess: () => { editingId.value = null },
   })
 }
 
 const deleteComment = (commentId, hasReplies) => {
   if (hasReplies && !confirm('刪除後老師批改也將消失，確認刪除？')) return
   router.delete(`/member/classroom/${props.courseId}/assignment/${props.assignmentId}/comments/${commentId}`, {
+    only: ['currentLesson'],
+    preserveState: true,
     preserveScroll: true,
   })
 }

@@ -37,7 +37,7 @@ class HomeworkController extends Controller
             $query->whereHas('assignment.lesson', fn ($q) => $q->where('id', $lessonId));
         }
 
-        $submissions = $query->latest()->paginate(20)->through(function ($comment) {
+        $submissions = $query->latest()->paginate(10)->through(function ($comment) {
             $completion = $comment->assignment->completions
                 ->where('user_id', $comment->user_id)
                 ->first();
@@ -91,7 +91,17 @@ class HomeworkController extends Controller
             : collect();
 
         $allLessonsForCourse = $courseId
-            ? Lesson::where('course_id', $courseId)->orderBy('sort_order')->get(['id', 'title'])
+            ? Lesson::where('course_id', $courseId)
+                ->with('chapter:id,title,sort_order')
+                ->orderBy('sort_order')
+                ->get(['id', 'title', 'chapter_id', 'sort_order'])
+                ->map(fn ($l) => [
+                    'id' => $l->id,
+                    'title' => $l->title,
+                    'chapter_id' => $l->chapter_id,
+                    'chapter_title' => $l->chapter?->title,
+                    'chapter_sort_order' => $l->chapter?->sort_order ?? 0,
+                ])
             : collect();
 
         return Inertia::render('Admin/Homework/Index', [

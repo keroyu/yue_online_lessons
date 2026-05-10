@@ -260,3 +260,26 @@ related_specs:
 - specs/006-transactions-management/spec.md
 - specs/006-transactions-management/data-model.md
 - specs/006-transactions-management/contracts/transactions.md
+
+---
+
+## Lesson Homework & Grading (010)
+purpose: student homework submission (2-level thread), admin grading dashboard, mark-complete with +100 points, notification bell
+specs: specs/010-lesson-homework/
+
+main_files:
+- app/Http/Controllers/Admin/HomeworkController.php
+- app/Http/Controllers/Member/AssignmentCommentController.php
+- app/Http/Controllers/Member/NotificationController.php
+- app/Services/AssignmentService.php
+- app/Models/Assignment.php
+- app/Models/Comment.php
+- app/Models/AssignmentCompletion.php
+- app/Models/HomeworkNotification.php
+- resources/js/Components/Classroom/AssignmentSection.vue
+- resources/js/Pages/Admin/Homework/Index.vue
+
+related_specs:
+- specs/010-lesson-homework/spec.md
+- specs/010-lesson-homework/data-model.md
+- specs/010-lesson-homework/contracts/routes.md

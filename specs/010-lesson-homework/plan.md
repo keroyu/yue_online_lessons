@@ -1,6 +1,10 @@
 # Implementation Plan: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework` | **Date**: 2026-05-10 | **Spec**: [spec.md](./spec.md)  
+**Updated**: 2026-05-10 - 教室作業區移至影片正下方（課程文字之前）
+**Updated**: 2026-05-10 - 後台批改專區 UX 優化：章節分組顯示、提交列表置頂、每頁 10 筆分頁、partial reload for all admin actions；修復學員提交後頁面空白
+**Updated**: 2026-05-10 - AssignmentSection.vue 重設計：題目＋對話紀錄＋輸入框整合為統一卡片；不再使用 CommentThread.vue
+**Updated**: 2026-05-10 - 作業區細節完善：indigo 色系、展開/收合、Markdown h1/h2 樣式補完、parent_id bug fix、後台 Markdown 渲染
 **Input**: Feature specification from `/specs/010-lesson-homework/spec.md`
 
 ---

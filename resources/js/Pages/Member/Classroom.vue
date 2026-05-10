@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
@@ -57,6 +57,9 @@ const props = defineProps({
 
 // Current lesson state
 const selectedLesson = ref(props.currentLesson)
+watch(() => props.currentLesson, (newLesson) => {
+  if (newLesson) selectedLesson.value = newLesson
+})
 const sidebarOpen = ref(false)
 const desktopSidebarOpen = ref(true)
 
@@ -499,6 +502,15 @@ const handleVideoEnded = () => {
               />
             </div>
 
+            <!-- Assignment Section (right after video, before text content) -->
+            <AssignmentSection
+              v-if="!isFreePreview && selectedLesson.assignment"
+              :assignment="selectedLesson.assignment"
+              :comments="selectedLesson.assignment_comments || []"
+              :course-id="course.id"
+              :lesson-id="selectedLesson.id"
+            />
+
             <!-- Has video: Countdown → Promo → Content (strike while hot) -->
             <template v-if="selectedLesson.has_video">
               <!-- Video Access Notice (drip courses only) -->
@@ -561,15 +573,6 @@ const handleVideoEnded = () => {
               </svg>
               <p class="text-gray-500">此小節暫無內容</p>
             </div>
-
-            <!-- Assignment Section (authenticated, not free preview) -->
-            <AssignmentSection
-              v-if="!isFreePreview && selectedLesson.assignment"
-              :assignment="selectedLesson.assignment"
-              :comments="selectedLesson.assignment_comments || []"
-              :course-id="course.id"
-              :lesson-id="selectedLesson.id"
-            />
 
             <!-- Free Preview CTA -->
             <div v-if="isFreePreview" class="mt-8 p-6 bg-brand-cream rounded-xl border border-amber-200 text-center">

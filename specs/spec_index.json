@@ -1436,8 +1436,12 @@
       "file": "specs/010-lesson-homework/spec.md",
       "anchor": "user-story-1---學員提交作業-priority-p1",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "resources/js/Components/Classroom/AssignmentSection.vue",
+        "app/Http/Controllers/Member/AssignmentCommentController.php",
+        "app/Http/Requests/Member/StoreCommentRequest.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "010.us-2",
@@ -1448,8 +1452,11 @@
       "file": "specs/010-lesson-homework/spec.md",
       "anchor": "user-story-2---學員管理自己的提交記錄-priority-p2",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "resources/js/Components/Classroom/AssignmentSection.vue",
+        "app/Http/Controllers/Member/AssignmentCommentController.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "010.us-3",
@@ -1460,8 +1467,11 @@
       "file": "specs/010-lesson-homework/spec.md",
       "anchor": "user-story-3---管理員建立與管理作業題目-priority-p1",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/Admin/HomeworkController.php",
+        "resources/js/Pages/Admin/Homework/Index.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "010.us-4",
@@ -1472,8 +1482,12 @@
       "file": "specs/010-lesson-homework/spec.md",
       "anchor": "user-story-4---管理員批改學員作業-priority-p1",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/Admin/HomeworkController.php",
+        "resources/js/Pages/Admin/Homework/Index.vue",
+        "app/Services/AssignmentService.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "010.us-5",
@@ -1484,8 +1498,11 @@
       "file": "specs/010-lesson-homework/spec.md",
       "anchor": "user-story-5---管理員管理所有留言-priority-p2",
       "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "code_files": [
+        "app/Http/Controllers/Admin/HomeworkController.php",
+        "resources/js/Pages/Admin/Homework/Index.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "010.us-6",
