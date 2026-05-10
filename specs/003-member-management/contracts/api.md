@@ -6,6 +6,7 @@
 **Updated**: 2026-05-03 - 新增 GET /admin/members/export、POST /admin/members/import
 **Updated**: 2026-05-03 - POST /admin/members/import 回應新增 invalid_emails 陣列
 **Updated**: 2026-05-03 - POST /admin/members/import 擴充支援 rows[] 輸入（CSV 模式）；回應新增 phone_format_errors 陣列
+**Updated**: 2026-05-10 - POST /admin/members/import 新增可選 course_id 欄位；回應新增 assigned_count
 **Base Path**: `/admin/members`
 **Auth**: Requires admin role (middleware: `auth`, `admin`)
 
@@ -331,7 +332,8 @@ Two mutually exclusive input modes — detected by which parameter is present:
 
 ```typescript
 {
-  emails: string  // Raw text: one email per line, or comma-separated, or mixed
+  emails: string      // Raw text: one email per line, or comma-separated, or mixed
+  course_id?: number  // Optional; if set, grants course access to all valid emails
 }
 ```
 
@@ -344,6 +346,7 @@ Two mutually exclusive input modes — detected by which parameter is present:
     real_name?: string  // Optional; empty string accepted
     phone?: string      // Optional; Taiwan mobile (09XXXXXXXX) enforced if starts with 09
   }>
+  course_id?: number    // Optional; if set, grants course access to all valid emails
 }
 ```
 
@@ -362,12 +365,13 @@ Two mutually exclusive input modes — detected by which parameter is present:
 ```typescript
 {
   success: true
-  created_count: number       // New member accounts created
-  skipped_count: number       // Emails already in system (skipped)
-  invalid_count: number       // Emails that failed format validation
-  invalid_emails: string[]    // Full list of invalid email strings
+  created_count: number         // New member accounts created
+  skipped_count: number         // Emails already in system (skipped)
+  invalid_count: number         // Emails that failed format validation
+  invalid_emails: string[]      // Full list of invalid email strings
   phone_format_errors: string[] // Emails where phone was cleared (invalid Taiwan format); empty array in Mode A
-  message: string             // Human-readable summary in Chinese
+  assigned_count: number        // Course access grants created (0 if course_id not provided)
+  message: string               // Human-readable summary in Chinese
 }
 ```
 

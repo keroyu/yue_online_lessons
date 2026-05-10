@@ -8,6 +8,7 @@
 **Updated**: 2026-05-03 - US9 補強：無效 Email 清單列出（FR-040/041）；modal 保持開啟至使用者關閉後才 reload
 **Updated**: 2026-05-03 - 新增 US10 CSV 上傳匯入（FR-042～049a）；papaparse；importEmails() 擴充 rows[] 路徑
 **Updated**: 2026-05-03 - ImportMembersModal Teleport 修正（z-index）；CSV hint 改為表格 UI
+**Updated**: 2026-05-10 - 匯入時可選指派課程授權（lead_conversion）；grantCourse() helper；importFromRows() 接受可選 course_id
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 

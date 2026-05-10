@@ -11,6 +11,7 @@
 **Updated**: 2026-05-03 - US9 補強：無效 Email 清單顯示（FR-040、FR-041、Scenario 5-6 更新）
 **Updated**: 2026-05-03 - 新增 US10（匯入 modal 新增 CSV 上傳模式）；FR-042～048；SC-012
 **Updated**: 2026-05-03 - ImportMembersModal 修正 z-index（Teleport to body）；CSV 格式提示改為表格視覺
+**Updated**: 2026-05-10 - 匯入時可選擇指派課程授權（lead_conversion）；新增 FR-050～053；US9 Scenario 8、US10 Scenario 9；Edge Cases 補充
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -177,6 +178,7 @@ As an admin, I want to import a list of email addresses to create member account
 5. **Given** an email in the list is malformed (no "@" or invalid format), **When** the import runs, **Then** it is skipped; the result shows the count AND lists each invalid email so the admin can correct them.
 6. **Given** the import completes, **When** I see the result (still inside the modal), **Then** I see a summary showing: 新增會員數、略過（已存在）數、無效格式數; if any invalid emails exist, the full list is displayed below the summary. The modal stays open until I click "關閉".
 7. **Given** I submit an empty textarea, **When** I click confirm, **Then** the system shows a validation error and does not proceed.
+8. **Given** I select a course from the optional course assignment dropdown before confirming, **When** the import completes, **Then** all valid email addresses (both newly created and pre-existing accounts) that do not already own the course are granted access with `type=lead_conversion`; the result shows an additional "指派授權 X 位" segment and a blue info block.
 
 ---
 
@@ -198,6 +200,7 @@ As an admin, I want to upload a CSV file to import member accounts with full pro
 6. **Given** a CSV row has an invalid email format, **When** the import runs, **Then** that row is skipped and the invalid email is listed in the result the same way as the paste mode.
 7. **Given** I upload a CSV file with fewer than 3 columns, **When** the system parses it, **Then** I see an error: "CSV 格式錯誤：至少需要 3 欄（依序為 Email、姓名、電話）" and import is blocked.
 8. **Given** I upload a CSV file that contains only the header row and no data rows, **When** the system parses it, **Then** I see an error: "CSV 檔案不含任何資料列" and import is blocked.
+9. **Given** I select a course from the optional course assignment dropdown before confirming a CSV import, **When** the import completes, **Then** the same course grant logic as US9 Scenario 8 applies — both new and pre-existing accounts that do not already own the course receive access with `type=lead_conversion`.
 
 ---
 
@@ -220,6 +223,9 @@ As an admin, I want to upload a CSV file to import member accounts with full pro
 - What happens when a CSV row's email already exists and that row has updated name/phone data? Skip the row entirely — existing member data is never overwritten by import.
 - What happens when the user switches tabs (paste ↔ CSV) mid-flow? Each tab retains its own input state; switching tabs does not clear the other tab's content.
 - What happens when a CSV row's phone starts with "09" but has a digit count other than 10 (e.g., "091234567" = 9 digits)? Import the row with phone left empty; include the member's email in the import result's "電話格式有誤" list (FR-049a).
+- What happens when a course is selected for assignment but an email already exists in the system AND already owns the course? Account creation is skipped (counted as "略過") and the course grant is also skipped — neither `created_count` nor `assigned_count` is incremented for that user.
+- What happens when a course is selected for assignment and an email already exists in the system but does NOT own the course? Account creation is skipped (counted in "略過") but the course grant IS executed and counted in `assigned_count`.
+- What happens when no course is selected (dropdown left at "不指派課程")? Import behaves identically to the pre-FR-050 behaviour; `assigned_count` is 0 and no purchase records are created.
 - What happens when a CSV row's phone does not start with "09" (e.g., "+1-555-1234", "02-1234-5678")? Treat as international/non-mobile number, store as-is without format enforcement.
 
 ## Requirements *(mandatory)*
@@ -288,6 +294,10 @@ As an admin, I want to upload a CSV file to import member accounts with full pro
 - **FR-048**: If the uploaded CSV has fewer than 3 columns or contains no data rows after the header, the system MUST reject the file immediately with a descriptive error message and block import.
 - **FR-049**: When the 電話 field in a CSV row is non-empty, the system MUST validate it before storing: (a) strip leading/trailing whitespace; (b) if the value starts with "09" and is exactly 10 digits → valid Taiwan mobile, store the normalized digit-only value; (c) if the value starts with "09" but is NOT exactly 10 digits → invalid Taiwan mobile format, apply FR-049a; (d) if the value does not start with "09" → treat as international number, store without further validation. Empty 電話 values are always accepted.
 - **FR-049a**: When a CSV row's phone fails Taiwan mobile validation (FR-049c), the row MUST still be imported — the member account is created with email and 姓名 as normal, but the phone field is stored as empty. The import result summary MUST include a list of the affected members' emails so the admin can identify and correct the phone data afterwards.
+- **FR-050**: The import modal MUST display an optional course assignment dropdown ("指派課程授權（可選）") above the input tabs, populated with all courses. The default option MUST be "不指派課程" (no course assigned). The dropdown is only shown when at least one course exists.
+- **FR-051**: When a course is selected and the import runs, the system MUST attempt to grant access to that course for every valid email address in the input (both newly created accounts and pre-existing accounts). The grant MUST be skipped silently for any user who already holds a paid purchase for that course.
+- **FR-052**: Course access granted during import MUST be recorded as a `purchases` record with `type = 'lead_conversion'`, `status = 'paid'`, `amount = 0`. If a refunded purchase already exists for the same `(user_id, course_id)` pair, it MUST be updated via `updateOrCreate` rather than creating a duplicate row.
+- **FR-053**: The import result API response MUST include `assigned_count` (integer). The result summary displayed in the modal MUST append "指派授權 X 位" to the message when `assigned_count > 0`, and MUST show a distinct blue info block stating the count and source type ("顧問轉換").
 
 ### Key Entities
 
