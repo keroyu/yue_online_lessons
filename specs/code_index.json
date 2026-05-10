@@ -28,6 +28,11 @@
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
       "007.us-1"
     ],
+    "app/Http/Controllers/Admin/HomeworkController.php": [
+      "010.us-3",
+      "010.us-4",
+      "010.us-5"
+    ],
     "app/Http/Controllers/Admin/LessonController.php": [
       "002.us-10",
       "002.us-3",
@@ -85,6 +90,10 @@
       "007.us-3",
       "007.us-4"
     ],
+    "app/Http/Controllers/Member/AssignmentCommentController.php": [
+      "010.us-1",
+      "010.us-2"
+    ],
     "app/Http/Controllers/Member/ClassroomController.php": [
       "001.us-3",
       "002.us-1",
@@ -111,7 +120,8 @@
       "005.us-4"
     ],
     "app/Http/Middleware/HandleInertiaRequests.php": [
-      "001.us-7"
+      "001.us-7",
+      "010.us-6"
     ],
     "app/Http/Requests/Admin/EmailTemplateRequest.php": [
       "008.us-4"
@@ -133,6 +143,9 @@
     ],
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "007.us-2"
+    ],
+    "app/Http/Requests/Member/StoreCommentRequest.php": [
+      "010.us-1"
     ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
       "008.us-6"
@@ -224,6 +237,9 @@
     "app/Models/VerificationCode.php": [
       "001.us-2"
     ],
+    "app/Services/AssignmentService.php": [
+      "010.us-4"
+    ],
     "app/Services/BlogRssService.php": [
       "007.us-3"
     ],
@@ -269,6 +285,10 @@
       "007.us-3",
       "007.us-4"
     ],
+    "resources/js/Components/Classroom/AssignmentSection.vue": [
+      "010.us-1",
+      "010.us-2"
+    ],
     "resources/js/Components/Classroom/VideoPlayer.vue": [
       "002.us-1"
     ],
@@ -309,6 +329,11 @@
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
       "007.us-1",
       "007.us-2"
+    ],
+    "resources/js/Pages/Admin/Homework/Index.vue": [
+      "010.us-3",
+      "010.us-4",
+      "010.us-5"
     ],
     "resources/js/Pages/Admin/Member/": [
       "003.us-1",
@@ -360,7 +385,8 @@
       "001.us-4"
     ],
     "resources/js/Pages/Member/Classroom.vue": [
-      "002.us-1"
+      "002.us-1",
+      "010.us-6"
     ],
     "resources/views/emails/drip-lesson.blade.php": [
       "005.us-5"
@@ -377,6 +403,15 @@
       "002.us-12",
       "008.us-3",
       "008.us-6"
+    ],
+    "app/Http/Controllers/Member/NotificationController.php": [
+      "010.us-6"
+    ],
+    "resources/js/composables/useNotifications.js": [
+      "010.us-6"
+    ],
+    "resources/js/Components/Layout/Navigation.vue": [
+      "010.us-6"
     ]
   }
 }

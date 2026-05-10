@@ -4,7 +4,9 @@
 **Updated**: 2026-05-10 - 教室作業區移至影片正下方（課程文字之前）
 **Updated**: 2026-05-10 - 後台批改專區 UX 優化：章節分組顯示、提交列表置頂、每頁 10 筆分頁、partial reload for all admin actions；修復學員提交後頁面空白
 **Updated**: 2026-05-10 - AssignmentSection.vue 重設計：題目＋對話紀錄＋輸入框整合為統一卡片；不再使用 CommentThread.vue
+**Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目白底、回覆區 indigo-50、input 直角、留言卡片 pt-[10px] 間距
 **Updated**: 2026-05-10 - 作業區細節完善：indigo 色系、展開/收合、Markdown h1/h2 樣式補完、parent_id bug fix、後台 Markdown 渲染
+**Updated**: 2026-05-10 - Phase 7-8 完成：通知鈴鐺顯示層（HandleInertiaRequests shared props、useNotifications.js、Navigation.vue、Classroom.vue header）；通知對所有登入者開放（移除 admin 限制）
 **Input**: Feature specification from `/specs/010-lesson-homework/spec.md`
 
 ---

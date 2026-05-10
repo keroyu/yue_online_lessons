@@ -60,6 +60,28 @@ class HandleInertiaRequests extends Middleware
             'cartCount' => fn () => $request->user()
                 ? app(CartService::class)->count($request->user()->id)
                 : 0,
+            'notificationCount' => fn () => $request->user()
+                ? $request->user()->homeworkNotifications()->unread()->count()
+                : 0,
+            'notifications' => fn () => $request->user()
+                ? $request->user()->homeworkNotifications()
+                    ->latest()
+                    ->limit(5)
+                    ->get()
+                    ->map(fn ($n) => [
+                        'id'          => $n->id,
+                        'type'        => $n->type,
+                        'course_name' => $n->course_name,
+                        'course_id'   => $n->course_id,
+                        'lesson_id'   => $n->lesson_id,
+                        'is_read'     => $n->is_read,
+                        'message'     => $n->type === 'reply'
+                            ? "老師已批改《{$n->course_name}》的作業"
+                            : "《{$n->course_name}》作業已完成，積分 +100",
+                        'created_at'  => $n->created_at,
+                    ])
+                    ->toArray()
+                : [],
         ];
     }
 }

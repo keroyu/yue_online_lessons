@@ -1,6 +1,8 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-10 - Phase 7-8 完成：T032-T040 全部實作；通知對所有登入者開放（移除 admin 限制）；Classroom.vue header 獨立加入通知鈴鐺 (Phase 12)
+**Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目白底、input 直角、留言間距 (Phase 11)
 **Updated**: 2026-05-10 - 作業區細節：展開/收合、Markdown 渲染修正（h1/h2 + 後台）、parent_id bug fix、色系 indigo (Phase 10)
 **Updated**: 2026-05-10 - AssignmentSection.vue 重設計為統一卡片（氣泡對話 UX）(Phase 9)
 **Updated**: 2026-05-10 - 教室作業區移至影片正下方 (Phase 8)
@@ -185,15 +187,15 @@
 
 **Independent Test**: 以管理員身份在批改專區找到一筆學員留言，編輯後確認顯示「已編輯」；刪除頂層提交後確認連同回覆一起消失。
 
-- [ ] T032 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：加入
+- [X] T032 擴充 `app/Http/Controllers/Admin/HomeworkController.php`：加入
   - `updateComment(Request $request, Assignment $assignment, Comment $comment)` — 無 ownership 限制，更新 content + `is_edited = true`
   - `destroyComment(Assignment $assignment, Comment $comment)` — 無 ownership 限制，delete（cascade）
-- [ ] T033 修改 `routes/web.php`（admin group）：加入
+- [X] T033 修改 `routes/web.php`（admin group）：加入
   ```
   PUT    /admin/homework/{assignment}/comments/{comment}   admin.homework.comments.update
   DELETE /admin/homework/{assignment}/comments/{comment}   admin.homework.comments.destroy
   ```
-- [ ] T034 [P] 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：每筆留言（含回覆）顯示管理員專用「編輯」「刪除」按鈕，操作邏輯同學員端但呼叫 admin 路由
+- [X] T034 [P] 擴充 `resources/js/Pages/Admin/Homework/Index.vue`：每筆留言（含回覆）顯示管理員專用「編輯」「刪除」按鈕，操作邏輯同學員端但呼叫 admin 路由
 
 **Checkpoint**: 管理員可編輯、刪除任意留言
 
@@ -207,25 +209,25 @@
 
 > **Note**: `HomeworkNotification` 記錄已在 Phase 5（admin 回覆時）建立，此階段只需實作顯示層。
 
-- [ ] T035 修改 `app/Http/Middleware/HandleInertiaRequests.php`：在 `share()` 加入兩個 lazy closures（緊接 `cartCount` 後）：
+- [X] T035 修改 `app/Http/Middleware/HandleInertiaRequests.php`：在 `share()` 加入兩個 lazy closures（緊接 `cartCount` 後）：
   - `'notificationCount'`：非管理員登入者的未讀通知數
   - `'notifications'`：最近 5 筆，map 成含 `id, type, course_name, course_id, lesson_id, is_read, message, created_at` 的 array（message 由 type 決定文字格式；`course_id` 供點擊跳轉用）
-- [ ] T036 建立 `app/Http/Controllers/Member/NotificationController.php`：
+- [X] T036 建立 `app/Http/Controllers/Member/NotificationController.php`：
   - `markRead(HomeworkNotification $notification)` — 授權 ownership，`$notification->update(['is_read' => true])`，redirect back
-- [ ] T037 修改 `routes/web.php`（member group）：加入
+- [X] T037 修改 `routes/web.php`（member group）：加入
   ```
   POST /member/notifications/{notification}/read   member.notifications.read
   ```
-- [ ] T038 [P] 建立 `resources/js/composables/useNotifications.js`（參照 `useCart.js` 架構）：
+- [X] T038 [P] 建立 `resources/js/composables/useNotifications.js`（參照 `useCart.js` 架構）：
   - module-scoped `ref` for `notificationCount` 和 `notifications`
   - `watch(() => page.props.notificationCount, ...)` 和 `watch(() => page.props.notifications, ...)` 監聽 navigation 更新
   - export `markRead(id)` 函式：`router.post(route('member.notifications.read', id))` 後 Inertia reload 自動刷新 shared props
-- [ ] T039 [P] 修改 `resources/js/Components/Layout/Navigation.vue`（Desktop）：
+- [X] T039 [P] 修改 `resources/js/Components/Layout/Navigation.vue`（Desktop）：
   - `user && !user.isAdmin` 時在購物車圖示旁顯示鈴鐺圖示
   - 未讀數 > 0 顯示紅點 badge（同購物車 badge 樣式）
   - 點擊展開 dropdown：列出最多 5 則通知，每則顯示 message + 時間；空則顯示「目前沒有通知」
   - 點擊通知：呼叫 `markRead(id)` 後用 `router.visit(route('member.classroom.show', { course: notification.course_id }) + '?lesson_id=' + notification.lesson_id)` 跳轉（`course_id` 已包含在 shared props notification 物件中）
-- [ ] T040 修改 `resources/js/Components/Layout/Navigation.vue`（Mobile menu）：加入通知未讀數提示（簡化為文字「通知（N）」連結，點擊展開與 desktop 相同的通知 dropdown；或用 `v-show` 切換同一個通知列表元件，不需獨立頁面）
+- [X] T040 修改 `resources/js/Components/Layout/Navigation.vue`（Mobile menu）：加入通知未讀數提示（簡化為文字「通知（N）」連結，點擊展開與 desktop 相同的通知 dropdown；或用 `v-show` 切換同一個通知列表元件，不需獨立頁面）
 
 **Checkpoint**: 管理員回覆後學員下次進入任意頁面可看到通知紅點；點擊通知後紅點消失
 

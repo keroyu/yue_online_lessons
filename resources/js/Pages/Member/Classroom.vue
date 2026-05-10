@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { useNotifications } from '@/composables/useNotifications'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
@@ -62,6 +63,24 @@ watch(() => props.currentLesson, (newLesson) => {
 })
 const sidebarOpen = ref(false)
 const desktopSidebarOpen = ref(true)
+const notificationOpen = ref(false)
+
+const { notificationCount, notifications, markRead } = useNotifications()
+
+const goToNotification = (notification) => {
+  notificationOpen.value = false
+  const dest = `/member/classroom/${notification.course_id}?lesson_id=${notification.lesson_id}`
+  if (!notification.is_read) {
+    markRead(notification.id, { onSuccess: () => router.visit(dest) })
+  } else {
+    router.visit(dest)
+  }
+}
+
+const formatNotificationTime = (d) => {
+  if (!d) return ''
+  return new Date(d).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 // Throttling state
 const completionTimers = ref({}) // Track setTimeout handles per lesson ID
@@ -358,6 +377,56 @@ const handleVideoEnded = () => {
           </a>
 
           <h1 class="font-semibold text-gray-900 truncate">{{ course.name }}</h1>
+        </div>
+
+        <!-- Notification bell -->
+        <div v-if="!isFreePreview" class="relative flex-shrink-0">
+          <button
+            class="relative p-2 text-gray-500 hover:text-gray-700 transition-colors"
+            @click="notificationOpen = !notificationOpen"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span
+              v-if="notificationCount > 0"
+              class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold"
+            >
+              {{ notificationCount > 9 ? '9+' : notificationCount }}
+            </span>
+          </button>
+
+          <!-- Dropdown -->
+          <div v-show="notificationOpen" class="absolute right-0 top-full mt-1 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+              <span class="text-sm font-semibold text-gray-700">作業通知</span>
+              <button class="text-xs text-gray-400 hover:text-gray-600" @click="notificationOpen = false">關閉</button>
+            </div>
+            <div v-if="notifications.length === 0" class="px-4 py-6 text-center text-sm text-gray-400">
+              目前沒有通知
+            </div>
+            <ul v-else class="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+              <li
+                v-for="n in notifications"
+                :key="n.id"
+                class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                :class="!n.is_read ? 'bg-indigo-50/60' : ''"
+                @click="goToNotification(n)"
+              >
+                <div class="flex items-start gap-2">
+                  <span v-if="!n.is_read" class="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-indigo-500" />
+                  <span v-else class="mt-1.5 flex-shrink-0 h-2 w-2" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm text-gray-800 leading-snug">{{ n.message }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ formatNotificationTime(n.created_at) }}</p>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Click-outside backdrop -->
+          <div v-if="notificationOpen" class="fixed inset-0 z-40" @click="notificationOpen = false" />
         </div>
       </div>
     </header>

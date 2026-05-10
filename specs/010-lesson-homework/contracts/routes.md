@@ -3,6 +3,7 @@
 **Branch**: `010-lesson-homework`  
 **Date**: 2026-05-10  
 **Updated**: 2026-05-10 - 所有後台寫入操作及學員提交操作改為 Inertia partial reload；submissions 分頁改每頁 10 筆；lessons 回傳新增 chapter_id / chapter_title 欄位
+**Updated**: 2026-05-10 - Phase 8：notificationCount / notifications 加入 HandleInertiaRequests shared props（所有登入者可見，不限角色）；useNotifications composable 新增；bell 同時實作於 Navigation.vue 及 Classroom.vue header
 
 ---
 
