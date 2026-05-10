@@ -1,6 +1,7 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-10 - fix：作業題目管理排序 bug（chapter → lesson 雙層排序）(Phase 12)
 **Updated**: 2026-05-10 - Phase 9-11 完成：T041-T055 全部實作；AssignmentService.markComplete 積分+通知；Settings 積分頁；MemberDetailModal 作業完成記錄；測試通過
 **Updated**: 2026-05-10 - Phase 7-8 完成：T032-T040 全部實作；通知對所有登入者開放（移除 admin 限制）；Classroom.vue header 獨立加入通知鈴鐺 (Phase 12)
 **Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目白底、input 直角、留言間距 (Phase 11)

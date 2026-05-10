@@ -6,6 +6,7 @@
 **Updated**: 2026-05-10 - 教室頁面作業區移至影片正下方（課程文字之前）
 **Updated**: 2026-05-10 - 後台批改專區 UX 優化：題目管理表格改為章節分組、提交列表移至頂部並加分頁（每頁 10 筆）、所有後台操作改為 Inertia partial reload；修復學員提交後頁面空白問題
 **Updated**: 2026-05-10 - 學員作業區 UX 重設計：題目、對話紀錄、輸入框整合為單一統一卡片；學員/講師留言以氣泡視覺區分
+**Updated**: 2026-05-10 - fix：作業題目管理列表改為依 Chapter sort_order → Lesson sort_order 排序（原本只按 lesson.sort_order 導致 Phase 交錯）
 **Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目區改白底、回覆區保留 indigo-50、input 改直角、留言卡片上方補 10px 間距
 **Updated**: 2026-05-10 - Phase 7-8 實作：通知鈴鐺顯示層完成（useNotifications composable、Navigation.vue、Classroom.vue header）；移除 admin 通知限制，所有登入者均可見鈴鐺；bell 在 Classroom 自有 header 內獨立實作
 **Updated**: 2026-05-10 - 作業區細節完善：討論串預設收合（展開回答按鈕）、Markdown 正確渲染（前後台）、學員追問一律為頂層、色系改 indigo/navy、講師 bubble 左縮 100px
