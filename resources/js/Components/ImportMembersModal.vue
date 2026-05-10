@@ -5,9 +5,14 @@ import Papa from 'papaparse'
 
 const axios = window.axios
 
+const props = defineProps({
+  courses: { type: Array, default: () => [] },
+})
+
 const emit = defineEmits(['close'])
 
 const activeTab = ref('text')
+const selectedCourseId = ref('')
 
 // Text tab state
 const emailsText = ref('')
@@ -32,6 +37,7 @@ const handleImport = async () => {
   try {
     const response = await axios.post('/admin/members/import', {
       emails: emailsText.value,
+      course_id: selectedCourseId.value || null,
     })
     result.value = response.data
   } catch (err) {
@@ -103,7 +109,10 @@ const handleCsvImport = async () => {
   }))
 
   try {
-    const response = await axios.post('/admin/members/import', { rows })
+    const response = await axios.post('/admin/members/import', {
+      rows,
+      course_id: selectedCourseId.value || null,
+    })
     result.value = response.data
   } catch (err) {
     if (err.response?.data?.errors?.rows) {
@@ -162,6 +171,11 @@ const handleClose = () => {
             </div>
           </div>
 
+          <!-- Course assigned count -->
+          <div v-if="result?.assigned_count > 0" class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <p class="text-sm text-indigo-800">已指派課程授權給 {{ result.assigned_count }} 位會員（來源：顧問轉換）</p>
+          </div>
+
           <!-- Invalid emails list -->
           <div v-if="result?.invalid_emails?.length > 0" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p class="text-sm font-medium text-yellow-800 mb-1">無效格式 Email（{{ result.invalid_emails.length }} 個）</p>
@@ -185,6 +199,22 @@ const handleClose = () => {
 
           <!-- Input tabs (hidden after result) -->
           <div v-if="!result">
+            <!-- Course assignment (optional) -->
+            <div v-if="courses.length > 0" class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">指派課程授權（可選）</label>
+              <select
+                v-model="selectedCourseId"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                :disabled="importing"
+              >
+                <option value="">不指派課程</option>
+                <option v-for="course in courses" :key="course.id" :value="course.id">
+                  {{ course.name }}
+                </option>
+              </select>
+              <p v-if="selectedCourseId" class="text-xs text-gray-400 mt-1">來源將記錄為「顧問轉換」；已持有者自動略過</p>
+            </div>
+
             <!-- Tab buttons -->
             <div class="flex border-b border-gray-200 mb-4">
               <button

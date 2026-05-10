@@ -450,8 +450,10 @@ class MemberController extends Controller
      */
     public function importEmails(Request $request): JsonResponse
     {
+        $courseId = $request->integer('course_id') ?: null;
+
         if ($request->has('rows')) {
-            return $this->importFromRows($request->input('rows', []));
+            return $this->importFromRows($request->input('rows', []), $courseId);
         }
 
         $request->validate([
@@ -477,6 +479,7 @@ class MemberController extends Controller
         $skippedCount = 0;
         $invalidCount = 0;
         $invalidEmails = [];
+        $assignedCount = 0;
 
         foreach ($emails as $email) {
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -487,19 +490,22 @@ class MemberController extends Controller
 
             $email = strtolower($email);
 
-            if (User::where('email', $email)->exists()) {
+            $user = User::where('email', $email)->first();
+            if ($user) {
                 $skippedCount++;
-                continue;
+            } else {
+                $user = User::create([
+                    'email' => $email,
+                    'nickname' => Str::before($email, '@'),
+                    'role' => 'member',
+                    'email_verified_at' => now(),
+                ]);
+                $createdCount++;
             }
 
-            User::create([
-                'email' => $email,
-                'nickname' => Str::before($email, '@'),
-                'role' => 'member',
-                'email_verified_at' => now(),
-            ]);
-
-            $createdCount++;
+            if ($courseId && $this->grantCourse($user, $courseId)) {
+                $assignedCount++;
+            }
         }
 
         $parts = ["新增 {$createdCount} 位會員"];
@@ -509,6 +515,9 @@ class MemberController extends Controller
         if ($invalidCount > 0) {
             $parts[] = "無效格式 {$invalidCount} 個";
         }
+        if ($assignedCount > 0) {
+            $parts[] = "指派授權 {$assignedCount} 位";
+        }
 
         return response()->json([
             'success' => true,
@@ -517,6 +526,7 @@ class MemberController extends Controller
             'invalid_count' => $invalidCount,
             'invalid_emails' => $invalidEmails,
             'phone_format_errors' => [],
+            'assigned_count' => $assignedCount,
             'message' => implode('，', $parts),
         ]);
     }
@@ -525,7 +535,7 @@ class MemberController extends Controller
      * Import members from CSV rows sent as a JSON array.
      * Each row: { email, real_name, phone }
      */
-    private function importFromRows(array $rows): JsonResponse
+    private function importFromRows(array $rows, ?int $courseId = null): JsonResponse
     {
         if (empty($rows)) {
             return response()->json([
@@ -538,6 +548,7 @@ class MemberController extends Controller
         $invalidCount = 0;
         $invalidEmails = [];
         $phoneFormatErrors = [];
+        $assignedCount = 0;
 
         foreach ($rows as $row) {
             $email = trim($row['email'] ?? '');
@@ -552,23 +563,26 @@ class MemberController extends Controller
 
             $email = strtolower($email);
 
-            if (User::where('email', $email)->exists()) {
+            $user = User::where('email', $email)->first();
+            if ($user) {
                 $skippedCount++;
-                continue;
+            } else {
+                $phone = $this->normalizePhone(trim($row['phone'] ?? ''), $email, $phoneFormatErrors);
+
+                $user = User::create([
+                    'email' => $email,
+                    'nickname' => Str::before($email, '@'),
+                    'real_name' => trim($row['real_name'] ?? ''),
+                    'phone' => $phone,
+                    'role' => 'member',
+                    'email_verified_at' => now(),
+                ]);
+                $createdCount++;
             }
 
-            $phone = $this->normalizePhone(trim($row['phone'] ?? ''), $email, $phoneFormatErrors);
-
-            User::create([
-                'email' => $email,
-                'nickname' => Str::before($email, '@'),
-                'real_name' => trim($row['real_name'] ?? ''),
-                'phone' => $phone,
-                'role' => 'member',
-                'email_verified_at' => now(),
-            ]);
-
-            $createdCount++;
+            if ($courseId && $this->grantCourse($user, $courseId)) {
+                $assignedCount++;
+            }
         }
 
         $parts = ["新增 {$createdCount} 位會員"];
@@ -581,6 +595,9 @@ class MemberController extends Controller
         if (count($phoneFormatErrors) > 0) {
             $parts[] = '電話格式有誤 ' . count($phoneFormatErrors) . ' 筆';
         }
+        if ($assignedCount > 0) {
+            $parts[] = "指派授權 {$assignedCount} 位";
+        }
 
         return response()->json([
             'success' => true,
@@ -589,8 +606,37 @@ class MemberController extends Controller
             'invalid_count' => $invalidCount,
             'invalid_emails' => $invalidEmails,
             'phone_format_errors' => $phoneFormatErrors,
+            'assigned_count' => $assignedCount,
             'message' => implode('，', $parts),
         ]);
+    }
+
+    /**
+     * Grant course access to a user as lead_conversion. Returns false if already owned.
+     */
+    private function grantCourse(User $user, int $courseId): bool
+    {
+        $alreadyOwns = Purchase::where('user_id', $user->id)
+            ->where('course_id', $courseId)
+            ->paidStatus()
+            ->exists();
+
+        if ($alreadyOwns) {
+            return false;
+        }
+
+        Purchase::updateOrCreate(
+            ['user_id' => $user->id, 'course_id' => $courseId],
+            [
+                'buyer_email' => $user->email ?? '',
+                'amount' => 0,
+                'currency' => 'TWD',
+                'status' => 'paid',
+                'type' => 'lead_conversion',
+            ]
+        );
+
+        return true;
     }
 
     /**

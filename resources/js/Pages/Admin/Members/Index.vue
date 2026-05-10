@@ -925,6 +925,7 @@ const doExport = (scope) => {
     <!-- Import Members Modal -->
     <ImportMembersModal
       v-if="showImportModal"
+      :courses="courses"
       @close="closeImportModal"
     />
 </template>
