@@ -93,9 +93,13 @@ const loadYouTubeApi = () => {
 
 const initYouTubePlayer = async () => {
   if (!ytVideoId.value) return
+  // If player already exists, just swap the video — don't destroy/recreate.
+  // YT.Player() replaces the container div with an iframe, so after the first
+  // init ytContainer.value is detached; calling destroy() + new YT.Player()
+  // would mount the new player on a detached element (invisible).
   if (ytPlayer) {
-    ytPlayer.destroy()
-    ytPlayer = null
+    ytPlayer.loadVideoById(ytVideoId.value)
+    return
   }
   const YT = await loadYouTubeApi()
   if (!ytContainer.value) return // unmounted while awaiting

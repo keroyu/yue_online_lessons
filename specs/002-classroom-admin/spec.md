@@ -37,6 +37,7 @@
 **Updated**: 2026-05-09 - US12 UTM 追蹤 bug 修正：POST /api/checkout/initiate 改移至 routes/web.php（api middleware 不含 StartSession 導致 session 永遠為空）；新增 FR-104；新增 CheckoutTrafficSourceTest 覆蓋完整 UTM 流程
 **Updated**: 2026-05-09 - US12 UI 增強：Traffic 頁新增 UTM 追蹤連結生成器（FR-102）與麵包屑導航（FR-103）；課程管理頁按鈕語意配色統一（灰=瀏覽、靛=管理、紫=分析、紅=刪除）
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController 回傳 lesson 資料時漏傳 `is_preview` 欄位，導致重新編輯小節時試閱設定遺失
+**Updated**: 2026-05-10 - Bug fix US1：YouTube 切換小節時播放器卡住 — 改用 loadVideoById() 取代 destroy+recreate；新增 FR-108、SC-015
 **Updated**: 2026-05-09 - US1 影片播放結束自動跳至下一小節（Vimeo/YouTube postMessage API）；新增 FR-105~FR-107、SC-012~SC-014、Edge Cases
 
 ## User Scenarios & Testing *(mandatory)*
@@ -65,6 +66,7 @@
 12. **Given** 會員在上課頁面觀看有影片的小節（Vimeo 或 YouTube）, **When** 影片自然播放完畢, **Then** 系統自動切換至章節側欄中的下一個小節並開始播放 *(SC-012)*
 13. **Given** 影片播放結束並自動跳至下一小節, **When** 切換發生時, **Then** 原小節立即標記為已完成（樂觀更新 + 即時 POST，不等待 2 分鐘計時器）*(SC-013)*
 14. **Given** 目前小節為課程最後一個小節, **When** 影片播放完畢, **Then** 不發生任何跳轉，停留於原小節 *(SC-014)*
+15. **Given** 會員在含 YouTube 影片的課程中，連續點擊多個不同小節, **When** 切換發生時, **Then** YouTube 播放器 MUST 正確播放新小節的影片（不卡在前一個小節）*(SC-015)*
 
 ---
 
@@ -440,6 +442,7 @@
 - **FR-105**: 影片（Vimeo 或 YouTube）自然播放完畢時，系統 MUST 自動切換至章節側欄排序中的下一個小節
 - **FR-106**: 影片自然結束觸發跳轉時，系統 MUST 立即將當前小節標記為已完成（不受 2 分鐘節流限制）
 - **FR-107**: 若當前小節為課程最後一個小節，或處於免費試閱模式（`isFreePreview=true`），影片結束時 MUST NOT 執行自動跳轉
+- **FR-108**: YouTube 播放器切換小節時，MUST 使用 `ytPlayer.loadVideoById()` 換片，MUST NOT 呼叫 `ytPlayer.destroy()` 再重建。原因：`YT.Player()` 初始化後會將 container `<div>` 置換為 `<iframe>`（Vue ref 指向已脫離 DOM 的舊 div），若 destroy 後再 `new YT.Player(ytContainer.value, ...)` 將在 detached element 建立不可見的播放器。
 
 **管理員後臺：**
 - **FR-009**: 系統 MUST 提供管理員後臺 (/admin)，僅 admin 角色可進入
