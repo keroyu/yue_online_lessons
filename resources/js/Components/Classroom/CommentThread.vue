@@ -21,7 +21,7 @@ const props = defineProps({
 const page = usePage()
 const authUser = () => page.props.auth?.user
 
-const renderMd = (md) => marked.parse(md || '')
+const renderMd = (md) => marked.parse(md || '', { breaks: true })
 
 const formatDate = (d) => {
   if (!d) return ''

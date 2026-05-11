@@ -31,7 +31,7 @@ watch(selectedLessonId, (val) => {
   }, { preserveState: true, replace: true })
 })
 
-const renderMd = (md) => marked.parse(md || '')
+const renderMd = (md) => marked.parse(md || '', { breaks: true })
 
 // Assignment form
 const showAssignmentForm = ref(null)
