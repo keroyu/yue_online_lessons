@@ -187,9 +187,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
 <template>
   <div
-    class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto transition-[padding-right] duration-[250ms] ease-out"
+    class="transition-[padding-right] duration-[250ms] ease-out"
     :class="{ 'pr-96': replyPanel.open }"
   >
+  <div class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">作業批改專區</h1>
       </div>
@@ -477,6 +478,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
           此課程目前沒有小節
         </div>
       </div>
+  </div>
   </div>
 
   <!-- Overlay -->
