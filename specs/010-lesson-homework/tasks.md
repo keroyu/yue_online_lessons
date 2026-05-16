@@ -1,6 +1,7 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-17 - fix：回覆面板開啟時主容器加 pr-96 + transition-[padding-right] 避免內容被遮擋 (Phase 14)
 **Updated**: 2026-05-17 - 後台批改專區 UX 改版：提交列表改為折疊式、回覆批改改為右側懸浮面板（Admin/Homework/Index.vue 純前端修改）(Phase 13)
 **Updated**: 2026-05-10 - fix：作業題目管理排序 bug（chapter → lesson 雙層排序）(Phase 12)
 **Updated**: 2026-05-10 - Phase 9-11 完成：T041-T055 全部實作；AssignmentService.markComplete 積分+通知；Settings 積分頁；MemberDetailModal 作業完成記錄；測試通過
