@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { marked } from 'marked'
@@ -99,30 +99,61 @@ const submitEdit = (assignmentId) => {
   })
 }
 
-// Reply form
-const replyForms = ref({})
+// Submission expand/collapse
+const expandedSubmissions = ref({})
 
-const getReplyForm = (commentId) => {
-  if (!replyForms.value[commentId]) {
-    replyForms.value[commentId] = { content: '', show: false }
+const toggleSubmission = (id) => {
+  if (expandedSubmissions.value[id]) {
+    editingComment.value = null
+    expandedSubmissions.value[id] = false
+  } else {
+    expandedSubmissions.value[id] = true
   }
-  return replyForms.value[commentId]
 }
 
-const submitReply = (assignmentId, parentId) => {
-  const form = replyForms.value[parentId]
-  if (!form?.content.trim()) return
+watch(() => props.submissions.current_page, () => {
+  expandedSubmissions.value = {}
+})
 
-  router.post(`/admin/homework/${assignmentId}/comments`, {
-    content: form.content,
-    parent_id: parentId,
+// Reply panel
+const replyPanel = ref({ open: false, submission: null })
+const replyContent = ref('')
+const replyTextarea = ref(null)
+
+const openReplyPanel = (sub) => {
+  replyContent.value = ''
+  replyPanel.value = { open: true, submission: sub }
+  nextTick(() => replyTextarea.value?.focus())
+}
+
+const closeReplyPanel = () => {
+  replyPanel.value = { open: false, submission: null }
+  replyContent.value = ''
+}
+
+const submitReply = () => {
+  const sub = replyPanel.value.submission
+  if (!sub || !replyContent.value.trim()) return
+
+  router.post(`/admin/homework/${sub.assignment.id}/comments`, {
+    content: replyContent.value,
+    parent_id: sub.id,
   }, {
     only: ['submissions', 'flash'],
     preserveState: true,
     preserveScroll: true,
-    onSuccess: () => { form.content = ''; form.show = false },
+    onSuccess: () => {
+      replyContent.value = ''
+      replyPanel.value = { open: false, submission: null }
+    },
   })
 }
+
+const handleKeydown = (e) => {
+  if (e.key === 'Escape' && replyPanel.value.open) closeReplyPanel()
+}
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 // Edit comment
 const editingComment = ref(null)
@@ -181,93 +212,103 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
         </div>
 
         <div v-else class="divide-y divide-gray-200">
-          <div v-for="sub in submissions.data" :key="sub.id" class="p-4">
-            <!-- Header -->
-            <div class="flex items-start justify-between mb-3">
-              <div>
-                <span class="text-sm font-medium text-gray-900">{{ sub.user.nickname }}</span>
-                <span class="text-xs text-gray-400 ml-2">{{ sub.user.email }}</span>
+          <div v-for="sub in submissions.data" :key="sub.id">
+
+            <!-- Header row（永遠可見，點擊展開/折疊） -->
+            <div
+              class="flex items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+              @click="toggleSubmission(sub.id)"
+            >
+              <!-- 左：學員 + 麵包屑 -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-gray-900">{{ sub.user.nickname }}</span>
+                  <span class="text-xs text-gray-400">{{ sub.user.email }}</span>
+                  <span v-if="sub.is_edited" class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
+                </div>
                 <div class="text-xs text-gray-500 mt-0.5">
                   {{ sub.assignment.lesson.course.name }} › {{ sub.assignment.lesson.title }}
                 </div>
               </div>
-              <div class="flex items-center gap-2 text-xs text-gray-400">
-                <span>{{ formatDate(sub.created_at) }}</span>
-                <span v-if="sub.is_edited" class="bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
-                <!-- Mark complete -->
-                <span v-if="sub.completion" class="text-green-600 font-medium">✓ 已完成 {{ formatDate(sub.completion.created_at) }}</span>
+
+              <!-- 中：提交時間 -->
+              <span class="text-xs text-gray-400 mx-4 shrink-0">{{ formatDate(sub.created_at) }}</span>
+
+              <!-- 右：完成狀態（@click.stop 防冒泡） -->
+              <div class="flex items-center gap-2 shrink-0" @click.stop>
+                <span v-if="sub.completion" class="text-xs text-green-600 font-medium">
+                  ✓ 已完成 {{ formatDate(sub.completion.created_at) }}
+                </span>
                 <button
                   v-else
                   class="text-xs bg-green-50 border border-green-200 text-green-700 px-2 py-1 rounded hover:bg-green-100 hover:border-green-300 transition-colors"
                   @click="router.post(`/admin/homework/${sub.assignment.id}/completions/${sub.user.id}`, {}, { only: ['submissions', 'assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
                 >標記已完成</button>
               </div>
+
+              <!-- 展開箭頭 -->
+              <svg
+                class="w-4 h-4 text-gray-400 ml-3 shrink-0 transition-transform duration-200"
+                :class="expandedSubmissions[sub.id] ? 'rotate-180' : ''"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
 
-            <!-- Submission content -->
-            <div v-if="editingComment !== sub.id">
-              <div class="assignment-content bg-gray-50 border border-gray-100 rounded p-3" v-html="renderMd(sub.content)" />
-              <div class="mt-1 flex gap-1">
-                <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(sub)">編輯</button>
-                <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, sub.id)">刪除</button>
-              </div>
-            </div>
-            <div v-else class="mt-1">
-              <textarea v-model="editCommentForm.content" rows="4" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
-              <div class="mt-1 flex gap-2">
-                <button class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
-                <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
-              </div>
-            </div>
+            <!-- 展開內容 -->
+            <div v-show="expandedSubmissions[sub.id]" class="border-t border-gray-100 px-4 py-4 bg-gray-50/40">
 
-            <!-- Replies -->
-            <div v-if="sub.replies.length" class="mt-3 space-y-2 pl-4 border-l-2 border-gray-200">
-              <div v-for="reply in sub.replies" :key="reply.id" class="text-sm">
-                <div class="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                  <span class="font-medium">{{ reply.user.nickname }}</span>
-                  <span v-if="reply.user.is_admin" class="bg-indigo-100 text-indigo-600 px-1 rounded">管理員</span>
-                  <span v-if="reply.is_edited">· 已編輯</span>
-                  <span class="ml-auto">{{ formatDate(reply.created_at) }}</span>
-                </div>
-                <div v-if="editingComment !== reply.id">
-                  <div class="assignment-content" v-html="renderMd(reply.content)" />
-                  <div class="mt-0.5 flex gap-1">
-                    <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(reply)">編輯</button>
-                    <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, reply.id)">刪除</button>
-                  </div>
-                </div>
-                <div v-else>
-                  <textarea v-model="editCommentForm.content" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
-                  <div class="mt-1 flex gap-2">
-                    <button class="text-sm bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
-                    <button class="text-sm text-gray-500 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
-                  </div>
+              <!-- Submission content -->
+              <div v-if="editingComment !== sub.id">
+                <div class="assignment-content bg-gray-50 border border-gray-100 rounded p-3" v-html="renderMd(sub.content)" />
+                <div class="mt-1 flex gap-1">
+                  <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(sub)">編輯</button>
+                  <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, sub.id)">刪除</button>
                 </div>
               </div>
-            </div>
-
-            <!-- Reply form -->
-            <div class="mt-3">
-              <button
-                v-if="!getReplyForm(sub.id).show"
-                class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
-                @click="getReplyForm(sub.id).show = true"
-              >回覆批改</button>
               <div v-else class="mt-1">
-                <textarea
-                  v-model="getReplyForm(sub.id).content"
-                  rows="3"
-                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="批改內容..."
-                />
+                <textarea v-model="editCommentForm.content" rows="4" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                 <div class="mt-1 flex gap-2">
-                  <button
-                    class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors"
-                    @click="submitReply(sub.assignment.id, sub.id)"
-                  >送出回覆</button>
-                  <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="getReplyForm(sub.id).show = false">取消</button>
+                  <button class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
+                  <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
                 </div>
               </div>
+
+              <!-- Replies -->
+              <div v-if="sub.replies.length" class="mt-3 space-y-2 pl-4 border-l-2 border-gray-200">
+                <div v-for="reply in sub.replies" :key="reply.id" class="text-sm">
+                  <div class="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                    <span class="font-medium">{{ reply.user.nickname }}</span>
+                    <span v-if="reply.user.is_admin" class="bg-indigo-100 text-indigo-600 px-1 rounded">管理員</span>
+                    <span v-if="reply.is_edited">· 已編輯</span>
+                    <span class="ml-auto">{{ formatDate(reply.created_at) }}</span>
+                  </div>
+                  <div v-if="editingComment !== reply.id">
+                    <div class="assignment-content" v-html="renderMd(reply.content)" />
+                    <div class="mt-0.5 flex gap-1">
+                      <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(reply)">編輯</button>
+                      <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, reply.id)">刪除</button>
+                    </div>
+                  </div>
+                  <div v-else>
+                    <textarea v-model="editCommentForm.content" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    <div class="mt-1 flex gap-2">
+                      <button class="text-sm bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
+                      <button class="text-sm text-gray-500 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 回覆批改 → 開啟右側面板 -->
+              <div class="mt-3">
+                <button
+                  class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                  @click="openReplyPanel(sub)"
+                >回覆批改</button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -434,8 +475,86 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
         </div>
       </div>
   </div>
+
+  <!-- Overlay -->
+  <Transition name="fade">
+    <div
+      v-if="replyPanel.open"
+      class="fixed inset-0 bg-black/30 z-40"
+      @click="closeReplyPanel"
+    />
+  </Transition>
+
+  <!-- Reply Panel -->
+  <Transition name="slide-in">
+    <div
+      v-if="replyPanel.open"
+      class="fixed right-0 top-0 h-screen w-96 bg-white shadow-2xl z-50 flex flex-col"
+    >
+      <!-- Panel header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
+        <div>
+          <p class="text-sm font-semibold text-gray-900">回覆批改</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            {{ replyPanel.submission?.user.nickname }}
+            · {{ replyPanel.submission?.assignment.lesson.title }}
+          </p>
+        </div>
+        <button
+          class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          @click="closeReplyPanel"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Textarea -->
+      <div class="flex-1 overflow-y-auto px-4 py-3">
+        <label class="text-xs font-medium text-gray-700 mb-1 block">批改內容（支援 Markdown）</label>
+        <textarea
+          ref="replyTextarea"
+          v-model="replyContent"
+          rows="12"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+          placeholder="輸入批改內容..."
+        />
+      </div>
+
+      <!-- Actions（固定底部） -->
+      <div class="shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50">
+        <button
+          class="w-full bg-indigo-600 text-white py-2 rounded text-sm font-medium hover:bg-indigo-700 transition-colors"
+          @click="submitReply"
+        >送出回覆</button>
+        <button
+          class="mt-2 w-full text-gray-500 text-sm py-1.5 hover:bg-gray-100 rounded transition-colors"
+          @click="closeReplyPanel"
+        >取消</button>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
 button { cursor: pointer; }
+
+.slide-in-enter-active,
+.slide-in-leave-active {
+  transition: transform 0.25s ease-out;
+}
+.slide-in-enter-from,
+.slide-in-leave-to {
+  transform: translateX(100%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>
