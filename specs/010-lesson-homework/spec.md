@@ -9,6 +9,7 @@
 **Updated**: 2026-05-10 - fix：作業題目管理列表改為依 Chapter sort_order → Lesson sort_order 排序（原本只按 lesson.sort_order 導致 Phase 交錯）
 **Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目區改白底、回覆區保留 indigo-50、input 改直角、留言卡片上方補 10px 間距
 **Updated**: 2026-05-10 - Phase 7-8 實作：通知鈴鐺顯示層完成（useNotifications composable、Navigation.vue、Classroom.vue header）；移除 admin 通知限制，所有登入者均可見鈴鐺；bell 在 Classroom 自有 header 內獨立實作
+**Updated**: 2026-05-17 - fix：pr-96 移至 max-w-6xl 外層 full-width wrapper，確保容器右邊界實際縮至面板左緣
 **Updated**: 2026-05-17 - fix：回覆面板開啟時主內容區自動加 pr-96（384px）右側 padding，避免被面板遮擋，transition 與面板動畫同步
 **Updated**: 2026-05-17 - 後台批改專區 UX 改版：提交列表改為折疊式列表（點擊標題列展開/收合詳情），回覆批改改為右側固定懸浮面板（slide-in 動畫，Escape/overlay 關閉）
 **Updated**: 2026-05-10 - 作業區細節完善：討論串預設收合（展開回答按鈕）、Markdown 正確渲染（前後台）、學員追問一律為頂層、色系改 indigo/navy、講師 bubble 左縮 100px
@@ -243,7 +244,7 @@
 - **FR-034**: 所有作業相關 Markdown 內容（題目、學員提交、講師回覆）在前台教室與後台批改專區均必須透過 `.assignment-content` CSS 規則渲染，至少正確呈現：`h1`、`h2`、`h3`、`h4`、有序/無序清單、超連結、粗體、斜體、引用區塊、行內程式碼。
 
 - **FR-035**: 後台批改專區的學員提交列表必須以折疊列表呈現，預設僅顯示標題列（學員姓名、Email、課程 › 小節麵包屑、提交時間、完成狀態 badge）；點擊標題列展開作業詳情（內容、回覆列表、批改按鈕），再次點擊收合；切換分頁時所有列自動收合；「標記已完成」按鈕點擊不可觸發展開/收合（需阻止事件冒泡）。
-- **FR-036**: 管理員在後台批改專區點擊「回覆批改」後，系統必須在頁面右側展示一個固定懸浮面板（`fixed right-0 top-0 h-screen w-96`），面板包含：學員姓名與小節名稱標題、Markdown 格式文字輸入區（自動取得 focus）、送出按鈕（Inertia partial reload）與取消按鈕；按 Escape 鍵或點擊半透明 overlay 可關閉面板；送出成功後面板自動關閉；面板開啟時主內容容器必須自動加 `padding-right: 24rem`（384px，等於面板寬度）並附帶與面板 slide-in 動畫同步的 transition（0.25s ease-out），確保內容不被面板遮擋；面板關閉後 padding 平滑縮回。
+- **FR-036**: 管理員在後台批改專區點擊「回覆批改」後，系統必須在頁面右側展示一個固定懸浮面板（`fixed right-0 top-0 h-screen w-96`），面板包含：學員姓名與小節名稱標題、Markdown 格式文字輸入區（自動取得 focus）、送出按鈕（Inertia partial reload）與取消按鈕；按 Escape 鍵或點擊半透明 overlay 可關閉面板；送出成功後面板自動關閉；面板開啟時，`padding-right: 24rem`（384px）必須套用在 `max-w-6xl mx-auto` 容器的**外層 full-width wrapper** 上（而非套在 `max-w-6xl` 容器本身，否則 `mx-auto` 置中會使容器右邊界仍延伸至面板底下），transition（0.25s ease-out）與面板 slide-in 動畫同步；面板關閉後 padding 平滑縮回。
 
 **通知系統**
 
