@@ -14,6 +14,7 @@
 **Updated**: 2026-05-07 - 增量追加 Phase 10（US8 T060-T064）：Portaly Webhook Key 後台設定；`config/services.php` key 改名、`.env.example` 更名、`PortalyWebhookService` 改讀 SiteSetting、`SettingsController` + `Payment.vue` 擴充
 **Updated**: 2026-05-07 - NewebpayService JSON decode 修正（RespondType=JSON）— 不產生新任務（屬 T049 hotfix） (Phase 11)
 **Updated**: 2026-05-07 - 金流體質強化（Cart flash 路徑、ReturnURL fallback fulfill、Success 輪詢 60s 上限、Login hint）— 不產生新任務 (Phase 12)
+**Updated**: 2026-05-19 - 移除 legacy PayUni 向後相容程式碼（`payuni.initiate` 路由、`buildPaymentForm`、`parseCourseId`、`generateMerTradeNo`、legacy YC branch）— 不產生新任務（cleanup） (Phase 15)
 **Updated**: 2026-05-09 - 懸浮面板收合功能（FR-041）實作完成 — 不產生新任務 (Phase 14)
 **Updated**: 2026-05-07 - 結帳新增公司統編 orders.tax_id 欄位（migration + Model + Request + Service + 前端）— 不產生新任務（屬 US3 增量延伸） (Phase 13)
 

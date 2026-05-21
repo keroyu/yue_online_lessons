@@ -7,6 +7,7 @@
 **Updated**: 2026-05-07 - GET /admin/courses/{course}/edit 加入 gatewayConfigured prop；CourseForm 改為 pill button；GET /admin/courses/create 亦注入 gatewayConfigured
 **Updated**: 2026-05-07 - GET /admin/settings/payment 回應新增 hash_key_preview / hash_iv_preview（前 5 碼 + 星號遮蔽）；空字串表示尚未設定（FR-033）；後台標題格式統一為「中文名稱（英文）」
 **Updated**: 2026-05-07 - 增量 US8：GET /admin/settings/payment 回應新增 `portaly` 區塊（含 `webhook_key_preview`）；POST 新增 `portaly_webhook_key` 欄位（FR-034）
+**Updated**: 2026-05-19 - 修正 POST /api/checkout/initiate 步驟 3 方法名稱（`buildPaymentForm` → `buildOrderPaymentForm`）；移除 POST /api/webhooks/payuni 的 legacy YC path 說明
 **Updated**: 2026-05-07 - POST /api/checkout/initiate 的 `buyer` 物件新增 optional `tax_id` 欄位（恰好 8 位數字 regex 驗證；留空允許）；存入 `orders.tax_id`（FR-036）
 
 All routes follow Laravel conventions. Inertia routes return an Inertia response; API routes return JSON. Authenticated routes use `auth:web` middleware. Admin routes add `role:admin`.
@@ -185,7 +186,7 @@ Validation:
 Behavior:
 1. Calls `CheckoutService::createOrder()` → creates `orders` + `order_items`, sets `merchant_order_no`.
 2. Calls `CheckoutService::routeGateway()` → returns `'payuni'` or `'newebpay'`.
-3. For `payuni`: calls `PayuniService::buildPaymentForm(order, buyer)` → `{endpoint, fields}`.
+3. For `payuni`: calls `PayuniService::buildOrderPaymentForm(order, buyer)` → `{endpoint, fields}`.
 4. For `newebpay`: calls `NewebpayService::buildPaymentForm(order, buyer)` → `{endpoint, fields}`.
 
 Response `200`:
@@ -283,8 +284,6 @@ New Order-based path (MerTradeNo starts with `ord_`):
 5. If `Order.status = 'paid'` (idempotency Layer 1) → return `1|OK`.
 6. Call `CheckoutService::fulfillOrder(order, tradeNo, 'payuni')`.
 7. Return `1|OK`.
-
-Legacy path (MerTradeNo starts with `YC`): preserved as-is.
 
 Response: always `200 1|OK`.
 

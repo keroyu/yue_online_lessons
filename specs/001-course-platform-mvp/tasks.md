@@ -11,6 +11,7 @@
 **Updated**: 2026-03-09 - 販售頁「免費試閱」按鈕 (Phase 17)
 **Updated**: 2026-03-09 - 我的課程頁面 card 增大 (Phase 18)
 **Updated**: 2026-03-11 - 我的課程頁面未登入防護 (Phase 19)
+**Updated**: 2026-05-19 - 移除舊版 PayUni 路由與相關 dead code — 不產生新任務（cleanup，非新功能） (Phase 23)
 **Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式 (Phase 20)
 
 **Tests**: Not explicitly requested - tests excluded from task list.

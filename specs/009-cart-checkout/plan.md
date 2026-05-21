@@ -11,6 +11,7 @@
 **Updated**: 2026-05-07 - 增量追加 US8：Portaly Webhook Key 納入後台金流設定頁（Phase C 擴充）；`PortalyWebhookService::verifySignature()` 改讀 `site_settings`（key: `portaly_webhook_key`），fallback `config('services.portaly.webhook_key')`
 **Updated**: 2026-05-07 - NewebpayService::decryptTradeInfo 改用 json_decode 為主、parse_str fallback（RespondType=JSON 修正，FR-039）
 **Updated**: 2026-05-07 - 金流流程體質強化：Cart payment_failed flash 路徑修正、ReturnURL fallback fulfill、Success.vue 60s 輪詢上限、Login hint 接受 'purchase'（FR-037 / FR-038 / FR-040）
+**Updated**: 2026-05-19 - 移除本 plan 第 173 行所要求保留的 legacy 向後相容程式碼（`buildPaymentForm`、`parseCourseId` 等）；前提條件（舊路由 `payuni.initiate`）已確認廢棄，保留原因不再成立
 **Updated**: 2026-05-09 - 懸浮面板新增收合按鈕（floatingCollapsed ref + 單一 Transition mode="out-in" + v-if/v-else-if + 金色「購買」標籤，FR-041）
 **Updated**: 2026-05-07 - 結帳新增公司統編欄位（orders.tax_id varchar(8) nullable migration；CheckoutRequest + CheckoutService + Checkout/Index.vue + Payment/Success.vue）（FR-036）
 **Input**: Feature specification from `/specs/009-cart-checkout/spec.md`

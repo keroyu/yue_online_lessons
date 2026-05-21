@@ -3,76 +3,17 @@
 namespace App\Http\Controllers\Payment;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
 use App\Services\PayuniService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class PayuniController extends Controller
 {
     public function __construct(
         protected PayuniService $payuniService
     ) {}
-
-    /**
-     * Initiate a PayUni UPP payment.
-     * Returns JSON form fields for the frontend to auto-submit.
-     *
-     * POST /api/payment/payuni/initiate
-     */
-    public function initiate(Request $request): JsonResponse
-    {
-        $authUser = auth()->user();
-
-        $validated = $request->validate([
-            'course_id' => ['required', 'integer', 'exists:courses,id'],
-            'email'     => ['required', 'email', 'max:255'],
-            'name'      => ['required', 'string', 'max:50'],
-            'phone'     => ['required', 'string', 'max:20'],
-        ]);
-
-        $course = Course::findOrFail($validated['course_id']);
-
-        // Guard: only PayUni-eligible courses
-        if ($course->portaly_product_id || $course->price <= 0) {
-            return response()->json(['error' => 'This course does not use PayUni'], 422);
-        }
-
-        // Guard: draft courses
-        if ($course->status === 'draft' || !$course->is_published) {
-            return response()->json(['error' => 'Course not available'], 422);
-        }
-
-        $email      = $authUser?->email ?? $validated['email'];
-        $name       = $validated['name'];
-        $phone      = $validated['phone'];
-        $merTradeNo = $this->payuniService->generateMerTradeNo($course->id);
-
-        // Store buyer info in cache so NotifyURL callback can look it up
-        // (PayUni notify does NOT include email/name in callback payload)
-        // ATM transfers can take up to 7 days — keep for 8 days to be safe
-        Cache::put("payuni_order_{$merTradeNo}", [
-            'email' => $email,
-            'name'  => $name,
-            'phone' => $phone,
-        ], now()->addDays(8));
-
-        Log::info('PayUni: initiating payment', [
-            'course_id'   => $course->id,
-            'email'       => $email,
-            'MerTradeNo'  => $merTradeNo,
-            'amount'      => $course->display_price,
-        ]);
-
-        $formData = $this->payuniService->buildPaymentForm($course, $email, $merTradeNo, $name, $phone);
-
-        return response()->json($formData);
-    }
 
     /**
      * Handle PayUni NotifyURL async callback (server-to-server).
@@ -120,10 +61,7 @@ class PayuniController extends Controller
             'all_inputs'  => array_keys($request->all()),
         ]);
 
-        $data       = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
-        $isSuccess  = false;
-        $merTradeNo = '';
-        $courseId   = null;
+        $data = $this->payuniService->verifyAndDecrypt($encryptInfo, $hashInfo);
 
         if ($data) {
             $isSuccess  = ($data['Status'] ?? '') === 'SUCCESS' && ($data['TradeStatus'] ?? '') == '1';
@@ -135,60 +73,27 @@ class PayuniController extends Controller
                 'MerTradeNo'  => $merTradeNo,
             ]);
 
-            // New Order-based path (ord_ prefix)
-            if (str_starts_with($merTradeNo, 'ord_')) {
-                if ($isSuccess) {
-                    // Safety net: fulfill order on ReturnURL too. fulfillOrder() is idempotent
-                    // (checks order.status === 'paid'), so duplicate calls are safe.
-                    $order = \App\Models\Order::where('merchant_order_no', $merTradeNo)->first();
-                    if ($order && $order->status !== 'paid') {
-                        try {
-                            $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
-                            app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
-                            Log::info('PayUni Return: order fulfilled (fallback)', ['MerTradeNo' => $merTradeNo]);
-                        } catch (\Exception $e) {
-                            Log::error('PayUni Return: fallback fulfillOrder failed', [
-                                'error'      => $e->getMessage(),
-                                'MerTradeNo' => $merTradeNo,
-                            ]);
-                        }
-                    }
-                    return redirect('/payment/success?order=' . $merTradeNo);
-                }
-                return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
-            }
-
-            // Legacy YC path — process on ReturnURL as idempotent safety net
-            $courseId = $this->payuniService->parseCourseId($merTradeNo);
             if ($isSuccess) {
-                try {
-                    $this->payuniService->processNotify($encryptInfo, $hashInfo);
-                } catch (\Exception $e) {
-                    Log::error('PayUni Return: processNotify failed', ['error' => $e->getMessage()]);
+                // Safety net: fulfill order on ReturnURL too. fulfillOrder() is idempotent.
+                $order = \App\Models\Order::where('merchant_order_no', $merTradeNo)->first();
+                if ($order && $order->status !== 'paid') {
+                    try {
+                        $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
+                        app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
+                        Log::info('PayUni Return: order fulfilled (fallback)', ['MerTradeNo' => $merTradeNo]);
+                    } catch (\Exception $e) {
+                        Log::error('PayUni Return: fallback fulfillOrder failed', [
+                            'error'      => $e->getMessage(),
+                            'MerTradeNo' => $merTradeNo,
+                        ]);
+                    }
                 }
+                return redirect('/payment/success?order=' . $merTradeNo);
             }
         } else {
             Log::warning('PayUni Return: verification failed, falling back to redirect');
         }
 
-        // Legacy success path
-        if ($isSuccess) {
-            if (auth()->check()) {
-                return redirect('/member/learning')->with('success', '付款成功！您的課程已開通。');
-            }
-            return redirect('/login?hint=payuni');
-        }
-
-        // Verification failed but user is logged in
-        if (!$data && auth()->check()) {
-            return redirect('/member/learning')->with('success', '付款處理中，課程稍後開通。');
-        }
-
-        // Payment failed or unverified guest (legacy)
-        if ($courseId) {
-            return redirect("/course/{$courseId}?payment_failed=1");
-        }
-
-        return redirect('/login?hint=payuni');
+        return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
     }
 }

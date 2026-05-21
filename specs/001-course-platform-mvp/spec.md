@@ -17,6 +17,7 @@
 **Updated**: 2026-03-11 - 我的課程頁面新增未登入 client-side 防護，顯示「請先登入」提示
 **Updated**: 2026-03-19 - 販售頁 h3 標題加入左側色塊裝飾樣式（10px 深色長方形 + 15px 間距）
 **Updated**: 2026-03-22 - 販售頁新增懸浮購買面板（floating buy panel）：scroll 過頂部資訊區後從右側滑入，顯示價格、優惠倒數計時與購買按鈕；scroll 到底部購買區時自動收回
+**Updated**: 2026-05-19 - 移除舊版 PayUni 單課付款路徑（`POST /api/payment/payuni/initiate`）；付款流程已全面由 009 購物車結帳系統接管，`PayuniController::initiate()`、`buildPaymentForm()`、`generateMerTradeNo()`、`parseCourseId()` 等方法一併移除
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（portaly_product_id 空且 price > 0）與免費課程直接報名（portaly_product_id 空且 price = 0）
 **Updated**: 2026-03-23 - PayUni 金流 debug 修正：MerTradeNo 縮短至 26 字元、NotifyURL 買家資訊改從 Cache 讀取、ReturnURL 移至 web 路由解決 auth/race condition、付款表單必填姓名電話、退款按鈕 HTTP method 修正
 **Updated**: 2026-03-30 - 明確區分 Purchase 的付款狀態（status）與取得類型（type）；文件不再混用兩者語意

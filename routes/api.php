@@ -11,8 +11,6 @@ Route::post('/webhooks/portaly', [PortalyController::class, 'handle'])
     ->name('webhook.portaly');
 
 // PayUni 統一金流
-Route::post('/payment/payuni/initiate', [PayuniController::class, 'initiate'])
-    ->name('payuni.initiate');
 Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])
     ->name('payuni.notify');
 Route::post('/webhooks/newebpay', [NewebpayController::class, 'notify'])

@@ -1,6 +1,7 @@
 # API Routes Contract: 數位課程販售平台 MVP
 
 **Branch**: `001-course-platform-mvp` | **Date**: 2026-01-16
+**Updated**: 2026-05-19 - 移除 `POST /api/payment/payuni/initiate`（`payuni.initiate`）路由及對應 Request/Response contract；舊路徑已由 009 的 `POST /checkout/initiate` 完全取代
 
 ## Overview
 
@@ -176,8 +177,7 @@ use App\Http\Controllers\Purchase\FreePurchaseController;
 // Portaly Webhook (existing)
 Route::post('/webhooks/portaly', [PortalyController::class, 'handle'])->name('webhook.portaly');
 
-// PayUni 統一金流
-Route::post('/payment/payuni/initiate', [PayuniController::class, 'initiate'])->name('payuni.initiate');
+// PayUni 統一金流（initiate 已移除；由 009 的 POST /checkout/initiate 取代）
 Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])->name('payuni.notify');
 Route::post('/payment/payuni/return', [PayuniController::class, 'return'])->name('payuni.return');
 
@@ -216,27 +216,6 @@ interface CourseDetail extends CourseListItem {
   use_payuni: boolean;     // portaly_product_id 空 且 price > 0
   is_free: boolean;        // portaly_product_id 空 且 price == 0
   display_price: number;   // 優惠價（promo 中）或原價
-}
-```
-
-### PayUni Initiate Request/Response
-```typescript
-// POST /api/payment/payuni/initiate
-// Request
-interface PayuniInitiateRequest {
-  course_id: number;
-  email?: string;  // 未登入時必填；已登入時可省略（後端使用 auth email）
-}
-
-// Response (200)
-interface PayuniInitiateResponse {
-  endpoint: string;  // 'https://[sandbox-]api.payuni.com.tw/api/upp'
-  fields: {
-    MerID: string;
-    Version: string;
-    EncryptInfo: string;
-    HashInfo: string;
-  };
 }
 ```
 

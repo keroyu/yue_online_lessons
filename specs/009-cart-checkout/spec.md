@@ -2,6 +2,7 @@
 
 **Feature Branch**: `009-cart-checkout`
 **Created**: 2026-05-05
+**Updated**: 2026-05-19 - 移除 plan.md 曾明確要求保留的舊版向後相容程式碼：`buildPaymentForm(Course,...)`、`generateMerTradeNo()`、`parseCourseId()`、`processNotify()` 的 legacy YC branch；`PayuniController::return()` legacy YC branch 同步移除；`str_starts_with('ord_')` 判斷改為直接查 Order
 **Updated**: 2026-05-06 - Phase 1-3 實作完成；銷售頁按鈕改版（移除 PayUni 表單、加入購物車/直接購買 cart flow）
 **Updated**: 2026-05-06 - 懸浮面板「立即購買」改為 scroll to 底端按鈕區；「加入購物車」按鈕樣式統一為 gold（同「直接購買」）
 **Updated**: 2026-05-06 - 加入購物車後保留「直接購買」按鈕；「前往購物車」改橘紅色；新增成功 toast；修正 guest 重整後按鈕狀態 reset bug

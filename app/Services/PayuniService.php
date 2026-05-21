@@ -2,12 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Course;
 use App\Models\Order;
-use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class PayuniService
@@ -23,73 +20,6 @@ class PayuniService
         $sandbox      = config('services.payuni.sandbox', false);
         $prefix       = $sandbox ? 'https://sandbox-' : 'https://';
         $this->apiUrl = $prefix . 'api.payuni.com.tw/api/upp';
-    }
-
-    /**
-     * Generate a unique MerTradeNo encoding the courseId for later parsing.
-     * Format: YC{courseId:04d}{YmdHis}{rand4} (26 chars, PayUni max = 28)
-     */
-    public function generateMerTradeNo(int $courseId): string
-    {
-        return sprintf('YC%04d%s%04d', $courseId, date('YmdHis'), rand(1000, 9999));
-    }
-
-    /**
-     * Parse courseId from MerTradeNo.
-     */
-    public function parseCourseId(string $merTradeNo): ?int
-    {
-        // New format: YC{4-digit courseId}{14-digit datetime}{4-digit rand}
-        if (preg_match('/^YC(\d{4})/', $merTradeNo, $matches)) {
-            return (int) $matches[1];
-        }
-        // Legacy format: YUE-C{courseId}-...
-        if (preg_match('/^YUE-C(\d+)-/', $merTradeNo, $matches)) {
-            return (int) $matches[1];
-        }
-        return null;
-    }
-
-    /**
-     * Build PayUni UPP form fields for frontend auto-submit.
-     * Amount uses display_price to respect active promotions.
-     *
-     * @return array{ endpoint: string, fields: array }
-     */
-    public function buildPaymentForm(Course $course, string $email, string $merTradeNo, ?string $name = null, ?string $phone = null): array
-    {
-        $merchantId = SiteSetting::get('payuni_merchant_id', config('services.payuni.merchant_id', ''));
-        $params = [
-            'MerID'       => $merchantId,
-            'MerTradeNo'  => $merTradeNo,
-            'TradeAmt'    => (int) $course->display_price,
-            'ProdDesc'    => mb_substr($course->name, 0, 50),
-            'UsrMail'     => $email,
-            'ReturnURL'   => url('/payment/payuni/return'),
-            'NotifyURL'   => url('/api/webhooks/payuni'),
-            'Timestamp'   => time(),
-            'Lang'        => 'zh-tw',
-        ];
-
-        if ($name) {
-            $params['UsrName'] = $name;
-        }
-        if ($phone) {
-            $params['UsrMobile'] = $phone;
-        }
-
-        $encryptInfo = $this->encrypt($params);
-        $hashInfo    = $this->hashInfo($encryptInfo);
-
-        return [
-            'endpoint' => $this->apiUrl,
-            'fields'   => [
-                'MerID'       => $merchantId,
-                'Version'     => '1.0',
-                'EncryptInfo' => $encryptInfo,
-                'HashInfo'    => $hashInfo,
-            ],
-        ];
     }
 
     /**
@@ -188,90 +118,18 @@ class PayuniService
             return ['success' => false, 'error' => 'missing_trade_no'];
         }
 
-        // New Order-based path (ord_ prefix)
-        if (str_starts_with($merTradeNo, 'ord_')) {
-            $order = Order::where('merchant_order_no', $merTradeNo)->first();
-            if (!$order) {
-                Log::error('PayUni Notify: order not found', ['MerTradeNo' => $merTradeNo]);
-                return ['success' => false, 'error' => 'order_not_found'];
-            }
-
-            try {
-                $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
-                app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
-                Log::info('PayUni Notify: order fulfilled', ['MerTradeNo' => $merTradeNo, 'order_id' => $order->id]);
-            } catch (\Exception $e) {
-                Log::error('PayUni Notify: fulfillOrder failed', ['error' => $e->getMessage(), 'MerTradeNo' => $merTradeNo]);
-                return ['success' => false, 'error' => $e->getMessage()];
-            }
-
-            return ['success' => true, 'error' => ''];
-        }
-
-        // Legacy YC path — idempotency check
-        if (Purchase::where('payuni_trade_no', $merTradeNo)->exists()) {
-            Log::info('PayUni Notify: duplicate, skipping', ['MerTradeNo' => $merTradeNo]);
-            return ['success' => true, 'error' => ''];
-        }
-
-        // Parse courseId from MerTradeNo
-        $courseId = $this->parseCourseId($merTradeNo);
-        $course   = $courseId ? Course::find($courseId) : null;
-
-        if (!$course) {
-            Log::error('PayUni Notify: course not found', ['MerTradeNo' => $merTradeNo, 'courseId' => $courseId]);
-            return ['success' => false, 'error' => 'course_not_found'];
-        }
-
-        // PayUni notify does NOT include buyer email — look up from cache set during initiate
-        $cached = Cache::get("payuni_order_{$merTradeNo}");
-        $email  = $cached['email'] ?? $data['Email'] ?? $data['UsrMail'] ?? null;
-        $name   = $cached['name']  ?? $data['UsrName'] ?? null;
-        $phone  = $cached['phone'] ?? $data['UsrMobile'] ?? null;
-
-        if (!$email) {
-            Log::error('PayUni Notify: missing email (not in cache or payload)', ['MerTradeNo' => $merTradeNo]);
-            return ['success' => false, 'error' => 'missing_email'];
+        $order = Order::where('merchant_order_no', $merTradeNo)->first();
+        if (!$order) {
+            Log::error('PayUni Notify: order not found', ['MerTradeNo' => $merTradeNo]);
+            return ['success' => false, 'error' => 'order_not_found'];
         }
 
         try {
-            $user = $this->getOrCreateUser($email, $name, $phone);
-
-            $purchase = Purchase::create([
-                'user_id'            => $user->id,
-                'course_id'          => $course->id,
-                'payuni_trade_no'    => $merTradeNo,
-                'buyer_email'        => $email,
-                'amount'             => $data['TradeAmt'] ?? 0,
-                'currency'           => 'TWD',
-                'status'             => 'paid',
-                'type'               => 'paid',
-                'source'             => 'payuni',
-                'webhook_received_at' => now(),
-            ]);
-
-            Log::info('PayUni Notify: purchase created', [
-                'purchase_id' => $purchase->id,
-                'user_id'     => $user->id,
-                'course_id'   => $course->id,
-                'MerTradeNo'  => $merTradeNo,
-            ]);
-
-            $dripService = app(\App\Services\DripService::class);
-
-            // Auto-subscribe if purchased course is itself a drip course
-            if ($course->course_type === 'drip') {
-                $dripService->subscribe($user, $course);
-            }
-
-            // Pause any active drip subscriptions that list this course as conversion target
-            $dripService->checkAndConvert($user, $course);
-
+            $gatewayTradeNo = $data['TradeNo'] ?? $merTradeNo;
+            app(\App\Services\CheckoutService::class)->fulfillOrder($order, $gatewayTradeNo, 'payuni');
+            Log::info('PayUni Notify: order fulfilled', ['MerTradeNo' => $merTradeNo, 'order_id' => $order->id]);
         } catch (\Exception $e) {
-            Log::error('PayUni Notify: failed to create purchase', [
-                'error'      => $e->getMessage(),
-                'MerTradeNo' => $merTradeNo,
-            ]);
+            Log::error('PayUni Notify: fulfillOrder failed', ['error' => $e->getMessage(), 'MerTradeNo' => $merTradeNo]);
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
