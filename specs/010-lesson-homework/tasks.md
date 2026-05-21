@@ -1,6 +1,7 @@
 # Tasks: 課程作業與批改系統
 
 **Branch**: `010-lesson-homework`  
+**Updated**: 2026-05-21 - fix：AssignmentSection.vue 講師回覆改 v-html + renderMd()，Markdown 正確渲染（FR-034 補齊）(Phase 18)
 **Updated**: 2026-05-21 - fix：預覽 URL 加 preview_user_id；ClassroomController 支援 admin 以學員 ID 查 assignment comments (Phase 17)
 **Updated**: 2026-05-21 - 後台提交列表：「已回覆」標記 + 「預覽」按鈕；AssignmentSection Placeholder 補 ### 說明與空格提示 (Phase 16)
 **Updated**: 2026-05-17 - fix：pr-96 移至 max-w-6xl 外層 full-width wrapper，確保容器右邊界縮至面板左緣 (Phase 15)

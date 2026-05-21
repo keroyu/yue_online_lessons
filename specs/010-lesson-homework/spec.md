@@ -12,6 +12,7 @@
 **Updated**: 2026-05-17 - fix：pr-96 移至 max-w-6xl 外層 full-width wrapper，確保容器右邊界實際縮至面板左緣
 **Updated**: 2026-05-17 - fix：回覆面板開啟時主內容區自動加 pr-96（384px）右側 padding，避免被面板遮擋，transition 與面板動畫同步
 **Updated**: 2026-05-17 - 後台批改專區 UX 改版：提交列表改為折疊式列表（點擊標題列展開/收合詳情），回覆批改改為右側固定懸浮面板（slide-in 動畫，Escape/overlay 關閉）
+**Updated**: 2026-05-21 - fix：AssignmentSection.vue 講師回覆改用 v-html + renderMd() 渲染，修正 Markdown 語法未渲染問題（FR-034 實作補齊）
 **Updated**: 2026-05-21 - fix：預覽按鈕改傳 preview_user_id 參數，ClassroomController 在 admin 帶此參數時以學員 ID 查 assignment comments，確保看到正確學員視角
 **Updated**: 2026-05-21 - 後台提交列表加入「已回覆」淺藍色標記（有回覆時顯示）、「預覽」按鈕（開新分頁前往學員視角教室頁）；學員提交 Placeholder 改為從 ### 起並補空格說明
 **Updated**: 2026-05-10 - 作業區細節完善：討論串預設收合（展開回答按鈕）、Markdown 正確渲染（前後台）、學員追問一律為頂層、色系改 indigo/navy、講師 bubble 左縮 100px

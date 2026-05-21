@@ -162,7 +162,7 @@ const deleteItem = (commentId, hasReplies) => {
                 </div>
                 <span class="text-xs text-gray-400">{{ formatDate(reply.created_at) }}</span>
               </div>
-              <div class="px-4 pb-4 text-sm text-gray-800 whitespace-pre-wrap">{{ reply.content }}</div>
+              <div class="assignment-content px-4 pb-4" v-html="renderMd(reply.content)" />
             </div>
 
             <!-- Student follow-up (white) -->
