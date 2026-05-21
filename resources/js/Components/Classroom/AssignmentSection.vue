@@ -39,15 +39,15 @@ const submitting   = ref(false)
 
 const placeholder = `請輸入作業內容，支援 Markdown 格式
 
-# 一級標題
-## 二級標題
+### 三級標題（建議從 ### 開始，# 後面記得加空格）
+#### 四級標題
 
 **粗體文字**　*斜體*　~~刪除線~~
 
-- 清單項目一
+- 清單項目一（- 後面記得加空格）
 - 清單項目二
 
-1. 有序清單一
+1. 有序清單一（數字和點號後面記得加空格）
 2. 有序清單二
 
 > 引用或補充說明
@@ -56,9 +56,9 @@ const placeholder = `請輸入作業內容，支援 Markdown 格式
 
 const followUpPlaceholder = `追加補充或提問，支援 Markdown 格式
 
-**粗體**　*斜體*　# 標題　## 二級標題
+**粗體**　*斜體*　### 三級標題（# 後面記得加空格）
 
-- 列點　> 引用　[連結](https://example.com)`
+- 列點（- 後面記得加空格）　> 引用　[連結](https://example.com)`
 
 const handleSubmit = () => {
   if (!inputContent.value.trim() || submitting.value) return

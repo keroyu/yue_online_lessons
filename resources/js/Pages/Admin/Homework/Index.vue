@@ -229,6 +229,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                   <span class="text-sm font-medium text-gray-900">{{ sub.user.nickname }}</span>
                   <span class="text-xs text-gray-400">{{ sub.user.email }}</span>
                   <span v-if="sub.is_edited" class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
+                  <span v-if="sub.replies?.length > 0" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">已回覆</span>
                 </div>
                 <div class="text-xs text-gray-500 mt-0.5">
                   {{ sub.assignment.lesson.course.name }} › {{ sub.assignment.lesson.title }}
@@ -240,6 +241,11 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
               <!-- 右：完成狀態（@click.stop 防冒泡） -->
               <div class="flex items-center gap-2 shrink-0" @click.stop>
+                <a
+                  :href="`/member/classroom/${sub.assignment.lesson.course.id}?lesson_id=${sub.assignment.lesson.id}`"
+                  target="_blank"
+                  class="text-xs text-gray-500 border border-gray-200 bg-white px-2 py-1 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >預覽</a>
                 <span v-if="sub.completion" class="text-xs text-green-600 font-medium">
                   ✓ 已完成 {{ formatDate(sub.completion.created_at) }}
                 </span>
