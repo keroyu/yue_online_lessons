@@ -8,6 +8,7 @@
 **Updated**: 2026-05-10 - AssignmentSection 樣式微調：題目白底、回覆區 indigo-50、input 直角、留言卡片 pt-[10px] 間距
 **Updated**: 2026-05-10 - 作業區細節完善：indigo 色系、展開/收合、Markdown h1/h2 樣式補完、parent_id bug fix、後台 Markdown 渲染
 **Updated**: 2026-05-10 - Phase 7-8 完成：通知鈴鐺顯示層（HandleInertiaRequests shared props、useNotifications.js、Navigation.vue、Classroom.vue header）；通知對所有登入者開放（移除 admin 限制）
+**Updated**: 2026-05-21 - fix：預覽按鈕加入 preview_user_id 參數；ClassroomController 以學員 ID 查詢 assignment comments，確保管理員看到正確學員視角
 **Updated**: 2026-05-21 - 後台提交列表新增「已回覆」標記與「預覽」按鈕；學員提交 Placeholder 補空格與標題層級說明
 **Updated**: 2026-05-17 - fix：pr-96 移至外層 wrapper（max-w-6xl mx-auto 外），修正容器右邊界仍延伸至面板底下的問題
 **Updated**: 2026-05-17 - fix：面板開啟時主容器加 pr-96 + transition 避免內容被遮擋

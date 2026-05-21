@@ -120,15 +120,20 @@ class ClassroomController extends Controller
         $assignmentComments = collect();
         $isAssignmentCompleted = false;
 
+        // Admin can pass preview_user_id to view a specific student's submissions
+        $assignmentTargetUserId = ($isAdmin && $request->filled('preview_user_id'))
+            ? (int) $request->input('preview_user_id')
+            : $user->id;
+
         if ($currentLesson) {
             $assignment = $currentLesson->assignment()->published()->first();
             if ($assignment && !$isFreePreview) {
                 $assignmentComments = $assignment->comments()
-                    ->where('user_id', $user->id)
+                    ->where('user_id', $assignmentTargetUserId)
                     ->with('replies.user')
                     ->get();
                 $isAssignmentCompleted = $assignment->completions()
-                    ->where('user_id', $user->id)
+                    ->where('user_id', $assignmentTargetUserId)
                     ->exists();
             }
         }

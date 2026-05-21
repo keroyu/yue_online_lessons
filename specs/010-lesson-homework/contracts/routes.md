@@ -3,6 +3,7 @@
 **Branch**: `010-lesson-homework`  
 **Date**: 2026-05-10  
 **Updated**: 2026-05-10 - 所有後台寫入操作及學員提交操作改為 Inertia partial reload；submissions 分頁改每頁 10 筆；lessons 回傳新增 chapter_id / chapter_title 欄位
+**Updated**: 2026-05-21 - GET /member/classroom/{course} 新增管理員專用 preview_user_id query 參數，以指定學員 ID 查詢作業回覆與完成狀態
 **Updated**: 2026-05-10 - Phase 8：notificationCount / notifications 加入 HandleInertiaRequests shared props（所有登入者可見，不限角色）；useNotifications composable 新增；bell 同時實作於 Navigation.vue 及 Classroom.vue header
 
 ---
@@ -54,6 +55,10 @@ $isAssignmentCompleted = $assignment
 
 $this->formatLessonFull($currentLesson, ..., $assignment, $assignmentComments, $isAssignmentCompleted);
 ```
+
+**Query params**:
+- `lesson_id` (optional): select which lesson to display
+- `preview_user_id` (optional, **admin only**): when present and the logged-in user is admin, fetch `assignment_comments` and `assignment_completions` for the specified student ID instead of the admin's own. Non-admin users: parameter is ignored.
 
 **Modified response**: `GET /member/classroom/{course}?lesson_id={id}` now includes in `currentLesson`:
 

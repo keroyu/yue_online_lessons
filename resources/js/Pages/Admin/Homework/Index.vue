@@ -242,7 +242,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               <!-- 右：完成狀態（@click.stop 防冒泡） -->
               <div class="flex items-center gap-2 shrink-0" @click.stop>
                 <a
-                  :href="`/member/classroom/${sub.assignment.lesson.course.id}?lesson_id=${sub.assignment.lesson.id}`"
+                  :href="`/member/classroom/${sub.assignment.lesson.course.id}?lesson_id=${sub.assignment.lesson.id}&preview_user_id=${sub.user.id}`"
                   target="_blank"
                   class="text-xs text-gray-500 border border-gray-200 bg-white px-2 py-1 rounded hover:bg-gray-50 hover:border-gray-300 transition-colors"
                 >預覽</a>
