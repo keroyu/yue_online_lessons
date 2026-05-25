@@ -261,7 +261,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   id="duration_seconds"
                   v-model="form.duration_seconds"
                   type="text"
-                  placeholder="例如：3:50 或 11:30"
+                  placeholder="例如：3:50 或 1:59:04"
                   :class="[inputClasses, errors.duration_seconds ? inputErrorClasses : '']"
                 />
                 <p :class="helpTextClasses">格式：分:秒，課程總時長將自動加總</p>
