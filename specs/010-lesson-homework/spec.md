@@ -14,6 +14,7 @@
 **Updated**: 2026-05-17 - 後台批改專區 UX 改版：提交列表改為折疊式列表（點擊標題列展開/收合詳情），回覆批改改為右側固定懸浮面板（slide-in 動畫，Escape/overlay 關閉）
 **Updated**: 2026-05-21 - fix：AssignmentSection.vue 講師回覆改用 v-html + renderMd() 渲染，修正 Markdown 語法未渲染問題（FR-034 實作補齊）
 **Updated**: 2026-05-21 - fix：預覽按鈕改傳 preview_user_id 參數，ClassroomController 在 admin 帶此參數時以學員 ID 查 assignment comments，確保看到正確學員視角
+**Updated**: 2026-05-25 - 後台批改專區新增學員搜尋欄，支援以 Email 或暱稱關鍵字過濾提交列表（FR-041）
 **Updated**: 2026-05-21 - 後台提交列表加入「已回覆」淺藍色標記（有回覆時顯示）、「預覽」按鈕（開新分頁前往學員視角教室頁）；學員提交 Placeholder 改為從 ### 起並補空格說明
 **Updated**: 2026-05-10 - 作業區細節完善：討論串預設收合（展開回答按鈕）、Markdown 正確渲染（前後台）、學員追問一律為頂層、色系改 indigo/navy、講師 bubble 左縮 100px
 **Input**: 在小節影片/內文下方顯示 Markdown 作業題目，學員可提交作業留言（最多2層巢狀），老師可批改回覆；管理後台設有作業批改專區，管理題目並一次批改同一小節所有學員作業。
@@ -118,6 +119,9 @@
 12. **Given** 某筆提交已有至少一則講師回覆，**When** 管理員查看提交列表的標題列，**Then** 學員名旁顯示淺藍色「已回覆」標記，與「已編輯」標記並排。
 13. **Given** 管理員查看提交列表，**When** 任一筆提交顯示於畫面，**Then** 右側操作區始終顯示「預覽」按鈕；點擊後以新分頁開啟 `/member/classroom/{course_id}?lesson_id={lesson_id}&preview_user_id={student_id}`，教室頁面顯示該學員的提交內容、講師回覆（teal bubble）及完成勳章，呈現完整學員視角。
 14. **Given** 管理員以帶有 `preview_user_id` 的 URL 進入教室頁，**When** 頁面載入，**Then** 作業區顯示指定學員的提交記錄與講師回覆；其餘課程內容（影片、文字）正常顯示，管理員登入狀態不變。
+15. **Given** 管理員在批改專區的搜尋欄輸入學員 Email 或暱稱的部分字元，**When** 輸入停頓（300ms debounce），**Then** 提交列表即時更新（Inertia partial reload），只顯示符合該關鍵字的學員提交；清空搜尋欄後恢復顯示全部提交。
+16. **Given** 管理員同時設定課程篩選並輸入搜尋關鍵字，**When** 篩選生效，**Then** 兩個條件同時套用（AND 邏輯），只顯示符合課程且符合關鍵字的提交。
+17. **Given** 管理員切換課程下拉選單，**When** 篩選更新，**Then** 搜尋欄的關鍵字不被清空，原有搜尋條件保留並與新課程條件同時生效。
 
 ---
 
@@ -262,6 +266,8 @@
 - **FR-039**: 後台批改專區提交列表的標題列右側操作區，必須始終顯示「預覽」連結按鈕（無論是否已完成），點擊後以新分頁（`target="_blank"`）開啟該學員視角的教室頁面（`/member/classroom/{course_id}?lesson_id={lesson_id}&preview_user_id={student_id}`），讓講師可即時查看學員端實際呈現的作業狀態（包含該學員的提交內容、講師回覆、完成勳章）。
 
 - **FR-040**: `GET /member/classroom/{course}` 必須支援管理員專用的 `preview_user_id` query 參數；當已登入使用者為管理員且帶有此參數時，系統必須以該學員的 ID（而非管理員本身）查詢 `assignment_comments` 與 `assignment_completions`，使管理員能看到該學員的完整作業視角。非管理員帶此參數時，參數必須被忽略，仍使用自身 ID 查詢。
+
+- **FR-041**: `GET /admin/homework` 必須支援 `search` query 參數；當管理員輸入 Email 或暱稱關鍵字（部分匹配）時，系統必須在現有 `course_id`/`lesson_id` 篩選條件之上，額外以 `users.email LIKE %keyword%` OR `users.nickname LIKE %keyword%` 過濾提交列表；前端輸入欄須以 300ms debounce 送出 Inertia partial reload，切換課程/小節篩選時搜尋關鍵字不得被清空。
 
 **通知系統**
 

@@ -3,6 +3,7 @@
 **Branch**: `010-lesson-homework`  
 **Date**: 2026-05-10  
 **Updated**: 2026-05-10 - 所有後台寫入操作及學員提交操作改為 Inertia partial reload；submissions 分頁改每頁 10 筆；lessons 回傳新增 chapter_id / chapter_title 欄位
+**Updated**: 2026-05-25 - GET /admin/homework 新增 search query 參數（Email/暱稱模糊搜尋）；filters 回傳增加 search 欄位
 **Updated**: 2026-05-21 - GET /member/classroom/{course} 新增管理員專用 preview_user_id query 參數，以指定學員 ID 查詢作業回覆與完成狀態
 **Updated**: 2026-05-10 - Phase 8：notificationCount / notifications 加入 HandleInertiaRequests shared props（所有登入者可見，不限角色）；useNotifications composable 新增；bell 同時實作於 Navigation.vue 及 Classroom.vue header
 
@@ -202,6 +203,7 @@ Or for a reply:
 **Query params**:
 - `course_id` (optional): filter by course
 - `lesson_id` (optional): filter by lesson
+- `search` (optional): filter by student email or nickname (partial match, case-insensitive LIKE)
 - `page` (optional): pagination page number
 
 **Inertia response props**:
@@ -243,7 +245,7 @@ Or for a reply:
     "total": 45
   },
   "courses": [{ "id": 3, "name": "Python 入門" }],
-  "filters": { "course_id": null, "lesson_id": null },
+  "filters": { "course_id": null, "lesson_id": null, "search": null },
   "lessons": [
     {
       "id": 42,
