@@ -24,6 +24,7 @@ class HomeworkController extends Controller
     {
         $courseId = $request->input('course_id');
         $lessonId = $request->input('lesson_id');
+        $search   = trim($request->input('search', ''));
 
         $query = Comment::topLevel()
             ->with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])
@@ -35,6 +36,13 @@ class HomeworkController extends Controller
 
         if ($lessonId) {
             $query->whereHas('assignment.lesson', fn ($q) => $q->where('id', $lessonId));
+        }
+
+        if ($search !== '') {
+            $query->whereHas('user', fn ($q) =>
+                $q->where('email', 'like', "%{$search}%")
+                  ->orWhere('nickname', 'like', "%{$search}%")
+            );
         }
 
         $submissions = $query->latest()->paginate(10)->through(function ($comment) {
@@ -115,6 +123,7 @@ class HomeworkController extends Controller
             'filters' => [
                 'course_id' => $courseId ? (int) $courseId : null,
                 'lesson_id' => $lessonId ? (int) $lessonId : null,
+                'search'    => $search ?: null,
             ],
             'assignmentsMap' => $this->getAssignmentsMap(),
         ]);

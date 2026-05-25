@@ -18,17 +18,34 @@ const page = usePage()
 
 const selectedCourseId = ref(props.filters.course_id ?? '')
 const selectedLessonId = ref(props.filters.lesson_id ?? '')
+const searchQuery = ref(props.filters.search ?? '')
 
 watch(selectedCourseId, (val) => {
   selectedLessonId.value = ''
-  router.get('/admin/homework', { course_id: val || undefined }, { preserveState: true, replace: true })
+  router.get('/admin/homework', {
+    course_id: val || undefined,
+    search: searchQuery.value || undefined,
+  }, { preserveState: true, replace: true })
 })
 
 watch(selectedLessonId, (val) => {
   router.get('/admin/homework', {
     course_id: selectedCourseId.value || undefined,
     lesson_id: val || undefined,
+    search: searchQuery.value || undefined,
   }, { preserveState: true, replace: true })
+})
+
+let searchTimer = null
+watch(searchQuery, (val) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    router.get('/admin/homework', {
+      course_id: selectedCourseId.value || undefined,
+      lesson_id: selectedLessonId.value || undefined,
+      search: val || undefined,
+    }, { preserveState: true, replace: true })
+  }, 300)
 })
 
 const renderMd = (md) => marked.parse(md || '', { breaks: true })
@@ -199,7 +216,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
       <div class="mb-8 bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <h2 class="font-semibold text-gray-700">學員提交列表</h2>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded px-2 py-1">
               <option value="">全部課程</option>
               <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -208,6 +225,12 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               <option value="">全部小節</option>
               <option v-for="l in lessons" :key="l.id" :value="l.id">{{ l.title }}</option>
             </select>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜尋學員 Email 或暱稱"
+              class="text-sm border border-gray-300 rounded px-2 py-1 w-52 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            />
           </div>
         </div>
 
