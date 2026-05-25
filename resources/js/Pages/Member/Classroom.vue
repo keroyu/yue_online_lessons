@@ -267,28 +267,24 @@ const handleToggleComplete = async (lesson) => {
       console.error('Failed to mark lesson incomplete:', error)
     }
   } else {
-    // Marking as complete: add to local state, start timer
+    // Manual mark as complete: immediate POST, no timer
+    cancelLessonTimer(lesson.id)
     localCompletedLessons.value.add(lesson.id)
 
-    // Start 5-minute timer if not already completed on server
     if (!lesson.is_completed) {
-      cancelLessonTimer(lesson.id)
-
-      completionTimers.value[lesson.id] = setTimeout(async () => {
-        try {
-          await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
-            method: 'POST',
-            headers: {
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-              'Accept': 'application/json',
-            },
-          })
-          updateLessonCompletion(lesson.id, true)
-          delete completionTimers.value[lesson.id]
-        } catch (error) {
-          console.error('Failed to mark lesson complete:', error)
-        }
-      }, getCompletionThresholdMs(lesson))
+      try {
+        await fetch(`/member/classroom/${props.course.id}/progress/${lesson.id}`, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+          },
+        })
+        updateLessonCompletion(lesson.id, true)
+      } catch (error) {
+        console.error('Failed to mark lesson complete:', error)
+        localCompletedLessons.value.delete(lesson.id)
+      }
     }
   }
 }
