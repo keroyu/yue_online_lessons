@@ -69,9 +69,14 @@ class Lesson extends Model
     {
         return Attribute::make(
             get: function () {
-                $minutes = floor($this->duration_seconds / 60);
-                $seconds = $this->duration_seconds % 60;
-                return sprintf('%d:%02d', $minutes, $seconds);
+                $total = $this->duration_seconds;
+                if ($total >= 3600) {
+                    $h = floor($total / 3600);
+                    $m = floor(($total % 3600) / 60);
+                    $s = $total % 60;
+                    return sprintf('%d:%02d:%02d', $h, $m, $s);
+                }
+                return sprintf('%d:%02d', floor($total / 60), $total % 60);
             }
         );
     }

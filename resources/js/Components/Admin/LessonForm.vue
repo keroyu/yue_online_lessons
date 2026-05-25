@@ -34,18 +34,30 @@ const form = ref({
 const errors = ref({})
 const notifyMembers = ref(false)
 
-// Convert seconds to "M:SS" display format
+// Convert seconds to "M:SS" or "H:MM:SS" display format
 const secondsToMMSS = (seconds) => {
   if (!seconds) return ''
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-// Parse "M:SS" input to seconds
+// Parse "M:SS" or "H:MM:SS" input to seconds
 const parseMMSS = (input) => {
   if (!input || !input.trim()) return null
   const parts = input.trim().split(':')
+  if (parts.length === 3) {
+    const hours = parseInt(parts[0]) || 0
+    const minutes = parseInt(parts[1]) || 0
+    const seconds = parseInt(parts[2]) || 0
+    return hours * 3600 + minutes * 60 + seconds
+  }
   if (parts.length === 2) {
     const minutes = parseInt(parts[0]) || 0
     const seconds = parseInt(parts[1]) || 0
@@ -126,8 +138,8 @@ const validate = () => {
     return false
   }
 
-  if (form.value.duration_seconds && !/^\d+:[0-5]?\d$/.test(form.value.duration_seconds.trim())) {
-    errors.value.duration_seconds = '格式錯誤，請使用 分:秒 格式（如 3:50 或 11:30）'
+  if (form.value.duration_seconds && !/^(\d+:[0-5]\d:[0-5]\d|\d+:[0-5]?\d)$/.test(form.value.duration_seconds.trim())) {
+    errors.value.duration_seconds = '格式錯誤，請使用 分:秒 或 時:分:秒 格式（如 3:50 或 1:59:04）'
     return false
   }
 
