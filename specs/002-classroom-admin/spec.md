@@ -39,6 +39,9 @@
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController 回傳 lesson 資料時漏傳 `is_preview` 欄位，導致重新編輯小節時試閱設定遺失
 **Updated**: 2026-05-10 - Bug fix US1：YouTube 切換小節時播放器卡住 — 改用 loadVideoById() 取代 destroy+recreate；新增 FR-108、SC-015
 **Updated**: 2026-05-09 - US1 影片播放結束自動跳至下一小節（Vimeo/YouTube postMessage API）；新增 FR-105~FR-107、SC-012~SC-014、Edge Cases
+**Updated**: 2026-05-25 - 新增手動點擊灰色圖示立即標記小節為已完成功能；新增 FR-006f、SC-016、US1a SC-008
+**Updated**: 2026-05-25 - 小節時長輸入支援 H:MM:SS 格式（> 1 小時）；durationFormatted accessor 同步更新；新增 FR-109、更新 US3 SC-011
+**Updated**: 2026-05-25 - 課程內文 Markdown 表格加入樣式（border、條紋、RWD 捲動）；新增 FR-110
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -67,6 +70,7 @@
 13. **Given** 影片播放結束並自動跳至下一小節, **When** 切換發生時, **Then** 原小節立即標記為已完成（樂觀更新 + 即時 POST，不等待 2 分鐘計時器）*(SC-013)*
 14. **Given** 目前小節為課程最後一個小節, **When** 影片播放完畢, **Then** 不發生任何跳轉，停留於原小節 *(SC-014)*
 15. **Given** 會員在含 YouTube 影片的課程中，連續點擊多個不同小節, **When** 切換發生時, **Then** YouTube 播放器 MUST 正確播放新小節的影片（不卡在前一個小節）*(SC-015)*
+16. **Given** 未完成的小節顯示灰色播放/文件圖示（非免費試閱模式）, **When** 會員點擊該圖示, **Then** 該小節立即標記為已完成並寫入伺服器（不需等待計時器），圖示變為綠色勾勾 *(SC-016)*
 
 ---
 
@@ -87,6 +91,7 @@
 5. **Given** 會員在小節 A 停留超過 2 分鐘後完成紀錄已寫入, **When** 會員離開頁面後重新進入, **Then** 小節 A 仍顯示為已完成
 6. **Given** 會員在小節 A 停留 1 分 50 秒後, **When** 關閉瀏覽器視窗或離開頁面, **Then** 小節 A 不會被記錄為完成
 7. **Given** 會員點擊已完成的小節勾勾圖示（取消完成）, **When** 該操作執行, **Then** 取消完成的請求立即發送至伺服器（不受2分鐘限制）
+8. **Given** 未完成的小節顯示灰色圖示（非免費試閱模式）, **When** 會員手動點擊該圖示標記為完成, **Then** 系統立即 POST 寫入伺服器（不受 2 分鐘節流限制），樂觀更新圖示為綠色勾勾
 
 ---
 
@@ -170,7 +175,7 @@
 8. **Given** 課程已發佈（預購中/熱賣中）且管理員編輯內容, **When** 點擊「儲存」, **Then** 內容更新但狀態不變
 9. **Given** 課程已發佈（預購中/熱賣中）, **When** 管理員點擊「下架為草稿」, **Then** 課程狀態變回「草稿」，前台不可見
 10. **Given** 管理員要調整章節順序, **When** 拖曳章或節, **Then** 順序更新成功
-11. **Given** 管理員編輯小節並設定影片時長, **When** 在時長欄輸入 `M:SS` 格式（如 `3:50`）, **Then** 系統轉換並儲存為秒數（duration_seconds），課程總時長自動重算
+11. **Given** 管理員編輯小節並設定影片時長, **When** 在時長欄輸入 `M:SS` 格式（如 `3:50`）或 `H:MM:SS` 格式（如 `1:59:04`）, **Then** 系統轉換並儲存為秒數（duration_seconds），課程總時長自動重算
 
 ---
 
@@ -443,6 +448,9 @@
 - **FR-106**: 影片自然結束觸發跳轉時，系統 MUST 立即將當前小節標記為已完成（不受 2 分鐘節流限制）
 - **FR-107**: 若當前小節為課程最後一個小節，或處於免費試閱模式（`isFreePreview=true`），影片結束時 MUST NOT 執行自動跳轉
 - **FR-108**: YouTube 播放器切換小節時，MUST 使用 `ytPlayer.loadVideoById()` 換片，MUST NOT 呼叫 `ytPlayer.destroy()` 再重建。原因：`YT.Player()` 初始化後會將 container `<div>` 置換為 `<iframe>`（Vue ref 指向已脫離 DOM 的舊 div），若 destroy 後再 `new YT.Player(ytContainer.value, ...)` 將在 detached element 建立不可見的播放器。
+- **FR-006f**: 未完成小節的灰色播放/文件圖示（非免費試閱模式）MUST 為可點擊按鈕；點擊後 MUST 立即 POST 寫入完成紀錄（不受 2 分鐘節流限制）；失敗時 MUST rollback 前端 optimistic state；免費試閱模式（`isFreePreview=true`）MUST NOT 顯示可點擊按鈕
+- **FR-109**: 小節時長輸入欄（admin LessonForm）MUST 同時接受 `M:SS`（如 `3:50`）與 `H:MM:SS`（如 `1:59:04`）格式；`Lesson::durationFormatted` accessor MUST 在 duration_seconds < 3600 時輸出 `M:SS`，≥ 3600 時輸出 `H:MM:SS`；Placeholder MUST 示範兩種格式
+- **FR-110**: 課程內文（`.course-content`）中的 Markdown 表格 MUST 渲染為有框線樣式；表頭（`<th>`）MUST 使用 `#373557` 深色底白字；偶數列 MUST 顯示條紋底色（`#F6F1E9`）；表格 MUST 支援 RWD（`overflow-x: auto`，手機版橫向捲動）
 
 **管理員後臺：**
 - **FR-009**: 系統 MUST 提供管理員後臺 (/admin)，僅 admin 角色可進入

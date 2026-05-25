@@ -11,6 +11,7 @@
 **Updated**: 2026-05-09 - US12 Traffic 頁新增 UTM 生成器（FR-102）與麵包屑（FR-103）；課程管理頁按鈕語意配色統一
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController::index() 兩處 lesson mapping 補加 is_preview 欄位
 **Updated**: 2026-05-10 - Bug fix US1：YouTube 切換小節時改用 loadVideoById() 取代 destroy+recreate，修復 detached DOM 導致播放器卡住問題
+**Updated**: 2026-05-25 - 手動標記小節已完成（FR-006f）、H:MM:SS 時長格式（FR-109）、課程內文表格樣式（FR-110）
 **Updated**: 2026-05-09 - US1 影片播放結束自動跳下一小節：VideoPlayer 加 postMessage 監聽 + Classroom 加 handleVideoEnded + allLessonsOrdered
 **Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片：有序多選 + 順序 badge + 空行分隔一次插入
 **Updated**: 2026-03-01 - Markdown 內嵌影片 iframe 響應式樣式

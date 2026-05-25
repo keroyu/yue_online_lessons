@@ -10,6 +10,7 @@
 **Updated**: 2026-03-09 - 管理員課程表單新增 SEO 欄位 (Phase 25)
 **Updated**: 2026-05-09 - US12 Traffic 頁 UTM 生成器、麵包屑、課程管理按鈕配色；PayUni ATM cache TTL 修正（Phase 40）
 **Updated**: 2026-05-10 - Bug fix US1：YouTube loadVideoById() 取代 destroy+recreate (Phase 42)
+**Updated**: 2026-05-25 - 手動標記小節已完成、H:MM:SS 時長格式、課程內文表格樣式 (Phase 43)
 **Updated**: 2026-05-09 - US1 影片結束自動跳下一小節（VideoPlayer postMessage + Classroom handleVideoEnded）(Phase 41)
 **Updated**: 2026-03-09 - US10 小節新增 Email 通知會員 (Phase 26)
 **Updated**: 2026-03-09 - 修正：通知觸發點從 ChapterController 改為 LessonController，排除 drip 課程 (Phase 27)
