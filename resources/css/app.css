@@ -279,3 +279,35 @@ body {
     border: none;
     border-top: 1px solid #e5e7eb;
 }
+
+.course-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    font-size: 0.95rem;
+    display: block;
+    overflow-x: auto;
+}
+
+.course-content th {
+    background-color: #373557;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.65em 1em;
+    border: 1px solid #2e2c47;
+}
+
+.course-content td {
+    padding: 0.6em 1em;
+    border: 1px solid #d1d5db;
+    vertical-align: top;
+}
+
+.course-content tbody tr:nth-child(even) {
+    background-color: #F6F1E9;
+}
+
+.course-content tbody tr:hover {
+    background-color: #eef2ff;
+}
