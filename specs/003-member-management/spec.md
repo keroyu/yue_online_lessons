@@ -12,6 +12,7 @@
 **Updated**: 2026-05-03 - 新增 US10（匯入 modal 新增 CSV 上傳模式）；FR-042～048；SC-012
 **Updated**: 2026-05-03 - ImportMembersModal 修正 z-index（Teleport to body）；CSV 格式提示改為表格視覺
 **Updated**: 2026-05-10 - 匯入時可選擇指派課程授權（lead_conversion）；新增 FR-050～053；US9 Scenario 8、US10 Scenario 9；Edge Cases 補充
+**Updated**: 2026-06-03 - 修正會員詳情載入失敗 Bug：AssignmentCompletion.created_at 缺少 datetime cast；homework completions 關聯鏈補 null guard
 **Status**: Draft
 **Input**: User description: "後台功能新增：會員管理。1.可以查看、編輯會員的email, 暱稱，姓名, 電話, 生日, IP，註冊時間和最後登入時間 2.查看會員擁有的課程和完成進度 3.用checkbox 或 通過filter（例如:擁有xxx課程的）選定會員批次發送email（編寫email主旨和內文的功能用modal）"
 **Update 2026-01-18**: "在批次選取會員的功能新增「贈送課程」的按鈕。贈送的同時發送 Email 通知會員, 內容包括贈送的課程名稱和簡介，並歡迎會員回到網站開始學習"
@@ -227,6 +228,7 @@ As an admin, I want to upload a CSV file to import member accounts with full pro
 - What happens when a course is selected for assignment and an email already exists in the system but does NOT own the course? Account creation is skipped (counted in "略過") but the course grant IS executed and counted in `assigned_count`.
 - What happens when no course is selected (dropdown left at "不指派課程")? Import behaves identically to the pre-FR-050 behaviour; `assigned_count` is 0 and no purchase records are created.
 - What happens when a CSV row's phone does not start with "09" (e.g., "+1-555-1234", "02-1234-5678")? Treat as international/non-mobile number, store as-is without format enforcement.
+- What happens when a member's homework completion record references an assignment, lesson, or course that has since been deleted? The orphaned completion record is silently excluded from the homework completions list in the member detail modal; it does not cause a server error.
 
 ## Requirements *(mandatory)*
 

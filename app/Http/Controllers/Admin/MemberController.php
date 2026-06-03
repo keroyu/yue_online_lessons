@@ -138,11 +138,12 @@ class MemberController extends Controller
             ->with('assignment.lesson.course')
             ->orderByDesc('created_at')
             ->get()
+            ->filter(fn ($c) => $c->assignment?->lesson?->course !== null)
             ->map(fn ($c) => [
                 'course_name' => $c->assignment->lesson->course->name,
                 'lesson_title' => $c->assignment->lesson->title,
                 'completed_at' => $c->created_at->toIso8601String(),
-            ]);
+            ])->values();
 
         return response()->json([
             'member' => [

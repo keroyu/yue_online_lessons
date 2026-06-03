@@ -612,7 +612,8 @@
       "code_files": [
         "app/Http/Controllers/Admin/MemberController.php",
         "app/Models/Purchase.php",
-        "app/Models/LessonProgress.php"
+        "app/Models/LessonProgress.php",
+        "app/Models/AssignmentCompletion.php"
       ],
       "status": "implemented"
     },

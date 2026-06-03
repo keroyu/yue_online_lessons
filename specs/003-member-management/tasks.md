@@ -8,6 +8,7 @@
 **Updated**: 2026-05-03 - ImportMembersModal Teleport 修正、CSV hint 表格化（Phase 18）
 **Updated**: 2026-05-10 - 匯入同時可選指派課程授權（lead_conversion）；grantCourse() helper；ImportMembersModal 課程選擇器 (Phase 19)
 **Updated**: 2026-03-09 - 改批次 Email 和贈課通知為同步發送，移除 Queue Job (Phase 11)
+**Updated**: 2026-06-03 - Bug fix：AssignmentCompletion 補 created_at cast；show() 補 null guard (Phase 20)
 **Updated**: 2026-03-09 - 精簡贈課 Email 模板 HTML (Phase 12)
 **Updated**: 2026-03-09 - 贈課 Email 改為純文字 MIME (Phase 13)
 **Updated**: 2026-03-09 - 修正贈課 Email 模板檔名；批次 Email 支援 Markdown (Phase 14)

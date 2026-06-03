@@ -14,6 +14,13 @@ class AssignmentCompletion extends Model
 
     protected $fillable = ['assignment_id', 'user_id'];
 
+    protected function casts(): array
+    {
+        return [
+            'created_at' => 'datetime',
+        ];
+    }
+
     protected static function boot(): void
     {
         parent::boot();
