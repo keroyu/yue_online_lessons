@@ -3,7 +3,13 @@ import { ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { marked } from 'marked'
 
-const renderMd = (md) => marked.parse(md || '', { breaks: true })
+const renderer = new marked.Renderer()
+renderer.link = ({ href, title, text }) => {
+  const titleAttr = title ? ` title="${title}"` : ''
+  return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`
+}
+
+const renderMd = (md) => marked.parse(md || '', { breaks: true, renderer })
 
 const props = defineProps({
   assignment: { type: Object, required: true },
