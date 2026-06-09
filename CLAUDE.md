@@ -100,6 +100,8 @@ Need more search: yes/no
 - MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 2 altered tables (`courses` + `payment_gateway`, `purchases` + `order_id`); `site_settings` table (existing) for gateway credentials (009-cart-checkout)
 - PHP 8.2 / Laravel 12 + Laravel 12 + Inertia.js v2 + Vue 3 (`<script setup>`) + Tailwind CSS v4 + `marked` v17 (existing) + `league/commonmark` v2 (existing) (010-lesson-homework)
 - MySQL — 4 new tables, 1 altered (`users.points` column) (010-lesson-homework)
+- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4（皆為現有依賴，無新增套件） (011-discount-coupon)
+- MySQL — 1 張新表 `coupon_codes`（含 `deleted_at` 軟刪除）；`orders` 表 alter 新增 3 欄；`purchases` 表沿用既有 `coupon_code` / `discount_amount` 欄（無需 migration） (011-discount-coupon)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

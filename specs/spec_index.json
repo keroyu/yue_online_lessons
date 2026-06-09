@@ -1540,6 +1540,66 @@
       "keywords": [],
       "code_files": [],
       "status": "planned"
+    },
+    {
+      "id": "011.us-1",
+      "module": "011-discount-coupon",
+      "title": "購物車套用折扣碼",
+      "summary": "",
+      "heading": "### User Story 1 - 購物車套用折扣碼 (Priority: P1)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-1---購物車套用折扣碼-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "011.us-2",
+      "module": "011-discount-coupon",
+      "title": "後台管理員建立與管理折扣碼",
+      "summary": "",
+      "heading": "### User Story 2 - 後台管理員建立與管理折扣碼 (Priority: P1)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-2---後台管理員建立與管理折扣碼-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "011.us-3",
+      "module": "011-discount-coupon",
+      "title": "結帳時折扣生效並記錄",
+      "summary": "",
+      "heading": "### User Story 3 - 結帳時折扣生效並記錄 (Priority: P2)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-3---結帳時折扣生效並記錄-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "011.us-4",
+      "module": "011-discount-coupon",
+      "title": "後台查看折扣碼統計",
+      "summary": "",
+      "heading": "### User Story 4 - 後台查看折扣碼統計 (Priority: P2)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-4---後台查看折扣碼統計-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "011.us-5",
+      "module": "011-discount-coupon",
+      "title": "分享連結自動帶入折扣碼",
+      "summary": "",
+      "heading": "### User Story 5 - 分享連結自動帶入折扣碼 (Priority: P3)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-5---分享連結自動帶入折扣碼-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
     }
   ]
 }
