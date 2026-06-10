@@ -5,8 +5,13 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 defineOptions({ layout: AdminLayout })
 
 defineProps({
-  coupons: { type: Array, default: () => [] },
+  // Laravel paginator：{ data, current_page, last_page, ... }
+  coupons: { type: Object, required: true },
 })
+
+const goToPage = (page) => {
+  router.get('/admin/coupons', { page }, { preserveState: true, preserveScroll: true })
+}
 
 const toggle = (coupon) => {
   router.patch(`/admin/coupons/${coupon.id}/toggle`, {}, { preserveScroll: true })
@@ -48,7 +53,7 @@ const destroy = (coupon) => {
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="c in coupons" :key="c.id">
+          <tr v-for="c in coupons.data" :key="c.id">
             <td class="px-4 py-4 text-sm font-mono font-semibold text-gray-900">{{ c.code }}</td>
             <td class="px-4 py-4 text-sm text-gray-700">{{ c.type_label }}</td>
             <td class="px-4 py-4 text-sm text-gray-500">{{ c.scope_label }}</td>
@@ -70,11 +75,34 @@ const destroy = (coupon) => {
               <button @click="destroy(c)" class="ml-3 text-red-500 hover:text-red-700">刪除</button>
             </td>
           </tr>
-          <tr v-if="coupons.length === 0">
+          <tr v-if="coupons.data.length === 0">
             <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-500">尚無折扣碼，點擊右上角「新增折扣碼」開始建立</td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="coupons.last_page > 1" class="mt-4 flex items-center justify-center">
+      <nav class="flex items-center space-x-2">
+        <button
+          @click="goToPage(coupons.current_page - 1)"
+          :disabled="coupons.current_page === 1"
+          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          上一頁
+        </button>
+        <span class="text-sm text-gray-700">
+          {{ coupons.current_page }} / {{ coupons.last_page }}
+        </span>
+        <button
+          @click="goToPage(coupons.current_page + 1)"
+          :disabled="coupons.current_page === coupons.last_page"
+          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          下一頁
+        </button>
+      </nav>
     </div>
   </div>
 </template>

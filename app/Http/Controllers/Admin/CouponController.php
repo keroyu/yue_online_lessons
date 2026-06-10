@@ -17,12 +17,15 @@ class CouponController extends Controller
 {
     public function __construct(private CouponService $couponService) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $perPage = min((int) $request->input('per_page', 20), 100);
+
         $coupons = CouponCode::with('course:id,name')
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (CouponCode $c) => $this->row($c));
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (CouponCode $c) => $this->row($c));
 
         return Inertia::render('Admin/Coupons/Index', [
             'coupons' => $coupons,
@@ -73,7 +76,7 @@ class CouponController extends Controller
     {
         $coupon->delete(); // 軟刪除：代碼永久保留，不可重建
 
-        return redirect()->route('admin.coupons.index')->with('success', '折扣碼已刪除');
+        return back()->with('success', '折扣碼已刪除'); // back() 保留當前分頁/查詢字串
     }
 
     public function toggle(CouponCode $coupon): RedirectResponse
