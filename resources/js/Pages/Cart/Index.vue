@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
+import CouponInput from '@/Components/Cart/CouponInput.vue'
 import { useCart } from '@/composables/useCart'
 
 defineOptions({ layout: false })
@@ -9,6 +10,8 @@ defineOptions({ layout: false })
 const props = defineProps({
   items: { type: Array, default: () => [] },
   total: { type: Number, default: 0 },
+  // US5：網址 ?coupon= 經 session 帶入的原始代碼字串（登入/訪客一致）
+  prefillCouponCode: { type: String, default: null },
 })
 
 const page = usePage()
@@ -28,6 +31,8 @@ const displayTotal = computed(() =>
   isAuthenticated.value ? props.total : guestTotal.value
 )
 
+const courseIds = computed(() => displayItems.value.map(i => i.course.id))
+
 const paymentFailed = computed(() => page.props.flash?.payment_failed ?? null)
 
 onMounted(() => {
@@ -39,6 +44,33 @@ onMounted(() => {
     }
   }
 })
+
+// --- Coupon state (ref only, not persisted) ---
+const couponInput = ref(null)
+const appliedCoupon = ref(null)   // { code, type, label, discount, original, payable }
+const couponNotice = ref('')
+
+const onCouponApplied = (payload) => {
+  appliedCoupon.value = payload
+  couponNotice.value = ''
+}
+const onCouponRemoved = () => {
+  appliedCoupon.value = null
+  couponNotice.value = ''
+}
+const onCouponInvalidated = () => {
+  appliedCoupon.value = null
+  couponNotice.value = '折扣碼已移除，因購物車內容已變更'
+}
+
+const discountAmount = computed(() => appliedCoupon.value?.discount ?? 0)
+const payableTotal = computed(() => displayTotal.value - discountAmount.value)
+
+const checkoutHref = computed(() =>
+  appliedCoupon.value
+    ? `/checkout?coupon=${encodeURIComponent(appliedCoupon.value.code)}`
+    : '/checkout'
+)
 
 const { removeFromCart } = useCart()
 const removing = ref(new Set())
@@ -54,6 +86,12 @@ const removeItem = async (item) => {
       router.reload({ only: ['items', 'total'] })
     } else {
       guestItems.value = guestItems.value.filter(i => i.id !== item.course.id)
+    }
+
+    // US1-9：移除課程後若已套用折扣碼，以新的購物車內容重新驗證
+    if (appliedCoupon.value) {
+      const newIds = courseIds.value.filter(id => id !== item.course.id)
+      await couponInput.value?.revalidate(newIds)
     }
   } finally {
     removing.value.delete(item.id)
@@ -117,14 +155,35 @@ const removeItem = async (item) => {
           </button>
         </div>
 
+        <!-- Coupon input -->
+        <CouponInput
+          ref="couponInput"
+          :course-ids="courseIds"
+          :prefill-code="prefillCouponCode"
+          @applied="onCouponApplied"
+          @removed="onCouponRemoved"
+          @invalidated="onCouponInvalidated"
+        />
+        <p v-if="couponNotice" class="text-sm text-amber-600">{{ couponNotice }}</p>
+
         <!-- Total + CTA -->
         <div class="mt-6 rounded-xl bg-brand-cream border border-gray-200 p-5">
-          <div class="flex justify-between items-center mb-4">
-            <span class="text-gray-600 font-medium">合計</span>
-            <span class="text-xl font-bold text-brand-navy">NT$ {{ displayTotal.toLocaleString() }}</span>
+          <div class="space-y-2 mb-4">
+            <div class="flex justify-between items-center text-gray-600">
+              <span>小計</span>
+              <span>NT$ {{ displayTotal.toLocaleString() }}</span>
+            </div>
+            <div v-if="appliedCoupon" class="flex justify-between items-center text-brand-teal">
+              <span>折扣（{{ appliedCoupon.label }}）</span>
+              <span>-NT$ {{ discountAmount.toLocaleString() }}</span>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+              <span class="text-gray-600 font-medium">合計</span>
+              <span class="text-xl font-bold text-brand-navy">NT$ {{ payableTotal.toLocaleString() }}</span>
+            </div>
           </div>
           <Link
-            href="/checkout"
+            :href="checkoutHref"
             class="block w-full text-center py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm"
           >
             前往結帳

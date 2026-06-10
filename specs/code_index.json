@@ -155,6 +155,9 @@
     "app/Mail/HighTicketBookingMail.php": [
       "008.us-3"
     ],
+    "app/Models/AssignmentCompletion.php": [
+      "003.us-3"
+    ],
     "app/Models/Chapter.php": [
       "002.us-3"
     ],

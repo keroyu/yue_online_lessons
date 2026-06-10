@@ -2,6 +2,7 @@
 
 **Feature Branch**: `011-discount-coupon`
 **Created**: 2026-06-09
+**Updated**: 2026-06-10 - 已建立 migration 並 migrate：`coupon_codes`（含 SoftDeletes、`UNIQUE(code)`）、`orders` 新增 `coupon_code`/`original_amount`/`discount_amount`；`purchases` 沿用既有欄位（`coupon_code` 寫每筆、`discount_amount` 僅記首筆）。schema 與本文件一致。
 
 ---
 

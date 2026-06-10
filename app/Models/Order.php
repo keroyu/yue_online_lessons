@@ -12,7 +12,8 @@ class Order extends Model
 {
     protected $fillable = [
         'user_id', 'buyer_name', 'buyer_email', 'buyer_phone', 'tax_id',
-        'total_amount', 'currency', 'payment_gateway',
+        'total_amount', 'coupon_code', 'original_amount', 'discount_amount',
+        'currency', 'payment_gateway',
         'merchant_order_no', 'status', 'gateway_trade_no',
         'webhook_received_at',
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
@@ -23,6 +24,8 @@ class Order extends Model
     {
         return [
             'total_amount'        => 'decimal:2',
+            'original_amount'     => 'decimal:2',
+            'discount_amount'     => 'decimal:2',
             'webhook_received_at' => 'datetime',
             'status'              => 'string',
         ];

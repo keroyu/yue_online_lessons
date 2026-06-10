@@ -120,5 +120,14 @@ class CourseController extends Controller
         if (!empty($trafficData)) {
             $request->session()->put('traffic_source', $trafficData);
         }
+
+        // Capture shareable discount coupon (?coupon=CODE) alongside traffic attribution (US5).
+        $couponParam = $request->query('coupon');
+        if (is_string($couponParam) && trim($couponParam) !== '') {
+            $code = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $couponParam), 0, 6));
+            if ($code !== '') {
+                $request->session()->put('checkout_coupon', $code);
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Purchase;
 use App\Models\User;
+use App\Services\CouponService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,7 +19,7 @@ class CheckoutService
      *
      * @param array<string, ?string> $trafficSource 來源資料；keys: utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid
      */
-    public function createOrder(?int $userId, array $courseIds, array $buyer, array $trafficSource = []): Order
+    public function createOrder(?int $userId, array $courseIds, array $buyer, array $trafficSource = [], ?string $couponCode = null): Order
     {
         $courses = Course::whereIn('id', $courseIds)->get()->keyBy('id');
 
@@ -56,11 +57,34 @@ class CheckoutService
             ? 'newebpay'
             : 'payuni';
 
-        $totalAmount = $courses->sum(fn ($c) => $c->display_price);
+        $subtotal = (int) round($courses->sum(fn ($c) => $c->display_price));
+
+        // Apply discount coupon (if any). Discount is computed once on the order subtotal.
+        // Final re-validation here blocks payment if the coupon went invalid (FR-012).
+        $couponFields = [
+            'coupon_code'     => null,
+            'original_amount' => null,
+            'discount_amount' => 0,
+        ];
+        $payable = $subtotal;
+
+        $couponCode = $couponCode ? strtoupper(trim($couponCode)) : null;
+        if ($couponCode) {
+            $result = app(CouponService::class)->validateForCart($couponCode, $courseIds, $subtotal);
+            if (!$result['success']) {
+                throw new \RuntimeException($result['error']);
+            }
+            $couponFields = [
+                'coupon_code'     => $result['code'],
+                'original_amount' => $subtotal,
+                'discount_amount' => $result['discount'],
+            ];
+            $payable = $result['payable'];
+        }
 
         $sourceKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'];
 
-        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $totalAmount, $trafficSource, $sourceKeys) {
+        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $payable, $couponFields, $trafficSource, $sourceKeys) {
             $sourceData = [];
             foreach ($sourceKeys as $key) {
                 $sourceData[$key] = $trafficSource[$key] ?? null;
@@ -72,12 +96,12 @@ class CheckoutService
                 'buyer_email'       => $buyer['email'],
                 'buyer_phone'       => $buyer['phone'],
                 'tax_id'            => !empty($buyer['tax_id']) ? $buyer['tax_id'] : null,
-                'total_amount'      => $totalAmount,
+                'total_amount'      => $payable,
                 'currency'          => 'TWD',
                 'payment_gateway'   => $gateway,
                 'merchant_order_no' => null,
                 'status'            => 'pending',
-            ], $sourceData));
+            ], $couponFields, $sourceData));
 
             $order->update([
                 'merchant_order_no' => 'ord_' . $order->id . '_' . date('ymd'),
@@ -139,9 +163,16 @@ class CheckoutService
 
             $dripService = app(\App\Services\DripService::class);
 
+            // Discount is order-level; record it on the first purchase row only so that
+            // sum(purchase.discount_amount) == order.discount_amount (stats use orders).
+            $discountRemaining = (int) round($order->discount_amount);
+
             foreach ($order->items as $item) {
                 try {
-                    [$purchase, $created] = $this->firstOrCreatePurchase($user, $item, $order, $gateway);
+                    $discountForItem = $discountRemaining;
+                    $discountRemaining = 0;
+
+                    [$purchase, $created] = $this->firstOrCreatePurchase($user, $item, $order, $gateway, $discountForItem);
 
                     if ($created) {
                         $purchases[] = $purchase;
@@ -160,12 +191,18 @@ class CheckoutService
                     continue;
                 }
             }
+
+            // Redeem coupon once on payment confirmation (FR-014). Layer-1 status guard
+            // above ensures this runs only on the first successful fulfillment.
+            if ($order->coupon_code) {
+                app(CouponService::class)->redeem($order->coupon_code);
+            }
         });
 
         return $purchases;
     }
 
-    private function firstOrCreatePurchase(User $user, OrderItem $item, Order $order, string $gateway): array
+    private function firstOrCreatePurchase(User $user, OrderItem $item, Order $order, string $gateway, int $discountAmount = 0): array
     {
         $existing = Purchase::where('user_id', $user->id)
             ->where('course_id', $item->course_id)
@@ -181,6 +218,8 @@ class CheckoutService
             'buyer_email'        => $order->buyer_email,
             'amount'             => $item->unit_price,
             'currency'           => 'TWD',
+            'coupon_code'        => $order->coupon_code,
+            'discount_amount'    => $discountAmount,
             'status'             => 'paid',
             'type'               => 'paid',
             'source'             => $gateway,

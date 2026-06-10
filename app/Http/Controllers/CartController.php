@@ -20,8 +20,9 @@ class CartController extends Controller
 
         if (!$user) {
             return Inertia::render('Cart/Index', [
-                'items' => [],
-                'total' => 0,
+                'items'             => [],
+                'total'             => 0,
+                'prefillCouponCode' => session('checkout_coupon'),
             ]);
         }
 
@@ -38,8 +39,9 @@ class CartController extends Controller
         ]);
 
         return Inertia::render('Cart/Index', [
-            'items' => $mapped,
-            'total' => $mapped->sum(fn ($i) => $i['course']['price']),
+            'items'             => $mapped,
+            'total'             => $mapped->sum(fn ($i) => $i['course']['price']),
+            'prefillCouponCode' => session('checkout_coupon'),
         ]);
     }
 

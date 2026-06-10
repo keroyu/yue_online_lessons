@@ -2,13 +2,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { Head, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
+import CouponInput from '@/Components/Cart/CouponInput.vue'
 
 defineOptions({ layout: false })
 
 const props = defineProps({
-  items:   { type: Array,  default: () => [] },
-  total:   { type: Number, default: 0 },
-  prefill: { type: Object, default: () => ({ name: null, email: null, phone: null }) },
+  items:      { type: Array,  default: () => [] },
+  total:      { type: Number, default: 0 },
+  prefill:    { type: Object, default: () => ({ name: null, email: null, phone: null }) },
+  // 折扣碼字串（?coupon= 或 session 帶入）；交給 CouponInput 自動套用，登入/訪客一致
+  couponCode: { type: String, default: null },
 })
 
 const page = usePage()
@@ -31,7 +34,14 @@ const courseIds    = computed(() =>
     : guestItems.value.map(i => i.id)
 )
 
-onMounted(() => {
+// 折扣摘要由 CouponInput 驅動（手動輸入或網址/session 自動帶入皆共用同一元件）
+const appliedCoupon = ref(null)
+const discountAmount = computed(() => appliedCoupon.value?.discount ?? 0)
+const payableTotal   = computed(() => displayTotal.value - discountAmount.value)
+const onCouponApplied = (payload) => { appliedCoupon.value = payload }
+const onCouponRemoved = () => { appliedCoupon.value = null }
+
+onMounted(async () => {
   if (!isAuthenticated.value) {
     try {
       guestItems.value = JSON.parse(localStorage.getItem('guest_cart') || '[]')
@@ -111,6 +121,9 @@ const submitCheckout = async () => {
         tax_id: taxId.value.trim() || null,
       },
       agree_terms: true,
+      // 只送出 UI 上「實際已套用」的折扣碼；若使用者已移除或未成功套用則為 null，
+      // 不可回退到 prefill（否則會把使用者沒套用的碼帶進訂單並計入使用次數）
+      coupon_code: appliedCoupon.value?.code ?? null,
       course_ids:  courseIds.value,
     })
 
@@ -166,10 +179,30 @@ const submitCheckout = async () => {
               <span class="font-medium shrink-0">NT$ {{ item.course.price?.toLocaleString() }}</span>
             </div>
           </div>
+          <div v-if="appliedCoupon" class="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
+            <div class="flex justify-between text-gray-600">
+              <span>小計</span>
+              <span>NT$ {{ displayTotal.toLocaleString() }}</span>
+            </div>
+            <div class="flex justify-between text-brand-teal">
+              <span>折扣（{{ appliedCoupon.label }} · {{ appliedCoupon.code }}）</span>
+              <span>-NT$ {{ discountAmount.toLocaleString() }}</span>
+            </div>
+          </div>
           <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between font-bold">
             <span>合計</span>
-            <span class="text-brand-teal">NT$ {{ displayTotal.toLocaleString() }}</span>
+            <span class="text-brand-teal">NT$ {{ payableTotal.toLocaleString() }}</span>
           </div>
+        </div>
+
+        <!-- Coupon -->
+        <div class="mb-6">
+          <CouponInput
+            :course-ids="courseIds"
+            :prefill-code="couponCode"
+            @applied="onCouponApplied"
+            @removed="onCouponRemoved"
+          />
         </div>
 
         <!-- Error banner -->

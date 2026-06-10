@@ -2,6 +2,7 @@
 
 **Branch**: `011-discount-coupon` | **Date**: 2026-06-09 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/011-discount-coupon/spec.md`
+**Updated**: 2026-06-10 - 實作完成並通過驗證；結帳頁亦掛載 `CouponInput`（buy-now 流程），結帳折扣驗證統一改為前端客戶端；修正計數完整性（FR-022）與後台重複 toast（沿用 `defineOptions({ layout })` 修法）。
 
 ## Summary
 

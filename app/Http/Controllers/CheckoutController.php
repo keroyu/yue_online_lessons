@@ -16,7 +16,7 @@ use Inertia\Response;
 
 class CheckoutController extends Controller
 {
-    public function show(): Response
+    public function show(Request $request): Response
     {
         $user  = auth()->user();
         $items = [];
@@ -37,14 +37,20 @@ class CheckoutController extends Controller
             $total = collect($items)->sum(fn ($i) => $i['course']['price']);
         }
 
+        // Coupon code from ?coupon= query, fall back to session (US5). The CouponInput
+        // component re-validates and applies it client-side (guest + auth alike).
+        $couponCode = $request->query('coupon') ?: $request->session()->get('checkout_coupon');
+        $couponCode = $couponCode ? strtoupper(trim($couponCode)) : null;
+
         return Inertia::render('Checkout/Index', [
-            'items'   => $items,
-            'total'   => $total,
-            'prefill' => [
+            'items'      => $items,
+            'total'      => $total,
+            'prefill'    => [
                 'name'  => $user?->real_name,
                 'email' => $user?->email,
                 'phone' => $user?->phone,
             ],
+            'couponCode' => $couponCode,
         ]);
     }
 
@@ -80,19 +86,24 @@ class CheckoutController extends Controller
 
     public function initiate(CheckoutRequest $request): JsonResponse
     {
-        $validated = $request->validated();
-        $buyer     = $validated['buyer'];
-        $courseIds = $validated['course_ids'];
-        $userId    = auth()->id();
+        $validated  = $request->validated();
+        $buyer      = $validated['buyer'];
+        $courseIds  = $validated['course_ids'];
+        $couponCode = $validated['coupon_code'] ?? null;
+        $userId     = auth()->id();
 
         $checkoutService = app(CheckoutService::class);
         $trafficSource = session('traffic_source', []);
 
         try {
-            $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource);
+            $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource, $couponCode);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         }
+
+        // Coupon consumed into the order — clear session attribution so it won't leak
+        // into the next order (US5). Cleared in the controller, not the service.
+        $request->session()->forget('checkout_coupon');
 
         $gateway = $checkoutService->routeGateway($order);
 

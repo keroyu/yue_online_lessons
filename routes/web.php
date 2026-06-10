@@ -23,6 +23,8 @@ use App\Http\Controllers\Member\AssignmentCommentController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
@@ -50,9 +52,14 @@ Route::prefix('api')->name('api.')->group(function () {
     // Cart (auth required)
     Route::middleware('auth')->group(function () {
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-        Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->name('cart.remove');
+        // whereNumber prevents this wildcard from capturing literal segments like /cart/coupon
+        Route::delete('/cart/{courseId}', [CartController::class, 'remove'])->whereNumber('courseId')->name('cart.remove');
         Route::post('/cart/merge', [CartController::class, 'merge'])->name('cart.merge');
     });
+
+    // Coupon (public — guest checkout supported)
+    Route::post('/cart/apply-coupon', [CouponController::class, 'apply'])->name('cart.apply-coupon');
+    Route::delete('/cart/coupon', [CouponController::class, 'clear'])->name('cart.clear-coupon');
 
     // Checkout (public — guest checkout supported)
     Route::post('/checkout/check-email', [CheckoutController::class, 'checkEmail'])->name('checkout.check-email');
@@ -178,6 +185,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
+
+    // Discount Coupons
+    Route::resource('coupons', AdminCouponController::class)->except(['show']);
+    Route::get('/coupons/{coupon}', [AdminCouponController::class, 'show'])->name('coupons.show');
+    Route::patch('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggle'])->name('coupons.toggle');
 
     // High-ticket leads
     Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');

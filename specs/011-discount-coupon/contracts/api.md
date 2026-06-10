@@ -2,6 +2,7 @@
 
 **Feature Branch**: `011-discount-coupon`
 **Created**: 2026-06-09
+**Updated**: 2026-06-10 - 實作落地；結帳頁亦掛載 `CouponInput`（涵蓋「直接購買」流程），結帳折扣驗證統一改由前端 `CouponInput` 客戶端完成（移除 `GET /checkout` 的伺服器端 `coupon` 摘要 prop，僅傳 `couponCode` 原始字串）；`initiate` 僅送出 UI 上實際套用的折扣碼。
 
 所有路由新增於 `routes/web.php`。前台套用端點放既有 `api` 群組（公開，支援 guest）；後台放 `['auth','admin']` 群組，採 `Route::resource`。
 
@@ -170,7 +171,9 @@ if (is_string($couponParam) && trim($couponParam) !== '') {
 
 ### `GET /checkout`（既有，擴充 D2 之 session fallback）
 
-`?coupon=` query 不存在時，以 `session('checkout_coupon')` 為後備來源，再經 `CouponService::validateForCart()` 重驗。
+`CheckoutController@show` 以 `?coupon=` query、後備 `session('checkout_coupon')` 取得原始代碼，僅以 `couponCode`(string|null) prop 傳給前端（**不在伺服器驗證**）。結帳頁掛載與購物車頁相同的 `CouponInput`（FR-021）：以 `prefillCode=couponCode` 於 courseIds 就緒時自動套用，並支援手動輸入/移除（涵蓋「直接購買」略過購物車的流程）。登入與訪客皆走此客戶端驗證路徑，邏輯一致。
+
+> **結帳送出（`initiate`）防護（FR-022）**：前端僅送出 `appliedCoupon?.code ?? null`，即 UI 上「實際已套用」者；**不可**回退到 `couponCode`/prefill，否則會把已移除/未套用的碼帶入訂單並計入使用次數。`createOrder` 仍會以該碼最終 server-side 重驗（FR-012）。
 
 ### session 清除（清除邏輯一律置於 Controller，Service 不存取 session — constitution §II）
 
@@ -185,7 +188,9 @@ if (is_string($couponParam) && trim($couponParam) !== '') {
 
 ## webhook 兌現（既有流程內，無新端點）
 
-PayUni / NewebPay 的 NotifyURL → `fulfillOrder()` → 若 `order.coupon_code` 非空 → `CouponService::redeem()` 原子 `increment('used_count')`。付款失敗/取消不觸發（FR-014、SC-003）。
+PayUni / NewebPay 的 NotifyURL（及 ReturnURL 安全網，皆 gating 於付款 `SUCCESS`）→ `fulfillOrder()` → 若 `order.coupon_code` 非空 → `CouponService::redeem()` 原子 `increment('used_count')`。付款失敗/取消不觸發（FR-014、SC-003）。
+
+> **計數完整性（FR-022）**：`used_count` 唯一寫入點為 `fulfillOrder()` 內的 `redeem()`，且 `fulfillOrder()` 以 `order.status === 'paid'` 冪等保護（重複的 Notify/Return 不重複計數）。`apply` 端點與 `createOrder` 皆不計數。
 
 ---
 

@@ -88,6 +88,7 @@ specs: specs/003-member-management/
 
 main_files:
 - app/Http/Controllers/Admin/MemberController.php
+- app/Models/AssignmentCompletion.php
 - app/Models/LessonProgress.php
 - app/Models/Purchase.php
 - app/Models/User.php
@@ -279,3 +280,35 @@ related_specs:
 - specs/010-lesson-homework/spec.md
 - specs/010-lesson-homework/data-model.md
 - specs/010-lesson-homework/contracts/routes.md
+
+---
+
+## Discount Coupon (011)
+purpose: 折扣碼系統（fixed 固定折抵 / ratio 折數），後台 CRUD + 啟用停用 + 軟刪除 + 成效統計（7/30/60/90/全部）；前台購物車與結帳頁套用（含「直接購買」流程）、IP 失敗節流、銷售頁 ?coupon= 自動帶入；結帳折後金額建單、付款確認後才累計使用次數
+specs: specs/011-discount-coupon/
+
+main_files:
+- app/Http/Controllers/CouponController.php
+- app/Http/Controllers/Admin/CouponController.php
+- app/Http/Requests/Admin/StoreCouponRequest.php
+- app/Http/Requests/Admin/UpdateCouponRequest.php
+- app/Models/CouponCode.php
+- app/Services/CouponService.php
+- app/Services/CheckoutService.php
+- app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/CartController.php
+- app/Http/Controllers/CourseController.php
+- resources/js/Components/Cart/CouponInput.vue
+- resources/js/Components/Admin/CouponForm.vue
+- resources/js/Pages/Admin/Coupons/Index.vue
+- resources/js/Pages/Admin/Coupons/Create.vue
+- resources/js/Pages/Admin/Coupons/Edit.vue
+- resources/js/Pages/Admin/Coupons/Show.vue
+- resources/js/Pages/Cart/Index.vue
+- resources/js/Pages/Checkout/Index.vue
+
+related_specs:
+- specs/011-discount-coupon/spec.md
+- specs/011-discount-coupon/plan.md
+- specs/011-discount-coupon/data-model.md
+- specs/011-discount-coupon/contracts/api.md
