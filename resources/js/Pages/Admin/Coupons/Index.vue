@@ -2,6 +2,11 @@
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
+const tabs = [
+  { label: '一般折扣碼', href: '/admin/coupons' },
+  { label: '輪換折扣碼', href: '/admin/coupon-chains' },
+]
+
 defineOptions({ layout: AdminLayout })
 
 defineProps({
@@ -25,14 +30,29 @@ const destroy = (coupon) => {
 
 <template>
   <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-    <div class="sm:flex sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">折扣碼管理</h1>
-        <p class="mt-1 text-sm text-gray-500">建立與管理優惠折扣碼，查看使用統計</p>
-      </div>
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">折扣碼管理</h1>
+      <p class="mt-1 text-sm text-gray-500">建立與管理優惠折扣碼，查看使用統計</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex items-center justify-between mb-6 border-b border-gray-200">
+      <nav class="flex gap-6">
+        <Link
+          v-for="tab in tabs"
+          :key="tab.href"
+          :href="tab.href"
+          class="pb-3 text-sm font-medium border-b-2 -mb-px transition-colors"
+          :class="tab.href === '/admin/coupons'
+            ? 'border-indigo-600 text-indigo-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          {{ tab.label }}
+        </Link>
+      </nav>
       <Link
         href="/admin/coupons/create"
-        class="mt-3 sm:mt-0 inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+        class="mb-3 inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
       >
         新增折扣碼
       </Link>

@@ -18,7 +18,7 @@ const fmtTime = (iso) => {
 <template>
   <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
     <div class="mb-6">
-      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回輪換折扣碼列表</Link>
+      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回折扣碼管理</Link>
       <h1 class="text-2xl font-bold text-gray-900 mt-2">
         輪換折扣碼：<span class="font-mono text-indigo-700">{{ chain.placeholder }}</span>
       </h1>

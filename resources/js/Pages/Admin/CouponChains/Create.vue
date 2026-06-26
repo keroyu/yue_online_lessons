@@ -40,7 +40,7 @@ const submit = () => form.post('/admin/coupon-chains')
 <template>
   <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
     <div class="mb-6">
-      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回輪換折扣碼列表</Link>
+      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回折扣碼管理</Link>
       <h1 class="text-2xl font-bold text-gray-900 mt-2">新增輪換折扣碼</h1>
       <p class="mt-1 text-sm text-gray-500">設定後系統自動生成首支代碼，並在每次兌換後補發新代碼。</p>
     </div>
@@ -61,7 +61,7 @@ const submit = () => form.post('/admin/coupon-chains')
           />
           <span class="text-gray-400 font-mono">}</span>
         </div>
-        <p class="text-xs text-gray-400 mt-1">在課程促銷內容中輸入 <code class="bg-gray-100 px-1 rounded">{{{ form.alias || 'alias' }}}</code> 即可顯示當前代碼</p>
+        <p class="text-xs text-gray-400 mt-1">在課程促銷內容中輸入 <code class="bg-gray-100 px-1 rounded">&#123;{{ form.alias || 'alias' }}&#125;</code> 即可顯示當前代碼</p>
         <p v-if="form.errors.alias" class="text-sm text-red-600 mt-1">{{ form.errors.alias }}</p>
       </div>
 

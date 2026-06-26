@@ -41,7 +41,7 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
 <template>
   <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
     <div class="mb-6">
-      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回輪換折扣碼列表</Link>
+      <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回折扣碼管理</Link>
       <h1 class="text-2xl font-bold text-gray-900 mt-2">編輯輪換折扣碼</h1>
       <p class="mt-1 text-sm text-gray-400">修改折扣設定只影響往後自動生成的代碼，不回溯既有代碼。</p>
     </div>
