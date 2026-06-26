@@ -7,6 +7,7 @@ use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
+use App\Services\CouponChainService;
 use App\Services\DripService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,10 @@ use Inertia\Response;
 
 class ClassroomController extends Controller
 {
-    public function __construct(protected DripService $dripService) {}
+    public function __construct(
+        protected DripService $dripService,
+        protected CouponChainService $couponChainService,
+    ) {}
 
     /**
      * Display the classroom page for a course.
@@ -366,7 +370,7 @@ class ClassroomController extends Controller
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
-            'promo_html' => $isLocked ? null : $lesson->promo_html,
+            'promo_html' => $isLocked ? null : $this->couponChainService->substitutePlaceholders($lesson->promo_html),
             'promo_url' => (!$isLocked && $lesson->promo_url)
                 ? route('drip.track.click', ['les' => $lesson->id, 'url' => $lesson->promo_url])
                 : null,

@@ -21,6 +21,7 @@ class CouponCode extends Model
         'used_count',
         'is_active',
         'note',
+        'chain_id',
     ];
 
     protected function casts(): array
@@ -44,6 +45,11 @@ class CouponCode extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function chain(): BelongsTo
+    {
+        return $this->belongsTo(CouponChain::class, 'chain_id');
     }
 
     /**

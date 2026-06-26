@@ -116,6 +116,15 @@ class CouponService
         }
 
         $coupon->increment('used_count');
+
+        // If this code belongs to a chain with a per-code limit, check if exhausted
+        // and auto-generate the next code in the chain.
+        if ($coupon->chain_id && $coupon->chain->code_max_uses > 0) {
+            $coupon->refresh();
+            if ($coupon->used_count >= $coupon->chain->code_max_uses) {
+                app(CouponChainService::class)->generateNextCode($coupon->chain);
+            }
+        }
     }
 
     /**

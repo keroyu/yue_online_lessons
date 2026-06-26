@@ -25,6 +25,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
+use App\Http\Controllers\Admin\CouponChainController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
@@ -190,6 +191,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('coupons', AdminCouponController::class)->except(['show']);
     Route::get('/coupons/{coupon}', [AdminCouponController::class, 'show'])->name('coupons.show');
     Route::patch('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggle'])->name('coupons.toggle');
+
+    // Coupon Chains (rotating auto-generated coupons)
+    Route::resource('coupon-chains', CouponChainController::class)->except(['show']);
+    Route::get('/coupon-chains/{coupon_chain}', [CouponChainController::class, 'show'])->name('coupon-chains.show');
+    Route::patch('/coupon-chains/{coupon_chain}/toggle', [CouponChainController::class, 'toggle'])->name('coupon-chains.toggle');
 
     // High-ticket leads
     Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');
