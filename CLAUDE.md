@@ -102,6 +102,8 @@ Need more search: yes/no
 - MySQL — 4 new tables, 1 altered (`users.points` column) (010-lesson-homework)
 - PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4（皆為現有依賴，無新增套件） (011-discount-coupon)
 - MySQL — 1 張新表 `coupon_codes`（含 `deleted_at` 軟刪除）；`orders` 表 alter 新增 3 欄；`purchases` 表沿用既有 `coupon_code` / `discount_amount` 欄（無需 migration） (011-discount-coupon)
+- PHP 8.2 / Laravel 12.x + Inertia.js v2、Vue 3（`<script setup>`）、Tailwind CSS v4（皆現有，無新增套件） (012-points-system)
+- MySQL — 1 張新表 `point_transactions`；`users`、`courses`、`orders` 各 alter 新增欄位；`purchases` 沿用既有欄位（新增 `source='points'` 值）；`site_settings` 新增 4 組設定鍵 (012-points-system)
 
 ## Recent Changes
 - 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS

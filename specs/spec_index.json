@@ -1600,6 +1600,90 @@
       "keywords": [],
       "code_files": [],
       "status": "planned"
+    },
+    {
+      "id": "011.us-6",
+      "module": "011-discount-coupon",
+      "title": "輪換折扣碼（CouponChain）管理與自動補碼",
+      "summary": "",
+      "heading": "### User Story 6 - 輪換折扣碼（CouponChain）管理與自動補碼 (Priority: P2)",
+      "file": "specs/011-discount-coupon/spec.md",
+      "anchor": "user-story-6---輪換折扣碼（couponchain）管理與自動補碼-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-1",
+      "module": "012-points-system",
+      "title": "用積分兌換課程",
+      "summary": "",
+      "heading": "### User Story 1 - 用積分兌換課程 (Priority: P1)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-1---用積分兌換課程-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-2",
+      "module": "012-points-system",
+      "title": "用推薦碼結帳讓推薦人獲得回饋",
+      "summary": "",
+      "heading": "### User Story 2 - 用推薦碼結帳讓推薦人獲得回饋 (Priority: P1)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-2---用推薦碼結帳讓推薦人獲得回饋-priority-p1",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-3",
+      "module": "012-points-system",
+      "title": "會員積分中心",
+      "summary": "",
+      "heading": "### User Story 3 - 會員積分中心 (Priority: P2)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-3---會員積分中心-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-4",
+      "module": "012-points-system",
+      "title": "後台積分參數設定",
+      "summary": "",
+      "heading": "### User Story 4 - 後台積分參數設定 (Priority: P2)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-4---後台積分參數設定-priority-p2",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-5",
+      "module": "012-points-system",
+      "title": "後台推薦成效統計",
+      "summary": "",
+      "heading": "### User Story 5 - 後台推薦成效統計 (Priority: P3)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-5---後台推薦成效統計-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
+      "id": "012.us-6",
+      "module": "012-points-system",
+      "title": "後台派發積分並檢視會員帳本",
+      "summary": "",
+      "heading": "### User Story 6 - 後台派發積分並檢視會員帳本 (Priority: P3)",
+      "file": "specs/012-points-system/spec.md",
+      "anchor": "user-story-6---後台派發積分並檢視會員帳本-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
     }
   ]
 }
