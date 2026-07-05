@@ -37,6 +37,7 @@ class PointController extends Controller
             'referralCode'    => $user->referral_code,
             'referralActive'  => $user->isReferralActive(),
             'thresholdAmount' => (int) SiteSetting::get('referral_threshold_amount', 3000),
+            'rewardRate'      => (int) SiteSetting::get('referral_reward_rate', 10),
             'transactions'    => $transactions,
         ]);
     }

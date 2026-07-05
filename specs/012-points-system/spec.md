@@ -6,6 +6,7 @@
 **Updated**: 2026-07-05 - US2–US6 + 退款/對帳 全數實作完成；validate-referral 路由實作於 `/api` 前綴（`api.checkout.validate-referral`），對齊既有結帳 api 群組。  
 **Updated**: 2026-07-05 - US1 兌換改為兩段式確認（點綠色按鈕先於銷售頁顯示「兌換後餘額」確認面板，按「確定兌換」才扣點）；修正後台編輯課程時 `redeem_points` 未帶回表單的 bug（`Admin/CourseController::edit` 漏傳欄位）。  
 **Updated**: 2026-07-05 - 兌換成功後導向「我的課程」（`member.learning`）而非直接進教室；確認按鈕文字改為方位中性文案。  
+**Updated**: 2026-07-05 - 會員積分中心推薦碼區塊顯示目前回饋比例（`referral_reward_rate`），已啟用/未啟用文案皆告知使用者可獲得對方實付金額 N% 的回饋。  
 **Input**: User description: "積分系統擴充：在現有「完成作業 +100 積分」基礎上，新增『用積分兌換課程』與『推薦碼回饋』兩個用途，並導入積分帳本作為單一真相來源。"
 
 ## 背景與目標

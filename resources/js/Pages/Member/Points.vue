@@ -11,6 +11,7 @@ const props = defineProps({
   referralCode:    { type: String, default: '' },
   referralActive:  { type: Boolean, default: false },
   thresholdAmount: { type: Number, default: 0 },
+  rewardRate:      { type: Number, default: 0 },
   transactions:    { type: Object, default: () => ({ data: [], links: [] }) },
 })
 
@@ -72,10 +73,10 @@ const copyCode = async () => {
         </button>
       </div>
       <p v-if="referralActive" class="text-sm text-gray-500 mt-3">
-        分享推薦碼給好友，好友結帳輸入後、完成付款，你就能獲得回饋積分。
+        分享推薦碼給好友，好友結帳輸入後、完成付款，你就能獲得對方實付金額 <strong class="text-brand-teal">{{ rewardRate }}%</strong> 的回饋積分。
       </p>
       <p v-else class="text-sm text-amber-600 mt-3">
-        推薦碼尚未啟用。當你累計消費滿 NT$ {{ thresholdAmount.toLocaleString() }} 後即自動啟用，屆時好友使用你的推薦碼消費即可獲得回饋。
+        推薦碼尚未啟用。當你累計消費滿 NT$ {{ thresholdAmount.toLocaleString() }} 後即自動啟用，屆時好友使用你的推薦碼消費，你即可獲得對方實付金額 <strong>{{ rewardRate }}%</strong> 的回饋積分。
       </p>
     </div>
 

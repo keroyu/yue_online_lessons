@@ -5,6 +5,7 @@
 **Updated**: 2026-07-05 - 實作完成（US2–US6 + Phase 9 退款/對帳）；25 個 Points Feature 測試全綠。
 **Updated**: 2026-07-05 - US1 兌換 UI 改兩段式確認（RedeemButton emit `request` → Course/Show.vue 顯示確認面板並執行 POST）；修 `Admin/CourseController::edit` 漏傳 `redeem_points`。
 **Updated**: 2026-07-05 - 兌換成功導向改 `member.learning`（我的課程）；確認按鈕文字方位中性化。
+**Updated**: 2026-07-05 - 會員積分中心 `PointController` 新增 `rewardRate` prop，`Member/Points.vue` 顯示目前回饋比例。
 
 ## Summary
 

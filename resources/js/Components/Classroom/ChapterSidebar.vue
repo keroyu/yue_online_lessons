@@ -32,8 +32,30 @@ const isLocallyCompleted = (lessonId) => {
 
 const emit = defineEmits(['selectLesson', 'toggleComplete'])
 
+// Which chapter holds a given lesson id (null if none / standalone).
+const chapterIdOfLesson = (lessonId) => {
+  if (lessonId == null) return null
+  const chapter = props.chapters.find(c => c.lessons.some(l => l.id === lessonId))
+  return chapter ? chapter.id : null
+}
+
+// On entry, collapse every chapter except the one holding the current-progress lesson,
+// so a returning student lands on their spot without a cluttered sidebar. Computed once
+// at setup — later manual toggles / lesson changes are left untouched.
+const buildInitialCollapsed = () => {
+  const activeChapterId = chapterIdOfLesson(props.currentLessonId)
+  const state = {}
+  props.chapters.forEach((chapter, index) => {
+    // Active lesson in a chapter → expand only that one; otherwise fall back to the first.
+    state[chapter.id] = activeChapterId != null
+      ? chapter.id !== activeChapterId
+      : index !== 0
+  })
+  return state
+}
+
 // Track collapsed chapters
-const collapsedChapters = ref({})
+const collapsedChapters = ref(buildInitialCollapsed())
 
 const toggleChapter = (chapterId) => {
   collapsedChapters.value[chapterId] = !collapsedChapters.value[chapterId]

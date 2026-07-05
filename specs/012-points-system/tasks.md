@@ -6,6 +6,7 @@ description: "Task list for 012-points-system implementation"
 **Updated**: 2026-07-05 - T023–T054 全數實作完成（US2–US6 + Phase 9）；validate-referral 實作於 `/api/checkout/validate-referral`。（Phase 10）
 **Updated**: 2026-07-05 - US1 兌換改兩段式確認（銷售頁確認面板顯示兌換後餘額）；修後台編輯課程 `redeem_points` 未帶回 bug。（Phase 11）
 **Updated**: 2026-07-05 - 兌換成功導向改「我的課程」（`member.learning`）；確認按鈕文字方位中性化。（Phase 12）
+**Updated**: 2026-07-05 - 會員積分中心顯示目前回饋比例（`rewardRate` prop）。（Phase 13）
 
 # Tasks: 積分系統擴充（積分帳本 + 兌換課程 + 推薦回饋）
 

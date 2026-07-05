@@ -4,6 +4,7 @@
 **Updated**: 2026-07-05 - 實作完成。推薦碼驗證實作於既有結帳 api 群組：`POST /api/checkout/validate-referral`（name `api.checkout.validate-referral`），與下方簡化列示的 `/checkout/validate-referral` 為同一端點。派發積分 `POST /admin/members/{member}/grant-points` 對 AJAX 回 JSON、對 Inertia 回 redirect。
 **Updated**: 2026-07-05 - US1 兌換改兩段式確認（詳見 §3）；修 `Admin/CourseController::edit` 漏傳 `redeem_points`。路由清單不變。
 **Updated**: 2026-07-05 - 兌換成功導向由 `member.classroom` 改為 `member.learning`（我的課程）；確認觸發按鈕文字改為方位中性的「請確認兌換…」。
+**Updated**: 2026-07-05 - 會員積分中心（§4）新增 `rewardRate` prop（目前回饋比例 %），推薦碼區塊文案告知使用者回饋比例。
 
 慣例：Inertia 頁面回 `Inertia::render`；表單／AJAX 動作回 `JsonResponse` 或 `redirect()->with()`（比照既有 `CouponController`、`MemberController`）。錯誤訊息一律中文。Controller 不含商業邏輯，委派 Service。
 
@@ -93,6 +94,7 @@ Inertia::render('Member/Points', [
   'referralCode'=> string,
   'referralActive' => bool,
   'thresholdAmount' => int,              // 用於未啟用提示文案
+  'rewardRate'  => int,                  // 目前回饋比例（%），前端文案顯示「實付金額 N%」
   'transactions'=> paginate([            // 逐筆明細
     { created_at, type, amount, note, available_at, is_matured }
   ]),

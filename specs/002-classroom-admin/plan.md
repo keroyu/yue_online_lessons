@@ -33,6 +33,7 @@
 **Updated**: 2026-04-06 - 修正 Gallery.vue 勾選 UX：checkbox 左上角專責、工具列條件顯示（Phase 37）
 **Updated**: 2026-04-06 - 刪除相簿圖片時自動清除 description_md 中的圖片引用（Phase 38）
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤（Phase 39）：UTM/Click ID session 捕捉（5 UTM + 3 Click ID + referrer 共 9 欄）、Referrer 黑名單、時間 preset 篩選、CSV 匯出、Channel Group 分類、Last-touch 歸因、v-html XSS 防護
+**Updated**: 2026-07-05 - 教室側欄進入時只自動展開目前進度小節所屬章節（`ChapterSidebar.vue` 依 `currentLessonId` 初始化折疊狀態）
 
 ## Summary
 

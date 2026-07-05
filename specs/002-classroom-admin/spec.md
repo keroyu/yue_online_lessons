@@ -34,6 +34,7 @@
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤：課程管理列表新增「來源」按鈕，追蹤付款訂單的 UTM 來源與 HTTP Referrer；新增 FR-087~FR-094、SC-020~SC-022
 **Updated**: 2026-05-08 - US12 行銷強化：補齊 5 個 UTM 參數、3 個付費廣告 Click ID、Referrer 黑名單、時間篩選、CSV 匯出、Channel Group 分類；新增 FR-095~FR-099、SC-023~SC-025
 **Updated**: 2026-05-08 - US12 規格修正：FR-091/AS3 補齊 7 欄；新增 FR-100（Last-touch 歸因）、FR-101（v-html XSS 防護）；FR-095 標準化空字串為 NULL；FR-099 補 Channel Group 優先序；SC-022 措辭明確化
+**Updated**: 2026-07-05 - 教室側欄進入時自動只展開「目前進度小節」所屬章節、其餘章節折疊（回訪學員快速定位、避免多章節側欄過雜）；`ChapterSidebar.vue` 於載入時依 `currentLessonId` 計算初始折疊狀態，之後手動展開/收合不受影響
 **Updated**: 2026-05-09 - US12 UTM 追蹤 bug 修正：POST /api/checkout/initiate 改移至 routes/web.php（api middleware 不含 StartSession 導致 session 永遠為空）；新增 FR-104；新增 CheckoutTrafficSourceTest 覆蓋完整 UTM 流程
 **Updated**: 2026-05-09 - US12 UI 增強：Traffic 頁新增 UTM 追蹤連結生成器（FR-102）與麵包屑導航（FR-103）；課程管理頁按鈕語意配色統一（灰=瀏覽、靛=管理、紫=分析、紅=刪除）
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController 回傳 lesson 資料時漏傳 `is_preview` 欄位，導致重新編輯小節時試閱設定遺失
@@ -71,6 +72,7 @@
 14. **Given** 目前小節為課程最後一個小節, **When** 影片播放完畢, **Then** 不發生任何跳轉，停留於原小節 *(SC-014)*
 15. **Given** 會員在含 YouTube 影片的課程中，連續點擊多個不同小節, **When** 切換發生時, **Then** YouTube 播放器 MUST 正確播放新小節的影片（不卡在前一個小節）*(SC-015)*
 16. **Given** 未完成的小節顯示灰色播放/文件圖示（非免費試閱模式）, **When** 會員點擊該圖示, **Then** 該小節立即標記為已完成並寫入伺服器（不需等待計時器），圖示變為綠色勾勾 *(SC-016)*
+17. **Given** 多章節課程且會員上課進度停在某章節的某小節, **When** 會員再次進入上課頁面, **Then** 左欄側欄僅自動展開「目前進度小節」所屬的章節，其餘章節預設折疊，方便快速定位；此後手動展開/收合其他章節不受此初始行為干擾
 
 ---
 
