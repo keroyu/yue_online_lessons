@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             LessonSeeder::class,
             HomepageSettingsSeeder::class,
             EmailTemplateSeeder::class,
+            SiteSettingSeeder::class,
         ]);
     }
 }

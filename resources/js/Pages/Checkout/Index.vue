@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Head, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
 import CouponInput from '@/Components/Cart/CouponInput.vue'
+import ReferralInput from '@/Components/Cart/ReferralInput.vue'
 
 defineOptions({ layout: false })
 
@@ -40,6 +41,11 @@ const discountAmount = computed(() => appliedCoupon.value?.discount ?? 0)
 const payableTotal   = computed(() => displayTotal.value - discountAmount.value)
 const onCouponApplied = (payload) => { appliedCoupon.value = payload }
 const onCouponRemoved = () => { appliedCoupon.value = null }
+
+// 推薦碼由 ReferralInput 驅動；只影響推薦人回饋，不改買家應付金額。
+const appliedReferral = ref(null)
+const onReferralApplied = (payload) => { appliedReferral.value = payload }
+const onReferralRemoved = () => { appliedReferral.value = null }
 
 onMounted(async () => {
   if (!isAuthenticated.value) {
@@ -124,6 +130,8 @@ const submitCheckout = async () => {
       // 只送出 UI 上「實際已套用」的折扣碼；若使用者已移除或未成功套用則為 null，
       // 不可回退到 prefill（否則會把使用者沒套用的碼帶進訂單並計入使用次數）
       coupon_code: appliedCoupon.value?.code ?? null,
+      // 只送出實際已套用的推薦碼；未套用或已移除則為 null
+      referral_code: appliedReferral.value?.code ?? null,
       course_ids:  courseIds.value,
     })
 
@@ -202,6 +210,15 @@ const submitCheckout = async () => {
             :prefill-code="couponCode"
             @applied="onCouponApplied"
             @removed="onCouponRemoved"
+          />
+        </div>
+
+        <!-- Referral -->
+        <div class="mb-6">
+          <ReferralInput
+            :buyer-email="email"
+            @applied="onReferralApplied"
+            @removed="onReferralRemoved"
           />
         </div>
 

@@ -1,5 +1,8 @@
 {
   "files": {
+    "app/Console/Commands/MaturePoints.php": [
+      "012.us-2"
+    ],
     "app/Http/Controllers/Admin/ChapterController.php": [
       "002.us-11",
       "002.us-3"
@@ -11,7 +14,8 @@
       "002.us-7",
       "002.us-9",
       "005.us-3",
-      "008.us-1"
+      "008.us-1",
+      "012.us-1"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "002.us-4"
@@ -48,7 +52,14 @@
       "003.us-6",
       "003.us-7",
       "003.us-9",
-      "005.us-7"
+      "005.us-7",
+      "012.us-6"
+    ],
+    "app/Http/Controllers/Admin/ReferralStatsController.php": [
+      "012.us-5"
+    ],
+    "app/Http/Controllers/Admin/SettingsController.php": [
+      "012.us-4"
     ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
       "007.us-2"
@@ -64,7 +75,8 @@
       "001.us-2"
     ],
     "app/Http/Controllers/CheckoutController.php": [
-      "002.us-12"
+      "002.us-12",
+      "012.us-2"
     ],
     "app/Http/Controllers/CourseController.php": [
       "001.us-5",
@@ -105,6 +117,9 @@
       "002.us-1",
       "002.us-1a"
     ],
+    "app/Http/Controllers/Member/PointController.php": [
+      "012.us-3"
+    ],
     "app/Http/Controllers/Member/SettingsController.php": [
       "001.us-4"
     ],
@@ -113,6 +128,12 @@
     ],
     "app/Http/Controllers/Purchase/FreePurchaseController.php": [
       "001.us-8"
+    ],
+    "app/Http/Controllers/RedemptionController.php": [
+      "012.us-1"
+    ],
+    "app/Http/Controllers/ReferralController.php": [
+      "012.us-2"
     ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "001.us-6",
@@ -124,6 +145,9 @@
     ],
     "app/Http/Requests/Admin/EmailTemplateRequest.php": [
       "008.us-4"
+    ],
+    "app/Http/Requests/Admin/GrantPointsRequest.php": [
+      "012.us-6"
     ],
     "app/Http/Requests/Admin/StoreCourseRequest.php": [
       "008.us-1"
@@ -143,8 +167,17 @@
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "007.us-2"
     ],
+    "app/Http/Requests/CheckoutRequest.php": [
+      "012.us-2"
+    ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
       "010.us-1"
+    ],
+    "app/Http/Requests/RedeemCourseRequest.php": [
+      "012.us-1"
+    ],
+    "app/Http/Requests/ValidateReferralRequest.php": [
+      "012.us-2"
     ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
       "008.us-6"
@@ -246,7 +279,8 @@
       "007.us-3"
     ],
     "app/Services/CheckoutService.php": [
-      "002.us-12"
+      "002.us-12",
+      "012.us-2"
     ],
     "app/Services/HighTicketBookingService.php": [
       "008.us-3",
@@ -257,6 +291,17 @@
     ],
     "app/Services/PayuniService.php": [
       "001.us-7"
+    ],
+    "app/Services/PointService.php": [
+      "012.us-1",
+      "012.us-2",
+      "012.us-6"
+    ],
+    "app/Services/RedemptionService.php": [
+      "012.us-1"
+    ],
+    "app/Services/ReferralService.php": [
+      "012.us-2"
     ],
     "app/Services/TransactionService.php": [
       "006.us-3",
@@ -275,7 +320,8 @@
       "008.us-4"
     ],
     "resources/js/Components/Admin/CourseForm.vue": [
-      "008.us-1"
+      "008.us-1",
+      "012.us-1"
     ],
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "002.us-4"
@@ -287,6 +333,9 @@
       "007.us-3",
       "007.us-4"
     ],
+    "resources/js/Components/Cart/ReferralInput.vue": [
+      "012.us-2"
+    ],
     "resources/js/Components/Classroom/AssignmentSection.vue": [
       "010.us-1",
       "010.us-2"
@@ -294,9 +343,15 @@
     "resources/js/Components/Classroom/VideoPlayer.vue": [
       "002.us-1"
     ],
+    "resources/js/Components/Course/RedeemButton.vue": [
+      "012.us-1"
+    ],
     "resources/js/Components/ImportMembersModal.vue": [
       "003.us-10",
       "003.us-9"
+    ],
+    "resources/js/Components/MemberDetailModal.vue": [
+      "012.us-6"
     ],
     "resources/js/Components/SocialLinks.vue": [
       "007.us-2",
@@ -344,6 +399,12 @@
     "resources/js/Pages/Admin/Members/Index.vue": [
       "003.us-9"
     ],
+    "resources/js/Pages/Admin/Referrals/Index.vue": [
+      "012.us-5"
+    ],
+    "resources/js/Pages/Admin/Settings/Points.vue": [
+      "012.us-4"
+    ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "006.us-1",
       "006.us-3",
@@ -359,6 +420,9 @@
     "resources/js/Pages/Auth/Login.vue": [
       "001.us-7"
     ],
+    "resources/js/Pages/Checkout/Index.vue": [
+      "012.us-2"
+    ],
     "resources/js/Pages/Course/": [
       "001.us-5",
       "002.us-2a",
@@ -368,7 +432,8 @@
       "001.us-7",
       "001.us-8",
       "008.us-2",
-      "008.us-3"
+      "008.us-3",
+      "012.us-1"
     ],
     "resources/js/Pages/Drip/": [
       "005.us-1",
@@ -388,6 +453,9 @@
     ],
     "resources/js/Pages/Member/Classroom.vue": [
       "002.us-1"
+    ],
+    "resources/js/Pages/Member/Points.vue": [
+      "012.us-3"
     ],
     "resources/views/emails/drip-lesson.blade.php": [
       "005.us-5"

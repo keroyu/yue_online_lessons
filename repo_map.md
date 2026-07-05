@@ -284,16 +284,21 @@ related_specs:
 ---
 
 ## Discount Coupon (011)
-purpose: 折扣碼系統（fixed 固定折抵 / ratio 折數），後台 CRUD + 啟用停用 + 軟刪除 + 成效統計（7/30/60/90/全部）；前台購物車與結帳頁套用（含「直接購買」流程）、IP 失敗節流、銷售頁 ?coupon= 自動帶入；結帳折後金額建單、付款確認後才累計使用次數
+purpose: 折扣碼系統（fixed 固定折抵 / ratio 折數），後台 CRUD + 啟用停用 + 軟刪除 + 成效統計（7/30/60/90/全部）；前台購物車與結帳頁套用（含「直接購買」流程）、IP 失敗節流、銷售頁 ?coupon= 自動帶入；結帳折後金額建單、付款確認後才累計使用次數；輪換折扣碼（CouponChain）自動補碼與 {alias} 佔位符展開
 specs: specs/011-discount-coupon/
 
 main_files:
 - app/Http/Controllers/CouponController.php
 - app/Http/Controllers/Admin/CouponController.php
+- app/Http/Controllers/Admin/CouponChainController.php
 - app/Http/Requests/Admin/StoreCouponRequest.php
 - app/Http/Requests/Admin/UpdateCouponRequest.php
+- app/Http/Requests/Admin/StoreCouponChainRequest.php
+- app/Http/Requests/Admin/UpdateCouponChainRequest.php
 - app/Models/CouponCode.php
+- app/Models/CouponChain.php
 - app/Services/CouponService.php
+- app/Services/CouponChainService.php
 - app/Services/CheckoutService.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/CartController.php
@@ -304,6 +309,10 @@ main_files:
 - resources/js/Pages/Admin/Coupons/Create.vue
 - resources/js/Pages/Admin/Coupons/Edit.vue
 - resources/js/Pages/Admin/Coupons/Show.vue
+- resources/js/Pages/Admin/CouponChains/Index.vue
+- resources/js/Pages/Admin/CouponChains/Create.vue
+- resources/js/Pages/Admin/CouponChains/Edit.vue
+- resources/js/Pages/Admin/CouponChains/Show.vue
 - resources/js/Pages/Cart/Index.vue
 - resources/js/Pages/Checkout/Index.vue
 
@@ -312,3 +321,42 @@ related_specs:
 - specs/011-discount-coupon/plan.md
 - specs/011-discount-coupon/data-model.md
 - specs/011-discount-coupon/contracts/api.md
+
+## Points System (012)
+purpose: 積分帳本（point_transactions 為單一真相來源，users.points 為已成熟可用餘額快取，PointService 唯一寫入點）；用積分兌換課程（條件式扣點防超扣）；推薦碼回饋（結帳驗證推薦碼、付款確認後發放實付比例回饋、14 天成熟、跨門檻自動啟用推薦資格）；會員積分中心；後台積分參數設定、推薦成效統計、派發積分與帳本檢視；退款作廢未成熟回饋（14 天窗口）、每日成熟批次與對帳排程（points:mature / points:reconcile）
+specs: specs/012-points-system/
+
+main_files:
+- app/Console/Commands/MaturePoints.php
+- app/Http/Controllers/Admin/CourseController.php
+- app/Http/Controllers/Admin/MemberController.php
+- app/Http/Controllers/Admin/ReferralStatsController.php
+- app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/Member/PointController.php
+- app/Http/Controllers/RedemptionController.php
+- app/Http/Controllers/ReferralController.php
+- app/Http/Requests/Admin/GrantPointsRequest.php
+- app/Http/Requests/CheckoutRequest.php
+- app/Http/Requests/RedeemCourseRequest.php
+- app/Http/Requests/ValidateReferralRequest.php
+- app/Services/CheckoutService.php
+- app/Services/PointService.php
+- app/Services/RedemptionService.php
+- app/Services/ReferralService.php
+- resources/js/Components/Admin/CourseForm.vue
+- resources/js/Components/Cart/ReferralInput.vue
+- resources/js/Components/Course/RedeemButton.vue
+- resources/js/Components/MemberDetailModal.vue
+- resources/js/Pages/Admin/Referrals/Index.vue
+- resources/js/Pages/Admin/Settings/Points.vue
+- resources/js/Pages/Checkout/Index.vue
+- resources/js/Pages/Course/Show.vue
+- resources/js/Pages/Member/Points.vue
+
+related_specs:
+- specs/012-points-system/spec.md
+- specs/012-points-system/plan.md
+- specs/012-points-system/data-model.md
+- specs/012-points-system/research.md
+- specs/012-points-system/contracts/api.md

@@ -3,6 +3,7 @@
 **Feature Branch**: `011-discount-coupon`
 **Created**: 2026-06-09
 **Status**: Implemented
+**Updated**: 2026-06-26 - 新增 CouponChain（輪換折扣碼）子功能：後台 CRUD（獨立 tab）、自動補碼機制、`{alias}` 佔位符在課程促銷內容中展開，以及章節編輯表單的插入 UI。
 **Updated**: 2026-06-10 - 實作完成；折扣碼輸入欄同時置於購物車頁與結帳頁（涵蓋「直接購買」略過購物車的流程）；修正使用次數計數完整性（僅 UI 上實際套用且付款成功的折扣碼才 +1）；修正後台重複 toast。
 
 ---
@@ -117,6 +118,27 @@
 
 ---
 
+### User Story 6 - 輪換折扣碼（CouponChain）管理與自動補碼 (Priority: P2)
+
+管理員可建立「輪換折扣碼」模板（CouponChain），設定別名（alias）、折扣類型、每碼名額，系統在每支代碼達到名額上限後自動生成下一支；在課程的促銷內容 HTML 中以 `{alias}` 佔位符插入，學員看到的永遠是當前有效代碼。
+
+**Why this priority**: 解決高頻促銷場景（每人一碼、追蹤個別兌換）；管理員只需維護一個佔位符，不必手動替換 HTML。
+
+**Independent Test**: 建立 alias=`givelesson`、code_max_uses=1 的 CouponChain，在某課程某小節的促銷 HTML 中插入 `{givelesson}`。學員開啟教室時看到代碼 A；另一學員兌換後，再開啟教室看到代碼 B（已自動生成）。
+
+**Acceptance Scenarios**:
+
+1. **Given** 管理員進入折扣碼管理頁，**When** 切換「輪換折扣碼」tab，**Then** 顯示所有 CouponChain 列表，含佔位符 `{alias}`、折扣、每碼名額、當前有效代碼、啟用狀態。
+2. **Given** 管理員點擊「新增輪換折扣碼」，**When** 填寫 alias（英數字與底線）、折扣類型、折扣值、每碼名額、適用課程/全站，**Then** 系統建立 CouponChain 並自動生成首支 CouponCode（linked via chain_id）。
+3. **Given** alias 已存在（含軟刪除），**When** 嘗試建立相同 alias，**Then** 顯示驗證錯誤「此別名已存在」，不建立重複記錄。
+4. **Given** code_max_uses = N（N > 0），**When** 某支代碼 used_count 達到 N（付款確認後），**Then** 系統自動生成下一支新代碼並 linked 至同一 CouponChain，舊代碼繼續存在於歷史。
+5. **Given** code_max_uses = 0，**When** 代碼被兌換，**Then** 不自動補碼（0 = 無限制，管理員需手動管理）。
+6. **Given** 課程小節的 `promo_html` 含 `{alias}`，**When** 學員開啟教室，**Then** 系統展開為當前有效代碼；若無可用代碼則展開為空字串（不顯示殘留佔位符）。
+7. **Given** CouponChain 被停用，**When** 學員開啟含 `{alias}` 的教室，**Then** 佔位符展開為空字串（不顯示任何代碼）。
+8. **Given** 管理員在小節編輯 modal 的促銷內容區，**When** 從「輪換折扣碼」下拉選擇一個 chain（顯示 `alias（課程名稱）` 或 `alias（全站通用）`），點擊「插入折扣碼」，**Then** `{alias}` 插入在目前游標位置；未選擇時按鈕 disabled。
+
+---
+
 ### Edge Cases
 
 - 折扣碼代碼輸入時大小寫不敏感，系統統一轉大寫後比對（用戶輸入 "test6" 等同於 "TEST6"）。
@@ -134,6 +156,11 @@
 - 折扣碼輸入欄同時存在於購物車頁與結帳頁；「直接購買」直接跳結帳頁時，仍可在結帳頁套用折扣碼（不會因略過購物車而無法使用優惠）。
 - 使用次數計數完整性：`used_count` 唯一寫入點為付款確認後的兌現流程（`fulfillOrder`），且以訂單 `status='paid'` 冪等保護避免重複的金流通知/返回造成重複計數；單純按「套用」（僅驗證）、或建立 `pending` 訂單但未付款，均不計數。
 - 移除已套用折扣碼後，結帳不得回退使用網址/session 帶入的原始代碼；避免「使用者已移除卻仍被套用並計入使用次數」的情況。
+- CouponChain alias 為全局唯一（含軟刪除行），允許英數字與底線（`/^[a-zA-Z0-9_]+$/`），不分大小寫（儲存原樣）。
+- `{alias}` 佔位符展開為伺服器端操作，在 `ClassroomController::formatLessonFull()` 中進行，前端收到已展開的 HTML；管理員在後台看到的 promo_html 仍是原始 `{alias}` 字串（未展開）。
+- 當代碼被兌換且觸發自動補碼的瞬間有競爭條件：使用者在新碼生成前嘗試兌換舊碼，系統顯示友善提示（告知已達上限，可稍後重試），不強制補碼前的原子鎖定。
+- CouponChain 自動生成的代碼長度為 6 位大寫英數字（與一般 CouponCode 相同格式），隨機生成並檢查唯一性（含軟刪除列）。
+- 後台小節編輯 modal 中，輪換折扣碼下拉只顯示 `is_active = true` 的 chain；下拉選項標籤格式為 `alias（課程名稱）` 或 `alias（全站通用）`。
 
 ---
 
@@ -163,6 +190,12 @@
 - **FR-020**: 系統 MUST 支援透過課程銷售頁網址參數（`?coupon=CODE`）攜帶折扣碼；用戶進站後該折扣碼在購物車/結帳流程中自動套用並通過 server-side 驗證。手動輸入的折扣碼優先於網址帶入者；網址折扣碼無效時靜默忽略；用戶移除後不再於同一流程自動重套。
 - **FR-021**: 折扣碼輸入欄 MUST 同時出現在購物車頁與結帳頁，兩處共用同一驗證與套用邏輯；以涵蓋「直接購買」直接進入結帳、略過購物車的流程，確保任一進入路徑都能套用折扣碼。
 - **FR-022**: 結帳送出時 MUST 僅帶入結帳頁 UI 上「實際處於已套用狀態」的折扣碼；若用戶未套用或已移除，MUST NOT 回退使用網址/session 帶入的原始代碼。折扣碼的使用次數（used_count）MUST 僅在「帶折扣碼的訂單付款成功確認」時 +1，按「套用」按鈕或建立未付款訂單皆不計入。
+- **FR-023**: 系統 MUST 支援「輪換折扣碼」（CouponChain）：管理員設定 alias、折扣類型、每碼名額（code_max_uses），系統建立時自動生成首支 CouponCode（chain_id 關聯）。
+- **FR-024**: 當 CouponChain 的當前代碼 used_count 達到 code_max_uses（且 code_max_uses > 0）時，系統 MUST 在付款確認後自動生成下一支代碼（linked 至同一 chain_id）；code_max_uses = 0 表示無限制，不觸發補碼。
+- **FR-025**: 系統 MUST 支援在課程小節 `promo_html` 中以 `{alias}` 佔位符引用 CouponChain；學員開啟教室時，`ClassroomController` MUST 將佔位符展開為當前有效代碼（via `CouponChainService::substitutePlaceholders()`）；無可用代碼時展開為空字串。
+- **FR-026**: 後台章節編輯 modal 的促銷內容區 MUST 提供輪換折扣碼選擇器，顯示啟用中的 chain（標籤含課程名稱/全站通用），點擊「插入折扣碼」後在游標位置插入 `{alias}`。
+- **FR-027**: CouponChain 的 alias MUST 為全局唯一（`/^[a-zA-Z0-9_]+$/`，max 50 字元），系統 MUST 拒絕建立重複 alias（含已軟刪除的 CouponCode 行不受此約束，但 chain alias 唯一）。
+- **FR-028**: 後台 MUST 提供 CouponChain 的 CRUD 操作（新增、編輯、啟用/停用、刪除）及歷史代碼列表（Show 頁），以「折扣碼管理」頁的第二個 tab（輪換折扣碼）呈現，不另開側欄入口。
 
 ### Key Entities
 

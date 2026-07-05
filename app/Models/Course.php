@@ -21,6 +21,7 @@ class Course extends Model
         'description',
         'description_md',
         'price',
+        'redeem_points',
         'original_price',
         'thumbnail',
         'instructor_name',
@@ -43,6 +44,7 @@ class Course extends Model
     {
         return [
             'price' => 'decimal:2',
+            'redeem_points' => 'integer',
             'original_price' => 'integer',
             'is_published' => 'boolean',
             'is_visible' => 'boolean',
@@ -53,6 +55,12 @@ class Course extends Model
             'duration_minutes' => 'integer',
             'drip_interval_days' => 'integer',
         ];
+    }
+
+    // 可兌換性由「是否設定點數」決定，而非綁定 type
+    public function isRedeemable(): Attribute
+    {
+        return Attribute::get(fn () => $this->redeem_points !== null && $this->redeem_points > 0);
     }
 
     public function resolveRouteBinding($value, $field = null): ?self

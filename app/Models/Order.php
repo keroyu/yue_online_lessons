@@ -13,6 +13,7 @@ class Order extends Model
     protected $fillable = [
         'user_id', 'buyer_name', 'buyer_email', 'buyer_phone', 'tax_id',
         'total_amount', 'coupon_code', 'original_amount', 'discount_amount',
+        'referrer_user_id', 'referral_rate', 'referral_reward_points',
         'currency', 'payment_gateway',
         'merchant_order_no', 'status', 'gateway_trade_no',
         'webhook_received_at',
@@ -23,17 +24,24 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'total_amount'        => 'decimal:2',
-            'original_amount'     => 'decimal:2',
-            'discount_amount'     => 'decimal:2',
-            'webhook_received_at' => 'datetime',
-            'status'              => 'string',
+            'total_amount'           => 'decimal:2',
+            'original_amount'        => 'decimal:2',
+            'discount_amount'        => 'decimal:2',
+            'referral_rate'          => 'integer',
+            'referral_reward_points' => 'integer',
+            'webhook_received_at'    => 'datetime',
+            'status'                 => 'string',
         ];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referrer_user_id');
     }
 
     public function items(): HasMany

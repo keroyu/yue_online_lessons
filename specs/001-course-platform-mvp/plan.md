@@ -15,6 +15,7 @@
 **Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式（Phase 20）
 **Updated**: 2026-05-19 - 移除舊版 PayUni initiate 路由及 PayuniController::initiate()、buildPaymentForm()、generateMerTradeNo()、parseCourseId() 方法；legacy YC processNotify branch 一併清除
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（US7）與免費課程直接報名（US8）（Phase 21）
+**Updated**: 2026-06-26 - 販售頁「預計時長」補充堂數資訊（FR-043）
 
 ## Summary
 

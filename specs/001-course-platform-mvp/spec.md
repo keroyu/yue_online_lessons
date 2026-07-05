@@ -21,6 +21,7 @@
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（portaly_product_id 空且 price > 0）與免費課程直接報名（portaly_product_id 空且 price = 0）
 **Updated**: 2026-03-23 - PayUni 金流 debug 修正：MerTradeNo 縮短至 26 字元、NotifyURL 買家資訊改從 Cache 讀取、ReturnURL 移至 web 路由解決 auth/race condition、付款表單必填姓名電話、退款按鈕 HTTP method 修正
 **Updated**: 2026-03-30 - 明確區分 Purchase 的付款狀態（status）與取得類型（type）；文件不再混用兩者語意
+**Updated**: 2026-06-26 - 販售頁「預計時長」欄補充堂數資訊（FR-043）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -121,6 +122,9 @@
 15. **Given** 訪客 scroll 過頂部課程資訊欄（section 3）, **When** 底部購買區尚不在畫面內, **Then** 右下角顯示懸浮購買面板（含價格、優惠倒數計時、免費試閱按鈕、立即購買按鈕），從右側以 slide-in 動畫進入
 16. **Given** 懸浮購買面板可見, **When** 訪客 scroll 至底部購買區（同意條款區），**Then** 懸浮面板自動以 slide-out 動畫收回
 17. **Given** 懸浮購買面板可見, **When** 訪客點擊「立即購買」，**Then** 若尚未勾選同意條款則自動 scroll 至底部購買區；若已勾選則直接開啟 Portaly 購買頁面
+18. **Given** 課程已設定 `duration_minutes` 且有至少一個小節, **When** 訪客進入課程販售頁, **Then** 「預計時長」欄顯示格式為「N堂課、X小時Y分鐘」（例：20堂課、10小時30分鐘）
+19. **Given** 課程只有 `duration_minutes` 但沒有小節, **When** 訪客進入課程販售頁, **Then** 「預計時長」欄僅顯示時長（例：10小時30分鐘），不顯示「0堂課」
+20. **Given** 課程有小節但沒有 `duration_minutes`, **When** 訪客進入課程販售頁, **Then** 「預計時長」欄僅顯示堂數（例：20堂課）
 
 ---
 
@@ -263,6 +267,7 @@
 - **FR-040**: PayUni ReturnURL handler MUST 同時執行購買紀錄建立（冪等），以解決 ReturnURL 與 NotifyURL 的 race condition
 - **FR-041**: Inertia shared auth props MUST 包含 `real_name` 和 `phone`，供前端表單預填
 - **FR-042**: 課程販售頁懸浮購買面板 MUST 提供收合/展開功能：(a) 展開狀態：面板右上角顯示 `›` 收合按鈕，點擊後面板縮至右側邊緣；(b) 收合狀態：右側邊緣顯示金色小標籤「購買」帶左箭頭，點擊後重新展開完整面板；(c) 兩者皆有 slide-in/out 動畫；此功能讓行動裝置用戶在閱讀課程介紹時可臨時收合遮擋面板
+- **FR-043**: 課程販售頁「預計時長」欄 MUST 同時顯示小節數量（堂課）與時長：(a) 兩者皆有時顯示「N堂課、X小時Y分鐘」；(b) 只有小節數量時顯示「N堂課」；(c) 只有時長時顯示「X小時Y分鐘」；(d) 小節數量為 0 時不顯示堂數；`lessons_count` 由 `CourseController@show` 透過 `course->lessons()->count()` 計算並傳入前端，前端以 `durationLabel` computed 組合顯示
 
 ### Key Entities
 

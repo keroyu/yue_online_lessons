@@ -11,6 +11,7 @@ description: "Task list for 折扣碼管理系統 implementation"
 
 **Organization**: 依 5 個 user story 分階段，每階段可獨立實作與驗收。
 
+**Updated**: 2026-06-26 - CouponChain 子功能實作完成（Phase 10）：migrations × 2、CouponChain model、CouponChainService、CouponService::redeem() 補碼邏輯、CouponChainController + Form Requests、Vue Pages（Index/Create/Edit/Show）、AdminLayout tab 整合、ClassroomController placeholder 展開、LessonForm 插入 UI。
 **Updated**: 2026-06-10 - 全 39 任務完成；另補實作後修正（Phase 9）：結帳頁掛載 `CouponInput`（FR-021 buy-now）、計數完整性修正（FR-022，結帳僅送實際套用碼）、後台重複 toast 修正（`defineOptions({ layout: AdminLayout })`）。
 
 ## Format: `[ID] [P?] [Story] Description`

@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GiftCourseRequest;
+use App\Http\Requests\Admin\GrantPointsRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
+use App\Services\PointService;
 use App\Mail\BatchEmailMail;
 use App\Mail\CourseGiftedMail;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Log;
@@ -97,8 +100,8 @@ class MemberController extends Controller
      */
     public function show(User $member): JsonResponse
     {
-        // Ensure we're only showing members (not admins/editors)
-        if (!$member->isMember()) {
+        // Ensure we're only showing manageable accounts (members + admin owner, not editors)
+        if (!$member->isManageableMember()) {
             abort(404, '找不到該會員');
         }
 
@@ -145,6 +148,18 @@ class MemberController extends Controller
                 'completed_at' => $c->created_at->toIso8601String(),
             ])->values();
 
+        $pointTransactions = $member->pointTransactions()
+            ->limit(50)
+            ->get()
+            ->map(fn ($tx) => [
+                'created_at'   => $tx->created_at->toIso8601String(),
+                'type'         => $tx->type,
+                'amount'       => $tx->amount,
+                'note'         => $tx->note,
+                'available_at' => $tx->available_at->toIso8601String(),
+                'is_matured'   => $tx->available_at->lessThanOrEqualTo(now()),
+            ]);
+
         return response()->json([
             'member' => [
                 'id' => $member->id,
@@ -160,6 +175,7 @@ class MemberController extends Controller
             ],
             'courses' => $courses,
             'homework_completions' => $homeworkCompletions,
+            'point_transactions' => $pointTransactions,
         ]);
     }
 
@@ -168,8 +184,8 @@ class MemberController extends Controller
      */
     public function update(UpdateMemberRequest $request, User $member)
     {
-        // Ensure we're only updating members (not admins/editors)
-        if (!$member->isMember()) {
+        // Ensure we're only updating manageable accounts (members + admin owner, not editors)
+        if (!$member->isManageableMember()) {
             abort(403, '只能編輯會員資料');
         }
 
@@ -184,6 +200,33 @@ class MemberController extends Controller
         }
 
         return back()->with('success', '會員資料更新成功');
+    }
+
+    /**
+     * Grant points to a member (FR-030, increase-only — no deduction entry point).
+     * Writes an `admin_grant` ledger row via PointService (instant-mature).
+     */
+    public function grantPoints(GrantPointsRequest $request, User $member)
+    {
+        if (!$member->isManageableMember()) {
+            abort(403, '只能派發積分給會員');
+        }
+
+        $amount = (int) $request->validated()['amount'];
+        $note = $request->validated()['note'] ?? null;
+
+        app(PointService::class)->award($member, $amount, 'admin_grant', 'admin', null, $note);
+
+        // JSON for the modal (AJAX); redirect for standard Inertia requests.
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "已派發 {$amount} 積分",
+                'points'  => (int) $member->fresh()->points,
+            ]);
+        }
+
+        return back()->with('success', "已派發 {$amount} 積分");
     }
 
     /**

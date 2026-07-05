@@ -23,6 +23,8 @@ class User extends Authenticatable
         'birth_date',
         'role',
         'points',
+        'referral_code',
+        'referral_activated_at',
         'last_login_at',
         'last_login_ip',
     ];
@@ -37,14 +39,57 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'referral_activated_at' => 'datetime',
             'birth_date' => 'date',
             'password' => 'hashed',
         ];
     }
 
+    // 建帳號時自動產生永久推薦碼（比照 DripSubscription::unsubscribe_token 慣例）
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->referral_code)) {
+                $user->referral_code = static::generateReferralCode();
+            }
+        });
+    }
+
+    // 8 碼大寫英數，排除易混字元（0/O/1/I/L）；碰撞重試
+    public static function generateReferralCode(): string
+    {
+        $charset = str_split('23456789ABCDEFGHJKMNPQRSTUVWXYZ');
+        do {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $charset[array_rand($charset)];
+            }
+        } while (static::where('referral_code', $code)->exists());
+
+        return $code;
+    }
+
     public function purchases(): HasMany
     {
         return $this->hasMany(Purchase::class);
+    }
+
+    public function pointTransactions(): HasMany
+    {
+        return $this->hasMany(PointTransaction::class)->orderByDesc('created_at');
+    }
+
+    public function isReferralActive(): bool
+    {
+        return $this->referral_activated_at !== null;
+    }
+
+    // 未成熟積分（尚未可用的回饋）
+    public function pendingPoints(): int
+    {
+        return (int) $this->pointTransactions()
+            ->where('available_at', '>', now())
+            ->sum('amount');
     }
 
     public function isAdmin(): bool
@@ -62,9 +107,18 @@ class User extends Authenticatable
         return $this->role === 'member';
     }
 
+    /**
+     * Users that can be managed through the admin member panel.
+     * Includes real members and the admin owner account (who is also a learner).
+     */
+    public function isManageableMember(): bool
+    {
+        return in_array($this->role, ['member', 'admin'], true);
+    }
+
     public function scopeMembers(Builder $query): Builder
     {
-        return $query->where('role', 'member');
+        return $query->whereIn('role', ['member', 'admin']);
     }
 
     public function lessonProgress(): HasMany

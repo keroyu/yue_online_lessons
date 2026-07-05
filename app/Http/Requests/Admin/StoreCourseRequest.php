@@ -29,6 +29,7 @@ class StoreCourseRequest extends FormRequest
             'description' => ['required', 'string'],
             'description_md' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
+            'redeem_points' => ['nullable', 'integer', 'min:0'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date', 'after:now'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
