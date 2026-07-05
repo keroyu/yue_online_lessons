@@ -60,10 +60,10 @@ defineProps({
 
         <!-- Text block: bottom-left -->
         <div class="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-6 space-y-2">
-          <!-- Title: white on solid black strip -->
+          <!-- Title: navy panel with a gold accent bar on the left -->
           <h1
             v-if="hero.title"
-            class="inline-block bg-black px-2 py-1 text-2xl sm:text-4xl font-bold text-white leading-snug"
+            class="inline-flex items-center bg-brand-navy/85 backdrop-blur-sm border-l-4 border-brand-gold pl-3 pr-4 py-2 text-2xl sm:text-4xl font-bold text-white leading-snug tracking-wide"
           >
             {{ hero.title }}
           </h1>
@@ -82,7 +82,7 @@ defineProps({
           :href="hero.button_url"
           target="_blank"
           rel="noopener noreferrer"
-          class="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 px-5 py-2 border border-white/80 bg-white/20 hover:bg-white text-white hover:text-brand-navy text-sm font-semibold transition-all duration-300"
+          class="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 px-6 py-2 border border-white bg-transparent hover:bg-white text-white hover:text-brand-navy text-sm font-semibold tracking-widest uppercase transition-all duration-300"
         >
           {{ hero.button_label }}
         </a>

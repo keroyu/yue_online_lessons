@@ -39,21 +39,21 @@ const statusBadge = computed(() => {
   if (isDraft) {
     return {
       label: '草稿',
-      class: 'bg-gray-500 text-white',
+      class: 'bg-gray-600 text-white',
     }
   }
 
   if (props.course.status === 'preorder') {
     return {
       label: '預購中',
-      class: 'bg-yellow-500 text-white',
+      class: 'bg-brand-gold text-brand-navy',
     }
   }
 
   if (props.course.status === 'selling') {
     return {
       label: '熱賣中',
-      class: 'bg-green-500 text-white',
+      class: 'bg-brand-red text-white',
     }
   }
 
@@ -69,7 +69,7 @@ const isHidden = computed(() => {
 <template>
   <Link
     :href="`/course/${course.id}`"
-    class="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+    class="block bg-white border border-gray-200 hover:border-brand-teal transition-colors overflow-hidden"
   >
     <!-- Thumbnail -->
     <div class="aspect-video bg-gray-100 relative">
@@ -89,14 +89,14 @@ const isHidden = computed(() => {
       </div>
 
       <!-- Type badge -->
-      <span class="absolute top-2 left-2 bg-brand-teal text-white text-xs px-2 py-1 rounded">
+      <span class="absolute top-2 left-2 bg-brand-navy/90 text-white text-xs px-2 py-1 rounded-none font-medium tracking-wide">
         {{ getTypeLabel(course.product_type) }}
       </span>
 
       <!-- Status badge (admin only) -->
       <span
         v-if="statusBadge"
-        class="absolute top-2 right-2 text-xs px-2 py-1 rounded font-medium"
+        class="absolute top-2 right-2 text-xs px-2 py-1 rounded-none font-medium tracking-wide"
         :class="statusBadge.class"
       >
         {{ statusBadge.label }}
@@ -105,7 +105,7 @@ const isHidden = computed(() => {
       <!-- Hidden badge (admin only) -->
       <span
         v-if="isHidden"
-        class="absolute top-10 right-2 text-xs px-2 py-1 rounded font-medium bg-purple-500 text-white"
+        class="absolute top-10 right-2 text-xs px-2 py-1 rounded-none font-medium tracking-wide bg-gray-800 text-white"
         title="此課程已隱藏，不會顯示於首頁"
       >
         隱藏

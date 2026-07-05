@@ -40,8 +40,8 @@ const formatNotificationTime = (d) => {
       <div class="flex justify-between h-16">
         <!-- Logo -->
         <div class="flex items-center">
-          <Link href="/" class="text-xl font-bold text-white">
-            Your Time Bank
+          <Link href="/" class="text-xl font-bold text-white tracking-wide">
+            經營者時間銀行
           </Link>
         </div>
 
