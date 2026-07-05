@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Assignment;
 use App\Models\AssignmentCompletion;
 use App\Models\HomeworkNotification;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -18,13 +19,22 @@ class AssignmentService
 
         $course = $assignment->lesson->course;
 
-        DB::transaction(function () use ($student, $assignment, $course) {
+        $rewardPoints = (int) SiteSetting::get('homework_reward_points', 100);
+
+        DB::transaction(function () use ($student, $assignment, $course, $rewardPoints) {
             AssignmentCompletion::create([
                 'assignment_id' => $assignment->id,
                 'user_id' => $student->id,
             ]);
 
-            $student->increment('points', 100);
+            // 積分一律經帳本發放（PointService 為 users.points 唯一寫入點）
+            app(PointService::class)->award(
+                $student,
+                $rewardPoints,
+                'earn_homework',
+                'assignment',
+                $assignment->id,
+            );
 
             HomeworkNotification::create([
                 'user_id' => $student->id,

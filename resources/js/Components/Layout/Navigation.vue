@@ -118,6 +118,9 @@ const formatNotificationTime = (d) => {
             <Link href="/member/learning" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
               我的課程
             </Link>
+            <Link href="/member/points" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              我的積分
+            </Link>
             <Link href="/member/settings" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
               帳號設定
             </Link>
@@ -172,6 +175,9 @@ const formatNotificationTime = (d) => {
         <template v-if="user">
           <Link href="/member/learning" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
             我的課程
+          </Link>
+          <Link href="/member/points" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
+            我的積分
           </Link>
           <Link href="/member/settings" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
             帳號設定

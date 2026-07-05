@@ -19,7 +19,10 @@ class CheckoutService
      *
      * @param array<string, ?string> $trafficSource 來源資料；keys: utm_source, utm_medium, utm_campaign, utm_term, utm_content, referrer_domain, gclid, fbclid, ttclid
      */
-    public function createOrder(?int $userId, array $courseIds, array $buyer, array $trafficSource = [], ?string $couponCode = null): Order
+    /**
+     * @param  array{referrer_id: int, rate: int}|null  $referral  validated referral snapshot (US2)
+     */
+    public function createOrder(?int $userId, array $courseIds, array $buyer, array $trafficSource = [], ?string $couponCode = null, ?array $referral = null): Order
     {
         $courses = Course::whereIn('id', $courseIds)->get()->keyBy('id');
 
@@ -82,9 +85,25 @@ class CheckoutService
             $payable = $result['payable'];
         }
 
+        // Referral snapshot (US2). Estimate reward from the payable subtotal at order
+        // time; fulfillOrder recomputes from the actual paid total on payment.
+        $referralFields = [
+            'referrer_user_id'       => null,
+            'referral_rate'          => null,
+            'referral_reward_points' => 0,
+        ];
+        if ($referral) {
+            $rate = (int) $referral['rate'];
+            $referralFields = [
+                'referrer_user_id'       => (int) $referral['referrer_id'],
+                'referral_rate'          => $rate,
+                'referral_reward_points' => app(ReferralService::class)->computeReward($payable, $rate),
+            ];
+        }
+
         $sourceKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'];
 
-        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $payable, $couponFields, $trafficSource, $sourceKeys) {
+        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $payable, $couponFields, $referralFields, $trafficSource, $sourceKeys) {
             $sourceData = [];
             foreach ($sourceKeys as $key) {
                 $sourceData[$key] = $trafficSource[$key] ?? null;
@@ -101,7 +120,7 @@ class CheckoutService
                 'payment_gateway'   => $gateway,
                 'merchant_order_no' => null,
                 'status'            => 'pending',
-            ], $couponFields, $sourceData));
+            ], $couponFields, $referralFields, $sourceData));
 
             $order->update([
                 'merchant_order_no' => 'ord_' . $order->id . '_' . date('ymd'),
@@ -197,6 +216,14 @@ class CheckoutService
             if ($order->coupon_code) {
                 app(CouponService::class)->redeem($order->coupon_code);
             }
+
+            // Referral payout on payment confirmation (FR-020) + buyer activation (FR-016).
+            $referralService = app(ReferralService::class);
+            if ($order->referrer_user_id) {
+                $order->load('referrer');
+                $referralService->reward($order);
+            }
+            $referralService->evaluateActivation($user);
         });
 
         return $purchases;

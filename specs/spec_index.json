@@ -1621,9 +1621,24 @@
       "heading": "### User Story 1 - 用積分兌換課程 (Priority: P1)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-1---用積分兌換課程-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "兌換",
+        "redeem",
+        "積分兌換",
+        "RedemptionService",
+        "兩段式確認"
+      ],
+      "code_files": [
+        "app/Services/RedemptionService.php",
+        "app/Services/PointService.php",
+        "app/Http/Controllers/RedemptionController.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Http/Requests/RedeemCourseRequest.php",
+        "resources/js/Components/Course/RedeemButton.vue",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "resources/js/Pages/Course/Show.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "012.us-2",
@@ -1633,9 +1648,26 @@
       "heading": "### User Story 2 - 用推薦碼結帳讓推薦人獲得回饋 (Priority: P1)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-2---用推薦碼結帳讓推薦人獲得回饋-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "推薦碼",
+        "referral",
+        "回饋",
+        "ReferralService",
+        "validate-referral"
+      ],
+      "code_files": [
+        "app/Services/ReferralService.php",
+        "app/Services/PointService.php",
+        "app/Services/CheckoutService.php",
+        "app/Http/Controllers/ReferralController.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Http/Requests/ValidateReferralRequest.php",
+        "app/Http/Requests/CheckoutRequest.php",
+        "app/Console/Commands/MaturePoints.php",
+        "resources/js/Components/Cart/ReferralInput.vue",
+        "resources/js/Pages/Checkout/Index.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "012.us-3",
@@ -1645,9 +1677,17 @@
       "heading": "### User Story 3 - 會員積分中心 (Priority: P2)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-3---會員積分中心-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "積分中心",
+        "點數明細",
+        "推薦碼",
+        "member points"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/PointController.php",
+        "resources/js/Pages/Member/Points.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "012.us-4",
@@ -1657,9 +1697,18 @@
       "heading": "### User Story 4 - 後台積分參數設定 (Priority: P2)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-4---後台積分參數設定-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "積分設定",
+        "門檻",
+        "回饋比例",
+        "成熟天數",
+        "points settings"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "resources/js/Pages/Admin/Settings/Points.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "012.us-5",
@@ -1669,9 +1718,16 @@
       "heading": "### User Story 5 - 後台推薦成效統計 (Priority: P3)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-5---後台推薦成效統計-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "推薦成效",
+        "統計",
+        "referral stats"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/ReferralStatsController.php",
+        "resources/js/Pages/Admin/Referrals/Index.vue"
+      ],
+      "status": "implemented"
     },
     {
       "id": "012.us-6",
@@ -1681,9 +1737,19 @@
       "heading": "### User Story 6 - 後台派發積分並檢視會員帳本 (Priority: P3)",
       "file": "specs/012-points-system/spec.md",
       "anchor": "user-story-6---後台派發積分並檢視會員帳本-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "派發積分",
+        "admin_grant",
+        "帳本",
+        "grant points"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "app/Http/Requests/Admin/GrantPointsRequest.php",
+        "app/Services/PointService.php",
+        "resources/js/Components/MemberDetailModal.vue"
+      ],
+      "status": "implemented"
     }
   ]
 }

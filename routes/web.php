@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\RedemptionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CouponChainController;
 use App\Http\Controllers\DripSubscriptionController;
@@ -45,6 +47,9 @@ Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store
     ->middleware('throttle:5,1')
     ->name('course.book');
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
+Route::post('/courses/{course}/redeem', [RedemptionController::class, 'store'])
+    ->middleware('auth')
+    ->name('courses.redeem');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
 // Cart & Checkout API — must live in web.php (api middleware group has no StartSession;
@@ -64,6 +69,7 @@ Route::prefix('api')->name('api.')->group(function () {
 
     // Checkout (public — guest checkout supported)
     Route::post('/checkout/check-email', [CheckoutController::class, 'checkEmail'])->name('checkout.check-email');
+    Route::post('/checkout/validate-referral', [ReferralController::class, 'validateCode'])->name('checkout.validate-referral');
     Route::post('/checkout/initiate', [CheckoutController::class, 'initiate'])->name('checkout.initiate');
 });
 
@@ -110,6 +116,7 @@ Route::post('/logout', [LoginController::class, 'logout'])
 // Member routes (Authenticated)
 Route::middleware('auth')->prefix('member')->name('member.')->group(function () {
     Route::get('/learning', [LearningController::class, 'index'])->name('learning');
+    Route::get('/points', [\App\Http\Controllers\Member\PointController::class, 'index'])->name('points');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
@@ -172,6 +179,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/members/import', [MemberController::class, 'importEmails'])->name('members.import');
     Route::get('/members', [MemberController::class, 'index'])->name('members.index');
     Route::patch('/members/{member}', [MemberController::class, 'update'])->name('members.update');
+    Route::post('/members/{member}/grant-points', [MemberController::class, 'grantPoints'])->name('members.grant-points');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
     Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])
         ->middleware('throttle:10,1')
@@ -186,6 +194,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
+
+    // Referral performance stats
+    Route::get('/referrals', [\App\Http\Controllers\Admin\ReferralStatsController::class, 'index'])->name('referrals.index');
 
     // Discount Coupons
     Route::resource('coupons', AdminCouponController::class)->except(['show']);
@@ -223,6 +234,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
     Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
+
+    // Points settings
+    Route::get('/settings/points', [AdminSettingsController::class, 'showPoints'])->name('settings.points');
+    Route::post('/settings/points', [AdminSettingsController::class, 'updatePoints'])->name('settings.points.update');
 
     // Homework / grading
     Route::get('/homework', [HomeworkController::class, 'index'])->name('homework.index');

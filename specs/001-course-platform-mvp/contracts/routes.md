@@ -2,6 +2,7 @@
 
 **Branch**: `001-course-platform-mvp` | **Date**: 2026-01-16
 **Updated**: 2026-05-19 - 移除 `POST /api/payment/payuni/initiate`（`payuni.initiate`）路由及對應 Request/Response contract；舊路徑已由 009 的 `POST /checkout/initiate` 完全取代
+**Updated**: 2026-06-26 - Course Detail Page Props 新增 `lessons_count: number`（小節總數）
 
 ## Overview
 
@@ -26,7 +27,7 @@ Description: 首頁，顯示所有販售中課程
 GET /course/{course}
 Controller: CourseController@show
 Page: Pages/Course/Show.vue
-Props: { course: Course }
+Props: { course: Course }  // course 物件包含 lessons_count: number（小節總數，0 表示尚無小節）
 Description: 課程獨立販售頁
 404: 課程不存在或未上架
 ```

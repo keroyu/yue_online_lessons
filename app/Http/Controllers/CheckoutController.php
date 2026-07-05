@@ -9,6 +9,7 @@ use App\Services\CartService;
 use App\Services\CheckoutService;
 use App\Services\NewebpayService;
 use App\Services\PayuniService;
+use App\Services\ReferralService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -86,17 +87,31 @@ class CheckoutController extends Controller
 
     public function initiate(CheckoutRequest $request): JsonResponse
     {
-        $validated  = $request->validated();
-        $buyer      = $validated['buyer'];
-        $courseIds  = $validated['course_ids'];
-        $couponCode = $validated['coupon_code'] ?? null;
-        $userId     = auth()->id();
+        $validated    = $request->validated();
+        $buyer        = $validated['buyer'];
+        $courseIds    = $validated['course_ids'];
+        $couponCode   = $validated['coupon_code'] ?? null;
+        $referralCode = $validated['referral_code'] ?? null;
+        $userId       = auth()->id();
+
+        // Validate referral code before the order is created (FR-018); block on failure.
+        $referral = null;
+        if ($referralCode) {
+            $result = app(ReferralService::class)->validateAtCheckout($referralCode, [
+                'user_id' => $userId,
+                'email'   => $buyer['email'],
+            ]);
+            if (!$result['success']) {
+                return response()->json(['success' => false, 'message' => $result['error']], 422);
+            }
+            $referral = ['referrer_id' => $result['referrer']->id, 'rate' => $result['rate']];
+        }
 
         $checkoutService = app(CheckoutService::class);
         $trafficSource = session('traffic_source', []);
 
         try {
-            $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource, $couponCode);
+            $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource, $couponCode, $referral);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         }

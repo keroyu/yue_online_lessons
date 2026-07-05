@@ -14,6 +14,10 @@ const props = defineProps({
     type: String,
     default: 'draft',
   },
+  couponChains: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['save', 'close'])
@@ -83,6 +87,28 @@ const insertClassroomUrl = () => {
     textarea.selectionStart = textarea.selectionEnd = start + placeholder.length
     textarea.focus()
   })
+}
+
+const promoHtmlRef = ref(null)
+const selectedChainAlias = ref('')
+
+const insertCouponChain = () => {
+  if (!selectedChainAlias.value) return
+  const placeholder = `{${selectedChainAlias.value}}`
+  const textarea = promoHtmlRef.value
+  if (!textarea) {
+    form.value.promo_html = (form.value.promo_html || '') + placeholder
+    return
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = form.value.promo_html || ''
+  form.value.promo_html = text.substring(0, start) + placeholder + text.substring(end)
+  nextTick(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + placeholder.length
+    textarea.focus()
+  })
+  selectedChainAlias.value = ''
 }
 
 const ctaUrl = ref('')
@@ -386,8 +412,29 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                         插入按鈕
                       </button>
                     </div>
+                    <!-- Insert coupon chain placeholder -->
+                    <div v-if="couponChains.length > 0" class="mt-2 flex items-center gap-2">
+                      <select
+                        v-model="selectedChainAlias"
+                        class="flex-1 rounded border-gray-300 px-3 py-1.5 text-sm font-mono"
+                      >
+                        <option value="">選擇輪換折扣碼…</option>
+                        <option v-for="c in couponChains" :key="c.id" :value="c.alias">
+                          {{ c.label }}
+                        </option>
+                      </select>
+                      <button
+                        type="button"
+                        :disabled="!selectedChainAlias"
+                        class="shrink-0 rounded bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-40 transition-colors"
+                        @click="insertCouponChain"
+                      >
+                        插入折扣碼
+                      </button>
+                    </div>
                     <textarea
                       id="promo_html"
+                      ref="promoHtmlRef"
                       v-model="form.promo_html"
                       rows="5"
                       placeholder="<div class='bg-yellow-100 p-4'>...</div>"

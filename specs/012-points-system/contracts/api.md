@@ -1,6 +1,9 @@
 # API Contracts: 積分系統擴充 (012-points-system)
 
 **Branch**: `012-points-system` | **Date**: 2026-06-30
+**Updated**: 2026-07-05 - 實作完成。推薦碼驗證實作於既有結帳 api 群組：`POST /api/checkout/validate-referral`（name `api.checkout.validate-referral`），與下方簡化列示的 `/checkout/validate-referral` 為同一端點。派發積分 `POST /admin/members/{member}/grant-points` 對 AJAX 回 JSON、對 Inertia 回 redirect。
+**Updated**: 2026-07-05 - US1 兌換改兩段式確認（詳見 §3）；修 `Admin/CourseController::edit` 漏傳 `redeem_points`。路由清單不變。
+**Updated**: 2026-07-05 - 兌換成功導向由 `member.classroom` 改為 `member.learning`（我的課程）；確認觸發按鈕文字改為方位中性的「請確認兌換…」。
 
 慣例：Inertia 頁面回 `Inertia::render`；表單／AJAX 動作回 `JsonResponse` 或 `redirect()->with()`（比照既有 `CouponController`、`MemberController`）。錯誤訊息一律中文。Controller 不含商業邏輯，委派 Service。
 
@@ -60,7 +63,7 @@ Response 429 (失敗次數過多):
 POST /courses/{course}/redeem           name: courses.redeem
 Middleware: auth
 Request (RedeemCourseRequest): {}（course 由路由綁定，user 由 auth）
-Response (成功): redirect()->route('member.classroom', course)->with('success','已使用積分兌換課程')
+Response (成功): redirect()->route('member.learning')->with('success','已使用積分兌換課程')  // 兌換後導向「我的課程」（不直接進教室，較不突兀）
 Response (失敗): back()->withErrors(['redeem' => '可用積分不足'])
   // 其他： '此課程無法以積分兌換'、'您已擁有此課程'
 ```
@@ -73,6 +76,9 @@ Response (失敗): back()->withErrors(['redeem' => '可用積分不足'])
 - `redeemPoints`：課程兌換所需點數（null 表不可兌換）。
 - `userAvailablePoints`：登入者可用積分（未登入為 null）。
 - 前端：可兌換且 `userAvailablePoints >= redeemPoints` → 按鈕可點；不足 → disabled + 「還差 N 點」。
+- **兩段式確認（2026-07-05）**：`RedeemButton.vue` 綠色按鈕點擊後 emit `request`（不直接 POST）；`Course/Show.vue` 於銷售頁顯示確認面板（目前可用／本次扣除／兌換後餘額 = `userAvailablePoints - redeemPoints`），按「確定兌換」才 `router.post(courses.redeem)`，失敗以 `errors.redeem` 於面板顯示中文訊息。路由與 payload 不變。
+
+**後台編輯（bug fix 2026-07-05）**：`Admin/CourseController::edit` 的 course props 須包含 `redeem_points`，否則編輯表單載入為空（`Admin/CourseForm.vue` 以 `props.course?.redeem_points` 初始化）。
 
 ---
 

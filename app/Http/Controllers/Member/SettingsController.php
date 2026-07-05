@@ -33,6 +33,12 @@ class SettingsController extends Controller
                 ];
             });
 
+        // 實際發放點數以帳本為準（設定可調，歷史完成可能以不同點數發放）
+        $rewardByAssignment = $user->pointTransactions()
+            ->where('type', 'earn_homework')
+            ->where('reference_type', 'assignment')
+            ->pluck('amount', 'reference_id');
+
         $completions = $user->assignmentCompletions()
             ->with('assignment.lesson.course')
             ->orderByDesc('created_at')
@@ -40,7 +46,7 @@ class SettingsController extends Controller
             ->map(fn ($c) => [
                 'course_name' => $c->assignment->lesson->course->name,
                 'lesson_title' => $c->assignment->lesson->title,
-                'points_awarded' => 100,
+                'points_awarded' => (int) ($rewardByAssignment[$c->assignment_id] ?? 0),
                 'completed_at' => $c->created_at->toIso8601String(),
             ]);
 

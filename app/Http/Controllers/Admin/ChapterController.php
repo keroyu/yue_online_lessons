@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreChapterRequest;
 use App\Models\Chapter;
 use App\Models\Course;
+use App\Models\CouponChain;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -77,6 +78,17 @@ class ChapterController extends Controller
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,
+            'couponChains' => CouponChain::where('is_active', true)
+                ->with('course:id,name')
+                ->orderBy('alias')
+                ->get(['id', 'alias', 'course_id'])
+                ->map(fn ($c) => [
+                    'id'    => $c->id,
+                    'alias' => $c->alias,
+                    'label' => $c->course_id
+                        ? "{$c->alias}（{$c->course->name}）"
+                        : "{$c->alias}（全站通用）",
+                ]),
         ]);
     }
 

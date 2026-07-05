@@ -2,6 +2,7 @@
 
 **Feature Branch**: `011-discount-coupon`
 **Created**: 2026-06-09
+**Updated**: 2026-06-26 - 新增 CouponChain 後台 CRUD 路由（`/admin/coupon-chains`）；`Admin/CouponChains/Index` tab 整合至折扣碼管理頁；`ChapterController::index()` 新增 `couponChains` Inertia prop。
 **Updated**: 2026-06-10 - 實作落地；結帳頁亦掛載 `CouponInput`（涵蓋「直接購買」流程），結帳折扣驗證統一改由前端 `CouponInput` 客戶端完成（移除 `GET /checkout` 的伺服器端 `coupon` 摘要 prop，僅傳 `couponCode` 原始字串）；`initiate` 僅送出 UI 上實際套用的折扣碼。
 
 所有路由新增於 `routes/web.php`。前台套用端點放既有 `api` 群組（公開，支援 guest）；後台放 `['auth','admin']` 群組，採 `Route::resource`。
@@ -194,6 +195,56 @@ PayUni / NewebPay 的 NotifyURL（及 ReturnURL 安全網，皆 gating 於付款
 
 ---
 
+## 後台：輪換折扣碼管理（admin）
+
+加入同一 `['auth','admin']` 群組：
+
+```php
+Route::resource('coupon-chains', CouponChainController::class)->except(['show']);
+Route::get('/coupon-chains/{coupon_chain}', [CouponChainController::class, 'show'])->name('coupon-chains.show');
+Route::patch('/coupon-chains/{coupon_chain}/toggle', [CouponChainController::class, 'toggle'])->name('coupon-chains.toggle');
+```
+
+**Controller**: `App\Http\Controllers\Admin\CouponChainController`
+
+| 動作 | 路由 | 回傳 | 說明 |
+|------|------|------|------|
+| `index` | `GET /admin/coupon-chains` | Inertia `Admin/CouponChains/Index` | 列表（分頁），含 current_code |
+| `create` | `GET /admin/coupon-chains/create` | Inertia `Admin/CouponChains/Create` | 表單（課程下拉） |
+| `store` | `POST /admin/coupon-chains` | redirect `coupon-chains.index` + flash | `StoreCouponChainRequest`；建立後自動 `generateNextCode()` |
+| `edit` | `GET /admin/coupon-chains/{coupon_chain}/edit` | Inertia `Admin/CouponChains/Edit` | 編輯表單 |
+| `update` | `PUT /admin/coupon-chains/{coupon_chain}` | redirect + flash | `UpdateCouponChainRequest`；alias unique 排除自身 |
+| `destroy` | `DELETE /admin/coupon-chains/{coupon_chain}` | redirect + flash | 刪除（硬刪除 chain；codes 的 chain_id SET NULL） |
+| `show` | `GET /admin/coupon-chains/{coupon_chain}` | Inertia `Admin/CouponChains/Show` | 歷史代碼列表 |
+| `toggle` | `PATCH /admin/coupon-chains/{coupon_chain}/toggle` | redirect back + flash | 啟用/停用 `is_active` |
+
+### `StoreCouponChainRequest` 驗證規則
+
+```php
+[
+    'alias'         => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:coupon_chains,alias'],
+    'course_id'     => ['nullable', 'exists:courses,id'],
+    'type'          => ['required', 'in:fixed,ratio'],
+    'value'         => ['required', 'numeric', /* same as CouponCode value rules */],
+    'code_max_uses' => ['required', 'integer', 'min:0'],
+    'is_active'     => ['boolean'],
+    'note'          => ['nullable', 'string', 'max:255'],
+]
+```
+
+### `ChapterController::index()` — Inertia prop 擴充
+
+```typescript
+// 新增 prop 傳至 Admin/Courses/Chapters → ChapterList → LessonForm
+couponChains: {
+  id: number
+  alias: string
+  label: string   // "{alias}（課程名稱）" 或 "{alias}（全站通用）"
+}[]              // 僅含 is_active = true 的 chains，依 alias 排序
+```
+
+---
+
 ## 路由名稱總覽
 
 | name | method | uri |
@@ -208,3 +259,11 @@ PayUni / NewebPay 的 NotifyURL（及 ReturnURL 安全網，皆 gating 於付款
 | `admin.coupons.destroy` | DELETE | `/admin/coupons/{coupon}` |
 | `admin.coupons.show` | GET | `/admin/coupons/{coupon}` |
 | `admin.coupons.toggle` | PATCH | `/admin/coupons/{coupon}/toggle` |
+| `admin.coupon-chains.index` | GET | `/admin/coupon-chains` |
+| `admin.coupon-chains.create` | GET | `/admin/coupon-chains/create` |
+| `admin.coupon-chains.store` | POST | `/admin/coupon-chains` |
+| `admin.coupon-chains.edit` | GET | `/admin/coupon-chains/{coupon_chain}/edit` |
+| `admin.coupon-chains.update` | PUT | `/admin/coupon-chains/{coupon_chain}` |
+| `admin.coupon-chains.destroy` | DELETE | `/admin/coupon-chains/{coupon_chain}` |
+| `admin.coupon-chains.show` | GET | `/admin/coupon-chains/{coupon_chain}` |
+| `admin.coupon-chains.toggle` | PATCH | `/admin/coupon-chains/{coupon_chain}/toggle` |

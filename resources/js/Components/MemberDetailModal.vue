@@ -23,7 +23,14 @@ const loading = ref(false)
 const member = ref(null)
 const courses = ref([])
 const homeworkCompletions = ref([])
+const pointTransactions = ref([])
 const error = ref(null)
+
+// Grant points state
+const grantForm = ref({ amount: '', note: '' })
+const grantErrors = ref({})
+const granting = ref(false)
+const grantSuccess = ref('')
 
 // Edit mode state
 const editMode = ref(false)
@@ -43,9 +50,13 @@ watch(() => [props.show, props.memberId], async ([show, memberId]) => {
     member.value = null
     courses.value = []
     homeworkCompletions.value = []
+    pointTransactions.value = []
     error.value = null
     editMode.value = false
     editErrors.value = {}
+    grantForm.value = { amount: '', note: '' }
+    grantErrors.value = {}
+    grantSuccess.value = ''
   }
 }, { immediate: true })
 
@@ -57,6 +68,7 @@ const fetchMemberDetails = async () => {
     member.value = response.data.member
     courses.value = response.data.courses
     homeworkCompletions.value = response.data.homework_completions ?? []
+    pointTransactions.value = response.data.point_transactions ?? []
     // Initialize edit form with current values
     editForm.value = {
       nickname: member.value.nickname || '',
@@ -128,6 +140,44 @@ const saveEdit = async () => {
     saving.value = false
   }
 }
+
+// Grant points to this member (increase-only)
+const submitGrant = async () => {
+  granting.value = true
+  grantErrors.value = {}
+  grantSuccess.value = ''
+  try {
+    const res = await axios.post(`/admin/members/${props.memberId}/grant-points`, {
+      amount: grantForm.value.amount,
+      note: grantForm.value.note || null,
+    }, {
+      headers: { 'Accept': 'application/json' }
+    })
+
+    grantSuccess.value = res.data.message || '已派發積分'
+    grantForm.value = { amount: '', note: '' }
+    // Refresh points + ledger from server (grant is instant-mature).
+    await fetchMemberDetails()
+    router.reload({ only: ['members'] })
+  } catch (err) {
+    if (err.response?.status === 422) {
+      grantErrors.value = err.response.data.errors || {}
+    } else {
+      grantErrors.value = { general: '派發失敗，請稍後再試' }
+    }
+  } finally {
+    granting.value = false
+  }
+}
+
+const POINT_TYPE_LABELS = {
+  earn_homework: '作業獎勵',
+  redeem_course: '兌換課程',
+  earn_referral: '推薦回饋',
+  refund_reversal: '退款回收',
+  admin_grant: '後台派發',
+}
+const pointTypeLabel = (t) => POINT_TYPE_LABELS[t] ?? t
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -363,7 +413,65 @@ const handleBackdropClick = (e) => {
                   <div class="border-t border-gray-200 pt-6">
                     <div class="flex items-center justify-between mb-4">
                       <h3 class="text-lg font-semibold text-gray-900">積分</h3>
-                      <span class="text-xl font-bold text-green-600">{{ member.points ?? 0 }} 分</span>
+                      <span class="text-xl font-bold text-green-600">可用 {{ member.points ?? 0 }} 分</span>
+                    </div>
+
+                    <!-- Grant form (increase-only) -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                      <p class="text-sm font-medium text-gray-700 mb-2">派發積分（只增加）</p>
+                      <div class="flex flex-col sm:flex-row gap-2">
+                        <input
+                          v-model="grantForm.amount"
+                          type="number"
+                          min="1"
+                          placeholder="點數"
+                          class="w-full sm:w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
+                        />
+                        <input
+                          v-model="grantForm.note"
+                          type="text"
+                          maxlength="255"
+                          placeholder="備註（選填，例：活動獎勵）"
+                          class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
+                        />
+                        <button
+                          @click="submitGrant"
+                          :disabled="granting || !grantForm.amount"
+                          class="px-4 py-2 rounded-lg font-semibold text-sm bg-brand-teal text-white hover:bg-brand-teal/90 transition-colors disabled:opacity-40 shrink-0"
+                        >
+                          {{ granting ? '派發中…' : '派發' }}
+                        </button>
+                      </div>
+                      <p v-if="grantErrors.amount" class="mt-2 text-sm text-red-600">{{ grantErrors.amount[0] }}</p>
+                      <p v-else-if="grantErrors.general" class="mt-2 text-sm text-red-600">{{ grantErrors.general }}</p>
+                      <p v-if="grantSuccess" class="mt-2 text-sm text-green-600">{{ grantSuccess }}</p>
+                    </div>
+
+                    <!-- Ledger -->
+                    <p class="text-sm font-medium text-gray-700 mb-2">積分明細</p>
+                    <div v-if="pointTransactions.length === 0" class="text-center py-6 bg-gray-50 rounded-lg text-sm text-gray-500">
+                      尚無積分紀錄
+                    </div>
+                    <div v-else class="space-y-2 max-h-64 overflow-y-auto">
+                      <div
+                        v-for="(tx, idx) in pointTransactions"
+                        :key="idx"
+                        class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5 text-sm"
+                      >
+                        <div class="min-w-0">
+                          <span class="font-medium text-gray-900">{{ pointTypeLabel(tx.type) }}</span>
+                          <span v-if="!tx.is_matured" class="ml-2 text-xs text-amber-600">未成熟</span>
+                          <p class="text-xs text-gray-400 mt-0.5">
+                            {{ formatDateTime(tx.created_at) }}<span v-if="tx.note"> · {{ tx.note }}</span>
+                          </p>
+                        </div>
+                        <span
+                          class="font-bold shrink-0 ml-3"
+                          :class="tx.amount >= 0 ? 'text-green-600' : 'text-red-500'"
+                        >
+                          {{ tx.amount >= 0 ? '+' : '' }}{{ tx.amount }}
+                        </span>
+                      </div>
                     </div>
                   </div>
 

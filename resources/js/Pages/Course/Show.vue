@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { marked } from 'marked'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
+import RedeemButton from '@/Components/Course/RedeemButton.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
 import { useCart } from '@/composables/useCart'
@@ -60,7 +61,42 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  redeemPoints: {
+    type: Number,
+    default: null,
+  },
+  userAvailablePoints: {
+    type: Number,
+    default: null,
+  },
 })
+
+// ── 積分兌換：兩段式確認（按綠色按鈕 → 左側面板顯示兌換後餘額 → 確定才扣點）──
+const redeemConfirming = ref(false)
+const redeemProcessing = ref(false)
+const redeemError = ref('')
+const redeemAfterBalance = computed(
+  () => (props.userAvailablePoints ?? 0) - (props.redeemPoints ?? 0)
+)
+const onRedeemRequest = () => {
+  redeemError.value = ''
+  redeemConfirming.value = true
+}
+const cancelRedeem = () => {
+  redeemConfirming.value = false
+  redeemError.value = ''
+}
+const confirmRedeem = () => {
+  if (redeemProcessing.value) return
+  redeemProcessing.value = true
+  redeemError.value = ''
+  router.post(`/courses/${props.course.id}/redeem`, {}, {
+    preserveScroll: true,
+    onError: (errors) => { redeemError.value = errors.redeem || '兌換失敗，請稍後再試' },
+    onSuccess: () => { redeemConfirming.value = false },
+    onFinish: () => { redeemProcessing.value = false },
+  })
+}
 
 // Landing Page mode detection
 const isLandingMode = computed(() => {
@@ -320,6 +356,13 @@ const subscriptionStatusLabel = computed(() => {
 
 const ctaLabel = computed(() => props.course.tagline || props.course.name)
 
+const durationLabel = computed(() => {
+  const parts = []
+  if (props.course.lessons_count) parts.push(`${props.course.lessons_count}堂課`)
+  if (props.course.duration_formatted) parts.push(props.course.duration_formatted)
+  return parts.join('、')
+})
+
 const isHighTicket = computed(() => props.course.is_high_ticket === true)
 const highTicketHidePrice = computed(() => props.course.high_ticket_hide_price === true)
 
@@ -387,8 +430,8 @@ const submitBooking = async () => {
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-3xl mx-auto leading-tight">
         {{ course.name }}
       </h1>
-      <p v-if="course.duration_formatted" class="mt-3 text-blue-200 text-sm">
-        {{ course.duration_formatted }}
+      <p v-if="durationLabel" class="mt-3 text-blue-200 text-sm">
+        {{ durationLabel }}
       </p>
       <div v-if="course.status === 'preorder'" class="mt-3">
         <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-800">
@@ -462,13 +505,13 @@ const submitBooking = async () => {
               <span>課程類型　<strong class="text-gray-800">{{ getTypeLabel(course.product_type) }}</strong></span>
             </div>
             <!-- Duration -->
-            <div v-if="course.duration_formatted" class="flex items-center gap-2">
+            <div v-if="durationLabel" class="flex items-center gap-2">
               <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </span>
-              <span>預計時長　<strong class="text-gray-800">{{ course.duration_formatted }}</strong></span>
+              <span>預計時長　<strong class="text-gray-800">{{ durationLabel }}</strong></span>
             </div>
             <!-- Instructor -->
             <div class="flex items-center gap-2">
@@ -498,6 +541,45 @@ const submitBooking = async () => {
               </span>
               <span>目前狀態　<strong class="text-yellow-700">預購中</strong></span>
             </div>
+          </div>
+
+          <!-- 積分兌換確認面板（點綠色按鈕後於此顯示，確定才扣點） -->
+          <div
+            v-if="redeemConfirming"
+            class="mt-6 max-w-sm rounded-xl border-2 border-emerald-500 bg-emerald-50 p-4"
+          >
+            <p class="text-sm font-semibold text-gray-800 mb-2">確認積分兌換</p>
+            <div class="space-y-1 text-sm text-gray-700">
+              <div class="flex justify-between">
+                <span>目前可用積分</span><span class="font-medium">{{ userAvailablePoints }} 點</span>
+              </div>
+              <div class="flex justify-between">
+                <span>本次兌換扣除</span><span class="font-medium text-red-600">−{{ redeemPoints }} 點</span>
+              </div>
+              <div class="flex justify-between border-t border-emerald-200 pt-1 mt-1">
+                <span>兌換後餘額</span><span class="font-bold text-emerald-700">{{ redeemAfterBalance }} 點</span>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">兌換後積分不可退回，並立即取得課程永久觀看權。</p>
+            <div class="flex gap-2 mt-3">
+              <button
+                type="button"
+                :disabled="redeemProcessing"
+                class="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                @click="confirmRedeem"
+              >
+                {{ redeemProcessing ? '兌換中…' : '確定兌換' }}
+              </button>
+              <button
+                type="button"
+                :disabled="redeemProcessing"
+                class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-60"
+                @click="cancelRedeem"
+              >
+                取消
+              </button>
+            </div>
+            <p v-if="redeemError" class="mt-2 text-sm text-red-600">{{ redeemError }}</p>
           </div>
         </div>
 
@@ -545,6 +627,15 @@ const submitBooking = async () => {
               {{ isDrip ? '免費訂閱' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買')) }}
             </button>
           </div>
+
+          <!-- 積分兌換（僅在課程可兌換且尚未擁有時顯示）；點擊後由左側面板確認 -->
+          <RedeemButton
+            :redeem-points="redeemPoints"
+            :user-available-points="userAvailablePoints"
+            :is-owned="isOwned"
+            :confirming="redeemConfirming"
+            @request="onRedeemRequest"
+          />
         </div>
 
       </div>

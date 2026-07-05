@@ -18,6 +18,10 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  couponChains: {
+    type: Array,
+    default: () => [],
+  },
 })
 </script>
 
@@ -69,6 +73,7 @@ defineProps({
         :course-status="course.status"
         :chapters="chapters"
         :standalone-lessons="standaloneLessons"
+        :coupon-chains="couponChains"
       />
   </div>
 </template>

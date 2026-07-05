@@ -71,6 +71,35 @@ class SettingsController extends Controller
         return redirect()->back()->with('success', '金流設定已儲存');
     }
 
+    public function showPoints(): Response
+    {
+        return Inertia::render('Admin/Settings/Points', [
+            'points' => [
+                'referral_threshold_amount' => (int) SiteSetting::get('referral_threshold_amount', 3000),
+                'referral_reward_rate'      => (int) SiteSetting::get('referral_reward_rate', 10),
+                'homework_reward_points'    => (int) SiteSetting::get('homework_reward_points', 100),
+                'referral_maturity_days'    => (int) SiteSetting::get('referral_maturity_days', 14),
+            ],
+        ]);
+    }
+
+    public function updatePoints(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'referral_threshold_amount' => ['required', 'integer', 'min:0'],
+            'referral_reward_rate'      => ['required', 'integer', 'min:0', 'max:100'],
+            'homework_reward_points'    => ['required', 'integer', 'min:0'],
+            'referral_maturity_days'    => ['required', 'integer', 'min:0'],
+        ]);
+
+        // New values apply only to points generated afterwards; existing ledger is snapshotted (FR-027).
+        foreach ($validated as $key => $value) {
+            SiteSetting::set($key, (string) $value);
+        }
+
+        return redirect()->back()->with('success', '積分設定已儲存');
+    }
+
     private function maskSecret(?string $value): string
     {
         if (!$value) {

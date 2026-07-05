@@ -159,6 +159,7 @@ class CourseController extends Controller
                 'portaly_product_id' => $course->portaly_product_id,
                 'is_visible' => $course->is_visible,
                 'delivery_mode' => $course->course_type ?? 'standard',
+                'redeem_points' => $course->redeem_points,
                 'drip_interval_days' => $course->drip_interval_days,
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,

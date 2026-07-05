@@ -2,11 +2,48 @@
 
 **Feature Branch**: `011-discount-coupon`
 **Created**: 2026-06-09
+**Updated**: 2026-06-26 - 新增 `coupon_chains` 表；`coupon_codes` 新增 `chain_id` nullable FK（nullOnDelete）。
 **Updated**: 2026-06-10 - 已建立 migration 並 migrate：`coupon_codes`（含 SoftDeletes、`UNIQUE(code)`）、`orders` 新增 `coupon_code`/`original_amount`/`discount_amount`；`purchases` 沿用既有欄位（`coupon_code` 寫每筆、`discount_amount` 僅記首筆）。schema 與本文件一致。
 
 ---
 
-## New Table
+## New Tables
+
+### `coupon_chains`
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| id | bigint PK | no | |
+| alias | varchar(50) | no | **UNIQUE**；英數字與底線；輸入佔位符識別 |
+| course_id | bigint unsigned FK → courses | yes | null = 全站通用；ON DELETE SET NULL |
+| type | enum('fixed','ratio') | no | |
+| value | decimal(10,2) | no | 同 coupon_codes 規則 |
+| code_max_uses | int unsigned | no | default 1；0 = 無限制，不自動補碼 |
+| is_active | boolean | no | default true |
+| note | varchar(255) | yes | |
+| created_at | timestamp | no | |
+| updated_at | timestamp | no | |
+
+**Constraints**: `UNIQUE(alias)`
+
+```sql
+CREATE TABLE coupon_chains (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    alias         VARCHAR(50) NOT NULL,
+    course_id     BIGINT UNSIGNED NULL,
+    type          ENUM('fixed','ratio') NOT NULL,
+    value         DECIMAL(10,2) NOT NULL,
+    code_max_uses INT UNSIGNED NOT NULL DEFAULT 1,
+    is_active     BOOLEAN NOT NULL DEFAULT 1,
+    note          VARCHAR(255) NULL,
+    created_at    TIMESTAMP NULL,
+    updated_at    TIMESTAMP NULL,
+    CONSTRAINT fk_coupon_chains_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_coupon_chains_alias (alias)
+);
+```
+
+---
 
 ### `coupon_codes`
 
@@ -20,6 +57,7 @@
 | expires_at | timestamp | yes | null = 永不過期 |
 | max_uses | int unsigned | yes | null = 無限制 |
 | used_count | int unsigned | no | default 0；付款確認時 `increment` |
+| chain_id | bigint unsigned FK → coupon_chains | yes | null = 一般折扣碼；非 null = CouponChain 自動生成；ON DELETE SET NULL |
 | is_active | boolean | no | default true |
 | note | varchar(255) | yes | 後台備註說明 |
 | created_at | timestamp | no | |
@@ -143,6 +181,35 @@ class CouponCode extends Model
     }
 }
 ```
+
+### `CouponChain` (`app/Models/CouponChain.php`) — 新增
+
+`$fillable`: `alias`, `course_id`, `type`, `value`, `code_max_uses`, `is_active`, `note`
+
+Relationships: `course(): BelongsTo`, `codes(): HasMany(CouponCode, chain_id)`
+
+Key method: `currentCode(): ?CouponCode` — 撈最新一支啟用中、未達上限、未軟刪除的 CouponCode。
+
+### `CouponCode` (`app/Models/CouponCode.php`) — 擴充
+
+`$fillable` 加入 `chain_id`；新增 `chain(): BelongsTo(CouponChain)` relationship。
+
+### `CouponChainService` (`app/Services/CouponChainService.php`) — 新增
+
+```
+substitutePlaceholders(?string $html): ?string
+  — preg_replace_callback /\{([a-zA-Z0-9_]+)\}/ → 查 alias → 展開為 currentCode()->code 或 ''
+
+generateNextCode(CouponChain $chain): CouponCode
+  — 新增一支 CouponCode（type/value/course_id/max_uses 繼承 chain），chain_id 關聯
+
+generateUniqueCode(): string
+  — 6 位大寫英數字隨機，迴圈檢查唯一性（含軟刪除）
+```
+
+`CouponService::redeem()` 修改：increment 後若 `chain_id && code_max_uses > 0 && used_count >= code_max_uses`，呼叫 `CouponChainService::generateNextCode()`。
+
+`ClassroomController` 修改：注入 `CouponChainService`，`formatLessonFull()` 的 `promo_html` 欄位改為 `substitutePlaceholders($lesson->promo_html)`。
 
 ### `Order` (`app/Models/Order.php`) — 擴充
 

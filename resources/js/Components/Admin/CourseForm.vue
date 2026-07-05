@@ -44,6 +44,7 @@ const form = useForm({
   description: props.course?.description || '',
   description_md: props.course?.description_md || '',
   price: props.course?.price || '',
+  redeem_points: props.course?.redeem_points || '',
   original_price: props.course?.original_price || '',
   promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,
@@ -465,6 +466,22 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             </div>
             <p :class="helpTextClasses">留空則不顯示優惠倒數</p>
             <p v-if="form.errors.original_price" :class="errorTextClasses">{{ form.errors.original_price }}</p>
+          </div>
+
+          <!-- Redeem Points (積分兌換) -->
+          <div>
+            <label for="redeem_points" :class="labelClasses">積分兌換所需點數</label>
+            <input
+              id="redeem_points"
+              v-model="form.redeem_points"
+              type="number"
+              step="1"
+              min="0"
+              placeholder="留空 = 不可兌換"
+              :class="[inputClasses, form.errors.redeem_points ? inputErrorClasses : '']"
+            />
+            <p :class="helpTextClasses">填入點數後，學員可用積分整筆兌換此課程；留空或 0 表示僅能購買</p>
+            <p v-if="form.errors.redeem_points" :class="errorTextClasses">{{ form.errors.redeem_points }}</p>
           </div>
         </div>
 

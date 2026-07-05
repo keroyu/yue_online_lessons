@@ -13,3 +13,10 @@ Schedule::command('courses:update-status')->everyMinute();
 
 // Process and send scheduled drip emails daily at 9:00 AM
 Schedule::command('drip:process-emails')->dailyAt('09:00');
+
+// Backstop batch maturation of due referral rewards (on-read/on-spend already keeps
+// active users correct; this covers dormant accounts + final consistency).
+Schedule::command('points:mature')->dailyAt('00:30');
+
+// Reconcile users.points cache against the ledger; logs any drift (SC-002).
+Schedule::command('points:reconcile')->dailyAt('01:00');
