@@ -4,6 +4,7 @@
 **Branch**: `007-homepage-admin-settings`
 **Prerequisites**: plan.md, spec.md, data-model.md, contracts/inertia-props.md, research.md, quickstart.md
 **Updated**: 2026-07-05 - 首頁右欄精選課程 + widget 拖曳排序 + 首頁視覺銳利化 (Phase 7)
+**Updated**: 2026-07-06 - 內容分類後台管理（label+slug + 顯示開關 + slug 連動）(Phase 8)
 
 **Organization**: Tasks grouped by user story for independent implementation and testing.
 

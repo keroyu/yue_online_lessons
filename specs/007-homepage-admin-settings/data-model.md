@@ -2,6 +2,7 @@
 
 **Branch**: `007-homepage-admin-settings` | **Date**: 2026-03-25
 **Updated**: 2026-07-05 - 新增 `homepage_featured_courses` 表（精選課程）與 `sidebar_widget_order` site_setting 鍵（側欄排序）
+**Updated**: 2026-07-06 - 新增 `content_categories`（JSON，最多 3 格 label+slug）與 `content_filter_enabled` site_setting 鍵（首頁分類過濾按鈕）
 
 ---
 
@@ -31,6 +32,8 @@ Stores scalar homepage configuration values. One row per key.
 | `blog_rss_url` | `https://getwhealthy.substack.com/feed` | RSS feed URL; empty = hide section |
 | `sns_section_enabled` | `1` | `1` = show SNS block, `0` = hide |
 | `sidebar_widget_order` | `["featured_courses","social","blog"]` | JSON array of right-sidebar widget keys; normalised on read (unknown keys dropped, missing keys appended) |
+| `content_categories` | `[{"label":"思維升級","slug":"mindset"},{"label":"財務覺醒","slug":"finance"},{"label":"知識變現","slug":"monetization"}]` | JSON, up to 3 slots `{label, slug}`; only fully-filled slots stored; slug `^[a-z-]+$`, unique. Renaming a slug cascades to `courses.content_category`. *Added 2026-07-06* |
+| `content_filter_enabled` | `0` | `1` = show homepage content-type filter buttons, `0` = hide. Default off. *Added 2026-07-06* |
 
 ---
 

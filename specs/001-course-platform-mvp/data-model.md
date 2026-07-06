@@ -2,6 +2,7 @@
 
 **Branch**: `001-course-platform-mvp` | **Date**: 2026-01-16
 **Updated**: 2026-07-06 - Course 新增 `content_category` enum 欄位（思維升級/財務覺醒/知識變現，預設 monetization）
+**Updated**: 2026-07-06 - `content_category` enum → varchar(50)（分類 slug 改為後台可編輯，見 007）
 
 ## Entity Relationship Diagram
 
@@ -101,7 +102,7 @@
          | thumbnail | varchar(500) | nullable | 縮圖路徑 |
          | instructor_name | varchar(100) | not null | 教師名稱 |
          | type | enum('lecture','mini','full') | not null | 類型（講座/迷你課/ 大型課程） |
-         | content_category | enum('mindset','finance','monetization') | default: 'monetization' | 內容分類（思維升級/財務覺醒/知識變現）；獨立於 type，供首頁分類篩選。*Added 2026-07-06* |
+         | content_category | varchar(50) | not null, default: 'monetization' | 內容分類 slug；獨立於 type，供首頁分類篩選。原為 enum，2026-07-06 改為 varchar 以支援後台自訂 slug（定義見 007 `content_categories`）。*Added 2026-07-06* |
          | is_published | boolean | default: false | 是否上架 |
          | sort_order | int unsigned | default: 0 | 排序順序 |
          | portaly_url | varchar(500) | nullable | Portaly 產品頁連結 |

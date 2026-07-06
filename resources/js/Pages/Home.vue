@@ -20,6 +20,10 @@ const props = defineProps({
     type: Array,
     default: () => ['featured_courses', 'social', 'blog'],
   },
+  contentCategories: {
+    type: Array,
+    default: () => [],
+  },
   hero: {
     type: Object,
     default: () => ({
@@ -44,12 +48,7 @@ const props = defineProps({
   },
 })
 
-// Content category filter (null = 全部)
-const categories = [
-  { value: 'mindset', label: '思維升級' },
-  { value: 'finance', label: '財務覺醒' },
-  { value: 'monetization', label: '知識變現' },
-]
+// Content category filter (null = 全部); categories come from admin settings
 const selectedCategory = ref(null)
 
 function toggleCategory(value) {
@@ -142,17 +141,17 @@ const filteredCourses = computed(() =>
         <!-- Main area: Courses -->
         <div>
           <div v-if="courses.length > 0">
-            <!-- Category filter buttons: bright label on dark, text scales up on hover -->
-            <div class="flex gap-3 mb-6">
+            <!-- Category filter buttons (admin-configured): bright label on dark, text scales up on hover -->
+            <div v-if="contentCategories.length > 0" class="flex gap-3 mb-6">
               <button
-                v-for="cat in categories"
-                :key="cat.value"
+                v-for="cat in contentCategories"
+                :key="cat.slug"
                 type="button"
                 class="group flex-1 min-w-0 max-w-[300px] py-4 text-center font-bold cursor-pointer border-b-4 transition-colors"
-                :class="selectedCategory === cat.value
+                :class="selectedCategory === cat.slug
                   ? 'bg-brand-teal text-white border-brand-gold'
                   : 'bg-brand-navy text-brand-gold hover:bg-brand-navy/90 border-transparent'"
-                @click="toggleCategory(cat.value)"
+                @click="toggleCategory(cat.slug)"
               >
                 <span class="inline-block transition-transform duration-200 group-hover:scale-110">
                   {{ cat.label }}

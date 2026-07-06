@@ -27,6 +27,10 @@ const props = defineProps({
     type: Object,
     default: () => ({ payuni: true, newebpay: true }),
   },
+  contentCategories: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const statusBadge = computed(() => {
@@ -148,6 +152,7 @@ const unpublish = () => {
         :available-courses="availableCourses"
         :course-lessons="courseLessons"
         :gateway-configured="gatewayConfigured"
+        :content-categories="contentCategories"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"
       />

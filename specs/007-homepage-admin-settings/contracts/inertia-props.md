@@ -2,6 +2,7 @@
 
 **Branch**: `007-homepage-admin-settings` | **Date**: 2026-03-25
 **Updated**: 2026-07-05 - 新增精選課程 CRUD/排序與側欄 widget 排序路由；edit 頁新增 featuredCourses/availableCourses/sidebarOrder props；Home 頁新增 featuredCourses/sidebarOrder props
+**Updated**: 2026-07-06 - 新增內容分類路由 POST /admin/homepage/content-categories；edit 頁新增 contentCategorySlots/contentFilterEnabled props；Home 頁新增 contentCategories prop（僅開關開啟時帶出）
 
 ---
 
@@ -26,6 +27,9 @@ Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseControl
 
 // Sidebar widget ordering
 Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
+
+// Content categories (homepage type filter) + visibility toggle
+Route::post('/homepage/content-categories', [HomepageSettingController::class, 'updateContentCategories'])->name('homepage.content-categories');
 ```
 
 ### Route table
@@ -37,6 +41,7 @@ Route::post('/homepage/widget-order', [HomepageSettingController::class, 'update
 | DELETE | /admin/homepage/featured-courses/{featuredCourse} | admin.featured-courses.destroy | HomepageFeaturedCourseController@destroy | 移除精選課程 |
 | POST | /admin/homepage/featured-courses/reorder | admin.featured-courses.reorder | HomepageFeaturedCourseController@reorder | 依 ids 陣列重排 sort_order |
 | POST | /admin/homepage/widget-order | admin.homepage.widget-order | HomepageSettingController@updateWidgetOrder | 儲存側欄 widget 順序至 sidebar_widget_order |
+| POST | /admin/homepage/content-categories | admin.homepage.content-categories | HomepageSettingController@updateContentCategories | 儲存內容分類（label+slug）與顯示開關；改 slug 連動更新課程 |
 
 ### Request bodies
 
@@ -62,6 +67,15 @@ Route::post('/homepage/widget-order', [HomepageSettingController::class, 'update
 [
     'order'   => 'required|array',
     'order.*' => 'string|in:featured_courses,social,blog',  // 側欄區塊鍵
+]
+
+// POST /admin/homepage/content-categories
+[
+    'enabled'            => 'boolean',                        // 全域顯示開關
+    'categories'         => 'array|max:3',                    // 最多 3 格
+    'categories.*.label' => 'nullable|string|max:50',         // 顯示文字
+    'categories.*.slug'  => 'nullable|string|max:50|regex:/^[a-z-]+$/',  // 英文名
+    // 額外規則：label/slug 需成對填寫、slug 不可重複；改 slug 連動更新 courses.content_category
 ]
 ```
 
@@ -102,6 +116,11 @@ Route::post('/homepage/widget-order', [HomepageSettingController::class, 'update
     name: string,
   }>,
   sidebarOrder: string[],       // normalised widget keys: featured_courses | social | blog
+  contentCategorySlots: Array<{ // exactly 3 slots (blanks included) for the editor
+    label: string,              // 顯示文字 ('' if empty)
+    slug:  string,              // 英文名 ('' if empty)
+  }>,
+  contentFilterEnabled: boolean, // global toggle state
 }
 ```
 
@@ -118,6 +137,10 @@ Route::post('/homepage/widget-order', [HomepageSettingController::class, 'update
     url:       string,          // "/course/{id}"
   }>,
   sidebarOrder: string[],       // widget render order: featured_courses | social | blog
+  contentCategories: Array<{    // filled category slots; [] when the filter toggle is off
+    label: string,
+    slug:  string,              // matched against courses.content_category for filtering
+  }>,
 }
 ```
 

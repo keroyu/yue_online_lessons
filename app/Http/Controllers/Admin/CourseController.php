@@ -63,6 +63,7 @@ class CourseController extends Controller
     {
         return Inertia::render('Admin/Courses/Create', [
             'gatewayConfigured' => $this->gatewayConfigured(),
+            'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
         ]);
     }
 
@@ -180,6 +181,7 @@ class CourseController extends Controller
             'availableCourses' => $availableCourses,
             'courseLessons' => $courseLessons,
             'gatewayConfigured' => $this->gatewayConfigured(),
+            'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
         ]);
     }
 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Controllers\Admin\HomepageSettingController;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCourseRequest extends FormRequest
 {
@@ -12,6 +14,19 @@ class StoreCourseRequest extends FormRequest
     public function authorize(): bool
     {
         return true; // Authorization handled by middleware
+    }
+
+    /**
+     * Validate content_category against the admin-configured category slugs;
+     * fall back to a slug-format check when none are configured.
+     */
+    protected function contentCategoryRule(): array
+    {
+        $slugs = array_column(HomepageSettingController::contentCategories(), 'slug');
+
+        return $slugs
+            ? ['required', Rule::in($slugs)]
+            : ['required', 'string', 'max:50', 'regex:/^[a-z-]+$/'];
     }
 
     /**
@@ -35,7 +50,7 @@ class StoreCourseRequest extends FormRequest
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
             'type' => ['required', 'in:lecture,mini,full,high_ticket'],
-            'content_category' => ['required', 'in:mindset,finance,monetization'],
+            'content_category' => $this->contentCategoryRule(),
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
@@ -63,6 +78,7 @@ class StoreCourseRequest extends FormRequest
             'type.in' => '產品類型無效',
             'content_category.required' => '請選擇內容分類',
             'content_category.in' => '內容分類無效',
+            'content_category.regex' => '內容分類無效',
             'duration_minutes.integer' => '時間總長必須是整數',
             'duration_minutes.min' => '時間總長不能為負數',
             'sale_at.after' => '開賣時間必須在未來',

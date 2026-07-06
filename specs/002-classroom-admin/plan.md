@@ -35,6 +35,7 @@
 **Updated**: 2026-05-08 - 新增 US12 課程連結來源追蹤（Phase 39）：UTM/Click ID session 捕捉（5 UTM + 3 Click ID + referrer 共 9 欄）、Referrer 黑名單、時間 preset 篩選、CSV 匯出、Channel Group 分類、Last-touch 歸因、v-html XSS 防護
 **Updated**: 2026-07-05 - 教室側欄進入時只自動展開目前進度小節所屬章節（`ChapterSidebar.vue` 依 `currentLessonId` 初始化折疊狀態）
 **Updated**: 2026-07-06 - 後台課程表單新增內容分類選項（FR-111）
+**Updated**: 2026-07-06 - 內容分類下拉改動態（吃首頁設定）、驗證改對照已設定 slug（FR-111 更新）
 
 ## Summary
 

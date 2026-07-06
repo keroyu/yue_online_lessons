@@ -24,6 +24,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  contentCategories: {
+    type: Array,
+    default: () => [],
+  },
   submitUrl: {
     type: String,
     required: true,
@@ -50,7 +54,7 @@ const form = useForm({
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
   type: props.course?.product_type || props.course?.type || 'lecture',
-  content_category: props.course?.content_category || 'monetization',
+  content_category: props.course?.content_category || props.contentCategories[0]?.slug || 'monetization',
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
@@ -137,11 +141,6 @@ const courseTypes = [
   { value: 'high_ticket', label: '客製服務' },
 ]
 
-const contentCategories = [
-  { value: 'mindset', label: '思維升級' },
-  { value: 'finance', label: '財務覺醒' },
-  { value: 'monetization', label: '知識變現' },
-]
 
 const handleThumbnailChange = (event) => {
   const file = event.target.files[0]
@@ -354,11 +353,11 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             v-model="form.content_category"
             :class="[inputClasses, form.errors.content_category ? inputErrorClasses : '']"
           >
-            <option v-for="cat in contentCategories" :key="cat.value" :value="cat.value">
+            <option v-for="cat in contentCategories" :key="cat.slug" :value="cat.slug">
               {{ cat.label }}
             </option>
           </select>
-          <p :class="helpTextClasses">首頁左欄可依此分類篩選課程；預設為「知識變現」。</p>
+          <p :class="helpTextClasses">首頁左欄可依此分類篩選課程；分類選項於「首頁設定 → 內容分類」管理。</p>
           <p v-if="form.errors.content_category" :class="errorTextClasses">{{ form.errors.content_category }}</p>
         </div>
 

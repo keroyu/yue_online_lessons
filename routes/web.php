@@ -241,6 +241,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Sidebar widget ordering
     Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
 
+    // Content categories (homepage type filter) + visibility toggle
+    Route::post('/homepage/content-categories', [HomepageSettingController::class, 'updateContentCategories'])->name('homepage.content-categories');
+
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
     Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');

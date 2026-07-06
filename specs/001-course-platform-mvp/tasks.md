@@ -15,6 +15,7 @@
 **Updated**: 2026-03-19 - 販售頁 h3 標題左側色塊裝飾樣式 (Phase 20)
 **Updated**: 2026-06-26 - 販售頁「預計時長」補充堂數資訊（FR-043） (Phase 24)
 **Updated**: 2026-07-06 - 課程內容分類 + 首頁分類篩選 + SectionHeader 一致化 + 銷售頁 h2 輕量化 (Phase 32)
+**Updated**: 2026-07-06 - 內容分類後端可編輯 + 課程 slug 前台網址（FR-047/048）(Phase 33)
 
 **Tests**: Not explicitly requested - tests excluded from task list.
 

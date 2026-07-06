@@ -68,7 +68,7 @@ const isHidden = computed(() => {
 
 <template>
   <Link
-    :href="`/course/${course.id}`"
+    :href="`/course/${course.slug || course.id}`"
     class="block bg-white border border-gray-200 hover:border-brand-teal transition-colors overflow-hidden"
   >
     <!-- Thumbnail -->

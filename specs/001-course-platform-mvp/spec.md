@@ -11,6 +11,7 @@
 **Updated**: 2026-03-01 - 課程資訊欄、價格標示優化（優惠價 NTD$）、按鈕樣式統一
 **Updated**: 2026-03-08 - 課程縮圖統一改為 16:9 比例
 **Updated**: 2026-07-06 - 新增課程內容分類（思維升級/財務覺醒/知識變現，預設知識變現）與首頁左欄分類篩選按鈕；首頁視覺一致化（統一 SectionHeader 色塊標題＋點陣＋底線、側欄加寬、CourseCard teal 標題條、品牌色促銷價）；銷售頁 h2 由全寬實心 navy 色塊改為輕量 teal 左條＋navy 底線（降低壓迫感）
+**Updated**: 2026-07-06 - 內容分類改為後端可編輯（content_category enum→varchar，分類 label/slug 由後台管理、首頁按鈕依設定動態產生、可全域開關）；課程 slug 正式用於前台網址（CourseCard/精選課程連結改用 slug，無 slug 才退回 id）；FR-047/048
 **Updated**: 2026-05-09 - PayUni ATM cache TTL 從 2 小時延長至 8 天（FR-038 修正），避免 ATM 付款 webhook 到達時 cache 已過期；新增 FR-042（販售頁懸浮購買面板收合按鈕）
 **Updated**: 2026-03-09 - 新增課程 SEO 欄位（slug URL + meta_description）
 **Updated**: 2026-03-09 - 販售頁新增「免費試閱」按鈕，未購買訪客可另開視窗體驗教室介面
@@ -215,6 +216,8 @@
 - 既有課程在新增 `content_category` 欄位後，MUST 自動落於預設值 `monetization`（知識變現），不需人工回填
 - 首頁分類篩選為純前端狀態（不改變網址、不重新載入）；重新整理頁面後篩選回到「全部」屬預期行為
 - 三顆分類按鈕寬度上限 300px 但於左欄寬度不足時等比縮小並排（`flex-1 max-w-[300px]`），不硬性固定 300px 以免溢出或換行
+- 後台把某分類 slug 改名時，持有舊 slug 的課程會被連動更新（見 007 FR-031），不會變成無法篩選的孤兒；分類被清空（blank）時，該分類課程仍出現在「全部」
+- 課程未填 SEO slug 時，前台網址退回 `/course/{id}`；slug 與 id 皆可正確解析到同一課程
 - drip 課程不顯示「免費試閱」按鈕，即使後台誤設了 `is_preview = true` 的小節
 - drip 課程、草稿課程、無付款管道（portaly_product_id 空且 price = 0 且 is_free 未啟用）的課程不顯示懸浮購買面板
 - 草稿課程（previewMode）不顯示「免費試閱」按鈕（避免草稿流出）
@@ -278,6 +281,8 @@
 - **FR-044**: 每個課程 MUST 具備內容分類欄位 `content_category`，值為 `mindset`（思維升級）、`finance`（財務覺醒）、`monetization`（知識變現）三者之一，預設 `monetization`；此分類獨立於既有 `type`（產品型別）與 `course_type`（配送方式）。首頁課程資料 MUST 帶出 `content_category` 供前端篩選。
 - **FR-045**: 首頁左欄「所有課程」上方 MUST 顯示三顆並排分類按鈕（思維升級/財務覺醒/知識變現，深底亮字、hover 文字放大）；點擊 MUST 於前端即時篩選課程列表，選中者高亮並以 gold 底線標示；再次點擊選中者 MUST 清除篩選回到全部。
 - **FR-046**: 首頁各區塊標題（所有課程、精選推薦、追蹤站長、近期文章）MUST 使用統一的 `SectionHeader`（teal 色塊標題＋navy 點陣填充＋navy 底線）以維持全站一致性；課程販售頁 `.course-content h2` MUST 改為輕量樣式（teal 左側條＋navy 底線＋極淡 teal 漸層），不再使用全寬實心 navy 色塊，以降低壓迫感並與 `SectionHeader` 語言一致。
+- **FR-047**: `courses.content_category` MUST 為可自訂的字串 slug（非固定 enum）；分類的顯示文字與 slug 由後台管理（見 007 FR-029~031）。首頁分類過濾按鈕 MUST 依後台設定「動態產生」（填幾格顯示幾顆），且僅在後台開啟顯示開關時出現；篩選以 `courses.content_category` 對照分類 slug（前端即時）。課程建立時 `content_category` 預設為第一個已設定分類的 slug（無設定時為 `monetization`）。
+- **FR-048**: 課程前台網址 MUST 優先使用 `courses.slug`（自訂 SEO 網址），無 slug 時退回 `/course/{id}`；`Course::resolveRouteBinding` 已支援 slug 或 id 解析，前端列表（CourseCard）與精選課程連結 MUST 以 `slug || id` 產生連結。
 
 ### Key Entities
 

@@ -25,10 +25,11 @@ class HomeController extends Controller
 
         $courses = Course::visibleToUser($user)
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'content_category', 'course_type', 'status', 'is_published', 'is_visible'])
+            ->select(['id', 'slug', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'content_category', 'course_type', 'status', 'is_published', 'is_visible'])
             ->get()
             ->map(fn ($course) => [
                 'id'              => $course->id,
+                'slug'            => $course->slug,
                 'name'            => $course->name,
                 'tagline'         => $course->tagline,
                 'price'           => $course->price,
@@ -78,14 +79,14 @@ class HomeController extends Controller
         $rssUrl = $settings->get('blog_rss_url', '');
         $blogArticles = $rssUrl ? $this->blogRssService->getArticles($rssUrl) : [];
 
-        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,name,thumbnail')->get()
+        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,slug,name,thumbnail')->get()
             ->filter(fn ($item) => $item->course !== null)
             ->map(fn ($item) => [
                 'id'        => $item->course->id,
                 'name'      => $item->course->name,
                 'thumbnail' => $item->course->thumbnail_url,
                 'blurb'     => $item->blurb,
-                'url'       => "/course/{$item->course->id}",
+                'url'       => '/course/' . ($item->course->slug ?: $item->course->id),
             ])->values()->toArray();
 
         return Inertia::render('Home', [
@@ -95,6 +96,9 @@ class HomeController extends Controller
             'blogArticles'    => $blogArticles,
             'featuredCourses' => $featuredCourses,
             'sidebarOrder'    => HomepageSettingController::sidebarWidgetOrder(),
+            'contentCategories' => HomepageSettingController::contentFilterEnabled()
+                ? HomepageSettingController::contentCategories()
+                : [],
             'isAdmin'         => $isAdmin,
         ]);
     }

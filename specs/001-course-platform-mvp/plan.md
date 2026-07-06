@@ -17,6 +17,7 @@
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（US7）與免費課程直接報名（US8）（Phase 21）
 **Updated**: 2026-06-26 - 販售頁「預計時長」補充堂數資訊（FR-043）
 **Updated**: 2026-07-06 - 課程內容分類 content_category + 首頁分類篩選按鈕；首頁 SectionHeader 一致化；銷售頁 h2 輕量化（FR-044~046）
+**Updated**: 2026-07-06 - 內容分類後端可編輯（enum→varchar、動態按鈕、全域開關）+ 課程 slug 正式作為前台網址（FR-047/048）
 
 ## Summary
 

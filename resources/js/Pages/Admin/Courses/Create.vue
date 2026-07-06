@@ -9,6 +9,10 @@ defineProps({
     type: Object,
     default: () => ({ payuni: true, newebpay: true }),
   },
+  contentCategories: {
+    type: Array,
+    default: () => [],
+  },
 })
 </script>
 
@@ -23,6 +27,7 @@ defineProps({
 
       <CourseForm
         :gateway-configured="gatewayConfigured"
+        :content-categories="contentCategories"
         submit-url="/admin/courses"
         method="post"
       />

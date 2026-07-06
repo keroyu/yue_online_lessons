@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,6 +20,47 @@ class HomepageSettingController extends Controller
 {
     /** Sidebar widget keys in default display order. */
     public const SIDEBAR_WIDGETS = ['featured_courses', 'social', 'blog'];
+
+    /** Default content categories (label + slug), max 3 slots. */
+    public const DEFAULT_CONTENT_CATEGORIES = [
+        ['label' => '思維升級', 'slug' => 'mindset'],
+        ['label' => '財務覺醒', 'slug' => 'finance'],
+        ['label' => '知識變現', 'slug' => 'monetization'],
+    ];
+
+    /** Exactly 3 slots (padded with blanks) — used to render the admin editor. */
+    public static function contentCategorySlots(): array
+    {
+        $saved = json_decode(SiteSetting::get('content_categories', ''), true);
+        if (! is_array($saved) || empty($saved)) {
+            $saved = self::DEFAULT_CONTENT_CATEGORIES;
+        }
+
+        $slots = [];
+        for ($i = 0; $i < 3; $i++) {
+            $slots[] = [
+                'label' => (string) ($saved[$i]['label'] ?? ''),
+                'slug'  => (string) ($saved[$i]['slug'] ?? ''),
+            ];
+        }
+
+        return $slots;
+    }
+
+    /** Only fully-filled slots — used by the frontend filter and course form. */
+    public static function contentCategories(): array
+    {
+        return array_values(array_filter(
+            self::contentCategorySlots(),
+            fn ($c) => $c['label'] !== '' && $c['slug'] !== ''
+        ));
+    }
+
+    /** Whether the homepage content-type filter row is shown. */
+    public static function contentFilterEnabled(): bool
+    {
+        return (bool) (int) SiteSetting::get('content_filter_enabled', '0');
+    }
 
     /**
      * Return the saved sidebar widget order, normalised so it always
@@ -78,7 +120,62 @@ class HomepageSettingController extends Controller
                 'name' => $c->name,
             ])->values(),
             'sidebarOrder' => self::sidebarWidgetOrder(),
+            'contentCategorySlots' => self::contentCategorySlots(),
+            'contentFilterEnabled' => self::contentFilterEnabled(),
         ]);
+    }
+
+    public function updateContentCategories(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enabled'            => ['boolean'],
+            'categories'         => ['array', 'max:3'],
+            'categories.*.label' => ['nullable', 'string', 'max:50'],
+            'categories.*.slug'  => ['nullable', 'string', 'max:50', 'regex:/^[a-z-]+$/'],
+        ], [
+            'categories.*.slug.regex' => '英文名只能使用小寫英文字母與「-」',
+        ]);
+
+        $incoming = $validated['categories'] ?? [];
+
+        // A slot is either fully empty or fully filled (both label & slug).
+        $filled = [];
+        foreach ($incoming as $i => $c) {
+            $label = trim($c['label'] ?? '');
+            $slug  = trim($c['slug'] ?? '');
+            if ($label === '' && $slug === '') {
+                continue;
+            }
+            if ($label === '' || $slug === '') {
+                throw ValidationException::withMessages([
+                    "categories.$i" => '顯示文字與英文名必須同時填寫或同時留空',
+                ]);
+            }
+            $filled[] = ['label' => $label, 'slug' => $slug];
+        }
+
+        // Slugs must be unique across slots.
+        $slugs = array_column($filled, 'slug');
+        if (count($slugs) !== count(array_unique($slugs))) {
+            throw ValidationException::withMessages([
+                'categories' => '英文名不可重複',
+            ]);
+        }
+
+        // Cascade slug renames to courses (by slot position vs. previous save).
+        $old = self::contentCategorySlots();
+        foreach (array_values($incoming) as $i => $c) {
+            $oldSlug = trim($old[$i]['slug'] ?? '');
+            $newSlug = trim($c['slug'] ?? '');
+            if ($oldSlug !== '' && $newSlug !== '' && $oldSlug !== $newSlug) {
+                Course::where('content_category', $oldSlug)->update(['content_category' => $newSlug]);
+            }
+        }
+
+        SiteSetting::set('content_categories', json_encode(array_values($filled), JSON_UNESCAPED_UNICODE));
+        SiteSetting::set('content_filter_enabled', $request->boolean('enabled') ? '1' : '0');
+
+        return redirect()->back()->with('success', '內容分類已更新');
     }
 
     public function updateWidgetOrder(Request $request): RedirectResponse

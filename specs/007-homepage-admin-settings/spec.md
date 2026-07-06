@@ -5,6 +5,7 @@
 **Updated**: 2026-03-26 - 功能實作完成；新增 FR-021 banner 上傳失敗提示（前後端雙層驗證）
 **Updated**: 2026-07-05 - 新增 US5 首頁右欄精選課程（縮圖＋自訂介紹＋銷售頁按鈕）與右欄區塊拖曳排序；FR-022~FR-028；新表 homepage_featured_courses、site_setting 鍵 sidebar_widget_order；同批首頁視覺銳利化（去圓角、品牌色系統化）
 **Updated**: 2026-07-06 - 右欄三個 widget（精選推薦/追蹤站長/近期文章）標題改用統一的 SectionHeader（teal 色塊＋點陣＋navy 底線）；側欄加寬至 365px（詳見 001）
+**Updated**: 2026-07-06 - 新增「內容分類」後台管理（最多 3 格 顯示文字+英文名 slug、全域顯示開關；改 slug 連動更新課程）；FR-029~031；site_setting 新增 content_categories / content_filter_enabled；新端點 POST /admin/homepage/content-categories
 **Status**: Implemented
 **Input**: User description: "對 004-homepage-enhancement 進行增量更新：管理後台新增首頁設定頁，可管理 Hero Unit（橫幅圖片、標題、說明、按鈕）、SNS 連結（新增/修改/排序）、Blog RSS 網址"
 **Depends On**: 004-homepage-enhancement (SNS links and RSS URL currently hardcoded; not yet migrated to config)
@@ -115,6 +116,10 @@ As the site administrator, I want to pin selected courses to the homepage right 
 - What happens when a featured course's intro exceeds 500 characters? The textarea `maxlength` caps input at 500 and a live counter turns red at the limit; the server rejects anything over 500 with a validation error.
 - What happens when the stored `sidebar_widget_order` is missing a known widget key (e.g. after a new widget type is introduced)? `sidebarWidgetOrder()` normalises the saved array — unknown keys are dropped and missing known keys are appended in default order — so the sidebar never loses a widget.
 - What happens when no courses are featured? The featured-courses widget is hidden entirely from the sidebar (same pattern as empty SNS / RSS sections).
+- What happens if the admin fills a category label but leaves its slug empty (or vice versa)? Save is rejected with a message — a slot must be fully empty or fully filled.
+- What happens if two category slots use the same slug? Save is rejected ("英文名不可重複").
+- What happens when the admin renames a slug that courses already use? The rename cascades to those courses' `content_category` so they stay matched to the (renamed) button.
+- What happens if the admin blanks all category slots or turns the toggle off? The homepage shows no content-type filter buttons; all courses remain listed under 全部.
 
 ## Requirements *(mandatory)*
 
@@ -148,6 +153,9 @@ As the site administrator, I want to pin selected courses to the homepage right 
 - **FR-026**: Featured courses MUST be displayed on the homepage in an admin-defined order; the admin MUST be able to drag-to-reorder featured entries, with the new order persisted on drop.
 - **FR-027**: The admin MUST be able to drag-to-reorder the right-sidebar widgets (featured courses, social links, recent articles); the chosen order MUST be persisted (as `site_settings.sidebar_widget_order`) and applied when rendering the homepage sidebar. The order value MUST be normalised so unknown keys are dropped and missing known widgets are appended in default order.
 - **FR-028**: If no courses are featured, the featured-courses widget MUST be hidden entirely from the homepage sidebar. When a featured course's underlying course is deleted, its featured entry MUST be removed automatically (cascade delete).
+- **FR-029**: The settings page MUST provide a「內容分類」editor with up to 3 slots, each having「顯示文字」(label, max 50) and「英文名」(slug, max 50). The slug MUST only accept lowercase English letters and hyphen (`^[a-z-]+$`); slugs MUST be unique across slots; a slot MUST be either fully empty or have both fields filled. Config is persisted to `site_settings.content_categories` (JSON) — only fully-filled slots are kept.
+- **FR-030**: The settings page MUST provide a global toggle「在首頁顯示分類過濾按鈕」persisted to `site_settings.content_filter_enabled`; the homepage content-type filter buttons MUST appear only when this is on AND at least one category slot is filled. Default is off.
+- **FR-031**: When the admin renames a category slug (slot position unchanged), the system MUST cascade the rename to all courses holding the old slug (`courses.content_category`), so no course is orphaned. Blanking a slot MUST NOT delete or reassign the courses that referenced it (they remain visible under 全部).
 
 ### Key Entities
 
