@@ -35,6 +35,7 @@ class StoreCourseRequest extends FormRequest
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
             'type' => ['required', 'in:lecture,mini,full,high_ticket'],
+            'content_category' => ['required', 'in:mindset,finance,monetization'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
@@ -60,6 +61,8 @@ class StoreCourseRequest extends FormRequest
             'instructor_name.required' => '請輸入講師名稱',
             'type.required' => '請選擇產品類型',
             'type.in' => '產品類型無效',
+            'content_category.required' => '請選擇內容分類',
+            'content_category.in' => '內容分類無效',
             'duration_minutes.integer' => '時間總長必須是整數',
             'duration_minutes.min' => '時間總長不能為負數',
             'sale_at.after' => '開賣時間必須在未來',

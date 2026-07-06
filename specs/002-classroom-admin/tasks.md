@@ -28,6 +28,7 @@
 **Updated**: 2026-04-06 - 相簿 Modal 批次插入圖片（有序多選、順序 badge、空行分隔一次插入）(Phase 40)
 **Updated**: 2026-05-09 - Bug fix US11：ChapterController lesson mapping 補加 is_preview (Phase 41)
 **Updated**: 2026-07-05 - 教室側欄進入時只展開目前進度章節、其餘折疊（AS17）(Phase 42)
+**Updated**: 2026-07-06 - 後台課程表單新增內容分類選項（FR-111）(Phase 43)
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 

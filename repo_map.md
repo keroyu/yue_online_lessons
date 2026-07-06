@@ -124,15 +124,21 @@ specs: specs/007-homepage-admin-settings/
 main_files:
 - app/Http/Controllers/Admin/HomepageSettingController.php
 - app/Http/Controllers/Admin/SocialLinkController.php
+- app/Http/Controllers/Admin/HomepageFeaturedCourseController.php
 - app/Http/Controllers/HomeController.php
 - app/Http/Requests/Admin/StoreSocialLinkRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
+- app/Http/Requests/Admin/StoreFeaturedCourseRequest.php
+- app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Models/SiteSetting.php
 - app/Models/SocialLink.php
+- app/Models/HomepageFeaturedCourse.php
 - app/Services/BlogRssService.php
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/SocialLinks.vue
+- resources/js/Components/FeaturedCourses.vue
+- resources/js/Components/SectionHeader.vue
 - resources/js/Layouts/AdminLayout.vue
 - resources/js/Pages/Admin/HomepageSettings/Edit.vue
 - resources/js/Pages/Home.vue

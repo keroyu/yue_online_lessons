@@ -1,6 +1,7 @@
 # Inertia Props Contracts: Homepage Admin Settings
 
 **Branch**: `007-homepage-admin-settings` | **Date**: 2026-03-25
+**Updated**: 2026-07-05 - 新增精選課程 CRUD/排序與側欄 widget 排序路由；edit 頁新增 featuredCourses/availableCourses/sidebarOrder props；Home 頁新增 featuredCourses/sidebarOrder props
 
 ---
 
@@ -16,6 +17,52 @@ Route::delete('/homepage/banner', [HomepageSettingController::class, 'deleteBann
 Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');
 Route::put('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'update'])->name('social-links.update');
 Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'destroy'])->name('social-links.destroy');
+
+// Featured courses (right sidebar) CRUD + reorder
+Route::post('/homepage/featured-courses', [HomepageFeaturedCourseController::class, 'store'])->name('featured-courses.store');
+Route::put('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'update'])->name('featured-courses.update');
+Route::delete('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'destroy'])->name('featured-courses.destroy');
+Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseController::class, 'reorder'])->name('featured-courses.reorder');
+
+// Sidebar widget ordering
+Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
+```
+
+### Route table
+
+| METHOD | /path | route.name | Controller@action | 說明 |
+|--------|-------|------------|-------------------|------|
+| POST | /admin/homepage/featured-courses | admin.featured-courses.store | HomepageFeaturedCourseController@store | 加入精選課程（course_id + optional blurb） |
+| PUT | /admin/homepage/featured-courses/{featuredCourse} | admin.featured-courses.update | HomepageFeaturedCourseController@update | 更新精選課程的自訂介紹 |
+| DELETE | /admin/homepage/featured-courses/{featuredCourse} | admin.featured-courses.destroy | HomepageFeaturedCourseController@destroy | 移除精選課程 |
+| POST | /admin/homepage/featured-courses/reorder | admin.featured-courses.reorder | HomepageFeaturedCourseController@reorder | 依 ids 陣列重排 sort_order |
+| POST | /admin/homepage/widget-order | admin.homepage.widget-order | HomepageSettingController@updateWidgetOrder | 儲存側欄 widget 順序至 sidebar_widget_order |
+
+### Request bodies
+
+```php
+// POST /admin/homepage/featured-courses
+[
+    'course_id' => 'required|integer|exists:courses,id',
+    'blurb'     => 'nullable|string|max:500',  // 自訂介紹，可換行
+]
+
+// PUT /admin/homepage/featured-courses/{featuredCourse}
+[
+    'blurb' => 'nullable|string|max:500',
+]
+
+// POST /admin/homepage/featured-courses/reorder
+[
+    'ids'   => 'required|array',                            // 依畫面順序的 id 陣列
+    'ids.*' => 'integer|exists:homepage_featured_courses,id',
+]
+
+// POST /admin/homepage/widget-order
+[
+    'order'   => 'required|array',
+    'order.*' => 'string|in:featured_courses,social,blog',  // 側欄區塊鍵
+]
 ```
 
 ---
@@ -43,6 +90,34 @@ Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::clas
     platform: 'instagram' | 'threads' | 'youtube' | 'facebook' | 'substack' | 'podcast',
     url:      string,
   }>,
+  featuredCourses: Array<{      // ordered by sort_order; course relation eager-loaded
+    id:        number,          // homepage_featured_courses.id
+    course_id: number,
+    name:      string,          // course.name
+    thumbnail: string | null,   // course.thumbnail_url
+    blurb:     string | null,   // custom intro
+  }>,
+  availableCourses: Array<{     // all courses, for the "add" dropdown
+    id:   number,
+    name: string,
+  }>,
+  sidebarOrder: string[],       // normalised widget keys: featured_courses | social | blog
+}
+```
+
+### Home page props (Server → Vue, `HomeController@index` → `Home`)
+
+```typescript
+{
+  // ...existing courses / hero / socialLinks / blogArticles / isAdmin...
+  featuredCourses: Array<{
+    id:        number,          // course id (for the /course/{id} link)
+    name:      string,
+    thumbnail: string | null,
+    blurb:     string | null,
+    url:       string,          // "/course/{id}"
+  }>,
+  sidebarOrder: string[],       // widget render order: featured_courses | social | blog
 }
 ```
 

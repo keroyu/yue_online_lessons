@@ -5,6 +5,7 @@
 **Updated**: 2026-01-30 - 新增 Course.is_visible 欄位支援課程顯示/隱藏設定
 **Updated**: 2026-05-08 - 新增 Order UTM 來源欄位（utm_source、utm_medium、utm_campaign、referrer_domain）支援課程連結來源追蹤（US12）
 **Updated**: 2026-05-08 - US12 行銷強化：擴充至 9 欄（補 utm_term、utm_content、gclid、fbclid、ttclid）；referrer_domain 加自家網域與金流網域黑名單過濾
+**Updated**: 2026-07-06 - Course 新增 `content_category` enum（後台 CourseForm 管理）；欄位定義見 001 data-model
 
 ## Entity Relationship Diagram
 

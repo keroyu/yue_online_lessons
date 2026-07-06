@@ -150,6 +150,7 @@ class CourseController extends Controller
                 'thumbnail' => $course->thumbnail,
                 'instructor_name' => $course->instructor_name,
                 'product_type' => $course->type,
+                'content_category' => $course->content_category,
                 'status' => $course->status,
                 'is_published' => $course->is_published,
                 'sale_at' => $course->sale_at?->format('Y-m-d\TH:i'),

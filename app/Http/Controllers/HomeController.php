@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Models\Course;
+use App\Models\HomepageFeaturedCourse;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
 use App\Services\BlogRssService;
@@ -23,7 +25,7 @@ class HomeController extends Controller
 
         $courses = Course::visibleToUser($user)
             ->ordered()
-            ->select(['id', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'course_type', 'status', 'is_published', 'is_visible'])
+            ->select(['id', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'content_category', 'course_type', 'status', 'is_published', 'is_visible'])
             ->get()
             ->map(fn ($course) => [
                 'id'              => $course->id,
@@ -35,6 +37,7 @@ class HomeController extends Controller
                 'thumbnail'       => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
                 'product_type'    => $course->type,
+                'content_category' => $course->content_category,
                 'delivery_mode'   => $course->course_type,
                 'status'          => $course->status,
                 'is_published'    => $course->is_published,
@@ -75,12 +78,24 @@ class HomeController extends Controller
         $rssUrl = $settings->get('blog_rss_url', '');
         $blogArticles = $rssUrl ? $this->blogRssService->getArticles($rssUrl) : [];
 
+        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,name,thumbnail')->get()
+            ->filter(fn ($item) => $item->course !== null)
+            ->map(fn ($item) => [
+                'id'        => $item->course->id,
+                'name'      => $item->course->name,
+                'thumbnail' => $item->course->thumbnail_url,
+                'blurb'     => $item->blurb,
+                'url'       => "/course/{$item->course->id}",
+            ])->values()->toArray();
+
         return Inertia::render('Home', [
-            'courses'      => $courses,
-            'hero'         => $hero,
-            'socialLinks'  => $socialLinks,
-            'blogArticles' => $blogArticles,
-            'isAdmin'      => $isAdmin,
+            'courses'         => $courses,
+            'hero'            => $hero,
+            'socialLinks'     => $socialLinks,
+            'blogArticles'    => $blogArticles,
+            'featuredCourses' => $featuredCourses,
+            'sidebarOrder'    => HomepageSettingController::sidebarWidgetOrder(),
+            'isAdmin'         => $isAdmin,
         ]);
     }
 }

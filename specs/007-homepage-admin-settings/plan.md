@@ -1,6 +1,7 @@
 # Implementation Plan: Homepage Admin Settings
 
 **Branch**: `007-homepage-admin-settings` | **Date**: 2026-03-25 | **Spec**: [spec.md](spec.md)
+**Updated**: 2026-07-05 - 新增首頁右欄精選課程（縮圖＋自訂介紹＋銷售頁按鈕）與右欄 widget 拖曳排序；同批首頁視覺銳利化
 **Input**: Feature specification from `/specs/007-homepage-admin-settings/spec.md`
 
 ---

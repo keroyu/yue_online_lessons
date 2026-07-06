@@ -34,6 +34,13 @@ body {
     background-color: #F6F1E9;
 }
 
+/* Dotted fill used in SectionHeader (brand-navy dots, low opacity) */
+.section-dots {
+    background-image: radial-gradient(circle, rgba(55, 53, 87, 0.22) 1.3px, transparent 1.3px);
+    background-size: 10px 10px;
+    background-position: left center;
+}
+
 /* Assignment Question Content Styles — isolated from course-content */
 .assignment-content {
     color: #374151;
@@ -160,18 +167,18 @@ body {
 }
 
 .course-content h2 {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     font-weight: 700;
-    color: #ffffff;
-    background-color: #373557;
-    /* Full-bleed: break out of max-w-4xl container */
+    color: #373557;
+    /* Lighter than a solid block: subtle teal tint fading out to the right */
+    background: linear-gradient(to right, rgba(63, 131, 163, 0.10), transparent 55%);
     margin-top: 2.5em;
-    margin-bottom: 1em;
-    margin-left: calc(-50vw + 50%);
-    margin-right: calc(-50vw + 50%);
-    padding: 0.85em 2rem;
-    text-align: center;
-    border-bottom: none;
+    margin-bottom: 1.1em;
+    padding: 0.5em 1em 0.5em 0.9em;
+    text-align: left;
+    /* teal accent bar + navy underline — echoes the site SectionHeader */
+    border-left: 5px solid #3F83A3;
+    border-bottom: 2px solid #373557;
 }
 
 .course-content h3 {

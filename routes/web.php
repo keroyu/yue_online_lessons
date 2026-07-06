@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
+use App\Http\Controllers\Admin\HomepageFeaturedCourseController;
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\HomeworkController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
@@ -230,6 +231,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');
     Route::put('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'update'])->name('social-links.update');
     Route::delete('/homepage/social-links/{socialLink}', [SocialLinkController::class, 'destroy'])->name('social-links.destroy');
+
+    // Featured courses (right sidebar) CRUD + reorder
+    Route::post('/homepage/featured-courses', [HomepageFeaturedCourseController::class, 'store'])->name('featured-courses.store');
+    Route::put('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'update'])->name('featured-courses.update');
+    Route::delete('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'destroy'])->name('featured-courses.destroy');
+    Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseController::class, 'reorder'])->name('featured-courses.reorder');
+
+    // Sidebar widget ordering
+    Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
 
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');

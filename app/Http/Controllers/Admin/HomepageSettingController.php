@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateHomepageSettingRequest;
+use App\Models\Course;
+use App\Models\HomepageFeaturedCourse;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -14,6 +17,27 @@ use Inertia\Response;
 
 class HomepageSettingController extends Controller
 {
+    /** Sidebar widget keys in default display order. */
+    public const SIDEBAR_WIDGETS = ['featured_courses', 'social', 'blog'];
+
+    /**
+     * Return the saved sidebar widget order, normalised so it always
+     * contains exactly the known widget keys (missing keys appended).
+     */
+    public static function sidebarWidgetOrder(): array
+    {
+        $saved = json_decode(SiteSetting::get('sidebar_widget_order', '[]'), true);
+        $saved = is_array($saved) ? array_values(array_intersect($saved, self::SIDEBAR_WIDGETS)) : [];
+
+        foreach (self::SIDEBAR_WIDGETS as $key) {
+            if (! in_array($key, $saved, true)) {
+                $saved[] = $key;
+            }
+        }
+
+        return $saved;
+    }
+
     public function edit(): Response
     {
         $settings = SiteSetting::getMany([
@@ -40,7 +64,33 @@ class HomepageSettingController extends Controller
                 'platform' => $link->platform,
                 'url'      => $link->url,
             ])->values(),
+            'featuredCourses' => HomepageFeaturedCourse::ordered()->with('course:id,name,thumbnail')->get()
+                ->filter(fn ($item) => $item->course !== null)
+                ->map(fn ($item) => [
+                    'id'        => $item->id,
+                    'course_id' => $item->course_id,
+                    'name'      => $item->course->name,
+                    'thumbnail' => $item->course->thumbnail_url,
+                    'blurb'     => $item->blurb,
+                ])->values(),
+            'availableCourses' => Course::orderBy('id', 'desc')->get(['id', 'name'])->map(fn ($c) => [
+                'id'   => $c->id,
+                'name' => $c->name,
+            ])->values(),
+            'sidebarOrder' => self::sidebarWidgetOrder(),
         ]);
+    }
+
+    public function updateWidgetOrder(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'order'   => ['required', 'array'],
+            'order.*' => ['string', 'in:' . implode(',', self::SIDEBAR_WIDGETS)],
+        ]);
+
+        SiteSetting::set('sidebar_widget_order', json_encode(array_values($validated['order'])));
+
+        return redirect()->back()->with('success', '側欄排序已更新');
     }
 
     public function update(UpdateHomepageSettingRequest $request): RedirectResponse

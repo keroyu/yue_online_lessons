@@ -50,6 +50,7 @@ const form = useForm({
   thumbnail: null,
   instructor_name: props.course?.instructor_name || '',
   type: props.course?.product_type || props.course?.type || 'lecture',
+  content_category: props.course?.content_category || 'monetization',
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
@@ -134,6 +135,12 @@ const courseTypes = [
   { value: 'mini', label: '迷你課程' },
   { value: 'full', label: '完整課程' },
   { value: 'high_ticket', label: '客製服務' },
+]
+
+const contentCategories = [
+  { value: 'mindset', label: '思維升級' },
+  { value: 'finance', label: '財務覺醒' },
+  { value: 'monetization', label: '知識變現' },
 ]
 
 const handleThumbnailChange = (event) => {
@@ -335,6 +342,24 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程 / 客製服務」等產品分類。</p>
             <p v-if="form.errors.type" :class="errorTextClasses">{{ form.errors.type }}</p>
           </div>
+        </div>
+
+        <!-- Content category (思維升級 / 財務覺醒 / 知識變現) -->
+        <div>
+          <label for="content_category" :class="labelClasses">
+            內容分類 <span class="text-red-500">*</span>
+          </label>
+          <select
+            id="content_category"
+            v-model="form.content_category"
+            :class="[inputClasses, form.errors.content_category ? inputErrorClasses : '']"
+          >
+            <option v-for="cat in contentCategories" :key="cat.value" :value="cat.value">
+              {{ cat.label }}
+            </option>
+          </select>
+          <p :class="helpTextClasses">首頁左欄可依此分類篩選課程；預設為「知識變現」。</p>
+          <p v-if="form.errors.content_category" :class="errorTextClasses">{{ form.errors.content_category }}</p>
         </div>
 
         <!-- High Ticket Options (only when type = high_ticket) -->

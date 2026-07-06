@@ -16,6 +16,7 @@
 **Updated**: 2026-05-19 - 移除舊版 PayUni initiate 路由及 PayuniController::initiate()、buildPaymentForm()、generateMerTradeNo()、parseCourseId() 方法；legacy YC processNotify branch 一併清除
 **Updated**: 2026-03-23 - 新增 PayUni 統一金流付費（US7）與免費課程直接報名（US8）（Phase 21）
 **Updated**: 2026-06-26 - 販售頁「預計時長」補充堂數資訊（FR-043）
+**Updated**: 2026-07-06 - 課程內容分類 content_category + 首頁分類篩選按鈕；首頁 SectionHeader 一致化；銷售頁 h2 輕量化（FR-044~046）
 
 ## Summary
 

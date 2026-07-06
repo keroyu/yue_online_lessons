@@ -26,6 +26,7 @@ class Course extends Model
         'thumbnail',
         'instructor_name',
         'type',
+        'content_category',
         'high_ticket_hide_price',
         'is_published',
         'status',

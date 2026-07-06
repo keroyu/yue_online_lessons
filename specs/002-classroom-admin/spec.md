@@ -43,6 +43,7 @@
 **Updated**: 2026-05-25 - 新增手動點擊灰色圖示立即標記小節為已完成功能；新增 FR-006f、SC-016、US1a SC-008
 **Updated**: 2026-05-25 - 小節時長輸入支援 H:MM:SS 格式（> 1 小時）；durationFormatted accessor 同步更新；新增 FR-109、更新 US3 SC-011
 **Updated**: 2026-05-25 - 課程內文 Markdown 表格加入樣式（border、條紋、RWD 捲動）；新增 FR-110
+**Updated**: 2026-07-06 - 後台課程表單新增「內容分類」選項（思維升級/財務覺醒/知識變現，預設知識變現）；新增 FR-111（欄位定義與首頁篩選見 001 FR-044~046）
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -453,6 +454,7 @@
 - **FR-006f**: 未完成小節的灰色播放/文件圖示（非免費試閱模式）MUST 為可點擊按鈕；點擊後 MUST 立即 POST 寫入完成紀錄（不受 2 分鐘節流限制）；失敗時 MUST rollback 前端 optimistic state；免費試閱模式（`isFreePreview=true`）MUST NOT 顯示可點擊按鈕
 - **FR-109**: 小節時長輸入欄（admin LessonForm）MUST 同時接受 `M:SS`（如 `3:50`）與 `H:MM:SS`（如 `1:59:04`）格式；`Lesson::durationFormatted` accessor MUST 在 duration_seconds < 3600 時輸出 `M:SS`，≥ 3600 時輸出 `H:MM:SS`；Placeholder MUST 示範兩種格式
 - **FR-110**: 課程內文（`.course-content`）中的 Markdown 表格 MUST 渲染為有框線樣式；表頭（`<th>`）MUST 使用 `#373557` 深色底白字；偶數列 MUST 顯示條紋底色（`#F6F1E9`）；表格 MUST 支援 RWD（`overflow-x: auto`，手機版橫向捲動）
+- **FR-111**: 後台課程表單（`CourseForm.vue`）MUST 提供「內容分類」下拉選項，值為 `mindset`（思維升級）/`finance`（財務覺醒）/`monetization`（知識變現），新課程預設 `monetization`；`StoreCourseRequest` 與 `UpdateCourseRequest` MUST 以 `required|in:mindset,finance,monetization` 驗證；此欄位持久化於 `courses.content_category`，供首頁分類篩選使用（欄位與前台行為定義見 001 FR-044~046）
 
 **管理員後臺：**
 - **FR-009**: 系統 MUST 提供管理員後臺 (/admin)，僅 admin 角色可進入

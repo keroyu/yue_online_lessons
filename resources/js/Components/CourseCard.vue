@@ -89,14 +89,14 @@ const isHidden = computed(() => {
       </div>
 
       <!-- Type badge -->
-      <span class="absolute top-2 left-2 bg-brand-navy/90 text-white text-xs px-2 py-1 rounded-none font-medium tracking-wide">
+      <span class="absolute top-2 left-2 bg-brand-navy/90 text-white text-sm sm:text-xs px-2 py-1 rounded-none font-medium tracking-wide">
         {{ getTypeLabel(course.product_type) }}
       </span>
 
       <!-- Status badge (admin only) -->
       <span
         v-if="statusBadge"
-        class="absolute top-2 right-2 text-xs px-2 py-1 rounded-none font-medium tracking-wide"
+        class="absolute top-2 right-2 text-sm sm:text-xs px-2 py-1 rounded-none font-medium tracking-wide"
         :class="statusBadge.class"
       >
         {{ statusBadge.label }}
@@ -105,36 +105,37 @@ const isHidden = computed(() => {
       <!-- Hidden badge (admin only) -->
       <span
         v-if="isHidden"
-        class="absolute top-10 right-2 text-xs px-2 py-1 rounded-none font-medium tracking-wide bg-gray-800 text-white"
+        class="absolute top-10 right-2 text-sm sm:text-xs px-2 py-1 rounded-none font-medium tracking-wide bg-gray-800 text-white"
         title="此課程已隱藏，不會顯示於首頁"
       >
         隱藏
       </span>
     </div>
 
-    <!-- Content -->
+    <!-- Content — text scaled up on mobile, back to desktop size at sm: -->
     <div class="p-4">
-      <h3 class="font-semibold text-brand-navy line-clamp-1">
-        {{ course.name }}
+      <h3 class="flex items-start gap-2 text-lg sm:text-base font-semibold text-brand-navy">
+        <span class="mt-1.5 sm:mt-1 w-1 h-4 shrink-0 bg-brand-teal"></span>
+        <span class="line-clamp-1">{{ course.name }}</span>
       </h3>
-      <p class="text-sm text-gray-500 mt-1 line-clamp-2">
+      <p class="text-base sm:text-sm text-gray-500 mt-1 line-clamp-2">
         {{ course.tagline }}
       </p>
       <div class="flex items-center justify-between mt-3">
-        <span class="text-sm text-gray-400">
+        <span class="text-base sm:text-sm text-gray-400">
           {{ course.instructor_name }}
         </span>
         <!-- Promo pricing: show original (strikethrough) + promo price (red, larger) -->
         <div v-if="course.is_promo_active" class="text-right">
-          <span class="text-sm text-gray-400 line-through">
+          <span class="text-base sm:text-sm text-gray-400 line-through">
             {{ formatPrice(course.original_price) }}
           </span>
-          <span class="ml-1 text-lg font-bold text-red-600">
+          <span class="ml-1 text-2xl sm:text-lg font-bold text-brand-red">
             {{ formatPrice(course.price) }}
           </span>
         </div>
         <!-- Regular pricing -->
-        <span v-else class="font-semibold text-brand-teal">
+        <span v-else class="text-2xl sm:text-base font-bold sm:font-semibold text-brand-teal">
           {{ formatPrice(course.price) }}
         </span>
       </div>

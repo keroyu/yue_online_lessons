@@ -1,13 +1,24 @@
 <script setup>
+import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import CourseCard from '@/Components/CourseCard.vue'
 import SocialLinks from '@/Components/SocialLinks.vue'
 import BlogArticles from '@/Components/BlogArticles.vue'
+import FeaturedCourses from '@/Components/FeaturedCourses.vue'
+import SectionHeader from '@/Components/SectionHeader.vue'
 
-defineProps({
+const props = defineProps({
   courses: {
     type: Array,
     required: true,
+  },
+  featuredCourses: {
+    type: Array,
+    default: () => [],
+  },
+  sidebarOrder: {
+    type: Array,
+    default: () => ['featured_courses', 'social', 'blog'],
   },
   hero: {
     type: Object,
@@ -32,6 +43,44 @@ defineProps({
     default: false,
   },
 })
+
+// Content category filter (null = 全部)
+const categories = [
+  { value: 'mindset', label: '思維升級' },
+  { value: 'finance', label: '財務覺醒' },
+  { value: 'monetization', label: '知識變現' },
+]
+const selectedCategory = ref(null)
+
+function toggleCategory(value) {
+  // Click the active category again to clear the filter (show 全部)
+  selectedCategory.value = selectedCategory.value === value ? null : value
+}
+
+// Product-type filter badges (迷你課 / 講座 / 完整課程 / 客製服務)
+const typeLabels = {
+  lecture: '講座',
+  mini: '迷你課',
+  full: '完整課程',
+  high_ticket: '客製服務',
+}
+const typeOrder = ['lecture', 'mini', 'full', 'high_ticket']
+const availableTypes = computed(() =>
+  typeOrder.filter(t => props.courses.some(c => c.product_type === t))
+)
+const selectedType = ref(null)
+
+function toggleType(value) {
+  selectedType.value = selectedType.value === value ? null : value
+}
+
+// Both filters combine (AND)
+const filteredCourses = computed(() =>
+  props.courses.filter(c =>
+    (!selectedCategory.value || c.content_category === selectedCategory.value) &&
+    (!selectedType.value || c.product_type === selectedType.value)
+  )
+)
 </script>
 
 <template>
@@ -89,19 +138,56 @@ defineProps({
       </div>
 
       <!-- Main content with sidebar layout -->
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_365px] gap-6">
         <!-- Main area: Courses -->
         <div>
           <div v-if="courses.length > 0">
-            <h2 class="text-xl font-semibold text-brand-navy mb-6">所有課程</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <!-- Category filter buttons: bright label on dark, text scales up on hover -->
+            <div class="flex gap-3 mb-6">
+              <button
+                v-for="cat in categories"
+                :key="cat.value"
+                type="button"
+                class="group flex-1 min-w-0 max-w-[300px] py-4 text-center font-bold cursor-pointer border-b-4 transition-colors"
+                :class="selectedCategory === cat.value
+                  ? 'bg-brand-teal text-white border-brand-gold'
+                  : 'bg-brand-navy text-brand-gold hover:bg-brand-navy/90 border-transparent'"
+                @click="toggleCategory(cat.value)"
+              >
+                <span class="inline-block transition-transform duration-200 group-hover:scale-110">
+                  {{ cat.label }}
+                </span>
+              </button>
+            </div>
+
+            <SectionHeader title="所有課程">
+              <template v-if="availableTypes.length > 0" #right>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    v-for="t in availableTypes"
+                    :key="t"
+                    type="button"
+                    class="cursor-pointer border px-2.5 py-1 text-sm sm:text-xs font-medium transition-colors"
+                    :class="selectedType === t
+                      ? 'bg-brand-navy text-white border-brand-navy'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-brand-navy hover:text-brand-navy'"
+                    @click="toggleType(t)"
+                  >
+                    {{ typeLabels[t] }}
+                  </button>
+                </div>
+              </template>
+            </SectionHeader>
+
+            <div v-if="filteredCourses.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <CourseCard
-                v-for="course in courses"
+                v-for="course in filteredCourses"
                 :key="course.id"
                 :course="course"
                 :show-status-badge="isAdmin"
               />
             </div>
+            <p v-else class="text-sm text-gray-500 py-8">此分類目前沒有課程。</p>
           </div>
 
           <div v-else class="text-center py-12">
@@ -113,10 +199,13 @@ defineProps({
           </div>
         </div>
 
-        <!-- Sidebar: Social Links + Blog Articles -->
+        <!-- Sidebar: widgets rendered in admin-defined order -->
         <aside class="space-y-6">
-          <SocialLinks :links="socialLinks" />
-          <BlogArticles :articles="blogArticles" />
+          <template v-for="widget in sidebarOrder" :key="widget">
+            <FeaturedCourses v-if="widget === 'featured_courses'" :courses="featuredCourses" />
+            <SocialLinks v-else-if="widget === 'social'" :links="socialLinks" />
+            <BlogArticles v-else-if="widget === 'blog'" :articles="blogArticles" />
+          </template>
         </aside>
       </div>
 

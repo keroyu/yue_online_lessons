@@ -1,4 +1,6 @@
 <script setup>
+import SectionHeader from '@/Components/SectionHeader.vue'
+
 const props = defineProps({
   links: {
     type: Array,
@@ -27,7 +29,7 @@ const platformLabels = {
 
 <template>
   <div v-if="links.length > 0" class="bg-white border border-gray-200 p-4">
-    <h3 class="text-lg font-semibold text-brand-navy mb-4 pb-2 border-b border-gray-200">追蹤站長</h3>
+    <SectionHeader title="追蹤站長" />
     <div class="grid grid-cols-2 gap-2">
       <a
         v-for="link in links"

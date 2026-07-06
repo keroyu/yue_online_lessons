@@ -3,6 +3,8 @@
 **Feature Branch**: `007-homepage-admin-settings`
 **Created**: 2026-03-25
 **Updated**: 2026-03-26 - 功能實作完成；新增 FR-021 banner 上傳失敗提示（前後端雙層驗證）
+**Updated**: 2026-07-05 - 新增 US5 首頁右欄精選課程（縮圖＋自訂介紹＋銷售頁按鈕）與右欄區塊拖曳排序；FR-022~FR-028；新表 homepage_featured_courses、site_setting 鍵 sidebar_widget_order；同批首頁視覺銳利化（去圓角、品牌色系統化）
+**Updated**: 2026-07-06 - 右欄三個 widget（精選推薦/追蹤站長/近期文章）標題改用統一的 SectionHeader（teal 色塊＋點陣＋navy 底線）；側欄加寬至 365px（詳見 001）
 **Status**: Implemented
 **Input**: User description: "對 004-homepage-enhancement 進行增量更新：管理後台新增首頁設定頁，可管理 Hero Unit（橫幅圖片、標題、說明、按鈕）、SNS 連結（新增/修改/排序）、Blog RSS 網址"
 **Depends On**: 004-homepage-enhancement (SNS links and RSS URL currently hardcoded; not yet migrated to config)
@@ -80,6 +82,25 @@ As a homepage visitor, I want to see a visually engaging hero section with a ban
 
 ---
 
+### User Story 5 - Feature Courses in the Right Sidebar & Order Sidebar Widgets (Priority: P2)
+
+As the site administrator, I want to pin selected courses to the homepage right sidebar (with a thumbnail, a custom one-line intro, and a button to the sales page) and freely reorder the sidebar widgets (featured courses / social links / recent articles), without touching code.
+
+**Why this priority**: The right sidebar is prime real estate for promoting a lead magnet or hero course. Curating which courses appear there, with campaign-specific copy, and controlling widget order lets the admin run promotions independently.
+
+**Independent Test**: Visit `/admin/homepage`, add a course to 精選課程 with a custom intro, drag to reorder, then reorder the sidebar widgets; visit the homepage to confirm the featured course card (thumbnail + intro + 立即了解 button) appears in the chosen widget order.
+
+**Acceptance Scenarios**:
+
+1. **Given** an admin opens the featured-courses section, **When** they pick a course from the dropdown, optionally type a custom intro, and click 加入, **Then** the course appears in the featured list immediately (no manual refresh) and renders on the homepage right sidebar with its thumbnail, intro, and a 立即了解 button linking to `/course/{id}`.
+2. **Given** a featured course has no custom intro, **When** a visitor views the homepage, **Then** the course name is shown as the fallback intro text.
+3. **Given** multiple featured courses exist, **When** the admin drags a row to a new position, **Then** the new order is persisted on drop and reflected on the homepage.
+4. **Given** an admin edits a featured course's intro in the multi-line editor and clicks 儲存介紹, **Then** the updated text (up to 500 characters, line breaks preserved) is shown on the homepage.
+5. **Given** the sidebar widgets, **When** the admin drags to reorder featured courses / social links / recent articles, **Then** the homepage renders the sidebar in that exact order on next load.
+6. **Given** a course that is featured is later deleted, **When** the homepage loads, **Then** the featured entry is skipped gracefully (cascade delete removes the row) — no broken card.
+
+---
+
 ### Edge Cases
 
 - What happens when an uploaded image is in an unsupported format (e.g., GIF or PDF)? The system must reject it with a clear validation message and leave the current banner unchanged.
@@ -90,6 +111,10 @@ As a homepage visitor, I want to see a visually engaging hero section with a ban
 - What happens if the admin tries to add a second link for the same platform (e.g., two Instagram entries)? This is allowed — the platform dropdown is a type selector for icon display only; duplicate platforms are permitted.
 - What happens if a social link URL is entered without a protocol (e.g., `instagram.com` instead of `https://instagram.com`)? The system shows a validation error to the admin before saving.
 - What happens when the admin saves a very long hero description? The homepage layout must not overflow — text wraps or the container adapts.
+- What happens when the same course is added to featured twice? Allowed — each featured entry is independent (can carry different intro copy); duplicates are permitted.
+- What happens when a featured course's intro exceeds 500 characters? The textarea `maxlength` caps input at 500 and a live counter turns red at the limit; the server rejects anything over 500 with a validation error.
+- What happens when the stored `sidebar_widget_order` is missing a known widget key (e.g. after a new widget type is introduced)? `sidebarWidgetOrder()` normalises the saved array — unknown keys are dropped and missing known keys are appended in default order — so the sidebar never loses a widget.
+- What happens when no courses are featured? The featured-courses widget is hidden entirely from the sidebar (same pattern as empty SNS / RSS sections).
 
 ## Requirements *(mandatory)*
 
@@ -116,6 +141,13 @@ As a homepage visitor, I want to see a visually engaging hero section with a ban
 - **FR-019**: All settings (hero content, social links, RSS URL) MUST be persisted; changes MUST survive server restarts.
 - **FR-020**: Admin navigation MUST include a "首頁設定" entry that links to the homepage settings page, positioned above "課程管理" in the sidebar.
 - **FR-021**: Banner image upload MUST fail with a clear error message in two scenarios: (a) client-side — when the selected file exceeds 5MB, detected immediately on file selection before form submission; (b) server-side — when PHP silently drops the file due to `upload_max_filesize` constraints (`UPLOAD_ERR_INI_SIZE`). In both cases the existing banner MUST remain unchanged.
+- **FR-022**: The admin MUST be able to feature one or more courses in the homepage right sidebar by selecting a course from a dropdown of all existing courses and optionally providing a custom intro; adding appends the entry to the bottom of the featured list.
+- **FR-023**: Each featured course on the homepage MUST render a thumbnail, the custom intro text (falling back to the course name when the intro is empty), and a call-to-action button linking to that course's sales page (`/course/{id}`).
+- **FR-024**: The custom intro MUST support up to 500 characters and preserve line breaks; the admin editor MUST be a multi-line textarea with a live character counter, and the homepage MUST display the full intro (no line-clamp truncation).
+- **FR-025**: The admin MUST be able to edit a featured course's intro inline and remove a featured course (with a confirmation prompt); changes MUST reflect in the admin list immediately without a manual page refresh.
+- **FR-026**: Featured courses MUST be displayed on the homepage in an admin-defined order; the admin MUST be able to drag-to-reorder featured entries, with the new order persisted on drop.
+- **FR-027**: The admin MUST be able to drag-to-reorder the right-sidebar widgets (featured courses, social links, recent articles); the chosen order MUST be persisted (as `site_settings.sidebar_widget_order`) and applied when rendering the homepage sidebar. The order value MUST be normalised so unknown keys are dropped and missing known widgets are appended in default order.
+- **FR-028**: If no courses are featured, the featured-courses widget MUST be hidden entirely from the homepage sidebar. When a featured course's underlying course is deleted, its featured entry MUST be removed automatically (cascade delete).
 
 ### Key Entities
 

@@ -13,12 +13,21 @@
         "course list",
         "首頁",
         "課程列表",
-        "訪客"
+        "訪客",
+        "content_category",
+        "內容分類",
+        "分類篩選",
+        "SectionHeader",
+        "思維升級",
+        "財務覺醒",
+        "知識變現"
       ],
       "code_files": [
         "app/Http/Controllers/HomeController.php",
         "app/Models/Course.php",
-        "resources/js/Pages/Home.vue"
+        "resources/js/Pages/Home.vue",
+        "resources/js/Components/SectionHeader.vue",
+        "resources/js/Components/CourseCard.vue"
       ],
       "status": "implemented"
     },
@@ -324,12 +333,17 @@
         "course",
         "CRUD",
         "管理員",
-        "課程管理"
+        "課程管理",
+        "content_category",
+        "內容分類"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/CourseController.php",
         "app/Models/Course.php",
-        "resources/js/Pages/Admin/"
+        "resources/js/Pages/Admin/",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php"
       ],
       "status": "implemented"
     },
@@ -1319,6 +1333,37 @@
         "resources/js/Components/SocialLinks.vue",
         "resources/js/Components/BlogArticles.vue",
         "app/Http/Controllers/HomeController.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "007.us-5",
+      "module": "007-homepage-admin-settings",
+      "title": "Feature Courses in the Right Sidebar & Order Sidebar Widgets",
+      "summary": "後台將指定課程加入首頁右欄（縮圖＋自訂介紹＋銷售頁按鈕），並可拖曳排序精選課程與右欄各 widget 順序",
+      "heading": "### User Story 5 - Feature Courses in the Right Sidebar & Order Sidebar Widgets (Priority: P2)",
+      "file": "specs/007-homepage-admin-settings/spec.md",
+      "anchor": "user-story-5---feature-courses-in-the-right-sidebar--order-sidebar-widgets-priority-p2",
+      "keywords": [
+        "featured courses",
+        "精選課程",
+        "sidebar",
+        "widget order",
+        "側欄排序",
+        "blurb",
+        "FeaturedCourses.vue",
+        "reorder"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php",
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Controllers/HomeController.php",
+        "app/Models/HomepageFeaturedCourse.php",
+        "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php",
+        "resources/js/Components/FeaturedCourses.vue",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "resources/js/Pages/Home.vue"
       ],
       "status": "implemented"
     },
