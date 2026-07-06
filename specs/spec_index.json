@@ -1343,7 +1343,7 @@
       "summary": "後台將指定課程加入首頁右欄（縮圖＋自訂介紹＋銷售頁按鈕），並可拖曳排序精選課程與右欄各 widget 順序",
       "heading": "### User Story 5 - Feature Courses in the Right Sidebar & Order Sidebar Widgets (Priority: P2)",
       "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-5---feature-courses-in-the-right-sidebar--order-sidebar-widgets-priority-p2",
+      "anchor": "user-story-5---feature-courses-in-the-right-sidebar-&-order-sidebar-widgets-priority-p2",
       "keywords": [
         "featured courses",
         "精選課程",

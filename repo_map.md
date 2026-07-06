@@ -25,6 +25,8 @@ main_files:
 - app/Models/VerificationCode.php
 - app/Services/PayuniService.php
 - config/services.php
+- resources/js/Components/CourseCard.vue
+- resources/js/Components/SectionHeader.vue
 - resources/js/Pages/Auth/
 - resources/js/Pages/Auth/Login.vue
 - resources/js/Pages/Course/
@@ -56,6 +58,8 @@ main_files:
 - app/Http/Controllers/HomeController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/LearningController.php
+- app/Http/Requests/Admin/StoreCourseRequest.php
+- app/Http/Requests/Admin/UpdateCourseRequest.php
 - app/Models/Chapter.php
 - app/Models/Course.php
 - app/Models/CourseImage.php
@@ -65,6 +69,7 @@ main_files:
 - app/Models/Purchase.php
 - app/Services/CheckoutService.php
 - database/migrations/2026_05_08_000001_add_utm_to_orders_table.php
+- resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Components/Classroom/VideoPlayer.vue
 - resources/js/Pages/Admin/
@@ -122,23 +127,22 @@ purpose: admin page to manage hero unit (banner image, title, description, CTA b
 specs: specs/007-homepage-admin-settings/
 
 main_files:
+- app/Http/Controllers/Admin/HomepageFeaturedCourseController.php
 - app/Http/Controllers/Admin/HomepageSettingController.php
 - app/Http/Controllers/Admin/SocialLinkController.php
-- app/Http/Controllers/Admin/HomepageFeaturedCourseController.php
 - app/Http/Controllers/HomeController.php
+- app/Http/Requests/Admin/StoreFeaturedCourseRequest.php
 - app/Http/Requests/Admin/StoreSocialLinkRequest.php
+- app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
-- app/Http/Requests/Admin/StoreFeaturedCourseRequest.php
-- app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
+- app/Models/HomepageFeaturedCourse.php
 - app/Models/SiteSetting.php
 - app/Models/SocialLink.php
-- app/Models/HomepageFeaturedCourse.php
 - app/Services/BlogRssService.php
 - resources/js/Components/BlogArticles.vue
-- resources/js/Components/SocialLinks.vue
 - resources/js/Components/FeaturedCourses.vue
-- resources/js/Components/SectionHeader.vue
+- resources/js/Components/SocialLinks.vue
 - resources/js/Layouts/AdminLayout.vue
 - resources/js/Pages/Admin/HomepageSettings/Edit.vue
 - resources/js/Pages/Home.vue
