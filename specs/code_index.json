@@ -1,505 +1,905 @@
 {
   "files": {
     "app/Console/Commands/MaturePoints.php": [
-      "012.us-2"
+      "007.us-2"
+    ],
+    "app/Console/Commands/ProcessDripEmails.php": [
+      "010.us-3"
+    ],
+    "app/Console/Commands/UpdateCourseStatus.php": [
+      "004.us-5"
     ],
     "app/Http/Controllers/Admin/ChapterController.php": [
-      "002.us-11",
-      "002.us-3"
+      "004.us-3",
+      "006.us-5"
+    ],
+    "app/Http/Controllers/Admin/CouponChainController.php": [
+      "006.us-5"
+    ],
+    "app/Http/Controllers/Admin/CouponController.php": [
+      "006.us-2",
+      "006.us-4"
     ],
     "app/Http/Controllers/Admin/CourseController.php": [
-      "002.us-12",
-      "002.us-2",
-      "002.us-2a",
-      "002.us-7",
-      "002.us-9",
-      "005.us-3",
-      "008.us-1",
-      "012.us-1"
+      "002.us-8",
+      "004.us-1",
+      "004.us-2",
+      "010.us-11"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
-      "002.us-4"
+      "004.us-4"
     ],
     "app/Http/Controllers/Admin/DashboardController.php": [
-      "002.us-5"
+      "009.us-7"
     ],
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
-      "008.us-4"
+      "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
-      "008.us-6"
+      "011.us-3",
+      "011.us-4"
     ],
     "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php": [
-      "007.us-5"
+      "002.us-6"
     ],
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
-      "007.us-1",
-      "007.us-5"
+      "002.us-3",
+      "002.us-5",
+      "002.us-7"
     ],
     "app/Http/Controllers/Admin/HomeworkController.php": [
-      "010.us-3",
-      "010.us-4",
-      "010.us-5"
+      "003.us-6",
+      "003.us-7"
     ],
     "app/Http/Controllers/Admin/LessonController.php": [
-      "002.us-10",
-      "002.us-3",
-      "005.us-3",
-      "005.us-9"
+      "004.us-3",
+      "004.us-6",
+      "010.us-8"
     ],
     "app/Http/Controllers/Admin/MemberController.php": [
-      "003.us-1",
-      "003.us-10",
+      "007.us-6",
+      "008.us-1",
+      "008.us-2",
+      "008.us-3",
+      "008.us-4",
+      "008.us-5",
+      "008.us-6",
+      "008.us-7",
+      "008.us-8"
+    ],
+    "app/Http/Controllers/Admin/ReferralStatsController.php": [
+      "007.us-5"
+    ],
+    "app/Http/Controllers/Admin/SettingsController.php": [
+      "000.us-5",
+      "007.us-4"
+    ],
+    "app/Http/Controllers/Admin/SocialLinkController.php": [
+      "002.us-4"
+    ],
+    "app/Http/Controllers/Admin/TransactionController.php": [
+      "009.us-1",
+      "009.us-2",
+      "009.us-3",
+      "009.us-4",
+      "009.us-5",
+      "009.us-6"
+    ],
+    "app/Http/Controllers/Auth/LoginController.php": [
+      "001.us-1"
+    ],
+    "app/Http/Controllers/CartController.php": [
+      "005.us-1",
+      "005.us-2",
+      "006.us-6"
+    ],
+    "app/Http/Controllers/CheckoutController.php": [
+      "002.us-8",
+      "005.us-2",
+      "005.us-3",
+      "006.us-3",
+      "006.us-6"
+    ],
+    "app/Http/Controllers/CouponController.php": [
+      "006.us-1",
+      "006.us-6"
+    ],
+    "app/Http/Controllers/CourseController.php": [
+      "002.us-2",
+      "002.us-8",
+      "006.us-6",
+      "011.us-1"
+    ],
+    "app/Http/Controllers/DripSubscriptionController.php": [
+      "010.us-1",
+      "010.us-2",
+      "010.us-6"
+    ],
+    "app/Http/Controllers/DripTrackingController.php": [
+      "010.us-11",
+      "010.us-9"
+    ],
+    "app/Http/Controllers/HighTicketBookingController.php": [
+      "011.us-1",
+      "011.us-2"
+    ],
+    "app/Http/Controllers/HomeController.php": [
+      "002.us-1",
+      "002.us-5"
+    ],
+    "app/Http/Controllers/Member/AssignmentCommentController.php": [
+      "003.us-5"
+    ],
+    "app/Http/Controllers/Member/ClassroomController.php": [
       "003.us-2",
       "003.us-3",
       "003.us-4",
-      "003.us-6",
-      "003.us-7",
-      "003.us-9",
+      "006.us-5",
+      "010.us-10",
+      "010.us-7",
+      "010.us-9"
+    ],
+    "app/Http/Controllers/Member/LearningController.php": [
+      "003.us-1"
+    ],
+    "app/Http/Controllers/Member/NotificationController.php": [
+      "003.us-8"
+    ],
+    "app/Http/Controllers/Member/PointController.php": [
+      "007.us-3"
+    ],
+    "app/Http/Controllers/Member/SettingsController.php": [
+      "001.us-2"
+    ],
+    "app/Http/Controllers/Payment/NewebpayController.php": [
+      "005.us-4"
+    ],
+    "app/Http/Controllers/Payment/PayuniController.php": [
+      "005.us-4"
+    ],
+    "app/Http/Controllers/Payment/SuccessController.php": [
+      "005.us-5"
+    ],
+    "app/Http/Controllers/Purchase/FreePurchaseController.php": [
       "005.us-7",
-      "012.us-6"
+      "010.us-5"
     ],
-    "app/Http/Controllers/Admin/ReferralStatsController.php": [
-      "012.us-5"
+    "app/Http/Controllers/RedemptionController.php": [
+      "007.us-1"
     ],
-    "app/Http/Controllers/Admin/SettingsController.php": [
-      "012.us-4"
-    ],
-    "app/Http/Controllers/Admin/SocialLinkController.php": [
+    "app/Http/Controllers/ReferralController.php": [
       "007.us-2"
     ],
-    "app/Http/Controllers/Admin/TransactionController.php": [
+    "app/Http/Controllers/SitemapController.php": [
+      "000.us-4"
+    ],
+    "app/Http/Controllers/Webhook/PortalyController.php": [
+      "005.us-6"
+    ],
+    "app/Http/Middleware/AdminMiddleware.php": [
+      "000.us-2"
+    ],
+    "app/Http/Middleware/HandleInertiaRequests.php": [
+      "000.us-1"
+    ],
+    "app/Http/Requests/AddToCartRequest.php": [
+      "005.us-1"
+    ],
+    "app/Http/Requests/Admin/AssignmentRequest.php": [
+      "003.us-6"
+    ],
+    "app/Http/Requests/Admin/EmailTemplateRequest.php": [
+      "011.us-6"
+    ],
+    "app/Http/Requests/Admin/GiftCourseRequest.php": [
+      "008.us-6"
+    ],
+    "app/Http/Requests/Admin/GrantPointsRequest.php": [
+      "007.us-6"
+    ],
+    "app/Http/Requests/Admin/SendBatchEmailRequest.php": [
+      "008.us-5"
+    ],
+    "app/Http/Requests/Admin/StoreChapterRequest.php": [
+      "004.us-3"
+    ],
+    "app/Http/Requests/Admin/StoreCouponChainRequest.php": [
+      "006.us-5"
+    ],
+    "app/Http/Requests/Admin/StoreCouponRequest.php": [
+      "006.us-2"
+    ],
+    "app/Http/Requests/Admin/StoreCourseRequest.php": [
+      "004.us-1",
+      "004.us-2"
+    ],
+    "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
+      "002.us-6"
+    ],
+    "app/Http/Requests/Admin/StoreLessonRequest.php": [
+      "004.us-3"
+    ],
+    "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
+      "002.us-4"
+    ],
+    "app/Http/Requests/Admin/StoreTransactionRequest.php": [
+      "009.us-3"
+    ],
+    "app/Http/Requests/Admin/UpdateCouponChainRequest.php": [
+      "006.us-5"
+    ],
+    "app/Http/Requests/Admin/UpdateCouponRequest.php": [
+      "006.us-2"
+    ],
+    "app/Http/Requests/Admin/UpdateCourseRequest.php": [
+      "004.us-1",
+      "004.us-2"
+    ],
+    "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
+      "002.us-6"
+    ],
+    "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
+      "002.us-3"
+    ],
+    "app/Http/Requests/Admin/UpdateMemberRequest.php": [
+      "008.us-2"
+    ],
+    "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
+      "002.us-4"
+    ],
+    "app/Http/Requests/Auth/SendVerificationCodeRequest.php": [
+      "001.us-1"
+    ],
+    "app/Http/Requests/Auth/VerifyCodeRequest.php": [
+      "001.us-1"
+    ],
+    "app/Http/Requests/CheckoutRequest.php": [
+      "005.us-3"
+    ],
+    "app/Http/Requests/Member/StoreCommentRequest.php": [
+      "003.us-5"
+    ],
+    "app/Http/Requests/Member/UpdateProfileRequest.php": [
+      "001.us-2"
+    ],
+    "app/Http/Requests/RedeemCourseRequest.php": [
+      "007.us-1"
+    ],
+    "app/Http/Requests/StoreDripSubscriptionRequest.php": [
+      "010.us-1"
+    ],
+    "app/Http/Requests/ValidateReferralRequest.php": [
+      "007.us-2"
+    ],
+    "app/Jobs/NotifyHighTicketSlotJob.php": [
+      "011.us-4"
+    ],
+    "app/Jobs/SendDripEmailJob.php": [
+      "010.us-11",
+      "010.us-3",
+      "010.us-8"
+    ],
+    "app/Jobs/SubscribeDripLeadJob.php": [
+      "010.us-4",
+      "011.us-5"
+    ],
+    "app/Mail/BatchEmailMail.php": [
+      "008.us-5",
+      "011.us-4"
+    ],
+    "app/Mail/CourseGiftedMail.php": [
+      "008.us-6"
+    ],
+    "app/Mail/DripLessonMail.php": [
+      "010.us-3"
+    ],
+    "app/Mail/HighTicketBookingMail.php": [
+      "011.us-2"
+    ],
+    "app/Mail/LessonAddedNotification.php": [
+      "004.us-6"
+    ],
+    "app/Mail/VerificationCodeMail.php": [
+      "001.us-1"
+    ],
+    "app/Models/Assignment.php": [
+      "003.us-5",
+      "003.us-6"
+    ],
+    "app/Models/AssignmentCompletion.php": [
+      "003.us-7"
+    ],
+    "app/Models/CartItem.php": [
+      "005.us-1"
+    ],
+    "app/Models/Chapter.php": [
+      "004.us-3"
+    ],
+    "app/Models/Comment.php": [
+      "003.us-5",
+      "003.us-6"
+    ],
+    "app/Models/CouponChain.php": [
+      "006.us-5"
+    ],
+    "app/Models/CouponCode.php": [
+      "006.us-2"
+    ],
+    "app/Models/Course.php": [
+      "002.us-7",
+      "004.us-1",
+      "004.us-2",
+      "004.us-5"
+    ],
+    "app/Models/CourseImage.php": [
+      "004.us-4"
+    ],
+    "app/Models/DripConversionTarget.php": [
+      "010.us-5"
+    ],
+    "app/Models/DripEmailEvent.php": [
+      "010.us-11"
+    ],
+    "app/Models/DripSubscription.php": [
+      "010.us-6"
+    ],
+    "app/Models/EmailTemplate.php": [
+      "011.us-2",
+      "011.us-6"
+    ],
+    "app/Models/HighTicketLead.php": [
+      "011.us-2",
+      "011.us-3"
+    ],
+    "app/Models/HomepageFeaturedCourse.php": [
+      "002.us-6"
+    ],
+    "app/Models/HomeworkNotification.php": [
+      "003.us-8"
+    ],
+    "app/Models/Lesson.php": [
+      "004.us-3"
+    ],
+    "app/Models/LessonProgress.php": [
+      "003.us-3"
+    ],
+    "app/Models/Order.php": [
+      "005.us-3",
+      "006.us-3"
+    ],
+    "app/Models/OrderItem.php": [
+      "005.us-3"
+    ],
+    "app/Models/PointTransaction.php": [
+      "007.us-3"
+    ],
+    "app/Models/Purchase.php": [
+      "005.us-4",
+      "005.us-6",
+      "005.us-7",
+      "011.us-5"
+    ],
+    "app/Models/SiteSetting.php": [
+      "000.us-5",
+      "007.us-4"
+    ],
+    "app/Models/SocialLink.php": [
+      "002.us-4"
+    ],
+    "app/Models/User.php": [
+      "001.us-1",
+      "001.us-2"
+    ],
+    "app/Models/VerificationCode.php": [
+      "001.us-1"
+    ],
+    "app/Policies/CoursePolicy.php": [
+      "004.us-1"
+    ],
+    "app/Providers/AppServiceProvider.php": [
+      "000.us-2"
+    ],
+    "app/Services/AssignmentService.php": [
+      "003.us-7"
+    ],
+    "app/Services/BlogRssService.php": [
+      "002.us-5"
+    ],
+    "app/Services/CartService.php": [
+      "005.us-1",
+      "005.us-5"
+    ],
+    "app/Services/CheckoutService.php": [
+      "005.us-3",
+      "005.us-4",
+      "006.us-3",
+      "007.us-2",
+      "010.us-4",
+      "010.us-5"
+    ],
+    "app/Services/CouponChainService.php": [
+      "006.us-5"
+    ],
+    "app/Services/CouponService.php": [
       "006.us-1",
-      "006.us-2",
       "006.us-3",
       "006.us-4",
       "006.us-5"
     ],
-    "app/Http/Controllers/Auth/LoginController.php": [
-      "001.us-2"
-    ],
-    "app/Http/Controllers/CheckoutController.php": [
-      "002.us-12",
-      "012.us-2"
-    ],
-    "app/Http/Controllers/CourseController.php": [
-      "001.us-5",
-      "002.us-12",
-      "002.us-8",
-      "008.us-2"
-    ],
-    "app/Http/Controllers/DripSubscriptionController.php": [
-      "005.us-1",
-      "005.us-1.5",
-      "005.us-5"
-    ],
-    "app/Http/Controllers/DripTrackingController.php": [
-      "005.us-14"
-    ],
-    "app/Http/Controllers/HighTicketBookingController.php": [
-      "008.us-3"
-    ],
-    "app/Http/Controllers/HomeController.php": [
-      "001.us-1",
-      "002.us-8",
-      "004.us-1",
-      "007.us-3",
-      "007.us-4",
-      "007.us-5"
-    ],
-    "app/Http/Controllers/Member/AssignmentCommentController.php": [
+    "app/Services/DripService.php": [
       "010.us-1",
-      "010.us-2"
-    ],
-    "app/Http/Controllers/Member/ClassroomController.php": [
-      "001.us-3",
-      "002.us-1",
-      "002.us-11",
-      "005.us-15",
-      "005.us-6"
-    ],
-    "app/Http/Controllers/Member/LearningController.php": [
-      "002.us-1",
-      "002.us-1a"
-    ],
-    "app/Http/Controllers/Member/PointController.php": [
-      "012.us-3"
-    ],
-    "app/Http/Controllers/Member/SettingsController.php": [
-      "001.us-4"
-    ],
-    "app/Http/Controllers/Payment/PayuniController.php": [
-      "001.us-7"
-    ],
-    "app/Http/Controllers/Purchase/FreePurchaseController.php": [
-      "001.us-8"
-    ],
-    "app/Http/Controllers/RedemptionController.php": [
-      "012.us-1"
-    ],
-    "app/Http/Controllers/ReferralController.php": [
-      "012.us-2"
-    ],
-    "app/Http/Controllers/Webhook/PortalyController.php": [
-      "001.us-6",
-      "005.us-2",
-      "005.us-4"
-    ],
-    "app/Http/Middleware/HandleInertiaRequests.php": [
-      "001.us-7"
-    ],
-    "app/Http/Requests/Admin/EmailTemplateRequest.php": [
-      "008.us-4"
-    ],
-    "app/Http/Requests/Admin/GrantPointsRequest.php": [
-      "012.us-6"
-    ],
-    "app/Http/Requests/Admin/StoreCourseRequest.php": [
-      "002.us-2",
-      "008.us-1"
-    ],
-    "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
-      "007.us-5"
-    ],
-    "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
-      "007.us-2"
-    ],
-    "app/Http/Requests/Admin/StoreTransactionRequest.php": [
-      "006.us-3"
-    ],
-    "app/Http/Requests/Admin/UpdateCourseRequest.php": [
-      "002.us-2",
-      "008.us-1"
-    ],
-    "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
-      "007.us-5"
-    ],
-    "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
-      "007.us-1"
-    ],
-    "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
-      "007.us-2"
-    ],
-    "app/Http/Requests/CheckoutRequest.php": [
-      "012.us-2"
-    ],
-    "app/Http/Requests/Member/StoreCommentRequest.php": [
-      "010.us-1"
-    ],
-    "app/Http/Requests/RedeemCourseRequest.php": [
-      "012.us-1"
-    ],
-    "app/Http/Requests/ValidateReferralRequest.php": [
-      "012.us-2"
-    ],
-    "app/Jobs/NotifyHighTicketSlotJob.php": [
-      "008.us-6"
-    ],
-    "app/Jobs/SubscribeDripLeadJob.php": [
-      "008.us-6"
-    ],
-    "app/Mail/HighTicketBookingMail.php": [
-      "008.us-3"
-    ],
-    "app/Models/AssignmentCompletion.php": [
-      "003.us-3"
-    ],
-    "app/Models/Chapter.php": [
-      "002.us-3"
-    ],
-    "app/Models/Course.php": [
-      "001.us-1",
-      "001.us-5",
-      "002.us-2",
-      "002.us-2a",
-      "002.us-9",
-      "005.us-3",
-      "008.us-1"
-    ],
-    "app/Models/CourseImage.php": [
-      "002.us-4"
-    ],
-    "app/Models/DripConversionTarget.php": [
-      "005.us-4"
-    ],
-    "app/Models/DripEmailEvent.php": [
-      "005.us-12",
-      "005.us-13"
-    ],
-    "app/Models/DripSubscription.php": [
-      "005.us-1",
-      "005.us-1.5",
-      "005.us-10",
-      "005.us-13",
-      "005.us-15",
-      "005.us-2",
-      "005.us-4",
-      "005.us-5",
-      "005.us-6",
-      "005.us-7"
-    ],
-    "app/Models/EmailTemplate.php": [
-      "008.us-4"
-    ],
-    "app/Models/HighTicketLead.php": [
-      "008.us-5"
-    ],
-    "app/Models/HomepageFeaturedCourse.php": [
-      "007.us-5"
-    ],
-    "app/Models/Lesson.php": [
-      "002.us-10",
-      "002.us-11",
-      "002.us-3",
-      "005.us-14",
-      "005.us-15",
-      "005.us-3",
-      "005.us-8",
-      "005.us-9"
-    ],
-    "app/Models/LessonProgress.php": [
-      "002.us-1",
-      "002.us-1a",
-      "003.us-3"
-    ],
-    "app/Models/Order.php": [
-      "002.us-12"
-    ],
-    "app/Models/Purchase.php": [
-      "001.us-3",
-      "001.us-6",
-      "002.us-10",
-      "002.us-7",
-      "003.us-3",
-      "003.us-7",
-      "005.us-2"
-    ],
-    "app/Models/SiteSetting.php": [
-      "007.us-1"
-    ],
-    "app/Models/SocialLink.php": [
-      "007.us-2"
-    ],
-    "app/Models/User.php": [
-      "001.us-2",
-      "003.us-1",
-      "003.us-2"
-    ],
-    "app/Models/VerificationCode.php": [
-      "001.us-2"
-    ],
-    "app/Services/AssignmentService.php": [
-      "010.us-4"
-    ],
-    "app/Services/BlogRssService.php": [
-      "007.us-3"
-    ],
-    "app/Services/CheckoutService.php": [
-      "002.us-12",
-      "012.us-2"
+      "010.us-10",
+      "010.us-11",
+      "010.us-2",
+      "010.us-3",
+      "010.us-4",
+      "010.us-5",
+      "010.us-7",
+      "011.us-5"
     ],
     "app/Services/HighTicketBookingService.php": [
-      "008.us-3",
-      "008.us-5"
+      "011.us-2"
     ],
     "app/Services/HighTicketLeadService.php": [
-      "008.us-6"
+      "011.us-4",
+      "011.us-5"
+    ],
+    "app/Services/NewebpayService.php": [
+      "005.us-3",
+      "005.us-4"
     ],
     "app/Services/PayuniService.php": [
-      "001.us-7"
+      "005.us-3",
+      "005.us-4"
     ],
     "app/Services/PointService.php": [
-      "012.us-1",
-      "012.us-2",
-      "012.us-6"
-    ],
-    "app/Services/RedemptionService.php": [
-      "012.us-1"
-    ],
-    "app/Services/ReferralService.php": [
-      "012.us-2"
-    ],
-    "app/Services/TransactionService.php": [
-      "006.us-3",
-      "006.us-4"
-    ],
-    "config/services.php": [
-      "001.us-7"
-    ],
-    "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php": [
-      "008.us-5"
-    ],
-    "database/migrations/2026_05_08_000001_add_utm_to_orders_table.php": [
-      "002.us-12"
-    ],
-    "database/seeders/EmailTemplateSeeder.php": [
-      "008.us-4"
-    ],
-    "resources/js/Components/Admin/CourseForm.vue": [
-      "002.us-2",
-      "008.us-1",
-      "012.us-1"
-    ],
-    "resources/js/Components/Admin/ImageGalleryModal.vue": [
-      "002.us-4"
-    ],
-    "resources/js/Components/Admin/TransactionRefundModal.vue": [
-      "006.us-4"
-    ],
-    "resources/js/Components/BlogArticles.vue": [
-      "007.us-3",
-      "007.us-4"
-    ],
-    "resources/js/Components/Cart/ReferralInput.vue": [
-      "012.us-2"
-    ],
-    "resources/js/Components/Classroom/AssignmentSection.vue": [
-      "010.us-1",
-      "010.us-2"
-    ],
-    "resources/js/Components/Classroom/VideoPlayer.vue": [
-      "002.us-1"
-    ],
-    "resources/js/Components/Course/RedeemButton.vue": [
-      "012.us-1"
-    ],
-    "resources/js/Components/CourseCard.vue": [
-      "001.us-1"
-    ],
-    "resources/js/Components/FeaturedCourses.vue": [
-      "007.us-5"
-    ],
-    "resources/js/Components/ImportMembersModal.vue": [
-      "003.us-10",
-      "003.us-9"
-    ],
-    "resources/js/Components/MemberDetailModal.vue": [
-      "012.us-6"
-    ],
-    "resources/js/Components/SectionHeader.vue": [
-      "001.us-1"
-    ],
-    "resources/js/Components/SocialLinks.vue": [
-      "007.us-2",
-      "007.us-4"
-    ],
-    "resources/js/Layouts/AdminLayout.vue": [
-      "007.us-1"
-    ],
-    "resources/js/Pages/Admin/": [
-      "002.us-2",
-      "002.us-3",
-      "002.us-4"
-    ],
-    "resources/js/Pages/Admin/Courses/Gallery.vue": [
-      "002.us-4"
-    ],
-    "resources/js/Pages/Admin/Courses/Index.vue": [
-      "002.us-12"
-    ],
-    "resources/js/Pages/Admin/Courses/Traffic.vue": [
-      "002.us-12"
-    ],
-    "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
-      "008.us-4"
-    ],
-    "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
-      "008.us-4"
-    ],
-    "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
-      "008.us-6"
-    ],
-    "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
       "007.us-1",
       "007.us-2",
-      "007.us-5"
+      "007.us-3",
+      "007.us-6"
     ],
-    "resources/js/Pages/Admin/Homework/Index.vue": [
-      "010.us-3",
+    "app/Services/PortalyWebhookService.php": [
+      "005.us-6",
       "010.us-4",
       "010.us-5"
     ],
-    "resources/js/Pages/Admin/Member/": [
-      "003.us-1",
-      "003.us-5"
+    "app/Services/RedemptionService.php": [
+      "007.us-1",
+      "010.us-5"
     ],
-    "resources/js/Pages/Admin/Members/Index.vue": [
-      "003.us-9"
+    "app/Services/ReferralService.php": [
+      "007.us-2"
     ],
-    "resources/js/Pages/Admin/Referrals/Index.vue": [
-      "012.us-5"
+    "app/Services/TransactionService.php": [
+      "007.us-2",
+      "009.us-3",
+      "009.us-4"
     ],
-    "resources/js/Pages/Admin/Settings/Points.vue": [
-      "012.us-4"
+    "app/Services/VerificationCodeService.php": [
+      "001.us-1"
     ],
-    "resources/js/Pages/Admin/Transactions/Index.vue": [
-      "006.us-1",
-      "006.us-3",
-      "006.us-5"
+    "app/Services/VideoEmbedService.php": [
+      "003.us-2"
     ],
-    "resources/js/Pages/Admin/Transactions/Show.vue": [
-      "006.us-2",
-      "006.us-4"
+    "config/drip.php": [
+      "010.us-10"
     ],
-    "resources/js/Pages/Auth/": [
-      "001.us-2"
+    "database/migrations/0001_01_01_000000_create_users_table.php": [
+      "001.us-1"
     ],
-    "resources/js/Pages/Auth/Login.vue": [
-      "001.us-7"
-    ],
-    "resources/js/Pages/Checkout/Index.vue": [
-      "012.us-2"
-    ],
-    "resources/js/Pages/Course/": [
-      "001.us-5",
-      "002.us-2a",
-      "002.us-2b"
-    ],
-    "resources/js/Pages/Course/Show.vue": [
-      "001.us-7",
-      "001.us-8",
-      "008.us-2",
-      "008.us-3",
-      "012.us-1"
-    ],
-    "resources/js/Pages/Drip/": [
-      "005.us-1",
+    "database/migrations/2026_01_16_000002_create_purchases_table.php": [
       "005.us-6"
     ],
-    "resources/js/Pages/Home.vue": [
-      "001.us-1",
-      "004.us-1",
+    "database/migrations/2026_01_16_000004_create_verification_codes_table.php": [
+      "001.us-1"
+    ],
+    "database/migrations/2026_01_17_000004_create_lesson_progress_table.php": [
+      "003.us-3"
+    ],
+    "database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php": [
+      "010.us-8"
+    ],
+    "database/migrations/2026_02_16_000004_add_promo_fields_to_lessons_table.php": [
+      "010.us-9"
+    ],
+    "database/migrations/2026_02_21_000001_add_reward_html_to_lessons_table.php": [
+      "010.us-10"
+    ],
+    "database/migrations/2026_02_28_000001_create_drip_email_events_table.php": [
+      "010.us-11"
+    ],
+    "database/migrations/2026_02_28_000002_add_promo_url_to_lessons_table.php": [
+      "010.us-9"
+    ],
+    "database/migrations/2026_03_01_084230_add_video_access_hours_to_lessons_table.php": [
+      "010.us-10"
+    ],
+    "database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php": [
+      "004.us-2"
+    ],
+    "database/migrations/2026_03_25_000001_create_site_settings_table.php": [
+      "000.us-5"
+    ],
+    "database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php": [
+      "004.us-2"
+    ],
+    "database/migrations/2026_04_09_000002_create_email_templates_table.php": [
+      "011.us-6"
+    ],
+    "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php": [
+      "011.us-2"
+    ],
+    "database/migrations/2026_05_06_000001_create_cart_items_table.php": [
+      "005.us-1"
+    ],
+    "database/migrations/2026_05_06_000002_create_orders_table.php": [
+      "005.us-3"
+    ],
+    "database/migrations/2026_05_06_000003_create_order_items_table.php": [
+      "005.us-3"
+    ],
+    "database/migrations/2026_05_06_000005_add_order_id_to_purchases_table.php": [
+      "005.us-4"
+    ],
+    "database/migrations/2026_05_10_000002_create_assignments_table.php": [
+      "003.us-6"
+    ],
+    "database/migrations/2026_05_10_000003_create_comments_table.php": [
+      "003.us-5"
+    ],
+    "database/migrations/2026_05_10_000004_create_assignment_completions_table.php": [
+      "003.us-7"
+    ],
+    "database/migrations/2026_05_10_000005_create_homework_notifications_table.php": [
+      "003.us-8"
+    ],
+    "database/migrations/2026_06_09_000001_create_coupon_codes_table.php": [
+      "006.us-2"
+    ],
+    "database/migrations/2026_06_09_000002_add_discount_columns_to_orders_table.php": [
+      "006.us-3"
+    ],
+    "database/migrations/2026_06_26_000001_create_coupon_chains_table.php": [
+      "006.us-5"
+    ],
+    "database/migrations/2026_06_26_000002_add_chain_id_to_coupon_codes_table.php": [
+      "006.us-5"
+    ],
+    "database/migrations/2026_06_30_000002_add_referral_fields_to_users_table.php": [
+      "007.us-2"
+    ],
+    "database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php": [
       "004.us-2",
+      "007.us-1"
+    ],
+    "database/migrations/2026_06_30_000004_add_referral_fields_to_orders_table.php": [
+      "007.us-2"
+    ],
+    "database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php": [
+      "002.us-6"
+    ],
+    "database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php": [
+      "004.us-2"
+    ],
+    "database/seeders/EmailTemplateSeeder.php": [
+      "011.us-6"
+    ],
+    "resources/js/Components/Admin/ChapterList.vue": [
+      "004.us-3"
+    ],
+    "resources/js/Components/Admin/CouponForm.vue": [
+      "006.us-2"
+    ],
+    "resources/js/Components/Admin/CourseForm.vue": [
+      "004.us-2",
+      "010.us-8"
+    ],
+    "resources/js/Components/Admin/ImageGalleryModal.vue": [
+      "004.us-4"
+    ],
+    "resources/js/Components/Admin/LessonForm.vue": [
       "004.us-3",
-      "007.us-3",
-      "007.us-4",
-      "007.us-5"
+      "004.us-6",
+      "006.us-5",
+      "010.us-8",
+      "010.us-9"
     ],
-    "resources/js/Pages/Member/": [
-      "001.us-3",
-      "001.us-4"
+    "resources/js/Components/Admin/RevenueChart.vue": [
+      "009.us-6"
     ],
-    "resources/js/Pages/Member/Classroom.vue": [
+    "resources/js/Components/Admin/TransactionRefundModal.vue": [
+      "009.us-4"
+    ],
+    "resources/js/Components/BatchEmailModal.vue": [
+      "008.us-5"
+    ],
+    "resources/js/Components/BlogArticles.vue": [
+      "002.us-5"
+    ],
+    "resources/js/Components/Cart/CouponInput.vue": [
+      "006.us-1",
+      "006.us-6"
+    ],
+    "resources/js/Components/Cart/ReferralInput.vue": [
+      "007.us-2"
+    ],
+    "resources/js/Components/Classroom/AssignmentSection.vue": [
+      "003.us-5",
+      "003.us-7"
+    ],
+    "resources/js/Components/Classroom/ChapterSidebar.vue": [
+      "003.us-2",
+      "003.us-4"
+    ],
+    "resources/js/Components/Classroom/CommentThread.vue": [
+      "003.us-5"
+    ],
+    "resources/js/Components/Classroom/HtmlContent.vue": [
+      "003.us-2"
+    ],
+    "resources/js/Components/Classroom/LessonItem.vue": [
+      "003.us-2",
+      "003.us-3",
+      "003.us-4"
+    ],
+    "resources/js/Components/Classroom/LessonPromoBlock.vue": [
+      "010.us-9"
+    ],
+    "resources/js/Components/Classroom/VideoAccessNotice.vue": [
+      "010.us-10"
+    ],
+    "resources/js/Components/Classroom/VideoPlayer.vue": [
+      "003.us-2"
+    ],
+    "resources/js/Components/Course/DripSubscribeForm.vue": [
+      "010.us-1"
+    ],
+    "resources/js/Components/Course/PriceDisplay.vue": [
+      "002.us-2"
+    ],
+    "resources/js/Components/Course/RedeemButton.vue": [
+      "007.us-1"
+    ],
+    "resources/js/Components/CourseCard.vue": [
       "002.us-1"
     ],
-    "resources/js/Pages/Member/Points.vue": [
-      "012.us-3"
+    "resources/js/Components/FeaturedCourses.vue": [
+      "002.us-6"
     ],
-    "resources/views/emails/drip-lesson.blade.php": [
-      "005.us-5"
+    "resources/js/Components/GiftCourseModal.vue": [
+      "008.us-6"
     ],
-    "resources/views/emails/high-ticket-booking.blade.php": [
+    "resources/js/Components/ImportMembersModal.vue": [
+      "008.us-8"
+    ],
+    "resources/js/Components/Layout/AppLayout.vue": [
+      "000.us-1"
+    ],
+    "resources/js/Components/Layout/Footer.vue": [
+      "000.us-1",
+      "000.us-3"
+    ],
+    "resources/js/Components/Layout/Navigation.vue": [
+      "000.us-1"
+    ],
+    "resources/js/Components/Legal/LegalPolicyModal.vue": [
+      "000.us-3"
+    ],
+    "resources/js/Components/Legal/PrivacyContent.vue": [
+      "000.us-3"
+    ],
+    "resources/js/Components/Legal/PurchaseContent.vue": [
+      "000.us-3"
+    ],
+    "resources/js/Components/Legal/TermsContent.vue": [
+      "000.us-3"
+    ],
+    "resources/js/Components/MemberDetailModal.vue": [
+      "007.us-6",
+      "008.us-2",
       "008.us-3"
     ],
+    "resources/js/Components/MyCourseCard.vue": [
+      "003.us-1"
+    ],
+    "resources/js/Components/SectionHeader.vue": [
+      "002.us-1"
+    ],
+    "resources/js/Components/SocialLinks.vue": [
+      "002.us-4"
+    ],
+    "resources/js/Components/VerificationCodeInput.vue": [
+      "001.us-1"
+    ],
+    "resources/js/Layouts/AdminLayout.vue": [
+      "000.us-2"
+    ],
+    "resources/js/Pages/Admin/CouponChains/Create.vue": [
+      "006.us-5"
+    ],
+    "resources/js/Pages/Admin/CouponChains/Edit.vue": [
+      "006.us-5"
+    ],
+    "resources/js/Pages/Admin/CouponChains/Index.vue": [
+      "006.us-5"
+    ],
+    "resources/js/Pages/Admin/CouponChains/Show.vue": [
+      "006.us-5"
+    ],
+    "resources/js/Pages/Admin/Coupons/Create.vue": [
+      "006.us-2"
+    ],
+    "resources/js/Pages/Admin/Coupons/Edit.vue": [
+      "006.us-2"
+    ],
+    "resources/js/Pages/Admin/Coupons/Index.vue": [
+      "006.us-2"
+    ],
+    "resources/js/Pages/Admin/Coupons/Show.vue": [
+      "006.us-4"
+    ],
+    "resources/js/Pages/Admin/Courses/Chapters.vue": [
+      "004.us-3"
+    ],
+    "resources/js/Pages/Admin/Courses/Create.vue": [
+      "004.us-1"
+    ],
+    "resources/js/Pages/Admin/Courses/Edit.vue": [
+      "004.us-1"
+    ],
+    "resources/js/Pages/Admin/Courses/Gallery.vue": [
+      "004.us-4"
+    ],
+    "resources/js/Pages/Admin/Courses/Index.vue": [
+      "004.us-1"
+    ],
+    "resources/js/Pages/Admin/Courses/Subscribers.vue": [
+      "010.us-11"
+    ],
+    "resources/js/Pages/Admin/Courses/Traffic.vue": [
+      "002.us-8"
+    ],
+    "resources/js/Pages/Admin/Dashboard.vue": [
+      "009.us-7"
+    ],
+    "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
+      "011.us-6"
+    ],
+    "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
+      "011.us-6"
+    ],
+    "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
+      "011.us-3",
+      "011.us-4",
+      "011.us-5"
+    ],
+    "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
+      "002.us-3",
+      "002.us-4",
+      "002.us-6",
+      "002.us-7"
+    ],
+    "resources/js/Pages/Admin/Homework/Index.vue": [
+      "003.us-6"
+    ],
+    "resources/js/Pages/Admin/Members/Index.vue": [
+      "008.us-1",
+      "008.us-2",
+      "008.us-4",
+      "008.us-7"
+    ],
+    "resources/js/Pages/Admin/Referrals/Index.vue": [
+      "007.us-5"
+    ],
+    "resources/js/Pages/Admin/Settings/Points.vue": [
+      "007.us-4"
+    ],
+    "resources/js/Pages/Admin/Transactions/Index.vue": [
+      "009.us-1",
+      "009.us-3",
+      "009.us-4",
+      "009.us-5",
+      "009.us-6"
+    ],
+    "resources/js/Pages/Admin/Transactions/Show.vue": [
+      "009.us-2",
+      "009.us-4"
+    ],
+    "resources/js/Pages/Auth/Login.vue": [
+      "001.us-1"
+    ],
+    "resources/js/Pages/Cart/Index.vue": [
+      "005.us-2",
+      "006.us-1"
+    ],
+    "resources/js/Pages/Checkout/Index.vue": [
+      "005.us-2",
+      "006.us-1",
+      "007.us-2"
+    ],
+    "resources/js/Pages/Course/Show.vue": [
+      "002.us-2",
+      "007.us-1",
+      "010.us-1",
+      "010.us-2",
+      "011.us-1"
+    ],
+    "resources/js/Pages/Drip/Unsubscribe.vue": [
+      "010.us-6"
+    ],
+    "resources/js/Pages/Home.vue": [
+      "002.us-1",
+      "002.us-3"
+    ],
+    "resources/js/Pages/Member/Classroom.vue": [
+      "003.us-2",
+      "003.us-3",
+      "003.us-4",
+      "003.us-8",
+      "010.us-7"
+    ],
+    "resources/js/Pages/Member/ClassroomUnauthorized.vue": [
+      "003.us-2"
+    ],
+    "resources/js/Pages/Member/Learning.vue": [
+      "003.us-1"
+    ],
+    "resources/js/Pages/Member/Points.vue": [
+      "007.us-3"
+    ],
+    "resources/js/Pages/Member/Settings.vue": [
+      "001.us-2"
+    ],
+    "resources/js/Pages/Payment/Success.vue": [
+      "005.us-5"
+    ],
+    "resources/js/app.js": [
+      "000.us-1",
+      "000.us-4"
+    ],
+    "resources/js/composables/useCart.js": [
+      "005.us-1"
+    ],
+    "resources/js/composables/useNotifications.js": [
+      "003.us-8"
+    ],
+    "resources/views/app.blade.php": [
+      "000.us-4"
+    ],
+    "resources/views/emails/batch-email.blade.php": [
+      "008.us-5"
+    ],
+    "resources/views/emails/course-gifted.blade.php": [
+      "008.us-6"
+    ],
+    "resources/views/emails/drip-lesson.blade.php": [
+      "010.us-3",
+      "010.us-6"
+    ],
+    "resources/views/emails/high-ticket-booking.blade.php": [
+      "011.us-2"
+    ],
+    "resources/views/emails/lesson-added.blade.php": [
+      "004.us-6"
+    ],
+    "resources/views/emails/verification-code.blade.php": [
+      "001.us-1"
+    ],
+    "resources/views/sitemap.blade.php": [
+      "000.us-4"
+    ],
     "routes/api.php": [
-      "001.us-7",
-      "001.us-8"
+      "005.us-5",
+      "005.us-7"
+    ],
+    "routes/console.php": [
+      "004.us-5",
+      "010.us-3"
     ],
     "routes/web.php": [
-      "001.us-7",
-      "002.us-12",
-      "008.us-3",
-      "008.us-6"
+      "000.us-2",
+      "006.us-1",
+      "011.us-1"
     ]
   }
 }

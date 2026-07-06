@@ -1,1285 +1,321 @@
 {
   "features": [
     {
-      "id": "001.us-1",
-      "module": "001-course-platform-mvp",
-      "title": "瀏覽課程首頁",
-      "summary": "訪客可在首頁看到所有課程卡片與購買連結",
-      "heading": "### User Story 1 - 瀏覽課程首頁 (Priority: P1)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-1---瀏覽課程首頁-priority-p1",
+      "id": "000.us-1",
+      "module": "000-platform-core",
+      "title": "全站導航與版面",
+      "summary": "前台統一導航列（購物車角標、通知鈴、登入狀態）、Footer 與預設 AppLayout、flash 訊息",
+      "heading": "### User Story 1 - 全站導航與版面 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-1---全站導航與版面-priority-p1",
       "keywords": [
-        "homepage",
-        "course list",
-        "首頁",
-        "課程列表",
-        "訪客",
-        "content_category",
-        "內容分類",
-        "分類篩選",
-        "SectionHeader",
-        "思維升級",
-        "財務覺醒",
-        "知識變現"
+        "navigation",
+        "layout",
+        "導航列",
+        "購物車角標",
+        "cart badge",
+        "通知鈴",
+        "notification bell",
+        "flash",
+        "AppLayout",
+        "RWD",
+        "shared props",
+        "Inertia"
       ],
       "code_files": [
-        "app/Http/Controllers/HomeController.php",
-        "app/Models/Course.php",
-        "resources/js/Pages/Home.vue",
-        "resources/js/Components/SectionHeader.vue",
-        "resources/js/Components/CourseCard.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-2",
-      "module": "001-course-platform-mvp",
-      "title": "Email 驗證碼登入/註冊",
-      "summary": "使用者用 Email 收驗證碼完成登入或自動建立帳號",
-      "heading": "### User Story 2 - Email 驗證碼登入/註冊 (Priority: P1)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-2---email-驗證碼登入註冊-priority-p1",
-      "keywords": [
-        "login",
-        "register",
-        "email",
-        "verification code",
-        "驗證碼",
-        "登入",
-        "註冊"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Auth/LoginController.php",
-        "app/Models/VerificationCode.php",
-        "app/Models/User.php",
-        "resources/js/Pages/Auth/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-3",
-      "module": "001-course-platform-mvp",
-      "title": "我的課程頁面",
-      "summary": "已登入會員可查看已購買的課程清單並進入上課",
-      "heading": "### User Story 3 - 我的課程頁面 (Priority: P2)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-3---我的課程頁面-priority-p2",
-      "keywords": [
-        "my courses",
-        "purchased",
-        "我的課程",
-        "已購買"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Member/ClassroomController.php",
-        "app/Models/Purchase.php",
-        "resources/js/Pages/Member/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-4",
-      "module": "001-course-platform-mvp",
-      "title": "帳號設定頁面",
-      "summary": "會員可更新個人資料與查看購買記錄",
-      "heading": "### User Story 4 - 帳號設定頁面 (Priority: P3)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-4---帳號設定頁面-priority-p3",
-      "keywords": [
-        "account",
-        "settings",
-        "profile",
-        "order history",
-        "帳號",
-        "訂單記錄"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Member/SettingsController.php",
-        "resources/js/Pages/Member/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-5",
-      "module": "001-course-platform-mvp",
-      "title": "課程獨立販售頁",
-      "summary": "每門課程有獨立銷售頁，顯示課程介紹與購買按鈕",
-      "heading": "### User Story 5 - 課程獨立販售頁 (Priority: P2)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-5---課程獨立販售頁-priority-p2",
-      "keywords": [
-        "sales page",
-        "course detail",
-        "purchase button",
-        "販售頁",
-        "課程介紹"
-      ],
-      "code_files": [
-        "app/Http/Controllers/CourseController.php",
-        "app/Models/Course.php",
-        "resources/js/Pages/Course/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-6",
-      "module": "001-course-platform-mvp",
-      "title": "Webhook 購買處理",
-      "summary": "Portaly 完成付款後透過 webhook 自動建立購買記錄",
-      "heading": "### User Story 6 - Webhook 購買處理 (Priority: P1)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-6---webhook-購買處理-priority-p1",
-      "keywords": [
-        "webhook",
-        "payment",
-        "portaly",
-        "purchase",
-        "付款",
-        "購買"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Webhook/PortalyController.php",
-        "app/Models/Purchase.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "001.us-7",
-      "module": "001-course-platform-mvp",
-      "title": "PayUni 統一金流付費",
-      "summary": "PayUni UPP 信用卡/ATM 付費，Cache 存買家資訊供 NotifyURL 讀取，ReturnURL 使用 web 路由解決 auth 與 race condition",
-      "heading": "### User Story 7 - PayUni 統一金流付費 (Priority: P2)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-7---payuni-統一金流付費-priority-p2",
-      "keywords": [
-        "payuni",
-        "payment",
-        "金流",
-        "付費",
-        "信用卡",
-        "NotifyURL",
-        "ReturnURL",
-        "Cache"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Payment/PayuniController.php",
-        "app/Services/PayuniService.php",
+        "resources/js/Components/Layout/AppLayout.vue",
+        "resources/js/Components/Layout/Navigation.vue",
+        "resources/js/Components/Layout/Footer.vue",
         "app/Http/Middleware/HandleInertiaRequests.php",
-        "resources/js/Pages/Course/Show.vue",
-        "resources/js/Pages/Auth/Login.vue",
-        "routes/api.php",
-        "routes/web.php",
-        "config/services.php"
+        "resources/js/app.js"
       ],
       "status": "implemented"
     },
     {
-      "id": "001.us-8",
-      "module": "001-course-platform-mvp",
-      "title": "免費課程直接報名",
-      "summary": "price=0 課程展開 inline 表單免費報名，不通過金流",
-      "heading": "### User Story 8 - 免費課程直接報名 (Priority: P2)",
-      "file": "specs/001-course-platform-mvp/spec.md",
-      "anchor": "user-story-8---免費課程直接報名-priority-p2",
+      "id": "000.us-2",
+      "module": "000-platform-core",
+      "title": "管理後台版面與權限",
+      "summary": "admin middleware 攔截非管理員，AdminLayout 側欄版面涵蓋所有後台功能選單",
+      "heading": "### User Story 2 - 管理後台版面與權限 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-2---管理後台版面與權限-priority-p1",
       "keywords": [
-        "free",
-        "免費",
-        "報名",
-        "inline form"
+        "admin",
+        "後台",
+        "權限",
+        "middleware",
+        "sidebar",
+        "側欄",
+        "AdminLayout",
+        "isAdmin",
+        "policy",
+        "授權"
       ],
       "code_files": [
-        "app/Http/Controllers/Purchase/FreePurchaseController.php",
-        "resources/js/Pages/Course/Show.vue",
-        "routes/api.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-1",
-      "module": "002-classroom-admin",
-      "title": "會員上課頁面",
-      "summary": "已購買會員可進入教室觀看 Vimeo 影片並標記完成",
-      "heading": "### User Story 1 - 會員上課頁面 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-1---會員上課頁面-priority-p1",
-      "keywords": [
-        "classroom",
-        "video",
-        "vimeo",
-        "lesson",
-        "progress",
-        "教室",
-        "影片",
-        "完成"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Member/ClassroomController.php",
-        "app/Http/Controllers/Member/LearningController.php",
-        "app/Models/LessonProgress.php",
-        "resources/js/Pages/Member/Classroom.vue",
-        "resources/js/Components/Classroom/VideoPlayer.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-10",
-      "module": "002-classroom-admin",
-      "title": "新增小節時 Email 通知擁有課程的會員",
-      "summary": "管理員新增小節後，自動 Email 通知所有持有該課程的學員",
-      "heading": "### User Story 10 - 新增小節時 Email 通知擁有課程的會員 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-10---新增小節時-email-通知擁有課程的會員-priority-p2",
-      "keywords": [
-        "email notification",
-        "lesson",
-        "member",
-        "新增小節",
-        "Email 通知"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/LessonController.php",
-        "app/Models/Lesson.php",
-        "app/Models/Purchase.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-11",
-      "module": "002-classroom-admin",
-      "title": "免費試閱教室",
-      "summary": "未購買的訪客可免費試閱特定小節（is_preview 標記）",
-      "heading": "### User Story 11 - 免費試閱教室 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-11---免費試閱教室-priority-p2",
-      "keywords": [
-        "preview",
-        "free",
-        "is_preview",
-        "trial",
-        "試閱",
-        "免費"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/ChapterController.php",
-        "app/Http/Controllers/Member/ClassroomController.php",
-        "app/Models/Lesson.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-12",
-      "module": "002-classroom-admin",
-      "title": "課程連結來源追蹤",
-      "summary": "管理員追蹤課程付款訂單的 UTM 來源、Click ID、HTTP Referrer；後台統計頁含時間篩選、管道分類、CSV 匯出與 UTM 連結生成器",
-      "heading": "### User Story 12 - 課程連結來源追蹤 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-12---課程連結來源追蹤-priority-p2",
-      "keywords": [
-        "utm",
-        "traffic",
-        "source",
-        "tracking",
-        "來源追蹤",
-        "行銷",
-        "utm_source",
-        "referrer",
-        "gclid",
-        "fbclid"
-      ],
-      "code_files": [
-        "database/migrations/2026_05_08_000001_add_utm_to_orders_table.php",
-        "app/Models/Order.php",
-        "app/Http/Controllers/CourseController.php",
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Http/Controllers/CheckoutController.php",
-        "app/Services/CheckoutService.php",
-        "resources/js/Pages/Admin/Courses/Traffic.vue",
-        "resources/js/Pages/Admin/Courses/Index.vue",
+        "app/Http/Middleware/AdminMiddleware.php",
+        "resources/js/Layouts/AdminLayout.vue",
+        "app/Providers/AppServiceProvider.php",
         "routes/web.php"
       ],
       "status": "implemented"
     },
     {
-      "id": "002.us-1a",
-      "module": "002-classroom-admin",
-      "title": "課程完成狀態節流機制",
-      "summary": "防止短時間內重複更新完成狀態，避免 N+1 與 race condition",
-      "heading": "### User Story 1a - 課程完成狀態節流機制 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-1a---課程完成狀態節流機制-priority-p1",
+      "id": "000.us-3",
+      "module": "000-platform-core",
+      "title": "法務條款彈窗",
+      "summary": "Footer 開啟服務條款/購買須知/隱私政策彈窗，靜態內容、ESC 與背景點擊關閉",
+      "heading": "### User Story 3 - 法務條款彈窗 (Priority: P2)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-3---法務條款彈窗-priority-p2",
       "keywords": [
-        "throttle",
-        "completion",
-        "race condition",
-        "節流",
-        "完成狀態"
+        "legal",
+        "條款",
+        "服務條款",
+        "隱私政策",
+        "購買須知",
+        "modal",
+        "彈窗",
+        "terms",
+        "privacy"
       ],
       "code_files": [
-        "app/Http/Controllers/Member/LearningController.php",
-        "app/Models/LessonProgress.php"
+        "resources/js/Components/Legal/LegalPolicyModal.vue",
+        "resources/js/Components/Legal/TermsContent.vue",
+        "resources/js/Components/Legal/PurchaseContent.vue",
+        "resources/js/Components/Legal/PrivacyContent.vue",
+        "resources/js/Components/Layout/Footer.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "000.us-4",
+      "module": "000-platform-core",
+      "title": "SEO、Sitemap 與 Meta Pixel",
+      "summary": "meta/OG/canonical 輸出、sitemap.xml 已發佈課程清單、Meta Pixel 注入與 SPA PageView 追蹤",
+      "heading": "### User Story 4 - SEO、Sitemap 與 Meta Pixel (Priority: P2)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-4---seo、sitemap-與-meta-pixel-priority-p2",
+      "keywords": [
+        "SEO",
+        "sitemap",
+        "og",
+        "open graph",
+        "meta pixel",
+        "fbq",
+        "canonical",
+        "追蹤",
+        "行銷",
+        "PageView",
+        "twitter card"
+      ],
+      "code_files": [
+        "app/Http/Controllers/SitemapController.php",
+        "resources/views/sitemap.blade.php",
+        "resources/views/app.blade.php",
+        "resources/js/app.js"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "000.us-5",
+      "module": "000-platform-core",
+      "title": "site_settings 全站設定機制",
+      "summary": "key-value 全站設定表與後台金流/積分設定入口，機密欄位遮罩、留空不覆蓋",
+      "heading": "### User Story 5 - site_settings 全站設定機制 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-5---site_settings-全站設定機制-priority-p1",
+      "keywords": [
+        "site_settings",
+        "設定",
+        "settings",
+        "key-value",
+        "金流憑證",
+        "payuni",
+        "newebpay",
+        "meta_pixel_id",
+        "積分參數",
+        "遮罩",
+        "mask",
+        "SiteSetting"
+      ],
+      "code_files": [
+        "app/Models/SiteSetting.php",
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "database/migrations/2026_03_25_000001_create_site_settings_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "001.us-1",
+      "module": "001-auth-account",
+      "title": "Email 驗證碼登入/註冊",
+      "summary": "無密碼 OTP 登入：輸入 email 收 6 碼驗證碼，驗證成功即登入；未註冊 email 勾選條款後自動建立帳號",
+      "heading": "### User Story 1 - Email 驗證碼登入/註冊 (Priority: P1)",
+      "file": "specs/001-auth-account/spec.md",
+      "anchor": "user-story-1---email-驗證碼登入註冊-priority-p1",
+      "keywords": [
+        "login",
+        "登入",
+        "OTP",
+        "驗證碼",
+        "verification code",
+        "無密碼",
+        "註冊",
+        "register",
+        "rate limit",
+        "鎖定",
+        "logout",
+        "登出"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Auth/LoginController.php",
+        "app/Http/Requests/Auth/SendVerificationCodeRequest.php",
+        "app/Http/Requests/Auth/VerifyCodeRequest.php",
+        "app/Services/VerificationCodeService.php",
+        "app/Models/VerificationCode.php",
+        "app/Models/User.php",
+        "app/Mail/VerificationCodeMail.php",
+        "resources/views/emails/verification-code.blade.php",
+        "resources/js/Pages/Auth/Login.vue",
+        "resources/js/Components/VerificationCodeInput.vue",
+        "database/migrations/0001_01_01_000000_create_users_table.php",
+        "database/migrations/2026_01_16_000004_create_verification_codes_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "001.us-2",
+      "module": "001-auth-account",
+      "title": "會員帳號設定",
+      "summary": "會員在 /member/settings 修改個人資料（暱稱/姓名/電話/生日），檢視訂單紀錄與積分/作業完成歷程",
+      "heading": "### User Story 2 - 會員帳號設定 (Priority: P2)",
+      "file": "specs/001-auth-account/spec.md",
+      "anchor": "user-story-2---會員帳號設定-priority-p2",
+      "keywords": [
+        "帳號設定",
+        "settings",
+        "profile",
+        "個人資料",
+        "暱稱",
+        "訂單紀錄",
+        "order history",
+        "積分",
+        "作業完成",
+        "member"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/SettingsController.php",
+        "app/Http/Requests/Member/UpdateProfileRequest.php",
+        "app/Models/User.php",
+        "resources/js/Pages/Member/Settings.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "002.us-1",
+      "module": "002-storefront",
+      "title": "首頁課程列表與分類篩選",
+      "summary": "首頁顯示販售中課程卡片，可用內容分類按鈕與產品類型 badge 前端即時篩選",
+      "heading": "### User Story 1 - 首頁課程列表與分類篩選 (Priority: P1)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-1---首頁課程列表與分類篩選-priority-p1",
+      "keywords": [
+        "homepage",
+        "首頁",
+        "課程列表",
+        "course list",
+        "分類篩選",
+        "content_category",
+        "產品類型",
+        "CourseCard",
+        "filter",
+        "grid"
+      ],
+      "code_files": [
+        "app/Http/Controllers/HomeController.php",
+        "resources/js/Pages/Home.vue",
+        "resources/js/Components/CourseCard.vue",
+        "resources/js/Components/SectionHeader.vue"
       ],
       "status": "implemented"
     },
     {
       "id": "002.us-2",
-      "module": "002-classroom-admin",
-      "title": "管理員課程管理",
-      "summary": "管理員可建立、編輯、刪除課程，設定封面與基本資訊",
-      "heading": "### User Story 2 - 管理員課程管理 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-2---管理員課程管理-priority-p1",
+      "module": "002-storefront",
+      "title": "課程銷售頁",
+      "summary": "/course/{slug} 銷售頁：Markdown 介紹、優惠倒數、依產品型態切換 CTA、OG meta、lp 模式",
+      "heading": "### User Story 2 - 課程銷售頁 (Priority: P1)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-2---課程銷售頁-priority-p1",
       "keywords": [
-        "admin",
-        "course",
-        "CRUD",
-        "管理員",
-        "課程管理",
-        "content_category",
-        "內容分類"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Models/Course.php",
-        "resources/js/Pages/Admin/",
-        "resources/js/Components/Admin/CourseForm.vue",
-        "app/Http/Requests/Admin/StoreCourseRequest.php",
-        "app/Http/Requests/Admin/UpdateCourseRequest.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-2a",
-      "module": "002-classroom-admin",
-      "title": "課程販售頁優惠倒數計時",
-      "summary": "課程販售頁可設定限時優惠倒數計時器",
-      "heading": "### User Story 2a - 課程販售頁優惠倒數計時 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-2a---課程販售頁優惠倒數計時-priority-p1",
-      "keywords": [
+        "sales page",
+        "銷售頁",
+        "course show",
+        "slug",
+        "優惠倒數",
         "countdown",
-        "promotion",
-        "timer",
-        "倒數",
-        "優惠"
+        "CTA",
+        "立即購買",
+        "landing page",
+        "lp=1",
+        "OG meta",
+        "marked"
       ],
       "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Models/Course.php",
-        "resources/js/Pages/Course/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-2b",
-      "module": "002-classroom-admin",
-      "title": "優惠倒數計時 UI 優化",
-      "summary": "優化優惠倒數計時的 UI 呈現與行為",
-      "heading": "### User Story 2b - 優惠倒數計時 UI 優化 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-2b---優惠倒數計時-ui-優化-priority-p2",
-      "keywords": [
-        "countdown",
-        "UI",
-        "timer",
-        "倒數",
-        "UI 優化"
-      ],
-      "code_files": [
-        "resources/js/Pages/Course/"
+        "app/Http/Controllers/CourseController.php",
+        "resources/js/Pages/Course/Show.vue",
+        "resources/js/Components/Course/PriceDisplay.vue"
       ],
       "status": "implemented"
     },
     {
       "id": "002.us-3",
-      "module": "002-classroom-admin",
-      "title": "管理員課程章節編輯",
-      "summary": "管理員可建立章節與小節，拖曳排序，設定影片連結",
-      "heading": "### User Story 3 - 管理員課程章節編輯 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-3---管理員課程章節編輯-priority-p1",
+      "module": "002-storefront",
+      "title": "Hero Unit 首頁橫幅設定與呈現",
+      "summary": "後台管理首頁 hero（橫幅圖/標題/說明/CTA 按鈕），前台對應渲染與降級",
+      "heading": "### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-3---hero-unit-首頁橫幅設定與呈現-priority-p1",
       "keywords": [
-        "chapter",
-        "lesson",
-        "admin",
-        "drag",
-        "sort",
-        "章節",
-        "小節",
-        "排序"
+        "hero",
+        "橫幅",
+        "banner",
+        "首頁設定",
+        "homepage settings",
+        "上傳圖片",
+        "upload",
+        "site_settings",
+        "CTA button",
+        "admin"
       ],
       "code_files": [
-        "app/Http/Controllers/Admin/ChapterController.php",
-        "app/Http/Controllers/Admin/LessonController.php",
-        "app/Models/Chapter.php",
-        "app/Models/Lesson.php",
-        "resources/js/Pages/Admin/"
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "resources/js/Pages/Home.vue"
       ],
       "status": "implemented"
     },
     {
       "id": "002.us-4",
-      "module": "002-classroom-admin",
-      "title": "管理員課程介紹頁編輯與同頁插圖",
-      "summary": "管理員可編輯課程介紹內容並在同頁上傳插圖",
-      "heading": "### User Story 4 - 管理員課程介紹頁編輯與同頁插圖 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-4---管理員課程介紹頁編輯與同頁插圖-priority-p2",
-      "keywords": [
-        "course description",
-        "image",
-        "gallery",
-        "課程介紹",
-        "插圖"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/CourseImageController.php",
-        "app/Models/CourseImage.php",
-        "resources/js/Components/Admin/ImageGalleryModal.vue",
-        "resources/js/Pages/Admin/Courses/Gallery.vue",
-        "resources/js/Pages/Admin/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-5",
-      "module": "002-classroom-admin",
-      "title": "管理員後臺權限控管",
-      "summary": "只有 is_admin 的用戶才能進入後台管理頁面",
-      "heading": "### User Story 5 - 管理員後臺權限控管 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-5---管理員後臺權限控管-priority-p2",
-      "keywords": [
-        "admin",
-        "permission",
-        "middleware",
-        "is_admin",
-        "權限"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/DashboardController.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-6",
-      "module": "002-classroom-admin",
-      "title": "法律政策頁面 Modal",
-      "summary": "頁面底部顯示服務條款與隱私政策，以 Modal 呈現",
-      "heading": "### User Story 6 - 法律政策頁面 Modal (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-6---法律政策頁面-modal-priority-p2",
-      "keywords": [
-        "terms",
-        "privacy",
-        "modal",
-        "legal",
-        "服務條款",
-        "隱私政策"
-      ],
-      "code_files": [],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-7",
-      "module": "002-classroom-admin",
-      "title": "課程建立時自動指派擁有權給管理員",
-      "summary": "管理員建立新課程時，系統自動幫管理員建立 Purchase 記錄",
-      "heading": "### User Story 7 - 課程建立時自動指派擁有權給管理員 (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-7---課程建立時自動指派擁有權給管理員-priority-p1",
-      "keywords": [
-        "ownership",
-        "purchase",
-        "admin",
-        "auto-assign",
-        "擁有權"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Models/Purchase.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-8",
-      "module": "002-classroom-admin",
-      "title": "管理員前端預覽所有課程（含草稿）",
-      "summary": "管理員登入後可在前端看到所有課程，包含草稿狀態",
-      "heading": "### User Story 8 - 管理員前端預覽所有課程（含草稿） (Priority: P1)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-8---管理員前端預覽所有課程（含草稿）-priority-p1",
-      "keywords": [
-        "draft",
-        "preview",
-        "admin",
-        "草稿",
-        "預覽"
-      ],
-      "code_files": [
-        "app/Http/Controllers/HomeController.php",
-        "app/Http/Controllers/CourseController.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "002.us-9",
-      "module": "002-classroom-admin",
-      "title": "課程顯示/隱藏設定",
-      "summary": "管理員可控制課程是否在前台顯示",
-      "heading": "### User Story 9 - 課程顯示/隱藏設定 (Priority: P2)",
-      "file": "specs/002-classroom-admin/spec.md",
-      "anchor": "user-story-9---課程顯示隱藏設定-priority-p2",
-      "keywords": [
-        "visibility",
-        "hidden",
-        "publish",
-        "顯示",
-        "隱藏"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Models/Course.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-1",
-      "module": "003-member-management",
-      "title": "View and Search Members",
-      "summary": "管理員可在後台查看所有會員清單並依名稱/Email 搜尋",
-      "heading": "### User Story 1 - View and Search Members (Priority: P1)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-1---view-and-search-members-priority-p1",
-      "keywords": [
-        "member list",
-        "search",
-        "admin",
-        "會員清單",
-        "搜尋"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "app/Models/User.php",
-        "resources/js/Pages/Admin/Member/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-10",
-      "module": "003-member-management",
-      "title": "Import Members from CSV File",
-      "summary": "管理員可在匯入 modal 切換至 CSV 上傳 tab，客戶端解析預覽後批次匯入含姓名、電話的會員資料",
-      "heading": "### User Story 10 - Import Members from CSV File (Priority: P3)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-10---import-members-from-csv-file-priority-p3",
-      "keywords": [
-        "csv upload",
-        "import",
-        "papaparse",
-        "phone validation",
-        "CSV 上傳",
-        "匯入 CSV",
-        "電話驗證"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "resources/js/Components/ImportMembersModal.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-2",
-      "module": "003-member-management",
-      "title": "Edit Member Information",
-      "summary": "管理員可編輯會員的名稱、Email 等基本資料",
-      "heading": "### User Story 2 - Edit Member Information (Priority: P1)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-2---edit-member-information-priority-p1",
-      "keywords": [
-        "edit member",
-        "profile",
-        "name",
-        "email",
-        "編輯會員"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "app/Models/User.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-3",
-      "module": "003-member-management",
-      "title": "View Member Course Ownership and Progress",
-      "summary": "管理員可查看每位會員持有哪些課程及學習進度百分比",
-      "heading": "### User Story 3 - View Member Course Ownership and Progress (Priority: P2)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-3---view-member-course-ownership-and-progress-priority-p2",
-      "keywords": [
-        "course ownership",
-        "progress",
-        "purchase",
-        "課程持有",
-        "進度"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "app/Models/Purchase.php",
-        "app/Models/LessonProgress.php",
-        "app/Models/AssignmentCompletion.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-4",
-      "module": "003-member-management",
-      "title": "Filter Members by Course Ownership",
-      "summary": "管理員可依持有特定課程來篩選顯示的會員",
-      "heading": "### User Story 4 - Filter Members by Course Ownership (Priority: P2)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-4---filter-members-by-course-ownership-priority-p2",
-      "keywords": [
-        "filter",
-        "course",
-        "member",
-        "篩選",
-        "課程篩選"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-5",
-      "module": "003-member-management",
-      "title": "Select Members for Batch Operations",
-      "summary": "管理員可勾選多位會員，進行批次 Email 或贈課操作",
-      "heading": "### User Story 5 - Select Members for Batch Operations (Priority: P2)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-5---select-members-for-batch-operations-priority-p2",
-      "keywords": [
-        "batch",
-        "select",
-        "checkbox",
-        "批次",
-        "勾選"
-      ],
-      "code_files": [
-        "resources/js/Pages/Admin/Member/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-6",
-      "module": "003-member-management",
-      "title": "Send Batch Email to Selected Members",
-      "summary": "管理員可對選取的會員群發 Email，支援 Markdown 內容",
-      "heading": "### User Story 6 - Send Batch Email to Selected Members (Priority: P3)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-6---send-batch-email-to-selected-members-priority-p3",
-      "keywords": [
-        "batch email",
-        "send",
-        "resend",
-        "markdown",
-        "批次 Email"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-7",
-      "module": "003-member-management",
-      "title": "Gift Course to Selected Members",
-      "summary": "管理員可將指定課程免費贈送給選取的會員",
-      "heading": "### User Story 7 - Gift Course to Selected Members (Priority: P3)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-7---gift-course-to-selected-members-priority-p3",
-      "keywords": [
-        "gift",
-        "course",
-        "free",
-        "purchase",
-        "贈課",
-        "贈送"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "app/Models/Purchase.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "003.us-8",
-      "module": "003-member-management",
-      "title": "Export Member Data as CSV",
-      "summary": "",
-      "heading": "### User Story 8 - Export Member Data as CSV (Priority: P3)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-8---export-member-data-as-csv-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "003.us-9",
-      "module": "003-member-management",
-      "title": "Import Members from Email List",
-      "summary": "管理員可貼上 Email 名單批次建立會員帳號，modal 顯示新增/略過/無效統計及無效清單",
-      "heading": "### User Story 9 - Import Members from Email List (Priority: P3)",
-      "file": "specs/003-member-management/spec.md",
-      "anchor": "user-story-9---import-members-from-email-list-priority-p3",
-      "keywords": [
-        "import",
-        "email list",
-        "bulk create",
-        "匯入",
-        "批次建立",
-        "會員匯入"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "resources/js/Components/ImportMembersModal.vue",
-        "resources/js/Pages/Admin/Members/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "004.us-1",
-      "module": "004-homepage-enhancement",
-      "title": "View Recent Blog Articles",
-      "summary": "首頁從 RSS feed 拉取近期 Blog 文章並顯示卡片清單",
-      "heading": "### User Story 1 - View Recent Blog Articles (Priority: P1)",
-      "file": "specs/004-homepage-enhancement/spec.md",
-      "anchor": "user-story-1---view-recent-blog-articles-priority-p1",
-      "keywords": [
-        "blog",
-        "RSS",
-        "articles",
-        "homepage",
-        "首頁",
-        "文章"
-      ],
-      "code_files": [
-        "app/Http/Controllers/HomeController.php",
-        "resources/js/Pages/Home.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "004.us-2",
-      "module": "004-homepage-enhancement",
-      "title": "Access Social Media Links",
-      "summary": "首頁顯示社群媒體連結區塊（Instagram、YouTube 等）",
-      "heading": "### User Story 2 - Access Social Media Links (Priority: P1)",
-      "file": "specs/004-homepage-enhancement/spec.md",
-      "anchor": "user-story-2---access-social-media-links-priority-p1",
-      "keywords": [
-        "social",
-        "instagram",
-        "youtube",
-        "links",
-        "社群",
-        "連結"
-      ],
-      "code_files": [
-        "resources/js/Pages/Home.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "004.us-3",
-      "module": "004-homepage-enhancement",
-      "title": "Responsive Design",
-      "summary": "Blog 文章與社群連結區塊在手機/桌機皆正確響應",
-      "heading": "### User Story 3 - Responsive Design (Priority: P2)",
-      "file": "specs/004-homepage-enhancement/spec.md",
-      "anchor": "user-story-3---responsive-design-priority-p2",
-      "keywords": [
-        "RWD",
-        "responsive",
-        "mobile",
-        "響應式"
-      ],
-      "code_files": [
-        "resources/js/Pages/Home.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-1",
-      "module": "005-drip-email",
-      "title": "訪客免費訂閱連鎖課程",
-      "summary": "未登入訪客可輸入 Email 免費訂閱 drip 課程並啟動 email 序列",
-      "heading": "### User Story 1 - 訪客免費訂閱連鎖課程 (Priority: P1)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-1---訪客免費訂閱連鎖課程-priority-p1",
-      "keywords": [
-        "subscribe",
-        "drip",
-        "free",
-        "guest",
-        "訂閱",
-        "訪客",
-        "連鎖課程"
-      ],
-      "code_files": [
-        "app/Http/Controllers/DripSubscriptionController.php",
-        "app/Models/DripSubscription.php",
-        "resources/js/Pages/Drip/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-1.5",
-      "module": "005-drip-email",
-      "title": "已登入會員一鍵訂閱",
-      "summary": "已登入會員可一鍵訂閱 drip 課程，免填 Email",
-      "heading": "### User Story 1.5 - 已登入會員一鍵訂閱 (Priority: P1)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-1.5---已登入會員一鍵訂閱-priority-p1",
-      "keywords": [
-        "subscribe",
-        "logged in",
-        "one-click",
-        "一鍵訂閱",
-        "已登入"
-      ],
-      "code_files": [
-        "app/Http/Controllers/DripSubscriptionController.php",
-        "app/Models/DripSubscription.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-10",
-      "module": "005-drip-email",
-      "title": "Drip 課程影片免費觀看期限提醒",
-      "summary": "訂閱者在期限到期前收到提醒，促使升級付費",
-      "heading": "### User Story 10 - Drip 課程影片免費觀看期限提醒 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-10---drip-課程影片免費觀看期限提醒-priority-p2",
-      "keywords": [
-        "expiry",
-        "reminder",
-        "free period",
-        "期限提醒",
-        "到期"
-      ],
-      "code_files": [
-        "app/Models/DripSubscription.php"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "005.us-11",
-      "module": "005-drip-email",
-      "title": "準時到課獎勵區塊",
-      "summary": "學員準時觀看課程時，教室顯示獎勵訊息或優惠",
-      "heading": "### User Story 11 - 準時到課獎勵區塊 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-11---準時到課獎勵區塊-priority-p2",
-      "keywords": [
-        "reward",
-        "on-time",
-        "bonus",
-        "準時",
-        "獎勵"
-      ],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "005.us-12",
-      "module": "005-drip-email",
-      "title": "管理員查看 Lesson 開信率/點擊率/轉換率",
-      "summary": "管理員可查看每個 Lesson email 的開信、點擊、轉換統計",
-      "heading": "### User Story 12 - 管理員查看 Lesson 開信率/點擊率/轉換率 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-12---管理員查看-lesson-開信率點擊率轉換率-priority-p2",
-      "keywords": [
-        "open rate",
-        "click rate",
-        "conversion",
-        "開信率",
-        "點擊率",
-        "轉換率"
-      ],
-      "code_files": [
-        "app/Models/DripEmailEvent.php"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "005.us-13",
-      "module": "005-drip-email",
-      "title": "管理員查看訂閱者開信進度與促銷點擊狀態",
-      "summary": "管理員可查看每位訂閱者的開信進度與促銷點擊狀態",
-      "heading": "### User Story 13 - 管理員查看訂閱者開信進度與促銷點擊狀態 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-13---管理員查看訂閱者開信進度與促銷點擊狀態-priority-p2",
-      "keywords": [
-        "subscriber progress",
-        "email open",
-        "click status",
-        "訂閱者進度",
-        "開信"
-      ],
-      "code_files": [
-        "app/Models/DripEmailEvent.php",
-        "app/Models/DripSubscription.php"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "005.us-14",
-      "module": "005-drip-email",
-      "title": "管理員設定 Lesson 促銷連結（教室追蹤）",
-      "summary": "管理員可設定 Lesson 促銷連結，帶有追蹤參數以記錄點擊轉換",
-      "heading": "### User Story 14 - 管理員設定 Lesson 促銷連結（教室追蹤）(Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-14---管理員設定-lesson-促銷連結（教室追蹤）priority-p2",
-      "keywords": [
-        "tracking",
-        "promotion link",
-        "conversion",
-        "追蹤連結",
-        "促銷連結"
-      ],
-      "code_files": [
-        "app/Http/Controllers/DripTrackingController.php",
-        "app/Models/Lesson.php"
-      ],
-      "status": "planned"
-    },
-    {
-      "id": "005.us-15",
-      "module": "005-drip-email",
-      "title": "Drip 課程訂閱者在教室只看到有影片的已解鎖課程",
-      "summary": "Drip 訂閱者在教室側邊欄只看到有 Vimeo 影片且已解鎖的小節",
-      "heading": "### User Story 15 - Drip 課程訂閱者在教室只看到有影片的已解鎖課程 (Priority: P1)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-15---drip-課程訂閱者在教室只看到有影片的已解鎖課程-priority-p1",
-      "keywords": [
-        "drip classroom",
-        "unlocked",
-        "video only",
-        "已解鎖",
-        "有影片"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Member/ClassroomController.php",
-        "app/Models/DripSubscription.php",
-        "app/Models/Lesson.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-2",
-      "module": "005-drip-email",
-      "title": "付費購買連鎖課程",
-      "summary": "使用者可付費購買 drip 課程，等同完整訂閱",
-      "heading": "### User Story 2 - 付費購買連鎖課程 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-2---付費購買連鎖課程-priority-p2",
-      "keywords": [
-        "paid",
-        "purchase",
-        "drip",
-        "付費",
-        "購買"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Webhook/PortalyController.php",
-        "app/Models/DripSubscription.php",
-        "app/Models/Purchase.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-3",
-      "module": "005-drip-email",
-      "title": "管理員設定連鎖課程",
-      "summary": "管理員可建立 drip 課程，設定 email 序列內容與延遲天數",
-      "heading": "### User Story 3 - 管理員設定連鎖課程 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-3---管理員設定連鎖課程-priority-p2",
-      "keywords": [
-        "admin",
-        "drip config",
-        "email sequence",
-        "管理員",
-        "連鎖課程設定"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Http/Controllers/Admin/LessonController.php",
-        "app/Models/Course.php",
-        "app/Models/Lesson.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-4",
-      "module": "005-drip-email",
-      "title": "購買目標課程後自動轉換",
-      "summary": "訂閱者購買 drip 課程的目標付費課程後，系統自動轉換其訂閱狀態",
-      "heading": "### User Story 4 - 購買目標課程後自動轉換 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-4---購買目標課程後自動轉換-priority-p2",
-      "keywords": [
-        "conversion",
-        "target course",
-        "purchase",
-        "轉換",
-        "目標課程"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Webhook/PortalyController.php",
-        "app/Models/DripConversionTarget.php",
-        "app/Models/DripSubscription.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-5",
-      "module": "005-drip-email",
-      "title": "使用者退訂連鎖課程",
-      "summary": "訂閱者可透過 email 中的連結退訂，停止後續 email",
-      "heading": "### User Story 5 - 使用者退訂連鎖課程 (Priority: P3)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-5---使用者退訂連鎖課程-priority-p3",
-      "keywords": [
-        "unsubscribe",
-        "cancel",
-        "opt-out",
-        "退訂",
-        "取消訂閱"
-      ],
-      "code_files": [
-        "app/Http/Controllers/DripSubscriptionController.php",
-        "app/Models/DripSubscription.php",
-        "resources/views/emails/drip-lesson.blade.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-6",
-      "module": "005-drip-email",
-      "title": "在教室中觀看連鎖課程",
-      "summary": "訂閱者可在教室觀看 drip 課程中已解鎖的影片小節",
-      "heading": "### User Story 6 - 在教室中觀看連鎖課程 (Priority: P1)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-6---在教室中觀看連鎖課程-priority-p1",
-      "keywords": [
-        "classroom",
-        "drip",
-        "video",
-        "unlock",
-        "教室",
-        "觀看"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Member/ClassroomController.php",
-        "app/Models/DripSubscription.php",
-        "resources/js/Pages/Drip/"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "005.us-7",
-      "module": "005-drip-email",
-      "title": "管理員查看訂閱者清單",
-      "summary": "管理員可在後台查看 drip 課程的所有訂閱者與狀態",
-      "heading": "### User Story 7 - 管理員查看訂閱者清單 (Priority: P3)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-7---管理員查看訂閱者清單-priority-p3",
-      "keywords": [
-        "subscriber list",
-        "admin",
-        "drip",
-        "訂閱者清單",
-        "管理員"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/MemberController.php",
-        "app/Models/DripSubscription.php"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "005.us-8",
-      "module": "005-drip-email",
-      "title": "Lesson 延遲顯示促銷區塊",
-      "summary": "Lesson email 中的促銷區塊依設定天數延遲後才顯示",
-      "heading": "### User Story 8 - Lesson 延遲顯示促銷區塊 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-8---lesson-延遲顯示促銷區塊-priority-p2",
-      "keywords": [
-        "promotion block",
-        "delay",
-        "lesson",
-        "促銷區塊",
-        "延遲"
-      ],
-      "code_files": [
-        "app/Models/Lesson.php"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "005.us-9",
-      "module": "005-drip-email",
-      "title": "管理員設定 Lesson 促銷區塊",
-      "summary": "管理員可在 Lesson 設定促銷文案、連結與顯示延遲天數",
-      "heading": "### User Story 9 - 管理員設定 Lesson 促銷區塊 (Priority: P2)",
-      "file": "specs/005-drip-email/spec.md",
-      "anchor": "user-story-9---管理員設定-lesson-促銷區塊-priority-p2",
-      "keywords": [
-        "admin",
-        "promotion",
-        "lesson",
-        "設定促銷",
-        "管理員"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/LessonController.php",
-        "app/Models/Lesson.php"
-      ],
-      "status": "partial"
-    },
-    {
-      "id": "006.us-1",
-      "module": "006-transactions-management",
-      "title": "檢視所有交易紀錄列表",
-      "summary": "",
-      "heading": "### User Story 1 - 檢視所有交易紀錄列表 (Priority: P1)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-1---檢視所有交易紀錄列表-priority-p1",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/TransactionController.php",
-        "resources/js/Pages/Admin/Transactions/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "006.us-2",
-      "module": "006-transactions-management",
-      "title": "檢視單筆交易詳情",
-      "summary": "",
-      "heading": "### User Story 2 - 檢視單筆交易詳情 (Priority: P2)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-2---檢視單筆交易詳情-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/TransactionController.php",
-        "resources/js/Pages/Admin/Transactions/Show.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "006.us-3",
-      "module": "006-transactions-management",
-      "title": "手動新增交易（系統指派 / 贈送）",
-      "summary": "",
-      "heading": "### User Story 3 - 手動新增交易（系統指派 / 贈送） (Priority: P3)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-3---手動新增交易（系統指派--贈送）-priority-p3",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/TransactionController.php",
-        "app/Http/Requests/Admin/StoreTransactionRequest.php",
-        "app/Services/TransactionService.php",
-        "resources/js/Pages/Admin/Transactions/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "006.us-4",
-      "module": "006-transactions-management",
-      "title": "將交易標記為退款",
-      "summary": "",
-      "heading": "### User Story 4 - 將交易標記為退款 (Priority: P4)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-4---將交易標記為退款-priority-p4",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/TransactionController.php",
-        "app/Services/TransactionService.php",
-        "resources/js/Pages/Admin/Transactions/Show.vue",
-        "resources/js/Components/Admin/TransactionRefundModal.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "006.us-5",
-      "module": "006-transactions-management",
-      "title": "勾選交易紀錄並批次匯出 CSV",
-      "summary": "",
-      "heading": "### User Story 5 - 勾選交易紀錄並批次匯出 CSV (Priority: P2)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-5---勾選交易紀錄並批次匯出-csv-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/TransactionController.php",
-        "resources/js/Pages/Admin/Transactions/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "006.us-6",
-      "module": "006-transactions-management",
-      "title": "檢視營收圖表與區間統計",
-      "summary": "",
-      "heading": "### User Story 6 - 檢視營收圖表與區間統計 (Priority: P2)",
-      "file": "specs/006-transactions-management/spec.md",
-      "anchor": "user-story-6---檢視營收圖表與區間統計-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "007.us-1",
-      "module": "007-homepage-admin-settings",
-      "title": "Edit Hero Unit via Admin",
-      "summary": "",
-      "heading": "### User Story 1 - Edit Hero Unit via Admin (Priority: P1)",
-      "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-1---edit-hero-unit-via-admin-priority-p1",
-      "keywords": [
-        "hero",
-        "banner",
-        "upload",
-        "HomepageSettingController",
-        "SiteSetting"
-      ],
-      "code_files": [
-        "app/Http/Controllers/Admin/HomepageSettingController.php",
-        "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
-        "app/Models/SiteSetting.php",
-        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
-        "resources/js/Layouts/AdminLayout.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "007.us-2",
-      "module": "007-homepage-admin-settings",
-      "title": "Manage Social (SNS) Links via Admin",
-      "summary": "",
-      "heading": "### User Story 2 - Manage Social (SNS) Links via Admin (Priority: P1)",
-      "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-2---manage-social-sns-links-via-admin-priority-p1",
+      "module": "002-storefront",
+      "title": "社群連結管理與顯示",
+      "summary": "後台 CRUD 六平台 SNS 連結＋全域顯示開關，首頁側欄 icon 按鈕呈現",
+      "heading": "### User Story 4 - 社群連結管理與顯示 (Priority: P1)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-4---社群連結管理與顯示-priority-p1",
       "keywords": [
         "SNS",
         "social links",
-        "SocialLink",
-        "SocialLinkController"
+        "社群連結",
+        "Instagram",
+        "Threads",
+        "YouTube",
+        "Facebook",
+        "Substack",
+        "Podcast",
+        "sns_section_enabled",
+        "側欄"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/SocialLinkController.php",
@@ -1292,481 +328,1063 @@
       "status": "implemented"
     },
     {
-      "id": "007.us-3",
-      "module": "007-homepage-admin-settings",
-      "title": "Configure Blog RSS URL via Admin",
-      "summary": "",
-      "heading": "### User Story 3 - Configure Blog RSS URL via Admin (Priority: P2)",
-      "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-3---configure-blog-rss-url-via-admin-priority-p2",
+      "id": "002.us-5",
+      "module": "002-storefront",
+      "title": "部落格 RSS 近期文章",
+      "summary": "後台設定 RSS URL，首頁側欄顯示最新 5 篇文章，快取 1 小時、失敗降級隱藏",
+      "heading": "### User Story 5 - 部落格 RSS 近期文章 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-5---部落格-rss-近期文章-priority-p2",
       "keywords": [
         "RSS",
         "blog",
-        "BlogRssService",
-        "blogArticles"
+        "部落格",
+        "近期文章",
+        "Substack",
+        "feed",
+        "cache",
+        "快取",
+        "BlogRssService"
       ],
       "code_files": [
         "app/Services/BlogRssService.php",
-        "app/Http/Controllers/HomeController.php",
         "resources/js/Components/BlogArticles.vue",
-        "resources/js/Pages/Home.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "007.us-4",
-      "module": "007-homepage-admin-settings",
-      "title": "View Homepage with New Hero Design",
-      "summary": "",
-      "heading": "### User Story 4 - View Homepage with New Hero Design (Priority: P2)",
-      "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-4---view-homepage-with-new-hero-design-priority-p2",
-      "keywords": [
-        "hero",
-        "homepage",
-        "Home.vue",
-        "banner",
-        "EXPLORE"
-      ],
-      "code_files": [
-        "resources/js/Pages/Home.vue",
-        "resources/js/Components/SocialLinks.vue",
-        "resources/js/Components/BlogArticles.vue",
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
         "app/Http/Controllers/HomeController.php"
       ],
       "status": "implemented"
     },
     {
-      "id": "007.us-5",
-      "module": "007-homepage-admin-settings",
-      "title": "Feature Courses in the Right Sidebar & Order Sidebar Widgets",
-      "summary": "後台將指定課程加入首頁右欄（縮圖＋自訂介紹＋銷售頁按鈕），並可拖曳排序精選課程與右欄各 widget 順序",
-      "heading": "### User Story 5 - Feature Courses in the Right Sidebar & Order Sidebar Widgets (Priority: P2)",
-      "file": "specs/007-homepage-admin-settings/spec.md",
-      "anchor": "user-story-5---feature-courses-in-the-right-sidebar-&-order-sidebar-widgets-priority-p2",
+      "id": "002.us-6",
+      "module": "002-storefront",
+      "title": "精選課程與側欄排序",
+      "summary": "後台釘選精選課程到首頁右側欄（縮圖+blurb+按鈕）並拖曳排序項目與側欄 widget",
+      "heading": "### User Story 6 - 精選課程與側欄排序 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-6---精選課程與側欄排序-priority-p2",
       "keywords": [
         "featured courses",
         "精選課程",
+        "精選推薦",
+        "側欄",
         "sidebar",
         "widget order",
-        "側欄排序",
+        "拖曳排序",
+        "drag",
         "blurb",
-        "FeaturedCourses.vue",
-        "reorder"
+        "homepage_featured_courses",
+        "sidebar_widget_order"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php",
-        "app/Http/Controllers/Admin/HomepageSettingController.php",
-        "app/Http/Controllers/HomeController.php",
-        "app/Models/HomepageFeaturedCourse.php",
         "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php",
         "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php",
+        "app/Models/HomepageFeaturedCourse.php",
+        "database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php",
         "resources/js/Components/FeaturedCourses.vue",
-        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
-        "resources/js/Pages/Home.vue"
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue"
       ],
       "status": "implemented"
     },
     {
-      "id": "008.us-1",
-      "module": "008-high-ticket-booking",
-      "title": "管理員設定客製服務課程類別",
-      "summary": "",
-      "heading": "### User Story 1 - 管理員設定客製服務課程類別 (Priority: P1)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-1---管理員設定客製服務課程類別-priority-p1",
-      "keywords": [],
+      "id": "002.us-7",
+      "module": "002-storefront",
+      "title": "內容分類後台管理",
+      "summary": "後台編輯最多 3 組內容分類（label+slug）與顯示開關；slug 改名 cascade 課程",
+      "heading": "### User Story 7 - 內容分類後台管理 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-7---內容分類後台管理-priority-p2",
+      "keywords": [
+        "內容分類",
+        "content categories",
+        "content_category",
+        "slug",
+        "分類按鈕",
+        "content_filter_enabled",
+        "思維升級",
+        "財務覺醒",
+        "知識變現",
+        "cascade rename"
+      ],
       "code_files": [
-        "app/Http/Controllers/Admin/CourseController.php",
-        "app/Http/Requests/Admin/StoreCourseRequest.php",
-        "app/Http/Requests/Admin/UpdateCourseRequest.php",
-        "app/Models/Course.php",
-        "resources/js/Components/Admin/CourseForm.vue"
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "app/Models/Course.php"
       ],
       "status": "implemented"
     },
     {
-      "id": "008.us-2",
-      "module": "008-high-ticket-booking",
-      "title": "客製服務銷售頁前台展示",
-      "summary": "",
-      "heading": "### User Story 2 - 客製服務銷售頁前台展示 (Priority: P1)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-2---客製服務銷售頁前台展示-priority-p1",
-      "keywords": [],
+      "id": "002.us-8",
+      "module": "002-storefront",
+      "title": "課程連結來源追蹤",
+      "summary": "銷售頁捕捉 UTM/click id/referrer 存 session，付款後隨訂單落庫，後台 Traffic 頁統計與 CSV 匯出",
+      "heading": "### User Story 8 - 課程連結來源追蹤 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-8---課程連結來源追蹤-priority-p2",
+      "keywords": [
+        "UTM",
+        "traffic source",
+        "來源追蹤",
+        "行銷追蹤",
+        "utm_source",
+        "gclid",
+        "fbclid",
+        "referrer",
+        "來源統計",
+        "CSV export",
+        "行銷管道",
+        "attribution"
+      ],
       "code_files": [
         "app/Http/Controllers/CourseController.php",
-        "resources/js/Pages/Course/Show.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "008.us-3",
-      "module": "008-high-ticket-booking",
-      "title": "訪客點擊預約後收到 Email",
-      "summary": "",
-      "heading": "### User Story 3 - 訪客點擊預約後收到 Email (Priority: P2)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-3---訪客點擊預約後收到-email-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/HighTicketBookingController.php",
-        "app/Services/HighTicketBookingService.php",
-        "app/Mail/HighTicketBookingMail.php",
-        "resources/views/emails/high-ticket-booking.blade.php",
-        "resources/js/Pages/Course/Show.vue",
-        "routes/web.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "008.us-4",
-      "module": "008-high-ticket-booking",
-      "title": "管理員在後台統一管理 Email 模板",
-      "summary": "",
-      "heading": "### User Story 4 - 管理員在後台統一管理 Email 模板 (Priority: P2)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-4---管理員在後台統一管理-email-模板-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/EmailTemplateController.php",
-        "app/Http/Requests/Admin/EmailTemplateRequest.php",
-        "app/Models/EmailTemplate.php",
-        "database/seeders/EmailTemplateSeeder.php",
-        "resources/js/Pages/Admin/EmailTemplates/Index.vue",
-        "resources/js/Pages/Admin/EmailTemplates/Edit.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "008.us-5",
-      "module": "008-high-ticket-booking",
-      "title": "預約時系統儲存 Lead 記錄",
-      "summary": "",
-      "heading": "### User Story 5 - 預約時系統儲存 Lead 記錄 (Priority: P2)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-5---預約時系統儲存-lead-記錄-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Models/HighTicketLead.php",
-        "app/Services/HighTicketBookingService.php",
-        "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "008.us-6",
-      "module": "008-high-ticket-booking",
-      "title": "管理員管理 Leads 名單與加入序列信",
-      "summary": "",
-      "heading": "### User Story 6 - 管理員管理 Leads 名單與加入序列信 (Priority: P3)",
-      "file": "specs/008-high-ticket-booking/spec.md",
-      "anchor": "user-story-6---管理員管理-leads-名單與加入序列信-priority-p3",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/HighTicketLeadController.php",
-        "app/Services/HighTicketLeadService.php",
-        "app/Jobs/NotifyHighTicketSlotJob.php",
-        "app/Jobs/SubscribeDripLeadJob.php",
-        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
-        "routes/web.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-1",
-      "module": "010-lesson-homework",
-      "title": "學員提交作業",
-      "summary": "",
-      "heading": "### User Story 1 - 學員提交作業 (Priority: P1)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-1---學員提交作業-priority-p1",
-      "keywords": [],
-      "code_files": [
-        "resources/js/Components/Classroom/AssignmentSection.vue",
-        "app/Http/Controllers/Member/AssignmentCommentController.php",
-        "app/Http/Requests/Member/StoreCommentRequest.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-2",
-      "module": "010-lesson-homework",
-      "title": "學員管理自己的提交記錄",
-      "summary": "",
-      "heading": "### User Story 2 - 學員管理自己的提交記錄 (Priority: P2)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-2---學員管理自己的提交記錄-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "resources/js/Components/Classroom/AssignmentSection.vue",
-        "app/Http/Controllers/Member/AssignmentCommentController.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-3",
-      "module": "010-lesson-homework",
-      "title": "管理員建立與管理作業題目",
-      "summary": "",
-      "heading": "### User Story 3 - 管理員建立與管理作業題目 (Priority: P1)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-3---管理員建立與管理作業題目-priority-p1",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/HomeworkController.php",
-        "resources/js/Pages/Admin/Homework/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-4",
-      "module": "010-lesson-homework",
-      "title": "管理員批改學員作業",
-      "summary": "",
-      "heading": "### User Story 4 - 管理員批改學員作業 (Priority: P1)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-4---管理員批改學員作業-priority-p1",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/HomeworkController.php",
-        "resources/js/Pages/Admin/Homework/Index.vue",
-        "app/Services/AssignmentService.php"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-5",
-      "module": "010-lesson-homework",
-      "title": "管理員管理所有留言",
-      "summary": "",
-      "heading": "### User Story 5 - 管理員管理所有留言 (Priority: P2)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-5---管理員管理所有留言-priority-p2",
-      "keywords": [],
-      "code_files": [
-        "app/Http/Controllers/Admin/HomeworkController.php",
-        "resources/js/Pages/Admin/Homework/Index.vue"
-      ],
-      "status": "implemented"
-    },
-    {
-      "id": "010.us-6",
-      "module": "010-lesson-homework",
-      "title": "學員收到作業批改通知",
-      "summary": "",
-      "heading": "### User Story 6 - 學員收到作業批改通知 (Priority: P2)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-6---學員收到作業批改通知-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "010.us-7",
-      "module": "010-lesson-homework",
-      "title": "管理員標記學員作業「已完成」並發放積分",
-      "summary": "",
-      "heading": "### User Story 7 - 管理員標記學員作業「已完成」並發放積分 (Priority: P2)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-7---管理員標記學員作業「已完成」並發放積分-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "010.us-8",
-      "module": "010-lesson-homework",
-      "title": "學員查看積分與作業完成勳章",
-      "summary": "",
-      "heading": "### User Story 8 - 學員查看積分與作業完成勳章 (Priority: P2)",
-      "file": "specs/010-lesson-homework/spec.md",
-      "anchor": "user-story-8---學員查看積分與作業完成勳章-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-1",
-      "module": "011-discount-coupon",
-      "title": "購物車套用折扣碼",
-      "summary": "",
-      "heading": "### User Story 1 - 購物車套用折扣碼 (Priority: P1)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-1---購物車套用折扣碼-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-2",
-      "module": "011-discount-coupon",
-      "title": "後台管理員建立與管理折扣碼",
-      "summary": "",
-      "heading": "### User Story 2 - 後台管理員建立與管理折扣碼 (Priority: P1)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-2---後台管理員建立與管理折扣碼-priority-p1",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-3",
-      "module": "011-discount-coupon",
-      "title": "結帳時折扣生效並記錄",
-      "summary": "",
-      "heading": "### User Story 3 - 結帳時折扣生效並記錄 (Priority: P2)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-3---結帳時折扣生效並記錄-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-4",
-      "module": "011-discount-coupon",
-      "title": "後台查看折扣碼統計",
-      "summary": "",
-      "heading": "### User Story 4 - 後台查看折扣碼統計 (Priority: P2)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-4---後台查看折扣碼統計-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-5",
-      "module": "011-discount-coupon",
-      "title": "分享連結自動帶入折扣碼",
-      "summary": "",
-      "heading": "### User Story 5 - 分享連結自動帶入折扣碼 (Priority: P3)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-5---分享連結自動帶入折扣碼-priority-p3",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "011.us-6",
-      "module": "011-discount-coupon",
-      "title": "輪換折扣碼（CouponChain）管理與自動補碼",
-      "summary": "",
-      "heading": "### User Story 6 - 輪換折扣碼（CouponChain）管理與自動補碼 (Priority: P2)",
-      "file": "specs/011-discount-coupon/spec.md",
-      "anchor": "user-story-6---輪換折扣碼（couponchain）管理與自動補碼-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
-    },
-    {
-      "id": "012.us-1",
-      "module": "012-points-system",
-      "title": "用積分兌換課程",
-      "summary": "",
-      "heading": "### User Story 1 - 用積分兌換課程 (Priority: P1)",
-      "file": "specs/012-points-system/spec.md",
-      "anchor": "user-story-1---用積分兌換課程-priority-p1",
-      "keywords": [
-        "兌換",
-        "redeem",
-        "積分兌換",
-        "RedemptionService",
-        "兩段式確認"
-      ],
-      "code_files": [
-        "app/Services/RedemptionService.php",
-        "app/Services/PointService.php",
-        "app/Http/Controllers/RedemptionController.php",
         "app/Http/Controllers/Admin/CourseController.php",
-        "app/Http/Requests/RedeemCourseRequest.php",
-        "resources/js/Components/Course/RedeemButton.vue",
-        "resources/js/Components/Admin/CourseForm.vue",
-        "resources/js/Pages/Course/Show.vue"
+        "resources/js/Pages/Admin/Courses/Traffic.vue",
+        "app/Http/Controllers/CheckoutController.php"
       ],
       "status": "implemented"
     },
     {
-      "id": "012.us-2",
-      "module": "012-points-system",
-      "title": "用推薦碼結帳讓推薦人獲得回饋",
-      "summary": "",
-      "heading": "### User Story 2 - 用推薦碼結帳讓推薦人獲得回饋 (Priority: P1)",
-      "file": "specs/012-points-system/spec.md",
-      "anchor": "user-story-2---用推薦碼結帳讓推薦人獲得回饋-priority-p1",
+      "id": "003.us-1",
+      "module": "003-classroom",
+      "title": "我的課程頁面",
+      "summary": "會員在 /member/learning 查看已購課程卡片（縮圖、教師、完成百分比進度條），點擊進入教室",
+      "heading": "### User Story 1 - 我的課程頁面 (Priority: P1)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-1---我的課程頁面-priority-p1",
       "keywords": [
-        "推薦碼",
-        "referral",
-        "回饋",
-        "ReferralService",
-        "validate-referral"
+        "我的課程",
+        "my courses",
+        "learning",
+        "已購課程",
+        "進度條",
+        "progress percent",
+        "MyCourseCard",
+        "課程列表"
       ],
       "code_files": [
-        "app/Services/ReferralService.php",
-        "app/Services/PointService.php",
-        "app/Services/CheckoutService.php",
-        "app/Http/Controllers/ReferralController.php",
+        "app/Http/Controllers/Member/LearningController.php",
+        "resources/js/Pages/Member/Learning.vue",
+        "resources/js/Components/MyCourseCard.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-2",
+      "module": "003-classroom",
+      "title": "教室上課與影片播放",
+      "summary": "左欄章節側欄（初始只展開目前進度章節）+ 右欄 Vimeo/YouTube 影片或 Markdown 內文，影片播完自動跳下一小節",
+      "heading": "### User Story 2 - 教室上課與影片播放 (Priority: P1)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-2---教室上課與影片播放-priority-p1",
+      "keywords": [
+        "教室",
+        "classroom",
+        "上課頁面",
+        "影片播放",
+        "Vimeo",
+        "YouTube",
+        "章節側欄",
+        "sidebar",
+        "自動跳下一小節",
+        "auto next lesson",
+        "CC 字幕",
+        "側欄自動展開"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "app/Services/VideoEmbedService.php",
+        "resources/js/Pages/Member/Classroom.vue",
+        "resources/js/Pages/Member/ClassroomUnauthorized.vue",
+        "resources/js/Components/Classroom/ChapterSidebar.vue",
+        "resources/js/Components/Classroom/LessonItem.vue",
+        "resources/js/Components/Classroom/VideoPlayer.vue",
+        "resources/js/Components/Classroom/HtmlContent.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-3",
+      "module": "003-classroom",
+      "title": "學習進度紀錄與節流",
+      "summary": "樂觀綠勾 + 停留達影片時長 75%（無時長 fallback 2 分鐘）才寫入完成紀錄；手動標記/取消/播完立即寫入",
+      "heading": "### User Story 3 - 學習進度紀錄與節流 (Priority: P1)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-3---學習進度紀錄與節流-priority-p1",
+      "keywords": [
+        "學習進度",
+        "lesson progress",
+        "完成紀錄",
+        "節流",
+        "throttle",
+        "綠色勾勾",
+        "樂觀更新",
+        "optimistic",
+        "75%",
+        "completion threshold",
+        "標記完成"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "app/Models/LessonProgress.php",
+        "database/migrations/2026_01_17_000004_create_lesson_progress_table.php",
+        "resources/js/Pages/Member/Classroom.vue",
+        "resources/js/Components/Classroom/LessonItem.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-4",
+      "module": "003-classroom",
+      "title": "免費試閱教室",
+      "summary": "訪客免登入進入 /course/{id}/preview，只能看 is_preview 小節，其餘鎖頭，不記進度，drip 課程 404",
+      "heading": "### User Story 4 - 免費試閱教室 (Priority: P2)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-4---免費試閱教室-priority-p2",
+      "keywords": [
+        "免費試閱",
+        "free preview",
+        "試閱教室",
+        "is_preview",
+        "鎖頭",
+        "locked lesson",
+        "購買 CTA",
+        "訪客"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "resources/js/Pages/Member/Classroom.vue",
+        "resources/js/Components/Classroom/ChapterSidebar.vue",
+        "resources/js/Components/Classroom/LessonItem.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-5",
+      "module": "003-classroom",
+      "title": "學員提交與管理作業留言",
+      "summary": "作業卡片顯示於影片正下方，學員 Markdown 提交（頂層留言）、編輯/刪除自己的留言，兩層巢狀上限，僅見本人提交",
+      "heading": "### User Story 5 - 學員提交與管理作業留言 (Priority: P1)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-5---學員提交與管理作業留言-priority-p1",
+      "keywords": [
+        "作業提交",
+        "homework",
+        "assignment",
+        "留言",
+        "comment",
+        "Markdown",
+        "兩層巢狀",
+        "nested reply",
+        "學員隔離",
+        "作業卡片"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/AssignmentCommentController.php",
+        "app/Http/Requests/Member/StoreCommentRequest.php",
+        "app/Models/Assignment.php",
+        "app/Models/Comment.php",
+        "database/migrations/2026_05_10_000003_create_comments_table.php",
+        "resources/js/Components/Classroom/AssignmentSection.vue",
+        "resources/js/Components/Classroom/CommentThread.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-6",
+      "module": "003-classroom",
+      "title": "管理員作業題目管理與批改",
+      "summary": "後台 /admin/homework 建立/編輯/上下架題目（一節一題），提交列表分頁篩選搜尋、回覆批改、preview_user_id 學員視角預覽",
+      "heading": "### User Story 6 - 管理員作業題目管理與批改 (Priority: P1)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-6---管理員作業題目管理與批改-priority-p1",
+      "keywords": [
+        "批改",
+        "grading",
+        "作業批改專區",
+        "admin homework",
+        "題目管理",
+        "上架下架",
+        "publish",
+        "回覆面板",
+        "preview_user_id",
+        "學員搜尋",
+        "分頁"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HomeworkController.php",
+        "app/Http/Requests/Admin/AssignmentRequest.php",
+        "app/Models/Assignment.php",
+        "app/Models/Comment.php",
+        "database/migrations/2026_05_10_000002_create_assignments_table.php",
+        "resources/js/Pages/Admin/Homework/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-7",
+      "module": "003-classroom",
+      "title": "作業完成標記與積分發放",
+      "summary": "管理員標記學員作業完成（每題每人一次），經 PointService 帳本發放 homework_reward_points 積分（預設 100）並建立完成通知與教室勳章",
+      "heading": "### User Story 7 - 作業完成標記與積分發放 (Priority: P2)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-7---作業完成標記與積分發放-priority-p2",
+      "keywords": [
+        "標記已完成",
+        "assignment completion",
+        "積分",
+        "points",
+        "earn_homework",
+        "homework_reward_points",
+        "勳章",
+        "badge",
+        "PointService"
+      ],
+      "code_files": [
+        "app/Services/AssignmentService.php",
+        "app/Http/Controllers/Admin/HomeworkController.php",
+        "app/Models/AssignmentCompletion.php",
+        "database/migrations/2026_05_10_000004_create_assignment_completions_table.php",
+        "resources/js/Components/Classroom/AssignmentSection.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "003.us-8",
+      "module": "003-classroom",
+      "title": "作業通知鈴鐺",
+      "summary": "批改回覆與完成標記產生站內通知，導覽列與教室 header 鈴鐺顯示未讀紅點與最新 5 則，點擊跳轉小節並標為已讀",
+      "heading": "### User Story 8 - 作業通知鈴鐺 (Priority: P2)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-8---作業通知鈴鐺-priority-p2",
+      "keywords": [
+        "通知鈴鐺",
+        "notification bell",
+        "站內通知",
+        "未讀",
+        "unread",
+        "homework_notifications",
+        "已讀",
+        "mark read",
+        "紅點"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Member/NotificationController.php",
+        "app/Models/HomeworkNotification.php",
+        "database/migrations/2026_05_10_000005_create_homework_notifications_table.php",
+        "resources/js/composables/useNotifications.js",
+        "resources/js/Pages/Member/Classroom.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-1",
+      "module": "004-course-admin",
+      "title": "課程 CRUD 與上下架管理",
+      "summary": "後台課程列表/新增/編輯/軟刪除，draft-preorder-selling 狀態機，發佈由 sale_at 自動判斷，建課自動指派 system_assigned 購買，有付費學員不可刪",
+      "heading": "### User Story 1 - 課程 CRUD 與上下架管理 (Priority: P1)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-1---課程-crud-與上下架管理-priority-p1",
+      "keywords": [
+        "課程管理",
+        "course CRUD",
+        "發佈",
+        "publish",
+        "unpublish",
+        "下架",
+        "草稿",
+        "draft",
+        "軟刪除",
+        "system_assigned",
+        "admin courses"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Models/Course.php",
+        "app/Policies/CoursePolicy.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "resources/js/Pages/Admin/Courses/Index.vue",
+        "resources/js/Pages/Admin/Courses/Create.vue",
+        "resources/js/Pages/Admin/Courses/Edit.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-2",
+      "module": "004-course-admin",
+      "title": "課程表單欄位與定價設定",
+      "summary": "課程表單：type 四類別（含 high_ticket）、內容分類動態下拉、優惠價/原價/倒數到期、SEO slug 與 meta_description、redeem_points 欄位、is_visible、金流選項",
+      "heading": "### User Story 2 - 課程表單欄位與定價設定 (Priority: P1)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-2---課程表單欄位與定價設定-priority-p1",
+      "keywords": [
+        "課程表單",
+        "CourseForm",
+        "定價",
+        "優惠價",
+        "original_price",
+        "promo_ends_at",
+        "slug",
+        "meta_description",
+        "content_category",
+        "內容分類",
+        "high_ticket",
+        "redeem_points"
+      ],
+      "code_files": [
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Models/Course.php",
+        "database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php",
+        "database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php",
+        "database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php",
+        "database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-3",
+      "module": "004-course-admin",
+      "title": "章節與小節編輯",
+      "summary": "章/節 CRUD 與拖曳排序（節可獨立、可跨章），Vimeo/YouTube 連結解析，Markdown 小節，M:SS 時長輸入與課程總時長自動重算，is_preview 免費試閱標記",
+      "heading": "### User Story 3 - 章節與小節編輯 (Priority: P1)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-3---章節與小節編輯-priority-p1",
+      "keywords": [
+        "章節",
+        "小節",
+        "chapter",
+        "lesson",
+        "拖曳排序",
+        "reorder",
+        "vuedraggable",
+        "Vimeo",
+        "YouTube",
+        "duration_seconds",
+        "is_preview",
+        "免費試閱"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/ChapterController.php",
+        "app/Http/Controllers/Admin/LessonController.php",
+        "app/Http/Requests/Admin/StoreChapterRequest.php",
+        "app/Http/Requests/Admin/StoreLessonRequest.php",
+        "app/Models/Chapter.php",
+        "app/Models/Lesson.php",
+        "resources/js/Pages/Admin/Courses/Chapters.vue",
+        "resources/js/Components/Admin/ChapterList.vue",
+        "resources/js/Components/Admin/LessonForm.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-4",
+      "module": "004-course-admin",
+      "title": "課程圖片庫與同頁插圖",
+      "summary": "每課程獨立相簿：批次上傳（20 張/10MB）與批次刪除、選取順序保序、Modal 多選插入 Markdown、刪圖自動清 description_md 引用",
+      "heading": "### User Story 4 - 課程圖片庫與同頁插圖 (Priority: P2)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-4---課程圖片庫與同頁插圖-priority-p2",
+      "keywords": [
+        "相簿",
+        "圖片庫",
+        "gallery",
+        "course images",
+        "批次上傳",
+        "batch upload",
+        "批次刪除",
+        "插入圖片",
+        "ImageGalleryModal",
+        "description_md"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/CourseImageController.php",
+        "app/Models/CourseImage.php",
+        "resources/js/Pages/Admin/Courses/Gallery.vue",
+        "resources/js/Components/Admin/ImageGalleryModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-5",
+      "module": "004-course-admin",
+      "title": "預購課程上架排程",
+      "summary": "courses:update-status 每分鐘排程，preorder 且 sale_at 到期的課程自動切換為 selling",
+      "heading": "### User Story 5 - 預購課程上架排程 (Priority: P2)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-5---預購課程上架排程-priority-p2",
+      "keywords": [
+        "預購",
+        "preorder",
+        "開賣時間",
+        "sale_at",
+        "排程",
+        "schedule",
+        "自動上架",
+        "update-status"
+      ],
+      "code_files": [
+        "app/Console/Commands/UpdateCourseStatus.php",
+        "routes/console.php",
+        "app/Models/Course.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "004.us-6",
+      "module": "004-course-admin",
+      "title": "新增小節 Email 通知學員",
+      "summary": "已發布非 drip 課程新增小節時可勾選通知，發信給非退款/非 system_assigned 學員，優先用 lesson_added Email 模板，失敗不影響儲存",
+      "heading": "### User Story 6 - 新增小節 Email 通知學員 (Priority: P2)",
+      "file": "specs/004-course-admin/spec.md",
+      "anchor": "user-story-6---新增小節-email-通知學員-priority-p2",
+      "keywords": [
+        "小節通知",
+        "notify_members",
+        "Email 通知",
+        "lesson_added",
+        "LessonAddedNotification",
+        "EmailTemplate",
+        "回訪",
+        "上架通知信"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/LessonController.php",
+        "app/Mail/LessonAddedNotification.php",
+        "resources/views/emails/lesson-added.blade.php",
+        "resources/js/Components/Admin/LessonForm.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-1",
+      "module": "005-checkout",
+      "title": "加入購物車與直接購買",
+      "summary": "guest cart(localStorage)/server cart 雙層購物車，登入自動合併，AddToCart Pixel 與防呆驗證",
+      "heading": "### User Story 1 - 加入購物車與直接購買 (Priority: P1)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-1---加入購物車與直接購買-priority-p1",
+      "keywords": [
+        "購物車",
+        "加入購物車",
+        "cart",
+        "guest cart",
+        "localStorage",
+        "merge",
+        "直接購買",
+        "AddToCart",
+        "Meta Pixel",
+        "badge",
+        "cart_items"
+      ],
+      "code_files": [
+        "app/Http/Controllers/CartController.php",
+        "app/Http/Requests/AddToCartRequest.php",
+        "app/Services/CartService.php",
+        "app/Models/CartItem.php",
+        "resources/js/composables/useCart.js",
+        "database/migrations/2026_05_06_000001_create_cart_items_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-2",
+      "module": "005-checkout",
+      "title": "購物車頁與結帳頁",
+      "summary": "免登入的 /cart 與 /checkout 頁面：購買者資料、統編驗證、email 重複購買預查、InitiateCheckout",
+      "heading": "### User Story 2 - 購物車頁與結帳頁 (Priority: P1)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-2---購物車頁與結帳頁-priority-p1",
+      "keywords": [
+        "結帳頁",
+        "checkout",
+        "購物車頁",
+        "guest checkout",
+        "統編",
+        "tax_id",
+        "check-email",
+        "重複購買",
+        "InitiateCheckout",
+        "同意條款",
+        "payment_failed"
+      ],
+      "code_files": [
+        "app/Http/Controllers/CartController.php",
         "app/Http/Controllers/CheckoutController.php",
-        "app/Http/Requests/ValidateReferralRequest.php",
-        "app/Http/Requests/CheckoutRequest.php",
-        "app/Console/Commands/MaturePoints.php",
-        "resources/js/Components/Cart/ReferralInput.vue",
+        "resources/js/Pages/Cart/Index.vue",
         "resources/js/Pages/Checkout/Index.vue"
       ],
       "status": "implemented"
     },
     {
-      "id": "012.us-3",
-      "module": "012-points-system",
+      "id": "005.us-3",
+      "module": "005-checkout",
+      "title": "建立訂單與金流付款",
+      "summary": "checkout/initiate 建立 Order+OrderItems 快照，路由 PayUni UPP 或藍新 MPG 並回傳付款表單",
+      "heading": "### User Story 3 - 建立訂單與金流付款 (Priority: P1)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-3---建立訂單與金流付款-priority-p1",
+      "keywords": [
+        "訂單",
+        "order",
+        "訂單快照",
+        "initiate",
+        "PayUni",
+        "UPP",
+        "藍新",
+        "NewebPay",
+        "MPG",
+        "merchant_order_no",
+        "payment_gateway",
+        "traffic_source"
+      ],
+      "code_files": [
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Http/Requests/CheckoutRequest.php",
+        "app/Services/CheckoutService.php",
+        "app/Services/PayuniService.php",
+        "app/Services/NewebpayService.php",
+        "app/Models/Order.php",
+        "app/Models/OrderItem.php",
+        "database/migrations/2026_05_06_000002_create_orders_table.php",
+        "database/migrations/2026_05_06_000003_create_order_items_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-4",
+      "module": "005-checkout",
+      "title": "Webhook 履行訂單",
+      "summary": "PayUni/藍新 NotifyURL 驗簽後 fulfillOrder（雙層冪等、find-or-create user），ReturnURL 作 fallback 安全網",
+      "heading": "### User Story 4 - Webhook 履行訂單 (Priority: P1)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-4---webhook-履行訂單-priority-p1",
+      "keywords": [
+        "webhook",
+        "NotifyURL",
+        "ReturnURL",
+        "fulfillOrder",
+        "冪等",
+        "idempotent",
+        "TradeSha",
+        "HashInfo",
+        "驗簽",
+        "find-or-create",
+        "purchases",
+        "付款回調"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Payment/PayuniController.php",
+        "app/Http/Controllers/Payment/NewebpayController.php",
+        "app/Services/PayuniService.php",
+        "app/Services/NewebpayService.php",
+        "app/Services/CheckoutService.php",
+        "app/Models/Purchase.php",
+        "database/migrations/2026_05_06_000005_add_order_id_to_purchases_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-5",
+      "module": "005-checkout",
+      "title": "付款成功頁",
+      "summary": "/payment/success 訂單摘要與 Purchase Pixel；pending 時等待 overlay 輪詢 60 秒上限",
+      "heading": "### User Story 5 - 付款成功頁 (Priority: P2)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-5---付款成功頁-priority-p2",
+      "keywords": [
+        "付款成功",
+        "payment success",
+        "訂單摘要",
+        "Purchase Pixel",
+        "輪詢",
+        "polling",
+        "order-status",
+        "waiting overlay",
+        "clearPurchased"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Payment/SuccessController.php",
+        "resources/js/Pages/Payment/Success.vue",
+        "app/Services/CartService.php",
+        "routes/api.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-6",
+      "module": "005-checkout",
+      "title": "Portaly 課程購買",
+      "summary": "Portaly 直購外連與 webhook 開通：HMAC-SHA256 驗簽、paid/refund 事件、冪等、無關產品靜默忽略",
+      "heading": "### User Story 6 - Portaly 課程購買 (Priority: P1)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-6---portaly-課程購買-priority-p1",
+      "keywords": [
+        "Portaly",
+        "webhook",
+        "HMAC",
+        "X-Portaly-Signature",
+        "portaly_order_id",
+        "退款",
+        "refund",
+        "開通課程",
+        "portaly_product_id",
+        "立即購買"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Webhook/PortalyController.php",
+        "app/Services/PortalyWebhookService.php",
+        "app/Models/Purchase.php",
+        "database/migrations/2026_01_16_000002_create_purchases_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "005.us-7",
+      "module": "005-checkout",
+      "title": "免費課程直接領取",
+      "summary": "price=0 課程 inline 表單免金流報名，冪等建立 Purchase(source=free) 並觸發 drip 訂閱",
+      "heading": "### User Story 7 - 免費課程直接領取 (Priority: P2)",
+      "file": "specs/005-checkout/spec.md",
+      "anchor": "user-story-7---免費課程直接領取-priority-p2",
+      "keywords": [
+        "免費課程",
+        "免費領取",
+        "免費報名",
+        "free enrollment",
+        "purchase free",
+        "source=free",
+        "drip subscribe",
+        "already_enrolled"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Purchase/FreePurchaseController.php",
+        "app/Models/Purchase.php",
+        "routes/api.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-1",
+      "module": "006-coupons",
+      "title": "購物車與結帳頁套用折扣碼",
+      "summary": "前台（登入/訪客）在購物車或結帳頁即時套用/移除折扣碼，含錯誤分類、NT$1 下限與 IP 失敗節流",
+      "heading": "### User Story 1 - 購物車與結帳頁套用折扣碼 (Priority: P1)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-1---購物車與結帳頁套用折扣碼-priority-p1",
+      "keywords": [
+        "折扣碼",
+        "coupon",
+        "apply-coupon",
+        "套用",
+        "購物車",
+        "結帳",
+        "rate limit",
+        "節流",
+        "CouponInput",
+        "guest"
+      ],
+      "code_files": [
+        "app/Http/Controllers/CouponController.php",
+        "app/Services/CouponService.php",
+        "resources/js/Components/Cart/CouponInput.vue",
+        "resources/js/Pages/Cart/Index.vue",
+        "resources/js/Pages/Checkout/Index.vue",
+        "routes/web.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-2",
+      "module": "006-coupons",
+      "title": "後台折扣碼管理",
+      "summary": "後台折扣碼 CRUD：fixed/ratio、適用課程、到期日、名額、啟停 toggle、軟刪除（代碼永久佔用）",
+      "heading": "### User Story 2 - 後台折扣碼管理 (Priority: P1)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-2---後台折扣碼管理-priority-p1",
+      "keywords": [
+        "折扣碼管理",
+        "coupon admin",
+        "CRUD",
+        "fixed",
+        "ratio",
+        "折數",
+        "軟刪除",
+        "soft delete",
+        "toggle",
+        "啟用停用"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/CouponController.php",
+        "app/Http/Requests/Admin/StoreCouponRequest.php",
+        "app/Http/Requests/Admin/UpdateCouponRequest.php",
+        "app/Models/CouponCode.php",
+        "resources/js/Components/Admin/CouponForm.vue",
+        "resources/js/Pages/Admin/Coupons/Index.vue",
+        "resources/js/Pages/Admin/Coupons/Create.vue",
+        "resources/js/Pages/Admin/Coupons/Edit.vue",
+        "database/migrations/2026_06_09_000001_create_coupon_codes_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-3",
+      "module": "006-coupons",
+      "title": "結帳折扣生效與付款後計數",
+      "summary": "訂單保存折扣快照（coupon_code/original/discount），付款確認 fulfillOrder 後才 used_count +1（paid 冪等）",
+      "heading": "### User Story 3 - 結帳折扣生效與付款後計數 (Priority: P2)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-3---結帳折扣生效與付款後計數-priority-p2",
+      "keywords": [
+        "used_count",
+        "redeem",
+        "fulfillOrder",
+        "付款確認",
+        "webhook",
+        "訂單快照",
+        "discount_amount",
+        "original_amount",
+        "冪等"
+      ],
+      "code_files": [
+        "app/Services/CouponService.php",
+        "app/Services/CheckoutService.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Models/Order.php",
+        "database/migrations/2026_06_09_000002_add_discount_columns_to_orders_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-4",
+      "module": "006-coupons",
+      "title": "折扣碼成效統計",
+      "summary": "後台單一折扣碼統計頁：7/30/60/90/全部範圍的交易筆數、折後營收、總折抵與明細（僅 paid 訂單）",
+      "heading": "### User Story 4 - 折扣碼成效統計 (Priority: P2)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-4---折扣碼成效統計-priority-p2",
+      "keywords": [
+        "統計",
+        "stats",
+        "成效",
+        "營收",
+        "折抵金額",
+        "webhook_received_at",
+        "時間範圍",
+        "coupon report"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/CouponController.php",
+        "app/Services/CouponService.php",
+        "resources/js/Pages/Admin/Coupons/Show.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-5",
+      "module": "006-coupons",
+      "title": "輪換折扣碼 CouponChain",
+      "summary": "輪換折扣碼模板：達每碼名額自動補下一支，促銷內容 {alias} 佔位符伺服器端展開為當前有效代碼",
+      "heading": "### User Story 5 - 輪換折扣碼 CouponChain (Priority: P2)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-5---輪換折扣碼-couponchain-priority-p2",
+      "keywords": [
+        "輪換折扣碼",
+        "CouponChain",
+        "alias",
+        "佔位符",
+        "placeholder",
+        "自動補碼",
+        "code_max_uses",
+        "promo_html",
+        "substitutePlaceholders",
+        "chain"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/CouponChainController.php",
+        "app/Http/Requests/Admin/StoreCouponChainRequest.php",
+        "app/Http/Requests/Admin/UpdateCouponChainRequest.php",
+        "app/Models/CouponChain.php",
+        "app/Services/CouponChainService.php",
+        "app/Services/CouponService.php",
+        "resources/js/Pages/Admin/CouponChains/Index.vue",
+        "resources/js/Pages/Admin/CouponChains/Create.vue",
+        "resources/js/Pages/Admin/CouponChains/Edit.vue",
+        "resources/js/Pages/Admin/CouponChains/Show.vue",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "app/Http/Controllers/Admin/ChapterController.php",
+        "resources/js/Components/Admin/LessonForm.vue",
+        "database/migrations/2026_06_26_000001_create_coupon_chains_table.php",
+        "database/migrations/2026_06_26_000002_add_chain_id_to_coupon_codes_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "006.us-6",
+      "module": "006-coupons",
+      "title": "分享連結自動帶入折扣碼",
+      "summary": "銷售頁 ?coupon=CODE 經 session 跨頁保留，購物車/結帳自動套用；無效靜默忽略、手動輸入優先",
+      "heading": "### User Story 6 - 分享連結自動帶入折扣碼 (Priority: P3)",
+      "file": "specs/006-coupons/spec.md",
+      "anchor": "user-story-6---分享連結自動帶入折扣碼-priority-p3",
+      "keywords": [
+        "?coupon=",
+        "自動帶入",
+        "分享連結",
+        "checkout_coupon",
+        "session",
+        "prefill",
+        "auto apply",
+        "行銷連結"
+      ],
+      "code_files": [
+        "app/Http/Controllers/CourseController.php",
+        "app/Http/Controllers/CartController.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Http/Controllers/CouponController.php",
+        "resources/js/Components/Cart/CouponInput.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "007.us-1",
+      "module": "007-points-referral",
+      "title": "用積分兌換課程",
+      "summary": "課程銷售頁兩段式確認以積分整筆兌換課程，原子扣點防超扣，成功導向我的課程",
+      "heading": "### User Story 1 - 用積分兌換課程 (Priority: P1)",
+      "file": "specs/007-points-referral/spec.md",
+      "anchor": "user-story-1---用積分兌換課程-priority-p1",
+      "keywords": [
+        "積分兌換",
+        "redeem",
+        "redeem_points",
+        "兌換課程",
+        "兩段式確認",
+        "扣點",
+        "RedemptionService",
+        "source=points",
+        "兌換後餘額",
+        "condition update"
+      ],
+      "code_files": [
+        "app/Http/Controllers/RedemptionController.php",
+        "app/Http/Requests/RedeemCourseRequest.php",
+        "app/Services/RedemptionService.php",
+        "app/Services/PointService.php",
+        "resources/js/Components/Course/RedeemButton.vue",
+        "resources/js/Pages/Course/Show.vue",
+        "database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "007.us-2",
+      "module": "007-points-referral",
+      "title": "推薦碼結帳回饋",
+      "summary": "結帳填推薦碼、付款後推薦人獲實付金額比例回饋積分，14 天成熟期並對齊退款期限",
+      "heading": "### User Story 2 - 推薦碼結帳回饋 (Priority: P1)",
+      "file": "specs/007-points-referral/spec.md",
+      "anchor": "user-story-2---推薦碼結帳回饋-priority-p1",
+      "keywords": [
+        "推薦碼",
+        "referral",
+        "referral_code",
+        "回饋積分",
+        "推薦回饋",
+        "成熟期",
+        "maturity",
+        "validate-referral",
+        "防自薦",
+        "ReferralService",
+        "earn_referral",
+        "退款作廢"
+      ],
+      "code_files": [
+        "app/Http/Controllers/ReferralController.php",
+        "app/Http/Requests/ValidateReferralRequest.php",
+        "app/Services/ReferralService.php",
+        "app/Services/PointService.php",
+        "app/Services/CheckoutService.php",
+        "app/Services/TransactionService.php",
+        "app/Console/Commands/MaturePoints.php",
+        "resources/js/Components/Cart/ReferralInput.vue",
+        "resources/js/Pages/Checkout/Index.vue",
+        "database/migrations/2026_06_30_000002_add_referral_fields_to_users_table.php",
+        "database/migrations/2026_06_30_000004_add_referral_fields_to_orders_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "007.us-3",
+      "module": "007-points-referral",
       "title": "會員積分中心",
-      "summary": "",
+      "summary": "會員查看可用/未成熟餘額、積分帳本明細分頁、推薦碼與回饋比例",
       "heading": "### User Story 3 - 會員積分中心 (Priority: P2)",
-      "file": "specs/012-points-system/spec.md",
+      "file": "specs/007-points-referral/spec.md",
       "anchor": "user-story-3---會員積分中心-priority-p2",
       "keywords": [
         "積分中心",
-        "點數明細",
-        "推薦碼",
+        "points",
+        "餘額",
+        "未成熟",
+        "pending points",
+        "帳本明細",
+        "推薦碼顯示",
+        "回饋比例",
         "member points"
       ],
       "code_files": [
         "app/Http/Controllers/Member/PointController.php",
+        "app/Models/PointTransaction.php",
+        "app/Services/PointService.php",
         "resources/js/Pages/Member/Points.vue"
       ],
       "status": "implemented"
     },
     {
-      "id": "012.us-4",
-      "module": "012-points-system",
+      "id": "007.us-4",
+      "module": "007-points-referral",
       "title": "後台積分參數設定",
-      "summary": "",
+      "summary": "後台調整啟用門檻、回饋比例、作業獎勵點數、成熟天數，僅影響之後產生的積分",
       "heading": "### User Story 4 - 後台積分參數設定 (Priority: P2)",
-      "file": "specs/012-points-system/spec.md",
+      "file": "specs/007-points-referral/spec.md",
       "anchor": "user-story-4---後台積分參數設定-priority-p2",
       "keywords": [
         "積分設定",
-        "門檻",
-        "回饋比例",
-        "成熟天數",
-        "points settings"
+        "site_settings",
+        "referral_threshold_amount",
+        "referral_reward_rate",
+        "homework_reward_points",
+        "referral_maturity_days",
+        "後台設定",
+        "admin settings"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/SettingsController.php",
+        "app/Models/SiteSetting.php",
         "resources/js/Pages/Admin/Settings/Points.vue"
       ],
       "status": "implemented"
     },
     {
-      "id": "012.us-5",
-      "module": "012-points-system",
+      "id": "007.us-5",
+      "module": "007-points-referral",
       "title": "後台推薦成效統計",
-      "summary": "",
+      "summary": "依推薦人彙總推薦訂單數、營收、回饋積分總額，支援時間區間篩選",
       "heading": "### User Story 5 - 後台推薦成效統計 (Priority: P3)",
-      "file": "specs/012-points-system/spec.md",
+      "file": "specs/007-points-referral/spec.md",
       "anchor": "user-story-5---後台推薦成效統計-priority-p3",
       "keywords": [
-        "推薦成效",
-        "統計",
-        "referral stats"
+        "推薦統計",
+        "referral stats",
+        "成效",
+        "營收",
+        "推薦訂單",
+        "referrer",
+        "admin referrals",
+        "range 篩選"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/ReferralStatsController.php",
@@ -1775,24 +1393,893 @@
       "status": "implemented"
     },
     {
-      "id": "012.us-6",
-      "module": "012-points-system",
-      "title": "後台派發積分並檢視會員帳本",
-      "summary": "",
-      "heading": "### User Story 6 - 後台派發積分並檢視會員帳本 (Priority: P3)",
-      "file": "specs/012-points-system/spec.md",
-      "anchor": "user-story-6---後台派發積分並檢視會員帳本-priority-p3",
+      "id": "007.us-6",
+      "module": "007-points-referral",
+      "title": "後台派發積分與帳本檢視",
+      "summary": "管理員於會員詳情派發積分（只增不減、附原因）並檢視該會員帳本明細",
+      "heading": "### User Story 6 - 後台派發積分與帳本檢視 (Priority: P3)",
+      "file": "specs/007-points-referral/spec.md",
+      "anchor": "user-story-6---後台派發積分與帳本檢視-priority-p3",
       "keywords": [
         "派發積分",
         "admin_grant",
-        "帳本",
-        "grant points"
+        "grant points",
+        "會員詳情",
+        "帳本檢視",
+        "客訴查核",
+        "只增不減",
+        "GrantPointsRequest"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/MemberController.php",
         "app/Http/Requests/Admin/GrantPointsRequest.php",
         "app/Services/PointService.php",
         "resources/js/Components/MemberDetailModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-1",
+      "module": "008-members-admin",
+      "title": "會員列表與搜尋",
+      "summary": "後台分頁會員列表，支援關鍵字搜尋、欄位排序、課程持有篩選",
+      "heading": "### User Story 1 - 會員列表與搜尋 (Priority: P1)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-1---會員列表與搜尋-priority-p1",
+      "keywords": [
+        "member list",
+        "search",
+        "sort",
+        "會員列表",
+        "搜尋",
+        "排序",
+        "課程篩選",
+        "pagination",
+        "admin members"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Pages/Admin/Members/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-2",
+      "module": "008-members-admin",
+      "title": "編輯會員資料",
+      "summary": "inline 編輯 email/姓名/電話，modal 編輯暱稱/生日，email 一鍵複製",
+      "heading": "### User Story 2 - 編輯會員資料 (Priority: P1)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-2---編輯會員資料-priority-p1",
+      "keywords": [
+        "edit member",
+        "inline edit",
+        "編輯會員",
+        "暱稱",
+        "生日",
+        "email 複製",
+        "unique email",
+        "UpdateMemberRequest"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "app/Http/Requests/Admin/UpdateMemberRequest.php",
+        "resources/js/Pages/Admin/Members/Index.vue",
+        "resources/js/Components/MemberDetailModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-3",
+      "module": "008-members-admin",
+      "title": "會員課程持有與學習進度",
+      "summary": "詳情 modal 顯示課程列表、取得方式標籤、完成進度、作業記錄與積分入口",
+      "heading": "### User Story 3 - 會員課程持有與學習進度 (Priority: P2)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-3---會員課程持有與學習進度-priority-p2",
+      "keywords": [
+        "member detail",
+        "course progress",
+        "課程進度",
+        "持有課程",
+        "贈送標籤",
+        "顧問轉換",
+        "作業完成",
+        "派發積分入口",
+        "point ledger"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Components/MemberDetailModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-4",
+      "module": "008-members-admin",
+      "title": "批次選取會員",
+      "summary": "checkbox 選取、當頁全選、跨頁選取所有符合條件會員",
+      "heading": "### User Story 4 - 批次選取會員 (Priority: P2)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-4---批次選取會員-priority-p2",
+      "keywords": [
+        "select all",
+        "batch select",
+        "跨頁全選",
+        "選取會員",
+        "checkbox",
+        "matching count"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Pages/Admin/Members/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-5",
+      "module": "008-members-admin",
+      "title": "批次寄送 Email",
+      "summary": "選取會員後以 Markdown 編寫主旨內文，同步批次寄送",
+      "heading": "### User Story 5 - 批次寄送 Email (Priority: P3)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-5---批次寄送-email-priority-p3",
+      "keywords": [
+        "batch email",
+        "批次郵件",
+        "群發",
+        "Markdown",
+        "Mail::send",
+        "Resend",
+        "throttle",
+        "BatchEmailMail"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "app/Http/Requests/Admin/SendBatchEmailRequest.php",
+        "app/Mail/BatchEmailMail.php",
+        "resources/views/emails/batch-email.blade.php",
+        "resources/js/Components/BatchEmailModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-6",
+      "module": "008-members-admin",
+      "title": "贈送課程",
+      "summary": "批次贈課建立 type=gift purchase 並寄送通知信，已持有者略過",
+      "heading": "### User Story 6 - 贈送課程 (Priority: P3)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-6---贈送課程-priority-p3",
+      "keywords": [
+        "gift course",
+        "贈課",
+        "贈送課程",
+        "type=gift",
+        "updateOrCreate",
+        "CourseGiftedMail",
+        "already owned"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "app/Http/Requests/Admin/GiftCourseRequest.php",
+        "app/Mail/CourseGiftedMail.php",
+        "resources/views/emails/course-gifted.blade.php",
+        "resources/js/Components/GiftCourseModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-7",
+      "module": "008-members-admin",
+      "title": "匯出會員 CSV",
+      "summary": "匯出全部（尊重篩選）或匯出選定會員為 UTF-8 BOM CSV",
+      "heading": "### User Story 7 - 匯出會員 CSV (Priority: P3)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-7---匯出會員-csv-priority-p3",
+      "keywords": [
+        "export csv",
+        "匯出",
+        "CSV",
+        "BOM",
+        "streamDownload",
+        "匯出選定",
+        "members-csv"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Pages/Admin/Members/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "008.us-8",
+      "module": "008-members-admin",
+      "title": "匯入會員名單",
+      "summary": "貼上 Email 名單或上傳 CSV 批次建立會員，可選指派課程授權",
+      "heading": "### User Story 8 - 匯入會員名單 (Priority: P3)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-8---匯入會員名單-priority-p3",
+      "keywords": [
+        "import members",
+        "匯入",
+        "CSV 上傳",
+        "Email 名單",
+        "lead_conversion",
+        "指派課程",
+        "電話驗證",
+        "去重",
+        "ImportMembersModal"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Components/ImportMembersModal.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-1",
+      "module": "009-transactions-admin",
+      "title": "交易列表檢視與搜尋篩選",
+      "summary": "後台交易分頁列表：Email/訂單編號搜尋、狀態/類型/課程篩選、金流來源 badge 複製、學習進度顯示",
+      "heading": "### User Story 1 - 交易列表檢視與搜尋篩選 (Priority: P1)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-1---交易列表檢視與搜尋篩選-priority-p1",
+      "keywords": [
+        "交易紀錄",
+        "交易列表",
+        "transactions",
+        "搜尋",
+        "篩選",
+        "badge",
+        "訂單編號複製",
+        "Portaly",
+        "PayUni",
+        "NewebPay",
+        "學習進度",
+        "分頁"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-2",
+      "module": "009-transactions-admin",
+      "title": "交易詳情檢視",
+      "summary": "單筆交易完整資訊：全部欄位、購物車訂單資訊（金流序號/管道/統編）、會員與課程連結",
+      "heading": "### User Story 2 - 交易詳情檢視 (Priority: P2)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-2---交易詳情檢視-priority-p2",
+      "keywords": [
+        "交易詳情",
+        "transaction detail",
+        "merchant_order_no",
+        "gateway_trade_no",
+        "金流管道",
+        "公司統編",
+        "tax_id",
+        "payuni_trade_no",
+        "購物車訂單資訊"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Show.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-3",
+      "module": "009-transactions-admin",
+      "title": "手動新增交易",
+      "summary": "管理員手動指派（system_assigned）或贈送（gift）課程存取權：amount 0、防重複、refunded 原地更新",
+      "heading": "### User Story 3 - 手動新增交易 (Priority: P3)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-3---手動新增交易-priority-p3",
+      "keywords": [
+        "手動新增交易",
+        "gift",
+        "system_assigned",
+        "贈送課程",
+        "指派課程",
+        "補單",
+        "manual",
+        "createManual"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "app/Http/Requests/Admin/StoreTransactionRequest.php",
+        "app/Services/TransactionService.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-4",
+      "module": "009-transactions-admin",
+      "title": "標記退款",
+      "summary": "paid 交易標記 refunded、撤銷課程存取；含推薦回饋訂單受成熟期限制並作廢未成熟回饋",
+      "heading": "### User Story 4 - 標記退款 (Priority: P3)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-4---標記退款-priority-p3",
+      "keywords": [
+        "退款",
+        "refund",
+        "標記退款",
+        "撤銷存取",
+        "refunded",
+        "退款期限",
+        "referral_maturity_days",
+        "voidReferral"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "app/Services/TransactionService.php",
+        "resources/js/Components/Admin/TransactionRefundModal.vue",
+        "resources/js/Pages/Admin/Transactions/Index.vue",
+        "resources/js/Pages/Admin/Transactions/Show.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-5",
+      "module": "009-transactions-admin",
+      "title": "勾選匯出 CSV",
+      "summary": "勾選/當頁全選/跨頁全選符合篩選的交易，串流匯出 19 欄 CSV（UTF-8 BOM）供對帳",
+      "heading": "### User Story 5 - 勾選匯出 CSV (Priority: P2)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-5---勾選匯出-csv-priority-p2",
+      "keywords": [
+        "CSV",
+        "匯出",
+        "export",
+        "對帳",
+        "勾選",
+        "全選",
+        "select_all",
+        "streamDownload",
+        "UTF-8 BOM"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-6",
+      "module": "009-transactions-admin",
+      "title": "營收圖表與區間統計",
+      "summary": "交易列表上方雙軸營收圖（柱狀銷售額+折線銷售量）與區間統計卡片，7/30/90 天或自訂區間",
+      "heading": "### User Story 6 - 營收圖表與區間統計 (Priority: P2)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-6---營收圖表與區間統計-priority-p2",
+      "keywords": [
+        "營收圖表",
+        "revenue chart",
+        "chart.js",
+        "銷售額",
+        "銷售量",
+        "雙軸",
+        "區間統計",
+        "時間區間",
+        "partial reload"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "resources/js/Components/Admin/RevenueChart.vue",
+        "resources/js/Pages/Admin/Transactions/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "009.us-7",
+      "module": "009-transactions-admin",
+      "title": "營運儀表板",
+      "summary": "後台首頁 Dashboard：課程/會員統計卡片與最近新增課程列表",
+      "heading": "### User Story 7 - 營運儀表板 (Priority: P2)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-7---營運儀表板-priority-p2",
+      "keywords": [
+        "後台儀表板",
+        "dashboard",
+        "統計卡片",
+        "課程總數",
+        "會員數",
+        "最近新增課程",
+        "admin 首頁"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/DashboardController.php",
+        "resources/js/Pages/Admin/Dashboard.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-1",
+      "module": "010-drip-email",
+      "title": "訪客免費訂閱連鎖課程",
+      "summary": "訪客輸入 Email＋必填暱稱、收驗證碼後自動建帳號/登入並建立 drip 訂閱，立即發歡迎信",
+      "heading": "### User Story 1 - 訪客免費訂閱連鎖課程 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-1---訪客免費訂閱連鎖課程-priority-p1",
+      "keywords": [
+        "drip",
+        "訂閱",
+        "subscribe",
+        "驗證碼",
+        "verification code",
+        "暱稱",
+        "nickname",
+        "訪客",
+        "guest",
+        "連鎖課程"
+      ],
+      "code_files": [
+        "app/Http/Controllers/DripSubscriptionController.php",
+        "app/Services/DripService.php",
+        "resources/js/Components/Course/DripSubscribeForm.vue",
+        "resources/js/Pages/Course/Show.vue",
+        "app/Http/Requests/StoreDripSubscriptionRequest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-10",
+      "module": "010-drip-email",
+      "title": "影片免費觀看期與準時到課獎勵",
+      "summary": "per-lesson 免費觀看時數倒數、過期軟性促銷不鎖影片；停留達標解鎖 reward_html 獎勵欄",
+      "heading": "### User Story 10 - 影片免費觀看期與準時到課獎勵 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-10---影片免費觀看期與準時到課獎勵-priority-p2",
+      "keywords": [
+        "video_access_hours",
+        "免費觀看期",
+        "倒數計時",
+        "countdown",
+        "reward_html",
+        "準時到課獎勵",
+        "VideoAccessNotice",
+        "FOMO",
+        "過期促銷"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "config/drip.php",
+        "resources/js/Components/Classroom/VideoAccessNotice.vue",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "database/migrations/2026_02_21_000001_add_reward_html_to_lessons_table.php",
+        "database/migrations/2026_03_01_084230_add_video_access_hours_to_lessons_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-11",
+      "module": "010-drip-email",
+      "title": "開信追蹤與訂閱者後台分析",
+      "summary": "tracking pixel 記錄開信；後台訂閱者清單含狀態篩選、整體轉換率、per-Lesson 開信率/點擊率與個人開信進度",
+      "heading": "### User Story 11 - 開信追蹤與訂閱者後台分析 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-11---開信追蹤與訂閱者後台分析-priority-p2",
+      "keywords": [
+        "tracking pixel",
+        "開信率",
+        "open rate",
+        "點擊率",
+        "click rate",
+        "轉換率",
+        "conversion rate",
+        "訂閱者清單",
+        "subscribers",
+        "統計",
+        "analytics",
+        "signed URL"
+      ],
+      "code_files": [
+        "app/Http/Controllers/DripTrackingController.php",
+        "app/Models/DripEmailEvent.php",
+        "app/Services/DripService.php",
+        "app/Jobs/SendDripEmailJob.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "database/migrations/2026_02_28_000001_create_drip_email_events_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-2",
+      "module": "010-drip-email",
+      "title": "已登入會員一鍵訂閱",
+      "summary": "已登入會員在課程詳情頁確認暱稱後一鍵訂閱 drip 課程，無需驗證碼",
+      "heading": "### User Story 2 - 已登入會員一鍵訂閱 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-2---已登入會員一鍵訂閱-priority-p1",
+      "keywords": [
+        "drip",
+        "一鍵訂閱",
+        "member subscribe",
+        "會員",
+        "暱稱",
+        "nickname",
+        "memberSubscribe"
+      ],
+      "code_files": [
+        "app/Http/Controllers/DripSubscriptionController.php",
+        "app/Services/DripService.php",
+        "resources/js/Pages/Course/Show.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-3",
+      "module": "010-drip-email",
+      "title": "自動序列信排程發送",
+      "summary": "訂閱即發歡迎信，每日 09:00 排程依 emails_sent 差額補發 Lesson 信件，寄完標記 completed",
+      "heading": "### User Story 3 - 自動序列信排程發送 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-3---自動序列信排程發送-priority-p1",
+      "keywords": [
+        "drip email",
+        "排程",
+        "scheduler",
+        "queue",
+        "SendDripEmailJob",
+        "歡迎信",
+        "emails_sent",
+        "classroom_url",
+        "問候語",
+        "greeting",
+        "completed"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Jobs/SendDripEmailJob.php",
+        "app/Console/Commands/ProcessDripEmails.php",
+        "app/Mail/DripLessonMail.php",
+        "resources/views/emails/drip-lesson.blade.php",
+        "routes/console.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-4",
+      "module": "010-drip-email",
+      "title": "購買與名單管道自動建立訂閱",
+      "summary": "Portaly webhook、站內結帳購買 drip 課程或高價課名單批次匯入時自動建立訂閱",
+      "heading": "### User Story 4 - 購買與名單管道自動建立訂閱 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-4---購買與名單管道自動建立訂閱-priority-p2",
+      "keywords": [
+        "drip",
+        "webhook",
+        "Portaly",
+        "付費訂閱",
+        "checkout",
+        "high ticket lead",
+        "SubscribeDripLeadJob",
+        "自動訂閱"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Services/PortalyWebhookService.php",
+        "app/Services/CheckoutService.php",
+        "app/Jobs/SubscribeDripLeadJob.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-5",
+      "module": "010-drip-email",
+      "title": "購買目標課程後自動轉換",
+      "summary": "訂閱者購買任一目標課程即轉為 converted、停止發信並解鎖全部 Lesson",
+      "heading": "### User Story 5 - 購買目標課程後自動轉換 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-5---購買目標課程後自動轉換-priority-p2",
+      "keywords": [
+        "conversion",
+        "轉換",
+        "converted",
+        "目標課程",
+        "target course",
+        "checkAndConvert",
+        "行銷漏斗",
+        "funnel"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Models/DripConversionTarget.php",
+        "app/Services/PortalyWebhookService.php",
+        "app/Services/CheckoutService.php",
+        "app/Http/Controllers/Purchase/FreePurchaseController.php",
+        "app/Services/RedemptionService.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-6",
+      "module": "010-drip-email",
+      "title": "使用者退訂連鎖課程",
+      "summary": "信末退訂連結（UUID token）進確認頁，退訂後停止發信、保留已解鎖內容、永不可再訂閱",
+      "heading": "### User Story 6 - 使用者退訂連鎖課程 (Priority: P3)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-6---使用者退訂連鎖課程-priority-p3",
+      "keywords": [
+        "退訂",
+        "unsubscribe",
+        "token",
+        "drip",
+        "取消訂閱",
+        "unsubscribe_token"
+      ],
+      "code_files": [
+        "app/Http/Controllers/DripSubscriptionController.php",
+        "app/Models/DripSubscription.php",
+        "resources/js/Pages/Drip/Unsubscribe.vue",
+        "resources/views/emails/drip-lesson.blade.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-7",
+      "module": "010-drip-email",
+      "title": "教室觀看與側邊欄過濾",
+      "summary": "drip 教室僅顯示有影片且已解鎖的 Lesson，未解鎖/純文字完全不露出，維持漏斗黑盒子",
+      "heading": "### User Story 7 - 教室觀看與側邊欄過濾 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-7---教室觀看與側邊欄過濾-priority-p1",
+      "keywords": [
+        "教室",
+        "classroom",
+        "解鎖",
+        "unlock",
+        "側邊欄",
+        "sidebar",
+        "過濾",
+        "isLessonUnlocked",
+        "drip",
+        "黑盒子"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "resources/js/Pages/Member/Classroom.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-8",
+      "module": "010-drip-email",
+      "title": "管理員設定連鎖課程與信件內容",
+      "summary": "後台設定 course_type=drip、間隔天數、目標課程與排程預覽；Lesson 編輯器插入 {{classroom_url}}",
+      "heading": "### User Story 8 - 管理員設定連鎖課程與信件內容 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-8---管理員設定連鎖課程與信件內容-priority-p2",
+      "keywords": [
+        "後台",
+        "admin",
+        "drip_interval_days",
+        "目標課程",
+        "course_type",
+        "連鎖 Email 設定",
+        "classroom_url",
+        "LessonForm",
+        "CourseForm"
+      ],
+      "code_files": [
+        "resources/js/Components/Admin/CourseForm.vue",
+        "resources/js/Components/Admin/LessonForm.vue",
+        "app/Http/Controllers/Admin/LessonController.php",
+        "app/Jobs/SendDripEmailJob.php",
+        "database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-9",
+      "module": "010-drip-email",
+      "title": "Lesson 促銷區塊與教室點擊追蹤",
+      "summary": "Lesson 延遲顯示促銷區塊（promo_html）＋ promo_url 教室可追蹤按鈕，點擊去重記錄後導向",
+      "heading": "### User Story 9 - Lesson 促銷區塊與教室點擊追蹤 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-9---lesson-促銷區塊與教室點擊追蹤-priority-p2",
+      "keywords": [
+        "促銷區塊",
+        "promo_html",
+        "promo_url",
+        "promo_delay_seconds",
+        "點擊追蹤",
+        "click tracking",
+        "LessonPromoBlock",
+        "localStorage",
+        "CTA"
+      ],
+      "code_files": [
+        "app/Http/Controllers/DripTrackingController.php",
+        "resources/js/Components/Classroom/LessonPromoBlock.vue",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "resources/js/Components/Admin/LessonForm.vue",
+        "database/migrations/2026_02_16_000004_add_promo_fields_to_lessons_table.php",
+        "database/migrations/2026_02_28_000002_add_promo_url_to_lessons_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-1",
+      "module": "011-high-ticket",
+      "title": "隱藏價格銷售頁與預約表單",
+      "summary": "high_ticket 隱藏價格課程銷售頁改為預約模式：價格區塊替換為預約須知、按鈕改立即預約，非同步預約表單 inline 成功提示",
+      "heading": "### User Story 1 - 隱藏價格銷售頁與預約表單 (Priority: P1)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-1---隱藏價格銷售頁與預約表單-priority-p1",
+      "keywords": [
+        "high ticket",
+        "客製服務",
+        "隱藏價格",
+        "hide price",
+        "立即預約",
+        "預約表單",
+        "booking form",
+        "銷售頁",
+        "1v1 面談",
+        "throttle"
+      ],
+      "code_files": [
+        "resources/js/Pages/Course/Show.vue",
+        "app/Http/Controllers/CourseController.php",
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "routes/web.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-2",
+      "module": "011-high-ticket",
+      "title": "預約確認信與 Lead 記錄",
+      "summary": "預約成功後寄出 DB 模板驅動的確認信（變數替換 + CommonMark），並建立 high_ticket_leads 記錄；寄信失敗與 Lead 儲存解耦",
+      "heading": "### User Story 2 - 預約確認信與 Lead 記錄 (Priority: P1)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-2---預約確認信與-lead-記錄-priority-p1",
+      "keywords": [
+        "確認信",
+        "confirmation email",
+        "high_ticket_booking_confirmation",
+        "lead",
+        "潛在客戶",
+        "email template",
+        "變數替換",
+        "CommonMark",
+        "booked_at",
+        "pending"
+      ],
+      "code_files": [
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Mail/HighTicketBookingMail.php",
+        "resources/views/emails/high-ticket-booking.blade.php",
+        "app/Models/HighTicketLead.php",
+        "app/Models/EmailTemplate.php",
+        "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-3",
+      "module": "011-high-ticket",
+      "title": "後台 Leads 名單管理",
+      "summary": "後台 Leads 列表：狀態/課程/關鍵字組合篩選、分頁、單筆狀態更新、序列信紀錄欄",
+      "heading": "### User Story 3 - 後台 Leads 名單管理 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-3---後台-leads-名單管理-priority-p2",
+      "keywords": [
+        "leads",
+        "名單",
+        "後台",
+        "admin",
+        "狀態篩選",
+        "搜尋",
+        "search",
+        "銷售漏斗",
+        "序列信紀錄",
+        "分頁",
+        "high-ticket-leads"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "app/Models/HighTicketLead.php",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-4",
+      "module": "011-high-ticket",
+      "title": "通知新時段與批次郵件",
+      "summary": "批次通知 pending leads 新時段釋出（確認 modal + 模板預覽 + Job per lead），及對任意 leads 發送客製批次郵件",
+      "heading": "### User Story 4 - 通知新時段與批次郵件 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-4---通知新時段與批次郵件-priority-p2",
+      "keywords": [
+        "通知新時段",
+        "slot available",
+        "high_ticket_slot_available",
+        "notified_count",
+        "批次郵件",
+        "batch email",
+        "確認 modal",
+        "模板預覽",
+        "queue job",
+        "retry"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "app/Services/HighTicketLeadService.php",
+        "app/Jobs/NotifyHighTicketSlotJob.php",
+        "app/Mail/BatchEmailMail.php",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-5",
+      "module": "011-high-ticket",
+      "title": "Lead 轉序列信與開通商品",
+      "summary": "冷掉/未成交 leads 批次加入 drip 序列信（active 訂閱去重），成交者一鍵開通商品（lead_conversion 購買記錄）",
+      "heading": "### User Story 5 - Lead 轉序列信與開通商品 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-5---lead-轉序列信與開通商品-priority-p2",
+      "keywords": [
+        "加入序列信",
+        "drip",
+        "subscribe",
+        "去重",
+        "開通",
+        "convert",
+        "lead_conversion",
+        "顧問轉換",
+        "firstOrCreate",
+        "closed",
+        "converted"
+      ],
+      "code_files": [
+        "app/Services/HighTicketLeadService.php",
+        "app/Jobs/SubscribeDripLeadJob.php",
+        "app/Services/DripService.php",
+        "app/Models/Purchase.php",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-6",
+      "module": "011-high-ticket",
+      "title": "Email 模板系統後台管理",
+      "summary": "後台統一編輯 4 種系統 Email 模板：Markdown 編輯器 + 變數插入 + 預覽，seeder 初始化，跨模組事件讀取",
+      "heading": "### User Story 6 - Email 模板系統後台管理 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-6---email-模板系統後台管理-priority-p2",
+      "keywords": [
+        "email template",
+        "Email 模板",
+        "event_type",
+        "插入變數",
+        "insert variable",
+        "Markdown 編輯器",
+        "marked",
+        "預覽",
+        "seeder",
+        "course_gifted",
+        "lesson_added"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "app/Http/Requests/Admin/EmailTemplateRequest.php",
+        "app/Models/EmailTemplate.php",
+        "database/seeders/EmailTemplateSeeder.php",
+        "database/migrations/2026_04_09_000002_create_email_templates_table.php",
+        "resources/js/Pages/Admin/EmailTemplates/Index.vue",
+        "resources/js/Pages/Admin/EmailTemplates/Edit.vue"
       ],
       "status": "implemented"
     }

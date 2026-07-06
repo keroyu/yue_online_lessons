@@ -61,11 +61,24 @@ When working in this repository, follow this order **strictly**:
 
 Before making any change, output:
 ```
-Target feature: [feature id, e.g. 002.us-10]
+Target feature: [feature id, e.g. 003.us-5]
 Spec section: [file#anchor]
 Target files: [list]
 Need more search: yes/no
 ```
+
+## Spec System
+
+- `specs/` 為 **12 個領域模組**（000-platform-core ~ 011-high-ticket），每模組單一 `spec.md`，格式定義在 `specs/_template.md`。
+- **Ownership 規則**：每個程式檔有且只有一個 owner 模組（spec frontmatter `owner_files`）；跨模組修改以 `touchpoints` 聲明。
+- 索引：`spec_index.json`（US 級）、`code_index.json`（反查）、`repo_map.md` 由 `tools/build_spec_index.py` 生成（post-commit hook 自動觸發）。
+- 舊交付批次 spec 在 `specs/_archive/`（唯讀，僅供考古）；外部參考文件在 `specs/_reference/`。
+
+**Workflow（取代 speckit）**：
+1. `/spec <描述>` — 規劃：自動分級（小改/加故事/新模組），產出含設計決策的方案（status: draft），列關鍵決策供審核。
+2. 使用者審核通過 → status: building。
+3. `/dev [模組id]` — 依 Tasks 實作、勾選、寫進度日誌；只吃 status: building。
+4. `/sync` — 任何 code 變更（含沒走 /spec 的小修）對帳回 spec 與索引。
 
 ## Development Rules
 
@@ -73,37 +86,6 @@ Need more search: yes/no
 - 不過度設計，先完成再優化
 - 敏感資料不進 git
 
-## Active Technologies
-- PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS (001-course-platform-mvp)
-- MySQL (Latest stable) (001-course-platform-mvp)
-- MySQL (Latest stable), Local filesystem for images (storage/app/public) (002-classroom-admin)
-- PHP 8.2+ / Laravel 12.x + Inertia.js, Vue 3, Tailwind CSS, vuedraggable@nex (002-classroom-admin)
-- PHP 8.2+ / Laravel 12.x + Inertia.js, Vue 3, Tailwind CSS, Resend (email) (003-member-management)
-- MySQL (existing database with users, purchases, lesson_progress tables) (003-member-management)
-- Laravel Cache (file-based) for RSS feed caching (004-homepage-enhancement)
-- PHP 8.2+ / Laravel 12.x + Laravel, Inertia.js, Vue 3, Tailwind CSS, Resend (email) (005-drip-email)
-- MySQL (existing database) (005-drip-email)
-- PHP 8.2+ / Laravel 12.x + Inertia.js v2, Vue 3, Tailwind CSS v4 (006-transactions-management)
-- MySQL — 現有 `purchases` 表（無需新增 migration） (006-transactions-management)
-- PHP 8.2 / Laravel 12, Vue 3 (Composition API `<script setup>`) + Inertia.js v2, Tailwind CSS v4 (006-transactions-management)
-- MySQL — 現有 `purchases` 表（`status` 欄位） (006-transactions-management)
-- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 + `<script setup>`, Tailwind CSS v4, `chart.js` + `vue-chartjs`（新增） (006-transactions-management)
-- MySQL — 現有 `purchases` 表（無新增 migration） (006-transactions-management)
-- PHP 8.2 / Laravel 12 + Laravel 12, Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4 (007-homepage-admin-settings)
-- MySQL — two new tables (`site_settings`, `social_links`); `Storage::disk('public')` for banner images (007-homepage-admin-settings)
-- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4, `league/commonmark` (existing), `marked` (existing) (008-high-ticket-booking)
-- MySQL — alter `courses.type` enum, two new tables (008-high-ticket-booking)
-- MySQL — new table `high_ticket_leads` (008-high-ticket-booking)
-- MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 1 altered table (`courses`) (009-cart-checkout)
-- MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 2 altered tables (`courses` 新增 `payment_gateway`、`purchases` 新增 `order_id`) (009-cart-checkout)
-- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4, PayuniService (existing), NewebpayService (new) (009-cart-checkout)
-- MySQL — 3 new tables (`cart_items`, `orders`, `order_items`), 2 altered tables (`courses` + `payment_gateway`, `purchases` + `order_id`); `site_settings` table (existing) for gateway credentials (009-cart-checkout)
-- PHP 8.2 / Laravel 12 + Laravel 12 + Inertia.js v2 + Vue 3 (`<script setup>`) + Tailwind CSS v4 + `marked` v17 (existing) + `league/commonmark` v2 (existing) (010-lesson-homework)
-- MySQL — 4 new tables, 1 altered (`users.points` column) (010-lesson-homework)
-- PHP 8.2 / Laravel 12 + Inertia.js v2, Vue 3 (`<script setup>`), Tailwind CSS v4（皆為現有依賴，無新增套件） (011-discount-coupon)
-- MySQL — 1 張新表 `coupon_codes`（含 `deleted_at` 軟刪除）；`orders` 表 alter 新增 3 欄；`purchases` 表沿用既有 `coupon_code` / `discount_amount` 欄（無需 migration） (011-discount-coupon)
-- PHP 8.2 / Laravel 12.x + Inertia.js v2、Vue 3（`<script setup>`）、Tailwind CSS v4（皆現有，無新增套件） (012-points-system)
-- MySQL — 1 張新表 `point_transactions`；`users`、`courses`、`orders` 各 alter 新增欄位；`purchases` 沿用既有欄位（新增 `source='points'` 值）；`site_settings` 新增 4 組設定鍵 (012-points-system)
+## Key Dependencies
 
-## Recent Changes
-- 001-course-platform-mvp: Added PHP 8.2+ / Laravel 12.x + Laravel 12, Inertia.js, Vue 3, Tailwind CSS
+PHP 8.2 / Laravel 12、Inertia.js v2、Vue 3（`<script setup>`）、Tailwind CSS v4、`league/commonmark` + `marked`（Markdown）、`chart.js` + `vue-chartjs`（後台圖表）、vuedraggable（拖曳排序）、Resend（email）。各模組的資料表與 schema 細節見所屬 `specs/NNN-*/spec.md` 的 Schema 段。

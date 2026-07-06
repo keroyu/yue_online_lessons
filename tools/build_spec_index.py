@@ -40,33 +40,7 @@ MODULE_DIRS = _discover_module_dirs()
 # ── Initial status seed ────────────────────────────────────────────────────────
 # Applied only when a feature has no "status" field yet.
 # Values: "implemented" | "partial" | "planned"
-INITIAL_STATUSES = {
-    "001.us-1": "implemented", "001.us-2": "implemented", "001.us-3": "implemented",
-    "001.us-4": "implemented", "001.us-5": "implemented", "001.us-6": "implemented",
-
-    "002.us-1": "implemented", "002.us-1a": "implemented",
-    "002.us-2": "implemented", "002.us-2a": "implemented", "002.us-2b": "implemented",
-    "002.us-3": "implemented", "002.us-4": "implemented",  "002.us-5": "implemented",
-    "002.us-6": "implemented", "002.us-7": "implemented",  "002.us-8": "implemented",
-    "002.us-9": "implemented", "002.us-10": "implemented", "002.us-11": "implemented",
-
-    "003.us-1": "implemented", "003.us-2": "implemented", "003.us-3": "implemented",
-    "003.us-4": "implemented", "003.us-5": "implemented", "003.us-6": "implemented",
-    "003.us-7": "implemented",
-
-    "004.us-1": "implemented", "004.us-2": "implemented", "004.us-3": "implemented",
-
-    "006.us-1": "implemented", "006.us-2": "implemented", "006.us-3": "implemented",
-    "006.us-4": "implemented", "006.us-5": "implemented",
-
-    "005.us-1":   "implemented", "005.us-1.5": "implemented",
-    "005.us-2":   "implemented", "005.us-3":   "implemented",
-    "005.us-4":   "implemented", "005.us-5":   "implemented",
-    "005.us-6":   "implemented", "005.us-15":  "implemented",
-    "005.us-7":   "partial",     "005.us-8":   "partial",    "005.us-9": "partial",
-    "005.us-10":  "planned",     "005.us-11":  "planned",
-    "005.us-12":  "planned",     "005.us-13":  "planned",    "005.us-14": "planned",
-}
+INITIAL_STATUSES = {}
 
 PRESERVED_FIELDS = {"summary", "keywords", "code_files", "status"}
 
