@@ -14,7 +14,7 @@ class StoreSocialLinkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'platform' => ['required', 'string', 'in:instagram,threads,youtube,facebook,substack,podcast'],
+            'platform' => ['required', 'string', 'in:instagram,threads,youtube,facebook,blog,podcast'],
             'url'      => ['required', 'url', 'max:500'],
         ];
     }

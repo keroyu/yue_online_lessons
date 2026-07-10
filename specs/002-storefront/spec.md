@@ -104,7 +104,7 @@ touchpoints:
 
 ### User Story 4 - 社群連結管理與顯示 (Priority: P1)
 
-管理員在後台以「+」新增 SNS 連結（平台下拉：Instagram/Threads/YouTube/Facebook/Substack/Podcast ＋ URL），inline 編輯/刪除，並有全域「顯示 SNS 區塊」開關；訪客在首頁側欄看到 icon 按鈕。
+管理員在後台以「+」新增 SNS 連結（平台下拉：Instagram/Threads/YouTube/Facebook/BLOG/Podcast ＋ URL），inline 編輯/刪除，並有全域「顯示 SNS 區塊」開關；訪客在首頁側欄看到 icon 按鈕。
 
 **驗收**：
 - [x] 新增後依建立順序（sort_order = max+1）附加在列表尾；無拖曳排序
@@ -197,4 +197,5 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-10: SNS 平台 `substack` 更名為 `blog`（顯示 BLOG + 通用 RSS 圖示），含 DB migration 更名既有資料列
 - 2026-07-06: 領域重組 — 合併 001(US1)+004+007+002(US12) 重寫，依實際 codebase 校正

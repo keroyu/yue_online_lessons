@@ -108,7 +108,7 @@ const showAddForm = ref(false)
 const newLink = ref({ platform: 'instagram', url: '' })
 const addErrors = ref({})
 
-const platforms = ['instagram', 'threads', 'youtube', 'facebook', 'substack', 'podcast']
+const platforms = ['instagram', 'threads', 'youtube', 'facebook', 'blog', 'podcast']
 
 function startEdit(link) {
   link.editing = true

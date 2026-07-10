@@ -29,7 +29,7 @@ class HomepageSettingsSeeder extends Seeder
             ['sort_order' => 2, 'platform' => 'threads',   'url' => 'https://www.threads.com/@yueyuknows'],
             ['sort_order' => 3, 'platform' => 'youtube',   'url' => 'https://www.youtube.com/@kyontw828'],
             ['sort_order' => 4, 'platform' => 'facebook',  'url' => 'https://www.facebook.com/kyontw828'],
-            ['sort_order' => 5, 'platform' => 'substack',  'url' => 'https://getwhealthy.substack.com/'],
+            ['sort_order' => 5, 'platform' => 'blog',      'url' => 'https://getwhealthy.substack.com/'],
             ['sort_order' => 6, 'platform' => 'podcast',   'url' => 'https://kyontw.firstory.io/'],
         ];
 
