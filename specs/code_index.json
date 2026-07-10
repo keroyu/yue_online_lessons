@@ -1,13 +1,24 @@
 {
   "files": {
+    "app/Console/Commands/CleanDormantSubscribers.php": [
+      "012.us-7"
+    ],
     "app/Console/Commands/MaturePoints.php": [
       "007.us-2"
     ],
     "app/Console/Commands/ProcessDripEmails.php": [
       "010.us-3"
     ],
+    "app/Console/Commands/PublishScheduledPosts.php": [
+      "012.us-1",
+      "012.us-7"
+    ],
     "app/Console/Commands/UpdateCourseStatus.php": [
       "004.us-5"
+    ],
+    "app/Http/Controllers/Admin/BroadcastController.php": [
+      "012.us-5",
+      "012.us-6"
     ],
     "app/Http/Controllers/Admin/ChapterController.php": [
       "004.us-3",
@@ -67,6 +78,13 @@
       "008.us-7",
       "008.us-8"
     ],
+    "app/Http/Controllers/Admin/PostController.php": [
+      "012.us-1",
+      "012.us-8"
+    ],
+    "app/Http/Controllers/Admin/PostImageController.php": [
+      "012.us-1"
+    ],
     "app/Http/Controllers/Admin/ReferralStatsController.php": [
       "007.us-5"
     ],
@@ -87,6 +105,13 @@
     ],
     "app/Http/Controllers/Auth/LoginController.php": [
       "001.us-1"
+    ],
+    "app/Http/Controllers/BlogController.php": [
+      "012.us-2",
+      "012.us-8"
+    ],
+    "app/Http/Controllers/BlogFeedController.php": [
+      "012.us-2"
     ],
     "app/Http/Controllers/CartController.php": [
       "005.us-1",
@@ -125,7 +150,8 @@
     ],
     "app/Http/Controllers/HomeController.php": [
       "002.us-1",
-      "002.us-5"
+      "002.us-5",
+      "012.us-3"
     ],
     "app/Http/Controllers/Member/AssignmentCommentController.php": [
       "003.us-5"
@@ -151,6 +177,12 @@
     "app/Http/Controllers/Member/SettingsController.php": [
       "001.us-2"
     ],
+    "app/Http/Controllers/NewsletterSubscriptionController.php": [
+      "012.us-4"
+    ],
+    "app/Http/Controllers/NewsletterTrackingController.php": [
+      "012.us-6"
+    ],
     "app/Http/Controllers/Payment/NewebpayController.php": [
       "005.us-4"
     ],
@@ -171,7 +203,8 @@
       "007.us-2"
     ],
     "app/Http/Controllers/SitemapController.php": [
-      "000.us-4"
+      "000.us-4",
+      "012.us-2"
     ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "005.us-6"
@@ -200,6 +233,9 @@
     "app/Http/Requests/Admin/SendBatchEmailRequest.php": [
       "008.us-5"
     ],
+    "app/Http/Requests/Admin/SendBroadcastRequest.php": [
+      "012.us-5"
+    ],
     "app/Http/Requests/Admin/StoreChapterRequest.php": [
       "004.us-3"
     ],
@@ -218,6 +254,9 @@
     ],
     "app/Http/Requests/Admin/StoreLessonRequest.php": [
       "004.us-3"
+    ],
+    "app/Http/Requests/Admin/StorePostRequest.php": [
+      "012.us-1"
     ],
     "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
       "002.us-4"
@@ -244,6 +283,9 @@
     "app/Http/Requests/Admin/UpdateMemberRequest.php": [
       "008.us-2"
     ],
+    "app/Http/Requests/Admin/UpdatePostRequest.php": [
+      "012.us-1"
+    ],
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "002.us-4"
     ],
@@ -268,11 +310,17 @@
     "app/Http/Requests/StoreDripSubscriptionRequest.php": [
       "010.us-1"
     ],
+    "app/Http/Requests/StoreNewsletterSubscriptionRequest.php": [
+      "012.us-4"
+    ],
     "app/Http/Requests/ValidateReferralRequest.php": [
       "007.us-2"
     ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
       "011.us-4"
+    ],
+    "app/Jobs/SendBroadcastEmailJob.php": [
+      "012.us-5"
     ],
     "app/Jobs/SendDripEmailJob.php": [
       "010.us-11",
@@ -299,8 +347,15 @@
     "app/Mail/LessonAddedNotification.php": [
       "004.us-6"
     ],
+    "app/Mail/NewsletterBroadcastMail.php": [
+      "012.us-5"
+    ],
+    "app/Mail/NewsletterWelcomeMail.php": [
+      "012.us-4"
+    ],
     "app/Mail/VerificationCodeMail.php": [
-      "001.us-1"
+      "001.us-1",
+      "012.us-4"
     ],
     "app/Models/Assignment.php": [
       "003.us-5",
@@ -308,6 +363,9 @@
     ],
     "app/Models/AssignmentCompletion.php": [
       "003.us-7"
+    ],
+    "app/Models/Broadcast.php": [
+      "012.us-5"
     ],
     "app/Models/CartItem.php": [
       "005.us-1"
@@ -363,6 +421,9 @@
     "app/Models/LessonProgress.php": [
       "003.us-3"
     ],
+    "app/Models/NewsletterEmailEvent.php": [
+      "012.us-6"
+    ],
     "app/Models/Order.php": [
       "005.us-3",
       "006.us-3"
@@ -372,6 +433,13 @@
     ],
     "app/Models/PointTransaction.php": [
       "007.us-3"
+    ],
+    "app/Models/Post.php": [
+      "012.us-1",
+      "012.us-8"
+    ],
+    "app/Models/PostImage.php": [
+      "012.us-1"
     ],
     "app/Models/Purchase.php": [
       "005.us-4",
@@ -386,9 +454,13 @@
     "app/Models/SocialLink.php": [
       "002.us-4"
     ],
+    "app/Models/Tag.php": [
+      "012.us-1"
+    ],
     "app/Models/User.php": [
       "001.us-1",
-      "001.us-2"
+      "001.us-2",
+      "012.us-4"
     ],
     "app/Models/VerificationCode.php": [
       "001.us-1"
@@ -404,6 +476,10 @@
     ],
     "app/Services/BlogRssService.php": [
       "002.us-5"
+    ],
+    "app/Services/BroadcastService.php": [
+      "012.us-5",
+      "012.us-6"
     ],
     "app/Services/CartService.php": [
       "005.us-1",
@@ -448,6 +524,10 @@
       "005.us-3",
       "005.us-4"
     ],
+    "app/Services/NewsletterService.php": [
+      "012.us-4",
+      "012.us-7"
+    ],
     "app/Services/PayuniService.php": [
       "005.us-3",
       "005.us-4"
@@ -463,6 +543,10 @@
       "010.us-4",
       "010.us-5"
     ],
+    "app/Services/PostService.php": [
+      "012.us-1",
+      "012.us-2"
+    ],
     "app/Services/RedemptionService.php": [
       "007.us-1",
       "010.us-5"
@@ -476,7 +560,8 @@
       "009.us-4"
     ],
     "app/Services/VerificationCodeService.php": [
-      "001.us-1"
+      "001.us-1",
+      "012.us-4"
     ],
     "app/Services/VideoEmbedService.php": [
       "003.us-2"
@@ -581,6 +666,28 @@
     "database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php": [
       "004.us-2"
     ],
+    "database/migrations/2026_07_10_000001_create_posts_table.php": [
+      "012.us-1",
+      "012.us-8"
+    ],
+    "database/migrations/2026_07_10_000002_create_tags_table.php": [
+      "012.us-1"
+    ],
+    "database/migrations/2026_07_10_000003_create_post_tag_table.php": [
+      "012.us-1"
+    ],
+    "database/migrations/2026_07_10_000004_create_post_images_table.php": [
+      "012.us-1"
+    ],
+    "database/migrations/2026_07_10_000005_create_broadcasts_table.php": [
+      "012.us-5"
+    ],
+    "database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php": [
+      "012.us-6"
+    ],
+    "database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php": [
+      "012.us-4"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -604,6 +711,9 @@
       "010.us-8",
       "010.us-9"
     ],
+    "resources/js/Components/Admin/PostForm.vue": [
+      "012.us-1"
+    ],
     "resources/js/Components/Admin/RevenueChart.vue": [
       "009.us-6"
     ],
@@ -614,7 +724,8 @@
       "008.us-5"
     ],
     "resources/js/Components/BlogArticles.vue": [
-      "002.us-5"
+      "002.us-5",
+      "012.us-3"
     ],
     "resources/js/Components/Cart/CouponInput.vue": [
       "006.us-1",
@@ -702,6 +813,16 @@
     "resources/js/Components/MyCourseCard.vue": [
       "003.us-1"
     ],
+    "resources/js/Components/Newsletter/PostCard.vue": [
+      "012.us-2",
+      "012.us-3"
+    ],
+    "resources/js/Components/Newsletter/ShareButtons.vue": [
+      "012.us-3"
+    ],
+    "resources/js/Components/Newsletter/SubscribeForm.vue": [
+      "012.us-4"
+    ],
     "resources/js/Components/SectionHeader.vue": [
       "002.us-1"
     ],
@@ -709,10 +830,17 @@
       "002.us-4"
     ],
     "resources/js/Components/VerificationCodeInput.vue": [
-      "001.us-1"
+      "001.us-1",
+      "012.us-4"
     ],
     "resources/js/Layouts/AdminLayout.vue": [
       "000.us-2"
+    ],
+    "resources/js/Pages/Admin/Broadcasts/Index.vue": [
+      "012.us-5"
+    ],
+    "resources/js/Pages/Admin/Broadcasts/Show.vue": [
+      "012.us-6"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -788,6 +916,16 @@
       "008.us-4",
       "008.us-7"
     ],
+    "resources/js/Pages/Admin/Posts/Create.vue": [
+      "012.us-1"
+    ],
+    "resources/js/Pages/Admin/Posts/Edit.vue": [
+      "012.us-1"
+    ],
+    "resources/js/Pages/Admin/Posts/Index.vue": [
+      "012.us-1",
+      "012.us-8"
+    ],
     "resources/js/Pages/Admin/Referrals/Index.vue": [
       "007.us-5"
     ],
@@ -807,6 +945,15 @@
     ],
     "resources/js/Pages/Auth/Login.vue": [
       "001.us-1"
+    ],
+    "resources/js/Pages/Blog/Index.vue": [
+      "012.us-2"
+    ],
+    "resources/js/Pages/Blog/Show.vue": [
+      "012.us-2"
+    ],
+    "resources/js/Pages/Blog/Tag.vue": [
+      "012.us-2"
     ],
     "resources/js/Pages/Cart/Index.vue": [
       "005.us-2",
@@ -829,7 +976,8 @@
     ],
     "resources/js/Pages/Home.vue": [
       "002.us-1",
-      "002.us-3"
+      "002.us-3",
+      "012.us-3"
     ],
     "resources/js/Pages/Member/Classroom.vue": [
       "003.us-2",
@@ -850,6 +998,9 @@
     "resources/js/Pages/Member/Settings.vue": [
       "001.us-2"
     ],
+    "resources/js/Pages/Newsletter/Unsubscribe.vue": [
+      "012.us-4"
+    ],
     "resources/js/Pages/Payment/Success.vue": [
       "005.us-5"
     ],
@@ -864,7 +1015,8 @@
       "003.us-8"
     ],
     "resources/views/app.blade.php": [
-      "000.us-4"
+      "000.us-4",
+      "012.us-2"
     ],
     "resources/views/emails/batch-email.blade.php": [
       "008.us-5"
@@ -882,11 +1034,18 @@
     "resources/views/emails/lesson-added.blade.php": [
       "004.us-6"
     ],
+    "resources/views/emails/newsletter-broadcast.blade.php": [
+      "012.us-5"
+    ],
+    "resources/views/emails/newsletter-welcome.blade.php": [
+      "012.us-4"
+    ],
     "resources/views/emails/verification-code.blade.php": [
       "001.us-1"
     ],
     "resources/views/sitemap.blade.php": [
-      "000.us-4"
+      "000.us-4",
+      "012.us-2"
     ],
     "routes/api.php": [
       "005.us-5",
@@ -894,7 +1053,8 @@
     ],
     "routes/console.php": [
       "004.us-5",
-      "010.us-3"
+      "010.us-3",
+      "012.us-7"
     ],
     "routes/web.php": [
       "000.us-2",

@@ -432,3 +432,71 @@ main_files:
 
 related_specs:
 - specs/011-high-ticket/spec.md
+
+---
+
+## Newsletter (012)
+purpose: 極簡電子報 / mini-blog — Markdown 文章 CRUD（YouTube embed）、SEO 部落格前台（/blog、tag 頁、RSS、sitemap、JSON-LD）、首頁精選文章與原生分享、email 一鍵訂閱即成會員、把文章寄成極簡電子報（Broadcast）、開信追蹤與月排程清理沉睡訂閱者
+specs: specs/012-newsletter/
+
+main_files:
+- app/Console/Commands/CleanDormantSubscribers.php
+- app/Console/Commands/PublishScheduledPosts.php
+- app/Http/Controllers/Admin/BroadcastController.php
+- app/Http/Controllers/Admin/PostController.php
+- app/Http/Controllers/Admin/PostImageController.php
+- app/Http/Controllers/BlogController.php
+- app/Http/Controllers/BlogFeedController.php
+- app/Http/Controllers/HomeController.php
+- app/Http/Controllers/NewsletterSubscriptionController.php
+- app/Http/Controllers/NewsletterTrackingController.php
+- app/Http/Controllers/SitemapController.php
+- app/Http/Requests/Admin/SendBroadcastRequest.php
+- app/Http/Requests/Admin/StorePostRequest.php
+- app/Http/Requests/Admin/UpdatePostRequest.php
+- app/Http/Requests/StoreNewsletterSubscriptionRequest.php
+- app/Jobs/SendBroadcastEmailJob.php
+- app/Mail/NewsletterBroadcastMail.php
+- app/Mail/NewsletterWelcomeMail.php
+- app/Mail/VerificationCodeMail.php
+- app/Models/Broadcast.php
+- app/Models/NewsletterEmailEvent.php
+- app/Models/Post.php
+- app/Models/PostImage.php
+- app/Models/Tag.php
+- app/Models/User.php
+- app/Services/BroadcastService.php
+- app/Services/NewsletterService.php
+- app/Services/PostService.php
+- app/Services/VerificationCodeService.php
+- database/migrations/2026_07_10_000001_create_posts_table.php
+- database/migrations/2026_07_10_000002_create_tags_table.php
+- database/migrations/2026_07_10_000003_create_post_tag_table.php
+- database/migrations/2026_07_10_000004_create_post_images_table.php
+- database/migrations/2026_07_10_000005_create_broadcasts_table.php
+- database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
+- database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
+- resources/js/Components/Admin/PostForm.vue
+- resources/js/Components/BlogArticles.vue
+- resources/js/Components/Newsletter/PostCard.vue
+- resources/js/Components/Newsletter/ShareButtons.vue
+- resources/js/Components/Newsletter/SubscribeForm.vue
+- resources/js/Components/VerificationCodeInput.vue
+- resources/js/Pages/Admin/Broadcasts/Index.vue
+- resources/js/Pages/Admin/Broadcasts/Show.vue
+- resources/js/Pages/Admin/Posts/Create.vue
+- resources/js/Pages/Admin/Posts/Edit.vue
+- resources/js/Pages/Admin/Posts/Index.vue
+- resources/js/Pages/Blog/Index.vue
+- resources/js/Pages/Blog/Show.vue
+- resources/js/Pages/Blog/Tag.vue
+- resources/js/Pages/Home.vue
+- resources/js/Pages/Newsletter/Unsubscribe.vue
+- resources/views/app.blade.php
+- resources/views/emails/newsletter-broadcast.blade.php
+- resources/views/emails/newsletter-welcome.blade.php
+- resources/views/sitemap.blade.php
+- routes/console.php
+
+related_specs:
+- specs/012-newsletter/spec.md
