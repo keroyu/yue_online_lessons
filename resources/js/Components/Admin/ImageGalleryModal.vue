@@ -223,7 +223,7 @@ const close = () => {
           <div class="px-6 py-4 max-h-[60vh] overflow-y-auto">
             <!-- Upload button -->
             <div class="mb-4">
-              <label class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 cursor-pointer transition-colors">
+              <label class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 cursor-pointer transition-colors">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
@@ -245,7 +245,7 @@ const close = () => {
             <div v-if="images.length > 0" class="flex items-center gap-3 mb-3">
               <button
                 type="button"
-                class="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+                class="text-sm text-brand-teal hover:text-brand-teal transition-colors"
                 @click="toggleSelectAll"
               >
                 {{ isAllSelected ? '取消全選' : '全選' }}
@@ -272,7 +272,7 @@ const close = () => {
                 v-for="image in images"
                 :key="image.id"
                 class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer ring-2 transition-all"
-                :class="insertOrder(image) > 0 ? 'ring-indigo-500' : 'ring-transparent hover:ring-gray-300'"
+                :class="insertOrder(image) > 0 ? 'ring-brand-teal' : 'ring-transparent hover:ring-gray-300'"
                 @click="toggleInsertSelection(image)"
               >
                 <img
@@ -320,7 +320,7 @@ const close = () => {
                 <!-- Insert order badge (bottom-right) -->
                 <div
                   v-if="insertOrder(image) > 0"
-                  class="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center font-bold"
+                  class="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-brand-teal text-white text-xs flex items-center justify-center font-bold"
                 >
                   {{ insertOrder(image) }}
                 </div>
@@ -345,7 +345,7 @@ const close = () => {
                     type="number"
                     min="1"
                     placeholder="自動"
-                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
                     @input="calculateHeight"
                   />
                 </div>
@@ -361,7 +361,7 @@ const close = () => {
                     type="number"
                     min="1"
                     placeholder="自動"
-                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
                     @input="calculateWidth"
                   />
                 </div>
@@ -390,7 +390,7 @@ const close = () => {
             </button>
             <button
               type="button"
-              class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="selectedForInsert.length === 0"
               @click="insertImage"
             >

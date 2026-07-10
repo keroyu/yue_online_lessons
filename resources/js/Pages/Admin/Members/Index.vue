@@ -402,7 +402,7 @@ const doExport = (scope) => {
 </script>
 
 <template>
-  <div class="px-4 sm:px-6 lg:px-8">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <!-- Header -->
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
@@ -492,7 +492,7 @@ const doExport = (scope) => {
             v-model="search"
             type="text"
             placeholder="搜尋 Email、姓名、暱稱..."
-            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
           />
         </div>
 
@@ -501,7 +501,7 @@ const doExport = (scope) => {
           <select
             v-model="courseFilter"
             @change="applyFilters"
-            class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
           >
             <option value="">所有課程</option>
             <option v-for="course in courses" :key="course.id" :value="course.id">
@@ -579,15 +579,15 @@ const doExport = (scope) => {
       </div>
 
       <!-- Selection bar -->
-      <div v-if="selectedCount > 0" class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between">
+      <div v-if="selectedCount > 0" class="mt-4 bg-brand-teal/10 border border-brand-teal/30 rounded-lg p-3 flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <span class="text-sm text-indigo-800">
+          <span class="text-sm text-brand-teal">
             已選取 <strong>{{ selectedCount }}</strong> 位會員
           </span>
           <button
             type="button"
             @click="clearAllSelections"
-            class="text-sm text-indigo-600 hover:text-indigo-800 underline"
+            class="text-sm text-brand-teal hover:text-brand-teal underline"
           >
             清除選取
           </button>
@@ -606,7 +606,7 @@ const doExport = (scope) => {
           <button
             type="button"
             @click="openBatchEmailModal"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2 cursor-pointer"
+            class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90 transition-colors flex items-center gap-2 cursor-pointer"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -654,9 +654,9 @@ const doExport = (scope) => {
       <div class="mt-4 flex flex-col">
         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-100">
+                <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <tr>
                     <!-- Checkbox column header -->
                     <th scope="col" class="relative w-12 px-6 sm:w-16 sm:px-8">
@@ -665,39 +665,39 @@ const doExport = (scope) => {
                         :checked="allOnPageSelected && members.data?.length > 0"
                         :indeterminate="someOnPageSelected"
                         @change="toggleSelectAllOnPage"
-                        class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                        class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal sm:left-6"
                       />
                     </th>
                     <th
                       scope="col"
-                      class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer hover:bg-gray-100"
+                      class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100"
                       @click="sortBy('email')"
                     >
                       Email {{ getSortIcon('email') }}
                     </th>
                     <th
                       scope="col"
-                      class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
+                      class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100"
                       @click="sortBy('real_name')"
                     >
                       姓名 {{ getSortIcon('real_name') }}
                     </th>
                     <th
                       scope="col"
-                      class="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      class="hidden md:table-cell px-4 py-3 text-left"
                     >
                       電話
                     </th>
                     <th
                       scope="col"
-                      class="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
+                      class="hidden lg:table-cell px-4 py-3 text-left cursor-pointer hover:bg-gray-100"
                       @click="sortBy('created_at')"
                     >
                       註冊時間 {{ getSortIcon('created_at') }}
                     </th>
                     <th
                       scope="col"
-                      class="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
+                      class="hidden lg:table-cell px-4 py-3 text-left cursor-pointer hover:bg-gray-100"
                       @click="sortBy('last_login_at')"
                     >
                       最後登入 {{ getSortIcon('last_login_at') }}
@@ -707,15 +707,15 @@ const doExport = (scope) => {
                     </th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
-                  <tr v-for="member in members.data" :key="member.id" :class="{ 'bg-indigo-50': isMemberSelected(member.id) }">
+                <tbody class="divide-y divide-gray-100 bg-white">
+                  <tr v-for="member in members.data" :key="member.id" :class="{ 'bg-brand-teal/10': isMemberSelected(member.id) }">
                     <!-- Checkbox column -->
                     <td class="relative w-12 px-6 sm:w-16 sm:px-8">
                       <input
                         type="checkbox"
                         :checked="isMemberSelected(member.id)"
                         @change="toggleMemberSelection(member.id)"
-                        class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                        class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal sm:left-6"
                       />
                     </td>
                     <!-- Email column with inline edit and copy button -->
@@ -729,7 +729,7 @@ const doExport = (scope) => {
                                 ref="editInputRef"
                                 v-model="editValue"
                                 type="email"
-                                class="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                                class="block w-48 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal text-sm"
                                 :class="{ 'border-red-500': getError(member.id, 'email') }"
                                 @keyup.enter="saveEdit(member)"
                                 @keyup.escape="cancelEditing"
@@ -744,7 +744,7 @@ const doExport = (scope) => {
                         <!-- Display mode -->
                         <template v-else>
                           <span
-                            class="text-sm text-gray-900 cursor-pointer hover:text-indigo-600"
+                            class="text-sm text-gray-900 cursor-pointer hover:text-brand-teal"
                             @click="startEditing(member, 'email')"
                             title="點擊編輯"
                           >
@@ -779,7 +779,7 @@ const doExport = (scope) => {
                             ref="editInputRef"
                             v-model="editValue"
                             type="text"
-                            class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal text-sm"
                             :class="{ 'border-red-500': getError(member.id, 'real_name') }"
                             @keyup.enter="saveEdit(member)"
                             @keyup.escape="cancelEditing"
@@ -791,7 +791,7 @@ const doExport = (scope) => {
                         </template>
                         <template v-else>
                           <span
-                            class="text-gray-500 cursor-pointer hover:text-indigo-600"
+                            class="text-gray-500 cursor-pointer hover:text-brand-teal"
                             @click="startEditing(member, 'real_name')"
                             title="點擊編輯"
                           >
@@ -812,7 +812,7 @@ const doExport = (scope) => {
                             ref="editInputRef"
                             v-model="editValue"
                             type="tel"
-                            class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal text-sm"
                             :class="{ 'border-red-500': getError(member.id, 'phone') }"
                             @keyup.enter="saveEdit(member)"
                             @keyup.escape="cancelEditing"
@@ -824,7 +824,7 @@ const doExport = (scope) => {
                         </template>
                         <template v-else>
                           <span
-                            class="text-gray-500 cursor-pointer hover:text-indigo-600"
+                            class="text-gray-500 cursor-pointer hover:text-brand-teal"
                             @click="startEditing(member, 'phone')"
                             title="點擊編輯"
                           >
@@ -846,7 +846,7 @@ const doExport = (scope) => {
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         type="button"
-                        class="text-indigo-600 hover:text-indigo-900"
+                        class="text-brand-teal hover:text-brand-navy"
                         @click="openMemberModal(member)"
                       >
                         查看

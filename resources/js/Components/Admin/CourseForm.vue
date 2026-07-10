@@ -168,7 +168,7 @@ const submit = () => {
 }
 
 // Input classes for consistent styling
-const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500'
+const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal'
 const inputErrorClasses = 'border-red-300 focus:border-red-500 focus:ring-red-500'
 const labelClasses = 'block text-sm font-semibold text-gray-900'
 const helpTextClasses = 'mt-2 text-sm text-gray-500'
@@ -190,7 +190,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 v-model="form.course_type"
                 type="radio"
                 value="standard"
-                class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                class="h-4 w-4 border-gray-300 text-brand-teal focus:ring-brand-teal"
               />
               <span class="text-sm text-gray-700">一般課程</span>
             </label>
@@ -199,7 +199,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 v-model="form.course_type"
                 type="radio"
                 value="drip"
-                class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                class="h-4 w-4 border-gray-300 text-brand-teal focus:ring-brand-teal"
               />
               <span class="text-sm text-gray-700">連鎖課程</span>
             </label>
@@ -211,7 +211,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
     </div>
 
     <!-- Tab Interface -->
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-hidden">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <!-- Tab Nav -->
       <div class="flex border-b border-gray-200">
         <button
@@ -220,7 +220,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           type="button"
           @click="activeTab = tab.key"
           :class="activeTab === tab.key
-            ? 'border-indigo-600 text-indigo-600'
+            ? 'border-brand-teal text-brand-teal'
             : 'border-transparent text-gray-500 hover:text-gray-700'"
           class="px-6 py-3 text-sm font-medium border-b-2 -mb-px transition-colors"
         >
@@ -362,13 +362,13 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
         </div>
 
         <!-- High Ticket Options (only when type = high_ticket) -->
-        <div v-if="form.type === 'high_ticket'" class="border border-indigo-100 bg-indigo-50 rounded-lg p-4">
-          <p class="text-sm font-semibold text-indigo-800 mb-3">客製服務設定</p>
+        <div v-if="form.type === 'high_ticket'" class="border border-brand-teal bg-brand-teal/10 rounded-lg p-4">
+          <p class="text-sm font-semibold text-brand-teal mb-3">客製服務設定</p>
           <label class="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               v-model="form.high_ticket_hide_price"
-              class="h-4 w-4 border-gray-300 text-indigo-600 rounded focus:ring-indigo-500"
+              class="h-4 w-4 border-gray-300 text-brand-teal rounded focus:ring-brand-teal"
             />
             <span class="text-sm text-gray-700">隱藏原價／優惠價，改顯示「立即預約」按鈕</span>
           </label>
@@ -411,7 +411,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               id="is_visible"
               v-model="form.is_visible"
               type="checkbox"
-              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              class="h-5 w-5 rounded border-gray-300 text-brand-teal focus:ring-brand-teal cursor-pointer"
             />
           </div>
           <div class="ml-3">
@@ -435,7 +435,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <button
             type="submit"
             :disabled="form.processing"
-            class="px-8 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-8 py-3 text-base font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ form.processing ? '儲存中...' : '儲存課程' }}
           </button>
@@ -462,7 +462,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 step="1"
                 min="0"
                 placeholder="0"
-                class="pl-8 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500"
+                class="pl-8 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal"
                 :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.price }"
               />
             </div>
@@ -484,7 +484,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 step="1"
                 min="0"
                 placeholder="0"
-                class="pl-8 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500"
+                class="pl-8 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal"
                 :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.original_price }"
               />
             </div>
@@ -573,7 +573,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               :key="option.value"
               class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border text-sm font-medium transition-colors"
               :class="form.payment_gateway === option.value
-                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                ? 'border-brand-teal bg-brand-teal/10 text-brand-teal'
                 : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
             >
               <input
@@ -599,7 +599,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <button
             type="submit"
             :disabled="form.processing"
-            class="px-8 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-8 py-3 text-base font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ form.processing ? '儲存中...' : '儲存課程' }}
           </button>
@@ -635,13 +635,13 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               v-for="ac in availableCourses"
               :key="ac.id"
               class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-              :class="{ 'bg-indigo-50 border-indigo-300': form.target_course_ids.includes(ac.id) }"
+              :class="{ 'bg-brand-teal/10 border-brand-teal/40': form.target_course_ids.includes(ac.id) }"
             >
               <input
                 type="checkbox"
                 :value="ac.id"
                 v-model="form.target_course_ids"
-                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                class="h-4 w-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal"
               />
               <span class="text-sm text-gray-700">{{ ac.name }}</span>
             </label>
@@ -653,15 +653,15 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
         <!-- Schedule Preview -->
         <div v-if="schedulePreview.length > 0">
           <label :class="labelClasses">發信排程預覽</label>
-          <div class="mt-3 overflow-hidden rounded-lg border border-gray-200">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+          <div class="mt-3 bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-100">
+              <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <tr>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lesson</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">解鎖日</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200">
+              <tbody class="divide-y divide-gray-100">
                 <tr v-for="(item, index) in schedulePreview" :key="index">
                   <td class="px-4 py-2 text-sm text-gray-700">{{ item.title }}</td>
                   <td class="px-4 py-2 text-sm text-gray-500">
@@ -684,7 +684,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <button
             type="submit"
             :disabled="form.processing"
-            class="px-8 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-8 py-3 text-base font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ form.processing ? '儲存中...' : '儲存課程' }}
           </button>
@@ -707,7 +707,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           </button>
           <a
             :href="`/admin/courses/${course.id}/images`"
-            class="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            class="text-sm text-brand-teal hover:text-brand-teal font-medium"
           >
             前往相簿管理 →
           </a>
@@ -718,7 +718,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           v-model="form.description_md"
           rows="16"
           placeholder="## 課程特色&#10;&#10;這是一門精心設計的課程...&#10;&#10;- 重點一&#10;- 重點二"
-          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono text-sm leading-relaxed"
+          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono text-sm leading-relaxed"
           :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.description_md }"
         />
         <p v-if="form.errors.description_md" :class="errorTextClasses">{{ form.errors.description_md }}</p>
@@ -734,7 +734,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
           <button
             type="submit"
             :disabled="form.processing"
-            class="px-8 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-8 py-3 text-base font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ form.processing ? '儲存中...' : '儲存課程' }}
           </button>

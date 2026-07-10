@@ -195,7 +195,7 @@ const close = () => {
 }
 
 // Consistent styling classes (matching CourseForm)
-const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500'
+const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal'
 const inputErrorClasses = 'border-red-300 focus:border-red-500 focus:ring-red-500'
 const labelClasses = 'block text-sm font-semibold text-gray-900'
 const helpTextClasses = 'mt-2 text-sm text-gray-500'
@@ -249,7 +249,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   type="checkbox"
                   id="is_preview"
                   v-model="form.is_preview"
-                  class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                  class="rounded border-gray-300 text-brand-teal shadow-sm focus:ring-brand-teal"
                 />
                 <label for="is_preview" class="text-sm text-gray-700 cursor-pointer">
                   免費試閱 <span class="text-xs text-gray-400">勾選後訪客可在試閱頁面觀看此小節</span>
@@ -303,7 +303,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   <button
                     v-if="courseType === 'drip'"
                     type="button"
-                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                    class="text-xs font-medium text-brand-teal hover:text-brand-teal cursor-pointer"
                     @click="insertClassroomUrl"
                   >
                     + 插入教室連結
@@ -315,7 +315,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   v-model="form.md_content"
                   rows="8"
                   placeholder="## 標題&#10;&#10;內容...&#10;&#10;- 項目一&#10;- 項目二"
-                  class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                  class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono leading-relaxed"
                 />
                 <p v-if="courseType === 'drip' && videoPlatform"
                    class="mt-2 text-sm flex items-center gap-1.5 text-amber-600 font-medium"
@@ -356,7 +356,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                       v-model="form.reward_html"
                       rows="4"
                       placeholder="<div>送你優惠代碼 XXXXX</div>"
-                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono leading-relaxed"
                     />
                     <p :class="helpTextClasses">留空則不顯示獎勵欄</p>
                   </div>
@@ -426,7 +426,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                       <button
                         type="button"
                         :disabled="!selectedChainAlias"
-                        class="shrink-0 rounded bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-40 transition-colors"
+                        class="shrink-0 rounded bg-brand-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-40 transition-colors"
                         @click="insertCouponChain"
                       >
                         插入折扣碼
@@ -438,7 +438,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                       v-model="form.promo_html"
                       rows="5"
                       placeholder="<div class='bg-yellow-100 p-4'>...</div>"
-                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:ring-indigo-500 font-mono leading-relaxed"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono leading-relaxed"
                     />
                   </div>
 
@@ -463,7 +463,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <input
                   v-model="notifyMembers"
                   type="checkbox"
-                  class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                  class="rounded border-gray-300 text-brand-teal shadow-sm focus:ring-brand-teal"
                 />
                 <span class="text-sm text-gray-700">發送 Email 通知學員</span>
               </label>
@@ -480,7 +480,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               </button>
               <button
                 type="submit"
-                class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
+                class="px-6 py-2.5 text-sm font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors"
               >
                 {{ isEditing ? '更新' : '新增' }}
               </button>

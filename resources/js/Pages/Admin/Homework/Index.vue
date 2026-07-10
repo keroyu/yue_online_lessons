@@ -207,7 +207,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
     class="transition-[padding-right] duration-[250ms] ease-out"
     :class="{ 'pr-96': replyPanel.open }"
   >
-  <div class="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+  <div class="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">作業批改專區</h1>
       </div>
@@ -229,7 +229,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               v-model="searchQuery"
               type="text"
               placeholder="搜尋學員 Email 或暱稱"
-              class="text-sm border border-gray-300 rounded px-2 py-1 w-52 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              class="text-sm border border-gray-300 rounded px-2 py-1 w-52 focus:outline-none focus:ring-1 focus:ring-brand-teal"
             />
           </div>
         </div>
@@ -238,7 +238,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
           目前沒有學員提交記錄
         </div>
 
-        <div v-else class="divide-y divide-gray-200">
+        <div v-else class="divide-y divide-gray-100">
           <div v-for="sub in submissions.data" :key="sub.id">
 
             <!-- Header row（永遠可見，點擊展開/折疊） -->
@@ -296,14 +296,14 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               <div v-if="editingComment !== sub.id">
                 <div class="assignment-content bg-gray-50 border border-gray-100 rounded p-3" v-html="renderMd(sub.content)" />
                 <div class="mt-1 flex gap-1">
-                  <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(sub)">編輯</button>
+                  <button class="text-xs text-brand-teal px-2 py-0.5 rounded hover:bg-brand-teal/10 transition-colors" @click="openEditComment(sub)">編輯</button>
                   <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, sub.id)">刪除</button>
                 </div>
               </div>
               <div v-else class="mt-1">
                 <textarea v-model="editCommentForm.content" rows="4" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                 <div class="mt-1 flex gap-2">
-                  <button class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
+                  <button class="text-sm bg-brand-teal text-white px-3 py-1.5 rounded hover:bg-brand-teal/90 transition-colors" @click="submitEditComment(sub.assignment.id, sub.id)">儲存</button>
                   <button class="text-sm text-gray-500 px-2 py-1 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
                 </div>
               </div>
@@ -313,21 +313,21 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                 <div v-for="reply in sub.replies" :key="reply.id" class="text-sm">
                   <div class="flex items-center gap-1 text-xs text-gray-500 mb-1">
                     <span class="font-medium">{{ reply.user.nickname }}</span>
-                    <span v-if="reply.user.is_admin" class="bg-indigo-100 text-indigo-600 px-1 rounded">管理員</span>
+                    <span v-if="reply.user.is_admin" class="bg-brand-teal/10 text-brand-teal px-1 rounded">管理員</span>
                     <span v-if="reply.is_edited">· 已編輯</span>
                     <span class="ml-auto">{{ formatDate(reply.created_at) }}</span>
                   </div>
                   <div v-if="editingComment !== reply.id">
                     <div class="assignment-content" v-html="renderMd(reply.content)" />
                     <div class="mt-0.5 flex gap-1">
-                      <button class="text-xs text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-50 transition-colors" @click="openEditComment(reply)">編輯</button>
+                      <button class="text-xs text-brand-teal px-2 py-0.5 rounded hover:bg-brand-teal/10 transition-colors" @click="openEditComment(reply)">編輯</button>
                       <button class="text-xs text-red-500 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteComment(sub.assignment.id, reply.id)">刪除</button>
                     </div>
                   </div>
                   <div v-else>
                     <textarea v-model="editCommentForm.content" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
                     <div class="mt-1 flex gap-2">
-                      <button class="text-sm bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
+                      <button class="text-sm bg-brand-teal text-white px-2 py-1 rounded hover:bg-brand-teal/90 transition-colors" @click="submitEditComment(sub.assignment.id, reply.id)">儲存</button>
                       <button class="text-sm text-gray-500 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="editingComment = null">取消</button>
                     </div>
                   </div>
@@ -337,7 +337,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               <!-- 回覆批改 → 開啟右側面板 -->
               <div class="mt-3">
                 <button
-                  class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                  class="text-xs text-brand-teal border border-brand-teal/30 bg-brand-teal/10 px-2.5 py-1 rounded hover:bg-brand-teal/10 hover:border-brand-teal/40 transition-colors"
                   @click="openReplyPanel(sub)"
                 >回覆批改</button>
               </div>
@@ -359,7 +359,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               v-for="page in submissions.last_page"
               :key="page"
               class="px-3 py-1 rounded"
-              :class="page === submissions.current_page ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+              :class="page === submissions.current_page ? 'bg-brand-teal text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
               @click="router.get('/admin/homework', { ...filters, page }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
             >{{ page }}</button>
             <button
@@ -377,7 +377,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
           <h2 class="font-semibold text-gray-700">作業題目管理</h2>
           <div class="flex items-center gap-2 ml-auto">
             <label class="text-sm text-gray-500">篩選課程：</label>
-            <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-brand-teal focus:border-brand-teal">
               <option value="">請選擇課程</option>
               <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
@@ -390,7 +390,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
         </div>
 
         <!-- Lesson table grouped by chapter -->
-        <div v-else-if="lessonGroups.length">
+        <div v-else-if="lessonGroups.length" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
@@ -417,7 +417,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                       <span
                         v-if="row.assignment"
                         class="inline-flex items-center gap-1.5 text-sm font-semibold"
-                        :class="row.assignment.completions_count > 0 ? 'text-indigo-700' : 'text-gray-400'"
+                        :class="row.assignment.completions_count > 0 ? 'text-brand-teal' : 'text-gray-400'"
                       >
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
@@ -429,7 +429,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                     <td class="px-4 py-3 text-right">
                       <div v-if="row.assignment" class="flex items-center justify-end gap-2">
                         <button
-                          class="text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                          class="text-xs text-brand-teal border border-brand-teal/30 bg-brand-teal/10 px-2.5 py-1 rounded hover:bg-brand-teal/10 hover:border-brand-teal/40 transition-colors"
                           @click="openEditForm(row.assignment)"
                         >編輯</button>
                         <button
@@ -445,7 +445,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                       </div>
                       <button
                         v-else
-                        class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                        class="inline-flex items-center gap-1 text-xs font-medium text-brand-teal border border-brand-teal/30 bg-brand-teal/10 hover:bg-brand-teal/10 px-2.5 py-1 rounded-md transition-colors"
                         @click="openCreateForm(row.id)"
                       >
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -458,8 +458,8 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
                   <!-- Inline edit form -->
                   <tr v-if="editingAssignment === row.assignment?.id" :key="`edit-${row.id}`">
-                    <td colspan="3" class="px-4 pb-4 pt-0 bg-indigo-50/40">
-                      <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
+                    <td colspan="3" class="px-4 pb-4 pt-0 bg-brand-teal/10/40">
+                      <div class="border border-brand-teal/30 rounded-lg p-4 bg-white shadow-sm">
                         <div class="flex items-center justify-between mb-3">
                           <p class="text-sm font-semibold text-gray-800">編輯題目 — {{ row.title }}</p>
                           <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
@@ -467,10 +467,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                             <button class="text-xs px-3 py-1 rounded" :class="editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="editPreview = true">預覽</button>
                           </div>
                         </div>
-                        <textarea v-if="!editPreview" v-model="editForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Markdown 格式..." />
+                        <textarea v-if="!editPreview" v-model="editForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
                         <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
                         <div class="mt-3 flex gap-2">
-                          <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
+                          <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
                         </div>
                       </div>
@@ -479,8 +479,8 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
                   <!-- Inline create form -->
                   <tr v-if="showAssignmentForm === row.id" :key="`create-${row.id}`">
-                    <td colspan="3" class="px-4 pb-4 pt-0 bg-indigo-50/40">
-                      <div class="border border-indigo-200 rounded-lg p-4 bg-white shadow-sm">
+                    <td colspan="3" class="px-4 pb-4 pt-0 bg-brand-teal/10/40">
+                      <div class="border border-brand-teal/30 rounded-lg p-4 bg-white shadow-sm">
                         <div class="flex items-center justify-between mb-3">
                           <p class="text-sm font-semibold text-gray-800">新增題目 — {{ row.title }}</p>
                           <div class="flex gap-1 bg-gray-100 rounded-md p-0.5">
@@ -488,10 +488,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                             <button class="text-xs px-3 py-1 rounded" :class="previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="previewMode = true">預覽</button>
                           </div>
                         </div>
-                        <textarea v-if="!previewMode" v-model="assignmentForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Markdown 格式..." />
+                        <textarea v-if="!previewMode" v-model="assignmentForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
                         <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
                         <div class="mt-3 flex gap-2">
-                          <button class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700 font-medium" @click="submitAssignment(row.id)">建立題目</button>
+                          <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitAssignment(row.id)">建立題目</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="showAssignmentForm = null">取消</button>
                         </div>
               </div>
@@ -551,7 +551,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
           ref="replyTextarea"
           v-model="replyContent"
           rows="12"
-          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-brand-teal focus:border-brand-teal resize-none"
           placeholder="輸入批改內容..."
         />
       </div>
@@ -559,7 +559,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
       <!-- Actions（固定底部） -->
       <div class="shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50">
         <button
-          class="w-full bg-indigo-600 text-white py-2 rounded text-sm font-medium hover:bg-indigo-700 transition-colors"
+          class="w-full bg-brand-teal text-white py-2 rounded text-sm font-medium hover:bg-brand-teal/90 transition-colors"
           @click="submitReply"
         >送出回覆</button>
         <button

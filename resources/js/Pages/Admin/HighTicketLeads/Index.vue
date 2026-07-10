@@ -314,14 +314,14 @@ const formatDateTime = (str) => {
           v-model="search"
           type="text"
           placeholder="搜尋姓名、Email..."
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
         />
       </div>
       <div class="flex items-center gap-2">
         <select
           v-model="courseFilter"
           @change="applyFilters()"
-          class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
         >
           <option value="">所有課程</option>
           <option v-for="course in highTicketCourses" :key="course.id" :value="course.id">
@@ -349,7 +349,7 @@ const formatDateTime = (str) => {
         @click="applyFilter(tab.value)"
         class="px-4 py-1.5 rounded-full text-sm font-medium border cursor-pointer"
         :class="filters.status === (tab.value || null) || (!filters.status && !tab.value)
-          ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+          ? 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90'
           : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
       >
         {{ tab.label }}
@@ -379,7 +379,7 @@ const formatDateTime = (str) => {
         @click="openDripModal"
         class="px-3 py-1.5 text-sm rounded-md border font-medium"
         :class="canSubscribeDrip && !actionLoading
-          ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 cursor-pointer'
+          ? 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90 cursor-pointer'
           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
       >
         加入序列信
@@ -400,35 +400,35 @@ const formatDateTime = (str) => {
     </div>
 
     <!-- Table -->
-    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-      <table class="min-w-full divide-y divide-gray-300">
-        <thead class="bg-gray-50">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="py-3.5 pl-4 pr-3">
               <input
                 type="checkbox"
                 :checked="allSelected"
                 @change="toggleAll"
-                class="rounded border-gray-300 text-indigo-600"
+                class="rounded border-gray-300 text-brand-teal"
               />
             </th>
-            <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">姓名</th>
-            <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">Email</th>
-            <th class="hidden md:table-cell w-52 py-3.5 px-3 text-left text-sm font-semibold text-gray-900">課程</th>
-            <th class="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">狀態</th>
+            <th class="px-4 py-3 text-left">姓名</th>
+            <th class="px-4 py-3 text-left">Email</th>
+            <th class="hidden md:table-cell w-52 px-4 py-3 text-left">課程</th>
+            <th class="px-4 py-3 text-left">狀態</th>
             <th class="hidden sm:table-cell w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
-            <th class="hidden xl:table-cell min-w-56 py-3.5 px-3 text-left text-sm font-semibold text-gray-900">序列信紀錄</th>
-            <th class="hidden lg:table-cell py-3.5 px-3 text-left text-sm font-semibold text-gray-900">預約時間</th>
+            <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
+            <th class="hidden lg:table-cell px-4 py-3 text-left">預約時間</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200 bg-white">
+        <tbody class="divide-y divide-gray-100 bg-white">
           <tr v-for="lead in leads.data" :key="lead.id" class="hover:bg-gray-50">
             <td class="py-4 pl-4 pr-3">
               <input
                 type="checkbox"
                 :checked="selectedIds.includes(lead.id)"
                 @change="toggleSelect(lead.id)"
-                class="rounded border-gray-300 text-indigo-600"
+                class="rounded border-gray-300 text-brand-teal"
               />
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">{{ lead.name }}</td>
@@ -439,7 +439,7 @@ const formatDateTime = (str) => {
                 <button
                   v-if="lead.status !== 'converted'"
                   @click="openConvertModal(lead)"
-                  class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-white bg-indigo-600 rounded shadow-sm hover:bg-indigo-700 active:bg-indigo-800 transition-colors cursor-pointer"
+                  class="flex-shrink-0 px-2 py-1 text-xs font-semibold text-white bg-brand-teal rounded shadow-sm hover:bg-brand-teal/90 active:bg-brand-teal transition-colors cursor-pointer"
                 >
                   開通
                 </button>
@@ -450,7 +450,7 @@ const formatDateTime = (str) => {
                 :value="lead.status"
                 :disabled="updatingStatus === lead.id"
                 @change="updateStatus(lead, $event.target.value)"
-                class="rounded border-gray-300 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="rounded border-gray-300 text-sm focus:ring-brand-teal focus:border-brand-teal"
                 :class="statusClasses[lead.status]"
               >
                 <option v-for="s in statusOptions" :key="s" :value="s">{{ statusLabels[s] }}</option>
@@ -551,7 +551,7 @@ const formatDateTime = (str) => {
           <a
             :href="`/admin/email-templates/${notifyTemplate.id}/edit`"
             target="_blank"
-            class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+            class="inline-flex items-center gap-1 text-xs text-brand-teal hover:underline"
           >
             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828A2 2 0 019 16H7v-2a2 2 0 01.586-1.414z" />
@@ -621,11 +621,11 @@ const formatDateTime = (str) => {
       <!-- Content -->
       <div class="px-6 py-6 overflow-y-auto space-y-5">
         <!-- Recipient info -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex items-center gap-3">
-          <svg class="h-5 w-5 text-indigo-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="bg-brand-teal/10 border border-brand-teal rounded-lg p-4 flex items-center gap-3">
+          <svg class="h-5 w-5 text-brand-teal flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <p class="text-sm text-indigo-800">
+          <p class="text-sm text-brand-teal">
             將發送郵件給 <strong>{{ selectedIds.length }}</strong> 位 Lead
           </p>
         </div>
@@ -645,7 +645,7 @@ const formatDateTime = (str) => {
             type="text"
             placeholder="請輸入郵件主旨"
             :disabled="batchEmailSending"
-            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal"
             :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': batchEmailErrors.subject }"
           />
           <div class="mt-1 flex justify-between">
@@ -666,7 +666,7 @@ const formatDateTime = (str) => {
             rows="10"
             placeholder="請輸入郵件內容..."
             :disabled="batchEmailSending"
-            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500 leading-relaxed"
+            class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal leading-relaxed"
             :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': batchEmailErrors.body }"
           ></textarea>
           <div class="mt-1 flex justify-between">
@@ -690,7 +690,7 @@ const formatDateTime = (str) => {
         </button>
         <button
           type="button"
-          class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          class="px-6 py-2.5 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
           @click="sendBatchEmail"
           :disabled="batchEmailSending"
         >
@@ -731,7 +731,7 @@ const formatDateTime = (str) => {
         <label class="block text-sm font-medium text-gray-700 mb-1">序列課程</label>
         <select
           v-model="selectedDripCourseId"
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal"
         >
           <option v-for="course in dripCourses" :key="course.id" :value="course.id">
             {{ course.name }}
@@ -751,7 +751,7 @@ const formatDateTime = (str) => {
         <button
           :disabled="!selectedDripCourseId"
           @click="subscribeDrip"
-          class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+          class="px-4 py-2 text-sm font-medium text-white bg-brand-teal border border-transparent rounded-md hover:bg-brand-teal/90 disabled:opacity-50"
         >
           確認加入
         </button>
@@ -790,19 +790,19 @@ const formatDateTime = (str) => {
       <!-- Actions summary -->
       <ul class="mb-5 space-y-2 text-sm text-gray-700">
         <li class="flex items-start gap-2">
-          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4 text-brand-teal mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           <span>若尚未註冊，系統將自動建立會員帳號</span>
         </li>
         <li class="flex items-start gap-2">
-          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4 text-brand-teal mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>開通所選商品（系統贈送）</span>
         </li>
         <li class="flex items-start gap-2">
-          <svg class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4 text-brand-teal mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
           <span>Lead 狀態更新為「已成交」</span>
@@ -814,7 +814,7 @@ const formatDateTime = (str) => {
         <label class="block text-sm font-medium text-gray-700 mb-1">選擇要開通的商品</label>
         <select
           v-model="convertCourseId"
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal text-sm"
         >
           <option v-for="course in grantableCourses" :key="course.id" :value="course.id">
             {{ course.name }}
@@ -833,7 +833,7 @@ const formatDateTime = (str) => {
         <button
           @click="confirmConvert"
           :disabled="!convertCourseId || convertLoading"
-          class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
           <svg v-if="convertLoading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />

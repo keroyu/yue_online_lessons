@@ -105,7 +105,7 @@ function resetUtm() {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto px-4 py-6 space-y-8">
+  <div class="max-w-7xl mx-auto px-4 py-6 space-y-8">
 
     <!-- Header -->
     <div class="flex items-start justify-between">
@@ -137,7 +137,7 @@ function resetUtm() {
         </nav>
         <h1 class="mt-2 text-2xl font-semibold text-gray-900">連結來源追蹤</h1>
       </div>
-      <a :href="exportUrl" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">
+      <a :href="exportUrl" class="px-3 py-1.5 text-sm bg-brand-teal text-white rounded hover:bg-brand-teal/90">
         匯出 CSV
       </a>
     </div>
@@ -145,7 +145,7 @@ function resetUtm() {
     <!-- ── UTM 連結生成器 ── -->
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-        <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="w-4 h-4 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
         <h2 class="text-sm font-semibold text-gray-800">追蹤連結生成器</h2>
@@ -165,8 +165,8 @@ function resetUtm() {
               :class="[
                 'px-3 py-1.5 text-xs rounded-full border transition-colors',
                 utm.source === p.source
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600',
+                  ? 'bg-brand-teal text-white border-brand-teal'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-brand-teal/40 hover:text-brand-teal',
               ]"
             >
               {{ p.label }}
@@ -184,7 +184,7 @@ function resetUtm() {
               v-model="utm.source"
               type="text"
               placeholder="threads、instagram、email…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
             />
           </div>
           <div>
@@ -195,7 +195,7 @@ function resetUtm() {
               v-model="utm.medium"
               type="text"
               placeholder="social、email、video…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
             />
           </div>
           <div>
@@ -206,19 +206,19 @@ function resetUtm() {
               v-model="utm.campaign"
               type="text"
               placeholder="2026-launch、母親節優惠…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
             />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">
               貼文識別 <span class="text-gray-400 font-normal">utm_content</span>
-              <span class="text-indigo-400 ml-1">← 區分不同貼文用這欄</span>
+              <span class="text-brand-teal ml-1">← 區分不同貼文用這欄</span>
             </label>
             <input
               v-model="utm.content"
               type="text"
               placeholder="post-001、bio-link、限動…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
             />
           </div>
         </div>
@@ -237,7 +237,7 @@ function resetUtm() {
               'flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg font-medium transition-colors',
               copied
                 ? 'bg-green-600 text-white'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700',
+                : 'bg-brand-teal text-white hover:bg-brand-teal/90',
             ]"
           >
             <svg v-if="copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -272,7 +272,7 @@ function resetUtm() {
           :class="[
             'px-3 py-1.5 text-sm rounded border',
             currentDays === p.value
-              ? 'bg-indigo-600 text-white border-indigo-600'
+              ? 'bg-brand-teal text-white border-brand-teal'
               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
           ]"
         >
@@ -312,9 +312,9 @@ function resetUtm() {
     </div>
 
     <!-- Source detail table -->
-    <div v-else-if="viewMode === 'source'" class="overflow-x-auto rounded-lg border border-gray-200">
+    <div v-else-if="viewMode === 'source'" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3">來源</th>
             <th class="px-4 py-3">中介</th>
@@ -340,9 +340,9 @@ function resetUtm() {
     </div>
 
     <!-- Channel group table -->
-    <div v-else class="overflow-x-auto rounded-lg border border-gray-200">
+    <div v-else class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3">管道</th>
             <th class="px-4 py-3 text-right">訂單數</th>

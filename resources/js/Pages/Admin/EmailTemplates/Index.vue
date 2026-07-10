@@ -19,7 +19,7 @@ const eventTypeLabels = {
 
 <template>
   <AdminLayout>
-    <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div class="sm:flex sm:items-center sm:justify-between mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">Email 模板管理</h1>
@@ -27,29 +27,29 @@ const eventTypeLabels = {
         </div>
       </div>
 
-      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100">
+          <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">模板名稱</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">事件類型</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">主旨</th>
-              <th class="relative px-6 py-3"><span class="sr-only">操作</span></th>
+              <th class="px-4 py-3 text-left">模板名稱</th>
+              <th class="px-4 py-3 text-left">事件類型</th>
+              <th class="px-4 py-3 text-left">主旨</th>
+              <th class="relative px-4 py-3"><span class="sr-only">操作</span></th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody class="bg-white divide-y divide-gray-100">
             <tr v-for="template in templates" :key="template.id">
-              <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ template.name }}</td>
-              <td class="px-6 py-4 text-sm text-gray-500">
+              <td class="px-4 py-4 text-sm font-medium text-gray-900">{{ template.name }}</td>
+              <td class="px-4 py-4 text-sm text-gray-500">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {{ eventTypeLabels[template.event_type] || template.event_type }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ template.subject }}</td>
-              <td class="px-6 py-4 text-right text-sm font-medium">
+              <td class="px-4 py-4 text-sm text-gray-500 max-w-xs truncate">{{ template.subject }}</td>
+              <td class="px-4 py-4 text-right text-sm font-medium">
                 <Link
                   :href="`/admin/email-templates/${template.id}/edit`"
-                  class="text-indigo-600 hover:text-indigo-900"
+                  class="text-brand-teal hover:text-brand-navy"
                 >
                   編輯
                 </Link>

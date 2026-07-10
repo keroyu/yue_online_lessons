@@ -193,14 +193,14 @@ const badgeConfig = (transaction) => {
   const merchantOrderNo = transaction.order?.merchant_order_no
   const gateway         = transaction.order?.payment_gateway
   if (merchantOrderNo && gateway === 'payuni') {
-    return { label: 'PayUni', orderId: merchantOrderNo, classes: 'bg-indigo-100 text-indigo-700' }
+    return { label: 'PayUni', orderId: merchantOrderNo, classes: 'bg-brand-teal/10 text-brand-teal' }
   }
   if (merchantOrderNo && gateway === 'newebpay') {
     return { label: 'NewebPay', orderId: merchantOrderNo, classes: 'bg-blue-100 text-blue-700' }
   }
   // Legacy PayUni single-course purchase: no Order, only payuni_trade_no on Purchase
   if (transaction.payuni_trade_no) {
-    return { label: 'PayUni', orderId: transaction.payuni_trade_no, classes: 'bg-indigo-100 text-indigo-700' }
+    return { label: 'PayUni', orderId: transaction.payuni_trade_no, classes: 'bg-brand-teal/10 text-brand-teal' }
   }
   return null
 }
@@ -326,7 +326,7 @@ const submitCreate = () => {
         <button
           type="button"
           @click="openCreateModal"
-          class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors cursor-pointer"
+          class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90 transition-colors cursor-pointer"
         >
           手動新增
         </button>
@@ -365,14 +365,14 @@ const submitCreate = () => {
           v-model="search"
           type="text"
           placeholder="搜尋 Email 或訂單編號..."
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
         />
       </div>
       <!-- Status filter -->
       <select
         v-model="statusFilter"
         @change="applyFilters"
-        class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
       >
         <option value="">所有狀態</option>
         <option value="paid">已付款</option>
@@ -382,7 +382,7 @@ const submitCreate = () => {
       <select
         v-model="typeFilter"
         @change="applyFilters"
-        class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
       >
         <option value="">所有類型</option>
         <option value="paid">已付款</option>
@@ -393,7 +393,7 @@ const submitCreate = () => {
       <select
         v-model="courseFilter"
         @change="applyFilters"
-        class="block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
       >
         <option value="">所有課程</option>
         <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.name }}</option>
@@ -401,10 +401,10 @@ const submitCreate = () => {
     </div>
 
     <!-- Selection bar -->
-    <div v-if="selectedCount > 0" class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between">
+    <div v-if="selectedCount > 0" class="mt-4 bg-brand-teal/10 border border-brand-teal/30 rounded-lg p-3 flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <span class="text-sm text-indigo-800">已選取 <strong>{{ selectedCount }}</strong> 筆交易</span>
-        <button type="button" @click="clearAllSelections" class="text-sm text-indigo-600 hover:text-indigo-800 underline">清除選取</button>
+        <span class="text-sm text-brand-teal">已選取 <strong>{{ selectedCount }}</strong> 筆交易</span>
+        <button type="button" @click="clearAllSelections" class="text-sm text-brand-teal hover:text-brand-teal underline">清除選取</button>
       </div>
       <button
         type="button"
@@ -441,9 +441,9 @@ const submitCreate = () => {
     <div class="mt-4 flex flex-col">
       <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
         <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-          <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-            <table class="min-w-full divide-y divide-gray-300">
-              <thead class="bg-gray-50">
+          <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-100">
+              <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <tr>
                   <!-- Checkbox column -->
                   <th scope="col" class="relative w-12 px-6 sm:w-16 sm:px-8">
@@ -452,24 +452,24 @@ const submitCreate = () => {
                       :checked="allOnPageSelected && transactions.data?.length > 0"
                       :indeterminate="someOnPageSelected"
                       @change="toggleSelectAllOnPage"
-                      class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                      class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal sm:left-6"
                     />
                   </th>
-                  <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">訂單 ID</th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">購買者</th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">課程</th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">金額</th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">狀態</th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">類型</th>
-                  <th scope="col" class="hidden lg:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900">購買時間</th>
+                  <th scope="col" class="px-4 py-3 text-left">訂單 ID</th>
+                  <th scope="col" class="px-4 py-3 text-left">購買者</th>
+                  <th scope="col" class="px-4 py-3 text-left">課程</th>
+                  <th scope="col" class="px-4 py-3 text-left">金額</th>
+                  <th scope="col" class="px-4 py-3 text-left">狀態</th>
+                  <th scope="col" class="px-4 py-3 text-left">類型</th>
+                  <th scope="col" class="hidden lg:table-cell px-4 py-3 text-left">購買時間</th>
                   <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6"><span class="sr-only">操作</span></th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200 bg-white">
+              <tbody class="divide-y divide-gray-100 bg-white">
                 <tr
                   v-for="transaction in transactions.data"
                   :key="transaction.id"
-                  :class="{ 'bg-indigo-50': isSelected(transaction.id) }"
+                  :class="{ 'bg-brand-teal/10': isSelected(transaction.id) }"
                 >
                   <!-- Checkbox -->
                   <td class="relative w-12 px-6 sm:w-16 sm:px-8">
@@ -477,7 +477,7 @@ const submitCreate = () => {
                       type="checkbox"
                       :checked="isSelected(transaction.id)"
                       @change="toggleSelection(transaction.id)"
-                      class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                      class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-brand-teal focus:ring-brand-teal sm:left-6"
                     />
                   </td>
                   <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
@@ -505,7 +505,7 @@ const submitCreate = () => {
                       <div class="mt-1 flex items-center gap-1.5">
                         <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            class="h-full bg-indigo-500 rounded-full"
+                            class="h-full bg-brand-teal rounded-full"
                             :style="{ width: Math.round(transaction.progress_completed / transaction.progress_total * 100) + '%' }"
                           />
                         </div>
@@ -539,7 +539,7 @@ const submitCreate = () => {
                     </button>
                     <Link
                       :href="`/admin/transactions/${transaction.id}`"
-                      class="text-indigo-600 hover:text-indigo-900"
+                      class="text-brand-teal hover:text-brand-navy"
                     >
                       查看
                     </Link>
@@ -601,7 +601,7 @@ const submitCreate = () => {
       <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="closeCreateModal">
         <div class="fixed inset-0 bg-black/50" aria-hidden="true" />
         <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-xl shadow-2xl max-w-lg w-full" @click.stop>
+          <div class="relative bg-white rounded-xl shadow-2xl max-w-7xl w-full" @click.stop>
             <!-- Header -->
             <div class="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
               <h2 class="text-xl font-semibold text-gray-900">手動新增交易</h2>
@@ -620,7 +620,7 @@ const submitCreate = () => {
                   :value="createForm.user_email"
                   @input="searchUser($event.target.value)"
                   placeholder="輸入 Email 搜尋..."
-                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
                   :class="{ 'border-red-300': createErrors.user_id }"
                 />
                 <!-- Search results dropdown -->
@@ -629,7 +629,7 @@ const submitCreate = () => {
                     v-for="user in userSearchResults"
                     :key="user.id"
                     @click="selectUser(user)"
-                    class="px-4 py-2 text-sm cursor-pointer hover:bg-indigo-50"
+                    class="px-4 py-2 text-sm cursor-pointer hover:bg-brand-teal/10"
                   >
                     <span class="font-medium">{{ user.email }}</span>
                     <span v-if="user.real_name" class="text-gray-500 ml-2">{{ user.real_name }}</span>
@@ -644,7 +644,7 @@ const submitCreate = () => {
                 <label class="block text-sm font-semibold text-gray-900 mb-1">課程 <span class="text-red-500">*</span></label>
                 <select
                   v-model="createForm.course_id"
-                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
                   :class="{ 'border-red-300': createErrors.course_id }"
                 >
                   <option value="">請選擇課程</option>
@@ -658,11 +658,11 @@ const submitCreate = () => {
                 <label class="block text-sm font-semibold text-gray-900 mb-2">交易類型 <span class="text-red-500">*</span></label>
                 <div class="flex gap-4">
                   <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" v-model="createForm.type" value="gift" class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                    <input type="radio" v-model="createForm.type" value="gift" class="text-brand-teal border-gray-300 focus:ring-brand-teal" />
                     <span class="text-sm">贈送</span>
                   </label>
                   <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" v-model="createForm.type" value="system_assigned" class="text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                    <input type="radio" v-model="createForm.type" value="system_assigned" class="text-brand-teal border-gray-300 focus:ring-brand-teal" />
                     <span class="text-sm">系統指派</span>
                   </label>
                 </div>
@@ -676,7 +676,7 @@ const submitCreate = () => {
             </div>
 
             <!-- Footer -->
-            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <div class="px-4 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 type="button"
                 @click="closeCreateModal"
@@ -689,7 +689,7 @@ const submitCreate = () => {
                 type="button"
                 @click="submitCreate"
                 :disabled="createSubmitting"
-                class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-6 py-2.5 text-sm font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {{ createSubmitting ? '新增中...' : '確認新增' }}
               </button>

@@ -219,7 +219,7 @@ const onLessonDragEnd = (chapterId = null) => {
                 <input
                   v-model="editingChapterTitle"
                   type="text"
-                  class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
                   @keyup.enter="saveChapter(chapter)"
                   @keyup.escape="cancelEditChapter"
                 />
@@ -251,7 +251,7 @@ const onLessonDragEnd = (chapterId = null) => {
             <div v-if="editingChapterId !== chapter.id" class="flex items-center space-x-2">
               <button
                 type="button"
-                class="text-indigo-600 hover:text-indigo-900 text-sm"
+                class="text-brand-teal hover:text-brand-navy text-sm"
                 @click="openAddLesson(chapter.id)"
               >
                 新增小節
@@ -284,7 +284,7 @@ const onLessonDragEnd = (chapterId = null) => {
             handle=".lesson-handle"
             group="lessons"
             ghost-class="opacity-50"
-            class="divide-y divide-gray-200"
+            class="divide-y divide-gray-100"
             @end="onLessonDragEnd(chapter.id)"
           >
             <template #item="{ element: lesson }">
@@ -300,7 +300,7 @@ const onLessonDragEnd = (chapterId = null) => {
                   </button>
 
                   <div class="flex items-center">
-                    <span v-if="lesson.has_video" class="text-indigo-500 mr-2">
+                    <span v-if="lesson.has_video" class="text-brand-teal mr-2">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -361,7 +361,7 @@ const onLessonDragEnd = (chapterId = null) => {
         handle=".lesson-handle"
         group="lessons"
         ghost-class="opacity-50"
-        class="divide-y divide-gray-200"
+        class="divide-y divide-gray-100"
         :class="{ 'min-h-[48px]': localStandaloneLessons.length === 0 }"
         @end="onLessonDragEnd(null)"
       >
@@ -378,7 +378,7 @@ const onLessonDragEnd = (chapterId = null) => {
               </button>
 
               <div class="flex items-center">
-                <span v-if="lesson.has_video" class="text-indigo-500 mr-2">
+                <span v-if="lesson.has_video" class="text-brand-teal mr-2">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -432,13 +432,13 @@ const onLessonDragEnd = (chapterId = null) => {
           v-model="newChapterTitle"
           type="text"
           placeholder="章節標題"
-          class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
           @keyup.enter="addChapter"
           @keyup.escape="showAddChapter = false; newChapterTitle = ''"
         />
         <button
           type="button"
-          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-brand-teal hover:bg-brand-teal/90"
           @click="addChapter"
         >
           新增
@@ -457,7 +457,7 @@ const onLessonDragEnd = (chapterId = null) => {
     <div class="flex space-x-3">
       <button
         type="button"
-        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-teal hover:bg-brand-teal/90"
         @click="showAddChapter = true"
       >
         <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

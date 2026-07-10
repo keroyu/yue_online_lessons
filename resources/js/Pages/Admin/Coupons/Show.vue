@@ -76,9 +76,9 @@ const fmtTime = (iso) => {
     </div>
 
     <!-- Detail table -->
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">會員 Email</th>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">付款確認時間</th>
@@ -86,7 +86,7 @@ const fmtTime = (iso) => {
             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">結帳金額（折後）</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white divide-y divide-gray-100">
           <tr v-for="(d, i) in details" :key="i">
             <td class="px-4 py-3 text-sm text-gray-700">{{ d.email }}</td>
             <td class="px-4 py-3 text-sm text-gray-500">{{ fmtTime(d.paid_at) }}</td>

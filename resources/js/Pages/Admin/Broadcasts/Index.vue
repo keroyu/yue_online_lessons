@@ -71,11 +71,11 @@ const statusLabel = (b) => {
 </script>
 
 <template>
-  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">電子報</h1>
 
     <!-- Send form -->
-    <div class="bg-white border border-gray-200 p-5 mb-8">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-5 mb-8">
       <h2 class="font-semibold text-gray-900 mb-1">把文章寄成電子報</h2>
       <p class="text-sm text-gray-500 mb-4">目前訂閱者：<strong>{{ subscriberCount }}</strong> 人（僅寄給訂閱中的會員）</p>
 
@@ -84,7 +84,7 @@ const statusLabel = (b) => {
         v-model="searchQuery"
         type="text"
         placeholder="搜尋文章（最近 5 篇之外用這裡找）"
-        class="w-full border border-gray-300 px-3 py-2 text-sm mb-3"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-3"
         @input="doSearch"
       />
 
@@ -123,7 +123,7 @@ const statusLabel = (b) => {
           v-if="scheduleMode === 'schedule'"
           v-model="form.scheduled_at"
           type="datetime-local"
-          class="border border-gray-300 px-3 py-1.5 text-sm"
+          class="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
         />
       </div>
       <p v-if="form.errors.scheduled_at" class="text-sm text-red-600 mb-2">{{ form.errors.scheduled_at }}</p>
@@ -132,15 +132,15 @@ const statusLabel = (b) => {
       <button
         type="button"
         :disabled="!form.post_id || form.processing || subscriberCount === 0 || (scheduleMode === 'schedule' && !form.scheduled_at)"
-        class="bg-brand-teal text-white px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        class="bg-brand-teal text-white rounded-md px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         @click="send"
       >{{ form.processing ? '處理中…' : (scheduleMode === 'schedule' ? '排程寄送' : '立即寄送') }}</button>
     </div>
 
     <!-- History -->
-    <div class="bg-white border border-gray-200 overflow-x-auto">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="min-w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 font-medium">主旨</th>
             <th class="px-4 py-3 font-medium">狀態 / 時間</th>
@@ -172,7 +172,7 @@ const statusLabel = (b) => {
         :key="p"
         type="button"
         class="px-3 py-1 border text-sm"
-        :class="p === broadcasts.current_page ? 'bg-brand-navy text-white border-brand-navy' : 'border-gray-300 hover:bg-gray-50'"
+        :class="p === broadcasts.current_page ? 'bg-brand-navy text-white border-brand-navy rounded-md' : 'border-gray-300 hover:bg-gray-50'"
         @click="goToPage(p)"
       >{{ p }}</button>
     </div>

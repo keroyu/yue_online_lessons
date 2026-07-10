@@ -19,15 +19,15 @@ defineProps({
     </p>
 
     <div class="grid grid-cols-3 gap-4 mt-6">
-      <div class="bg-white border border-gray-200 p-4 text-center">
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 text-center">
         <div class="text-2xl font-bold text-gray-900">{{ broadcast.recipients_count }}</div>
         <div class="text-xs text-gray-500 mt-1">收件人數</div>
       </div>
-      <div class="bg-white border border-gray-200 p-4 text-center">
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 text-center">
         <div class="text-2xl font-bold text-gray-900">{{ broadcast.opened_count }}</div>
         <div class="text-xs text-gray-500 mt-1">開信人數</div>
       </div>
-      <div class="bg-white border border-gray-200 p-4 text-center">
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 text-center">
         <div class="text-2xl font-bold text-brand-teal">{{ broadcast.open_rate === null ? '—' : broadcast.open_rate + '%' }}</div>
         <div class="text-xs text-gray-500 mt-1">開信率</div>
       </div>
@@ -38,9 +38,9 @@ defineProps({
     </p>
 
     <h2 class="text-lg font-semibold text-gray-900 mt-8 mb-3">已開信名單</h2>
-    <div class="bg-white border border-gray-200 overflow-x-auto">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="min-w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 font-medium">Email</th>
             <th class="px-4 py-3 font-medium">開信時間</th>

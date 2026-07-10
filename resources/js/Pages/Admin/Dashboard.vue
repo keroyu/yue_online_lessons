@@ -131,18 +131,18 @@ const getStatusLabel = (status) => {
         <h2 class="text-lg font-medium text-gray-900">最近新增課程</h2>
         <Link
           href="/admin/courses"
-          class="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+          class="text-sm font-medium text-brand-teal hover:text-brand-teal"
         >
           查看全部
         </Link>
       </div>
       <div class="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
-        <ul role="list" class="divide-y divide-gray-200">
+        <ul role="list" class="divide-y divide-gray-100">
           <li v-for="course in recentCourses" :key="course.id">
             <div class="px-4 py-4 sm:px-6">
               <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                  <p class="text-sm font-medium text-indigo-600 truncate">{{ course.name }}</p>
+                  <p class="text-sm font-medium text-brand-teal truncate">{{ course.name }}</p>
                   <span
                     class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                     :class="getStatusBadgeClass(course.status)"

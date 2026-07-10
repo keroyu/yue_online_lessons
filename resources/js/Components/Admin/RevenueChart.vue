@@ -133,7 +133,7 @@ const chartOptions = {
         <select
           v-model="selectedRange"
           @change="onRangeChange"
-          class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+          class="rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-teal focus:ring-brand-teal"
         >
           <option value="7d">過去 7 天</option>
           <option value="30d">過去 30 天</option>
@@ -147,19 +147,19 @@ const chartOptions = {
             v-model="customStart"
             type="text"
             placeholder="MM/DD/YYYY"
-            class="rounded-md border-gray-300 shadow-sm text-sm w-32 focus:border-indigo-500 focus:ring-indigo-500"
+            class="rounded-md border-gray-300 shadow-sm text-sm w-32 focus:border-brand-teal focus:ring-brand-teal"
           />
           <span class="text-gray-400 text-sm">—</span>
           <input
             v-model="customEnd"
             type="text"
             placeholder="MM/DD/YYYY"
-            class="rounded-md border-gray-300 shadow-sm text-sm w-32 focus:border-indigo-500 focus:ring-indigo-500"
+            class="rounded-md border-gray-300 shadow-sm text-sm w-32 focus:border-brand-teal focus:ring-brand-teal"
           />
           <button
             type="button"
             @click="onCustomApply"
-            class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            class="px-3 py-1.5 text-sm font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90 transition-colors"
           >
             套用
           </button>

@@ -32,7 +32,7 @@ const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
 </script>
 
 <template>
-  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-900 mb-1">推薦成效統計</h1>
     <p class="text-sm text-gray-500 mb-6">各推薦人帶來的已付款訂單、營收與回饋積分。</p>
 
@@ -67,9 +67,9 @@ const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
 
     <!-- Table -->
     <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-          <thead class="bg-gray-50">
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100 text-sm">
+          <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             <tr>
               <th class="px-4 py-3 text-left font-medium text-gray-500">推薦人</th>
               <th class="px-4 py-3 text-left font-medium text-gray-500">推薦碼</th>

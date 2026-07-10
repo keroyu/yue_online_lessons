@@ -149,7 +149,7 @@ const batchDelete = () => {
     <!-- Upload Zone -->
     <div
       class="mb-8 border-2 border-dashed rounded-lg p-8 text-center transition-colors"
-      :class="dragOver ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-400'"
+      :class="dragOver ? 'border-brand-teal bg-brand-teal/10' : 'border-gray-300 hover:border-gray-400'"
       @dragover.prevent="dragOver = true"
       @dragleave="dragOver = false"
       @drop="handleDrop"
@@ -159,7 +159,7 @@ const batchDelete = () => {
       </svg>
       <div class="mt-4">
         <label class="cursor-pointer">
-          <span class="text-indigo-600 hover:text-indigo-500 font-medium">選擇圖片</span>
+          <span class="text-brand-teal hover:text-brand-teal font-medium">選擇圖片</span>
           <span class="text-gray-500">或拖曳檔案至此處（可多選）</span>
           <input
             ref="fileInput"
@@ -175,7 +175,7 @@ const batchDelete = () => {
         支援 JPG, PNG, GIF, WebP，單張最大 10MB，一次最多 20 張
       </p>
       <div v-if="uploading" class="mt-4">
-        <div class="inline-flex items-center text-sm text-indigo-600">
+        <div class="inline-flex items-center text-sm text-brand-teal">
           <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

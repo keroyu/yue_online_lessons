@@ -29,7 +29,7 @@ const destroy = (coupon) => {
 </script>
 
 <template>
-  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-gray-900">折扣碼管理</h1>
       <p class="mt-1 text-sm text-gray-500">建立與管理優惠折扣碼，查看使用統計</p>
@@ -44,7 +44,7 @@ const destroy = (coupon) => {
           :href="tab.href"
           class="pb-3 text-sm font-medium border-b-2 -mb-px transition-colors"
           :class="tab.href === '/admin/coupons'
-            ? 'border-indigo-600 text-indigo-600'
+            ? 'border-brand-teal text-brand-teal'
             : 'border-transparent text-gray-500 hover:text-gray-700'"
         >
           {{ tab.label }}
@@ -52,15 +52,15 @@ const destroy = (coupon) => {
       </nav>
       <Link
         href="/admin/coupons/create"
-        class="mb-3 inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+        class="mb-3 inline-flex items-center px-4 py-2 rounded-lg bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal/90"
       >
         新增折扣碼
       </Link>
     </div>
 
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代碼</th>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">折扣</th>
@@ -72,7 +72,7 @@ const destroy = (coupon) => {
             <th class="relative px-4 py-3"><span class="sr-only">操作</span></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white divide-y divide-gray-100">
           <tr v-for="c in coupons.data" :key="c.id">
             <td class="px-4 py-4 text-sm font-mono font-semibold text-gray-900">{{ c.code }}</td>
             <td class="px-4 py-4 text-sm text-gray-700">{{ c.type_label }}</td>
@@ -91,7 +91,7 @@ const destroy = (coupon) => {
             </td>
             <td class="px-4 py-4 text-right text-sm font-medium whitespace-nowrap">
               <Link :href="`/admin/coupons/${c.id}`" class="text-brand-teal hover:underline">統計</Link>
-              <Link :href="`/admin/coupons/${c.id}/edit`" class="ml-3 text-indigo-600 hover:text-indigo-900">編輯</Link>
+              <Link :href="`/admin/coupons/${c.id}/edit`" class="ml-3 text-brand-teal hover:text-brand-navy">編輯</Link>
               <button @click="destroy(c)" class="ml-3 text-red-500 hover:text-red-700">刪除</button>
             </td>
           </tr>

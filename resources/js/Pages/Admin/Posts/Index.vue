@@ -43,26 +43,26 @@ const goToPage = (page) => {
 </script>
 
 <template>
-  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-gray-900">文章管理</h1>
-      <Link href="/admin/posts/create" class="bg-brand-teal text-white px-4 py-2 font-medium hover:bg-brand-teal/90">+ 新增文章</Link>
+      <Link href="/admin/posts/create" class="bg-brand-teal text-white rounded-md px-4 py-2 font-medium hover:bg-brand-teal/90">+ 新增文章</Link>
     </div>
 
     <div class="flex flex-wrap gap-3 mb-4">
-      <input v-model="search" type="text" placeholder="搜尋標題 / slug" class="border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
-      <select v-model="status" class="border border-gray-300 px-3 py-2 text-sm" @change="applyFilters">
+      <input v-model="search" type="text" placeholder="搜尋標題 / slug" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
+      <select v-model="status" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @change="applyFilters">
         <option value="">全部狀態</option>
         <option value="draft">草稿</option>
         <option value="scheduled">排程</option>
         <option value="published">已發佈</option>
       </select>
-      <button type="button" class="border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" @click="applyFilters">篩選</button>
+      <button type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" @click="applyFilters">篩選</button>
     </div>
 
-    <div class="bg-white border border-gray-200 overflow-x-auto">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="min-w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 font-medium">標題</th>
             <th class="px-4 py-3 font-medium">狀態</th>
@@ -101,7 +101,7 @@ const goToPage = (page) => {
         :key="p"
         type="button"
         class="px-3 py-1 border text-sm"
-        :class="p === posts.current_page ? 'bg-brand-navy text-white border-brand-navy' : 'border-gray-300 hover:bg-gray-50'"
+        :class="p === posts.current_page ? 'bg-brand-navy text-white border-brand-navy rounded-md' : 'border-gray-300 hover:bg-gray-50'"
         @click="goToPage(p)"
       >{{ p }}</button>
     </div>

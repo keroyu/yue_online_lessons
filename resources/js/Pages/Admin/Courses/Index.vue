@@ -39,7 +39,7 @@ const formatPrice = (price) => {
 </script>
 
 <template>
-  <div class="px-4 sm:px-6 lg:px-8">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
           <h1 class="text-2xl font-semibold text-gray-900">課程管理</h1>
@@ -50,7 +50,7 @@ const formatPrice = (price) => {
         <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <Link
             href="/admin/courses/create"
-            class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            class="inline-flex items-center justify-center rounded-md border border-transparent bg-brand-teal px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2"
           >
             新增課程
           </Link>
@@ -60,23 +60,23 @@ const formatPrice = (price) => {
       <div class="mt-8 flex flex-col">
         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table class="min-w-full divide-y divide-gray-300">
-                <thead class="bg-gray-50">
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-100">
+                <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <tr>
-                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                    <th scope="col" class="px-4 py-3 text-left">
                       課程
                     </th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <th scope="col" class="px-4 py-3 text-left">
                       講師
                     </th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <th scope="col" class="px-4 py-3 text-left">
                       狀態
                     </th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <th scope="col" class="px-4 py-3 text-left">
                       價格
                     </th>
-                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <th scope="col" class="px-4 py-3 text-left">
                       時長
                     </th>
                     <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -84,7 +84,7 @@ const formatPrice = (price) => {
                     </th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
+                <tbody class="divide-y divide-gray-100 bg-white">
                   <tr v-for="course in courses" :key="course.id" :class="{ 'bg-gray-50': course.deleted_at }">
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
                       <div class="flex items-center">
@@ -155,19 +155,19 @@ const formatPrice = (price) => {
                         <!-- 內容管理 -->
                         <Link
                           :href="`/admin/courses/${course.id}/edit`"
-                          class="text-indigo-600 hover:text-indigo-900"
+                          class="text-brand-teal hover:text-brand-navy"
                         >
                           編輯
                         </Link>
                         <Link
                           :href="`/admin/courses/${course.id}/chapters`"
-                          class="text-indigo-600 hover:text-indigo-900"
+                          class="text-brand-teal hover:text-brand-navy"
                         >
                           章節
                         </Link>
                         <Link
                           :href="`/admin/courses/${course.id}/images`"
-                          class="text-indigo-600 hover:text-indigo-900"
+                          class="text-brand-teal hover:text-brand-navy"
                         >
                           相簿
                         </Link>

@@ -20,7 +20,7 @@ const fmtTime = (iso) => {
     <div class="mb-6">
       <Link href="/admin/coupon-chains" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回折扣碼管理</Link>
       <h1 class="text-2xl font-bold text-gray-900 mt-2">
-        輪換折扣碼：<span class="font-mono text-indigo-700">{{ chain.placeholder }}</span>
+        輪換折扣碼：<span class="font-mono text-brand-teal">{{ chain.placeholder }}</span>
       </h1>
       <p class="mt-1 text-sm text-gray-500">{{ chain.type_label }} · {{ chain.scope_label }} · 每碼名額：{{ chain.code_max_uses === 0 ? '無限制' : chain.code_max_uses }}</p>
     </div>
@@ -31,16 +31,16 @@ const fmtTime = (iso) => {
         <p class="text-sm text-amber-700 font-medium">當前有效代碼</p>
         <p class="text-3xl font-mono font-bold text-amber-900 mt-1">{{ chain.current_code ?? '無（已停用或無可用碼）' }}</p>
       </div>
-      <Link :href="`/admin/coupon-chains/${chain.id}/edit`" class="text-sm text-indigo-600 hover:underline">編輯設定</Link>
+      <Link :href="`/admin/coupon-chains/${chain.id}/edit`" class="text-sm text-brand-teal hover:underline">編輯設定</Link>
     </div>
 
     <!-- 歷史代碼表 -->
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-x-auto">
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <div class="px-4 py-3 border-b border-gray-200">
         <h2 class="text-sm font-semibold text-gray-700">歷史生成代碼（共 {{ codes.length }} 支）</h2>
       </div>
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">代碼</th>
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">已使用</th>
@@ -49,7 +49,7 @@ const fmtTime = (iso) => {
             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white divide-y divide-gray-100">
           <tr v-for="c in codes" :key="c.id" :class="c.is_current ? 'bg-amber-50' : ''">
             <td class="px-4 py-3 text-sm font-mono font-semibold" :class="c.is_current ? 'text-amber-900' : 'text-gray-700'">
               {{ c.code }}

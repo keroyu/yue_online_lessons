@@ -60,14 +60,14 @@ const isActive = (href) => {
 
     <!-- Mobile sidebar -->
     <div
-      class="fixed inset-y-0 left-0 z-50 w-64 bg-indigo-700 transform transition-transform duration-300 ease-in-out lg:hidden"
+      class="fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy transform transition-transform duration-300 ease-in-out lg:hidden"
       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
     >
-      <div class="flex items-center justify-between h-16 px-4 bg-indigo-800">
+      <div class="flex items-center justify-between h-16 px-4 bg-brand-teal">
         <span class="text-xl font-semibold text-white">Admin</span>
         <button
           type="button"
-          class="text-indigo-200 hover:text-white"
+          class="text-white/70 hover:text-white"
           @click="sidebarOpen = false"
         >
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,10 +82,10 @@ const isActive = (href) => {
           :href="item.href"
           class="group flex items-center px-2 py-2 text-base font-medium rounded-md"
           :class="isActive(item.href)
-            ? 'bg-indigo-800 text-white'
-            : 'text-indigo-100 hover:bg-indigo-600'"
+            ? 'bg-brand-teal text-white'
+            : 'text-white hover:bg-white/10'"
         >
-          <svg class="mr-4 h-6 w-6 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="mr-4 h-6 w-6 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
           </svg>
           {{ item.name }}
@@ -95,7 +95,7 @@ const isActive = (href) => {
 
     <!-- Desktop sidebar -->
     <div class="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-      <div class="flex flex-col flex-grow bg-indigo-700 pt-5 pb-4 overflow-y-auto">
+      <div class="flex flex-col flex-grow bg-brand-navy pt-5 pb-4 overflow-y-auto">
         <div class="flex items-center flex-shrink-0 px-4">
           <span class="text-xl font-semibold text-white">Admin</span>
         </div>
@@ -106,25 +106,25 @@ const isActive = (href) => {
             :href="item.href"
             class="group flex items-center px-2 py-2 text-sm font-medium rounded-md"
             :class="isActive(item.href)
-              ? 'bg-indigo-800 text-white'
-              : 'text-indigo-100 hover:bg-indigo-600'"
+              ? 'bg-brand-teal text-white'
+              : 'text-white hover:bg-white/10'"
           >
-            <svg class="mr-3 h-6 w-6 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="mr-3 h-6 w-6 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
             </svg>
             {{ item.name }}
           </Link>
         </nav>
-        <div class="flex-shrink-0 flex border-t border-indigo-800 p-4">
+        <div class="flex-shrink-0 flex border-t border-white/10 p-4">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <div class="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
+              <div class="h-8 w-8 rounded-full bg-brand-teal flex items-center justify-center">
                 <span class="text-sm font-medium text-white">{{ user?.nickname?.[0] || 'A' }}</span>
               </div>
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium text-white">{{ user?.nickname || 'Admin' }}</p>
-              <Link href="/" class="text-xs font-medium text-indigo-200 hover:text-white">
+              <Link href="/" class="text-xs font-medium text-white/70 hover:text-white">
                 返回前台
               </Link>
             </div>
@@ -139,7 +139,7 @@ const isActive = (href) => {
       <div class="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
         <button
           type="button"
-          class="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
+          class="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-teal lg:hidden"
           @click="sidebarOpen = true"
         >
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

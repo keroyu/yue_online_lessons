@@ -50,7 +50,7 @@ const submit = () => {
   <AdminLayout>
     <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
       <div class="mb-6">
-        <a href="/admin/email-templates" class="text-sm text-indigo-600 hover:underline">← 返回模板列表</a>
+        <a href="/admin/email-templates" class="text-sm text-brand-teal hover:underline">← 返回模板列表</a>
         <h1 class="mt-2 text-2xl font-bold text-gray-900">編輯模板：{{ template.name }}</h1>
         <p class="mt-1 text-sm text-gray-500">事件類型：{{ template.event_type }}</p>
       </div>
@@ -63,7 +63,7 @@ const submit = () => {
             <input
               v-model="form.name"
               type="text"
-              class="mt-1 block w-full rounded-lg border-gray-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              class="mt-1 block w-full rounded-lg border-gray-300 px-4 py-2.5 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
               :class="{ 'border-red-300': form.errors.name }"
             />
             <p v-if="form.errors.name" class="mt-1 text-sm text-red-600">{{ form.errors.name }}</p>
@@ -75,7 +75,7 @@ const submit = () => {
             <input
               v-model="form.subject"
               type="text"
-              class="mt-1 block w-full rounded-lg border-gray-300 px-4 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              class="mt-1 block w-full rounded-lg border-gray-300 px-4 py-2.5 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
               :class="{ 'border-red-300': form.errors.subject }"
             />
             <p v-if="form.errors.subject" class="mt-1 text-sm text-red-600">{{ form.errors.subject }}</p>
@@ -88,7 +88,7 @@ const submit = () => {
               <button
                 type="button"
                 @click="showPreview = !showPreview"
-                class="text-sm text-indigo-600 hover:underline"
+                class="text-sm text-brand-teal hover:underline"
               >
                 {{ showPreview ? '編輯模式' : '預覽' }}
               </button>
@@ -102,7 +102,7 @@ const submit = () => {
                 :key="variable.key"
                 type="button"
                 @click="insertAtCursor(variable.key)"
-                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 cursor-pointer"
+                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-brand-teal/10 text-brand-teal hover:bg-brand-teal/10 border border-brand-teal/30 cursor-pointer"
               >
                 {{ variable.label }}
               </button>
@@ -120,7 +120,7 @@ const submit = () => {
               ref="bodyTextarea"
               v-model="form.body_md"
               rows="14"
-              class="block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm font-mono focus:border-indigo-500 focus:ring-indigo-500"
+              class="block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm font-mono focus:border-brand-teal focus:ring-brand-teal"
               :class="{ 'border-red-300': form.errors.body_md }"
               placeholder="使用 Markdown 格式撰寫郵件內容..."
             />
@@ -138,7 +138,7 @@ const submit = () => {
           <button
             type="submit"
             :disabled="form.processing"
-            class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-6 py-2 text-sm font-medium text-white bg-brand-teal border border-transparent rounded-lg hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ form.processing ? '儲存中...' : '儲存' }}
           </button>

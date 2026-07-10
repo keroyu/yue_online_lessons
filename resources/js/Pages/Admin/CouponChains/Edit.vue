@@ -57,7 +57,7 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
             v-model="form.alias"
             type="text"
             maxlength="50"
-            class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono lowercase focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+            class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono lowercase focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
           />
           <span class="text-gray-400 font-mono">}</span>
         </div>
@@ -69,10 +69,10 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
         <label class="block text-sm font-medium text-gray-700 mb-1">折扣類型</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-2 text-sm">
-            <input type="radio" value="fixed" v-model="form.type" class="text-indigo-600" /> 固定金額
+            <input type="radio" value="fixed" v-model="form.type" class="text-brand-teal" /> 固定金額
           </label>
           <label class="flex items-center gap-2 text-sm">
-            <input type="radio" value="ratio" v-model="form.type" class="text-indigo-600" /> 折數
+            <input type="radio" value="ratio" v-model="form.type" class="text-brand-teal" /> 折數
           </label>
         </div>
       </div>
@@ -88,7 +88,7 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
           :step="form.type === 'ratio' ? '0.05' : '1'"
           :min="form.type === 'ratio' ? '0.5' : '10'"
           :max="form.type === 'ratio' ? '0.95' : undefined"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
         />
         <p v-if="ratioHint" class="text-xs text-brand-teal mt-1">{{ ratioHint }}</p>
         <p v-if="form.errors.value" class="text-sm text-red-600 mt-1">{{ form.errors.value }}</p>
@@ -99,16 +99,16 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
         <label class="block text-sm font-medium text-gray-700 mb-1">適用範圍</label>
         <div class="flex gap-4 mb-2">
           <label class="flex items-center gap-2 text-sm">
-            <input type="radio" :value="true" v-model="siteWide" class="text-indigo-600" /> 全站通用
+            <input type="radio" :value="true" v-model="siteWide" class="text-brand-teal" /> 全站通用
           </label>
           <label class="flex items-center gap-2 text-sm">
-            <input type="radio" :value="false" v-model="siteWide" class="text-indigo-600" /> 指定課程
+            <input type="radio" :value="false" v-model="siteWide" class="text-brand-teal" /> 指定課程
           </label>
         </div>
         <select
           v-if="!siteWide"
           v-model="form.course_id"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
         >
           <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
@@ -122,7 +122,7 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
           v-model="form.code_max_uses"
           type="number"
           min="0"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
         />
         <p v-if="form.errors.code_max_uses" class="text-sm text-red-600 mt-1">{{ form.errors.code_max_uses }}</p>
       </div>
@@ -134,20 +134,20 @@ const submit = () => form.put(`/admin/coupon-chains/${props.chain.id}`)
           v-model="form.note"
           type="text"
           maxlength="255"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
         />
       </div>
 
       <!-- 啟用 -->
       <label class="flex items-center gap-2 text-sm">
-        <input type="checkbox" v-model="form.is_active" class="rounded text-indigo-600" /> 啟用此輪換折扣碼
+        <input type="checkbox" v-model="form.is_active" class="rounded text-brand-teal" /> 啟用此輪換折扣碼
       </label>
 
       <div class="flex items-center gap-3 pt-2">
         <button
           type="submit"
           :disabled="form.processing"
-          class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+          class="px-4 py-2 rounded-lg bg-brand-teal text-white text-sm font-semibold hover:bg-brand-teal/90 disabled:opacity-50"
         >
           儲存變更
         </button>

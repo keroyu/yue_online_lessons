@@ -80,20 +80,20 @@ const insertImage = (url) => {
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">標題 *</label>
-          <input v-model="form.title" type="text" class="mt-1 w-full border border-gray-300 px-3 py-2" />
+          <input v-model="form.title" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
           <p v-if="form.errors.title" class="text-sm text-red-600 mt-1">{{ form.errors.title }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">網址代稱 slug *（小寫英數與 -）</label>
-          <input v-model="form.slug" type="text" placeholder="my-post-slug" class="mt-1 w-full border border-gray-300 px-3 py-2 font-mono text-sm" />
+          <input v-model="form.slug" type="text" placeholder="my-post-slug" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm" />
           <p class="text-xs text-gray-400 mt-1">前台網址：/blog/{{ form.slug || '…' }}</p>
           <p v-if="form.errors.slug" class="text-sm text-red-600 mt-1">{{ form.errors.slug }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">內文（Markdown，貼上 YouTube 連結會自動嵌入）*</label>
-          <textarea ref="bodyRef" v-model="form.body_md" rows="16" class="mt-1 w-full border border-gray-300 px-3 py-2 font-mono text-sm"></textarea>
+          <textarea ref="bodyRef" v-model="form.body_md" rows="16" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"></textarea>
           <p v-if="form.errors.body_md" class="text-sm text-red-600 mt-1">{{ form.errors.body_md }}</p>
         </div>
 
@@ -131,18 +131,18 @@ const insertImage = (url) => {
 
         <div>
           <label class="block text-sm font-medium text-gray-700">摘要（列表 / RSS / 信件前段）</label>
-          <textarea v-model="form.excerpt" rows="2" class="mt-1 w-full border border-gray-300 px-3 py-2 text-sm"></textarea>
+          <textarea v-model="form.excerpt" rows="2" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">標籤（逗號分隔）</label>
-          <input v-model="form.tagsText" type="text" placeholder="思維升級, 財務覺醒" class="mt-1 w-full border border-gray-300 px-3 py-2 text-sm" />
+          <input v-model="form.tagsText" type="text" placeholder="思維升級, 財務覺醒" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-gray-700">狀態</label>
-            <select v-model="form.status" class="mt-1 w-full border border-gray-300 px-3 py-2">
+            <select v-model="form.status" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
               <option value="draft">草稿</option>
               <option value="scheduled">排程發佈</option>
               <option value="published">已發佈</option>
@@ -150,7 +150,7 @@ const insertImage = (url) => {
           </div>
           <div v-if="form.status === 'scheduled'">
             <label class="block text-sm font-medium text-gray-700">發佈時間</label>
-            <input v-model="form.published_at" type="datetime-local" class="mt-1 w-full border border-gray-300 px-3 py-2" />
+            <input v-model="form.published_at" type="datetime-local" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
             <p v-if="form.errors.published_at" class="text-sm text-red-600 mt-1">{{ form.errors.published_at }}</p>
           </div>
         </div>
@@ -162,7 +162,7 @@ const insertImage = (url) => {
 
         <div>
           <label class="block text-sm font-medium text-gray-700">引流課程（選填，文章底部顯示 CTA）</label>
-          <select v-model="form.related_course_id" class="mt-1 w-full border border-gray-300 px-3 py-2">
+          <select v-model="form.related_course_id" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
             <option :value="null">— 不綁定 —</option>
             <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -173,11 +173,11 @@ const insertImage = (url) => {
           <div class="space-y-3 mt-3">
             <div>
               <label class="block text-sm text-gray-600">SEO 標題（留空用文章標題）</label>
-              <input v-model="form.seo_title" type="text" class="mt-1 w-full border border-gray-300 px-3 py-2 text-sm" />
+              <input v-model="form.seo_title" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <div>
               <label class="block text-sm text-gray-600">Meta description</label>
-              <textarea v-model="form.meta_description" rows="2" class="mt-1 w-full border border-gray-300 px-3 py-2 text-sm"></textarea>
+              <textarea v-model="form.meta_description" rows="2" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
             </div>
             <div>
               <label class="block text-sm text-gray-600">封面圖</label>
@@ -193,7 +193,7 @@ const insertImage = (url) => {
     </div>
 
     <div class="flex items-center gap-3">
-      <button type="submit" :disabled="form.processing" class="bg-brand-teal text-white px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50">
+      <button type="submit" :disabled="form.processing" class="bg-brand-teal text-white rounded-md px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50">
         {{ form.processing ? '儲存中…' : (isEdit ? '更新文章' : '建立文章') }}
       </button>
       <a href="/admin/posts" class="text-gray-500 hover:text-gray-700">取消</a>

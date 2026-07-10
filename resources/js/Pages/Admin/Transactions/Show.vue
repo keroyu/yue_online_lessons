@@ -60,7 +60,7 @@ const statusClass = (status, type) => {
     <div class="mb-6">
       <Link
         href="/admin/transactions"
-        class="text-sm text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+        class="text-sm text-brand-teal hover:text-brand-navy flex items-center gap-1"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -87,7 +87,7 @@ const statusClass = (status, type) => {
     <!-- Detail card -->
     <div class="bg-white shadow sm:rounded-lg">
       <!-- Status + actions bar -->
-      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+      <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
         <div class="flex items-center gap-3">
           <span :class="statusClass(transaction.status, transaction.type)">{{ statusLabel(transaction.status, transaction.type) }}</span>
           <span class="text-sm text-gray-500">{{ transaction.type_label }}</span>
@@ -130,7 +130,7 @@ const statusClass = (status, type) => {
               <template v-if="transaction.user">
                 <Link
                   :href="`/admin/members?highlight=${transaction.user.id}`"
-                  class="text-indigo-600 hover:text-indigo-900"
+                  class="text-brand-teal hover:text-brand-navy"
                 >
                   {{ transaction.user.real_name || transaction.user.nickname || transaction.user.email }}
                 </Link>
@@ -156,7 +156,7 @@ const statusClass = (status, type) => {
               <template v-if="transaction.course">
                 <Link
                   :href="`/admin/courses/${transaction.course.id}/edit`"
-                  class="text-indigo-600 hover:text-indigo-900"
+                  class="text-brand-teal hover:text-brand-navy"
                 >
                   {{ transaction.course.name }}
                 </Link>
@@ -226,7 +226,7 @@ const statusClass = (status, type) => {
 
     <!-- Cart order info block (only for PayUni / NewebPay purchases) -->
     <div v-if="order_info?.merchant_order_no" class="mt-6 bg-white shadow sm:rounded-lg">
-      <div class="px-6 py-4 border-b border-gray-200">
+      <div class="px-4 py-4 border-b border-gray-200">
         <h2 class="text-base font-semibold text-gray-900">購物車訂單資訊</h2>
       </div>
       <div class="px-6 py-6">
