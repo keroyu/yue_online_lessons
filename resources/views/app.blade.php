@@ -26,6 +26,20 @@
     @if($og['image'])
     <meta property="og:image" content="{{ $og['image'] }}">
     @endif
+    @if(($og['type'] ?? null) === 'article' && !empty($og['published_time']))
+    <meta property="article:published_time" content="{{ $og['published_time'] }}">
+    <script type="application/ld+json">{!! json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'BlogPosting',
+        'headline' => $og['title'],
+        'description' => $og['description'],
+        'datePublished' => $og['published_time'],
+        'image' => $og['image'] ?: null,
+        'url' => $og['url'],
+        'mainEntityOfPage' => $og['url'],
+        'publisher' => ['@type' => 'Organization', 'name' => config('app.name', 'Your Time Bank')],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @endif
 @else
     <meta property="og:type" content="website">
     <meta property="og:title" content="{{ config('app.name', 'Your Time Bank') }}">

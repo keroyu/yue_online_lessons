@@ -14,4 +14,24 @@
     <priority>0.8</priority>
   </url>
   @endforeach
+  <url>
+    <loc>{{ config('app.url') }}/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  @foreach ($posts as $post)
+  <url>
+    <loc>{{ config('app.url') }}/blog/{{ $post->slug }}</loc>
+    <lastmod>{{ $post->updated_at->toAtomString() }}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  @endforeach
+  @foreach ($tags as $tag)
+  <url>
+    <loc>{{ config('app.url') }}/blog/tag/{{ $tag->slug }}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  @endforeach
 </urlset>

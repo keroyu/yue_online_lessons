@@ -56,6 +56,10 @@ class HandleInertiaRequests extends Middleware
                 'drip_course_id'  => fn () => $request->session()->get('drip_course_id'),
                 'drip_subscribed' => fn () => $request->session()->get('drip_subscribed'),
                 'drip_nickname'   => fn () => $request->session()->get('drip_nickname'),
+                'newsletter_code_sent' => fn () => $request->session()->get('newsletter_code_sent'),
+                'newsletter_email'     => fn () => $request->session()->get('newsletter_email'),
+                'newsletter_subscribed' => fn () => $request->session()->get('newsletter_subscribed'),
+                'newsletter_info'      => fn () => $request->session()->get('newsletter_info'),
             ],
             'cartCount' => fn () => $request->user()
                 ? app(CartService::class)->count($request->user()->id)

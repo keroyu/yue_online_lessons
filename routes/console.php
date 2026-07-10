@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 // Update preorder courses to selling when sale_at time is reached
 Schedule::command('courses:update-status')->everyMinute();
 
+// Publish scheduled posts whose published_at time has passed
+Schedule::command('posts:publish-scheduled')->everyMinute();
+
 // Process and send scheduled drip emails daily at 9:00 AM
 Schedule::command('drip:process-emails')->dailyAt('09:00');
 

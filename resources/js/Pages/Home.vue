@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/vue3'
 import CourseCard from '@/Components/CourseCard.vue'
 import SocialLinks from '@/Components/SocialLinks.vue'
 import BlogArticles from '@/Components/BlogArticles.vue'
+import HomePostList from '@/Components/Newsletter/HomePostList.vue'
 import FeaturedCourses from '@/Components/FeaturedCourses.vue'
 import SectionHeader from '@/Components/SectionHeader.vue'
 
@@ -35,6 +36,10 @@ const props = defineProps({
     }),
   },
   socialLinks: {
+    type: Array,
+    default: () => [],
+  },
+  popularPosts: {
     type: Array,
     default: () => [],
   },
@@ -139,7 +144,10 @@ const filteredCourses = computed(() =>
       <!-- Main content with sidebar layout -->
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_365px] gap-6">
         <!-- Main area: Courses -->
-        <div>
+        <div class="min-w-0">
+          <!-- Popular posts list (above the category buttons) -->
+          <HomePostList :posts="popularPosts" />
+
           <div v-if="courses.length > 0">
             <!-- Category filter buttons (admin-configured): bright label on dark, text scales up on hover -->
             <div v-if="contentCategories.length > 0" class="flex gap-3 mb-6">

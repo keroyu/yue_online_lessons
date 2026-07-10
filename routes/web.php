@@ -21,6 +21,8 @@ use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\HomeworkController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SocialLinkController;
+use App\Http\Controllers\Admin\PostController as AdminPostController;
+use App\Http\Controllers\Admin\PostImageController;
 use App\Http\Controllers\Member\AssignmentCommentController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\CartController;
@@ -36,6 +38,9 @@ use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Payment\SuccessController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\BlogController;
+use App\Http\Controllers\BlogFeedController;
+use App\Http\Controllers\NewsletterSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -52,6 +57,20 @@ Route::post('/courses/{course}/redeem', [RedemptionController::class, 'store'])
     ->middleware('auth')
     ->name('courses.redeem');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+
+// Blog (mini-blog / newsletter posts) — literal segments before the slug catch-all
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/feed', [BlogFeedController::class, 'index'])->name('blog.feed');
+Route::get('/blog/tag/{slug}', [BlogController::class, 'tag'])->name('blog.tag');
+Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+
+// Newsletter subscription (OTP two-step) + unsubscribe
+Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'subscribe'])
+    ->middleware('throttle:10,1')->name('newsletter.subscribe');
+Route::post('/newsletter/verify', [NewsletterSubscriptionController::class, 'verify'])
+    ->middleware('throttle:10,1')->name('newsletter.verify');
+Route::get('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'showUnsubscribe'])->name('newsletter.unsubscribe.show');
+Route::post('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 
 // Cart & Checkout API — must live in web.php (api middleware group has no StartSession;
 // checkout/initiate reads session('traffic_source') for UTM tracking)
@@ -173,6 +192,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Traffic source analytics
     Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');
     Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');
+
+    // Newsletter posts (mini-blog)
+    Route::resource('posts', AdminPostController::class)->except(['show']);
+    Route::post('/posts/{post}/images', [PostImageController::class, 'store'])->name('posts.images.store');
+    Route::get('/posts/{post}/images', [PostImageController::class, 'index'])->name('posts.images.index');
+    Route::delete('/post-images/{image}', [PostImageController::class, 'destroy'])->name('posts.images.destroy');
 
     // Members
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');

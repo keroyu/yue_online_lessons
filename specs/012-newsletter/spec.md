@@ -49,6 +49,7 @@ owner_files:
   - resources/js/Components/Newsletter/PostCard.vue
   - resources/js/Components/Newsletter/ShareButtons.vue
   - resources/js/Components/Newsletter/SubscribeForm.vue
+  - resources/js/Components/Newsletter/HomePostList.vue
   # Migrations
   - database/migrations/2026_07_10_000001_create_posts_table.php
   - database/migrations/2026_07_10_000002_create_tags_table.php
@@ -94,9 +95,15 @@ touchpoints:
   - file: routes/web.php
     owner: 000-platform-core
     why: 註冊 /blog、/blog/{slug}、/blog/tag/{slug}、/blog/feed、訂閱/退訂/開信追蹤、admin posts/broadcasts 路由
+  - file: app/Http/Middleware/HandleInertiaRequests.php
+    owner: 000-platform-core
+    why: 分享 newsletter flash keys（newsletter_code_sent / _email / _subscribed / _info）供訂閱表單兩步流程使用
   - file: routes/console.php
     owner: 000-platform-core
     why: 排程 posts:publish-scheduled（每分鐘）與 newsletter:clean-dormant（每月 1 號）
+  - file: database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
+    owner: 004-course-admin
+    why: 既有 bug 修復 — 原生 `ALTER TABLE ... MODIFY` 在 sqlite 測試庫報錯，導致全 repo RefreshDatabase 測試無法執行；加 driver guard（sqlite 跳過）以便驗證本模組
 ---
 
 # Newsletter（極簡電子報 / mini-blog）
@@ -249,36 +256,36 @@ touchpoints:
 ## Tasks
 
 ### Phase 1 — 資料層與模型
-- [ ] T001 [P] 建 posts migration（含 view_count unsigned int default 0）in `database/migrations/2026_07_10_000001_create_posts_table.php`
-- [ ] T002 [P] 建 tags migration in `database/migrations/2026_07_10_000002_create_tags_table.php`
-- [ ] T003 [P] 建 post_tag pivot migration in `database/migrations/2026_07_10_000003_create_post_tag_table.php`
-- [ ] T004 [P] 建 post_images migration in `database/migrations/2026_07_10_000004_create_post_images_table.php`
-- [ ] T005 [P] 建 broadcasts migration in `database/migrations/2026_07_10_000005_create_broadcasts_table.php`
-- [ ] T006 [P] 建 newsletter_email_events migration in `database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php`
-- [ ] T007 [P] users 加 newsletter 欄位 migration in `database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php`
-- [ ] T008 Post/Tag/PostImage/Broadcast/NewsletterEmailEvent models（關聯、casts、scopes）in `app/Models/*.php`
-- [ ] T009 User model 加 newsletter casts / relations / scopeNewsletterSubscribed in `app/Models/User.php`（touchpoint 001）
+- [x] T001 [P] 建 posts migration（含 view_count unsigned int default 0）in `database/migrations/2026_07_10_000001_create_posts_table.php`
+- [x] T002 [P] 建 tags migration in `database/migrations/2026_07_10_000002_create_tags_table.php`
+- [x] T003 [P] 建 post_tag pivot migration in `database/migrations/2026_07_10_000003_create_post_tag_table.php`
+- [x] T004 [P] 建 post_images migration in `database/migrations/2026_07_10_000004_create_post_images_table.php`
+- [x] T005 [P] 建 broadcasts migration in `database/migrations/2026_07_10_000005_create_broadcasts_table.php`
+- [x] T006 [P] 建 newsletter_email_events migration in `database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php`
+- [x] T007 [P] users 加 newsletter 欄位 migration in `database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php`
+- [x] T008 Post/Tag/PostImage/Broadcast/NewsletterEmailEvent models（關聯、casts、scopes）in `app/Models/*.php`
+- [x] T009 User model 加 newsletter casts / relations / scopeNewsletterSubscribed in `app/Models/User.php`（touchpoint 001）
 
 ### Phase 2 — 內容渲染與後台文章 CRUD
-- [ ] T010 PostService：markdown→html + VideoEmbedService + sanitize + og payload in `app/Services/PostService.php`
-- [ ] T011 Admin PostController + Store/UpdatePostRequest in `app/Http/Controllers/Admin/PostController.php`
-- [ ] T012 [P] Admin PostImageController（圖片庫上傳/刪除）in `app/Http/Controllers/Admin/PostImageController.php`
+- [x] T010 PostService：markdown→html + VideoEmbedService + sanitize + og payload in `app/Services/PostService.php`
+- [x] T011 Admin PostController + Store/UpdatePostRequest in `app/Http/Controllers/Admin/PostController.php`
+- [x] T012 [P] Admin PostImageController（圖片庫上傳/刪除）in `app/Http/Controllers/Admin/PostImageController.php`
 - [ ] T013 [P] Admin Posts Index/Create/Edit + PostForm.vue in `resources/js/Pages/Admin/Posts/*.vue`
-- [ ] T014 PublishScheduledPosts command in `app/Console/Commands/PublishScheduledPosts.php`
+- [x] T014 PublishScheduledPosts command in `app/Console/Commands/PublishScheduledPosts.php`
 
 ### Phase 3 — 前台部落格與 SEO
-- [ ] T015 BlogController（index/show/tag）in `app/Http/Controllers/BlogController.php`
-- [ ] T016 [P] Blog Index/Show/Tag.vue + PostCard/ShareButtons in `resources/js/Pages/Blog/*.vue`
-- [ ] T017 BlogFeedController（RSS 2.0）in `app/Http/Controllers/BlogFeedController.php`
-- [ ] T018 sitemap 納入 posts/tags in `app/Http/Controllers/SitemapController.php` + `resources/views/sitemap.blade.php`（touchpoint 000）
-- [ ] T019 app.blade.php og 擴充 article + JSON-LD in `resources/views/app.blade.php`（touchpoint 000）
-- [ ] T020 首頁 blog widget 改原生 Post in `app/Http/Controllers/HomeController.php` + `resources/js/Pages/Home.vue` + `resources/js/Components/BlogArticles.vue`（touchpoint 002）
+- [x] T015 BlogController（index/show/tag）in `app/Http/Controllers/BlogController.php`
+- [x] T016 [P] Blog Index/Show/Tag.vue + PostCard/ShareButtons in `resources/js/Pages/Blog/*.vue`
+- [x] T017 BlogFeedController（RSS 2.0）in `app/Http/Controllers/BlogFeedController.php`
+- [x] T018 sitemap 納入 posts/tags in `app/Http/Controllers/SitemapController.php` + `resources/views/sitemap.blade.php`（touchpoint 000）
+- [x] T019 app.blade.php og 擴充 article + JSON-LD in `resources/views/app.blade.php`（touchpoint 000）
+- [x] T020 首頁 blog widget 改原生 Post in `app/Http/Controllers/HomeController.php` + `resources/js/Components/BlogArticles.vue`（touchpoint 002；Home.vue 無需改，prop 形狀相容）
 
 ### Phase 4 — 訂閱與會員
-- [ ] T021 NewsletterService（subscribe/unsubscribe/reactivate/markDormant）in `app/Services/NewsletterService.php`
-- [ ] T022 NewsletterSubscriptionController（OTP 兩步：subscribe 送碼 / verify 建會員+訂閱）+ StoreNewsletterSubscriptionRequest，沿用 VerificationCodeService/VerificationCodeMail（touchpoint 001）in `app/Http/Controllers/NewsletterSubscriptionController.php`
-- [ ] T023 [P] SubscribeForm.vue（兩步，Step2 沿用 VerificationCodeInput）+ Newsletter/Unsubscribe.vue in `resources/js/Components/Newsletter/SubscribeForm.vue`、`resources/js/Pages/Newsletter/Unsubscribe.vue`
-- [ ] T024 NewsletterWelcomeMail + 極簡模板 in `app/Mail/NewsletterWelcomeMail.php`、`resources/views/emails/newsletter-welcome.blade.php`
+- [x] T021 NewsletterService（subscribe/unsubscribe/reactivate/markDormant）in `app/Services/NewsletterService.php`
+- [x] T022 NewsletterSubscriptionController（OTP 兩步：subscribe 送碼 / verify 建會員+訂閱）+ StoreNewsletterSubscriptionRequest，沿用 VerificationCodeService/VerificationCodeMail（touchpoint 001）in `app/Http/Controllers/NewsletterSubscriptionController.php`
+- [x] T023 [P] SubscribeForm.vue（兩步，Step2 沿用 VerificationCodeInput）+ Newsletter/Unsubscribe.vue in `resources/js/Components/Newsletter/SubscribeForm.vue`、`resources/js/Pages/Newsletter/Unsubscribe.vue`
+- [x] T024 NewsletterWelcomeMail + 極簡模板 in `app/Mail/NewsletterWelcomeMail.php`、`resources/views/emails/newsletter-welcome.blade.php`
 
 ### Phase 5 — 寄送、追蹤與清理
 - [ ] T025 BroadcastService（建 Broadcast、組收件人、dispatch、統計）in `app/Services/BroadcastService.php`
@@ -290,8 +297,8 @@ touchpoints:
 - [ ] T031 路由與排程註冊 in `routes/web.php`、`routes/console.php`（touchpoint 000）；AdminLayout 側欄選單 in `resources/js/Layouts/AdminLayout.vue`（touchpoint 000）
 
 ### Phase 6 — 文章瀏覽次數（US8）
-- [ ] T032 BlogController::show 對 published 文章 session 去重後原子 `increment('view_count')`（admin/draft/bot 不計）in `app/Http/Controllers/BlogController.php`
-- [ ] T033 [P] 後台文章列表顯示/可排序 view_count in `app/Http/Controllers/Admin/PostController.php`、`resources/js/Pages/Admin/Posts/Index.vue`
+- [x] T032 BlogController::show 對 published 文章 session 去重後原子 `increment('view_count')`（admin/draft/bot 不計）in `app/Http/Controllers/BlogController.php`
+- [ ] T033 [P] 後台文章列表顯示/可排序 view_count（後端 PostController::index 已回 view_count + sort=views；待前端 Admin/Posts/Index.vue 呈現）in `resources/js/Pages/Admin/Posts/Index.vue`
 
 ## 進度日誌
 
@@ -299,3 +306,8 @@ touchpoints:
 - 2026-07-10: 一致性稽核後修訂 3 項 — (1) 內文改後端 `PostService::toHtml` request 時渲染、棄 body_html 快取欄（比照 EmailTemplate accessor，且更利 SEO）；(2) slug 改必填手動英文網址；(3) 訂閱改回 OTP 兩步驗證（沿用 VerificationCodeService，防 subscribe-bombing）。
 - 2026-07-10: 使用者審核通過，status → building，可 /dev 實作。
 - 2026-07-10: 加 US8 文章瀏覽次數（posts.view_count 單欄 + session 去重，不建事件表）。
+- 2026-07-10: /dev Phase 1 完成（T001–T009，7 migration + 5 model + User newsletter 欄位）+ T010 PostService；PostModelTest 5 passed、PostServiceTest 4 passed。順修既有 bug：`change_content_category` migration 加 sqlite driver guard（原本讓全 repo 測試無法跑）。
+- 2026-07-10: /dev 續作 — Phase 2 後端（T011/T012/T014）、Phase 3 全（T015–T020，含 SEO/OG/JSON-LD/RSS/sitemap/首頁改原生）、Phase 4 全（T021–T024，OTP 訂閱+退訂+歡迎信）、Phase 6 T032（瀏覽計數）。新增 HandleInertiaRequests 觸點（分享 newsletter flash）。測試：AdminPostCrud 6、BlogPublic 8、Subscription 6 全綠；全 repo `php artisan test` 59 passed，`npm run build` exit 0。剩 T013（後台文章 Vue）、Phase 5（T025–T031 Broadcast/追蹤/清理）、T033（後台列表 view_count 前端）。
+- 2026-07-10: 本機 MySQL 執行 migrate；建 6 篇 demo 文章（3 主題各 2）驗證前台。修真實 bug — `PostService::embedVideoLines` 用 `\R`（無 /u）會誤切中文的 0x85 位元組導致 UTF-8 損毀、CommonMark 拋錯使含該類中文的文章頁全 500；改為只切字面換行 + URL match 加 /u，並補 CJK+影片 regression 測試。全 repo 60 passed；6 篇單頁 live 200、YouTube embed 與 og article/JSON-LD 正常。
+- 2026-07-10: 首頁在三個分類按鈕上方加「熱門文章」白底列表（HomePostList.vue）— 依 view_count 取前 5，每列 [tag][標題][首行預覽][日期右對齊]；HomeController 新增 popularPosts。build 通過、首頁 200。預覽截 30 字 + grid min-w-0 修溢出。
+- 2026-07-10: 文章頁 UX — 內文改白底卡片、影片 responsive 16:9 + 上下 2.5rem margin、內文 h/p/ul/a 間距（:deep）；分享按鈕改實心品牌色 + hover + cursor；訂閱框輸入欄提亮（白底/深框）、按鈕 hover+pointer、文案改「用 Email 接收最新教學分享。注意：過久不開信將被取消訂閱。」。新增登入會員訂閱本人 email 免 OTP 快捷路徑（sendWelcome 抽共用）。SubscriptionTest 8 passed、全 repo 62 passed、build exit 0。

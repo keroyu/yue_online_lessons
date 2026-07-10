@@ -1,4 +1,5 @@
 <script setup>
+import { Link } from '@inertiajs/vue3'
 import SectionHeader from '@/Components/SectionHeader.vue'
 
 defineProps({
@@ -23,10 +24,8 @@ const formatDate = (dateString) => {
     <SectionHeader title="近期文章" />
     <ul class="space-y-3">
       <li v-for="article in articles" :key="article.url" class="group">
-        <a
+        <Link
           :href="article.url"
-          target="_blank"
-          rel="noopener noreferrer"
           class="block hover:bg-gray-50 p-2 -mx-2 transition-colors"
         >
           <p class="text-base font-medium text-gray-900 group-hover:text-brand-teal line-clamp-2 leading-snug">
@@ -35,7 +34,7 @@ const formatDate = (dateString) => {
           <p class="text-sm text-gray-500 mt-1">
             {{ formatDate(article.published_at) }}
           </p>
-        </a>
+        </Link>
       </li>
     </ul>
   </div>

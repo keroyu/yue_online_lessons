@@ -27,6 +27,11 @@ class User extends Authenticatable
         'referral_activated_at',
         'last_login_at',
         'last_login_ip',
+        'newsletter_status',
+        'newsletter_subscribed_at',
+        'newsletter_unsubscribe_token',
+        'newsletter_last_opened_at',
+        'newsletter_status_changed_at',
     ];
 
     protected $hidden = [
@@ -42,6 +47,9 @@ class User extends Authenticatable
             'referral_activated_at' => 'datetime',
             'birth_date' => 'date',
             'password' => 'hashed',
+            'newsletter_subscribed_at' => 'datetime',
+            'newsletter_last_opened_at' => 'datetime',
+            'newsletter_status_changed_at' => 'datetime',
         ];
     }
 
@@ -139,6 +147,24 @@ class User extends Authenticatable
     public function dripSubscriptions(): HasMany
     {
         return $this->hasMany(DripSubscription::class);
+    }
+
+    public function newsletterEmailEvents(): HasMany
+    {
+        return $this->hasMany(NewsletterEmailEvent::class);
+    }
+
+    /**
+     * Active newsletter recipients (excludes unsubscribed / dormant / none).
+     */
+    public function scopeNewsletterSubscribed(Builder $query): Builder
+    {
+        return $query->where('newsletter_status', 'subscribed');
+    }
+
+    public function isNewsletterSubscribed(): bool
+    {
+        return $this->newsletter_status === 'subscribed';
     }
 
     public function activeDripSubscriptions(): HasMany
