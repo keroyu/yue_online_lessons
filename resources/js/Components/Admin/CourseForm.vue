@@ -548,7 +548,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
             :class="[inputClasses, form.errors.portaly_product_id ? inputErrorClasses : '']"
           />
           <p :class="helpTextClasses">
-            輸入商品 ID 後，系統會自動產生購買連結：
+            請先到 Portaly 建立該商品，再把商品 ID 貼到這裡。系統會以此 ID 連到既有的 Portaly 購買頁：
             <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">https://portaly.cc/kyontw/product/{ID}</code>
           </p>
           <p v-if="form.errors.portaly_product_id" :class="errorTextClasses">{{ form.errors.portaly_product_id }}</p>
