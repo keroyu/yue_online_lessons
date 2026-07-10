@@ -12,7 +12,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('post_id')->constrained()->cascadeOnDelete();
             $table->string('subject');
-            $table->enum('status', ['draft', 'sending', 'sent'])->default('draft');
+            // Plain string (not enum) so new statuses like 'scheduled' don't require an
+            // enum ALTER — and sqlite (test DB) doesn't bake a value-restricting CHECK.
+            $table->string('status')->default('draft');
             $table->unsignedInteger('recipients_count')->default(0);
             $table->unsignedInteger('sent_count')->default(0);
             $table->timestamp('sent_at')->nullable();

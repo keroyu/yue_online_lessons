@@ -41,6 +41,8 @@ use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\BlogFeedController;
 use App\Http\Controllers\NewsletterSubscriptionController;
+use App\Http\Controllers\NewsletterTrackingController;
+use App\Http\Controllers\Admin\BroadcastController as AdminBroadcastController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -71,6 +73,9 @@ Route::post('/newsletter/verify', [NewsletterSubscriptionController::class, 'ver
     ->middleware('throttle:10,1')->name('newsletter.verify');
 Route::get('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'showUnsubscribe'])->name('newsletter.unsubscribe.show');
 Route::post('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
+
+// Newsletter open-tracking pixel (signed, no auth)
+Route::get('/newsletter/track/open', [NewsletterTrackingController::class, 'open'])->name('newsletter.track.open');
 
 // Cart & Checkout API — must live in web.php (api middleware group has no StartSession;
 // checkout/initiate reads session('traffic_source') for UTM tracking)
@@ -198,6 +203,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/posts/{post}/images', [PostImageController::class, 'store'])->name('posts.images.store');
     Route::get('/posts/{post}/images', [PostImageController::class, 'index'])->name('posts.images.index');
     Route::delete('/post-images/{image}', [PostImageController::class, 'destroy'])->name('posts.images.destroy');
+
+    // Newsletter broadcasts (send a post as email)
+    Route::get('/broadcasts', [AdminBroadcastController::class, 'index'])->name('broadcasts.index');
+    Route::get('/broadcasts/search-posts', [AdminBroadcastController::class, 'searchPosts'])->name('broadcasts.search-posts');
+    Route::post('/broadcasts', [AdminBroadcastController::class, 'store'])->middleware('throttle:10,1')->name('broadcasts.store');
+    Route::get('/broadcasts/{broadcast}', [AdminBroadcastController::class, 'show'])->whereNumber('broadcast')->name('broadcasts.show');
 
     // Members
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');

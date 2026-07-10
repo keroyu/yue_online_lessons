@@ -14,6 +14,12 @@ Schedule::command('courses:update-status')->everyMinute();
 // Publish scheduled posts whose published_at time has passed
 Schedule::command('posts:publish-scheduled')->everyMinute();
 
+// Dispatch scheduled newsletter broadcasts whose send time has arrived
+Schedule::command('newsletter:send-scheduled')->everyMinute();
+
+// Clean dormant newsletter subscribers (sent but never opened in 60 days) — monthly
+Schedule::command('newsletter:clean-dormant')->monthlyOn(1, '02:00');
+
 // Process and send scheduled drip emails daily at 9:00 AM
 Schedule::command('drip:process-emails')->dailyAt('09:00');
 

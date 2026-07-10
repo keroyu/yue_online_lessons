@@ -2327,7 +2327,7 @@
         "database/migrations/2026_07_10_000003_create_post_tag_table.php",
         "database/migrations/2026_07_10_000004_create_post_images_table.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-2",
@@ -2366,7 +2366,7 @@
         "resources/js/Components/Newsletter/PostCard.vue",
         "app/Services/PostService.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-3",
@@ -2397,7 +2397,7 @@
         "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Components/Newsletter/ShareButtons.vue"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-4",
@@ -2437,7 +2437,7 @@
         "resources/js/Pages/Newsletter/Unsubscribe.vue",
         "database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-5",
@@ -2473,7 +2473,7 @@
         "resources/js/Pages/Admin/Broadcasts/Index.vue",
         "database/migrations/2026_07_10_000005_create_broadcasts_table.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-6",
@@ -2504,7 +2504,7 @@
         "resources/js/Pages/Admin/Broadcasts/Show.vue",
         "database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-7",
@@ -2533,7 +2533,7 @@
         "app/Services/NewsletterService.php",
         "routes/console.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "012.us-8",
@@ -2561,7 +2561,7 @@
         "resources/js/Pages/Admin/Posts/Index.vue",
         "database/migrations/2026_07_10_000001_create_posts_table.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     }
   ]
 }

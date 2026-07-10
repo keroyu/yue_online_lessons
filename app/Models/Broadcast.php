@@ -15,6 +15,7 @@ class Broadcast extends Model
         'post_id',
         'subject',
         'status',
+        'scheduled_at',
         'recipients_count',
         'sent_count',
         'sent_at',
@@ -23,6 +24,7 @@ class Broadcast extends Model
     protected function casts(): array
     {
         return [
+            'scheduled_at' => 'datetime',
             'sent_at' => 'datetime',
             'recipients_count' => 'integer',
             'sent_count' => 'integer',

@@ -1,6 +1,6 @@
 ---
 id: 012-newsletter
-status: building
+status: done
 owner_files:
   # Models
   - app/Models/Post.php
@@ -31,8 +31,10 @@ owner_files:
   - app/Mail/NewsletterWelcomeMail.php
   - app/Console/Commands/PublishScheduledPosts.php
   - app/Console/Commands/CleanDormantSubscribers.php
+  - app/Console/Commands/SendScheduledBroadcasts.php
   # Email views
   - resources/views/emails/newsletter-broadcast.blade.php
+  - resources/views/emails/newsletter-broadcast-text.blade.php
   - resources/views/emails/newsletter-welcome.blade.php
   # Frontend pages
   - resources/js/Pages/Blog/Index.vue
@@ -58,6 +60,7 @@ owner_files:
   - database/migrations/2026_07_10_000005_create_broadcasts_table.php
   - database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
   - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
+  - database/migrations/2026_07_11_000001_add_scheduled_at_to_broadcasts_table.php
 touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
@@ -249,7 +252,7 @@ touchpoints:
 - `tags` — `name`、`slug` unique。
 - `post_tag` — pivot，(post_id, tag_id) unique。
 - `post_images` — 每篇文章圖片庫（比照 course_images），`post_id`、`path`、`sort_order`。
-- `broadcasts` — 一次寄送事件。`post_id` FK、`subject`（快照）、`status`(draft/sending/sent)、`recipients_count`、`sent_count`、`sent_at`(nullable)。index：(status)、post_id。
+- `broadcasts` — 一次寄送事件。`post_id` FK、`subject`（快照）、`status`(draft/scheduled/sending/sent，字串非 enum)、`scheduled_at`(nullable，排程寄送時間)、`recipients_count`、`sent_count`、`sent_at`(nullable)。排程 broadcast 的 recipients 在實際寄出時（`newsletter:send-scheduled` 每分鐘）才快照。index：status、post_id、scheduled_at。
 - `newsletter_email_events` — 開信事件（未來可擴 clicked）。`broadcast_id` FK、`user_id` FK、`event_type`(opened)、`ip`、`user_agent`、`created_at`。unique(broadcast_id, user_id, event_type)；只有 created_at。
 - `users` 增欄（本模組 migration，User model 屬 001 為 touchpoint）— `newsletter_status`(enum none/subscribed/unsubscribed/dormant, default none)、`newsletter_subscribed_at`(nullable)、`newsletter_unsubscribe_token`(uuid, nullable, unique)、`newsletter_last_opened_at`(nullable)、`newsletter_status_changed_at`(nullable)。index：newsletter_status。
 
@@ -270,7 +273,7 @@ touchpoints:
 - [x] T010 PostService：markdown→html + VideoEmbedService + sanitize + og payload in `app/Services/PostService.php`
 - [x] T011 Admin PostController + Store/UpdatePostRequest in `app/Http/Controllers/Admin/PostController.php`
 - [x] T012 [P] Admin PostImageController（圖片庫上傳/刪除）in `app/Http/Controllers/Admin/PostImageController.php`
-- [ ] T013 [P] Admin Posts Index/Create/Edit + PostForm.vue in `resources/js/Pages/Admin/Posts/*.vue`
+- [x] T013 [P] Admin Posts Index/Create/Edit + PostForm.vue in `resources/js/Pages/Admin/Posts/*.vue`
 - [x] T014 PublishScheduledPosts command in `app/Console/Commands/PublishScheduledPosts.php`
 
 ### Phase 3 — 前台部落格與 SEO
@@ -288,17 +291,17 @@ touchpoints:
 - [x] T024 NewsletterWelcomeMail + 極簡模板 in `app/Mail/NewsletterWelcomeMail.php`、`resources/views/emails/newsletter-welcome.blade.php`
 
 ### Phase 5 — 寄送、追蹤與清理
-- [ ] T025 BroadcastService（建 Broadcast、組收件人、dispatch、統計）in `app/Services/BroadcastService.php`
-- [ ] T026 SendBroadcastEmailJob（逐封、狀態檢查、重試）in `app/Jobs/SendBroadcastEmailJob.php`
-- [ ] T027 NewsletterBroadcastMail + 極簡信模板（pixel / List-Unsubscribe / text 備援）in `app/Mail/NewsletterBroadcastMail.php`、`resources/views/emails/newsletter-broadcast.blade.php`
-- [ ] T028 Admin BroadcastController + SendBroadcastRequest + Broadcasts Index/Show.vue in `app/Http/Controllers/Admin/BroadcastController.php`、`resources/js/Pages/Admin/Broadcasts/*.vue`
-- [ ] T029 NewsletterTrackingController（signed pixel、寫 event、更新 last_opened_at、dormant 自動復活）in `app/Http/Controllers/NewsletterTrackingController.php`
-- [ ] T030 CleanDormantSubscribers command in `app/Console/Commands/CleanDormantSubscribers.php`
-- [ ] T031 路由與排程註冊 in `routes/web.php`、`routes/console.php`（touchpoint 000）；AdminLayout 側欄選單 in `resources/js/Layouts/AdminLayout.vue`（touchpoint 000）
+- [x] T025 BroadcastService（建 Broadcast、組收件人、dispatch、統計）in `app/Services/BroadcastService.php`
+- [x] T026 SendBroadcastEmailJob（逐封、狀態檢查、重試）in `app/Jobs/SendBroadcastEmailJob.php`
+- [x] T027 NewsletterBroadcastMail + 極簡信模板（pixel / List-Unsubscribe / text 備援）in `app/Mail/NewsletterBroadcastMail.php`、`resources/views/emails/newsletter-broadcast.blade.php`
+- [x] T028 Admin BroadcastController + SendBroadcastRequest + Broadcasts Index/Show.vue in `app/Http/Controllers/Admin/BroadcastController.php`、`resources/js/Pages/Admin/Broadcasts/*.vue`
+- [x] T029 NewsletterTrackingController（signed pixel、寫 event、更新 last_opened_at、dormant 自動復活）in `app/Http/Controllers/NewsletterTrackingController.php`
+- [x] T030 CleanDormantSubscribers command in `app/Console/Commands/CleanDormantSubscribers.php`
+- [x] T031 路由與排程註冊 in `routes/web.php`、`routes/console.php`（touchpoint 000）；AdminLayout 側欄選單 in `resources/js/Layouts/AdminLayout.vue`（touchpoint 000）
 
 ### Phase 6 — 文章瀏覽次數（US8）
 - [x] T032 BlogController::show 對 published 文章 session 去重後原子 `increment('view_count')`（admin/draft/bot 不計）in `app/Http/Controllers/BlogController.php`
-- [ ] T033 [P] 後台文章列表顯示/可排序 view_count（後端 PostController::index 已回 view_count + sort=views；待前端 Admin/Posts/Index.vue 呈現）in `resources/js/Pages/Admin/Posts/Index.vue`
+- [x] T033 [P] 後台文章列表顯示/可排序 view_count in `resources/js/Pages/Admin/Posts/Index.vue`（後端 PostController::index 回 view_count + sort=views）
 
 ## 進度日誌
 
@@ -311,3 +314,5 @@ touchpoints:
 - 2026-07-10: 本機 MySQL 執行 migrate；建 6 篇 demo 文章（3 主題各 2）驗證前台。修真實 bug — `PostService::embedVideoLines` 用 `\R`（無 /u）會誤切中文的 0x85 位元組導致 UTF-8 損毀、CommonMark 拋錯使含該類中文的文章頁全 500；改為只切字面換行 + URL match 加 /u，並補 CJK+影片 regression 測試。全 repo 60 passed；6 篇單頁 live 200、YouTube embed 與 og article/JSON-LD 正常。
 - 2026-07-10: 首頁在三個分類按鈕上方加「熱門文章」白底列表（HomePostList.vue）— 依 view_count 取前 5，每列 [tag][標題][首行預覽][日期右對齊]；HomeController 新增 popularPosts。build 通過、首頁 200。預覽截 30 字 + grid min-w-0 修溢出。
 - 2026-07-10: 文章頁 UX — 內文改白底卡片、影片 responsive 16:9 + 上下 2.5rem margin、內文 h/p/ul/a 間距（:deep）；分享按鈕改實心品牌色 + hover + cursor；訂閱框輸入欄提亮（白底/深框）、按鈕 hover+pointer、文案改「用 Email 接收最新教學分享。注意：過久不開信將被取消訂閱。」。新增登入會員訂閱本人 email 免 OTP 快捷路徑（sendWelcome 抽共用）。SubscriptionTest 8 passed、全 repo 62 passed、build exit 0。
+- 2026-07-10: /dev 收尾 — Phase 5 全（T025–T031：BroadcastService/Job/Mail+html/text 模板/pixel signed URL/List-Unsubscribe、開信追蹤+dormant 復活、清理排程月排、後台 Broadcast 頁）、T013 後台文章 CRUD Vue（PostForm 含 markdown 預覽/tags/上傳/圖片庫）、T033 列表 view_count 欄、AdminLayout 加文章/電子報選單。BroadcastTest 6 + AdminScreensTest 2 全綠；全 repo `php artisan test` 70 passed、`npm run build` exit 0。**模組 33 tasks 全數完成，status → done。**
+- 2026-07-11: 後台寄送體驗優化 — (1) 寄送對象選擇改「最近 5 篇列表 + 搜尋 endpoint（/admin/broadcasts/search-posts）」取代下拉，避免文章多時全載入；(2) 新增排程寄送（broadcasts.scheduled_at + 'scheduled' 狀態 + BroadcastService::schedule/dispatchDue + newsletter:send-scheduled 每分鐘排程）；(3) 修 PostForm 預覽 Markdown 未渲染（全站無 typography plugin、Tailwind preflight 重置樣式 → 改用 :deep 明確樣式）。broadcasts.status 由 enum 改字串（免 enum ALTER、避 sqlite CHECK）。BroadcastTest 11 passed、全 repo 73 passed、build exit 0。
