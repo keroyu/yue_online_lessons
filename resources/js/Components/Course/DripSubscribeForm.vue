@@ -75,7 +75,7 @@ const goBack = () => {
 
 <template>
   <div class="bg-white rounded-xl border border-gray-200 p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">免費訂閱</h3>
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">免費領取</h3>
 
     <!-- Step 1: Enter email -->
     <form v-if="step === 'email'" @submit.prevent="sendCode" class="space-y-4">

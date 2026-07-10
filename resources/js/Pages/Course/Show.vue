@@ -624,7 +624,7 @@ const submitBooking = async () => {
               <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {{ isDrip ? '免費訂閱' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買')) }}
+              {{ isDrip ? '免費領取' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買')) }}
             </button>
           </div>
 
@@ -704,7 +704,7 @@ const submitBooking = async () => {
             :disabled="subscribing || !memberNickname.trim()"
             class="px-10 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ subscribing ? '訂閱中...' : (Number(course.price) > 0 ? '立即購買' : '免費訂閱') }}
+            {{ subscribing ? '領取中...' : (Number(course.price) > 0 ? '立即購買' : '免費領取') }}
           </button>
         </div>
 
