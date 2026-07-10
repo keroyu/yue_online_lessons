@@ -199,6 +199,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');
 
     // Newsletter posts (mini-blog)
+    Route::get('/posts/search', [AdminPostController::class, 'search'])->name('posts.search');
     Route::resource('posts', AdminPostController::class)->except(['show']);
     Route::post('/posts/{post}/images', [PostImageController::class, 'store'])->name('posts.images.store');
     Route::get('/posts/{post}/images', [PostImageController::class, 'index'])->name('posts.images.index');

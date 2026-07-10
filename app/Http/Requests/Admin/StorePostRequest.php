@@ -28,6 +28,8 @@ class StorePostRequest extends FormRequest
             'related_course_id' => ['nullable', 'integer', 'exists:courses,id'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:50'],
+            'related_post_ids' => ['nullable', 'array'],
+            'related_post_ids.*' => ['integer', 'exists:posts,id'],
         ];
     }
 

@@ -61,6 +61,7 @@ owner_files:
   - database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
   - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
   - database/migrations/2026_07_11_000001_add_scheduled_at_to_broadcasts_table.php
+  - database/migrations/2026_07_11_000002_add_related_post_ids_to_posts_table.php
 touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
@@ -248,7 +249,7 @@ touchpoints:
 
 本模組擁有的資料表（欄位語意，細節見 migration）：
 
-- `posts` — 文章主體。`slug` unique（必填、手動英文）；`body_md`（原稿；前台以 `PostService::toHtml` 即時渲染，不存 HTML 欄）；`excerpt`（摘要，供列表/RSS/信件前段）；`cover_image_path`、`og_image_path`（nullable）；`seo_title`、`meta_description`（nullable，空則 fallback title/excerpt）；`status`(draft/scheduled/published)、`published_at`(nullable)；`is_featured`(bool)；`view_count`(unsigned int, default 0，近似瀏覽數)；`related_course_id`(nullable FK courses，引流 CTA)；`author_id`(nullable FK users)。softDeletes。index：slug、(status, published_at)、is_featured。
+- `posts` — 文章主體。`slug` unique（必填、手動英文）；`body_md`（原稿；前台以 `PostService::toHtml` 即時渲染，不存 HTML 欄）；`excerpt`（摘要，供列表/RSS/信件前段）；`cover_image_path`、`og_image_path`（nullable）；`seo_title`、`meta_description`（nullable，空則 fallback title/excerpt）；`status`(draft/scheduled/published)、`published_at`(nullable)；`is_featured`(bool)；`view_count`(unsigned int, default 0，近似瀏覽數)；`related_post_ids`(json nullable，人工精選關聯文章有序 id 陣列，陣列序=優先序，渲染端過濾不存在/未發佈者)；`related_course_id`(nullable FK courses，引流 CTA)；`author_id`(nullable FK users)。softDeletes。index：slug、(status, published_at)、is_featured。
 - `tags` — `name`、`slug` unique。
 - `post_tag` — pivot，(post_id, tag_id) unique。
 - `post_images` — 每篇文章圖片庫（比照 course_images），`post_id`、`path`、`sort_order`。
@@ -316,3 +317,4 @@ touchpoints:
 - 2026-07-10: 文章頁 UX — 內文改白底卡片、影片 responsive 16:9 + 上下 2.5rem margin、內文 h/p/ul/a 間距（:deep）；分享按鈕改實心品牌色 + hover + cursor；訂閱框輸入欄提亮（白底/深框）、按鈕 hover+pointer、文案改「用 Email 接收最新教學分享。注意：過久不開信將被取消訂閱。」。新增登入會員訂閱本人 email 免 OTP 快捷路徑（sendWelcome 抽共用）。SubscriptionTest 8 passed、全 repo 62 passed、build exit 0。
 - 2026-07-10: /dev 收尾 — Phase 5 全（T025–T031：BroadcastService/Job/Mail+html/text 模板/pixel signed URL/List-Unsubscribe、開信追蹤+dormant 復活、清理排程月排、後台 Broadcast 頁）、T013 後台文章 CRUD Vue（PostForm 含 markdown 預覽/tags/上傳/圖片庫）、T033 列表 view_count 欄、AdminLayout 加文章/電子報選單。BroadcastTest 6 + AdminScreensTest 2 全綠；全 repo `php artisan test` 70 passed、`npm run build` exit 0。**模組 33 tasks 全數完成，status → done。**
 - 2026-07-11: 後台寄送體驗優化 — (1) 寄送對象選擇改「最近 5 篇列表 + 搜尋 endpoint（/admin/broadcasts/search-posts）」取代下拉，避免文章多時全載入；(2) 新增排程寄送（broadcasts.scheduled_at + 'scheduled' 狀態 + BroadcastService::schedule/dispatchDue + newsletter:send-scheduled 每分鐘排程）；(3) 修 PostForm 預覽 Markdown 未渲染（全站無 typography plugin、Tailwind preflight 重置樣式 → 改用 :deep 明確樣式）。broadcasts.status 由 enum 改字串（免 enum ALTER、避 sqlite CHECK）。BroadcastTest 11 passed、全 repo 73 passed、build exit 0。
+- 2026-07-11: 後台文章加：(1) 熱門標籤 chips 快選（popularTags 前 10）；(2) 人工精選關聯文章 — 採**輕量 JSON 欄** `posts.related_post_ids`（不開 pivot 表）+ 搜尋 endpoint `/admin/posts/search`；前台 `/blog/{slug}` 底部關聯文章「精選優先、同標籤補滿 4 篇」。PostController::search、relatedPayload/syncRelated；RelatedPostsTest 3、全 repo 77 passed、build exit 0。

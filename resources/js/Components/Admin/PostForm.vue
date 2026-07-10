@@ -7,6 +7,7 @@ const props = defineProps({
   post: { type: Object, default: null },
   courses: { type: Array, default: () => [] },
   images: { type: Array, default: () => [] },
+  popularTags: { type: Array, default: () => [] },
 })
 
 const isEdit = computed(() => !!props.post?.id)
@@ -23,12 +24,61 @@ const form = useForm({
   is_featured: props.post?.is_featured ?? false,
   related_course_id: props.post?.related_course_id ?? null,
   tagsText: (props.post?.tags ?? []).join(', '),
+  related_post_ids: (props.post?.related ?? []).map((r) => r.id),
   cover_image: null,
   og_image: null,
 })
 
+// Related posts (curated) — display list keeps titles; form holds the ordered ids
+const relatedList = ref([...(props.post?.related ?? [])])
+const relSearch = ref('')
+const relResults = ref([])
+let relTimer = null
+
+const searchRelated = () => {
+  clearTimeout(relTimer)
+  const q = relSearch.value.trim()
+  if (!q) { relResults.value = []; return }
+  relTimer = setTimeout(async () => {
+    const exclude = props.post?.id ? `&exclude=${props.post.id}` : ''
+    const res = await fetch(`/admin/posts/search?q=${encodeURIComponent(q)}${exclude}`, {
+      headers: { Accept: 'application/json' }, credentials: 'same-origin',
+    })
+    const data = await res.json()
+    const chosen = new Set(form.related_post_ids)
+    relResults.value = (data.posts || []).filter((p) => !chosen.has(p.id))
+  }, 300)
+}
+
+const addRelated = (p) => {
+  if (form.related_post_ids.includes(p.id)) return
+  relatedList.value.push(p)
+  form.related_post_ids.push(p.id)
+  relResults.value = relResults.value.filter((r) => r.id !== p.id)
+  relSearch.value = ''
+}
+
+const removeRelated = (id) => {
+  relatedList.value = relatedList.value.filter((r) => r.id !== id)
+  form.related_post_ids = form.related_post_ids.filter((r) => r !== id)
+}
+
 const bodyRef = ref(null)
 const preview = computed(() => marked(form.body_md || ''))
+
+// Tags currently entered (parsed from the comma-separated field)
+const selectedTags = computed(() =>
+  form.tagsText.split(',').map((t) => t.trim()).filter(Boolean)
+)
+
+const toggleTag = (name) => {
+  const current = selectedTags.value
+  if (current.includes(name)) {
+    form.tagsText = current.filter((t) => t !== name).join(', ')
+  } else {
+    form.tagsText = [...current, name].join(', ')
+  }
+}
 
 const submit = () => {
   form
@@ -97,6 +147,31 @@ const insertImage = (url) => {
           <p v-if="form.errors.body_md" class="text-sm text-red-600 mt-1">{{ form.errors.body_md }}</p>
         </div>
 
+        <!-- Related posts (curated, priority-ordered) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">關聯文章</label>
+          <p class="text-xs text-gray-400 mb-1">會優先顯示在前台文章底部；未加時自動用同標籤文章補上。加入順序＝顯示順序。</p>
+          <input
+            v-model="relSearch"
+            type="text"
+            placeholder="搜尋文章標題／slug 加入…"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            @input="searchRelated"
+          />
+          <ul v-if="relResults.length" class="mt-1 border border-gray-200 rounded-md divide-y divide-gray-100 max-h-48 overflow-y-auto">
+            <li v-for="p in relResults" :key="p.id">
+              <button type="button" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer" @click="addRelated(p)">＋ {{ p.title }}</button>
+            </li>
+          </ul>
+          <ul v-if="relatedList.length" class="mt-2 space-y-1">
+            <li v-for="(p, i) in relatedList" :key="p.id" class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm">
+              <span class="text-xs text-gray-400 w-5 text-center">{{ i + 1 }}</span>
+              <span class="flex-1 min-w-0 truncate text-gray-800">{{ p.title }}</span>
+              <button type="button" class="text-gray-400 hover:text-red-600 cursor-pointer" title="移除" @click="removeRelated(p.id)">✕</button>
+            </li>
+          </ul>
+        </div>
+
         <!-- Image gallery (edit mode) -->
         <div v-if="isEdit" class="border border-gray-200 p-3">
           <div class="flex items-center justify-between">
@@ -137,6 +212,21 @@ const insertImage = (url) => {
         <div>
           <label class="block text-sm font-medium text-gray-700">標籤（逗號分隔）</label>
           <input v-model="form.tagsText" type="text" placeholder="思維升級, 財務覺醒" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          <div v-if="popularTags.length" class="mt-2">
+            <p class="text-xs text-gray-400 mb-1.5">熱門標籤（點選即加入）：</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="tag in popularTags"
+                :key="tag"
+                type="button"
+                class="text-xs px-2 py-0.5 rounded-full border cursor-pointer transition-colors"
+                :class="selectedTags.includes(tag)
+                  ? 'bg-brand-teal text-white border-brand-teal'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-brand-teal hover:text-brand-teal'"
+                @click="toggleTag(tag)"
+              >{{ selectedTags.includes(tag) ? '✓ ' : '＋ ' }}{{ tag }}</button>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">

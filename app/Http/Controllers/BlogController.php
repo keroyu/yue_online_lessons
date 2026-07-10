@@ -46,13 +46,30 @@ class BlogController extends Controller
 
         $post->load('tags:id,name,slug', 'relatedCourse:id,name,slug,tagline,thumbnail');
 
-        $related = Post::published()
-            ->where('id', '!=', $post->id)
+        // Curated related posts first (published, in the admin's order), then fill up to 4
+        // with same-tag posts.
+        $curatedIds = $post->related_post_ids ?? [];
+        $curated = collect();
+        if (! empty($curatedIds)) {
+            $curated = Post::published()
+                ->whereIn('id', $curatedIds)
+                ->with('tags:id,name,slug')
+                ->get()
+                ->sortBy(fn ($p) => array_search($p->id, $curatedIds))
+                ->take(4)
+                ->values();
+        }
+
+        $excludeIds = $curated->pluck('id')->push($post->id);
+        $fill = Post::published()
+            ->whereNotIn('id', $excludeIds)
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $post->tags->pluck('id')))
+            ->with('tags:id,name,slug')
             ->latest('published_at')
-            ->take(4)
-            ->get()
-            ->map(fn (Post $p) => $this->cardData($p));
+            ->take(4 - $curated->count())
+            ->get();
+
+        $related = $curated->concat($fill)->map(fn (Post $p) => $this->cardData($p));
 
         $url = url("/blog/{$post->slug}");
 

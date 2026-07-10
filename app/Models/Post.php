@@ -29,6 +29,7 @@ class Post extends Model
         'published_at',
         'is_featured',
         'view_count',
+        'related_post_ids',
         'related_course_id',
         'author_id',
     ];
@@ -39,6 +40,7 @@ class Post extends Model
             'published_at' => 'datetime',
             'is_featured' => 'boolean',
             'view_count' => 'integer',
+            'related_post_ids' => 'array',
         ];
     }
 

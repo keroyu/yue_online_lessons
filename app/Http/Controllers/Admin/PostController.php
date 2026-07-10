@@ -55,6 +55,7 @@ class PostController extends Controller
     {
         return Inertia::render('Admin/Posts/Create', [
             'courses' => $this->courseOptions(),
+            'popularTags' => $this->popularTags(),
         ]);
     }
 
@@ -65,6 +66,7 @@ class PostController extends Controller
 
         $post = Post::create($data);
         $this->syncTags($post, $tags);
+        $this->syncRelated($post, $request->input('related_post_ids'));
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -92,6 +94,7 @@ class PostController extends Controller
                 'related_course_id' => $post->related_course_id,
                 'view_count' => $post->view_count,
                 'tags' => $post->tags->pluck('name'),
+                'related' => $this->relatedPayload($post->related_post_ids),
             ],
             'images' => $post->images->map(fn ($image) => [
                 'id' => $image->id,
@@ -99,6 +102,7 @@ class PostController extends Controller
                 'filename' => $image->filename,
             ]),
             'courses' => $this->courseOptions(),
+            'popularTags' => $this->popularTags(),
         ]);
     }
 
@@ -109,6 +113,7 @@ class PostController extends Controller
 
         $post->update($data);
         $this->syncTags($post, $tags);
+        $this->syncRelated($post, $request->input('related_post_ids'));
 
         return redirect()
             ->route('admin.posts.edit', $post)
@@ -181,6 +186,77 @@ class PostController extends Controller
         }
 
         $post->tags()->sync($ids);
+    }
+
+    /**
+     * Save curated related post IDs (ordered, de-duped, self excluded). null = leave untouched.
+     */
+    private function syncRelated(Post $post, ?array $ids): void
+    {
+        if ($ids === null) {
+            return;
+        }
+
+        $clean = collect($ids)
+            ->map(fn ($i) => (int) $i)
+            ->unique()
+            ->reject(fn ($i) => $i === $post->id)
+            ->values()
+            ->all();
+
+        $post->update(['related_post_ids' => $clean ?: null]);
+    }
+
+    /**
+     * Resolve stored related IDs to {id,title}, preserving the curated order.
+     */
+    private function relatedPayload(?array $ids): array
+    {
+        $ids = $ids ?? [];
+        if (empty($ids)) {
+            return [];
+        }
+
+        return Post::whereIn('id', $ids)
+            ->get(['id', 'title'])
+            ->sortBy(fn ($p) => array_search($p->id, $ids))
+            ->values()
+            ->map(fn ($p) => ['id' => $p->id, 'title' => $p->title])
+            ->all();
+    }
+
+    /**
+     * Search posts to attach as related (excludes the current post).
+     */
+    public function search(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $q = trim((string) $request->input('q', ''));
+        $exclude = $request->integer('exclude');
+
+        $posts = Post::query()
+            ->when($exclude, fn ($x) => $x->where('id', '!=', $exclude))
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w
+                ->where('title', 'like', "%{$q}%")
+                ->orWhere('slug', 'like', "%{$q}%")))
+            ->orderByDesc('published_at')
+            ->take(10)
+            ->get(['id', 'title'])
+            ->map(fn ($p) => ['id' => $p->id, 'title' => $p->title]);
+
+        return response()->json(['posts' => $posts]);
+    }
+
+    /**
+     * Top 10 tags by usage, for quick-select in the form.
+     */
+    private function popularTags(): array
+    {
+        return Tag::withCount('posts')
+            ->orderByDesc('posts_count')
+            ->orderBy('name')
+            ->take(10)
+            ->pluck('name')
+            ->all();
     }
 
     private function courseOptions(): array
