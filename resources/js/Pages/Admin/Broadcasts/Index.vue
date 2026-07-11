@@ -128,10 +128,13 @@ const statusLabel = (b) => {
       </div>
       <p v-if="form.errors.scheduled_at" class="text-sm text-red-600 mb-2">{{ form.errors.scheduled_at }}</p>
       <p v-if="form.errors.post_id" class="text-sm text-red-600 mb-2">{{ form.errors.post_id }}</p>
+      <p v-if="subscriberCount === 0" class="text-sm text-amber-600 mb-2">
+        目前沒有訂閱者。立即寄送不會送達任何人 —— 可先自己訂閱測試，或用排程等有訂閱者再寄。
+      </p>
 
       <button
         type="button"
-        :disabled="!form.post_id || form.processing || subscriberCount === 0 || (scheduleMode === 'schedule' && !form.scheduled_at)"
+        :disabled="!form.post_id || form.processing || (scheduleMode === 'schedule' && !form.scheduled_at)"
         class="bg-brand-teal text-white rounded-md px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         @click="send"
       >{{ form.processing ? '處理中…' : (scheduleMode === 'schedule' ? '排程寄送' : '立即寄送') }}</button>
