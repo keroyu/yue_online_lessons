@@ -119,6 +119,9 @@ SEO、點數兌換、金流與顯示設定。
 - [x] `is_visible` 顯示開關（隱藏課程仍可直接 URL 購買）；`payment_gateway`（payuni/newebpay）選項依 `site_settings` 憑證是否齊全（`gatewayConfigured`）啟用
 - [x] `duration_minutes` 為唯讀自動計算值，表單無手動輸入欄位
 - [x] 編輯表單完整回填所有欄位（含 2026-07-05 修正的 `redeem_points` 漏傳）
+- [x] 表單為單頁分區卡片佈局（無 tabs）：① 課程類型（course_type + type + content_category + high_ticket 設定）② 基本資訊（name / tagline / instructor_name / description / thumbnail）③ 課程介紹（description_md + 插入圖片）④ 販售設定（standard：定價/積分/預購/Portaly/金流；drip：發信間隔/目標商品/排程預覽，卡片標題隨模式切換）⑤ SEO 與顯示（slug / meta_description / is_visible）
+- [x] 儲存列唯一且 sticky 固定於視窗底部（取消 + 儲存），表單內容底部預留 padding 不被遮擋
+- [x] 送出驗證失敗時：自動捲動至第一個錯誤欄位並 focus，sticky 列顯示「有 N 個欄位需要修正」紅字提示（單頁佈局下所有錯誤皆可見，不再有 tab 藏錯誤問題）
 
 ### User Story 3 - 章節與小節編輯 (Priority: P1)
 
@@ -194,6 +197,7 @@ SEO、點數兌換、金流與顯示設定。
 - **D6**: `content_category` 用 varchar 對照首頁設定 slug，而非 DB enum — 分類清單由後台維護可自由增減（2026-07-06 由 enum 改 string）
 - **D7**: 建課自動指派 `system_assigned` 購買 — 讓建立者免手動造單即可在前台完整走學員流程
 - **D8**: `type`（產品類別）與 `course_type`（交付模式 standard/drip）為兩個獨立維度，不可合併 — high_ticket 是「賣法」、drip 是「交付節奏」
+- **D9**: 課程表單採單頁分區卡片佈局取代 tabs（2026-07-11 UX 重構）— tabs 會把驗證錯誤藏在非當前分頁造成「按儲存沒反應」假象，且欄位歸類混亂（SEO 夾在基本資訊中、開賣時間/金流塞在價格頁）、儲存按鈕重複三份。改為五張分區卡片 + 單一 sticky 儲存列 + 錯誤自動捲動。表單 script 邏輯（useForm 欄位、drip 切換、圖片插入、submit transform）不變，只重排 template（否決：保留 tabs 加錯誤紅點 — 治標不治本；否決：雙欄主從佈局 — 手機仍折回單欄，複雜度不值得）
 
 ## Schema
 
@@ -204,8 +208,18 @@ SEO、點數兌換、金流與顯示設定。
 - `lessons` — 實際內容單元。`video_platform`/`video_id` 由 URL 解析而來（不可信任手填）；`duration_seconds` NOT NULL 預設 0；`is_preview` 免費試閱；`chapter_id` nullable（獨立小節）；`promo_*`/`reward_html`/`video_access_hours` 為課中促銷與觀看期限欄位
 - `course_images` — 課程相簿。`path`/`filename`/`width`/`height`（原始尺寸供等比計算）；刪除紀錄時須同步清 `courses.description_md` 引用與實體檔案
 
+## Tasks
+
+課程表單 UX 重構（D9，US-2 新驗收）：
+
+- [x] T001 重構表單為五張分區卡片（課程類型/基本資訊/課程介紹/販售設定/SEO 與顯示），移除 tabs 與重複儲存列，販售設定卡依 course_type 切換 standard/drip 內容 in `resources/js/Components/Admin/CourseForm.vue`
+- [x] T002 單一 sticky 底部儲存列（取消+儲存）、submit onError 捲動至第一個錯誤欄位並顯示錯誤數提示 in `resources/js/Components/Admin/CourseForm.vue`
+- [x] T003 Create/Edit 頁面適配：內容底部 padding 避開 sticky 列、文案校對；手動驗證 standard / drip / high_ticket 三種課程的新增與編輯流程 + 手機 RWD in `resources/js/Pages/Admin/Courses/Create.vue`, `resources/js/Pages/Admin/Courses/Edit.vue`
+
 ## 進度日誌
 
+- 2026-07-11: CourseForm 金流未設定警告的連結標籤「金流設定」→「API 設定」，對齊後台頁面改名（純文案）。
+- 2026-07-11: /spec 規劃課程表單 UX 重構（tabs → 單頁分區卡片 + sticky 儲存列），status: draft 待審
 - 2026-07-11: 課程縮圖上傳區標註為「課程縮圖／主視覺 Banner」並加建議尺寸說明（1920×1080 16:9、主體置中，因銷售頁滿版 object-cover 會裁上下）。
 - 2026-07-11: 課程管理列表新增搜尋（名稱／講師）＋內容分類／課程類型（講座/迷你/客製）篩選按鈕（前端即時過濾；index payload 補 content_category、product_type、contentCategories）。
 - 2026-07-06: 領域重組 — 自 002(後台)+008(課程類別) 重寫，依實際 codebase 校正
