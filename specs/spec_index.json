@@ -1451,6 +1451,41 @@
       "status": "implemented"
     },
     {
+      "id": "007.us-7",
+      "module": "007-points-referral",
+      "title": "推薦碼買家折抵",
+      "summary": "買家結帳輸入推薦碼折抵固定金額（預設 150、後台可調、0=停用）；與折扣碼可疊加（coupon 先、referral 後）、實付保底 1 元；orders 快照 referral_discount_amount，回饋以折抵後實付計算",
+      "heading": "### User Story 7 - 推薦碼買家折抵 (Priority: P1)",
+      "file": "specs/007-points-referral/spec.md",
+      "anchor": "user-story-7---推薦碼買家折抵-priority-p1",
+      "keywords": [
+        "referral discount",
+        "推薦碼折抵",
+        "買家折扣",
+        "referral_discount_amount",
+        "疊加",
+        "stack coupon",
+        "min payable",
+        "保底",
+        "site_settings",
+        "checkout pricing",
+        "結帳計價"
+      ],
+      "code_files": [
+        "database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php",
+        "app/Services/ReferralService.php",
+        "app/Http/Controllers/ReferralController.php",
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "app/Services/CheckoutService.php",
+        "resources/js/Pages/Admin/Settings/Points.vue",
+        "resources/js/Components/Cart/ReferralInput.vue",
+        "resources/js/Pages/Checkout/Index.vue",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Models/Order.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "008.us-1",
       "module": "008-members-admin",
       "title": "會員列表與搜尋",

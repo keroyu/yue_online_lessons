@@ -104,7 +104,7 @@ class CheckoutController extends Controller
             if (!$result['success']) {
                 return response()->json(['success' => false, 'message' => $result['error']], 422);
             }
-            $referral = ['referrer_id' => $result['referrer']->id, 'rate' => $result['rate']];
+            $referral = ['referrer_id' => $result['referrer']->id, 'rate' => $result['rate'], 'discount' => $result['discount']];
         }
 
         $checkoutService = app(CheckoutService::class);

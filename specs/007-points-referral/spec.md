@@ -24,10 +24,14 @@ owner_files:
   - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
   - database/migrations/2026_06_30_000004_add_referral_fields_to_orders_table.php
   - database/migrations/2026_06_30_000005_backfill_points_and_referral_data.php
+  - database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php
 touchpoints:
   - file: app/Services/CheckoutService.php
     owner: 005-checkout
-    why: createOrder 快照推薦欄位（referrer_user_id / referral_rate / referral_reward_points 預估），fulfillOrder 付款確認後呼叫 ReferralService::reward + evaluateActivation
+    why: createOrder 快照推薦欄位與買家折抵（referral_discount_amount，coupon 後扣、保底 1 元），fulfillOrder 付款確認後呼叫 ReferralService::reward + evaluateActivation
+  - file: app/Http/Controllers/CheckoutController.php
+    owner: 005-checkout
+    why: 建單前呼叫 validateAtCheckout 並把 referrer_id / rate / discount 組成 referral 快照傳入 createOrder
   - file: app/Http/Requests/CheckoutRequest.php
     owner: 005-checkout
     why: 結帳表單的 referral_code 欄位驗證（nullable, max:12）
@@ -54,13 +58,13 @@ touchpoints:
     why: 課程表單編輯 redeem_points；edit 需正確帶回已儲存值（曾漏傳導致顯示為空的 bug）
   - file: app/Http/Controllers/Admin/SettingsController.php
     owner: 000-platform-core
-    why: showPoints / updatePoints 讀寫本模組 4 組 site_settings 鍵；showPoints 另帶入 ReferralService::performanceRows 的推薦成效（US5 併入本頁）
+    why: showPoints / updatePoints 讀寫本模組 5 組 site_settings 鍵；showPoints 另帶入 ReferralService::performanceRows 的推薦成效（US5 併入本頁）
   - file: routes/web.php
     owner: 000-platform-core
     why: /admin/settings/points（積分與推薦）路由；舊 /admin/referrals 改為 redirect 至此
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
-    why: 4 組設定鍵（referral_threshold_amount / referral_reward_rate / homework_reward_points / referral_maturity_days）沿用 KV 基礎建設
+    why: 5 組設定鍵（referral_threshold_amount / referral_reward_rate / homework_reward_points / referral_maturity_days / referral_discount_amount）沿用 KV 基礎建設
   - file: app/Services/TransactionService.php
     owner: 009-transactions-admin
     why: 退款前檢查含回饋訂單的 14 天期限；退款時呼叫 PointService::voidReferral 作廢未成熟回饋
@@ -147,6 +151,20 @@ touchpoints:
 - [x] 介面僅提供派發，無任何扣除入口
 - [x] 會員詳情可逐筆檢視帳本（時間、類型、增減、來源/原因），支撐客訴查核
 
+### User Story 7 - 推薦碼買家折抵 (Priority: P1)
+
+買家（含 guest）結帳輸入有效推薦碼時，訂單直接折抵固定金額（後台「積分與推薦 → 推薦回饋」
+可設，預設 NT$150）；與折扣碼可疊加（先折扣碼、後推薦折抵），實付保底 1 元。
+推薦人回饋改以折抵後的最終實付計算。
+
+**驗收**：
+- [x] 後台「推薦回饋」區塊新增「買家折抵金額」欄位（integer ≥0，預設 150）；設 0 = 停用折抵（推薦碼仍可用、回饋照發）
+- [x] `validate-referral` API 回傳 `discount` 金額；結帳頁套用推薦碼後訂單摘要顯示「推薦碼折抵 −NT$N」與折後總額，移除推薦碼即還原
+- [x] `createOrder` 計價順序 subtotal − 折扣碼 − 推薦折抵；實際折抵 = min(設定值, 折扣碼後 payable − 1)，快照至 `orders.referral_discount_amount`；`total_amount` 為最終實付
+- [x] 推薦回饋（預估與 fulfillOrder 重算）皆以折抵後實付為基準
+- [x] 買家改 Email 清除推薦碼時，折抵同步自前端摘要移除；guest 買家同樣享有折抵
+- [x] 設定值修改僅影響之後建立的訂單，既有訂單快照不變
+
 ## Requirements
 
 - **FR-001**: 每一筆積分異動 MUST 寫入 `point_transactions` 帳本（單一真相來源）；`users.points` 僅為「已成熟可用餘額」快取，只能由 `PointService` 在 `DB::transaction` 內寫入，禁止他處直接 increment。
@@ -169,10 +187,14 @@ touchpoints:
 - **FR-018**: 會員端「作業完成歷程」顯示的獲得點數 MUST 讀帳本該筆 `earn_homework` 的實際 `amount`（非寫死 100）——設定可調，歷史完成可能以不同點數發放。
 - **FR-019**: 上線 backfill MUST：為既有會員補發推薦碼、對已達門檻者點亮啟用、為既有作業完成補寫 `earn_homework` 帳本筆（點數已在 `users.points`，只補帳本不重複加點，確保 reconcile 通過）。
 
+- **FR-020**: 推薦折抵 MUST 在 `createOrder` 單點計算（不信任前端金額）：順序為折扣碼先、推薦折抵後；`applied = min(referral_discount_amount, payable - 1)`，結果 ≤ 0 則不折抵但推薦碼仍有效（回饋照發）。
+- **FR-021**: `orders.referral_discount_amount` 為建單時快照；`total_amount` 已含所有折抵，故回饋計算（FR-008 的實付基準）無需另行扣減。
+
 ### 邊界行為
 
 - 同一買家以同一推薦碼多次下單：每筆符合條件的已付款訂單各自回饋一次（啟用門檻為主要防濫用閘門）。
 - 實付金額極小：10% 四捨五入到十位可能為 0 → 視為無回饋、不寫帳本，可接受。
+- 訂單金額 ≤ 折抵額（如 100 元課、折 150）：自動封頂折至實付 1 元（與 CouponService::MIN_PAYABLE 一致），不拒單。
 - 訂單建立後買家放棄付款：`createOrder` 只留快照，未進 `fulfillOrder` 即不發任何回饋。
 - 多 item 訂單退款：退款以 purchase 為單位觸發，但回饋作廢以 order 為單位且冪等（只作廢一次）。
 - 兌換全額以積分取得：不經金流，無最低金額 / 0 元送單問題。
@@ -191,17 +213,39 @@ touchpoints:
 - **D9**: 退款作廢採對銷筆而非刪除 — `refund_reversal` 保留稽核軌跡；reversal 共用原筆 `available_at` 且雙方標 `matured_synced=true`，正負對永遠同時跨成熟線，`reconcile()`（SUM 已成熟筆）恆平衡。
 - **D10**: 「成熟期 = 退款期限」對齊（14 天）— 從源頭消除負餘額：被退款收回的回饋必定尚未成熟、必定尚未被花用。允許負餘額 + clawback 的替代方案被否決。
 - **D11**: 4 組參數沿用 `SiteSetting` KV — 全站單一值，行銷可調免改 code；專屬設定表為過度設計（否決）。
+- **D12**: 買家折抵為固定金額 site_settings KV（`referral_discount_amount`，預設 150）＋訂單快照欄位 — 沿 D11 KV 紀律與 D8 快照紀律；折抵只在 `createOrder` 一處入帳（否決：前端計算後傳入 — 不可信任；否決：折抵做成負值 order_item — 汙染品項統計）。
+- **D13**: 疊加順序固定「折扣碼 → 推薦折抵」，保底實付 1 元 — 與折扣碼 MIN_PAYABLE 同一底線，兩系統維持獨立驗證、互不知曉，只在 createOrder 依序扣減（否決：擇一互斥 — 前端需互鎖、行銷彈性差）。
 
 ## Schema
 
 - `point_transactions` —（本模組唯一擁有的表）所有積分異動的帳本。`amount` 帶號整數（正=賺取/派發、負=兌換扣點/對銷）；`type` ∈ earn_homework / redeem_course / earn_referral / refund_reversal / admin_grant；`reference_type`/`reference_id` 為無 FK 快照式關聯（order / assignment / course / admin）；`available_at` 成熟時間（即時筆 = created_at）；`matured_synced` 標記是否已折入快取（冪等守門）；write-once、無 updated_at。不變量：`users.points == SUM(amount WHERE available_at <= now)`。
 - `users`（alter，表歸 001-auth-account）— `points`：已成熟可用餘額快取，僅 PointService 可寫；`referral_code`：unique 永久推薦碼；`referral_activated_at`：單向啟用旗標，點亮永不清除。
 - `courses`（alter，表歸 004-course-admin）— `redeem_points`：null/0 = 不可兌換，>0 = 兌換所需點數；不綁課程類型。
-- `orders`（alter，表歸 005-checkout）— `referrer_user_id`（nullable FK, nullOnDelete）+ `referral_rate`（% 快照）+ `referral_reward_points`（結算快照）；與折扣碼欄位並存互不干擾。
-- `site_settings`（seed，表歸 000-platform-core）— `referral_threshold_amount`(3000) / `referral_reward_rate`(10) / `homework_reward_points`(100) / `referral_maturity_days`(14，兼含回饋訂單退款期限)。
+- `orders`（alter，表歸 005-checkout）— `referrer_user_id`（nullable FK, nullOnDelete）+ `referral_rate`（% 快照）+ `referral_reward_points`（結算快照）+ `referral_discount_amount`（unsignedInteger default 0，US7 買家折抵快照）；與折扣碼欄位並存互不干擾。
+- `site_settings`（seed，表歸 000-platform-core）— `referral_threshold_amount`(3000) / `referral_reward_rate`(10) / `homework_reward_points`(100) / `referral_maturity_days`(14，兼含回饋訂單退款期限) / `referral_discount_amount`(150，US7 買家折抵，0=停用)。
+
+## Tasks
+
+### US7 - 推薦碼買家折抵
+
+Phase A — 後端
+- [x] T001 migration：orders 加 `referral_discount_amount` unsignedInteger default 0 in database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php
+- [x] T002 [P] `validateAtCheckout` 回傳值加 `discount`（讀 `referral_discount_amount` 設定）in app/Services/ReferralService.php, app/Http/Controllers/ReferralController.php
+- [x] T003 [P] `showPoints`/`updatePoints` 增第 5 鍵與驗證（integer, min:0）in app/Http/Controllers/Admin/SettingsController.php〔touchpoint 000〕
+- [x] T004 `createOrder` 折抵計價（coupon 後 min(設定, payable-1)、快照欄位、reward 估算基準改折抵後）＋ TDD 測試 in app/Services/CheckoutService.php〔touchpoint 005〕, tests/Feature/Points/ReferralDiscountTest.php
+
+Phase B — 前端
+- [x] T005 [P] 「推薦回饋」區塊新增「買家折抵金額」欄位 in resources/js/Pages/Admin/Settings/Points.vue
+- [x] T006 [P] 結帳頁套用推薦碼顯示「推薦碼折抵 −NT$N」與折後總額、移除即還原 in resources/js/Components/Cart/ReferralInput.vue, resources/js/Pages/Checkout/Index.vue〔touchpoint 005〕
+
+Phase C — 驗證
+- [x] T007 php artisan test 全綠 + npm run build exit 0；逐條對 US7 驗收
 
 ## 進度日誌
 
+- 2026-07-11: /dev 完成 US7 推薦碼買家折抵 — orders 加 referral_discount_amount 快照、createOrder 折抵計價（coupon 後扣、保底 1 元）、validate-referral 回傳 discount、後台第 5 鍵設定欄位、結帳摘要折抵列；TDD ReferralDiscountTest 7 tests，全套 100 passed
+
+- 2026-07-11: /spec 規劃 US7 推薦碼買家折抵（預設 150、KV 可調、可疊加折扣碼、保底 1 元），status: draft 待審
 - 2026-07-11: US5 推薦成效併入「積分與推薦」頁（`Settings/Points.vue` 兩分頁）；查詢移至 `ReferralService::performanceRows`、由 `SettingsController@showPoints` 帶入；每列加顯目前積分（GROUP BY 含 users.points 防 ONLY_FULL_GROUP_BY）；刪除 `ReferralStatsController` 與 `Referrals/Index.vue`，`/admin/referrals` 302 redirect。補回歸測試 `tests/Feature/Points/ReferralPerformanceTest.php`。
 - 2026-07-06: 領域重組 — 自 012-points-system 重寫，依實際 codebase 校正
 - 2026-07-05: 積分中心推薦碼區塊顯示回饋比例；兌換成功改導向「我的課程」；確認按鈕文案方位中性

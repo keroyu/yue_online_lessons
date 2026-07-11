@@ -89,7 +89,8 @@
     "app/Http/Controllers/Admin/SettingsController.php": [
       "000.us-5",
       "007.us-4",
-      "007.us-5"
+      "007.us-5",
+      "007.us-7"
     ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
       "002.us-4"
@@ -122,7 +123,8 @@
       "005.us-2",
       "005.us-3",
       "006.us-3",
-      "006.us-6"
+      "006.us-6",
+      "007.us-7"
     ],
     "app/Http/Controllers/CouponController.php": [
       "006.us-1",
@@ -200,7 +202,8 @@
       "007.us-1"
     ],
     "app/Http/Controllers/ReferralController.php": [
-      "007.us-2"
+      "007.us-2",
+      "007.us-7"
     ],
     "app/Http/Controllers/SitemapController.php": [
       "000.us-4",
@@ -427,7 +430,8 @@
     ],
     "app/Models/Order.php": [
       "005.us-3",
-      "006.us-3"
+      "006.us-3",
+      "007.us-7"
     ],
     "app/Models/OrderItem.php": [
       "005.us-3"
@@ -491,6 +495,7 @@
       "005.us-4",
       "006.us-3",
       "007.us-2",
+      "007.us-7",
       "010.us-4",
       "010.us-5"
     ],
@@ -554,7 +559,8 @@
     ],
     "app/Services/ReferralService.php": [
       "007.us-2",
-      "007.us-5"
+      "007.us-5",
+      "007.us-7"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -693,6 +699,9 @@
     "database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php": [
       "002.us-7"
     ],
+    "database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php": [
+      "007.us-7"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -737,7 +746,8 @@
       "006.us-6"
     ],
     "resources/js/Components/Cart/ReferralInput.vue": [
-      "007.us-2"
+      "007.us-2",
+      "007.us-7"
     ],
     "resources/js/Components/Classroom/AssignmentSection.vue": [
       "003.us-5",
@@ -935,7 +945,8 @@
     ],
     "resources/js/Pages/Admin/Settings/Points.vue": [
       "007.us-4",
-      "007.us-5"
+      "007.us-5",
+      "007.us-7"
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "009.us-1",
@@ -967,7 +978,8 @@
     "resources/js/Pages/Checkout/Index.vue": [
       "005.us-2",
       "006.us-1",
-      "007.us-2"
+      "007.us-2",
+      "007.us-7"
     ],
     "resources/js/Pages/Course/Show.vue": [
       "002.us-2",

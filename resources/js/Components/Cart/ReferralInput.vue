@@ -24,7 +24,7 @@ const apply = async (rawCode) => {
       referral_code: value,
       buyer_email: props.buyerEmail || null,
     })
-    applied.value = { code: value, rate: res.data.rate }
+    applied.value = { code: value, rate: res.data.rate, discount: res.data.discount ?? 0 }
     code.value = ''
     emit('applied', applied.value)
   } catch (e) {
@@ -54,7 +54,9 @@ watch(() => props.buyerEmail, () => {
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-teal/10 text-brand-teal text-sm font-semibold">
           推薦碼 {{ applied.code }}
         </span>
-        <p class="text-xs text-gray-500 mt-1">完成付款後，推薦人將獲得回饋積分</p>
+        <p class="text-xs text-gray-500 mt-1">
+          <template v-if="applied.discount > 0">訂單已折抵 NT$ {{ applied.discount.toLocaleString() }}（低價訂單以實付 1 元為底）；</template>完成付款後，推薦人將獲得回饋積分
+        </p>
       </div>
       <button
         @click="remove"

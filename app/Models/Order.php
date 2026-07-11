@@ -13,7 +13,7 @@ class Order extends Model
     protected $fillable = [
         'user_id', 'buyer_name', 'buyer_email', 'buyer_phone', 'tax_id',
         'total_amount', 'coupon_code', 'original_amount', 'discount_amount',
-        'referrer_user_id', 'referral_rate', 'referral_reward_points',
+        'referrer_user_id', 'referral_rate', 'referral_reward_points', 'referral_discount_amount',
         'currency', 'payment_gateway',
         'merchant_order_no', 'status', 'gateway_trade_no',
         'webhook_received_at',
@@ -29,6 +29,7 @@ class Order extends Model
             'discount_amount'        => 'decimal:2',
             'referral_rate'          => 'integer',
             'referral_reward_points' => 'integer',
+            'referral_discount_amount' => 'integer',
             'webhook_received_at'    => 'datetime',
             'status'                 => 'string',
         ];

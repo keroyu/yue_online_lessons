@@ -280,12 +280,14 @@ main_files:
 - app/Console/Commands/MaturePoints.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/Member/PointController.php
 - app/Http/Controllers/RedemptionController.php
 - app/Http/Controllers/ReferralController.php
 - app/Http/Requests/Admin/GrantPointsRequest.php
 - app/Http/Requests/RedeemCourseRequest.php
 - app/Http/Requests/ValidateReferralRequest.php
+- app/Models/Order.php
 - app/Models/PointTransaction.php
 - app/Models/SiteSetting.php
 - app/Services/CheckoutService.php
@@ -296,6 +298,7 @@ main_files:
 - database/migrations/2026_06_30_000002_add_referral_fields_to_users_table.php
 - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
 - database/migrations/2026_06_30_000004_add_referral_fields_to_orders_table.php
+- database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php
 - resources/js/Components/Cart/ReferralInput.vue
 - resources/js/Components/Course/RedeemButton.vue
 - resources/js/Components/MemberDetailModal.vue

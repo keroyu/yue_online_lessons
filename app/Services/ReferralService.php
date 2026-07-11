@@ -54,6 +54,7 @@ class ReferralService
             'success'  => true,
             'referrer' => $referrer,
             'rate'     => (int) SiteSetting::get('referral_reward_rate', 10),
+            'discount' => max(0, (int) SiteSetting::get('referral_discount_amount', 150)),
         ];
     }
 

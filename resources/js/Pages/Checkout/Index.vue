@@ -38,14 +38,19 @@ const courseIds    = computed(() =>
 // 折扣摘要由 CouponInput 驅動（手動輸入或網址/session 自動帶入皆共用同一元件）
 const appliedCoupon = ref(null)
 const discountAmount = computed(() => appliedCoupon.value?.discount ?? 0)
-const payableTotal   = computed(() => displayTotal.value - discountAmount.value)
 const onCouponApplied = (payload) => { appliedCoupon.value = payload }
 const onCouponRemoved = () => { appliedCoupon.value = null }
 
-// 推薦碼由 ReferralInput 驅動；只影響推薦人回饋，不改買家應付金額。
+// 推薦碼由 ReferralInput 驅動；買家折抵接在折扣碼之後，實付保底 1 元（金額以後端 createOrder 為準）
 const appliedReferral = ref(null)
 const onReferralApplied = (payload) => { appliedReferral.value = payload }
 const onReferralRemoved = () => { appliedReferral.value = null }
+
+const referralDiscount = computed(() => {
+  const afterCoupon = displayTotal.value - discountAmount.value
+  return Math.max(0, Math.min(appliedReferral.value?.discount ?? 0, afterCoupon - 1))
+})
+const payableTotal = computed(() => displayTotal.value - discountAmount.value - referralDiscount.value)
 
 onMounted(async () => {
   if (!isAuthenticated.value) {
@@ -187,14 +192,18 @@ const submitCheckout = async () => {
               <span class="font-medium shrink-0">NT$ {{ item.course.price?.toLocaleString() }}</span>
             </div>
           </div>
-          <div v-if="appliedCoupon" class="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
+          <div v-if="appliedCoupon || referralDiscount > 0" class="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
             <div class="flex justify-between text-gray-600">
               <span>小計</span>
               <span>NT$ {{ displayTotal.toLocaleString() }}</span>
             </div>
-            <div class="flex justify-between text-brand-teal">
+            <div v-if="appliedCoupon" class="flex justify-between text-brand-teal">
               <span>折扣（{{ appliedCoupon.label }} · {{ appliedCoupon.code }}）</span>
               <span>-NT$ {{ discountAmount.toLocaleString() }}</span>
+            </div>
+            <div v-if="referralDiscount > 0" class="flex justify-between text-brand-teal">
+              <span>推薦碼折抵（{{ appliedReferral.code }}）</span>
+              <span>-NT$ {{ referralDiscount.toLocaleString() }}</span>
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between font-bold">

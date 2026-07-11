@@ -85,19 +85,24 @@ class CheckoutService
             $payable = $result['payable'];
         }
 
-        // Referral snapshot (US2). Estimate reward from the payable subtotal at order
-        // time; fulfillOrder recomputes from the actual paid total on payment.
+        // Referral snapshot (US2) + buyer discount (US7). Discount applies after the
+        // coupon, clamped so at least NT$1 remains payable (mirrors MIN_PAYABLE);
+        // reward is estimated on the discounted payable, fulfillOrder recomputes.
         $referralFields = [
-            'referrer_user_id'       => null,
-            'referral_rate'          => null,
-            'referral_reward_points' => 0,
+            'referrer_user_id'         => null,
+            'referral_rate'            => null,
+            'referral_reward_points'   => 0,
+            'referral_discount_amount' => 0,
         ];
         if ($referral) {
             $rate = (int) $referral['rate'];
+            $referralDiscount = max(0, min((int) ($referral['discount'] ?? 0), $payable - 1));
+            $payable -= $referralDiscount;
             $referralFields = [
-                'referrer_user_id'       => (int) $referral['referrer_id'],
-                'referral_rate'          => $rate,
-                'referral_reward_points' => app(ReferralService::class)->computeReward($payable, $rate),
+                'referrer_user_id'         => (int) $referral['referrer_id'],
+                'referral_rate'            => $rate,
+                'referral_reward_points'   => app(ReferralService::class)->computeReward($payable, $rate),
+                'referral_discount_amount' => $referralDiscount,
             ];
         }
 

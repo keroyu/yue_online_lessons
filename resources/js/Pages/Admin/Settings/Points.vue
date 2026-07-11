@@ -19,6 +19,7 @@ const form = useForm({
   referral_reward_rate: props.points.referral_reward_rate,
   homework_reward_points: props.points.homework_reward_points,
   referral_maturity_days: props.points.referral_maturity_days,
+  referral_discount_amount: props.points.referral_discount_amount,
 })
 
 const submit = () => {
@@ -97,6 +98,13 @@ const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
             <input type="number" min="0" max="100" v-model.number="form.referral_reward_rate" :class="inputClasses" />
             <p class="mt-1 text-xs text-gray-400">好友付款後，推薦人可得「實付金額 × 此比例」的回饋積分（四捨五入到十位）。</p>
             <p v-if="form.errors.referral_reward_rate" class="mt-1 text-sm text-red-600">{{ form.errors.referral_reward_rate }}</p>
+          </div>
+
+          <div>
+            <label :class="labelClasses">買家折抵金額（元）</label>
+            <input type="number" min="0" v-model.number="form.referral_discount_amount" :class="inputClasses" />
+            <p class="mt-1 text-xs text-gray-400">好友結帳輸入推薦碼時，訂單直接折抵此金額（可與折扣碼疊加，實付最低 1 元）；設 0 停用折抵，推薦回饋照常發放。</p>
+            <p v-if="form.errors.referral_discount_amount" class="mt-1 text-sm text-red-600">{{ form.errors.referral_discount_amount }}</p>
           </div>
 
           <div>

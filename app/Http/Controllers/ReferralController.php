@@ -42,6 +42,6 @@ class ReferralController extends Controller
 
         RateLimiter::clear($throttleKey);
 
-        return response()->json(['success' => true, 'rate' => $result['rate']]);
+        return response()->json(['success' => true, 'rate' => $result['rate'], 'discount' => $result['discount']]);
     }
 }
