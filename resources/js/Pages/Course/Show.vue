@@ -642,18 +642,29 @@ const submitBooking = async () => {
     </div>
 
     <!-- ============================================================ -->
+    <!-- 3.5 Lead intro (course.description) in a decorative frame    -->
+    <!-- ============================================================ -->
+    <div v-if="course.description" class="bg-white px-4 sm:px-6 pt-8 pb-4">
+      <div class="relative max-w-3xl mx-auto rounded-xl border border-brand-gold/60 bg-brand-cream/60 px-6 py-6 sm:px-10 sm:py-8">
+        <!-- Corner accents -->
+        <span class="absolute -top-px -left-px w-6 h-6 border-t-2 border-l-2 border-brand-gold rounded-tl-xl"></span>
+        <span class="absolute -bottom-px -right-px w-6 h-6 border-b-2 border-r-2 border-brand-gold rounded-br-xl"></span>
+        <p class="text-base sm:text-lg leading-relaxed text-gray-700 whitespace-pre-line">
+          {{ course.description }}
+        </p>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
     <!-- 4. Course description (h2 headings break out to full width)  -->
     <!-- ============================================================ -->
-    <div class="bg-white pb-10 overflow-x-hidden">
+    <!-- description no longer falls back here: it renders as the lead intro above -->
+    <div v-if="course.description_md" class="bg-white pb-10 overflow-x-hidden">
       <div class="max-w-4xl mx-auto px-4 sm:px-6">
         <div
-          v-if="course.description_md"
           class="course-content"
           v-html="renderedDescription"
         />
-        <div v-else class="course-content">
-          <p class="whitespace-pre-line">{{ course.description }}</p>
-        </div>
       </div>
     </div>
 

@@ -96,6 +96,7 @@ main_files:
 - resources/js/Pages/Admin/HomepageSettings/Edit.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Home.vue
+- routes/web.php
 
 related_specs:
 - specs/002-storefront/spec.md

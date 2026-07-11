@@ -56,7 +56,8 @@
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
       "002.us-3",
       "002.us-5",
-      "002.us-7"
+      "002.us-7",
+      "002.us-9"
     ],
     "app/Http/Controllers/Admin/HomeworkController.php": [
       "003.us-6",
@@ -149,6 +150,7 @@
     "app/Http/Controllers/HomeController.php": [
       "002.us-1",
       "002.us-5",
+      "002.us-9",
       "012.us-3"
     ],
     "app/Http/Controllers/Member/AssignmentCommentController.php": [
@@ -276,7 +278,8 @@
       "002.us-6"
     ],
     "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
-      "002.us-3"
+      "002.us-3",
+      "002.us-9"
     ],
     "app/Http/Requests/Admin/UpdateMemberRequest.php": [
       "008.us-2"
@@ -829,7 +832,8 @@
       "002.us-1"
     ],
     "resources/js/Components/SocialLinks.vue": [
-      "002.us-4"
+      "002.us-4",
+      "002.us-9"
     ],
     "resources/js/Components/VerificationCodeInput.vue": [
       "001.us-1",
@@ -907,7 +911,8 @@
       "002.us-3",
       "002.us-4",
       "002.us-6",
-      "002.us-7"
+      "002.us-7",
+      "002.us-9"
     ],
     "resources/js/Pages/Admin/Homework/Index.vue": [
       "003.us-6"
@@ -977,6 +982,7 @@
     "resources/js/Pages/Home.vue": [
       "002.us-1",
       "002.us-3",
+      "002.us-9",
       "012.us-3"
     ],
     "resources/js/Pages/Member/Classroom.vue": [
@@ -1058,6 +1064,7 @@
     ],
     "routes/web.php": [
       "000.us-2",
+      "002.us-9",
       "006.us-1",
       "011.us-1"
     ]

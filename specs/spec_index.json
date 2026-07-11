@@ -445,6 +445,36 @@
       "status": "implemented"
     },
     {
+      "id": "002.us-9",
+      "module": "002-storefront",
+      "title": "站長形象與介紹",
+      "summary": "首頁「追蹤站長」SNS 側欄新增站長形象圖片與 ≤500 字介紹（site_settings KV，無 migration）",
+      "heading": "### User Story 9 - 站長形象與介紹 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-9---站長形象與介紹-priority-p2",
+      "keywords": [
+        "sns profile",
+        "站長形象",
+        "站長介紹",
+        "追蹤站長",
+        "social profile",
+        "avatar",
+        "sns_profile_image_path",
+        "sns_profile_intro",
+        "homepage settings"
+      ],
+      "code_files": [
+        "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Controllers/HomeController.php",
+        "routes/web.php",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "resources/js/Components/SocialLinks.vue",
+        "resources/js/Pages/Home.vue"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "003.us-1",
       "module": "003-classroom",
       "title": "我的課程頁面",

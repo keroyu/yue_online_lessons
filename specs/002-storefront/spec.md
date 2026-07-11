@@ -52,6 +52,9 @@ touchpoints:
   - file: database/migrations/2026_07_06_000001_add_content_category_to_courses_table.php
     owner: 004-course-admin
     why: content_category 欄位屬 courses 表；首頁分類篩選只讀取此欄位
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: US9 新增 DELETE /admin/homepage/sns-profile-image 路由（移除站長形象圖，鏡射 deleteBanner）
 ---
 
 # Storefront（門市前台）
@@ -74,6 +77,7 @@ touchpoints:
 - [x] 產品類型 badge 只列出目前有課程的類型；分類與類型兩種篩選為 AND 疊加
 - [x] 篩選後無課程時顯示「此分類目前沒有課程。」；全站無課程顯示空狀態引導
 - [x] 卡片連結使用 `/course/{slug}`（無 slug 時 fallback 為 id）；優惠期間卡片顯示劃線原價＋紅色優惠價
+- [x] 優惠過期後卡片顯示 `display_price`（原價 fallback），與銷售頁 `PriceDisplay` 及結帳 `CheckoutService` 實收金額一致（2026-07-11 修正：原本永遠顯示優惠價造成首頁與實際售價不符）
 - [x] RWD：課程 grid 手機 1 欄、sm 以上 2 欄；側欄 lg 以上 365px 右欄、以下堆疊在下方
 - [x] 管理員瀏覽首頁時卡片顯示狀態 badge（草稿/預售/熱賣）與「隱藏」標記，一般訪客不顯示
 
@@ -90,6 +94,8 @@ touchpoints:
 - [x] 後端 share OG meta（title/description/image/url）供社群分享預覽
 - [x] 已在購物車的課程顯示對應狀態（isInCart）；drip 課依 `canSubscribe` / 現有訂閱狀態切換表單與提示
 - [x] `?coupon=CODE` 進入時把正規化後的折扣碼（大寫英數、6 碼）存入 session `checkout_coupon` 供結帳沿用
+- [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）、放大字級（text-base sm:text-lg）、`whitespace-pre-line` 保留換行
+- [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
 
@@ -163,6 +169,17 @@ touchpoints:
 - [x] 無資料時顯示空狀態；統計表可橫向捲動適配手機
 - [x] 天數參數後端白名單驗證（7/30/90，其餘視為全部），匯出連結沿用當前參數
 
+### User Story 9 - 站長形象與介紹 (Priority: P2)
+
+管理員在首頁設定的 SNS 區塊，除了社群連結外，可另外上傳「站長形象圖片」與填寫「≤500 字介紹」；訪客在首頁「追蹤站長」側欄，於標題與連結列表之間看到圓形頭像＋介紹文。
+
+**驗收**：
+- [x] 站長形象圖存 `site_settings.sns_profile_image_path`（public disk `sns-profile/` 目錄），替換時刪舊檔；可單獨移除（沿用 hero banner 慣例）
+- [x] 介紹存 `site_settings.sns_profile_intro`，≤500 字前後端雙重驗證（textarea maxlength＋即時計數器、server `max:500`）
+- [x] 首頁「追蹤站長」標題與連結列表之間顯示圓形頭像＋介紹（保留換行）；圖與文各自「有才顯示」，兩者皆空時不佔位、不留空塊
+- [x] 整區仍受 `sns_section_enabled` 控制：關閉時含頭像/介紹的整個 SNS 區塊隱藏
+- [x] 後台上傳區標註建議尺寸（正方形，建議 400×400，前台圓形顯示）
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -176,6 +193,8 @@ touchpoints:
 - **FR-009**: 精選課程 blurb 上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server 端 max:500）。
 - **FR-010**: UTM 參數捕捉 MUST trim 後截斷長度（UTM 100 字、click id 255 字）再寫入 session，防止超長 query 汙染資料。
 - **FR-011**: 首頁課程查詢 MUST 用 select 白名單欄位＋map 輸出，不得整包 model 傳給前端（避免洩漏後台欄位）。
+- **FR-012**: 站長形象圖存於 `Storage::disk('public')` 的 `sns-profile/` 目錄；替換或刪除時 MUST 一併刪除舊檔（比照 FR-008 hero banner）。
+- **FR-013**: 站長介紹上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server `max:500`）；圖與文皆為 nullable，任一為空即該元素不渲染。
 
 ## 設計決策
 
@@ -188,16 +207,44 @@ touchpoints:
 - **D7**: 管道歸類（社群/搜尋/電子報…）在 Traffic.vue 前端以 regex 做，後端只回原始分組 — 歸類規則常調整，免部署後端。
 - **D8**: 來源統計以 `order_items` join `orders` 計算（訂單數 count distinct、營收 sum unit_price）— 一張訂單可含多課程，統計以「該課程」維度切分；被否決：直接查 purchases（缺 UTM 欄位）。
 - **D9**: hero 標題/說明等文字設定不設預設值 fallback 於前端 — 由 `HomepageSettingsSeeder` 播種初始值，前端只負責「空值不渲染」。
+- **D10**: 站長形象圖片與介紹沿用 site_settings KV（`sns_profile_image_path` / `sns_profile_intro`）＋圖片存 public disk，**不加欄位、不建表、不 migration** — 屬單例全站設定，與 D1、hero banner 完全同構。圖片移除比照 hero banner 走獨立路由（`deleteSnsProfileImage`，鏡射 `deleteBanner`）。
+- **D11**: `courses.description` 定位為銷售頁開場 lead（課程資訊列下方、Markdown 介紹上方，含裝飾框；原 Banner 漸層上的裸文字版被使用者否決）— 欄位分工：`tagline` 一句話（卡片/CTA）→ `description` 一段話（銷售頁開場簡介）→ `description_md` 完整長文；原本 description 僅在無 Markdown 時作 fallback、形同死欄位。純前端調整 Show.vue，controller 已傳 description、無後端/schema 變更（否決：廢除欄位併入 Markdown — 損失結構化簡介，未來 SEO/摘要用得上）
 
 ## Schema
 
 - `social_links` — 首頁 SNS 連結；`platform` 限六平台枚舉字串（僅決定 icon，可重複）、`sort_order` 建立時 max+1，無啟用欄位（存在即顯示，整區顯隱由 `sns_section_enabled` 控制）。
 - `homepage_featured_courses` — 首頁精選課程；`course_id` FK cascadeOnDelete、`blurb` varchar(500) nullable（空則前台 fallback 課程名）、`sort_order` 拖曳重排時整批改寫。
-- site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
+- site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
+- **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
 - 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 本模組寫 session、讀統計。
+
+## Tasks
+
+### US9 - 站長形象與介紹
+
+Phase A — 後端（KV 讀寫，無 migration）
+- [x] T001 `sns_profile_image`（nullable image/mimes:jpg,jpeg,png,webp/max:2048）與 `sns_profile_intro`（nullable string max:500）驗證＋訊息＋上傳錯誤碼防呆 in app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
+- [x] T002 `edit()` 回傳 `sns_profile_image_url`（`Storage::url`）+ `sns_profile_intro`；`update()` 處理圖片上傳（換圖刪舊、存 `sns-profile/`）與寫入 intro；新增 `deleteSnsProfileImage()`（鏡射 `deleteBanner`）in app/Http/Controllers/Admin/HomepageSettingController.php
+- [x] T003 註冊 `DELETE /admin/homepage/sns-profile-image`（name `admin.homepage.sns-profile-image.delete`）in routes/web.php〔touchpoint 000〕
+- [x] T004 `getMany` 補兩鍵並把 `snsProfile`（image_url + intro）傳給首頁 in app/Http/Controllers/HomeController.php
+
+Phase B — 前端
+- [x] T005 [P] SNS 區塊新增站長形象圖上傳＋預覽＋移除、介紹 textarea（500 字計數）＋建議尺寸標註 in resources/js/Pages/Admin/HomepageSettings/Edit.vue
+- [x] T006 [P] `SocialLinks.vue` 在 SectionHeader 與連結列表之間渲染圓形頭像＋介紹（有才顯示、保留換行）；`Home.vue` 傳入 `:profile` prop in resources/js/Components/SocialLinks.vue, resources/js/Pages/Home.vue
+
+### 課程簡介 lead（US2 追加）
+
+- [x] T007 Banner 下方新增課程簡介 lead 區塊（description 非空才渲染，max-w-3xl 置中、text-lg sm:text-xl、whitespace-pre-line），並移除第 4 區 Markdown 段的 description fallback in resources/js/Pages/Course/Show.vue
+- [x] T008 驗證：npm run build exit 0；有/無 description、無 description_md 三種課程呈現正確 + 手機 RWD in resources/js/Pages/Course/Show.vue
 
 ## 進度日誌
 
+- 2026-07-11: 簡介 lead 依回饋改版 — 移至課程資訊列下方，加裝飾框（cream 底 + gold 邊框 + 對角 corner accent）
+
+- 2026-07-11: /dev 完成銷售頁課程簡介 lead — Banner 漸層下方渲染 description（非空才顯示、pre-line），移除第 4 區 Markdown 段的 description fallback；npm build 與 php artisan test（93 passed）全綠
+- 2026-07-11: /spec 規劃銷售頁「課程簡介 lead」區塊（D11 欄位分工），status: draft 待審
+- 2026-07-11: 修正首頁卡片價格 bug — 優惠過期後仍顯示優惠價，與銷售頁/結帳實收不一致；HomeController 補傳 display_price、CourseCard 非優惠分支改用（93 tests passed）
+- 2026-07-11: US9 完成 — 首頁「追蹤站長」新增站長形象圖片＋≤500 字介紹（site_settings KV `sns_profile_image_path`/`sns_profile_intro`，無 migration；圖片存 public disk `sns-profile/`、換圖刪舊、獨立移除路由）；前台頭像＋介紹渲染於 SNS 連結上方（各自有才顯示、保留換行、受 sns_section_enabled 控制）；後台上傳區標建議尺寸。TDD 補 `tests/Feature/Storefront/SnsProfileTest.php`（6 passed，全套 93 passed）。
 - 2026-07-11: 課程銷售頁 drip 登入狀態的「免費領取」區塊改為與訪客表單同款白底卡片＋「立刻免費領取【課程名】！」標題＋品牌配色（Course/Show.vue；drip UI 一致性，功能歸 010-drip-email）。
 - 2026-07-11: 課程內容分類「知識變現」改「商業策略」（label；slug `monetization` 不變）。新增資料 migration 一併同步既有 `site_settings.content_categories` 與文章 `tags`（觸及 012 的 tags 資料，屬跨模組 demote 一致性修正）。
 - 2026-07-10: SNS 平台 `substack` 更名為 `blog`（顯示 BLOG + 通用 RSS 圖示），含 DB migration 更名既有資料列
