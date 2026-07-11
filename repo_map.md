@@ -85,6 +85,7 @@ main_files:
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
 - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
+- database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Course/PriceDisplay.vue
 - resources/js/Components/CourseCard.vue
@@ -277,7 +278,6 @@ specs: specs/007-points-referral/
 main_files:
 - app/Console/Commands/MaturePoints.php
 - app/Http/Controllers/Admin/MemberController.php
-- app/Http/Controllers/Admin/ReferralStatsController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/Member/PointController.php
 - app/Http/Controllers/RedemptionController.php
@@ -298,7 +298,6 @@ main_files:
 - resources/js/Components/Cart/ReferralInput.vue
 - resources/js/Components/Course/RedeemButton.vue
 - resources/js/Components/MemberDetailModal.vue
-- resources/js/Pages/Admin/Referrals/Index.vue
 - resources/js/Pages/Admin/Settings/Points.vue
 - resources/js/Pages/Checkout/Index.vue
 - resources/js/Pages/Course/Show.vue

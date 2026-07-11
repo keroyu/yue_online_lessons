@@ -5,7 +5,6 @@ owner_files:
   - app/Http/Controllers/Member/PointController.php
   - app/Http/Controllers/RedemptionController.php
   - app/Http/Controllers/ReferralController.php
-  - app/Http/Controllers/Admin/ReferralStatsController.php
   - app/Http/Requests/Admin/GrantPointsRequest.php
   - app/Http/Requests/RedeemCourseRequest.php
   - app/Http/Requests/ValidateReferralRequest.php
@@ -18,7 +17,6 @@ owner_files:
   - resources/js/Components/Cart/ReferralInput.vue
   - resources/js/Components/Course/RedeemButton.vue
   - resources/js/Pages/Member/Points.vue
-  - resources/js/Pages/Admin/Referrals/Index.vue
   - resources/js/Pages/Admin/Settings/Points.vue
   - database/migrations/2026_05_10_000001_add_points_to_users_table.php
   - database/migrations/2026_06_30_000001_create_point_transactions_table.php
@@ -56,7 +54,10 @@ touchpoints:
     why: 課程表單編輯 redeem_points；edit 需正確帶回已儲存值（曾漏傳導致顯示為空的 bug）
   - file: app/Http/Controllers/Admin/SettingsController.php
     owner: 000-platform-core
-    why: showPoints / updatePoints 讀寫本模組 4 組 site_settings 鍵
+    why: showPoints / updatePoints 讀寫本模組 4 組 site_settings 鍵；showPoints 另帶入 ReferralService::performanceRows 的推薦成效（US5 併入本頁）
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: /admin/settings/points（積分與推薦）路由；舊 /admin/referrals 改為 redirect 至此
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: 4 組設定鍵（referral_threshold_amount / referral_reward_rate / homework_reward_points / referral_maturity_days）沿用 KV 基礎建設
@@ -130,10 +131,12 @@ touchpoints:
 
 ### User Story 5 - 後台推薦成效統計 (Priority: P3)
 
-管理員於 `/admin/referrals` 查看各推薦人的推薦訂單數、帶來營收、回饋積分總額。
+管理員於「積分與推薦」頁（`/admin/settings/points` 的「推薦成效」分頁）查看各推薦人的推薦訂單數、帶來營收、回饋積分總額與目前積分餘額。統計查詢封裝於 `ReferralService::performanceRows()`，由 `SettingsController@showPoints` 帶入頁面；舊 `/admin/referrals` 302 redirect 至此。
 
 **驗收**：
 - [x] 以 `orders.referrer_user_id`（status=paid）彙總，依回饋積分排序；range ∈ 7/30/60/90/all（預設 30），以 `webhook_received_at` 篩選付款時間
+- [x] 每列顯示該推薦人目前積分餘額（`users.points`，含入 GROUP BY 以符 ONLY_FULL_GROUP_BY）
+- [x] 與「積分設定」合併為單一頁面的兩個分頁（`Settings/Points.vue`）；`/admin/referrals` redirect 保留舊連結
 
 ### User Story 6 - 後台派發積分與帳本檢視 (Priority: P3)
 
@@ -199,6 +202,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: US5 推薦成效併入「積分與推薦」頁（`Settings/Points.vue` 兩分頁）；查詢移至 `ReferralService::performanceRows`、由 `SettingsController@showPoints` 帶入；每列加顯目前積分（GROUP BY 含 users.points 防 ONLY_FULL_GROUP_BY）；刪除 `ReferralStatsController` 與 `Referrals/Index.vue`，`/admin/referrals` 302 redirect。補回歸測試 `tests/Feature/Points/ReferralPerformanceTest.php`。
 - 2026-07-06: 領域重組 — 自 012-points-system 重寫，依實際 codebase 校正
 - 2026-07-05: 積分中心推薦碼區塊顯示回饋比例；兌換成功改導向「我的課程」；確認按鈕文案方位中性
 - 2026-07-05: US1 兌換改兩段式確認；修正後台編輯課程 redeem_points 未帶回表單的 bug

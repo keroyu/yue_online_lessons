@@ -297,6 +297,18 @@ const formatDateTime = (str) => {
   if (!str) return '-'
   return new Date(str).toLocaleString('zh-TW')
 }
+
+// Quick-copy for lead emails; briefly flags which lead id was copied.
+const copiedEmailId = ref(null)
+const copyEmail = async (lead) => {
+  try {
+    await navigator.clipboard.writeText(lead.email)
+    copiedEmailId.value = lead.id
+    setTimeout(() => { if (copiedEmailId.value === lead.id) copiedEmailId.value = null }, 1500)
+  } catch (e) {
+    console.error('Copy failed', e)
+  }
+}
 </script>
 
 <template>
@@ -432,7 +444,24 @@ const formatDateTime = (str) => {
               />
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">{{ lead.name }}</td>
-            <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">{{ lead.email }}</td>
+            <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
+              <div class="flex items-center gap-2">
+                <span>{{ lead.email }}</span>
+                <button
+                  type="button"
+                  class="text-gray-400 hover:text-brand-teal cursor-pointer"
+                  :title="copiedEmailId === lead.id ? '已複製' : '複製 Email'"
+                  @click="copyEmail(lead)"
+                >
+                  <svg v-if="copiedEmailId === lead.id" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </td>
             <td class="hidden md:table-cell w-52 py-4 px-3 text-sm text-gray-600">
               <div class="flex items-center gap-2">
                 <span class="truncate">{{ lead.course?.name ?? '-' }}</span>

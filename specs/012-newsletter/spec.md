@@ -306,6 +306,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 文章管理搜尋擴充為標題／slug／tag 名稱三者命中，並新增最熱門前 5 標籤快速篩選 chip（index 帶 popularTags 含 slug、tag 篩選參數）。PostForm 欄位重排（標籤／狀態／精選／引流課程移到「關聯文章」下方）。文章標籤「知識變現」改「商業策略」（經 002 owned 的 rename migration）。補測試 `tests/Feature/Newsletter/AdminPostSearchTest.php`。
 - 2026-07-10: 建立 spec（draft）。已確認 6 項澄清：既有會員預設不訂閱、新建獨立事件表、dormant 保守判定＋開信自動復活、發佈≠寄信、Markdown+圖片庫編輯、Broadcast 對象=全部 subscribed。
 - 2026-07-10: 一致性稽核後修訂 3 項 — (1) 內文改後端 `PostService::toHtml` request 時渲染、棄 body_html 快取欄（比照 EmailTemplate accessor，且更利 SEO）；(2) slug 改必填手動英文網址；(3) 訂閱改回 OTP 兩步驗證（沿用 VerificationCodeService，防 subscribe-bombing）。
 - 2026-07-10: 使用者審核通過，status → building，可 /dev 實作。

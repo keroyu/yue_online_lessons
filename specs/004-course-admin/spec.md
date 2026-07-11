@@ -206,4 +206,5 @@ SEO、點數兌換、金流與顯示設定。
 
 ## 進度日誌
 
+- 2026-07-11: 課程管理列表新增搜尋（名稱／講師）＋內容分類／課程類型（講座/迷你/客製）篩選按鈕（前端即時過濾；index payload 補 content_category、product_type、contentCategories）。
 - 2026-07-06: 領域重組 — 自 002(後台)+008(課程類別) 重寫，依實際 codebase 校正

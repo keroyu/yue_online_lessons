@@ -49,10 +49,13 @@ class CourseController extends Controller
                 'deleted_at' => $course->deleted_at,
                 'duration_formatted' => $course->duration_formatted,
                 'portaly_product_id' => $course->portaly_product_id,
+                'content_category' => $course->content_category,
+                'product_type' => $course->type,
             ]);
 
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
+            'contentCategories' => HomepageSettingController::contentCategories(),
         ]);
     }
 

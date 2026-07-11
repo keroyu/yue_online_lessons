@@ -172,43 +172,7 @@ const insertImage = (url) => {
           </ul>
         </div>
 
-        <!-- Image gallery (edit mode) -->
-        <div v-if="isEdit" class="border border-gray-200 p-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-700">圖片庫</span>
-            <label class="text-sm text-brand-teal cursor-pointer hover:underline">
-              {{ uploading ? '上傳中…' : '+ 上傳圖片' }}
-              <input type="file" accept="image/*" multiple class="hidden" @change="uploadImages" />
-            </label>
-          </div>
-          <div v-if="images.length" class="grid grid-cols-4 gap-2 mt-3">
-            <button
-              v-for="img in images"
-              :key="img.id"
-              type="button"
-              class="aspect-square border border-gray-200 overflow-hidden hover:ring-2 hover:ring-brand-teal"
-              title="點擊插入到內文"
-              @click="insertImage(img.url)"
-            >
-              <img :src="img.url" :alt="img.filename" class="w-full h-full object-cover" />
-            </button>
-          </div>
-          <p v-else class="text-xs text-gray-400 mt-2">尚無圖片。上傳後點縮圖插入內文。</p>
-        </div>
-      </div>
-
-      <!-- Right: live preview + meta -->
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">預覽</label>
-          <div class="mt-1 border border-gray-200 p-4 min-h-[8rem] bg-white md-preview" v-html="preview"></div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700">摘要（列表 / RSS / 信件前段）</label>
-          <textarea v-model="form.excerpt" rows="2" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
-        </div>
-
+        <!-- 文章設定：標籤 / 狀態 / 精選 / 引流課程（置於關聯文章下方） -->
         <div>
           <label class="block text-sm font-medium text-gray-700">標籤（逗號分隔）</label>
           <input v-model="form.tagsText" type="text" placeholder="思維升級, 財務覺醒" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
@@ -256,6 +220,43 @@ const insertImage = (url) => {
             <option :value="null">— 不綁定 —</option>
             <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
+        </div>
+
+        <!-- Image gallery (edit mode) -->
+        <div v-if="isEdit" class="border border-gray-200 p-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-gray-700">圖片庫</span>
+            <label class="text-sm text-brand-teal cursor-pointer hover:underline">
+              {{ uploading ? '上傳中…' : '+ 上傳圖片' }}
+              <input type="file" accept="image/*" multiple class="hidden" @change="uploadImages" />
+            </label>
+          </div>
+          <div v-if="images.length" class="grid grid-cols-4 gap-2 mt-3">
+            <button
+              v-for="img in images"
+              :key="img.id"
+              type="button"
+              class="aspect-square border border-gray-200 overflow-hidden hover:ring-2 hover:ring-brand-teal"
+              title="點擊插入到內文"
+              @click="insertImage(img.url)"
+            >
+              <img :src="img.url" :alt="img.filename" class="w-full h-full object-cover" />
+            </button>
+          </div>
+          <p v-else class="text-xs text-gray-400 mt-2">尚無圖片。上傳後點縮圖插入內文。</p>
+        </div>
+      </div>
+
+      <!-- Right: live preview + meta -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">預覽</label>
+          <div class="mt-1 border border-gray-200 p-4 min-h-[8rem] bg-white md-preview" v-html="preview"></div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">摘要（列表 / RSS / 信件前段）</label>
+          <textarea v-model="form.excerpt" rows="2" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
         </div>
 
         <details class="border border-gray-200 p-3">

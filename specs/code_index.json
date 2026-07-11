@@ -85,12 +85,10 @@
     "app/Http/Controllers/Admin/PostImageController.php": [
       "012.us-1"
     ],
-    "app/Http/Controllers/Admin/ReferralStatsController.php": [
-      "007.us-5"
-    ],
     "app/Http/Controllers/Admin/SettingsController.php": [
       "000.us-5",
-      "007.us-4"
+      "007.us-4",
+      "007.us-5"
     ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
       "002.us-4"
@@ -552,7 +550,8 @@
       "010.us-5"
     ],
     "app/Services/ReferralService.php": [
-      "007.us-2"
+      "007.us-2",
+      "007.us-5"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -687,6 +686,9 @@
     ],
     "database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php": [
       "012.us-4"
+    ],
+    "database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php": [
+      "002.us-7"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
@@ -926,11 +928,9 @@
       "012.us-1",
       "012.us-8"
     ],
-    "resources/js/Pages/Admin/Referrals/Index.vue": [
-      "007.us-5"
-    ],
     "resources/js/Pages/Admin/Settings/Points.vue": [
-      "007.us-4"
+      "007.us-4",
+      "007.us-5"
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "009.us-1",

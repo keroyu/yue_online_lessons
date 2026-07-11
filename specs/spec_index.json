@@ -409,7 +409,8 @@
       "code_files": [
         "app/Http/Controllers/Admin/HomepageSettingController.php",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
-        "app/Models/Course.php"
+        "app/Models/Course.php",
+        "database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php"
       ],
       "status": "implemented"
     },
@@ -1387,8 +1388,9 @@
         "range 篩選"
       ],
       "code_files": [
-        "app/Http/Controllers/Admin/ReferralStatsController.php",
-        "resources/js/Pages/Admin/Referrals/Index.vue"
+        "app/Services/ReferralService.php",
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "resources/js/Pages/Admin/Settings/Points.vue"
       ],
       "status": "implemented"
     },

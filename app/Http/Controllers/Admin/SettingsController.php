@@ -71,14 +71,22 @@ class SettingsController extends Controller
         return redirect()->back()->with('success', '金流設定已儲存');
     }
 
-    public function showPoints(): Response
+    public function showPoints(Request $request): Response
     {
+        // Referral performance shares this page (US5 merged into 積分與推薦).
+        $range = (string) $request->input('range', '30');
+        $days = $range === 'all' ? null : (int) $range;
+
         return Inertia::render('Admin/Settings/Points', [
             'points' => [
                 'referral_threshold_amount' => (int) SiteSetting::get('referral_threshold_amount', 3000),
                 'referral_reward_rate'      => (int) SiteSetting::get('referral_reward_rate', 10),
                 'homework_reward_points'    => (int) SiteSetting::get('homework_reward_points', 100),
                 'referral_maturity_days'    => (int) SiteSetting::get('referral_maturity_days', 14),
+            ],
+            'referral' => [
+                'rows'  => app(\App\Services\ReferralService::class)->performanceRows($days),
+                'range' => $range,
             ],
         ]);
     }

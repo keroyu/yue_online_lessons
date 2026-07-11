@@ -8,10 +8,12 @@ defineOptions({ layout: AdminLayout })
 const props = defineProps({
   posts: { type: Object, required: true },
   filters: { type: Object, default: () => ({}) },
+  popularTags: { type: Array, default: () => [] }, // [{ name, slug }]
 })
 
 const search = ref(props.filters.search ?? '')
 const status = ref(props.filters.status ?? '')
+const tag = ref(props.filters.tag ?? '')
 
 const statusLabels = { draft: '草稿', scheduled: '排程', published: '已發佈' }
 const statusClass = {
@@ -21,15 +23,21 @@ const statusClass = {
 }
 
 const applyFilters = () => {
-  router.get('/admin/posts', { search: search.value || undefined, status: status.value || undefined }, {
+  router.get('/admin/posts', { search: search.value || undefined, status: status.value || undefined, tag: tag.value || undefined }, {
     preserveState: true, preserveScroll: true, replace: true,
   })
 }
 
 const sortByViews = () => {
-  router.get('/admin/posts', { search: search.value || undefined, status: status.value || undefined, sort: 'views' }, {
+  router.get('/admin/posts', { search: search.value || undefined, status: status.value || undefined, tag: tag.value || undefined, sort: 'views' }, {
     preserveState: true, preserveScroll: true, replace: true,
   })
+}
+
+// Toggle a popular-tag chip: clicking the active one clears it.
+const filterByTag = (slug) => {
+  tag.value = tag.value === slug ? '' : slug
+  applyFilters()
 }
 
 const destroy = (post) => {
@@ -49,15 +57,33 @@ const goToPage = (page) => {
       <Link href="/admin/posts/create" class="bg-brand-teal text-white rounded-md px-4 py-2 font-medium hover:bg-brand-teal/90">+ 新增文章</Link>
     </div>
 
-    <div class="flex flex-wrap gap-3 mb-4">
-      <input v-model="search" type="text" placeholder="搜尋標題 / slug" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
-      <select v-model="status" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @change="applyFilters">
-        <option value="">全部狀態</option>
-        <option value="draft">草稿</option>
-        <option value="scheduled">排程</option>
-        <option value="published">已發佈</option>
-      </select>
-      <button type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" @click="applyFilters">篩選</button>
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+      <!-- Left: search + status + 篩選 -->
+      <div class="flex flex-wrap gap-3">
+        <input v-model="search" type="text" placeholder="搜尋標題 / slug / 標籤" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
+        <select v-model="status" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @change="applyFilters">
+          <option value="">全部狀態</option>
+          <option value="draft">草稿</option>
+          <option value="scheduled">排程</option>
+          <option value="published">已發佈</option>
+        </select>
+        <button type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" @click="applyFilters">篩選</button>
+      </div>
+
+      <!-- Right: popular tag quick-filter chips -->
+      <div v-if="popularTags.length" class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs text-gray-400">熱門標籤：</span>
+        <button
+          v-for="t in popularTags"
+          :key="t.slug"
+          type="button"
+          class="text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors"
+          :class="tag === t.slug
+            ? 'bg-brand-teal text-white border-brand-teal'
+            : 'bg-white text-gray-600 border-gray-300 hover:border-brand-teal hover:text-brand-teal'"
+          @click="filterByTag(t.slug)"
+        >#{{ t.name }}</button>
+      </div>
     </div>
 
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">

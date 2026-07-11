@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
@@ -13,6 +14,18 @@ defineProps({
   // Laravel paginator：{ data, current_page, last_page, ... }
   coupons: { type: Object, required: true },
 })
+
+// Quick-copy for coupon codes; briefly flags which id was copied.
+const copiedId = ref(null)
+const copyCode = async (coupon) => {
+  try {
+    await navigator.clipboard.writeText(coupon.code)
+    copiedId.value = coupon.id
+    setTimeout(() => { if (copiedId.value === coupon.id) copiedId.value = null }, 1500)
+  } catch (e) {
+    console.error('Copy failed', e)
+  }
+}
 
 const goToPage = (page) => {
   router.get('/admin/coupons', { page }, { preserveState: true, preserveScroll: true })
@@ -74,7 +87,24 @@ const destroy = (coupon) => {
         </thead>
         <tbody class="bg-white divide-y divide-gray-100">
           <tr v-for="c in coupons.data" :key="c.id">
-            <td class="px-4 py-4 text-sm font-mono font-semibold text-gray-900">{{ c.code }}</td>
+            <td class="px-4 py-4 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-semibold text-gray-900">{{ c.code }}</span>
+                <button
+                  type="button"
+                  class="text-gray-400 hover:text-brand-teal cursor-pointer"
+                  :title="copiedId === c.id ? '已複製' : '複製代碼'"
+                  @click="copyCode(c)"
+                >
+                  <svg v-if="copiedId === c.id" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </td>
             <td class="px-4 py-4 text-sm text-gray-700">{{ c.type_label }}</td>
             <td class="px-4 py-4 text-sm text-gray-500">{{ c.scope_label }}</td>
             <td class="px-4 py-4 text-sm text-gray-500">{{ c.expires_label }}</td>

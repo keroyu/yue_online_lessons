@@ -18,6 +18,7 @@ owner_files:
   - database/migrations/2026_03_25_000002_create_social_links_table.php
   - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
   - database/migrations/2026_07_05_000002_extend_blurb_on_homepage_featured_courses.php
+  - database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php
   - resources/js/Components/BlogArticles.vue
   - resources/js/Components/SubstackArticles.vue
   - resources/js/Components/FeaturedCourses.vue
@@ -197,5 +198,6 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 課程內容分類「知識變現」改「商業策略」（label；slug `monetization` 不變）。新增資料 migration 一併同步既有 `site_settings.content_categories` 與文章 `tags`（觸及 012 的 tags 資料，屬跨模組 demote 一致性修正）。
 - 2026-07-10: SNS 平台 `substack` 更名為 `blog`（顯示 BLOG + 通用 RSS 圖示），含 DB migration 更名既有資料列
 - 2026-07-06: 領域重組 — 合併 001(US1)+004+007+002(US12) 重寫，依實際 codebase 校正

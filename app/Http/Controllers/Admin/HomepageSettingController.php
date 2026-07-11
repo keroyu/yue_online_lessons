@@ -25,7 +25,7 @@ class HomepageSettingController extends Controller
     public const DEFAULT_CONTENT_CATEGORIES = [
         ['label' => '思維升級', 'slug' => 'mindset'],
         ['label' => '財務覺醒', 'slug' => 'finance'],
-        ['label' => '知識變現', 'slug' => 'monetization'],
+        ['label' => '商業策略', 'slug' => 'monetization'],
     ];
 
     /** Exactly 3 slots (padded with blanks) — used to render the admin editor. */

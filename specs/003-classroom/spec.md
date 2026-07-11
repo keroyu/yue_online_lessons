@@ -209,4 +209,5 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 作業批改頁課程下拉選單（學員提交列表＋作業題目管理共用）只列「有作業」的課程，並依該課程最新一筆作業建立時間降序排列（HomeworkController@index join+groupBy）。頁面／選單標題「作業批改專區」改「作業批改」。補測試 `tests/Feature/Classroom/HomeworkCoursesTest.php`。
 - 2026-07-06: 領域重組 — 合併 002(前台)+010+001(US3) 重寫，依實際 codebase 校正

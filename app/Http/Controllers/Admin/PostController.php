@@ -24,13 +24,18 @@ class PostController extends Controller
     {
         $status = $request->input('status');
         $search = trim((string) $request->input('search', ''));
+        $tag = trim((string) $request->input('tag', ''));
         $sort = $request->input('sort') === 'views' ? 'view_count' : 'created_at';
 
         $posts = Post::query()
             ->when(in_array($status, ['draft', 'scheduled', 'published'], true), fn ($q) => $q->where('status', $status))
+            // Keyword matches title / slug / tag name.
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('title', 'like', "%{$search}%")
-                ->orWhere('slug', 'like', "%{$search}%")))
+                ->orWhere('slug', 'like', "%{$search}%")
+                ->orWhereHas('tags', fn ($t) => $t->where('name', 'like', "%{$search}%"))))
+            // Quick tag-chip filter (by slug).
+            ->when($tag !== '', fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('slug', $tag)))
             ->orderByDesc($sort)
             ->paginate(20)
             ->withQueryString()
@@ -47,7 +52,14 @@ class PostController extends Controller
 
         return Inertia::render('Admin/Posts/Index', [
             'posts' => $posts,
-            'filters' => ['status' => $status, 'search' => $search, 'sort' => $request->input('sort')],
+            'filters' => ['status' => $status, 'search' => $search, 'tag' => $tag, 'sort' => $request->input('sort')],
+            'popularTags' => Tag::withCount('posts')
+                ->orderByDesc('posts_count')
+                ->orderBy('name')
+                ->take(5)
+                ->get(['name', 'slug'])
+                ->map(fn (Tag $t) => ['name' => $t->name, 'slug' => $t->slug])
+                ->all(),
         ]);
     }
 

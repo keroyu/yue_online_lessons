@@ -1,18 +1,53 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 defineOptions({ layout: AdminLayout })
 
-defineProps({
+const props = defineProps({
   courses: {
     type: Array,
     required: true,
   },
+  contentCategories: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const deletingCourseId = ref(null)
+
+// Client-side search + filters (the list loads every course, so filtering stays snappy).
+const search = ref('')
+const activeCategory = ref('') // content_category slug
+const activeType = ref('')     // product_type value
+
+// Product types (matches CourseForm 的講座 / 迷你課 / 客製服務).
+const productTypes = [
+  { value: 'lecture', label: '講座課程' },
+  { value: 'mini', label: '迷你課程' },
+  { value: 'high_ticket', label: '客製服務' },
+]
+
+const filteredCourses = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return props.courses.filter((c) => {
+    const matchSearch = !q
+      || (c.name && c.name.toLowerCase().includes(q))
+      || (c.instructor_name && c.instructor_name.toLowerCase().includes(q))
+    const matchCategory = !activeCategory.value || c.content_category === activeCategory.value
+    const matchType = !activeType.value || c.product_type === activeType.value
+    return matchSearch && matchCategory && matchType
+  })
+})
+
+const toggleCategory = (slug) => {
+  activeCategory.value = activeCategory.value === slug ? '' : slug
+}
+const toggleType = (value) => {
+  activeType.value = activeType.value === value ? '' : value
+}
 
 const statusBadge = (status) => {
   const badges = {
@@ -57,6 +92,54 @@ const formatPrice = (price) => {
         </div>
       </div>
 
+      <!-- Search (left) + filters (right) -->
+      <div class="mt-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <input
+          v-model="search"
+          type="text"
+          placeholder="搜尋課程名稱 / 講師"
+          class="w-full lg:w-72 lg:flex-shrink-0 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-brand-teal"
+        />
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-end">
+          <div v-if="contentCategories.length" class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-gray-500">內容分類：</span>
+            <button
+              v-for="cat in contentCategories"
+              :key="cat.slug"
+              type="button"
+              class="px-3 py-1 rounded-full text-sm font-medium border cursor-pointer transition-colors"
+              :class="activeCategory === cat.slug
+                ? 'bg-brand-teal text-white border-brand-teal'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-teal hover:text-brand-teal'"
+              @click="toggleCategory(cat.slug)"
+            >{{ cat.label }}</button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-gray-500">課程類型：</span>
+            <button
+              v-for="t in productTypes"
+              :key="t.value"
+              type="button"
+              class="px-3 py-1 rounded-full text-sm font-medium border cursor-pointer transition-colors"
+              :class="activeType === t.value
+                ? 'bg-brand-navy text-white border-brand-navy'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-navy hover:text-brand-navy'"
+              @click="toggleType(t.value)"
+            >{{ t.label }}</button>
+          </div>
+
+          <!-- Always rendered to reserve width, so the chips don't jump when a filter is active. -->
+          <button
+            type="button"
+            class="text-xs text-gray-400 hover:text-gray-600 underline cursor-pointer"
+            :class="(search || activeCategory || activeType) ? '' : 'invisible pointer-events-none'"
+            @click="search = ''; activeCategory = ''; activeType = ''"
+          >清除篩選</button>
+        </div>
+      </div>
+
       <div class="mt-8 flex flex-col">
         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -85,7 +168,7 @@ const formatPrice = (price) => {
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
-                  <tr v-for="course in courses" :key="course.id" :class="{ 'bg-gray-50': course.deleted_at }">
+                  <tr v-for="course in filteredCourses" :key="course.id" :class="{ 'bg-gray-50': course.deleted_at }">
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
                       <div class="flex items-center">
                         <div class="h-10 w-10 flex-shrink-0">
@@ -190,9 +273,9 @@ const formatPrice = (price) => {
                       </div>
                     </td>
                   </tr>
-                  <tr v-if="courses.length === 0">
+                  <tr v-if="filteredCourses.length === 0">
                     <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                      尚無課程，點擊「新增課程」開始建立。
+                      {{ courses.length === 0 ? '尚無課程，點擊「新增課程」開始建立。' : '沒有符合篩選條件的課程。' }}
                     </td>
                   </tr>
                 </tbody>

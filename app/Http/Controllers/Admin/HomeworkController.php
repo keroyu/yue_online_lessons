@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\AssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,8 +92,15 @@ class HomeworkController extends Controller
             ];
         });
 
-        $courses = Course::orderBy('name')
-            ->get(['id', 'name']);
+        // Only courses that actually have assignments, newest-assigned first — powers both
+        // the 學員提交列表 and 作業題目管理 dropdowns (no empty courses; latest work on top).
+        $courses = Course::query()
+            ->select('courses.id', 'courses.name')
+            ->join('lessons', 'lessons.course_id', '=', 'courses.id')
+            ->join('assignments', 'assignments.lesson_id', '=', 'lessons.id')
+            ->groupBy('courses.id', 'courses.name')
+            ->orderByDesc(DB::raw('MAX(assignments.created_at)'))
+            ->get();
 
         $lessons = $lessonId
             ? Lesson::where('id', $lessonId)->get(['id', 'title'])

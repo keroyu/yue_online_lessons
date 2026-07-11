@@ -233,8 +233,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
 
-    // Referral performance stats
-    Route::get('/referrals', [\App\Http\Controllers\Admin\ReferralStatsController::class, 'index'])->name('referrals.index');
+    // Referral performance stats — merged into the 積分與推薦 page (settings.points).
+    Route::get('/referrals', fn () => redirect()->route('admin.settings.points'))->name('referrals.index');
 
     // Discount Coupons
     Route::resource('coupons', AdminCouponController::class)->except(['show']);

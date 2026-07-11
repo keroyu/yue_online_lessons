@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Referral code validation, reward payout and activation evaluation.
@@ -101,6 +102,50 @@ class ReferralService
 
         // Re-snapshot the actual awarded amount on the order (built from paid total).
         $order->update(['referral_reward_points' => $reward]);
+    }
+
+    /**
+     * Referral performance grouped by referrer (US5). Powers the 積分與推薦 admin page.
+     * $days = null → all time. Includes each referrer's current spendable point balance.
+     *
+     * @return array<int, array{referrer_name: string, referrer_email: ?string, referral_code: ?string,
+     *               current_points: int, order_count: int, revenue: int, reward_points: int}>
+     */
+    public function performanceRows(?int $days): array
+    {
+        $query = Order::query()
+            ->whereNotNull('referrer_user_id')
+            ->where('status', 'paid');
+
+        if ($days) {
+            $query->where('orders.webhook_received_at', '>=', now()->subDays($days));
+        }
+
+        return $query
+            ->join('users', 'users.id', '=', 'orders.referrer_user_id')
+            ->groupBy('orders.referrer_user_id', 'users.nickname', 'users.email', 'users.referral_code', 'users.points')
+            ->select([
+                'orders.referrer_user_id',
+                'users.nickname as referrer_name',
+                'users.email as referrer_email',
+                'users.referral_code',
+                'users.points as current_points',
+                DB::raw('COUNT(*) as order_count'),
+                DB::raw('SUM(orders.total_amount) as revenue'),
+                DB::raw('SUM(orders.referral_reward_points) as reward_points'),
+            ])
+            ->orderByDesc('reward_points')
+            ->get()
+            ->map(fn ($r) => [
+                'referrer_name'  => $r->referrer_name ?: '（未命名）',
+                'referrer_email' => $r->referrer_email,
+                'referral_code'  => $r->referral_code,
+                'current_points' => (int) $r->current_points,
+                'order_count'    => (int) $r->order_count,
+                'revenue'        => (int) round($r->revenue),
+                'reward_points'  => (int) $r->reward_points,
+            ])
+            ->all();
     }
 
     /**

@@ -165,4 +165,5 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: Leads 名單 Email 旁新增快速複製按鈕（clipboard，複製後綠勾回饋）。
 - 2026-07-06: 領域重組 — 自 008-high-ticket-booking 重寫，依實際 codebase 校正

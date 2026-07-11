@@ -173,6 +173,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 折扣碼列表代碼旁新增快速複製按鈕（clipboard，複製後綠勾回饋）。
 - 2026-07-06: 領域重組 — 自 011-discount-coupon 重寫，依實際 codebase 校正（{alias} 無碼時保留原樣非空字串、chain 為硬刪除、alias 轉小寫儲存、結帳頁 ?coupon= query 優先於 session）
 - 2026-06-26: 新增 CouponChain 輪換折扣碼：後台 tab CRUD、自動補碼、{alias} 佔位符展開、小節編輯插入 UI
 - 2026-06-10: 011 實作完成；折扣碼輸入欄同置購物車與結帳頁；修正計數完整性（僅 UI 已套用且付款成功才 +1）

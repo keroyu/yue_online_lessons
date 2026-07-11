@@ -18,6 +18,7 @@ owner_files:
   - database/migrations/0001_01_01_000001_create_cache_table.php
   - database/migrations/0001_01_01_000002_create_jobs_table.php
   - database/migrations/2026_03_25_000001_create_site_settings_table.php
+  - database/seeders/DemoDataSeeder.php
   - resources/js/app.js
   - resources/js/bootstrap.js
   - resources/js/Components/Layout/AppLayout.vue
@@ -147,4 +148,5 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 後台側欄選單重排（內容類在上、營運類在下）＋「作業批改專區」改「作業批改」＋「推薦成效」併入「積分與推薦」單一入口（AdminLayout.vue）。新增 `DemoDataSeeder`（跨模組本機 demo 資料，可重跑、以標記自清）。
 - 2026-07-06: 領域重組 — 全站基礎設施自各模組抽出，依實際 codebase 撰寫
