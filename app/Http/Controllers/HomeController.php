@@ -30,6 +30,7 @@ class HomeController extends Controller
                 'tagline'         => $course->tagline,
                 'price'           => $course->price,
                 'original_price'  => $course->original_price,
+                'display_price'   => (float) $course->display_price,
                 'is_promo_active' => $course->is_promo_active,
                 'thumbnail'       => $course->thumbnail_url,
                 'instructor_name' => $course->instructor_name,
@@ -45,6 +46,7 @@ class HomeController extends Controller
             'hero_title', 'hero_description', 'hero_button_label',
             'hero_button_url', 'hero_banner_path',
             'sns_section_enabled',
+            'sns_profile_image_path', 'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
@@ -71,6 +73,13 @@ class HomeController extends Controller
         if (empty($socialLinks)) {
             $socialLinks = [];
         }
+
+        // Owner profile (avatar + intro) shown above the SNS links; null when section is off.
+        $snsProfilePath = $settings->get('sns_profile_image_path');
+        $snsProfile = $snsEnabled ? [
+            'image_url' => $snsProfilePath ? Storage::url($snsProfilePath) : null,
+            'intro'     => $settings->get('sns_profile_intro'),
+        ] : null;
 
         // Sidebar "近期文章" widget: featured first, then latest.
         $blogArticles = Post::published()
@@ -115,6 +124,7 @@ class HomeController extends Controller
             'courses'         => $courses,
             'hero'            => $hero,
             'socialLinks'     => $socialLinks,
+            'snsProfile'      => $snsProfile,
             'blogArticles'    => $blogArticles,
             'popularPosts'    => $popularPosts,
             'featuredCourses' => $featuredCourses,

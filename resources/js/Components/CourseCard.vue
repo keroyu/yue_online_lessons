@@ -134,9 +134,10 @@ const isHidden = computed(() => {
             {{ formatPrice(course.price) }}
           </span>
         </div>
-        <!-- Regular pricing -->
+        <!-- Regular pricing: display_price falls back to original_price when the
+             promo has expired, matching the sales page and checkout amount -->
         <span v-else class="text-2xl sm:text-base font-bold sm:font-semibold text-brand-teal">
-          {{ formatPrice(course.price) }}
+          {{ formatPrice(course.display_price ?? course.price) }}
         </span>
       </div>
     </div>
