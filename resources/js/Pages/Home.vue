@@ -39,6 +39,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  snsProfile: {
+    type: Object,
+    default: null,
+  },
   popularPosts: {
     type: Array,
     default: () => [],
@@ -210,7 +214,7 @@ const filteredCourses = computed(() =>
         <aside class="space-y-6">
           <template v-for="widget in sidebarOrder" :key="widget">
             <FeaturedCourses v-if="widget === 'featured_courses'" :courses="featuredCourses" />
-            <SocialLinks v-else-if="widget === 'social'" :links="socialLinks" />
+            <SocialLinks v-else-if="widget === 'social'" :links="socialLinks" :profile="snsProfile" />
             <BlogArticles v-else-if="widget === 'blog'" :articles="blogArticles" />
           </template>
         </aside>

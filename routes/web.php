@@ -263,6 +263,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/homepage', [HomepageSettingController::class, 'edit'])->name('homepage.edit');
     Route::post('/homepage', [HomepageSettingController::class, 'update'])->name('homepage.update');
     Route::delete('/homepage/banner', [HomepageSettingController::class, 'deleteBanner'])->name('homepage.banner.destroy');
+    Route::delete('/homepage/sns-profile-image', [HomepageSettingController::class, 'deleteSnsProfileImage'])->name('homepage.sns-profile-image.destroy');
 
     // Social links CRUD
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');

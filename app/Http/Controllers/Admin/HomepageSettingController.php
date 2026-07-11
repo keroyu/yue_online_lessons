@@ -86,9 +86,11 @@ class HomepageSettingController extends Controller
             'hero_title', 'hero_description', 'hero_button_label',
             'hero_button_url', 'hero_banner_path',
             'blog_rss_url', 'sns_section_enabled',
+            'sns_profile_image_path', 'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
+        $snsProfilePath = $settings->get('sns_profile_image_path');
 
         return Inertia::render('Admin/HomepageSettings/Edit', [
             'settings' => [
@@ -100,6 +102,8 @@ class HomepageSettingController extends Controller
                 'blog_rss_url'        => $settings->get('blog_rss_url'),
                 // Cast to bool: stored as "0"/"1" text — (bool)"0" is true in PHP
                 'sns_section_enabled' => (bool) (int) $settings->get('sns_section_enabled', '0'),
+                'sns_profile_image_url' => $snsProfilePath ? Storage::url($snsProfilePath) : null,
+                'sns_profile_intro'     => $settings->get('sns_profile_intro'),
             ],
             'socialLinks' => SocialLink::ordered()->get()->map(fn ($link) => [
                 'id'       => $link->id,
@@ -214,7 +218,31 @@ class HomepageSettingController extends Controller
         SiteSetting::set('blog_rss_url', $newRssUrl);
         SiteSetting::set('sns_section_enabled', $request->boolean('sns_section_enabled') ? '1' : '0');
 
+        // SNS 站長形象圖（比照 hero banner：替換時刪舊檔）
+        if ($request->hasFile('sns_profile_image')) {
+            $oldPath = SiteSetting::get('sns_profile_image_path');
+            if ($oldPath) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('sns_profile_image')->store('sns-profile', 'public');
+            SiteSetting::set('sns_profile_image_path', $path);
+        }
+
+        SiteSetting::set('sns_profile_intro', $request->input('sns_profile_intro'));
+
         return redirect()->back()->with('success', '首頁設定已儲存');
+    }
+
+    public function deleteSnsProfileImage(): RedirectResponse
+    {
+        $path = SiteSetting::get('sns_profile_image_path');
+
+        if ($path) {
+            Storage::disk('public')->delete($path);
+            SiteSetting::set('sns_profile_image_path', null);
+        }
+
+        return redirect()->back()->with('success', '站長形象圖已刪除');
     }
 
     public function deleteBanner(): RedirectResponse

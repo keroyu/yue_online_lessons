@@ -6,6 +6,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // { image_url, intro } — avatar + intro shown above the links. Null hides them.
+  profile: {
+    type: Object,
+    default: null,
+  },
 })
 
 const platformIcons = {
@@ -28,9 +33,21 @@ const platformLabels = {
 </script>
 
 <template>
-  <div v-if="links.length > 0" class="bg-white border border-gray-200 p-4">
+  <div v-if="links.length > 0 || profile?.image_url || profile?.intro" class="bg-white border border-gray-200 p-4">
     <SectionHeader title="追蹤站長" />
-    <div class="grid grid-cols-2 gap-2">
+
+    <!-- 站長形象＋介紹（各自有才顯示） -->
+    <div v-if="profile?.image_url || profile?.intro" class="mb-4">
+      <img
+        v-if="profile.image_url"
+        :src="profile.image_url"
+        alt="站長形象"
+        class="w-full h-auto rounded-xl object-cover"
+      />
+      <p v-if="profile.intro" class="mt-3 text-sm text-gray-600 leading-relaxed whitespace-pre-line text-center">{{ profile.intro }}</p>
+    </div>
+
+    <div v-if="links.length > 0" class="grid grid-cols-2 gap-2">
       <a
         v-for="link in links"
         :key="`${link.platform}-${link.url}`"

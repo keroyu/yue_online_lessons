@@ -46,10 +46,13 @@ const heroForm = ref({
   hero_button_url:     props.settings.hero_button_url ?? '',
   blog_rss_url:        props.settings.blog_rss_url ?? '',
   sns_section_enabled: props.settings.sns_section_enabled ? '1' : '0',
+  sns_profile_intro:   props.settings.sns_profile_intro ?? '',
+  sns_profile_image:   null,
   hero_banner:         null,
 })
 
 const bannerPreviewUrl = ref(props.settings.hero_banner_url ?? null)
+const snsProfilePreviewUrl = ref(props.settings.sns_profile_image_url ?? null)
 const heroErrors = ref({})
 const heroSaving = ref(false)
 
@@ -69,6 +72,22 @@ function onBannerSelected(event) {
   bannerPreviewUrl.value = URL.createObjectURL(file)
 }
 
+function onSnsProfileSelected(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
+  if (file.size > MAX_BYTES) {
+    heroErrors.value = { ...heroErrors.value, sns_profile_image: '圖片檔案過大，請壓縮後再上傳（上限 2MB）' }
+    event.target.value = ''
+    return
+  }
+
+  delete heroErrors.value.sns_profile_image
+  heroForm.value.sns_profile_image = file
+  snsProfilePreviewUrl.value = URL.createObjectURL(file)
+}
+
 function saveHeroSettings() {
   heroSaving.value = true
   heroErrors.value = {}
@@ -80,8 +99,12 @@ function saveHeroSettings() {
   formData.append('hero_button_url',     heroForm.value.hero_button_url)
   formData.append('blog_rss_url',        heroForm.value.blog_rss_url)
   formData.append('sns_section_enabled', heroForm.value.sns_section_enabled)
+  formData.append('sns_profile_intro',   heroForm.value.sns_profile_intro)
   if (heroForm.value.hero_banner) {
     formData.append('hero_banner', heroForm.value.hero_banner)
+  }
+  if (heroForm.value.sns_profile_image) {
+    formData.append('sns_profile_image', heroForm.value.sns_profile_image)
   }
 
   router.post('/admin/homepage', formData, {
@@ -97,6 +120,17 @@ function deleteBanner() {
   router.delete('/admin/homepage/banner', {
     preserveScroll: true,
     onSuccess: () => { bannerPreviewUrl.value = null },
+  })
+}
+
+function deleteSnsProfileImage() {
+  if (!confirm('確定要刪除站長形象圖嗎？')) return
+  router.delete('/admin/homepage/sns-profile-image', {
+    preserveScroll: true,
+    onSuccess: () => {
+      snsProfilePreviewUrl.value = null
+      heroForm.value.sns_profile_image = null
+    },
   })
 }
 
@@ -343,6 +377,53 @@ function saveCategories() {
           />
         </button>
         <span class="text-sm text-gray-500">{{ heroForm.sns_section_enabled === '1' ? '顯示' : '不顯示' }}</span>
+      </div>
+
+      <!-- 站長形象與介紹（顯示於 SNS 連結上方） -->
+      <div v-if="heroForm.sns_section_enabled === '1'" class="ml-1 pl-4 border-l-2 border-gray-100 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">站長形象圖片</label>
+          <!-- 前台以側欄滿版大圖顯示，預覽同款（限寬避免後台過大） -->
+          <div class="w-full max-w-xs">
+            <div class="rounded-xl overflow-hidden bg-gray-100 ring-1 ring-gray-200">
+              <img v-if="snsProfilePreviewUrl" :src="snsProfilePreviewUrl" class="w-full h-auto" />
+              <div v-else class="h-32 w-full flex items-center justify-center text-gray-300">
+                <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M18 6.75h.008v.008H18V6.75z" />
+                </svg>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center gap-2">
+              <label class="cursor-pointer inline-flex items-center gap-2 bg-white px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                選擇圖片
+                <input type="file" class="sr-only" accept="image/*" @change="onSnsProfileSelected" />
+              </label>
+              <button
+                v-if="snsProfilePreviewUrl"
+                type="button"
+                class="text-sm text-red-500 hover:text-red-700"
+                @click="deleteSnsProfileImage"
+              >移除</button>
+            </div>
+            <p class="mt-1.5 text-xs text-gray-400">將以側欄滿版大圖顯示（非頭貼）。建議寬度 ≥ 800px，橫式或正方皆可。JPG／PNG／WebP，≤2MB</p>
+            <p v-if="heroErrors.sns_profile_image" class="mt-1 text-sm text-red-600">{{ heroErrors.sns_profile_image }}</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">站長介紹</label>
+          <textarea
+            v-model="heroForm.sns_profile_intro"
+            rows="4"
+            maxlength="500"
+            placeholder="向訪客介紹自己（最多 500 字）"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+          ></textarea>
+          <div class="mt-1 flex justify-between">
+            <p v-if="heroErrors.sns_profile_intro" class="text-sm text-red-600">{{ heroErrors.sns_profile_intro }}</p>
+            <span class="ml-auto text-xs" :class="heroForm.sns_profile_intro.length > 500 ? 'text-red-600' : 'text-gray-400'">{{ heroForm.sns_profile_intro.length }} / 500</span>
+          </div>
+        </div>
       </div>
 
       <!-- Blog RSS URL -->
