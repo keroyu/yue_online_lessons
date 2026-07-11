@@ -2,6 +2,8 @@
 import { Link } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
+defineOptions({ layout: AdminLayout })
+
 defineProps({
   templates: {
     type: Array,
@@ -18,8 +20,7 @@ const eventTypeLabels = {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div class="sm:flex sm:items-center sm:justify-between mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">Email 模板管理</h1>
@@ -64,5 +65,4 @@ const eventTypeLabels = {
         </table>
       </div>
     </div>
-  </AdminLayout>
 </template>

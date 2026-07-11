@@ -4,6 +4,8 @@ import { ref, computed } from 'vue'
 import { marked } from 'marked'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
+defineOptions({ layout: AdminLayout })
+
 const props = defineProps({
   template: {
     type: Object,
@@ -47,8 +49,7 @@ const submit = () => {
 </script>
 
 <template>
-  <AdminLayout>
-    <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
       <div class="mb-6">
         <a href="/admin/email-templates" class="text-sm text-brand-teal hover:underline">← 返回模板列表</a>
         <h1 class="mt-2 text-2xl font-bold text-gray-900">編輯模板：{{ template.name }}</h1>
@@ -145,5 +146,4 @@ const submit = () => {
         </div>
       </form>
     </div>
-  </AdminLayout>
 </template>
