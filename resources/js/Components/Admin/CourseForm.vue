@@ -376,7 +376,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
 
         <!-- Thumbnail -->
         <div>
-          <label :class="labelClasses">課程縮圖</label>
+          <label :class="labelClasses">課程縮圖／主視覺 Banner</label>
           <div class="mt-3 flex items-center gap-6">
             <div class="flex-shrink-0 h-32 w-32 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
               <img
@@ -398,7 +398,12 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 選擇圖片
                 <input type="file" class="sr-only" accept="image/*" @change="handleThumbnailChange" />
               </label>
-              <p class="mt-2 text-xs text-gray-500">支援 JPG、PNG、GIF，最大 10MB</p>
+              <p class="mt-2 text-xs text-gray-500">
+                此圖用作銷售頁最上方的滿版主視覺 Banner。建議尺寸
+                <span class="font-medium text-gray-700">1920 × 1080 px（16:9）</span>，
+                主體置中（寬螢幕會裁切上下）。
+              </p>
+              <p class="mt-1 text-xs text-gray-400">支援 JPG、PNG、GIF，最大 10MB</p>
             </div>
           </div>
           <p v-if="form.errors.thumbnail" :class="errorTextClasses">{{ form.errors.thumbnail }}</p>

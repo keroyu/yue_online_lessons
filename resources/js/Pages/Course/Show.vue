@@ -684,17 +684,18 @@ const submitBooking = async () => {
           </p>
         </div>
 
-        <!-- Can subscribe: logged-in member -->
-        <div v-else-if="canSubscribe && $page.props.auth.user" class="text-center py-6">
+        <!-- Can subscribe: logged-in member — same card/heading/colors as the guest form -->
+        <div v-else-if="canSubscribe && $page.props.auth.user" class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">立刻免費領取【{{ course.name }}】！</h3>
           <p v-if="subscribeErrors.subscribe" class="mb-3 text-sm text-red-600">{{ subscribeErrors.subscribe }}</p>
-          <div class="mb-4 max-w-xs mx-auto text-left">
+          <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">暱稱（必填）</label>
             <input
               v-model="memberNickname"
               type="text"
               placeholder="請輸入您的暱稱"
               maxlength="50"
-              class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal"
               :class="{ 'border-red-300': subscribeErrors.nickname }"
             />
             <p v-if="subscribeErrors.nickname" class="mt-1 text-sm text-red-600">{{ subscribeErrors.nickname }}</p>
@@ -702,7 +703,7 @@ const submitBooking = async () => {
           <button
             @click="memberSubscribe"
             :disabled="subscribing || !memberNickname.trim()"
-            class="px-10 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ subscribing ? '領取中...' : (Number(course.price) > 0 ? '立即購買' : '免費領取') }}
           </button>
@@ -710,7 +711,7 @@ const submitBooking = async () => {
 
         <!-- Can subscribe: guest -->
         <div v-else-if="canSubscribe">
-          <DripSubscribeForm :course-id="course.id" />
+          <DripSubscribeForm :course-id="course.id" :course-name="course.name" />
         </div>
       </div>
     </div>

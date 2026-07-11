@@ -7,6 +7,10 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  courseName: {
+    type: String,
+    default: '',
+  },
 })
 
 const page = usePage()
@@ -75,7 +79,7 @@ const goBack = () => {
 
 <template>
   <div class="bg-white rounded-xl border border-gray-200 p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">免費領取</h3>
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">立刻免費領取{{ courseName ? `【${courseName}】` : '' }}！</h3>
 
     <!-- Step 1: Enter email -->
     <form v-if="step === 'email'" @submit.prevent="sendCode" class="space-y-4">
@@ -89,7 +93,7 @@ const goBack = () => {
           type="email"
           placeholder="請輸入您的 Email"
           required
-          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal"
           :class="{ 'border-red-300': errors.email }"
         />
         <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
@@ -106,7 +110,7 @@ const goBack = () => {
           placeholder="請輸入您的暱稱"
           required
           maxlength="50"
-          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal"
           :class="{ 'border-red-300': errors.nickname }"
         />
         <p v-if="errors.nickname" class="mt-1 text-sm text-red-600">{{ errors.nickname }}</p>
@@ -115,7 +119,7 @@ const goBack = () => {
       <button
         type="submit"
         :disabled="processing || !email || !nickname"
-        class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {{ processing ? '發送中...' : '取得驗證碼' }}
       </button>
@@ -140,7 +144,7 @@ const goBack = () => {
           placeholder="請輸入 6 位驗證碼"
           maxlength="6"
           required
-          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base text-center tracking-widest font-mono shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base text-center tracking-widest font-mono shadow-sm focus:border-brand-teal focus:ring-brand-teal"
           :class="{ 'border-red-300': errors.code }"
         />
         <p v-if="errors.code" class="mt-1 text-sm text-red-600">{{ errors.code }}</p>
@@ -149,7 +153,7 @@ const goBack = () => {
       <button
         type="submit"
         :disabled="processing || !code"
-        class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {{ processing ? '驗證中...' : '確認訂閱' }}
       </button>

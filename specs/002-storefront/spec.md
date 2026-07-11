@@ -198,6 +198,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 課程銷售頁 drip 登入狀態的「免費領取」區塊改為與訪客表單同款白底卡片＋「立刻免費領取【課程名】！」標題＋品牌配色（Course/Show.vue；drip UI 一致性，功能歸 010-drip-email）。
 - 2026-07-11: 課程內容分類「知識變現」改「商業策略」（label；slug `monetization` 不變）。新增資料 migration 一併同步既有 `site_settings.content_categories` 與文章 `tags`（觸及 012 的 tags 資料，屬跨模組 demote 一致性修正）。
 - 2026-07-10: SNS 平台 `substack` 更名為 `blog`（顯示 BLOG + 通用 RSS 圖示），含 DB migration 更名既有資料列
 - 2026-07-06: 領域重組 — 合併 001(US1)+004+007+002(US12) 重寫，依實際 codebase 校正
