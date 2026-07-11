@@ -206,4 +206,5 @@ price = 0 且無 portaly_product_id 的課程，銷售頁展開 inline 表單（
 
 ## 進度日誌
 
+- 2026-07-11: 金流設定頁（Payment.vue）標題改名「API 設定」（含 PayUni/NewebPay/Portaly/Meta Pixel 憑證，頁面已不只金流）。憑證讀取為 SiteSetting 優先、config/.env fallback（PayuniService/NewebpayService/PortalyWebhookService 建構子）。
 - 2026-07-06: 領域重組 — 合併 009+001(購買流程) 重寫，依實際 codebase 校正

@@ -148,5 +148,6 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-11: 後台「金流設定」改名「API 設定」（側欄 nav + `SettingsController@updatePayment` 成功訊息；路由 `/admin/settings/payment` 不變）。頁面本身（Payment.vue）歸 005；此頁憑證取值為「site_settings（後台）優先、config/.env fallback」，PayUni `sandbox` 目前僅讀 .env。
 - 2026-07-11: 後台側欄選單重排（內容類在上、營運類在下）＋「作業批改專區」改「作業批改」＋「推薦成效」併入「積分與推薦」單一入口（AdminLayout.vue）。新增 `DemoDataSeeder`（跨模組本機 demo 資料，可重跑、以標記自清）。
 - 2026-07-06: 領域重組 — 全站基礎設施自各模組抽出，依實際 codebase 撰寫

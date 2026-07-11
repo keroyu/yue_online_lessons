@@ -34,7 +34,7 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
 
 <template>
   <div class="max-w-2xl mx-auto py-8 px-4 space-y-6">
-    <h1 class="text-xl font-bold text-gray-900">金流設定</h1>
+    <h1 class="text-xl font-bold text-gray-900">API 設定</h1>
 
     <form @submit.prevent="submit" class="space-y-6">
       <!-- PayUni -->

@@ -68,7 +68,7 @@ class SettingsController extends Controller
 
         SiteSetting::set('meta_pixel_id', $request->input('meta_pixel_id', ''));
 
-        return redirect()->back()->with('success', '金流設定已儲存');
+        return redirect()->back()->with('success', 'API 設定已儲存');
     }
 
     public function showPoints(Request $request): Response
