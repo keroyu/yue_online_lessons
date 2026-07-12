@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
                     'real_name' => $request->user()->real_name,
                     'phone' => $request->user()->phone,
                     'role' => $request->user()->role,
+                    'is_sales_consultant' => (bool) $request->user()->is_sales_consultant,
                 ] : null,
             ],
             'flash' => [

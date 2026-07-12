@@ -178,7 +178,7 @@
         "resources/js/Layouts/AdminLayout.vue",
         "resources/js/Components/Layout/Navigation.vue"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "001.us-1",
@@ -1745,9 +1745,10 @@
         "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php",
         "app/Http/Controllers/Admin/MemberController.php",
         "resources/js/Components/MemberDetailModal.vue",
-        "resources/js/Pages/Admin/Members/Index.vue"
+        "resources/js/Pages/Admin/Members/Index.vue",
+        "resources/js/Components/SalesConsultantModal.vue"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "009.us-1",

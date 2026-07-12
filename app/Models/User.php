@@ -22,6 +22,7 @@ class User extends Authenticatable
         'phone',
         'birth_date',
         'role',
+        'is_sales_consultant',
         'points',
         'referral_code',
         'referral_activated_at',
@@ -43,6 +44,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_sales_consultant' => 'boolean',
             'last_login_at' => 'datetime',
             'referral_activated_at' => 'datetime',
             'birth_date' => 'date',
@@ -108,6 +110,17 @@ class User extends Authenticatable
     public function isEditor(): bool
     {
         return $this->role === 'editor';
+    }
+
+    public function isSalesConsultant(): bool
+    {
+        return (bool) $this->is_sales_consultant;
+    }
+
+    // Staff panel (coupons / high-ticket leads) admits admins and sales consultants.
+    public function canAccessSalesPanel(): bool
+    {
+        return $this->isAdmin() || $this->isSalesConsultant();
     }
 
     public function isMember(): bool

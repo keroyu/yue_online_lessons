@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GiftCourseRequest;
 use App\Http\Requests\Admin\GrantPointsRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
+use App\Http\Requests\Admin\ToggleSalesConsultantRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
 use App\Services\PointService;
 use App\Mail\BatchEmailMail;
@@ -172,6 +173,8 @@ class MemberController extends Controller
                 'last_login_at' => $member->last_login_at?->toIso8601String(),
                 'created_at' => $member->created_at->toIso8601String(),
                 'points' => $member->points,
+                'role' => $member->role,
+                'is_sales_consultant' => (bool) $member->is_sales_consultant,
             ],
             'courses' => $courses,
             'homework_completions' => $homeworkCompletions,
@@ -200,6 +203,61 @@ class MemberController extends Controller
         }
 
         return back()->with('success', '會員資料更新成功');
+    }
+
+    /**
+     * Consultant management modal data (008 US9): current consultants plus
+     * (when searching) assignable members — role=member, not yet assigned.
+     */
+    public function salesConsultants(Request $request): JsonResponse
+    {
+        $fields = ['id', 'email', 'real_name', 'nickname'];
+
+        $consultants = User::where('role', 'member')
+            ->where('is_sales_consultant', true)
+            ->orderBy('email')
+            ->get($fields);
+
+        $results = collect();
+        if ($search = $request->input('search')) {
+            $results = User::where('role', 'member')
+                ->where('is_sales_consultant', false)
+                ->where(function ($q) use ($search) {
+                    $q->where('email', 'like', "%{$search}%")
+                      ->orWhere('real_name', 'like', "%{$search}%")
+                      ->orWhere('nickname', 'like', "%{$search}%");
+                })
+                ->orderBy('email')
+                ->limit(8)
+                ->get($fields);
+        }
+
+        return response()->json([
+            'consultants' => $consultants,
+            'results'     => $results,
+        ]);
+    }
+
+    /**
+     * Toggle the sales consultant flag (008 US9). Single-column write; the
+     * restricted staff access itself is enforced by route middleware (000 US6).
+     */
+    public function updateSalesConsultant(ToggleSalesConsultantRequest $request, User $member)
+    {
+        if (!$member->isManageableMember()) {
+            abort(403, '只能指派會員為銷售顧問');
+        }
+
+        $member->update(['is_sales_consultant' => $request->validated()['is_sales_consultant']]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'is_sales_consultant' => (bool) $member->is_sales_consultant,
+            ]);
+        }
+
+        return back()->with('success', '銷售顧問身份已更新');
     }
 
     /**

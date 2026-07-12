@@ -162,8 +162,32 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 });
 
-// Admin routes (Admin only)
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+// Admin routes. Outer group carries auth + prefix + names; the staff subgroup
+// (coupons / coupon chains / high-ticket leads) also admits sales consultants,
+// everything else stays admin-only (000 US6). Route names are unchanged.
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+
+    Route::middleware('staff')->group(function () {
+        // Discount Coupons
+        Route::resource('coupons', AdminCouponController::class)->except(['show']);
+        Route::get('/coupons/{coupon}', [AdminCouponController::class, 'show'])->name('coupons.show');
+        Route::patch('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggle'])->name('coupons.toggle');
+
+        // Coupon Chains (rotating auto-generated coupons)
+        Route::resource('coupon-chains', CouponChainController::class)->except(['show']);
+        Route::get('/coupon-chains/{coupon_chain}', [CouponChainController::class, 'show'])->name('coupon-chains.show');
+        Route::patch('/coupon-chains/{coupon_chain}/toggle', [CouponChainController::class, 'toggle'])->name('coupon-chains.toggle');
+
+        // High-ticket leads
+        Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');
+        Route::patch('/high-ticket-leads/{lead}/status', [HighTicketLeadController::class, 'updateStatus'])->name('high-ticket-leads.update-status');
+        Route::post('/high-ticket-leads/notify-slot', [HighTicketLeadController::class, 'notifySlot'])->name('high-ticket-leads.notify-slot');
+        Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');
+        Route::post('/high-ticket-leads/batch-email', [HighTicketLeadController::class, 'batchEmail'])->name('high-ticket-leads.batch-email');
+        Route::post('/high-ticket-leads/{lead}/convert', [HighTicketLeadController::class, 'convert'])->name('high-ticket-leads.convert');
+    });
+
+    Route::middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     // Courses
@@ -212,6 +236,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/broadcasts/{broadcast}', [AdminBroadcastController::class, 'show'])->whereNumber('broadcast')->name('broadcasts.show');
 
     // Members
+    Route::get('/members/sales-consultants', [MemberController::class, 'salesConsultants'])->name('members.sales-consultants');
     Route::get('/members/count', [MemberController::class, 'count'])->name('members.count');
     Route::get('/members/export', [MemberController::class, 'exportCsv'])->name('members.export');
     Route::post('/members/import', [MemberController::class, 'importEmails'])->name('members.import');
@@ -225,6 +250,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/members/gift-course', [MemberController::class, 'giftCourse'])
         ->middleware('throttle:10,1')
         ->name('members.gift-course');
+    Route::patch('/members/{member}/sales-consultant', [MemberController::class, 'updateSalesConsultant'])->name('members.sales-consultant');
 
     // Transactions
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
@@ -235,24 +261,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Referral performance stats — merged into the 積分與推薦 page (settings.points).
     Route::get('/referrals', fn () => redirect()->route('admin.settings.points'))->name('referrals.index');
-
-    // Discount Coupons
-    Route::resource('coupons', AdminCouponController::class)->except(['show']);
-    Route::get('/coupons/{coupon}', [AdminCouponController::class, 'show'])->name('coupons.show');
-    Route::patch('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggle'])->name('coupons.toggle');
-
-    // Coupon Chains (rotating auto-generated coupons)
-    Route::resource('coupon-chains', CouponChainController::class)->except(['show']);
-    Route::get('/coupon-chains/{coupon_chain}', [CouponChainController::class, 'show'])->name('coupon-chains.show');
-    Route::patch('/coupon-chains/{coupon_chain}/toggle', [CouponChainController::class, 'toggle'])->name('coupon-chains.toggle');
-
-    // High-ticket leads
-    Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');
-    Route::patch('/high-ticket-leads/{lead}/status', [HighTicketLeadController::class, 'updateStatus'])->name('high-ticket-leads.update-status');
-    Route::post('/high-ticket-leads/notify-slot', [HighTicketLeadController::class, 'notifySlot'])->name('high-ticket-leads.notify-slot');
-    Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');
-    Route::post('/high-ticket-leads/batch-email', [HighTicketLeadController::class, 'batchEmail'])->name('high-ticket-leads.batch-email');
-    Route::post('/high-ticket-leads/{lead}/convert', [HighTicketLeadController::class, 'convert'])->name('high-ticket-leads.convert');
 
     // Email templates
     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
@@ -300,4 +308,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'updateComment'])->name('homework.comments.update');
     Route::delete('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'destroyComment'])->name('homework.comments.destroy');
     Route::post('/homework/{assignment}/completions/{user}', [HomeworkController::class, 'markComplete'])->name('homework.completions.store');
+    });
 });

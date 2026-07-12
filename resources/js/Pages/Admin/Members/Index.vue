@@ -5,6 +5,7 @@ import MemberDetailModal from '@/Components/MemberDetailModal.vue'
 import BatchEmailModal from '@/Components/BatchEmailModal.vue'
 import GiftCourseModal from '@/Components/GiftCourseModal.vue'
 import ImportMembersModal from '@/Components/ImportMembersModal.vue'
+import SalesConsultantModal from '@/Components/SalesConsultantModal.vue'
 import { ref, watch, computed, nextTick } from 'vue'
 
 defineOptions({ layout: AdminLayout })
@@ -45,6 +46,7 @@ const batchEmailResult = ref(null)
 
 // Gift course modal state
 const showGiftCourseModal = ref(false)
+const showConsultantModal = ref(false)
 const giftCourseResult = ref(null)
 
 // Inline editing state
@@ -413,6 +415,18 @@ const doExport = (scope) => {
         </div>
         <!-- Import / Export buttons -->
         <div class="mt-4 sm:mt-0 sm:ml-4 flex items-center gap-2">
+          <!-- Sales consultant management -->
+          <button
+            type="button"
+            @click="showConsultantModal = true"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 cursor-pointer"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            銷售顧問
+          </button>
+
           <!-- Import button -->
           <button
             type="button"
@@ -790,12 +804,20 @@ const doExport = (scope) => {
                           </span>
                         </template>
                         <template v-else>
-                          <span
-                            class="text-gray-500 cursor-pointer hover:text-brand-teal"
-                            @click="startEditing(member, 'real_name')"
-                            title="點擊編輯"
-                          >
-                            {{ member.real_name || '-' }}
+                          <span class="flex items-center gap-1.5">
+                            <span
+                              class="text-gray-500 cursor-pointer hover:text-brand-teal"
+                              @click="startEditing(member, 'real_name')"
+                              title="點擊編輯"
+                            >
+                              {{ member.real_name || '-' }}
+                            </span>
+                            <span
+                              v-if="member.is_sales_consultant"
+                              class="inline-flex items-center rounded-full bg-brand-teal/10 px-2 py-0.5 text-xs font-medium text-brand-teal"
+                            >
+                              銷售顧問
+                            </span>
                           </span>
                           <span v-if="getError(member.id, 'real_name')" class="text-xs text-red-600">
                             {{ getError(member.id, 'real_name') }}
@@ -927,5 +949,11 @@ const doExport = (scope) => {
       v-if="showImportModal"
       :courses="courses"
       @close="closeImportModal"
+    />
+
+    <!-- Sales Consultant Management Modal -->
+    <SalesConsultantModal
+      :show="showConsultantModal"
+      @close="showConsultantModal = false"
     />
 </template>

@@ -331,6 +331,7 @@ main_files:
 - resources/js/Components/GiftCourseModal.vue
 - resources/js/Components/ImportMembersModal.vue
 - resources/js/Components/MemberDetailModal.vue
+- resources/js/Components/SalesConsultantModal.vue
 - resources/js/Pages/Admin/Members/Index.vue
 - resources/views/emails/batch-email.blade.php
 - resources/views/emails/course-gifted.blade.php

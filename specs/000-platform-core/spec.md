@@ -1,6 +1,6 @@
 ---
 id: 000-platform-core
-status: draft
+status: done
 owner_files:
   - app/Http/Controllers/Controller.php
   - app/Http/Controllers/SitemapController.php
@@ -129,13 +129,13 @@ touchpoints:
 （指派身份的 UI 與 endpoint 見 008-members-admin US 9。）
 
 **驗收**：
-- [ ] 新增 `staff` middleware alias（`StaffMiddleware`）：未登入或非 `canAccessSalesPanel()`（= `isAdmin()` OR `isSalesConsultant()`）→ 重導首頁並 flash「您沒有權限存取此頁面」
-- [ ] `routes/web.php` 的 `/admin` 群組改兩層：外層 `auth` + `prefix('admin')` + `name('admin.')`；內層 `staff` 群組含 coupons / coupon-chains / high-ticket-leads 全部路由；內層 `admin` 群組含其餘（dashboard、members、transactions、courses、posts、broadcasts、homework、email-templates、homepage、settings…）
-- [ ] 所有 route name 不變（仍 `admin.coupons.*`、`admin.coupon-chains.*`、`admin.high-ticket-leads.*`）；既有 coupon / lead controller 不需改（原本就只靠 route middleware 守門）
-- [ ] AdminLayout 側欄依角色過濾：admin 顯示全部；純銷售顧問只顯示「Leads 名單」「折扣碼」兩項
-- [ ] `HandleInertiaRequests` 全域共享的 `auth.user` 增加 `is_sales_consultant` 欄位，前端據以判斷
-- [ ] 前台 Navigation 帳號選單：`user.role === 'admin' || user.is_sales_consultant` 顯示「管理後台」連結（admin → `/admin`，純銷售顧問 → `/admin/high-ticket-leads`）
-- [ ] 銷售顧問直接輸入其他 `/admin/*` 網址（`/admin`、`/admin/members` 等）→ 被內層 `admin` middleware 擋下重導首頁
+- [x] 新增 `staff` middleware alias（`StaffMiddleware`）：未登入或非 `canAccessSalesPanel()`（= `isAdmin()` OR `isSalesConsultant()`）→ 重導首頁並 flash「您沒有權限存取此頁面」
+- [x] `routes/web.php` 的 `/admin` 群組改兩層：外層 `auth` + `prefix('admin')` + `name('admin.')`；內層 `staff` 群組含 coupons / coupon-chains / high-ticket-leads 全部路由；內層 `admin` 群組含其餘（dashboard、members、transactions、courses、posts、broadcasts、homework、email-templates、homepage、settings…）
+- [x] 所有 route name 不變（仍 `admin.coupons.*`、`admin.coupon-chains.*`、`admin.high-ticket-leads.*`）；既有 coupon / lead controller 不需改（原本就只靠 route middleware 守門）
+- [x] AdminLayout 側欄依角色過濾：admin 顯示全部；純銷售顧問只顯示「Leads 名單」「折扣碼」兩項
+- [x] `HandleInertiaRequests` 全域共享的 `auth.user` 增加 `is_sales_consultant` 欄位，前端據以判斷
+- [x] 前台 Navigation 帳號選單：`user.role === 'admin' || user.is_sales_consultant` 顯示「管理後台」連結（admin → `/admin`，純銷售顧問 → `/admin/high-ticket-leads`）
+- [x] 銷售顧問直接輸入其他 `/admin/*` 網址（`/admin`、`/admin/members` 等）→ 被內層 `admin` middleware 擋下重導首頁
 
 ## Requirements
 
@@ -175,15 +175,19 @@ touchpoints:
 
 US 6（銷售顧問受限後台存取）：
 
-- [ ] T002 migration 加 `users.is_sales_consultant` boolean default false in `database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php`
-- [ ] T003 User 加 `is_sales_consultant` boolean cast + `isSalesConsultant()` / `canAccessSalesPanel()`（= isAdmin() OR isSalesConsultant()）in `app/Models/User.php`（001 touchpoint）
-- [ ] T004 新增 `StaffMiddleware` 並在 `bootstrap/app.php` 註冊 `staff` alias in `app/Http/Middleware/StaffMiddleware.php`, `bootstrap/app.php`
-- [ ] T005 `routes/web.php` 的 `/admin` 群組拆為外層 `auth` + 內層 `staff`（coupons / coupon-chains / high-ticket-leads）與 `admin`（其餘）兩子群組 in `routes/web.php`
-- [ ] T006 [P] AdminLayout 側欄依 `user.role` / `user.is_sales_consultant` 過濾可見項目 in `resources/js/Layouts/AdminLayout.vue`
-- [ ] T007 [P] HandleInertiaRequests 共享的 `auth.user` 增加 `is_sales_consultant` in `app/Http/Middleware/HandleInertiaRequests.php`
-- [ ] T008 [P] 前台 Navigation 帳號選單依角色顯示「管理後台」連結 in `resources/js/Components/Layout/Navigation.vue`
+- [x] T002 migration 加 `users.is_sales_consultant` boolean default false in `database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php`
+- [x] T003 User 加 `is_sales_consultant` boolean cast + `isSalesConsultant()` / `canAccessSalesPanel()`（= isAdmin() OR isSalesConsultant()）in `app/Models/User.php`（001 touchpoint）
+- [x] T004 新增 `StaffMiddleware` 並在 `bootstrap/app.php` 註冊 `staff` alias in `app/Http/Middleware/StaffMiddleware.php`, `bootstrap/app.php`
+- [x] T005 `routes/web.php` 的 `/admin` 群組拆為外層 `auth` + 內層 `staff`（coupons / coupon-chains / high-ticket-leads）與 `admin`（其餘）兩子群組 in `routes/web.php`
+- [x] T006 [P] AdminLayout 側欄依 `user.role` / `user.is_sales_consultant` 過濾可見項目 in `resources/js/Layouts/AdminLayout.vue`
+- [x] T007 [P] HandleInertiaRequests 共享的 `auth.user` 增加 `is_sales_consultant` in `app/Http/Middleware/HandleInertiaRequests.php`
+- [x] T008 [P] 前台 Navigation 帳號選單依角色顯示「管理後台」連結 in `resources/js/Components/Layout/Navigation.vue`
 
 ## 進度日誌
+
+- 2026-07-12: 全域修正按鈕游標 — Tailwind v4 preflight 預設 button cursor:default，app.css @layer base 對非 disabled button 恢復 pointer；規則寫入 CLAUDE.md 與 constitution（可點元素必有 pointer + hover 樣式）
+
+- 2026-07-12: /dev 完成 US6 銷售顧問受限後台存取 — StaffMiddleware + staff alias、/admin 拆外層 auth + 內層 staff/admin 兩子群組（route name 不變）、側欄與前台入口依角色過濾、auth.user 共享 is_sales_consultant；SalesConsultantTest 8 tests、全套 108 passed。T001（Error.vue exception handler）為既有 backlog 未動
 
 - 2026-07-11: [draft] 規劃 US 6 銷售顧問受限後台存取（`is_sales_consultant` 旗標 + `staff` middleware + 路由分層 + 側欄/導航過濾）。指派 UI 見 008 US 9。
 - 2026-07-11: 後台「金流設定」改名「API 設定」（側欄 nav + `SettingsController@updatePayment` 成功訊息；路由 `/admin/settings/payment` 不變）。頁面本身（Payment.vue）歸 005；此頁憑證取值為「site_settings（後台）優先、config/.env fallback」，PayUni `sandbox` 目前僅讀 .env。

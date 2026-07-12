@@ -13,6 +13,15 @@ const notificationOpen = ref(false)
 const { cartCount } = useCart()
 const { notificationCount, notifications, markRead } = useNotifications()
 
+// Admin panel entry: admins land on the dashboard, pure sales consultants on
+// their leads list (the dashboard itself is admin-only, 000 US6).
+const adminPanelUrl = computed(() => {
+  if (!user.value) return null
+  if (user.value.role === 'admin') return '/admin'
+  if (user.value.is_sales_consultant) return '/admin/high-ticket-leads'
+  return null
+})
+
 const logout = () => {
   router.post('/logout')
 }
@@ -124,6 +133,9 @@ const formatNotificationTime = (d) => {
             <Link href="/member/settings" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
               帳號設定
             </Link>
+            <Link v-if="adminPanelUrl" :href="adminPanelUrl" class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors">
+              管理後台
+            </Link>
             <button
               @click="logout"
               class="text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-sm font-medium transition-colors"
@@ -181,6 +193,9 @@ const formatNotificationTime = (d) => {
           </Link>
           <Link href="/member/settings" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
             帳號設定
+          </Link>
+          <Link v-if="adminPanelUrl" :href="adminPanelUrl" class="block text-white/80 hover:text-brand-teal px-3 py-2 rounded-md text-base font-medium transition-colors">
+            管理後台
           </Link>
           <!-- Mobile notifications -->
           <div class="px-3 py-2">

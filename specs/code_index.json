@@ -854,6 +854,9 @@
     "resources/js/Components/Newsletter/SubscribeForm.vue": [
       "012.us-4"
     ],
+    "resources/js/Components/SalesConsultantModal.vue": [
+      "008.us-9"
+    ],
     "resources/js/Components/SectionHeader.vue": [
       "002.us-1"
     ],
