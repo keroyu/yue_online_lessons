@@ -135,7 +135,7 @@ class PortalyWebhookService
         }
 
         // Create purchase record
-        return Purchase::create([
+        $purchase = Purchase::create([
             'user_id' => $user->id,
             'course_id' => $course->id,
             'portaly_order_id' => $portalyOrderId,
@@ -149,6 +149,21 @@ class PortalyWebhookService
             'source' => 'portaly',
             'webhook_received_at' => now(),
         ]);
+
+        // CAPI-only Purchase: the sale happened off-site on Portaly, so there is
+        // no browser pixel counterpart to dedupe against (000 US7).
+        $meta = app(MetaConversionsService::class);
+        $meta->send('Purchase', [
+            'em'          => $meta->hashEmail($purchase->buyer_email),
+            'external_id' => (string) $user->id,
+        ], [
+            'value'        => (float) $purchase->amount,
+            'currency'     => $purchase->currency ?? 'TWD',
+            'content_ids'  => [$course->id],
+            'content_type' => 'product',
+        ], 'purchase_portaly_' . $portalyOrderId);
+
+        return $purchase;
     }
 
     /**

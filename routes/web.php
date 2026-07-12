@@ -96,7 +96,15 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/checkout/check-email', [CheckoutController::class, 'checkEmail'])->name('checkout.check-email');
     Route::post('/checkout/validate-referral', [ReferralController::class, 'validateCode'])->name('checkout.validate-referral');
     Route::post('/checkout/initiate', [CheckoutController::class, 'initiate'])->name('checkout.initiate');
+
+    // Analytics beacon (public — guest carts count too; throttled per IP)
+    Route::post('/track/add-to-cart', [\App\Http\Controllers\TrackController::class, 'addToCart'])
+        ->middleware('throttle:30,1')->name('track.add-to-cart');
 });
+
+// Blog post → course CTA click counter, redirects with blog UTM (002 US10)
+Route::get('/go/post/{post}/course/{course}', [\App\Http\Controllers\TrackController::class, 'goPostCourse'])
+    ->whereNumber('post')->name('go.post-course');
 
 // PayUni ReturnURL — browser redirect after payment (needs web middleware for auth/session)
 Route::post('/payment/payuni/return', [PayuniController::class, 'return'])
@@ -189,6 +197,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Marketing analytics funnel (002 US10)
+    Route::get('/analytics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.index');
 
     // Courses
     Route::resource('courses', AdminCourseController::class);

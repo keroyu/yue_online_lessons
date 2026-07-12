@@ -78,6 +78,15 @@ class LoginController extends Controller
                 'email' => $email,
                 'email_verified_at' => now(),
             ]);
+
+            // First-time account creation is the CompleteRegistration conversion (000 US7).
+            $meta = app(\App\Services\MetaConversionsService::class);
+            $meta->send('CompleteRegistration', array_merge($meta->userDataFromRequest($request), [
+                'em'          => $meta->hashEmail($email),
+                'external_id' => (string) $user->id,
+            ]), [
+                'content_name' => 'otp_register',
+            ]);
         }
 
         // Update last login info

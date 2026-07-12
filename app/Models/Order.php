@@ -19,6 +19,7 @@ class Order extends Model
         'webhook_received_at',
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
         'referrer_domain', 'gclid', 'fbclid', 'ttclid',
+        'meta_fbp', 'meta_fbc', 'first_touch',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Order extends Model
             'referral_discount_amount' => 'integer',
             'webhook_received_at'    => 'datetime',
             'status'                 => 'string',
+            'first_touch'            => 'array',
         ];
     }
 

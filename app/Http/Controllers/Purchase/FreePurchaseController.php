@@ -92,6 +92,19 @@ class FreePurchaseController extends Controller
 
         $this->dripService->checkAndConvert($user, $course);
 
+        // Custom CAPI event: keeps free enrollments out of the Purchase
+        // optimization signal (000 US7, D10).
+        $meta = app(\App\Services\MetaConversionsService::class);
+        $meta->send('FreeEnroll', array_merge($meta->userDataFromRequest($request), [
+            'em'          => $meta->hashEmail($email),
+            'ph'          => $meta->hashPhone($phone),
+            'external_id' => (string) $user->id,
+        ]), [
+            'content_ids'  => [$course->id],
+            'content_type' => 'product',
+            'content_name' => $course->name,
+        ], null, url("/course/{$course->slug}"));
+
         return response()->json(['success' => true]);
     }
 }

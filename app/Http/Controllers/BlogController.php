@@ -90,8 +90,9 @@ class BlogController extends Controller
                     'name' => $post->relatedCourse->name,
                     'tagline' => $post->relatedCourse->tagline,
                     'thumbnail' => $post->relatedCourse->thumbnail_url,
-                    'url' => url('/course/' . ($post->relatedCourse->slug ?: $post->relatedCourse->id))
-                        . "?utm_source=blog&utm_medium=post&utm_campaign={$post->slug}",
+                    // /go counts the CTA click, then 302s to the course page
+                    // with blog UTM appended (002 US10, D17).
+                    'url' => url("/go/post/{$post->id}/course/{$post->relatedCourse->id}"),
                 ] : null,
             ],
             'related' => $related,

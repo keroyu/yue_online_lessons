@@ -34,6 +34,11 @@ class SettingsController extends Controller
                 'webhook_key_preview' => $this->maskSecret(SiteSetting::get('portaly_webhook_key', '')),
             ],
             'meta_pixel_id' => SiteSetting::get('meta_pixel_id', ''),
+            'meta_capi' => [
+                'access_token'         => '',
+                'access_token_preview' => $this->maskSecret(SiteSetting::get('meta_capi_access_token', '')),
+                'test_event_code'      => SiteSetting::get('meta_capi_test_event_code', ''),
+            ],
         ]);
     }
 
@@ -49,6 +54,8 @@ class SettingsController extends Controller
             'newebpay_env'         => ['nullable', 'string', 'in:sandbox,production'],
             'portaly_webhook_key'  => ['nullable', 'string', 'max:200'],
             'meta_pixel_id'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9]*$/'],
+            'meta_capi_access_token'    => ['nullable', 'string', 'max:500'],
+            'meta_capi_test_event_code' => ['nullable', 'string', 'max:50'],
         ]);
 
         $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env'];
@@ -58,15 +65,17 @@ class SettingsController extends Controller
             }
         }
 
-        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key'];
+        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token'];
         foreach ($secretFields as $key) {
-            $value = $request->input($key, '');
+            // ConvertEmptyStringsToNull turns '' into null; both mean "keep the old secret"
+            $value = (string) $request->input($key, '');
             if ($value !== '') {
                 SiteSetting::set($key, $value);
             }
         }
 
         SiteSetting::set('meta_pixel_id', $request->input('meta_pixel_id', ''));
+        SiteSetting::set('meta_capi_test_event_code', $request->input('meta_capi_test_event_code') ?? '');
 
         return redirect()->back()->with('success', 'API 設定已儲存');
     }

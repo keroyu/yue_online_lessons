@@ -83,7 +83,7 @@ guest cart 存 localStorage，登入後自動合併至 server-side 購物車。
 - [x] 未登入加入購物車 → 存 localStorage `guest_cart`，badge 由 client 計算；重整頁面按鈕狀態從 localStorage 還原
 - [x] 登入後 `POST /api/cart/merge` 合併 guest cart；已在購物車或已購買（paid）的課程略過不報錯
 - [x] AddToCartRequest 擋下：Portaly 課程、免費課程（price<=0）、非 selling / 未發布課程、已購買課程
-- [x] 加入成功觸發 Meta Pixel `AddToCart`（value / currency TWD / content_ids）；`window.fbq` 不存在時靜默略過
+- [x] 加入成功才觸發 Meta Pixel `AddToCart`（value / currency TWD / content_ids）；失敗或已在購物車（409 / guest 重複）不觸發；`window.fbq` 不存在時靜默略過
 - [x] 已購買用戶在銷售頁看到「進入課程」，不顯示加購按鈕；已在購物車則顯示「前往購物車」+「直接購買」並排
 
 ### User Story 2 - 購物車頁與結帳頁 (Priority: P1)
@@ -206,5 +206,6 @@ price = 0 且無 portaly_product_id 的課程，銷售頁展開 inline 表單（
 
 ## 進度日誌
 
+- 2026-07-12: AddToCart Pixel 事件時機修正（useCart.js）— 原本進函式就送（失敗/重複也計數），改為 API 成功或 guest cart 實際新增後才送。
 - 2026-07-11: 金流設定頁（Payment.vue）標題改名「API 設定」（含 PayUni/NewebPay/Portaly/Meta Pixel 憑證，頁面已不只金流）。憑證讀取為 SiteSetting 優先、config/.env fallback（PayuniService/NewebpayService/PortalyWebhookService 建構子）。
 - 2026-07-06: 領域重組 — 合併 009+001(購買流程) 重寫，依實際 codebase 校正

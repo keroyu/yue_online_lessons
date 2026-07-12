@@ -112,7 +112,8 @@
         "app/Http/Controllers/SitemapController.php",
         "resources/views/sitemap.blade.php",
         "resources/views/app.blade.php",
-        "resources/js/app.js"
+        "resources/js/app.js",
+        "config/services.php"
       ],
       "status": "implemented"
     },
@@ -177,6 +178,51 @@
         "app/Http/Middleware/HandleInertiaRequests.php",
         "resources/js/Layouts/AdminLayout.vue",
         "resources/js/Components/Layout/Navigation.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "000.us-7",
+      "module": "000-platform-core",
+      "title": "Meta CAPI 轉換追蹤強化",
+      "summary": "Conversions API 伺服器端事件（Purchase 入帳直送 + eventID 去重、Lead/CompleteRegistration/FreeEnroll）、Advanced Matching hashed em/ph、orders 快照 fbp/fbc、後台 CAPI token 設定",
+      "heading": "### User Story 7 - Meta CAPI 轉換追蹤強化 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-7---meta-capi-轉換追蹤強化-priority-p1",
+      "keywords": [
+        "meta",
+        "capi",
+        "conversions api",
+        "pixel",
+        "轉換追蹤",
+        "advanced matching",
+        "eventID",
+        "去重",
+        "dedup",
+        "Purchase",
+        "Lead",
+        "CompleteRegistration",
+        "FreeEnroll",
+        "fbp",
+        "fbc",
+        "廣告"
+      ],
+      "code_files": [
+        "app/Services/MetaConversionsService.php",
+        "app/Jobs/SendMetaConversionJob.php",
+        "app/Services/CheckoutService.php",
+        "app/Services/PortalyWebhookService.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Http/Controllers/Auth/LoginController.php",
+        "app/Services/NewsletterService.php",
+        "app/Http/Controllers/Purchase/FreePurchaseController.php",
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "resources/js/Pages/Admin/Settings/Payment.vue",
+        "resources/views/app.blade.php",
+        "database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php",
+        "bootstrap/app.php",
+        "app/Models/Order.php"
       ],
       "status": "implemented"
     },
@@ -271,6 +317,58 @@
         "resources/js/Pages/Home.vue",
         "resources/js/Components/CourseCard.vue",
         "resources/js/Components/SectionHeader.vue"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "002.us-10",
+      "module": "002-storefront",
+      "title": "全站流量追蹤與轉換漏斗分析",
+      "summary": "TrackTrafficSource middleware 全站捕捉 UTM/click id/referrer、cookie 首末雙觸點 7 天、course_daily_stats 日彙總（瀏覽/加購/結帳/成交/營收 × 管道）、文章 CTA 點擊計數 /go redirect、/admin/analytics 轉換漏斗報表",
+      "heading": "### User Story 10 - 全站流量追蹤與轉換漏斗分析 (Priority: P1)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-10---全站流量追蹤與轉換漏斗分析-priority-p1",
+      "keywords": [
+        "utm",
+        "流量追蹤",
+        "traffic",
+        "漏斗",
+        "funnel",
+        "轉換率",
+        "conversion rate",
+        "課程瀏覽數",
+        "view count",
+        "點擊數",
+        "cta click",
+        "first touch",
+        "last touch",
+        "歸因",
+        "attribution",
+        "channel",
+        "行銷分析",
+        "analytics"
+      ],
+      "code_files": [
+        "app/Http/Middleware/TrackTrafficSource.php",
+        "app/Services/TrafficSourceService.php",
+        "app/Services/SiteAnalyticsService.php",
+        "app/Http/Controllers/TrackController.php",
+        "app/Http/Controllers/Admin/AnalyticsController.php",
+        "app/Models/CourseDailyStat.php",
+        "app/Models/PostCtaClick.php",
+        "app/Http/Controllers/CourseController.php",
+        "app/Services/CheckoutService.php",
+        "resources/js/composables/useCart.js",
+        "resources/js/Pages/Admin/Analytics/Index.vue",
+        "resources/js/Layouts/AdminLayout.vue",
+        "database/migrations/2026_07_12_000002_create_course_daily_stats_table.php",
+        "database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php",
+        "database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php",
+        "app/Http/Controllers/BlogController.php",
+        "bootstrap/app.php",
+        "app/Models/Order.php",
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Http/Controllers/Admin/CourseController.php"
       ],
       "status": "implemented"
     },
@@ -1519,6 +1617,36 @@
         "app/Models/Order.php"
       ],
       "status": "implemented"
+    },
+    {
+      "id": "007.us-8",
+      "module": "007-points-referral",
+      "title": "推薦人明細檢視",
+      "summary": "推薦成效列點開唯讀 modal：該推薦人的積分帳本＋本人交易紀錄＋帶進來的推薦訂單明細，單一 detail JSON 端點，三組各取最新 50。",
+      "heading": "### User Story 8 - 推薦人明細檢視 (Priority: P3)",
+      "file": "specs/007-points-referral/spec.md",
+      "anchor": "user-story-8---推薦人明細檢視-priority-p3",
+      "keywords": [
+        "推薦人明細",
+        "referrer detail",
+        "推薦成效",
+        "積分帳本",
+        "point ledger",
+        "交易紀錄",
+        "transactions",
+        "推薦訂單",
+        "referred orders",
+        "referrerDetail",
+        "ReferrerDetailModal",
+        "唯讀 modal"
+      ],
+      "code_files": [
+        "app/Services/ReferralService.php",
+        "app/Http/Controllers/Admin/ReferralController.php",
+        "resources/js/Components/Admin/ReferrerDetailModal.vue",
+        "resources/js/Pages/Admin/Settings/Points.vue"
+      ],
+      "status": "planned"
     },
     {
       "id": "008.us-1",

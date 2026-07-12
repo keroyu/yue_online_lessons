@@ -108,7 +108,15 @@ class CheckoutController extends Controller
         }
 
         $checkoutService = app(CheckoutService::class);
-        $trafficSource = session('traffic_source', []);
+        // Last-touch cookie feeds the existing orders source columns; first
+        // touch is stored alongside (002 US10). Meta pixel cookies snapshot
+        // here because the CAPI Purchase fires at webhook time (000 US7).
+        $ts = app(\App\Services\TrafficSourceService::class);
+        $trafficSource = array_merge($ts->lastTouch($request) ?? [], [
+            'first_touch' => $ts->firstTouch($request),
+            'meta_fbp'    => $request->cookie('_fbp'),
+            'meta_fbc'    => $request->cookie('_fbc'),
+        ]);
 
         try {
             $order = $checkoutService->createOrder($userId, $courseIds, $buyer, $trafficSource, $couponCode, $referral);

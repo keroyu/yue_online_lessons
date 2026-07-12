@@ -9,6 +9,7 @@ const props = defineProps({
   newebpay: { type: Object, required: true },
   portaly: { type: Object, required: true },
   meta_pixel_id: { type: String, default: '' },
+  meta_capi: { type: Object, default: () => ({ access_token: '', access_token_preview: '', test_event_code: '' }) },
 })
 
 const form = useForm({
@@ -21,6 +22,8 @@ const form = useForm({
   newebpay_env: props.newebpay.env,
   portaly_webhook_key: '',
   meta_pixel_id: props.meta_pixel_id,
+  meta_capi_access_token: '',
+  meta_capi_test_event_code: props.meta_capi.test_event_code,
 })
 
 const submit = () => {
@@ -113,6 +116,20 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           <input type="text" v-model="form.meta_pixel_id" :class="inputClasses" placeholder="1287511383482442" />
           <p class="mt-1 text-xs text-gray-500">留空表示停用 Meta Pixel（頁面不輸出任何 fbq 代碼）</p>
           <p v-if="form.errors.meta_pixel_id" class="mt-1 text-sm text-red-600">{{ form.errors.meta_pixel_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">Conversions API Access Token</label>
+          <input type="password" v-model="form.meta_capi_access_token" :class="inputClasses" :placeholder="meta_capi.access_token_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">在 Meta 事件管理工具 → 設定 → Conversions API 產生；留空 = 不變更。未設定時僅瀏覽器 Pixel 追蹤、不送伺服器端事件</p>
+          <p v-if="form.errors.meta_capi_access_token" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_access_token }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">測試事件代碼（test_event_code）</label>
+          <input type="text" v-model="form.meta_capi_test_event_code" :class="inputClasses" placeholder="TEST12345" />
+          <p class="mt-1 text-xs text-gray-500">填入後伺服器端事件會出現在事件管理工具的「測試事件」頁籤；驗證完請清空，否則事件不會進正式數據</p>
+          <p v-if="form.errors.meta_capi_test_event_code" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_test_event_code }}</p>
         </div>
       </div>
 

@@ -16,6 +16,9 @@
     "app/Console/Commands/UpdateCourseStatus.php": [
       "004.us-5"
     ],
+    "app/Http/Controllers/Admin/AnalyticsController.php": [
+      "002.us-10"
+    ],
     "app/Http/Controllers/Admin/BroadcastController.php": [
       "012.us-5",
       "012.us-6"
@@ -32,6 +35,7 @@
       "006.us-4"
     ],
     "app/Http/Controllers/Admin/CourseController.php": [
+      "002.us-10",
       "002.us-8",
       "004.us-1",
       "004.us-2",
@@ -87,8 +91,12 @@
     "app/Http/Controllers/Admin/PostImageController.php": [
       "012.us-1"
     ],
+    "app/Http/Controllers/Admin/ReferralController.php": [
+      "007.us-8"
+    ],
     "app/Http/Controllers/Admin/SettingsController.php": [
       "000.us-5",
+      "000.us-7",
       "007.us-4",
       "007.us-5",
       "007.us-7"
@@ -105,9 +113,11 @@
       "009.us-6"
     ],
     "app/Http/Controllers/Auth/LoginController.php": [
+      "000.us-7",
       "001.us-1"
     ],
     "app/Http/Controllers/BlogController.php": [
+      "002.us-10",
       "012.us-2",
       "012.us-8"
     ],
@@ -120,6 +130,8 @@
       "006.us-6"
     ],
     "app/Http/Controllers/CheckoutController.php": [
+      "000.us-7",
+      "002.us-10",
       "002.us-8",
       "005.us-2",
       "005.us-3",
@@ -132,6 +144,7 @@
       "006.us-6"
     ],
     "app/Http/Controllers/CourseController.php": [
+      "002.us-10",
       "002.us-2",
       "002.us-8",
       "006.us-6",
@@ -196,6 +209,7 @@
       "005.us-5"
     ],
     "app/Http/Controllers/Purchase/FreePurchaseController.php": [
+      "000.us-7",
       "005.us-7",
       "010.us-5"
     ],
@@ -210,6 +224,9 @@
       "000.us-4",
       "012.us-2"
     ],
+    "app/Http/Controllers/TrackController.php": [
+      "002.us-10"
+    ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "005.us-6"
     ],
@@ -222,6 +239,9 @@
     ],
     "app/Http/Middleware/StaffMiddleware.php": [
       "000.us-6"
+    ],
+    "app/Http/Middleware/TrackTrafficSource.php": [
+      "002.us-10"
     ],
     "app/Http/Requests/AddToCartRequest.php": [
       "005.us-1"
@@ -339,6 +359,9 @@
       "010.us-3",
       "010.us-8"
     ],
+    "app/Jobs/SendMetaConversionJob.php": [
+      "000.us-7"
+    ],
     "app/Jobs/SubscribeDripLeadJob.php": [
       "010.us-4",
       "011.us-5"
@@ -401,6 +424,9 @@
       "004.us-2",
       "004.us-5"
     ],
+    "app/Models/CourseDailyStat.php": [
+      "002.us-10"
+    ],
     "app/Models/CourseImage.php": [
       "004.us-4"
     ],
@@ -437,6 +463,8 @@
       "012.us-6"
     ],
     "app/Models/Order.php": [
+      "000.us-7",
+      "002.us-10",
       "005.us-3",
       "006.us-3",
       "007.us-7"
@@ -450,6 +478,9 @@
     "app/Models/Post.php": [
       "012.us-1",
       "012.us-8"
+    ],
+    "app/Models/PostCtaClick.php": [
+      "002.us-10"
     ],
     "app/Models/PostImage.php": [
       "012.us-1"
@@ -499,6 +530,8 @@
       "005.us-5"
     ],
     "app/Services/CheckoutService.php": [
+      "000.us-7",
+      "002.us-10",
       "005.us-3",
       "005.us-4",
       "006.us-3",
@@ -528,17 +561,22 @@
       "011.us-5"
     ],
     "app/Services/HighTicketBookingService.php": [
+      "000.us-7",
       "011.us-2"
     ],
     "app/Services/HighTicketLeadService.php": [
       "011.us-4",
       "011.us-5"
     ],
+    "app/Services/MetaConversionsService.php": [
+      "000.us-7"
+    ],
     "app/Services/NewebpayService.php": [
       "005.us-3",
       "005.us-4"
     ],
     "app/Services/NewsletterService.php": [
+      "000.us-7",
       "012.us-4",
       "012.us-7"
     ],
@@ -553,6 +591,7 @@
       "007.us-6"
     ],
     "app/Services/PortalyWebhookService.php": [
+      "000.us-7",
       "005.us-6",
       "010.us-4",
       "010.us-5"
@@ -568,7 +607,14 @@
     "app/Services/ReferralService.php": [
       "007.us-2",
       "007.us-5",
-      "007.us-7"
+      "007.us-7",
+      "007.us-8"
+    ],
+    "app/Services/SiteAnalyticsService.php": [
+      "002.us-10"
+    ],
+    "app/Services/TrafficSourceService.php": [
+      "002.us-10"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -583,10 +629,15 @@
       "003.us-2"
     ],
     "bootstrap/app.php": [
-      "000.us-6"
+      "000.us-6",
+      "000.us-7",
+      "002.us-10"
     ],
     "config/drip.php": [
       "010.us-10"
+    ],
+    "config/services.php": [
+      "000.us-4"
     ],
     "database/migrations/0001_01_01_000000_create_users_table.php": [
       "001.us-1"
@@ -716,6 +767,18 @@
     "database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php": [
       "000.us-6"
     ],
+    "database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php": [
+      "000.us-7"
+    ],
+    "database/migrations/2026_07_12_000002_create_course_daily_stats_table.php": [
+      "002.us-10"
+    ],
+    "database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php": [
+      "002.us-10"
+    ],
+    "database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php": [
+      "002.us-10"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -741,6 +804,9 @@
     ],
     "resources/js/Components/Admin/PostForm.vue": [
       "012.us-1"
+    ],
+    "resources/js/Components/Admin/ReferrerDetailModal.vue": [
+      "007.us-8"
     ],
     "resources/js/Components/Admin/RevenueChart.vue": [
       "009.us-6"
@@ -870,7 +936,11 @@
     ],
     "resources/js/Layouts/AdminLayout.vue": [
       "000.us-2",
-      "000.us-6"
+      "000.us-6",
+      "002.us-10"
+    ],
+    "resources/js/Pages/Admin/Analytics/Index.vue": [
+      "002.us-10"
     ],
     "resources/js/Pages/Admin/Broadcasts/Index.vue": [
       "012.us-5"
@@ -964,10 +1034,14 @@
       "012.us-1",
       "012.us-8"
     ],
+    "resources/js/Pages/Admin/Settings/Payment.vue": [
+      "000.us-7"
+    ],
     "resources/js/Pages/Admin/Settings/Points.vue": [
       "007.us-4",
       "007.us-5",
-      "007.us-7"
+      "007.us-7",
+      "007.us-8"
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "009.us-1",
@@ -1048,6 +1122,7 @@
       "000.us-4"
     ],
     "resources/js/composables/useCart.js": [
+      "002.us-10",
       "005.us-1"
     ],
     "resources/js/composables/useNotifications.js": [
@@ -1055,6 +1130,7 @@
     ],
     "resources/views/app.blade.php": [
       "000.us-4",
+      "000.us-7",
       "012.us-2"
     ],
     "resources/views/emails/batch-email.blade.php": [

@@ -13,8 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            \App\Http\Middleware\TrackTrafficSource::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
+
+        // _fbp/_fbc are set by fbevents.js (not Laravel-encrypted); tf_* are
+        // first-party attribution cookies stored as plain JSON (002 US10).
+        // Without the exclusion $request->cookie() decrypts them to null.
+        $middleware->encryptCookies(except: ['_fbp', '_fbc', 'tf_first', 'tf_last']);
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,

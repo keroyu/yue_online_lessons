@@ -50,6 +50,16 @@ class HighTicketBookingService
             'booked_at' => now(),
         ]);
 
+        // High-ticket booking is the Lead conversion for ad optimization (000 US7).
+        $meta = app(MetaConversionsService::class);
+        $meta->send('Lead', array_merge($meta->userDataFromRequest(request()), [
+            'em' => $meta->hashEmail($data['email']),
+        ]), [
+            'content_ids'  => [$course->id],
+            'content_type' => 'product',
+            'content_name' => $course->name,
+        ]);
+
         return ['success' => true];
     }
 }

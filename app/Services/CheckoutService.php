@@ -106,13 +106,15 @@ class CheckoutService
             ];
         }
 
-        $sourceKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid'];
+        $sourceKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer_domain', 'gclid', 'fbclid', 'ttclid', 'meta_fbp', 'meta_fbc'];
 
-        return DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $payable, $couponFields, $referralFields, $trafficSource, $sourceKeys) {
+        $order = DB::transaction(function () use ($userId, $courseIds, $buyer, $courses, $gateway, $payable, $couponFields, $referralFields, $trafficSource, $sourceKeys) {
             $sourceData = [];
             foreach ($sourceKeys as $key) {
                 $sourceData[$key] = $trafficSource[$key] ?? null;
             }
+            // First-touch snapshot (002 US10); existing columns stay last-touch.
+            $sourceData['first_touch'] = $trafficSource['first_touch'] ?? null;
 
             $order = Order::create(array_merge([
                 'user_id'           => $userId,
@@ -144,6 +146,11 @@ class CheckoutService
             $order->refresh();
             return $order;
         });
+
+        // Funnel stage counter (002 US10) — outside the transaction, degrades silently.
+        app(SiteAnalyticsService::class)->recordCheckout($order->load('items'));
+
+        return $order;
     }
 
     /**
@@ -231,7 +238,41 @@ class CheckoutService
             $referralService->evaluateActivation($user);
         });
 
+        $this->sendCapiPurchase($order);
+
+        // Funnel stage counter (002 US10).
+        app(SiteAnalyticsService::class)->recordPurchase($order);
+
         return $purchases;
+    }
+
+    /**
+     * CAPI Purchase after fulfillment (000 US7). Same eventID as the browser
+     * pixel on Success.vue so Meta dedupes; fbp/fbc come from the checkout-time
+     * snapshot because no browser cookies exist at webhook time.
+     */
+    private function sendCapiPurchase(Order $order): void
+    {
+        $meta = app(MetaConversionsService::class);
+
+        $meta->send(
+            'Purchase',
+            [
+                'em'          => $meta->hashEmail($order->buyer_email),
+                'ph'          => $meta->hashPhone($order->buyer_phone),
+                'external_id' => $order->user_id ? (string) $order->user_id : null,
+                'fbp'         => $order->meta_fbp,
+                'fbc'         => $order->meta_fbc,
+            ],
+            [
+                'value'        => (float) $order->total_amount,
+                'currency'     => 'TWD',
+                'content_ids'  => $order->items->pluck('course_id')->all(),
+                'content_type' => 'product',
+                'num_items'    => $order->items->count(),
+            ],
+            'purchase_' . $order->merchant_order_no,
+        );
     }
 
     private function firstOrCreatePurchase(User $user, OrderItem $item, Order $order, string $gateway, int $discountAmount = 0): array

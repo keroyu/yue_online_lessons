@@ -35,6 +35,10 @@ return [
         ],
     ],
 
+    'meta' => [
+        'pixel_id' => env('META_PIXEL_ID'),
+    ],
+
     'portaly' => [
         'webhook_key' => env('PORTALY_WEBHOOK_KEY'),
     ],

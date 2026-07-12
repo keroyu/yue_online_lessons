@@ -29,6 +29,11 @@ class CourseController extends Controller
 
         $this->captureTrafficSource($request);
 
+        // Daily view counter (002 US10) — skip admin preview of drafts.
+        if (!$isPreviewMode) {
+            app(\App\Services\SiteAnalyticsService::class)->recordView($course, $request);
+        }
+
         // Drip course subscription info
         $isDrip = $course->is_drip;
         $hasPreviewLessons = !$isDraft && !$isDrip && $course->hasPreviewLessons();
@@ -87,43 +92,12 @@ class CourseController extends Controller
         ]);
     }
 
+    /**
+     * Traffic source capture moved to the site-wide TrackTrafficSource
+     * middleware (002 US10); only the coupon capture stays page-specific.
+     */
     private function captureTrafficSource(Request $request): void
     {
-        $trafficData = [];
-
-        $utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-        foreach ($utmKeys as $key) {
-            $val = $request->query($key);
-            if ($val !== null && trim($val) !== '') {
-                $trafficData[$key] = mb_substr(trim($val), 0, 100);
-            }
-        }
-
-        $clickIdKeys = ['gclid', 'fbclid', 'ttclid'];
-        foreach ($clickIdKeys as $key) {
-            $val = $request->query($key);
-            if ($val !== null && trim($val) !== '') {
-                $trafficData[$key] = mb_substr(trim($val), 0, 255);
-            }
-        }
-
-        $referer = $request->server('HTTP_REFERER');
-        if ($referer) {
-            $host = parse_url($referer, PHP_URL_HOST);
-            if ($host) {
-                $host = preg_replace('/^www\./', '', $host);
-                $ownHost = preg_replace('/^www\./', '', parse_url(config('app.url'), PHP_URL_HOST) ?? '');
-                $blacklist = [$ownHost, 'payuni.com.tw', 'newebpay.com'];
-                if (!in_array($host, $blacklist, true)) {
-                    $trafficData['referrer_domain'] = mb_substr($host, 0, 255);
-                }
-            }
-        }
-
-        if (!empty($trafficData)) {
-            $request->session()->put('traffic_source', $trafficData);
-        }
-
         // Capture shareable discount coupon (?coupon=CODE) alongside traffic attribution (US5).
         $couponParam = $request->query('coupon');
         if (is_string($couponParam) && trim($couponParam) !== '') {

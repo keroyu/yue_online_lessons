@@ -13,15 +13,27 @@ specs: specs/000-platform-core/
 
 main_files:
 - app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Controllers/Auth/LoginController.php
+- app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/SitemapController.php
 - app/Http/Middleware/AdminMiddleware.php
 - app/Http/Middleware/HandleInertiaRequests.php
 - app/Http/Middleware/StaffMiddleware.php
+- app/Jobs/SendMetaConversionJob.php
+- app/Models/Order.php
 - app/Models/SiteSetting.php
 - app/Providers/AppServiceProvider.php
+- app/Services/CheckoutService.php
+- app/Services/HighTicketBookingService.php
+- app/Services/MetaConversionsService.php
+- app/Services/NewsletterService.php
+- app/Services/PortalyWebhookService.php
 - bootstrap/app.php
+- config/services.php
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
+- database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
 - resources/js/Components/Layout/AppLayout.vue
 - resources/js/Components/Layout/Footer.vue
 - resources/js/Components/Layout/Navigation.vue
@@ -30,6 +42,7 @@ main_files:
 - resources/js/Components/Legal/PurchaseContent.vue
 - resources/js/Components/Legal/TermsContent.vue
 - resources/js/Layouts/AdminLayout.vue
+- resources/js/Pages/Admin/Settings/Payment.vue
 - resources/js/app.js
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
@@ -71,34 +84,51 @@ purpose: 門市前台 — 首頁（hero/精選課程/內容分類/部落格 RSS/
 specs: specs/002-storefront/
 
 main_files:
+- app/Http/Controllers/Admin/AnalyticsController.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/HomepageFeaturedCourseController.php
 - app/Http/Controllers/Admin/HomepageSettingController.php
 - app/Http/Controllers/Admin/SocialLinkController.php
+- app/Http/Controllers/BlogController.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/CourseController.php
 - app/Http/Controllers/HomeController.php
+- app/Http/Controllers/TrackController.php
+- app/Http/Middleware/TrackTrafficSource.php
 - app/Http/Requests/Admin/StoreFeaturedCourseRequest.php
 - app/Http/Requests/Admin/StoreSocialLinkRequest.php
 - app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
 - app/Models/Course.php
+- app/Models/CourseDailyStat.php
 - app/Models/HomepageFeaturedCourse.php
+- app/Models/Order.php
+- app/Models/PostCtaClick.php
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
+- app/Services/CheckoutService.php
+- app/Services/SiteAnalyticsService.php
+- app/Services/TrafficSourceService.php
+- bootstrap/app.php
 - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
 - database/migrations/2026_07_11_000001_rename_monetization_label_to_business_strategy.php
+- database/migrations/2026_07_12_000002_create_course_daily_stats_table.php
+- database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
+- database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Course/PriceDisplay.vue
 - resources/js/Components/CourseCard.vue
 - resources/js/Components/FeaturedCourses.vue
 - resources/js/Components/SectionHeader.vue
 - resources/js/Components/SocialLinks.vue
+- resources/js/Layouts/AdminLayout.vue
+- resources/js/Pages/Admin/Analytics/Index.vue
 - resources/js/Pages/Admin/Courses/Traffic.vue
 - resources/js/Pages/Admin/HomepageSettings/Edit.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Home.vue
+- resources/js/composables/useCart.js
 - routes/web.php
 
 related_specs:
@@ -282,6 +312,7 @@ specs: specs/007-points-referral/
 main_files:
 - app/Console/Commands/MaturePoints.php
 - app/Http/Controllers/Admin/MemberController.php
+- app/Http/Controllers/Admin/ReferralController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/Member/PointController.php
@@ -302,6 +333,7 @@ main_files:
 - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
 - database/migrations/2026_06_30_000004_add_referral_fields_to_orders_table.php
 - database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php
+- resources/js/Components/Admin/ReferrerDetailModal.vue
 - resources/js/Components/Cart/ReferralInput.vue
 - resources/js/Components/Course/RedeemButton.vue
 - resources/js/Components/MemberDetailModal.vue

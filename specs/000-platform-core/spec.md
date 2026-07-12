@@ -10,11 +10,15 @@ owner_files:
   - app/Http/Middleware/HandleInertiaRequests.php
   - app/Providers/AppServiceProvider.php
   - app/Models/SiteSetting.php
+  - app/Services/MetaConversionsService.php
+  - app/Jobs/SendMetaConversionJob.php
+  - database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
   - app/Console/Commands/ConvertHtmlToMarkdown.php
   - routes/web.php
   - routes/api.php
   - routes/console.php
   - bootstrap/app.php
+  - config/services.php
   - resources/css/app.css
   - database/migrations/0001_01_01_000001_create_cache_table.php
   - database/migrations/0001_01_01_000002_create_jobs_table.php
@@ -51,6 +55,33 @@ touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
     why: 新增 is_sales_consultant cast 與 isSalesConsultant()/canAccessSalesPanel() 權限判斷方法（StaffMiddleware 依賴）
+  - file: app/Services/CheckoutService.php
+    owner: 005-checkout
+    why: US7 — fulfillOrder 入帳後 dispatch CAPI Purchase 事件；initiate 時快照 _fbp/_fbc cookie 到 orders
+  - file: app/Http/Controllers/CheckoutController.php
+    owner: 005-checkout
+    why: US7 — 結帳 initiate 讀取 _fbp/_fbc cookie 傳給 CheckoutService
+  - file: app/Services/PortalyWebhookService.php
+    owner: 005-checkout
+    why: US7 — Portaly 訂單入帳後送 CAPI Purchase（無瀏覽器端對應）
+  - file: app/Http/Controllers/Purchase/FreePurchaseController.php
+    owner: 005-checkout
+    why: US7 — 免費領取成功後送 CAPI FreeEnroll 自訂事件
+  - file: resources/js/Pages/Admin/Settings/Payment.vue
+    owner: 005-checkout
+    why: US7 — API 設定頁加 CAPI access token（遮罩）與 test_event_code 欄位
+  - file: app/Services/HighTicketBookingService.php
+    owner: 011-high-ticket
+    why: US7 — 高價課預約成功後送 CAPI Lead 事件
+  - file: app/Http/Controllers/Auth/LoginController.php
+    owner: 001-auth-account
+    why: US7 — OTP 首次註冊建立 User 後送 CAPI CompleteRegistration
+  - file: app/Services/NewsletterService.php
+    owner: 012-newsletter
+    why: US7 — 電子報訂閱建立新 User 後送 CAPI CompleteRegistration
+  - file: app/Models/Order.php
+    owner: 005-checkout
+    why: US7 — fillable 增加 meta_fbp / meta_fbc（結帳時的 pixel cookie 快照欄位）
 ---
 
 # Platform Core（全站基礎設施）
@@ -105,8 +136,8 @@ touchpoints:
 **驗收**：
 - [x] `app.blade.php` 輸出 meta description、canonical、OG、Twitter Card；有 `$og` view 變數時用頁面專屬值（課程頁由 CourseController `view()->share('og', ...)` 提供），否則用全站預設文案
 - [x] `GET /sitemap.xml` 輸出已發佈課程清單（`is_published=true`），URL 優先用 `slug`、無 slug 退回 id，含 `lastmod`
-- [x] Meta Pixel ID 取自 `SiteSetting::get('meta_pixel_id')`（fallback env `META_PIXel_ID`）；有值才注入 Pixel script 並送 PageView
-- [x] SPA 導航時 `app.js` 監聽 `router.on('navigate')` 補送 `fbq('track', 'PageView')`
+- [x] Meta Pixel ID 取自 `SiteSetting::get('meta_pixel_id')`（fallback `config('services.meta.pixel_id')` ← env `META_PIXEL_ID`；不可在 blade 直接呼叫 `env()`，config:cache 後會失效）；有值才注入 Pixel script 並送 PageView
+- [x] SPA 導航時 `app.js` 監聽 `router.on('navigate')` 補送 `fbq('track', 'PageView')`；初始整頁載入的第一次 navigate 事件跳過（blade 注入的 snippet 已送過，避免重複計數）
 - [x] 頁面標題格式：`{title} - Your Time Bank`，無標題時 `Your Time Bank`
 
 ### User Story 5 - site_settings 全站設定機制 (Priority: P1)
@@ -137,6 +168,25 @@ touchpoints:
 - [x] 前台 Navigation 帳號選單：`user.role === 'admin' || user.is_sales_consultant` 顯示「管理後台」連結（admin → `/admin`，純銷售顧問 → `/admin/high-ticket-leads`）
 - [x] 銷售顧問直接輸入其他 `/admin/*` 網址（`/admin`、`/admin/members` 等）→ 被內層 `admin` middleware 擋下重導首頁
 
+### User Story 7 - Meta CAPI 轉換追蹤強化 (Priority: P1)
+
+行銷需要準確的轉換數據餵給 Meta 投放演算法：iOS ATT 與廣告攔截器讓純瀏覽器 Pixel 漏掉 20–40% 轉換。
+由 server 在業務事實發生點（金流入帳、表單送出、帳號建立）直送 Conversions API，
+與瀏覽器事件以 eventID 去重，並以 Advanced Matching（hashed email/phone）提升配對率。
+
+**驗收**：
+- [x] `MetaConversionsService::send(string $eventName, array $userData, array $customData = [], ?string $eventId = null, ?string $sourceUrl = null): void` — 組 payload 後 dispatch queued `SendMetaConversionJob`；`meta_pixel_id` 或 `meta_capi_access_token` 未設定時靜默 no-op
+- [x] `SendMetaConversionJob` POST `graph.facebook.com/v21.0/{pixel_id}/events`，失敗重試 3 次（backoff），最終失敗僅 log；`meta_capi_test_event_code` 有值時附 `test_event_code`（Events Manager 測試模式）
+- [x] PII 一律 SHA-256 後出站：email（lowercase + trim）、phone（去非數字、補國碼 886）；CAPI `user_data` 盡量附 `em/ph/client_ip_address/client_user_agent/fbp/fbc/external_id`（user id）
+- [x] 結帳 initiate 時快照 `_fbp`/`_fbc` cookie 存 `orders.meta_fbp/meta_fbc`（webhook 時刻無瀏覽器 cookie 可讀）
+- [x] `CheckoutService::fulfillOrder` 入帳後送 CAPI `Purchase`（eventID `purchase_{merchant_order_no}`，與 Success.vue 瀏覽器事件去重；value/currency/content_ids 同瀏覽器端）；Portaly webhook 入帳亦送（僅 CAPI，無瀏覽器對應）
+- [x] 高價課預約表單成功（`HighTicketBookingService::book`）送 CAPI `Lead`（content_name 課程名）
+- [x] 首次建立 User 送 CAPI `CompleteRegistration`：OTP 註冊（LoginController）`content_name: otp_register`、電子報訂閱（NewsletterService）`content_name: newsletter`；既有 user 重複登入/訂閱不送
+- [x] 免費領取課程成功（FreePurchaseController）送 CAPI 自訂事件 `FreeEnroll`（content_ids 課程 id）
+- [x] Advanced Matching（瀏覽器端）：登入用戶的 blade Pixel init 附 `{em: sha256(email)}`（server 端算好再輸出，原文不進 HTML）
+- [x] API 設定頁（Payment.vue）新增 CAPI access token（機密遮罩、留空不覆蓋）與 test_event_code（非機密）欄位
+- [x] 測試：hash 正規化、payload 結構、fulfillOrder / book / 註冊點以 `Queue::fake()` 驗證 job dispatch 與 no-op 條件
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -149,6 +199,9 @@ touchpoints:
 - **FR-008**: 後台存取分兩級 — `admin`（完整）與 `staff`（= admin ∪ sales_consultant，僅 coupons / coupon-chains / high-ticket-leads）。sales_consultant 一律不得進入 dashboard、members、transactions、settings、email-templates、courses 等 admin-only 路由
 - **FR-009**: 指派 / 移除銷售顧問身份僅 admin 可為（在 admin-only 的 members 路由下，見 008 US 9），銷售顧問無法自我或互相授權
 - **FR-010**: 銷售顧問維持一般會員身份（`role` 恆 `member` 不變），前台購課、教室、積分等行為完全不受影響；`is_sales_consultant` 與 `role` 正交
+- **FR-011**: CAPI 呼叫 MUST 走 queue（`SendMetaConversionJob`），不得同步阻塞金流 webhook 或表單回應；Meta API 失敗不得影響任何業務流程（訂單照常入帳、表單照常成功）
+- **FR-012**: PII（email/phone）MUST 經 SHA-256 正規化雜湊後才送 Meta，原文不出站；瀏覽器端 Advanced Matching 的 hash 由 server 計算後輸出，不在前端做
+- **FR-013**: 瀏覽器與 CAPI 同時存在的事件（目前僅 Purchase）MUST 帶相同 eventID 供 Meta 去重；單邊事件（Lead/CompleteRegistration/FreeEnroll）不需 eventID
 
 ## 設計決策
 
@@ -160,6 +213,11 @@ touchpoints:
 - **D6**: 銷售顧問用 `is_sales_consultant` 布林旗標，而非在 `role` enum 加值 — 顧問通常本身也是會員，旗標與 `role` 正交、可在會員列表一鍵開關、不動既有 `members()` scope 與 `isManageableMember()`（否決改 role：會使帳號離開 member 範圍、難兼具會員身份）
 - **D7**: 新增 `staff` middleware 並把 coupons / leads 路由移進內層群組，而非在既有 `admin` group 逐路由加判斷 — 集中一處控管、route name 與 controller 皆不動（既有 coupon / lead controller 無 `isAdmin()` 內檢，純靠 route middleware）
 - **D8**: 銷售顧問後台入口導向 `/admin/high-ticket-leads` 而非 dashboard — dashboard 含營收儀表板屬敏感、維持 admin-only
+- **D9**: CAPI Purchase 掛在 `CheckoutService::fulfillOrder`（PayUni/藍新共用的單一咽喉點）而非各 gateway controller — 一處整合、天然覆蓋未來新金流；Portaly 因走獨立 webhook service 另掛一處
+- **D10**: 免費領取送自訂事件 `FreeEnroll` 而非 `Purchase` value=0 或 `Lead` — 不汙染 Purchase 的出價優化訊號、與高價課 Lead 區隔；投免費課廣告時在 Events Manager 以 FreeEnroll 建自訂轉換即可優化
+- **D11**: Lead / CompleteRegistration / FreeEnroll 僅送 CAPI、不加瀏覽器端對應 — 這些動作的事實發生點就在 server（表單 POST、建帳號），單邊發送零去重複雜度；否決雙邊發送（要生成共享 eventID、收益趨近零）
+- **D12**: `_fbp`/`_fbc` 在結帳 initiate 快照進 orders 欄位 — Purchase 是 webhook 時刻發送，屆時無瀏覽器 cookie 可讀，不快照則 CAPI 事件無法歸因回廣告點擊
+- **D13**: CAPI access token 沿用 D3 機密欄位 pattern（DB 明文 + UI 遮罩 + 留空不覆蓋），與金流憑證同頁管理
 
 ## Schema
 
@@ -168,6 +226,8 @@ touchpoints:
   `referral_*` / `homework_reward_points`（012 積分）、首頁設定鍵（007）。
   不變量：`set()` 為 upsert，同 key 永遠只有一列；機密值無加密（依賴 DB 存取控管）。
 - `users.is_sales_consultant` — boolean 預設 false；標記該會員兼任銷售顧問（後台受限存取用）。與 `role` 正交，不影響 `members()` / `isManageableMember()` 的會員範圍判斷。（users 表基礎欄位歸 001）
+- `orders.meta_fbp` varchar(100) nullable / `orders.meta_fbc` varchar(255) nullable — 結帳 initiate 時的 `_fbp`/`_fbc` cookie 快照，供 webhook 時刻的 CAPI Purchase 歸因（orders 表主體歸 005，本欄位 migration 歸本模組）。
+- `site_settings` 新鍵：`meta_capi_access_token`（機密、遮罩）、`meta_capi_test_event_code`（非機密，空 = 正式發送）。
 
 ## Tasks
 
@@ -183,8 +243,31 @@ US 6（銷售顧問受限後台存取）：
 - [x] T007 [P] HandleInertiaRequests 共享的 `auth.user` 增加 `is_sales_consultant` in `app/Http/Middleware/HandleInertiaRequests.php`
 - [x] T008 [P] 前台 Navigation 帳號選單依角色顯示「管理後台」連結 in `resources/js/Components/Layout/Navigation.vue`
 
+US 7（Meta CAPI 轉換追蹤強化）：
+
+Phase 1 — 基建：
+- [x] T009 `MetaConversionsService`（send + hashEmail/hashPhone 正規化 helpers、no-op 條件）in `app/Services/MetaConversionsService.php`
+- [x] T010 `SendMetaConversionJob`（Graph API POST、tries=3 backoff、test_event_code、最終失敗僅 log）in `app/Jobs/SendMetaConversionJob.php`
+- [x] T011 [P] migration `orders.meta_fbp` / `orders.meta_fbc` in `database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php`
+- [x] T012 [P] API 設定頁加 `meta_capi_access_token`（遮罩、留空不覆蓋）與 `meta_capi_test_event_code` in `app/Http/Controllers/Admin/SettingsController.php`, `resources/js/Pages/Admin/Settings/Payment.vue`
+
+Phase 2 — 事件接點：
+- [x] T013 結帳 initiate 快照 `_fbp`/`_fbc` 到 orders in `app/Http/Controllers/CheckoutController.php`, `app/Services/CheckoutService.php`
+- [x] T014 `fulfillOrder` 與 Portaly webhook 入帳後送 CAPI Purchase（eventID `purchase_{merchant_order_no}`）in `app/Services/CheckoutService.php`, `app/Services/PortalyWebhookService.php`
+- [x] T015 [P] 高價課預約送 Lead in `app/Services/HighTicketBookingService.php`
+- [x] T016 [P] OTP 首次註冊 / 電子報訂閱建新 User 送 CompleteRegistration in `app/Http/Controllers/Auth/LoginController.php`, `app/Services/NewsletterService.php`
+- [x] T017 [P] 免費領取送 FreeEnroll in `app/Http/Controllers/Purchase/FreePurchaseController.php`
+- [x] T018 [P] blade Pixel init 附 server 端算好的 `{em: sha256(email)}` Advanced Matching in `resources/views/app.blade.php`
+
+Phase 3 — 驗證：
+- [x] T019 Feature/Unit 測試：hash 正規化、payload 結構、各接點 `Queue::fake()` 驗 dispatch、未設 token 時 no-op in `tests/Feature/MetaConversionsTest.php`
+
 ## 進度日誌
 
+- 2026-07-12: /dev 完成 US7 Meta CAPI 轉換追蹤強化 — MetaConversionsService + SendMetaConversionJob（queue、3 retries、test_event_code）、Purchase 掛 fulfillOrder/Portaly（eventID 去重）、Lead/CompleteRegistration/FreeEnroll、orders.meta_fbp/meta_fbc 快照（encryptCookies 排除 _fbp/_fbc）、blade Advanced Matching、API 設定頁 CAPI 欄位；順手修正 SettingsController 機密欄位「留空不覆蓋」被 ConvertEmptyStringsToNull 破功的既有 bug；MetaConversionsTest 10 tests。
+
+- 2026-07-12: [draft] 規劃 US 7 Meta CAPI 轉換追蹤強化 — Conversions API（queued job、Purchase 於 fulfillOrder/Portaly webhook 直送 + eventID 去重）、Advanced Matching（sha256 em/ph）、補 Lead/CompleteRegistration/FreeEnroll 事件、orders 快照 fbp/fbc、後台 CAPI token 欄位。
+- 2026-07-12: Meta Pixel 追蹤修正 — (1) blade 的 Pixel ID fallback 改走 `config('services.meta.pixel_id')`（原直接 `env()`，production config:cache 後恆為 null）；(2) app.js 跳過初始載入的 navigate 事件，消除首次進站 PageView 重複送兩次。AddToCart 時機修正記在 005。
 - 2026-07-12: 全域修正按鈕游標 — Tailwind v4 preflight 預設 button cursor:default，app.css @layer base 對非 disabled button 恢復 pointer；規則寫入 CLAUDE.md 與 constitution（可點元素必有 pointer + hover 樣式）
 
 - 2026-07-12: /dev 完成 US6 銷售顧問受限後台存取 — StaffMiddleware + staff alias、/admin 拆外層 auth + 內層 staff/admin 兩子群組（route name 不變）、側欄與前台入口依角色過濾、auth.user 共享 is_sales_consultant；SalesConsultantTest 8 tests、全套 108 passed。T001（Error.vue exception handler）為既有 backlog 未動

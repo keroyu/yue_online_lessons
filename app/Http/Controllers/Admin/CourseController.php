@@ -421,7 +421,7 @@ class CourseController extends Controller
             ->groupBy(
                 'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
                 'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
-                'orders.gclid', 'orders.fbclid', 'orders.ttclid'
+                'orders.gclid', 'orders.fbclid', 'orders.ttclid', 'orders.first_touch'
             )
             ->get()
             ->map(function ($row) {
@@ -481,7 +481,7 @@ class CourseController extends Controller
                 'order_items.unit_price',
                 'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
                 'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
-                'orders.gclid', 'orders.fbclid', 'orders.ttclid'
+                'orders.gclid', 'orders.fbclid', 'orders.ttclid', 'orders.first_touch'
             )
             ->orderByDesc('orders.created_at');
 
@@ -493,7 +493,7 @@ class CourseController extends Controller
             fputcsv($handle, [
                 '訂單編號', '購買時間', '購買者 Email', '金額',
                 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-                'referrer_domain', 'gclid', 'fbclid', 'ttclid',
+                'referrer_domain', 'gclid', 'fbclid', 'ttclid', 'first_touch',
             ]);
             $query->chunk(200, function ($rows) use ($handle) {
                 foreach ($rows as $row) {
@@ -511,6 +511,7 @@ class CourseController extends Controller
                         $row->gclid ?? '',
                         $row->fbclid ?? '',
                         $row->ttclid ?? '',
+                        $row->first_touch ?? '',
                     ]);
                 }
             });

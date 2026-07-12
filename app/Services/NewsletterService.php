@@ -45,6 +45,17 @@ class NewsletterService
 
         $user->save();
 
+        if ($created) {
+            // New member via newsletter signup → CompleteRegistration (000 US7).
+            $meta = app(MetaConversionsService::class);
+            $meta->send('CompleteRegistration', array_merge($meta->userDataFromRequest(request()), [
+                'em'          => $meta->hashEmail($email),
+                'external_id' => (string) $user->id,
+            ]), [
+                'content_name' => 'newsletter',
+            ]);
+        }
+
         return ['user' => $user, 'already' => $already, 'created' => $created];
     }
 

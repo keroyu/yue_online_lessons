@@ -44,7 +44,8 @@ export function useCart() {
     })
   }
 
-  const addToCart = async (courseId, { name = '', price = 0, thumbnail = null } = {}) => {
+  // Fire only after the item is actually added (not on failure or duplicate)
+  const trackAddToCart = (courseId, name, price) => {
     if (window.fbq) {
       window.fbq('track', 'AddToCart', {
         value:        Number(price) || 0,
@@ -54,11 +55,16 @@ export function useCart() {
         content_name: name,
       })
     }
+    // Site analytics beacon — single counting path for auth and guest carts
+    window.axios.post('/api/track/add-to-cart', { course_id: courseId }).catch(() => {})
+  }
 
+  const addToCart = async (courseId, { name = '', price = 0, thumbnail = null } = {}) => {
     if (isAuthenticated()) {
       try {
         const res = await window.axios.post('/api/cart/add', { course_id: courseId })
         cartCount.value = res.data.cartCount
+        trackAddToCart(courseId, name, price)
         return { success: true, cartCount: res.data.cartCount }
       } catch (e) {
         if (e.response?.status === 409) {
@@ -74,6 +80,7 @@ export function useCart() {
       if (!cart.some((i) => i.id === courseId)) {
         cart.push({ id: courseId, name, price, thumbnail })
         saveGuestCart(cart)
+        trackAddToCart(courseId, name, price)
       }
       cartCount.value = cart.length
       return { success: true, cartCount: cart.length }

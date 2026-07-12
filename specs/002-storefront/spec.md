@@ -30,6 +30,17 @@ owner_files:
   - resources/js/Pages/Course/Show.vue
   - resources/js/Pages/Admin/HomepageSettings/Edit.vue
   - resources/js/Pages/Admin/Courses/Traffic.vue
+  - app/Http/Middleware/TrackTrafficSource.php
+  - app/Services/TrafficSourceService.php
+  - app/Services/SiteAnalyticsService.php
+  - app/Http/Controllers/TrackController.php
+  - app/Http/Controllers/Admin/AnalyticsController.php
+  - app/Models/CourseDailyStat.php
+  - app/Models/PostCtaClick.php
+  - database/migrations/2026_07_12_000002_create_course_daily_stats_table.php
+  - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
+  - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
+  - resources/js/Pages/Admin/Analytics/Index.vue
 touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
@@ -42,10 +53,10 @@ touchpoints:
     why: site_settings 為全站共用 key-value 表，本模組只使用其中的鍵，不擁有資料表
   - file: database/migrations/2026_05_08_000001_add_utm_to_orders_table.php
     owner: 005-checkout
-    why: UTM/click id/referrer 欄位屬 orders 表；本模組只寫 session('traffic_source')，落庫由結帳流程完成
+    why: UTM/click id/referrer 欄位屬 orders 表；本模組以 cookie（TrafficSourceService）提供來源，落庫由結帳流程完成
   - file: app/Http/Controllers/CheckoutController.php
     owner: 005-checkout
-    why: 結帳建立訂單時讀取 session('traffic_source') 寫入 orders 的 utm 欄位
+    why: 結帳建立訂單時讀取 tf_first/tf_last cookie（TrafficSourceService）寫入 orders 來源欄位與 first_touch
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
     why: traffic()/trafficExport() 兩個方法提供來源統計查詢與 CSV 匯出（頁面 Traffic.vue 屬本模組）
@@ -54,7 +65,22 @@ touchpoints:
     why: content_category 欄位屬 courses 表；首頁分類篩選只讀取此欄位
   - file: routes/web.php
     owner: 000-platform-core
-    why: US9 新增 DELETE /admin/homepage/sns-profile-image 路由（移除站長形象圖，鏡射 deleteBanner）
+    why: US9 新增 DELETE /admin/homepage/sns-profile-image 路由（移除站長形象圖，鏡射 deleteBanner）；US10 新增 /go/post/{post}/course/{course}、POST /api/track/add-to-cart、GET /admin/analytics
+  - file: bootstrap/app.php
+    owner: 000-platform-core
+    why: US10 — 註冊 TrackTrafficSource 全站 web middleware
+  - file: app/Services/CheckoutService.php
+    owner: 005-checkout
+    why: US10 — 建單時改讀 cookie 雙觸點（TrafficSourceService）寫 orders 來源欄位 + first_touch；建單/入帳時呼叫 SiteAnalyticsService recordCheckout/recordPurchase
+  - file: resources/js/composables/useCart.js
+    owner: 005-checkout
+    why: US10 — 加購成功後發 /api/track/add-to-cart beacon（auth/guest 單一計數路徑）
+  - file: app/Http/Controllers/BlogController.php
+    owner: 012-newsletter
+    why: US10 — related_course.url 改組 /go redirect 計數連結（Show.vue 沿用 url prop 無須改動）
+  - file: resources/js/Layouts/AdminLayout.vue
+    owner: 000-platform-core
+    why: US10 — 側欄新增「行銷分析」入口（admin-only）
 ---
 
 # Storefront（門市前台）
@@ -63,7 +89,7 @@ touchpoints:
 
 給訪客的門面：首頁（hero、課程列表、分類篩選、右側欄 widget）與課程銷售頁；
 給管理員的首頁後台設定（hero / SNS / RSS / 精選課程 / 側欄排序 / 內容分類）；
-以及行銷追蹤（銷售頁 UTM 捕捉 → 訂單來源統計頁）。
+以及行銷追蹤（全站 UTM/流量捕捉 → 課程漏斗分析與訂單來源統計頁）。
 
 ## User Stories
 
@@ -180,11 +206,29 @@ touchpoints:
 - [x] 整區仍受 `sns_section_enabled` 控制：關閉時含頭像/介紹的整個 SNS 區塊隱藏
 - [x] 後台上傳區標註建議尺寸（正方形，建議 400×400，前台圓形顯示）
 
+### User Story 10 - 全站流量追蹤與轉換漏斗分析 (Priority: P1)
+
+現況只做「轉換歸因」（付款訂單才落庫），看不到沒買的流量，課程頁也沒有任何瀏覽數；
+UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟失）、存 session（關瀏覽器就斷）。
+本故事把捕捉全站化 + cookie 7 天雙觸點，補上課程瀏覽數與文章 CTA 點擊計數，
+並提供「瀏覽→加購→結帳→成交」漏斗報表對照 Meta 後台數據。
+
+**驗收**：
+- [x] `TrackTrafficSource` middleware 掛全站 web 群組（GET 且非 admin/api 路徑）：有 UTM/click id → 記新來源；否則有外部 referrer（黑名單沿用 FR-004）→ 記 referrer 來源；欄位與截斷規則沿用 FR-010
+- [x] 雙觸點 cookie 各存 7 天：`tf_first`（只在不存在時寫入）、`tf_last`（每次新來源覆蓋）；`CourseController::show` 內的舊 session 捕捉邏輯移除，統一走 middleware
+- [x] 建單時 orders 來源欄位改由 `TrafficSourceService::lastTouch()` 提供（語意不變 = 最後觸點），另存 `orders.first_touch` JSON；Traffic CSV 匯出加 first_touch 欄位
+- [x] `SiteAnalyticsService::recordView(Course, Request)`：爬蟲 UA 過濾 + 同 session 同日去重後，upsert `course_daily_stats`（course × date × channel）`views + 1`；channel 由 `TrafficSourceService::classifyChannel()`（server 版歸類：click id → paid、utm/referrer 比對 → social/search/email/video/referral、無 → direct）
+- [x] `POST /api/track/add-to-cart`（IP throttle）：useCart 加購成功後 beacon，`add_to_cart + 1`；auth/guest 同一路徑
+- [x] 建單時 `checkouts + 1`、入帳時 `purchases + 1`／`revenue + unit_price`（皆按訂單 last touch 的 channel、逐 order item 課程計）
+- [x] `GET /go/post/{post}/course/{course}`：`post_cta_clicks`（post × course × date）`clicks + 1` 後 302 到課程頁並附 `utm_source=blog&utm_medium=cta&utm_campaign={post_slug}`；Blog Show.vue CTA 改走此連結
+- [x] `GET /admin/analytics`（admin-only）漏斗報表：課程 × 期間（7/30/90/全部）的 views→add_to_cart→checkouts→purchases 各階段數字與轉換率、營收；可切 channel 檢視；另列文章引流區塊（post → course 點擊數）；空狀態與手機橫向捲動比照 Traffic.vue
+- [x] 測試：middleware 捕捉/覆蓋規則、bot 過濾與去重、beacon throttle、redirect 計數、漏斗數字聚合正確
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
 - **FR-002**: 首頁與銷售頁對訪客 MUST 無錯誤降級：RSS 失敗、精選課程失聯、hero 未設定，皆隱藏區塊而非出錯。
-- **FR-003**: 來源捕捉 MUST 在銷售頁（進站點）發生、以 session 傳遞；只有付款完成的訂單才進入統計（歸因於「帶來購買」而非「帶來流量」）。
+- **FR-003**: 來源捕捉 MUST 由全站 middleware 進行、以 cookie 傳遞（首次 + 最後觸點各 7 天）；訂單歸因用最後觸點（既有 orders 欄位語意不變）。（原「僅銷售頁 + session + 只記轉換」設計由 US10 取代）
 - **FR-004**: referrer 黑名單 MUST 含自站網域與金流回跳網域（payuni.com.tw、newebpay.com），避免付款回跳覆蓋真實來源。
 - **FR-005**: 課程路由綁定 MUST 先以 slug 再 fallback id 解析（`Course::resolveRouteBinding`），舊 id 連結不失效。
 - **FR-006**: 分類 slug 改名 cascade 以「格位」比對新舊值，僅在同格位 slug 變更時執行，避免誤改。
@@ -195,12 +239,15 @@ touchpoints:
 - **FR-011**: 首頁課程查詢 MUST 用 select 白名單欄位＋map 輸出，不得整包 model 傳給前端（避免洩漏後台欄位）。
 - **FR-012**: 站長形象圖存於 `Storage::disk('public')` 的 `sns-profile/` 目錄；替換或刪除時 MUST 一併刪除舊檔（比照 FR-008 hero banner）。
 - **FR-013**: 站長介紹上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server `max:500`）；圖與文皆為 nullable，任一為空即該元素不渲染。
+- **FR-014**: 流量計數 MUST 存日彙總（course × date × channel），不得存 raw page view 事件列；彙總 upsert MUST 用原子增量（`increment` / `ON DUPLICATE KEY UPDATE`），不可讀改寫。
+- **FR-015**: 瀏覽計數 MUST 過濾爬蟲 UA（bot/crawl/spider/slurp/facebookexternalhit/headless 等 regex）並以 session key 做同課程同日去重；beacon 端點 MUST IP throttle。
+- **FR-016**: 追蹤相關失敗（cookie 缺失、聚合寫入異常）MUST 靜默降級，不得影響頁面回應或結帳流程。
 
 ## 設計決策
 
 - **D1**: 首頁所有設定集中在 site_settings key-value 表而非專用資料表 — 欄位增減免 migration；結構化資料（分類、側欄順序）以 JSON 字串存放並在讀取端正規化。
 - **D2**: 分類/類型篩選在前端做（Vue computed），不打 API — 課程總量小，一次載入後即時切換體驗最好；被否決：後端 query string 篩選。
-- **D3**: UTM 先存 session、結帳時落庫到 orders — 訪客瀏覽不產生資料列，只有轉換才記錄；被否決：page view 級追蹤表（量大且本平台只關心購買歸因）。
+- **D3**: （US10 取代）原設計「UTM 存 session、只有轉換落庫」— 已由 middleware + cookie 雙觸點（D12）與日彙總流量表（D13）取代；「不存 raw page view」的原始顧慮仍成立，由彙總表解決。
 - **D4**: 社群連結不做拖曳排序（建立順序即顯示順序），精選課程與側欄 widget 才有拖曳 — 依 007 澄清決議，SNS 順序調整頻率極低。
 - **D5**: 精選課程允許同課程重複加入 — 每筆可帶不同活動文案（blurb），資料表無 unique 限制。
 - **D6**: `SubstackArticles.vue` 為 004 時期舊元件，已無任何引用（現用 `BlogArticles.vue`）— 保留於 owner_files 等待清理。
@@ -209,6 +256,12 @@ touchpoints:
 - **D9**: hero 標題/說明等文字設定不設預設值 fallback 於前端 — 由 `HomepageSettingsSeeder` 播種初始值，前端只負責「空值不渲染」。
 - **D10**: 站長形象圖片與介紹沿用 site_settings KV（`sns_profile_image_path` / `sns_profile_intro`）＋圖片存 public disk，**不加欄位、不建表、不 migration** — 屬單例全站設定，與 D1、hero banner 完全同構。圖片移除比照 hero banner 走獨立路由（`deleteSnsProfileImage`，鏡射 `deleteBanner`）。
 - **D11**: `courses.description` 定位為銷售頁開場 lead（課程資訊列下方、Markdown 介紹上方，含裝飾框；原 Banner 漸層上的裸文字版被使用者否決）— 欄位分工：`tagline` 一句話（卡片/CTA）→ `description` 一段話（銷售頁開場簡介）→ `description_md` 完整長文；原本 description 僅在無 Markdown 時作 fallback、形同死欄位。純前端調整 Show.vue，controller 已傳 description、無後端/schema 變更（否決：廢除欄位併入 Markdown — 損失結構化簡介，未來 SEO/摘要用得上）
+- **D12**: 來源捕捉搬進全站 `TrackTrafficSource` middleware + cookie 雙觸點（`tf_first` 只寫一次、`tf_last` 新來源即覆蓋，各 7 天）— 廣告導首頁/部落格不再丟失來源、跨 session 歸因；session 捕捉廢用。首末觸點都留才能看出「廣告帶認識、電子報促下單」路徑。
+- **D13**: 流量計數用 `course_daily_stats` 日彙總 upsert（course × date × channel 一列），不存 raw event — 表尺寸 = 課程數 × 天數 × ~7 管道，永遠很小；否決 raw page view 表（爆量、本平台不需要逐筆回放）。
+- **D14**: 漏斗四階段（views/add_to_cart/checkouts/purchases + revenue）全部進同一張彙總表計數器 — 報表查詢零 join、channel 歸類只在事件當下算一次；否決查詢時從 orders 重算（歸類邏輯要重複執行、頁面慢）。代價：計數器與 orders 可能有微小出入（重送 webhook 等），報表定位為趨勢參考、金額對帳仍以 009 交易後台為準。
+- **D15**: AddToCart 計數統一走前端 beacon（加購成功後發）— guest 加購只存 localStorage、server 無從得知，beacon 是唯一能同時覆蓋 auth/guest 的單一路徑；IP throttle 防灌水。
+- **D16**: channel 歸類邏輯做成 server 版 `TrafficSourceService::classifyChannel()`（彙總表寫入用）；Traffic.vue 既有前端 regex 歸類保留不動（US8 行為不變），規則以 server 版為準、前端版待日後收斂 — 否決本次一併重構（擴大 blast radius）。
+- **D17**: 文章引流 CTA 用 `/go` redirect 端點計數後 302 帶 UTM — 不依賴 JS、離站前必經；否決 JS beacon（點擊即離頁、beacon 易丟失）。
 
 ## Schema
 
@@ -216,7 +269,11 @@ touchpoints:
 - `homepage_featured_courses` — 首頁精選課程；`course_id` FK cascadeOnDelete、`blurb` varchar(500) nullable（空則前台 fallback 課程名）、`sort_order` 拖曳重排時整批改寫。
 - site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
 - **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
-- 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 本模組寫 session、讀統計。
+- 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 語意 = 最後觸點；US10 起由 cookie（TrafficSourceService）提供、middleware 捕捉。
+- `course_daily_stats`（US10 新表）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`)、index(`date`)。不變量：只增不改（原子 increment），channel 值域 = paid/social/search/email/video/referral/direct。
+- `post_cta_clicks`（US10 新表）— `post_id` FK cascadeOnDelete、`course_id` FK cascadeOnDelete、`date`、`clicks` unsigned int；unique(`post_id`,`course_id`,`date`)。
+- `orders.first_touch`（US10 新欄）— JSON nullable，首次觸點完整來源快照；既有欄位（最後觸點）不動。
+- cookie：`tf_first` / `tf_last` — JSON（UTM 五參數 + click ids + referrer_domain + ts），7 天，`SameSite=Lax`，非機密不加密簽章亦可（僅統計用途）。
 
 ## Tasks
 
@@ -237,8 +294,36 @@ Phase B — 前端
 - [x] T007 Banner 下方新增課程簡介 lead 區塊（description 非空才渲染，max-w-3xl 置中、text-lg sm:text-xl、whitespace-pre-line），並移除第 4 區 Markdown 段的 description fallback in resources/js/Pages/Course/Show.vue
 - [x] T008 驗證：npm run build exit 0；有/無 description、無 description_md 三種課程呈現正確 + 手機 RWD in resources/js/Pages/Course/Show.vue
 
+### US10 - 全站流量追蹤與轉換漏斗分析
+
+Phase A — 捕捉層：
+- [x] T009 `TrafficSourceService`（capture 規則、tf_first/tf_last cookie 讀寫、classifyChannel、isBot）in app/Services/TrafficSourceService.php
+- [x] T010 `TrackTrafficSource` middleware（web GET、排除 admin/api）＋ bootstrap 註冊 in app/Http/Middleware/TrackTrafficSource.php, bootstrap/app.php〔touchpoint 000〕
+- [x] T011 移除 `CourseController::show` 舊 session 捕捉；建單改讀 cookie 雙觸點、存 first_touch in app/Http/Controllers/CourseController.php, app/Services/CheckoutService.php〔touchpoint 005〕
+- [x] T012 [P] migration：course_daily_stats / post_cta_clicks / orders.first_touch ＋ 兩個 Model in database/migrations/, app/Models/CourseDailyStat.php, app/Models/PostCtaClick.php
+
+Phase B — 計數層：
+- [x] T013 `SiteAnalyticsService`（recordView/recordAddToCart/recordCheckout/recordPurchase/funnelReport，原子 increment）in app/Services/SiteAnalyticsService.php
+- [x] T014 `CourseController::show` 呼叫 recordView（bot 過濾＋session 去重）in app/Http/Controllers/CourseController.php
+- [x] T015 [P] `TrackController`：POST /api/track/add-to-cart（throttle）＋ GET /go/post/{post}/course/{course}（計數後 302 帶 UTM）＋ 路由 in app/Http/Controllers/TrackController.php, routes/web.php〔touchpoint 000〕
+- [x] T016 [P] useCart 加購成功後發 beacon in resources/js/composables/useCart.js〔touchpoint 005〕
+- [x] T017 [P] CheckoutService 建單/入帳呼叫 recordCheckout/recordPurchase in app/Services/CheckoutService.php〔touchpoint 005〕
+- [x] T018 [P] 文章 CTA 改走 /go 連結（url 由 BlogController 組，Show.vue 無須改）in app/Http/Controllers/BlogController.php〔touchpoint 012〕
+
+Phase C — 報表層：
+- [x] T019 `Admin/AnalyticsController::index`（期間/課程/channel 篩選，漏斗聚合 + 文章引流區塊）＋ admin 路由 in app/Http/Controllers/Admin/AnalyticsController.php, routes/web.php〔touchpoint 000〕
+- [x] T020 漏斗報表頁（階段數字、轉換率、營收、channel 切換、空狀態、RWD 橫向捲動）in resources/js/Pages/Admin/Analytics/Index.vue
+- [x] T021 AdminLayout 側欄加「行銷分析」（admin-only）in resources/js/Layouts/AdminLayout.vue〔touchpoint 000〕
+- [x] T022 Traffic CSV 匯出加 first_touch 欄位 in app/Http/Controllers/Admin/CourseController.php〔touchpoint 004〕
+
+Phase D — 驗證：
+- [x] T023 Feature 測試：middleware 捕捉/覆蓋、bot 過濾、同日去重、beacon throttle、/go 計數與 302、漏斗聚合數字 in tests/Feature/SiteAnalyticsTest.php
+
 ## 進度日誌
 
+- 2026-07-12: /dev 完成 US10 全站流量追蹤與轉換漏斗分析 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。
+
+- 2026-07-12: [draft] 規劃 US 10 全站流量追蹤與轉換漏斗分析 — TrackTrafficSource middleware + cookie 雙觸點（7 天）取代銷售頁 session 捕捉（FR-003/D3 就地改寫）、course_daily_stats 日彙總（views/atc/checkouts/purchases/revenue × channel）、post_cta_clicks + /go redirect、/admin/analytics 漏斗報表。
 - 2026-07-11: 簡介 lead 依回饋改版 — 移至課程資訊列下方，加裝飾框（cream 底 + gold 邊框 + 對角 corner accent）
 
 - 2026-07-11: /dev 完成銷售頁課程簡介 lead — Banner 漸層下方渲染 description（非空才顯示、pre-line），移除第 4 區 Markdown 段的 description fallback；npm build 與 php artisan test（93 passed）全綠
