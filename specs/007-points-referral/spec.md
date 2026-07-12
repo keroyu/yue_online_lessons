@@ -1,10 +1,11 @@
 ---
 id: 007-points-referral
-status: done
+status: draft
 owner_files:
   - app/Http/Controllers/Member/PointController.php
   - app/Http/Controllers/RedemptionController.php
   - app/Http/Controllers/ReferralController.php
+  - app/Http/Controllers/Admin/ReferralController.php
   - app/Http/Requests/Admin/GrantPointsRequest.php
   - app/Http/Requests/RedeemCourseRequest.php
   - app/Http/Requests/ValidateReferralRequest.php
@@ -16,6 +17,7 @@ owner_files:
   - app/Console/Commands/ReconcilePoints.php
   - resources/js/Components/Cart/ReferralInput.vue
   - resources/js/Components/Course/RedeemButton.vue
+  - resources/js/Components/Admin/ReferrerDetailModal.vue
   - resources/js/Pages/Member/Points.vue
   - resources/js/Pages/Admin/Settings/Points.vue
   - database/migrations/2026_05_10_000001_add_points_to_users_table.php
@@ -37,7 +39,10 @@ touchpoints:
     why: 結帳表單的 referral_code 欄位驗證（nullable, max:12）
   - file: app/Models/Order.php
     owner: 005-checkout
-    why: referrer_user_id / referral_rate / referral_reward_points 快照欄位與 referrer() 關聯由本模組 alter 引入，model 本體歸 005
+    why: referrer_user_id / referral_rate / referral_reward_points 快照欄位與 referrer() 關聯由本模組 alter 引入，model 本體歸 005；US8 唯讀讀取 referred_orders（Order where referrer_user_id）
+  - file: app/Models/Purchase.php
+    owner: 005-checkout
+    why: evaluateActivation 累計實付；US8 唯讀讀取推薦人本人交易紀錄（Purchase where user_id，含 course/order 關聯）
   - file: resources/js/Pages/Checkout/Index.vue
     owner: 005-checkout
     why: 結帳頁掛載 ReferralInput 元件（獨立於折扣碼欄位）
@@ -61,7 +66,7 @@ touchpoints:
     why: showPoints / updatePoints 讀寫本模組 5 組 site_settings 鍵；showPoints 另帶入 ReferralService::performanceRows 的推薦成效（US5 併入本頁）
   - file: routes/web.php
     owner: 000-platform-core
-    why: /admin/settings/points（積分與推薦）路由；舊 /admin/referrals 改為 redirect 至此
+    why: /admin/settings/points（積分與推薦）路由；舊 /admin/referrals 改為 redirect 至此；US8 新增 GET /admin/referrals/{user}/detail（admin-only）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: 5 組設定鍵（referral_threshold_amount / referral_reward_rate / homework_reward_points / referral_maturity_days / referral_discount_amount）沿用 KV 基礎建設
@@ -165,7 +170,24 @@ touchpoints:
 - [x] 買家改 Email 清除推薦碼時，折抵同步自前端摘要移除；guest 買家同樣享有折抵
 - [x] 設定值修改僅影響之後建立的訂單，既有訂單快照不變
 
+### User Story 8 - 推薦人明細檢視 (Priority: P3)
+
+管理員在「積分與推薦 → 推薦成效」的推薦人列表點任一列，開啟該推薦人明細 modal，唯讀檢視三區：
+(1) 積分帳本（增減/兌換/回饋/派發），(2) 本人交易紀錄（他自己買了什麼），(3) 他帶進來的推薦訂單明細。
+
+**驗收**：
+- [ ] 推薦成效每列可點（或列末「查看」鈕）→ 開 `ReferrerDetailModal`，帶入 `referrer_user_id`
+- [ ] `GET /admin/referrals/{user}/detail`（admin-only）一次回 JSON：`referrer` 基本（name/email/code/current_points）、`point_transactions`、`own_transactions`、`referred_orders`（三組各取最新 50 筆）
+- [ ] 積分帳本每筆：時間、類型中文標籤、增減點數、是否成熟（沿用 008 `MemberDetailModal` 的 `POINT_TYPE_LABELS` 與 `is_matured = available_at <= now` 判定，shape 與 `MemberController@show` 一致）
+- [ ] 本人交易紀錄每筆：課程名、金額、狀態、類型標籤、商店訂單編號、時間（`Purchase where user_id = referrer`，最新優先）
+- [ ] 推薦訂單明細每筆：商店訂單編號、買家 email、實付金額、回饋積分、狀態、時間（`Order where referrer_user_id = referrer`，最新優先）
+- [ ] 三區各有載入中／空狀態；modal 支援 ESC／點背景關閉／body scroll lock／Teleport（比照 `MemberDetailModal`）
+- [ ] 純唯讀：無任何編輯／派發／退款入口（那些留在會員管理與交易管理）
+
 ## Requirements
+
+- **FR-022**: 推薦人明細為唯讀彙整；三組查詢各自 `limit(50)` 取最新，全部封裝於 `ReferralService::referrerDetail(User): array`，controller 僅轉呼叫（thin controller）。上限 50 為刻意截斷（與會員帳本 modal 一致），非全量。
+- **FR-023**: 明細端點 admin-only（隨 `/admin/settings/points` 同權限群組，銷售顧問／editor 不得存取）；`{user}` 路由綁定任意會員，但入口僅在推薦成效列（實際推薦人）提供。
 
 - **FR-001**: 每一筆積分異動 MUST 寫入 `point_transactions` 帳本（單一真相來源）；`users.points` 僅為「已成熟可用餘額」快取，只能由 `PointService` 在 `DB::transaction` 內寫入，禁止他處直接 increment。
 - **FR-002**: 可用積分 = 已成熟（`available_at <= now`）帳本淨額；未成熟回饋不計入可用、不可兌換。
@@ -215,6 +237,9 @@ touchpoints:
 - **D11**: 4 組參數沿用 `SiteSetting` KV — 全站單一值，行銷可調免改 code；專屬設定表為過度設計（否決）。
 - **D12**: 買家折抵為固定金額 site_settings KV（`referral_discount_amount`，預設 150）＋訂單快照欄位 — 沿 D11 KV 紀律與 D8 快照紀律；折抵只在 `createOrder` 一處入帳（否決：前端計算後傳入 — 不可信任；否決：折抵做成負值 order_item — 汙染品項統計）。
 - **D13**: 疊加順序固定「折扣碼 → 推薦折抵」，保底實付 1 元 — 與折扣碼 MIN_PAYABLE 同一底線，兩系統維持獨立驗證、互不知曉，只在 createOrder 依序扣減（否決：擇一互斥 — 前端需互鎖、行銷彈性差）。
+- **D14**: 推薦人明細做成推薦頁專屬唯讀 modal + 單一 JSON 端點，而非複用 008 `MemberDetailModal` — 後者含編輯/派發/贈課、綁 `/admin/members` 且範圍限 `isManageableMember`；推薦頁只需唯讀彙整，且多出「本人交易」與「推薦訂單」兩塊 008 沒有的資料，另建輕量 modal 較內聚、避免跨模組耦合。
+- **D15**: 三組資料合併於 `ReferralService::referrerDetail` 一次回傳（各 `limit(50)`），而非三個端點 — 一次開 modal 一次載入、減少往返；帳本沿用 `MemberController@show` 既有 shape，前端可共用同一組類型標籤。
+- **D16**: `performanceRows` map 輸出加 `referrer_user_id` 供列點擊帶入 — 既有查詢已 `select` 該欄，只需一併 map 出，零額外查詢。
 
 ## Schema
 
@@ -223,6 +248,8 @@ touchpoints:
 - `courses`（alter，表歸 004-course-admin）— `redeem_points`：null/0 = 不可兌換，>0 = 兌換所需點數；不綁課程類型。
 - `orders`（alter，表歸 005-checkout）— `referrer_user_id`（nullable FK, nullOnDelete）+ `referral_rate`（% 快照）+ `referral_reward_points`（結算快照）+ `referral_discount_amount`（unsignedInteger default 0，US7 買家折抵快照）；與折扣碼欄位並存互不干擾。
 - `site_settings`（seed，表歸 000-platform-core）— `referral_threshold_amount`(3000) / `referral_reward_rate`(10) / `homework_reward_points`(100) / `referral_maturity_days`(14，兼含回饋訂單退款期限) / `referral_discount_amount`(150，US7 買家折抵，0=停用)。
+
+US8 不新增資料表：讀 `point_transactions`（本模組表）＋ `purchases`／`orders`（005 表，唯讀彙整，各取最新 50）。
 
 ## Tasks
 
@@ -241,8 +268,24 @@ Phase B — 前端
 Phase C — 驗證
 - [x] T007 php artisan test 全綠 + npm run build exit 0；逐條對 US7 驗收
 
+### US8 - 推薦人明細檢視
+
+Phase A — 後端
+- [ ] T001 `ReferralService::referrerDetail(User): array` — 組 `point_transactions`(50)＋`own_transactions`(50)＋`referred_orders`(50)＋`referrer` 基本 in app/Services/ReferralService.php
+- [ ] T002 [P] `performanceRows` map 輸出加 `referrer_user_id` in app/Services/ReferralService.php
+- [ ] T003 `Admin/ReferralController::detail(User): JsonResponse` — thin，delegate to `referrerDetail` in app/Http/Controllers/Admin/ReferralController.php
+- [ ] T004 route `GET /admin/referrals/{user}/detail` → `admin.referrals.detail`（admin 群組，置於既有 `/referrals` redirect 之後）in routes/web.php〔touchpoint 000〕
+
+Phase B — 前端
+- [ ] T005 [P] `ReferrerDetailModal.vue` — axios 載入、三區、loading/空/ESC/backdrop/scroll-lock/Teleport in resources/js/Components/Admin/ReferrerDetailModal.vue
+- [ ] T006 Points.vue 推薦成效列可點開 modal，帶 `referrer_user_id` in resources/js/Pages/Admin/Settings/Points.vue
+
+Phase C — 驗證
+- [ ] T007 php artisan test 全綠 + npm run build exit 0；逐條對 US8 驗收
+
 ## 進度日誌
 
+- 2026-07-12: /spec 規劃 US8 推薦人明細檢視（推薦成效列點開唯讀 modal：積分帳本＋本人交易＋帶進來的推薦訂單，單一 detail JSON 端點，各取最新 50），status: draft 待審
 - 2026-07-11: /dev 完成 US7 推薦碼買家折抵 — orders 加 referral_discount_amount 快照、createOrder 折抵計價（coupon 後扣、保底 1 元）、validate-referral 回傳 discount、後台第 5 鍵設定欄位、結帳摘要折抵列；TDD ReferralDiscountTest 7 tests，全套 100 passed
 
 - 2026-07-11: /spec 規劃 US7 推薦碼買家折抵（預設 150、KV 可調、可疊加折扣碼、保底 1 元），status: draft 待審
