@@ -85,6 +85,7 @@ Need more search: yes/no
 - 所有頁面需 RWD
 - 不過度設計，先完成再優化
 - 敏感資料不進 git
+- **所有可點擊元素必須有 hover 回饋**：滑鼠游標變 pointer + 可見的 hover 樣式（`hover:bg-*`/`hover:text-*`）。`<button>` 的 pointer 已由 `app.css` 全域修正（Tailwind v4 preflight 預設是 `cursor: default`）；非 button 的可點元素（`<div>`/`<span>` 掛 `@click`）仍須手動加 `cursor-pointer`
 
 ## Key Dependencies
 

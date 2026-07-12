@@ -34,6 +34,16 @@ body {
     background-color: #F6F1E9;
 }
 
+/* Tailwind v4 preflight sets `button { cursor: default }` (v3 was pointer),
+   which is why new UI kept shipping buttons without a pointer cursor.
+   Restore the v3 behaviour globally; disabled buttons keep the default. */
+@layer base {
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+}
+
 /* Dotted fill used in SectionHeader (brand-navy dots, low opacity) */
 .section-dots {
     background-image: radial-gradient(circle, rgba(55, 53, 87, 0.22) 1.3px, transparent 1.3px);

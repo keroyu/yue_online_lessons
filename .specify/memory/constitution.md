@@ -155,6 +155,11 @@ All frontend code MUST use Vue 3 Composition API with `<script setup>`.
 - `defineProps()` with explicit types on every component
 - Tailwind utility classes for all styling — no custom CSS files
 - Mobile-first responsive design (`sm:`, `md:`, `lg:` breakpoints)
+- Every clickable element MUST give hover feedback: pointer cursor
+  (globally restored in `app.css` — Tailwind v4 preflight defaults
+  buttons to `cursor: default`) plus a visible hover style
+  (`hover:bg-*` / `hover:text-*`). Non-`<button>` clickables
+  (`<div>`/`<span>` with `@click`) still need `cursor-pointer` manually.
 
 **Practices NOT used in this project (do not introduce):**
 - Global state stores (Vuex/Pinia)
