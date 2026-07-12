@@ -10,6 +10,7 @@ const props = defineProps({
   submissions: Object,
   courses: Array,
   lessons: Array,
+  manageLessons: Array,
   filters: Object,
   assignmentsMap: Array,
 })
@@ -19,33 +20,38 @@ const page = usePage()
 const selectedCourseId = ref(props.filters.course_id ?? '')
 const selectedLessonId = ref(props.filters.lesson_id ?? '')
 const searchQuery = ref(props.filters.search ?? '')
+// 作業題目管理 has its own course picker (defaults to the newest-question course, server-side),
+// independent of the 學員提交列表 filter above.
+const selectedManageCourseId = ref(props.filters.manage_course_id ?? '')
+
+// Preserve every filter across each navigation so the two course pickers stay independent.
+const reload = (overrides) => {
+  router.get('/admin/homework', {
+    course_id: selectedCourseId.value || undefined,
+    lesson_id: selectedLessonId.value || undefined,
+    search: searchQuery.value || undefined,
+    manage_course_id: selectedManageCourseId.value || undefined,
+    ...overrides,
+  }, { preserveState: true, replace: true })
+}
 
 watch(selectedCourseId, (val) => {
   selectedLessonId.value = ''
-  router.get('/admin/homework', {
-    course_id: val || undefined,
-    search: searchQuery.value || undefined,
-  }, { preserveState: true, replace: true })
+  reload({ course_id: val || undefined, lesson_id: undefined })
 })
 
 watch(selectedLessonId, (val) => {
-  router.get('/admin/homework', {
-    course_id: selectedCourseId.value || undefined,
-    lesson_id: val || undefined,
-    search: searchQuery.value || undefined,
-  }, { preserveState: true, replace: true })
+  reload({ lesson_id: val || undefined })
 })
 
 let searchTimer = null
 watch(searchQuery, (val) => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    router.get('/admin/homework', {
-      course_id: selectedCourseId.value || undefined,
-      lesson_id: selectedLessonId.value || undefined,
-      search: val || undefined,
-    }, { preserveState: true, replace: true })
-  }, 300)
+  searchTimer = setTimeout(() => reload({ search: val || undefined }), 300)
+})
+
+watch(selectedManageCourseId, (val) => {
+  reload({ manage_course_id: val || undefined })
 })
 
 const renderMd = (md) => marked.parse(md || '', { breaks: true })
@@ -57,18 +63,18 @@ const previewMode = ref(false)
 
 const lessonsWithoutAssignment = computed(() => {
   const assignedLessonIds = new Set(props.assignmentsMap.map(a => a.lesson_id))
-  return props.lessons.filter(l => !assignedLessonIds.has(l.id))
+  return props.manageLessons.filter(l => !assignedLessonIds.has(l.id))
 })
 
-// Group lessons by chapter, with assignment status merged in
+// Group the 作業題目管理 course's lessons by chapter, with assignment status merged in
 const lessonGroups = computed(() => {
-  if (!selectedCourseId.value || !props.lessons.length) return []
+  if (!selectedManageCourseId.value || !props.manageLessons.length) return []
   const assignedMap = Object.fromEntries(props.assignmentsMap.map(a => [a.lesson_id, a]))
 
   const groups = []
   let currentChapterId = undefined
 
-  for (const lesson of props.lessons) {
+  for (const lesson of props.manageLessons) {
     if (lesson.chapter_id !== currentChapterId) {
       currentChapterId = lesson.chapter_id
       groups.push({ chapterId: lesson.chapter_id, chapterTitle: lesson.chapter_title, lessons: [] })
@@ -377,7 +383,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
           <h2 class="font-semibold text-gray-700">作業題目管理</h2>
           <div class="flex items-center gap-2 ml-auto">
             <label class="text-sm text-gray-500">篩選課程：</label>
-            <select v-model="selectedCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-brand-teal focus:border-brand-teal">
+            <select v-model="selectedManageCourseId" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-brand-teal focus:border-brand-teal">
               <option value="">請選擇課程</option>
               <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
@@ -385,7 +391,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
         </div>
 
         <!-- No course selected -->
-        <div v-if="!selectedCourseId" class="px-6 py-10 text-center text-sm text-gray-400">
+        <div v-if="!selectedManageCourseId" class="px-6 py-10 text-center text-sm text-gray-400">
           請先選擇課程，以管理各小節的作業題目
         </div>
 
@@ -468,7 +474,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                           </div>
                         </div>
                         <textarea v-if="!editPreview" v-model="editForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
-                        <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
+                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
@@ -489,7 +495,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                           </div>
                         </div>
                         <textarea v-if="!previewMode" v-model="assignmentForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
-                        <div v-else class="prose prose-sm max-w-none border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
+                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitAssignment(row.id)">建立題目</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="showAssignmentForm = null">取消</button>

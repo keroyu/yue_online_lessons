@@ -145,6 +145,7 @@ touchpoints:
 - [x] 題目 CRUD：`POST /admin/lessons/{lesson}/assignment` 建立、`PUT /admin/homework/{assignment}` 更新（`md_content` 上限 50000 字）；題目管理表格依 Chapter → Lesson sort_order 章節分組
 - [x] 題目只能「下架/上架」（`publish`/`unpublish` 切換 `is_published`），不提供永久刪除；下架後前台完全不顯示、資料保留、可重新上架
 - [x] 提交列表：預設全部課程最新提交倒序，`paginate(10)`；可依課程、小節篩選，另支援 `search`（email/nickname LIKE，300ms debounce），條件 AND 疊加、互不清空
+- [x] 作業題目管理的課程選單獨立於提交列表篩選（各自 URL 參數：`course_id` / `manage_course_id`）：列出全部課程（含尚無題目者，供補第一題）、依最新題目建立時間降序、無題目課程置底；未指定時預設選定「最新新增題目」的課程
 - [x] 折疊式列表（點標題列展開詳情）+ 右側滑入回覆面板（Escape/overlay 關閉）；已有回覆的提交顯示「已回覆」淺藍標記
 - [x] 回覆批改 `POST /admin/homework/{assignment}/comments`（parent_id 必填 = 學員頂層留言），成功後自動建立 reply 通知給該學員本人
 - [x] 管理員可編輯/刪除任何人的留言（updateComment / destroyComment）
@@ -209,5 +210,6 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-12: 修正作業題目管理課程選單 — 改列「全部課程」（不再過濾掉無題目課程，供補第一題），無題目課程置底；並將其課程選單自提交列表篩選解耦（獨立 `manage_course_id` 參數 + `manageLessons`），預設選定「最新新增題目」的課程。`$courses` join→leftJoin；`HomeworkController::lessonsForCourse()` 抽出共用。更新 `HomeworkCoursesTest`。
 - 2026-07-11: 作業批改頁課程下拉選單（學員提交列表＋作業題目管理共用）只列「有作業」的課程，並依該課程最新一筆作業建立時間降序排列（HomeworkController@index join+groupBy）。頁面／選單標題「作業批改專區」改「作業批改」。補測試 `tests/Feature/Classroom/HomeworkCoursesTest.php`。
 - 2026-07-06: 領域重組 — 合併 002(前台)+010+001(US3) 重寫，依實際 codebase 校正

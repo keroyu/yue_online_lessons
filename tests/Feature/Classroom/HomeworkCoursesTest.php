@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * The 作業批改 course dropdown (shared by 學員提交列表 + 作業題目管理) must exclude courses
- * with no assignments and surface the most-recently-assigned course first.
+ * The 作業批改 course dropdown must list ALL courses (including ones with no question yet,
+ * so a first question can be added), newest-assigned course first and empty courses last.
+ * 作業題目管理 defaults its own course picker to the most-recently-assigned course.
  */
 class HomeworkCoursesTest extends TestCase
 {
@@ -52,14 +53,14 @@ class HomeworkCoursesTest extends TestCase
         return $course;
     }
 
-    public function test_dropdown_excludes_empty_courses_and_orders_by_latest_assignment(): void
+    public function test_dropdown_lists_all_courses_newest_assignment_first_empty_last(): void
     {
         $admin = $this->admin();
 
         $this->courseWithAssignment('OldCourse', now()->subDays(3));
-        $this->courseWithAssignment('NewCourse', now()->subDay());
+        $new = $this->courseWithAssignment('NewCourse', now()->subDay());
 
-        // A course with a lesson but no assignment must not appear.
+        // A course with a lesson but no assignment must STILL appear (so a first question can be added).
         $this->addLesson($this->makeCourse('EmptyCourse'));
 
         $this->actingAs($admin)
@@ -67,9 +68,11 @@ class HomeworkCoursesTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($p) => $p
                 ->component('Admin/Homework/Index')
-                ->has('courses', 2)
-                ->where('courses.0.name', 'NewCourse')  // latest assignment first
-                ->where('courses.1.name', 'OldCourse'));
+                ->has('courses', 3)
+                ->where('courses.0.name', 'NewCourse')   // latest assignment first
+                ->where('courses.1.name', 'OldCourse')
+                ->where('courses.2.name', 'EmptyCourse') // no-question course sinks to bottom
+                ->where('filters.manage_course_id', $new->id)); // 作業題目管理 defaults to newest-assigned course
     }
 
     public function test_latest_assignment_in_a_course_lifts_it_to_the_top(): void

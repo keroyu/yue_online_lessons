@@ -26,6 +26,7 @@ class HomeworkController extends Controller
         $courseId = $request->input('course_id');
         $lessonId = $request->input('lesson_id');
         $search   = trim($request->input('search', ''));
+        $manageCourseId = $request->input('manage_course_id');
 
         $query = Comment::topLevel()
             ->with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])
@@ -92,49 +93,66 @@ class HomeworkController extends Controller
             ];
         });
 
-        // Only courses that actually have assignments, newest-assigned first — powers both
-        // the 學員提交列表 and 作業題目管理 dropdowns (no empty courses; latest work on top).
+        // 作業題目管理 course picker: list ALL courses (even ones with no question yet, so a
+        // first question can be added), newest-assigned course first so it can default-select.
         $courses = Course::query()
             ->select('courses.id', 'courses.name')
-            ->join('lessons', 'lessons.course_id', '=', 'courses.id')
-            ->join('assignments', 'assignments.lesson_id', '=', 'lessons.id')
+            ->leftJoin('lessons', 'lessons.course_id', '=', 'courses.id')
+            ->leftJoin('assignments', 'assignments.lesson_id', '=', 'lessons.id')
             ->groupBy('courses.id', 'courses.name')
-            ->orderByDesc(DB::raw('MAX(assignments.created_at)'))
+            ->orderByDesc(DB::raw('MAX(assignments.created_at)')) // no-question courses (NULL) sink to bottom
+            ->orderBy('courses.name')
             ->get();
 
-        $lessons = $lessonId
-            ? Lesson::where('id', $lessonId)->get(['id', 'title'])
-            : collect();
+        // Course whose question was most recently added — the default 作業題目管理 selection when
+        // the admin hasn't picked one. Kept separate from the 學員提交列表 course filter so the
+        // submissions overview stays on 全部課程 while 作業題目管理 lands on the freshest course.
+        $newestAssignmentCourseId = Assignment::query()
+            ->join('lessons', 'lessons.id', '=', 'assignments.lesson_id')
+            ->orderByDesc('assignments.created_at')
+            ->value('lessons.course_id');
 
-        $allLessonsForCourse = $courseId
-            ? Lesson::where('course_id', $courseId)
-                ->with('chapter:id,title,sort_order')
-                ->get(['id', 'title', 'chapter_id', 'sort_order'])
-                ->sort(fn ($a, $b) =>
-                    ($a->chapter?->sort_order ?? 0) <=> ($b->chapter?->sort_order ?? 0)
-                    ?: $a->sort_order <=> $b->sort_order
-                )
-                ->values()
-                ->map(fn ($l) => [
-                    'id' => $l->id,
-                    'title' => $l->title,
-                    'chapter_id' => $l->chapter_id,
-                    'chapter_title' => $l->chapter?->title,
-                    'chapter_sort_order' => $l->chapter?->sort_order ?? 0,
-                ])
-            : collect();
+        $manageCourseId = $manageCourseId ?: $newestAssignmentCourseId;
 
         return Inertia::render('Admin/Homework/Index', [
             'submissions' => $submissions,
             'courses' => $courses,
-            'lessons' => $allLessonsForCourse,
+            'lessons' => $this->lessonsForCourse($courseId),           // 學員提交列表 的小節篩選
+            'manageLessons' => $this->lessonsForCourse($manageCourseId), // 作業題目管理 的小節列表
             'filters' => [
                 'course_id' => $courseId ? (int) $courseId : null,
                 'lesson_id' => $lessonId ? (int) $lessonId : null,
                 'search'    => $search ?: null,
+                'manage_course_id' => $manageCourseId ? (int) $manageCourseId : null,
             ],
             'assignmentsMap' => $this->getAssignmentsMap(),
         ]);
+    }
+
+    /**
+     * Chapter-ordered lessons for a course (id/title + chapter info), or empty when no course.
+     */
+    private function lessonsForCourse($courseId): \Illuminate\Support\Collection
+    {
+        if (!$courseId) {
+            return collect();
+        }
+
+        return Lesson::where('course_id', $courseId)
+            ->with('chapter:id,title,sort_order')
+            ->get(['id', 'title', 'chapter_id', 'sort_order'])
+            ->sort(fn ($a, $b) =>
+                ($a->chapter?->sort_order ?? 0) <=> ($b->chapter?->sort_order ?? 0)
+                ?: $a->sort_order <=> $b->sort_order
+            )
+            ->values()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'title' => $l->title,
+                'chapter_id' => $l->chapter_id,
+                'chapter_title' => $l->chapter?->title,
+                'chapter_sort_order' => $l->chapter?->sort_order ?? 0,
+            ]);
     }
 
     public function store(AssignmentRequest $request, Lesson $lesson): RedirectResponse
