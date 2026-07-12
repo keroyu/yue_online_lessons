@@ -16,9 +16,12 @@ main_files:
 - app/Http/Controllers/SitemapController.php
 - app/Http/Middleware/AdminMiddleware.php
 - app/Http/Middleware/HandleInertiaRequests.php
+- app/Http/Middleware/StaffMiddleware.php
 - app/Models/SiteSetting.php
 - app/Providers/AppServiceProvider.php
+- bootstrap/app.php
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
+- database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
 - resources/js/Components/Layout/AppLayout.vue
 - resources/js/Components/Layout/Footer.vue
 - resources/js/Components/Layout/Navigation.vue
@@ -320,6 +323,7 @@ main_files:
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Requests/Admin/GiftCourseRequest.php
 - app/Http/Requests/Admin/SendBatchEmailRequest.php
+- app/Http/Requests/Admin/ToggleSalesConsultantRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/CourseGiftedMail.php

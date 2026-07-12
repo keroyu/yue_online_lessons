@@ -77,7 +77,8 @@
       "008.us-5",
       "008.us-6",
       "008.us-7",
-      "008.us-8"
+      "008.us-8",
+      "008.us-9"
     ],
     "app/Http/Controllers/Admin/PostController.php": [
       "012.us-1",
@@ -216,7 +217,11 @@
       "000.us-2"
     ],
     "app/Http/Middleware/HandleInertiaRequests.php": [
-      "000.us-1"
+      "000.us-1",
+      "000.us-6"
+    ],
+    "app/Http/Middleware/StaffMiddleware.php": [
+      "000.us-6"
     ],
     "app/Http/Requests/AddToCartRequest.php": [
       "005.us-1"
@@ -266,6 +271,9 @@
     ],
     "app/Http/Requests/Admin/StoreTransactionRequest.php": [
       "009.us-3"
+    ],
+    "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php": [
+      "008.us-9"
     ],
     "app/Http/Requests/Admin/UpdateCouponChainRequest.php": [
       "006.us-5"
@@ -574,6 +582,9 @@
     "app/Services/VideoEmbedService.php": [
       "003.us-2"
     ],
+    "bootstrap/app.php": [
+      "000.us-6"
+    ],
     "config/drip.php": [
       "010.us-10"
     ],
@@ -702,6 +713,9 @@
     "database/migrations/2026_07_11_000002_add_referral_discount_to_orders_table.php": [
       "007.us-7"
     ],
+    "database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php": [
+      "000.us-6"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -806,7 +820,8 @@
       "000.us-3"
     ],
     "resources/js/Components/Layout/Navigation.vue": [
-      "000.us-1"
+      "000.us-1",
+      "000.us-6"
     ],
     "resources/js/Components/Legal/LegalPolicyModal.vue": [
       "000.us-3"
@@ -823,7 +838,8 @@
     "resources/js/Components/MemberDetailModal.vue": [
       "007.us-6",
       "008.us-2",
-      "008.us-3"
+      "008.us-3",
+      "008.us-9"
     ],
     "resources/js/Components/MyCourseCard.vue": [
       "003.us-1"
@@ -850,7 +866,8 @@
       "012.us-4"
     ],
     "resources/js/Layouts/AdminLayout.vue": [
-      "000.us-2"
+      "000.us-2",
+      "000.us-6"
     ],
     "resources/js/Pages/Admin/Broadcasts/Index.vue": [
       "012.us-5"
@@ -931,7 +948,8 @@
       "008.us-1",
       "008.us-2",
       "008.us-4",
-      "008.us-7"
+      "008.us-7",
+      "008.us-9"
     ],
     "resources/js/Pages/Admin/Posts/Create.vue": [
       "012.us-1"
@@ -1076,6 +1094,7 @@
     ],
     "routes/web.php": [
       "000.us-2",
+      "000.us-6",
       "002.us-9",
       "006.us-1",
       "011.us-1"

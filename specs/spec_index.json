@@ -146,6 +146,41 @@
       "status": "implemented"
     },
     {
+      "id": "000.us-6",
+      "module": "000-platform-core",
+      "title": "銷售顧問受限後台存取",
+      "summary": "is_sales_consultant 旗標 + staff middleware，讓銷售顧問只進得去 Leads 名單與折扣碼兩區；路由分兩層、側欄與前台導航依角色過濾。",
+      "heading": "### User Story 6 - 銷售顧問受限後台存取 (Priority: P2)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-6---銷售顧問受限後台存取-priority-p2",
+      "keywords": [
+        "銷售顧問",
+        "sales consultant",
+        "staff middleware",
+        "權限",
+        "permission",
+        "後台存取",
+        "is_sales_consultant",
+        "折扣碼",
+        "coupons",
+        "Leads",
+        "high-ticket-leads",
+        "AdminLayout",
+        "側欄",
+        "canAccessSalesPanel"
+      ],
+      "code_files": [
+        "app/Http/Middleware/StaffMiddleware.php",
+        "database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php",
+        "bootstrap/app.php",
+        "routes/web.php",
+        "app/Http/Middleware/HandleInertiaRequests.php",
+        "resources/js/Layouts/AdminLayout.vue",
+        "resources/js/Components/Layout/Navigation.vue"
+      ],
+      "status": "planned"
+    },
+    {
       "id": "001.us-1",
       "module": "001-auth-account",
       "title": "Email 驗證碼登入/註冊",
@@ -1683,6 +1718,36 @@
         "resources/js/Components/ImportMembersModal.vue"
       ],
       "status": "implemented"
+    },
+    {
+      "id": "008.us-9",
+      "module": "008-members-admin",
+      "title": "指派銷售顧問身份",
+      "summary": "會員詳情 modal 一鍵把會員設為/取消銷售顧問，列表以標籤標示；獨立 sales-consultant endpoint（admin-only）。",
+      "heading": "### User Story 9 - 指派銷售顧問身份 (Priority: P2)",
+      "file": "specs/008-members-admin/spec.md",
+      "anchor": "user-story-9---指派銷售顧問身份-priority-p2",
+      "keywords": [
+        "銷售顧問",
+        "sales consultant",
+        "指派",
+        "assign",
+        "會員管理",
+        "member admin",
+        "is_sales_consultant",
+        "toggle",
+        "詳情 modal",
+        "MemberDetailModal",
+        "badge",
+        "標籤"
+      ],
+      "code_files": [
+        "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php",
+        "app/Http/Controllers/Admin/MemberController.php",
+        "resources/js/Components/MemberDetailModal.vue",
+        "resources/js/Pages/Admin/Members/Index.vue"
+      ],
+      "status": "planned"
     },
     {
       "id": "009.us-1",
