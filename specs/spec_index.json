@@ -1646,7 +1646,7 @@
         "resources/js/Components/Admin/ReferrerDetailModal.vue",
         "resources/js/Pages/Admin/Settings/Points.vue"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "008.us-1",

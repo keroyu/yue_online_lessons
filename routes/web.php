@@ -31,6 +31,7 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CouponChainController;
+use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\HighTicketBookingController;
@@ -272,6 +273,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     // Referral performance stats — merged into the 積分與推薦 page (settings.points).
     Route::get('/referrals', fn () => redirect()->route('admin.settings.points'))->name('referrals.index');
+    // Read-only referrer detail drill-down (US8): ledger + own transactions + referred orders.
+    Route::get('/referrals/{user}/detail', [AdminReferralController::class, 'detail'])->name('referrals.detail');
 
     // Email templates
     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');

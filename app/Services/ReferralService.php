@@ -138,6 +138,7 @@ class ReferralService
             ->orderByDesc('reward_points')
             ->get()
             ->map(fn ($r) => [
+                'referrer_user_id' => (int) $r->referrer_user_id, // powers the US8 detail drill-down
                 'referrer_name'  => $r->referrer_name ?: '（未命名）',
                 'referrer_email' => $r->referrer_email,
                 'referral_code'  => $r->referral_code,
@@ -147,6 +148,80 @@ class ReferralService
                 'reward_points'  => (int) $r->reward_points,
             ])
             ->all();
+    }
+
+    /**
+     * Read-only detail bundle for a referrer, shown in the 推薦成效 drill-down modal (US8):
+     * their own point ledger + their own transactions + the orders they referred.
+     * Each list is capped at the 50 most recent rows (matches the member ledger modal; not exhaustive).
+     *
+     * @return array{referrer: array, point_transactions: array, own_transactions: array, referred_orders: array}
+     */
+    public function referrerDetail(User $user): array
+    {
+        // (1) The referrer's own point ledger (same shape as MemberController@show).
+        $pointTransactions = $user->pointTransactions()
+            ->limit(50)
+            ->get()
+            ->map(fn ($tx) => [
+                'created_at'   => $tx->created_at->toIso8601String(),
+                'type'         => $tx->type,
+                'amount'       => $tx->amount,
+                'note'         => $tx->note,
+                'available_at' => $tx->available_at->toIso8601String(),
+                'is_matured'   => $tx->available_at->lessThanOrEqualTo(now()),
+            ])
+            ->all();
+
+        // (2) The referrer's own transactions (what they bought).
+        $ownTransactions = Purchase::with(['course:id,name', 'order:id,merchant_order_no'])
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn ($p) => [
+                'id'                => $p->id,
+                'course_name'       => $p->course?->name,
+                'amount'            => (int) round($p->amount),
+                'discount_amount'   => (int) round($p->discount_amount),
+                'status'            => $p->status,
+                'type'              => $p->type,
+                'type_label'        => $p->type_label,
+                'merchant_order_no' => $p->order?->merchant_order_no,
+                'created_at'        => $p->created_at->toIso8601String(),
+            ])
+            ->all();
+
+        // (3) The orders this referrer brought in (drill-down of the 推薦成效 aggregate).
+        $referredOrders = Order::where('referrer_user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn ($o) => [
+                'id'                     => $o->id,
+                'merchant_order_no'      => $o->merchant_order_no,
+                'buyer_email'            => $o->buyer_email,
+                'total_amount'           => (int) round($o->total_amount),
+                'status'                 => $o->status,
+                'referral_reward_points' => (int) $o->referral_reward_points,
+                'referral_rate'          => $o->referral_rate !== null ? (int) $o->referral_rate : null,
+                'created_at'             => $o->created_at->toIso8601String(),
+                'webhook_received_at'    => $o->webhook_received_at?->toIso8601String(),
+            ])
+            ->all();
+
+        return [
+            'referrer' => [
+                'id'             => $user->id,
+                'name'           => $user->nickname ?: $user->real_name ?: '（未命名）',
+                'email'          => $user->email,
+                'referral_code'  => $user->referral_code,
+                'current_points' => (int) $user->points,
+            ],
+            'point_transactions' => $pointTransactions,
+            'own_transactions'   => $ownTransactions,
+            'referred_orders'    => $referredOrders,
+        ];
     }
 
     /**

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import ReferrerDetailModal from '@/Components/Admin/ReferrerDetailModal.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -50,6 +51,11 @@ const totals = computed(() => props.referral.rows.reduce((acc, r) => ({
 }), { orders: 0, revenue: 0, points: 0 }))
 
 const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
+
+// Referrer detail drill-down modal (US8)
+const detailReferrerId = ref(null)
+const openDetail = (id) => { detailReferrerId.value = id }
+const closeDetail = () => { detailReferrerId.value = null }
 </script>
 
 <template>
@@ -181,13 +187,19 @@ const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
               <th class="px-4 py-3 text-right font-medium text-gray-500">訂單數</th>
               <th class="px-4 py-3 text-right font-medium text-gray-500">營收</th>
               <th class="px-4 py-3 text-right font-medium text-gray-500">回饋積分</th>
+              <th class="px-4 py-3 text-right font-medium text-gray-500">明細</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="referral.rows.length === 0">
-              <td colspan="5" class="px-4 py-10 text-center text-gray-400">此區間沒有推薦訂單。</td>
+              <td colspan="6" class="px-4 py-10 text-center text-gray-400">此區間沒有推薦訂單。</td>
             </tr>
-            <tr v-for="(r, i) in referral.rows" :key="i" class="hover:bg-gray-50">
+            <tr
+              v-for="(r, i) in referral.rows"
+              :key="i"
+              class="hover:bg-gray-50 cursor-pointer"
+              @click="openDetail(r.referrer_user_id)"
+            >
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2">
                   <p class="font-medium text-gray-800">{{ r.referrer_name }}</p>
@@ -202,10 +214,24 @@ const fmtMoney = (n) => 'NT$ ' + Number(n || 0).toLocaleString()
               <td class="px-4 py-3 text-right text-gray-700">{{ r.order_count.toLocaleString() }}</td>
               <td class="px-4 py-3 text-right text-gray-700">{{ fmtMoney(r.revenue) }}</td>
               <td class="px-4 py-3 text-right font-semibold text-brand-teal">{{ r.reward_points.toLocaleString() }}</td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  class="text-sm font-medium text-brand-teal hover:text-brand-teal/80 whitespace-nowrap"
+                  @click.stop="openDetail(r.referrer_user_id)"
+                >查看 ›</button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- Referrer detail drill-down (US8) -->
+    <ReferrerDetailModal
+      :show="detailReferrerId !== null"
+      :referrer-id="detailReferrerId"
+      @close="closeDetail"
+    />
   </div>
 </template>

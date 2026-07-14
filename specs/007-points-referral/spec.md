@@ -1,6 +1,6 @@
 ---
 id: 007-points-referral
-status: draft
+status: done
 owner_files:
   - app/Http/Controllers/Member/PointController.php
   - app/Http/Controllers/RedemptionController.php
@@ -271,20 +271,21 @@ Phase C — 驗證
 ### US8 - 推薦人明細檢視
 
 Phase A — 後端
-- [ ] T001 `ReferralService::referrerDetail(User): array` — 組 `point_transactions`(50)＋`own_transactions`(50)＋`referred_orders`(50)＋`referrer` 基本 in app/Services/ReferralService.php
-- [ ] T002 [P] `performanceRows` map 輸出加 `referrer_user_id` in app/Services/ReferralService.php
-- [ ] T003 `Admin/ReferralController::detail(User): JsonResponse` — thin，delegate to `referrerDetail` in app/Http/Controllers/Admin/ReferralController.php
-- [ ] T004 route `GET /admin/referrals/{user}/detail` → `admin.referrals.detail`（admin 群組，置於既有 `/referrals` redirect 之後）in routes/web.php〔touchpoint 000〕
+- [x] T001 `ReferralService::referrerDetail(User): array` — 組 `point_transactions`(50)＋`own_transactions`(50)＋`referred_orders`(50)＋`referrer` 基本 in app/Services/ReferralService.php
+- [x] T002 [P] `performanceRows` map 輸出加 `referrer_user_id` in app/Services/ReferralService.php
+- [x] T003 `Admin/ReferralController::detail(User): JsonResponse` — thin，delegate to `referrerDetail` in app/Http/Controllers/Admin/ReferralController.php
+- [x] T004 route `GET /admin/referrals/{user}/detail` → `admin.referrals.detail`（admin 群組，置於既有 `/referrals` redirect 之後）in routes/web.php〔touchpoint 000〕
 
 Phase B — 前端
-- [ ] T005 [P] `ReferrerDetailModal.vue` — axios 載入、三區、loading/空/ESC/backdrop/scroll-lock/Teleport in resources/js/Components/Admin/ReferrerDetailModal.vue
-- [ ] T006 Points.vue 推薦成效列可點開 modal，帶 `referrer_user_id` in resources/js/Pages/Admin/Settings/Points.vue
+- [x] T005 [P] `ReferrerDetailModal.vue` — axios 載入、三區、loading/空/ESC/backdrop/scroll-lock/Teleport in resources/js/Components/Admin/ReferrerDetailModal.vue
+- [x] T006 Points.vue 推薦成效列可點開 modal，帶 `referrer_user_id` in resources/js/Pages/Admin/Settings/Points.vue
 
 Phase C — 驗證
-- [ ] T007 php artisan test 全綠 + npm run build exit 0；逐條對 US8 驗收
+- [x] T007 php artisan test 全綠（134 passed）+ npm run build exit 0；逐條對 US8 驗收（TDD：tests/Feature/Points/ReferrerDetailTest.php 3 tests）
 
 ## 進度日誌
 
+- 2026-07-13: /dev 完成 US8 推薦人明細檢視 — `ReferralService::referrerDetail`（帳本＋本人交易＋推薦訂單，各 50）、`Admin/ReferralController@detail`（admin-only JSON）、`GET /admin/referrals/{user}/detail`、`performanceRows` 加 `referrer_user_id`、`ReferrerDetailModal.vue` 三區唯讀、Points.vue 推薦成效列可點開。TDD `ReferrerDetailTest` 3 tests；全套 134 passed、build exit 0。
 - 2026-07-12: /spec 規劃 US8 推薦人明細檢視（推薦成效列點開唯讀 modal：積分帳本＋本人交易＋帶進來的推薦訂單，單一 detail JSON 端點，各取最新 50），status: draft 待審
 - 2026-07-11: /dev 完成 US7 推薦碼買家折抵 — orders 加 referral_discount_amount 快照、createOrder 折抵計價（coupon 後扣、保底 1 元）、validate-referral 回傳 discount、後台第 5 鍵設定欄位、結帳摘要折抵列；TDD ReferralDiscountTest 7 tests，全套 100 passed
 
