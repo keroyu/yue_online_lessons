@@ -212,20 +212,35 @@ const subscribeDrip = async () => {
 const showConvertModal = ref(false)
 const convertingLead = ref(null)
 const convertCourseId = ref('')
+const convertAmount = ref(0)
 const convertLoading = ref(false)
+
+const convertAmountValid = computed(() => {
+  const amount = Number(convertAmount.value)
+  return convertAmount.value !== '' && Number.isInteger(amount) && amount >= 0
+})
 
 const openConvertModal = (lead) => {
   convertingLead.value = lead
   convertCourseId.value = props.grantableCourses[0]?.id ?? ''
+  convertAmount.value = props.grantableCourses[0]?.display_price ?? 0
   showConvertModal.value = true
 }
 
+// Deal price defaults to the selected course's current display price;
+// the admin overrides it with the actual (offline) deal amount.
+watch(convertCourseId, (id) => {
+  const course = props.grantableCourses.find(c => c.id === Number(id))
+  if (course) convertAmount.value = course.display_price
+})
+
 const confirmConvert = async () => {
-  if (!convertCourseId.value || !convertingLead.value) return
+  if (!convertCourseId.value || !convertingLead.value || !convertAmountValid.value) return
   convertLoading.value = true
   try {
     const res = await axios.post(`/admin/high-ticket-leads/${convertingLead.value.id}/convert`, {
       course_id: Number(convertCourseId.value),
+      amount: Number(convertAmount.value),
     })
     const idx = props.leads.data.findIndex(l => l.id === convertingLead.value.id)
     if (idx !== -1) {
@@ -828,7 +843,7 @@ const copyEmail = async (lead) => {
           <svg class="h-4 w-4 text-brand-teal mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>開通所選商品（系統贈送）</span>
+          <span>開通所選商品（以成交價格入帳）</span>
         </li>
         <li class="flex items-start gap-2">
           <svg class="h-4 w-4 text-brand-teal mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -839,7 +854,7 @@ const copyEmail = async (lead) => {
       </ul>
 
       <!-- Course selector -->
-      <div class="mb-6">
+      <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-1">選擇要開通的商品</label>
         <select
           v-model="convertCourseId"
@@ -849,6 +864,20 @@ const copyEmail = async (lead) => {
             {{ course.name }}
           </option>
         </select>
+      </div>
+
+      <!-- Deal amount -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1">成交價格（TWD）</label>
+        <input
+          v-model.number="convertAmount"
+          type="number"
+          min="0"
+          step="1"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal text-sm"
+        />
+        <p class="mt-1 text-xs text-gray-500">預設帶入課程目前售價，可改為實際成交金額（私下匯款請填實收金額）；填 0 表示免費開通、不計營收</p>
+        <p v-if="!convertAmountValid" class="mt-1 text-xs text-red-600">請輸入 0 或正整數金額</p>
       </div>
 
       <div class="flex justify-end gap-3">
@@ -861,7 +890,7 @@ const copyEmail = async (lead) => {
         </button>
         <button
           @click="confirmConvert"
-          :disabled="!convertCourseId || convertLoading"
+          :disabled="!convertCourseId || !convertAmountValid || convertLoading"
           class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
           <svg v-if="convertLoading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

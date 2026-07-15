@@ -482,6 +482,7 @@ main_files:
 - resources/js/Pages/Course/Show.vue
 - resources/views/emails/high-ticket-booking.blade.php
 - routes/web.php
+- tests/Feature/HighTicket/LeadConvertTest.php
 
 related_specs:
 - specs/011-high-ticket/spec.md

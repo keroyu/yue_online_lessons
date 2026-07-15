@@ -79,8 +79,11 @@ class HighTicketLeadService
     /**
      * Register (or confirm) the lead as a member and grant them a course.
      * Lead status is updated to converted.
+     *
+     * $amount is the actual deal price entered by the admin (may differ from
+     * the listed price for offline deals); it counts toward revenue stats.
      */
-    public function convertLead(HighTicketLead $lead, int $courseId): array
+    public function convertLead(HighTicketLead $lead, int $courseId, int $amount): array
     {
         $user = User::firstOrCreate(
             ['email' => $lead->email],
@@ -91,7 +94,7 @@ class HighTicketLeadService
             ['user_id' => $user->id, 'course_id' => $courseId],
             [
                 'buyer_email' => $lead->email ?? '',
-                'amount'      => 0,
+                'amount'      => $amount,
                 'currency'    => 'TWD',
                 'status'      => 'paid',
                 'type'        => 'lead_conversion',

@@ -61,9 +61,16 @@ class HighTicketLeadController extends Controller
                 'status'      => $s->status,
             ])->values());
 
-        $grantableCourses = Course::select('id', 'name')
+        // display_price feeds the convert modal's default deal amount (FR-011).
+        $grantableCourses = Course::select('id', 'name', 'price', 'original_price', 'promo_ends_at')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(fn ($c) => [
+                'id'            => $c->id,
+                'name'          => $c->name,
+                'display_price' => (int) $c->display_price,
+            ])
+            ->values();
 
         return Inertia::render('Admin/HighTicketLeads/Index', [
             'leads'             => $leads,
@@ -162,9 +169,10 @@ class HighTicketLeadController extends Controller
     {
         $validated = $request->validate([
             'course_id' => ['required', 'integer', 'exists:courses,id'],
+            'amount'    => ['required', 'integer', 'min:0'],
         ]);
 
-        $result = $this->leadService->convertLead($lead, $validated['course_id']);
+        $result = $this->leadService->convertLead($lead, $validated['course_id'], $validated['amount']);
 
         return response()->json($result);
     }

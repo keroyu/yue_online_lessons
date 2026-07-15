@@ -52,7 +52,8 @@
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
       "011.us-3",
-      "011.us-4"
+      "011.us-4",
+      "011.us-5"
     ],
     "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php": [
       "002.us-6"
@@ -1204,6 +1205,9 @@
       "002.us-9",
       "006.us-1",
       "011.us-1"
+    ],
+    "tests/Feature/HighTicket/LeadConvertTest.php": [
+      "011.us-5"
     ],
     "tests/Feature/Member/UserSocialLinkTest.php": [
       "001.us-3"

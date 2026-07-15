@@ -2530,7 +2530,7 @@
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",
-      "summary": "冷掉/未成交 leads 批次加入 drip 序列信（active 訂閱去重），成交者一鍵開通商品（lead_conversion 購買記錄）",
+      "summary": "冷掉/未成交 leads 批次加入 drip 序列信（active 訂閱去重），成交者一鍵開通商品（lead_conversion 購買記錄，開通時輸入成交價格寫入 Purchase.amount 計入營收）",
       "heading": "### User Story 5 - Lead 轉序列信與開通商品 (Priority: P2)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-5---lead-轉序列信與開通商品-priority-p2",
@@ -2545,14 +2545,20 @@
         "顧問轉換",
         "firstOrCreate",
         "closed",
-        "converted"
+        "converted",
+        "成交價格",
+        "amount",
+        "display_price",
+        "開通價格"
       ],
       "code_files": [
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
         "app/Services/HighTicketLeadService.php",
         "app/Jobs/SubscribeDripLeadJob.php",
         "app/Services/DripService.php",
         "app/Models/Purchase.php",
-        "resources/js/Pages/Admin/HighTicketLeads/Index.vue"
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "tests/Feature/HighTicket/LeadConvertTest.php"
       ],
       "status": "implemented"
     },
