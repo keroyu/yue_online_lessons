@@ -64,6 +64,7 @@
       "002.us-9"
     ],
     "app/Http/Controllers/Admin/HomeworkController.php": [
+      "001.us-3",
       "003.us-6",
       "003.us-7"
     ],
@@ -73,6 +74,7 @@
       "010.us-8"
     ],
     "app/Http/Controllers/Admin/MemberController.php": [
+      "001.us-3",
       "007.us-6",
       "008.us-1",
       "008.us-2",
@@ -191,7 +193,11 @@
       "007.us-3"
     ],
     "app/Http/Controllers/Member/SettingsController.php": [
-      "001.us-2"
+      "001.us-2",
+      "001.us-3"
+    ],
+    "app/Http/Controllers/Member/SocialLinkController.php": [
+      "001.us-3"
     ],
     "app/Http/Controllers/NewsletterSubscriptionController.php": [
       "012.us-4"
@@ -332,6 +338,9 @@
     ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
       "003.us-5"
+    ],
+    "app/Http/Requests/Member/StoreUserSocialLinkRequest.php": [
+      "001.us-3"
     ],
     "app/Http/Requests/Member/UpdateProfileRequest.php": [
       "001.us-2"
@@ -504,7 +513,11 @@
     "app/Models/User.php": [
       "001.us-1",
       "001.us-2",
+      "001.us-3",
       "012.us-4"
+    ],
+    "app/Models/UserSocialLink.php": [
+      "001.us-3"
     ],
     "app/Models/VerificationCode.php": [
       "001.us-1"
@@ -779,6 +792,9 @@
     "database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php": [
       "002.us-10"
     ],
+    "database/migrations/2026_07_15_000001_create_user_social_links_table.php": [
+      "001.us-3"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -902,6 +918,7 @@
       "000.us-3"
     ],
     "resources/js/Components/MemberDetailModal.vue": [
+      "001.us-3",
       "007.us-6",
       "008.us-2",
       "008.us-3",
@@ -927,8 +944,12 @@
       "002.us-1"
     ],
     "resources/js/Components/SocialLinks.vue": [
+      "001.us-3",
       "002.us-4",
       "002.us-9"
+    ],
+    "resources/js/Components/UserSocialIcons.vue": [
+      "001.us-3"
     ],
     "resources/js/Components/VerificationCodeInput.vue": [
       "001.us-1",
@@ -1015,6 +1036,7 @@
       "002.us-9"
     ],
     "resources/js/Pages/Admin/Homework/Index.vue": [
+      "001.us-3",
       "003.us-6"
     ],
     "resources/js/Pages/Admin/Members/Index.vue": [
@@ -1109,7 +1131,8 @@
       "007.us-3"
     ],
     "resources/js/Pages/Member/Settings.vue": [
-      "001.us-2"
+      "001.us-2",
+      "001.us-3"
     ],
     "resources/js/Pages/Newsletter/Unsubscribe.vue": [
       "012.us-4"
@@ -1127,6 +1150,9 @@
     ],
     "resources/js/composables/useNotifications.js": [
       "003.us-8"
+    ],
+    "resources/js/lib/socialPlatforms.js": [
+      "001.us-3"
     ],
     "resources/views/app.blade.php": [
       "000.us-4",
@@ -1174,9 +1200,13 @@
     "routes/web.php": [
       "000.us-2",
       "000.us-6",
+      "001.us-3",
       "002.us-9",
       "006.us-1",
       "011.us-1"
+    ],
+    "tests/Feature/Member/UserSocialLinkTest.php": [
+      "001.us-3"
     ]
   }
 }

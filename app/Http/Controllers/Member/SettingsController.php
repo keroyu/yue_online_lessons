@@ -62,6 +62,7 @@ class SettingsController extends Controller
             ],
             'orders' => $orders,
             'completions' => $completions,
+            'socialLinks' => $user->socialLinks()->get(['id', 'platform', 'url']),
         ]);
     }
 

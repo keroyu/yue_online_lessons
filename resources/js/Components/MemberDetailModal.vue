@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
+import UserSocialIcons from '@/Components/UserSocialIcons.vue'
 
 // Use the globally configured axios with CSRF token
 const axios = window.axios
@@ -324,6 +325,13 @@ const handleBackdropClick = (e) => {
                       <div>
                         <dt class="text-sm font-medium text-gray-500">Email</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ member.email }}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">社群連結</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                          <UserSocialIcons v-if="member.social_links?.length" :links="member.social_links" />
+                          <span v-else>-</span>
+                        </dd>
                       </div>
                       <div>
                         <dt class="text-sm font-medium text-gray-500">姓名</dt>

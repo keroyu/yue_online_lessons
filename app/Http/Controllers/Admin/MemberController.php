@@ -175,6 +175,10 @@ class MemberController extends Controller
                 'points' => $member->points,
                 'role' => $member->role,
                 'is_sales_consultant' => (bool) $member->is_sales_consultant,
+                'social_links' => $member->socialLinks->map(fn ($link) => [
+                    'platform' => $link->platform,
+                    'url' => $link->url,
+                ])->values(),
             ],
             'courses' => $courses,
             'homework_completions' => $homeworkCompletions,

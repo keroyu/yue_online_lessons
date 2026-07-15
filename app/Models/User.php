@@ -84,6 +84,11 @@ class User extends Authenticatable
         return $this->hasMany(Purchase::class);
     }
 
+    public function socialLinks(): HasMany
+    {
+        return $this->hasMany(UserSocialLink::class)->orderBy('sort_order');
+    }
+
     public function pointTransactions(): HasMany
     {
         return $this->hasMany(PointTransaction::class)->orderByDesc('created_at');

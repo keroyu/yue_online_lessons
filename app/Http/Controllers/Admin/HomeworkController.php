@@ -29,7 +29,7 @@ class HomeworkController extends Controller
         $manageCourseId = $request->input('manage_course_id');
 
         $query = Comment::topLevel()
-            ->with(['assignment.lesson.course', 'user', 'replies.user', 'assignment.completions'])
+            ->with(['assignment.lesson.course', 'user.socialLinks', 'replies.user', 'assignment.completions'])
             ->whereHas('assignment');
 
         if ($courseId) {
@@ -74,6 +74,10 @@ class HomeworkController extends Controller
                     'id' => $comment->user->id,
                     'nickname' => $comment->user->nickname,
                     'email' => $comment->user->email,
+                    'social_links' => $comment->user->socialLinks->map(fn ($link) => [
+                        'platform' => $link->platform,
+                        'url' => $link->url,
+                    ])->values(),
                 ],
                 'replies' => $comment->replies->map(fn ($reply) => [
                     'id' => $reply->id,

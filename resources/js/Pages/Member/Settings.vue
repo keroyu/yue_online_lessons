@@ -1,6 +1,8 @@
 <script setup>
 import AppLayout from '@/Components/Layout/AppLayout.vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, router } from '@inertiajs/vue3'
+import { watch } from 'vue'
+import { platformIcons, platformLabels, memberPlatforms, detectPlatform } from '@/lib/socialPlatforms'
 
 defineOptions({
   layout: AppLayout,
@@ -19,7 +21,34 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  socialLinks: {
+    type: Array,
+    default: () => [],
+  },
 })
+
+const MAX_SOCIAL_LINKS = 5
+
+const linkForm = useForm({
+  platform: 'blog',
+  url: '',
+})
+
+// Auto-detect platform from the pasted URL; the select stays editable to override.
+watch(() => linkForm.url, (url) => {
+  linkForm.platform = detectPlatform(url)
+})
+
+const submitLink = () => {
+  linkForm.post('/member/social-links', {
+    preserveScroll: true,
+    onSuccess: () => linkForm.reset(),
+  })
+}
+
+const deleteLink = (id) => {
+  router.delete(`/member/social-links/${id}`, { preserveScroll: true })
+}
 
 const form = useForm({
   nickname: props.user.nickname || '',
@@ -176,6 +205,83 @@ const getStatusClass = (order) => {
           </button>
         </div>
       </form>
+    </div>
+
+    <!-- Social Links -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-lg font-semibold text-brand-navy mb-1">
+        社群連結
+      </h2>
+      <p class="text-xs text-gray-500 mb-4">
+        分享你的社群帳號（最多 {{ MAX_SOCIAL_LINKS }} 個），讓老師批改作業時更了解你的經營情況。僅老師與管理員可見。
+      </p>
+
+      <!-- Existing links -->
+      <ul v-if="socialLinks.length > 0" class="space-y-2 mb-4">
+        <li
+          v-for="link in socialLinks"
+          :key="link.id"
+          class="flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg"
+        >
+          <span class="w-5 h-5 shrink-0 text-gray-600" v-html="platformIcons[link.platform] ?? ''"></span>
+          <span class="text-xs font-medium text-gray-500 w-20 shrink-0">{{ platformLabels[link.platform] ?? link.platform }}</span>
+          <a
+            :href="link.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-brand-teal hover:underline truncate min-w-0 flex-1"
+          >{{ link.url }}</a>
+          <button
+            type="button"
+            @click="deleteLink(link.id)"
+            class="shrink-0 p-1 text-gray-400 hover:text-red-600 transition-colors"
+            aria-label="刪除連結"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Add form -->
+      <form
+        v-if="socialLinks.length < MAX_SOCIAL_LINKS"
+        @submit.prevent="submitLink"
+        class="flex flex-col sm:flex-row gap-2"
+      >
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="w-5 h-5 shrink-0 text-gray-500" v-html="platformIcons[linkForm.platform] ?? ''"></span>
+          <input
+            v-model="linkForm.url"
+            type="url"
+            placeholder="貼上網址（https://...）"
+            maxlength="500"
+            class="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal text-sm"
+            :class="{ 'border-red-500': linkForm.errors.url || linkForm.errors.platform }"
+          />
+        </div>
+        <div class="flex gap-2">
+          <select
+            v-model="linkForm.platform"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm cursor-pointer hover:border-brand-teal focus:ring-2 focus:ring-brand-teal/50 focus:border-brand-teal"
+          >
+            <option v-for="p in memberPlatforms" :key="p" :value="p">{{ platformLabels[p] }}</option>
+          </select>
+          <button
+            type="submit"
+            :disabled="linkForm.processing || !linkForm.url"
+            class="px-4 py-2 bg-brand-teal text-white text-sm font-medium rounded-lg hover:bg-brand-teal/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            新增
+          </button>
+        </div>
+      </form>
+      <p v-else class="text-sm text-gray-500">
+        已達 {{ MAX_SOCIAL_LINKS }} 個上限，刪除後才能再新增。
+      </p>
+      <p v-if="linkForm.errors.url" class="mt-2 text-sm text-red-600">{{ linkForm.errors.url }}</p>
+      <p v-if="linkForm.errors.platform" class="mt-2 text-sm text-red-600">{{ linkForm.errors.platform }}</p>
     </div>
 
     <!-- Order History -->

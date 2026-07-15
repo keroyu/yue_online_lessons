@@ -154,6 +154,10 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
+    // Profile social links
+    Route::post('/social-links', [\App\Http\Controllers\Member\SocialLinkController::class, 'store'])->name('social-links.store');
+    Route::delete('/social-links/{id}', [\App\Http\Controllers\Member\SocialLinkController::class, 'destroy'])->name('social-links.destroy');
+
     // Classroom
     Route::get('/classroom/{course}', [ClassroomController::class, 'show'])->name('classroom');
     Route::post('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markComplete'])->name('progress.store');

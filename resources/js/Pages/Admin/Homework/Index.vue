@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import UserSocialIcons from '@/Components/UserSocialIcons.vue'
 import { marked } from 'marked'
 
 defineOptions({ layout: AdminLayout })
@@ -256,6 +257,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-medium text-gray-900">{{ sub.user.nickname }}</span>
+                  <UserSocialIcons :links="sub.user.social_links ?? []" />
                   <span class="text-xs text-gray-400">{{ sub.user.email }}</span>
                   <span v-if="sub.is_edited" class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
                   <span v-if="sub.replies?.length > 0" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">已回覆</span>
@@ -535,8 +537,9 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
         <div>
           <p class="text-sm font-semibold text-gray-900">回覆批改</p>
-          <p class="text-xs text-gray-500 mt-0.5">
+          <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
             {{ replyPanel.submission?.user.nickname }}
+            <UserSocialIcons :links="replyPanel.submission?.user.social_links ?? []" />
             · {{ replyPanel.submission?.assignment.lesson.title }}
           </p>
         </div>
