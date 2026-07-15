@@ -148,6 +148,8 @@ const videoPlatform = computed(() => {
 
   if (/vimeo\.com/.test(url)) return 'Vimeo'
   if (/youtube\.com|youtu\.be/.test(url)) return 'YouTube'
+  // Stream URL or bare 32-hex UID copied from the Cloudflare dashboard
+  if (/cloudflarestream\.com|videodelivery\.net/.test(url) || /^[a-f0-9]{32}$/.test(url.trim())) return 'Cloudflare Stream'
   return null
 })
 
@@ -160,7 +162,7 @@ const validate = () => {
   }
 
   if (form.value.video_url && !videoPlatform.value) {
-    errors.value.video_url = '請輸入有效的 Vimeo 或 YouTube 連結'
+    errors.value.video_url = '請輸入有效的 Vimeo / YouTube / Cloudflare Stream 連結'
     return false
   }
 
@@ -261,11 +263,12 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <label for="video_url" :class="labelClasses">
                   影片連結
                 </label>
+                <!-- type=text: native url validation would reject a bare Cloudflare Stream UID -->
                 <input
                   id="video_url"
                   v-model="form.video_url"
-                  type="url"
-                  placeholder="https://vimeo.com/... 或 https://youtube.com/..."
+                  type="text"
+                  placeholder="https://vimeo.com/...、https://youtube.com/... 或 Cloudflare Stream 影片 UID"
                   :class="[inputClasses, errors.video_url ? inputErrorClasses : '']"
                 />
                 <p v-if="videoPlatform" class="mt-2 text-sm text-green-600 flex items-center gap-1.5">
@@ -274,7 +277,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   </svg>
                   已偵測到 {{ videoPlatform }} 影片
                 </p>
-                <p v-else :class="helpTextClasses">支援 Vimeo 或 YouTube 連結</p>
+                <p v-else :class="helpTextClasses">支援 Vimeo / YouTube 連結，或 Cloudflare Stream 連結與影片 UID</p>
                 <p v-if="errors.video_url" :class="errorTextClasses">{{ errors.video_url }}</p>
               </div>
 

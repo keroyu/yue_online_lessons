@@ -50,6 +50,16 @@ return [
         'sandbox'     => env('PAYUNI_SANDBOX', false),
     ],
 
+    'cloudflare_stream' => [
+        // Subdomain code from the Stream dashboard embed snippet: customer-{code}.cloudflarestream.com
+        'customer_code' => env('CLOUDFLARE_STREAM_CUSTOMER_CODE'),
+        // Signing key created once via POST /accounts/{account_id}/stream/keys;
+        // private_key is the base64-encoded PEM exactly as returned by that API.
+        'key_id'        => env('CLOUDFLARE_STREAM_KEY_ID'),
+        'private_key'   => env('CLOUDFLARE_STREAM_PRIVATE_KEY'),
+        'token_ttl'     => env('CLOUDFLARE_STREAM_TOKEN_TTL', 43200),
+    ],
+
     'newebpay' => [
         'merchant_id' => env('NEWEBPAY_MERCHANT_ID'),
         'hash_key'    => env('NEWEBPAY_HASH_KEY'),

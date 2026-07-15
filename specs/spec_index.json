@@ -885,6 +885,43 @@
       "status": "implemented"
     },
     {
+      "id": "003.us-9",
+      "module": "003-classroom",
+      "title": "Cloudflare Stream 影音來源",
+      "summary": "小節影片來源新增 Cloudflare Stream（Dashboard 上傳後貼 URL/UID，用量計費），與 Vimeo/YouTube 並行；教室播放走後端簽名的限時 Signed URL token 防外流",
+      "heading": "### User Story 9 - Cloudflare Stream 影音來源 (Priority: P2)",
+      "file": "specs/003-classroom/spec.md",
+      "anchor": "user-story-9---cloudflare-stream-影音來源-priority-p2",
+      "keywords": [
+        "Cloudflare Stream",
+        "影音來源",
+        "video source",
+        "signed url",
+        "簽名播放",
+        "JWT token",
+        "影片平台",
+        "video platform",
+        "cloudflarestream",
+        "videodelivery",
+        "用量計費",
+        "防外流",
+        "UID"
+      ],
+      "code_files": [
+        "app/Services/CloudflareStreamService.php",
+        "app/Services/VideoEmbedService.php",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "app/Http/Requests/Admin/StoreLessonRequest.php",
+        "config/services.php",
+        "database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php",
+        "resources/js/Components/Admin/LessonForm.vue",
+        "resources/js/Components/Classroom/VideoPlayer.vue",
+        "tests/Feature/Classroom/CloudflareStreamTest.php",
+        ".env.example"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "004.us-1",
       "module": "004-course-admin",
       "title": "課程 CRUD 與上下架管理",

@@ -154,12 +154,14 @@ purpose: 會員教室 — 我的課程、影片播放與進度、免費試閱、
 specs: specs/003-classroom/
 
 main_files:
+- .env.example
 - app/Http/Controllers/Admin/HomeworkController.php
 - app/Http/Controllers/Member/AssignmentCommentController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/LearningController.php
 - app/Http/Controllers/Member/NotificationController.php
 - app/Http/Requests/Admin/AssignmentRequest.php
+- app/Http/Requests/Admin/StoreLessonRequest.php
 - app/Http/Requests/Member/StoreCommentRequest.php
 - app/Models/Assignment.php
 - app/Models/AssignmentCompletion.php
@@ -167,12 +169,16 @@ main_files:
 - app/Models/HomeworkNotification.php
 - app/Models/LessonProgress.php
 - app/Services/AssignmentService.php
+- app/Services/CloudflareStreamService.php
 - app/Services/VideoEmbedService.php
+- config/services.php
 - database/migrations/2026_01_17_000004_create_lesson_progress_table.php
 - database/migrations/2026_05_10_000002_create_assignments_table.php
 - database/migrations/2026_05_10_000003_create_comments_table.php
 - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
 - database/migrations/2026_05_10_000005_create_homework_notifications_table.php
+- database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php
+- resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/AssignmentSection.vue
 - resources/js/Components/Classroom/ChapterSidebar.vue
 - resources/js/Components/Classroom/CommentThread.vue
@@ -185,6 +191,7 @@ main_files:
 - resources/js/Pages/Member/ClassroomUnauthorized.vue
 - resources/js/Pages/Member/Learning.vue
 - resources/js/composables/useNotifications.js
+- tests/Feature/Classroom/CloudflareStreamTest.php
 
 related_specs:
 - specs/003-classroom/spec.md

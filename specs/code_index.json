@@ -1,5 +1,8 @@
 {
   "files": {
+    ".env.example": [
+      "003.us-9"
+    ],
     "app/Console/Commands/CleanDormantSubscribers.php": [
       "012.us-7"
     ],
@@ -179,6 +182,7 @@
       "003.us-2",
       "003.us-3",
       "003.us-4",
+      "003.us-9",
       "006.us-5",
       "010.us-10",
       "010.us-7",
@@ -288,6 +292,7 @@
       "002.us-6"
     ],
     "app/Http/Requests/Admin/StoreLessonRequest.php": [
+      "003.us-9",
       "004.us-3"
     ],
     "app/Http/Requests/Admin/StorePostRequest.php": [
@@ -554,6 +559,9 @@
       "010.us-4",
       "010.us-5"
     ],
+    "app/Services/CloudflareStreamService.php": [
+      "003.us-9"
+    ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
     ],
@@ -640,7 +648,8 @@
       "012.us-4"
     ],
     "app/Services/VideoEmbedService.php": [
-      "003.us-2"
+      "003.us-2",
+      "003.us-9"
     ],
     "bootstrap/app.php": [
       "000.us-6",
@@ -651,7 +660,8 @@
       "010.us-10"
     ],
     "config/services.php": [
-      "000.us-4"
+      "000.us-4",
+      "003.us-9"
     ],
     "database/migrations/0001_01_01_000000_create_users_table.php": [
       "001.us-1"
@@ -796,6 +806,9 @@
     "database/migrations/2026_07_15_000001_create_user_social_links_table.php": [
       "001.us-3"
     ],
+    "database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php": [
+      "003.us-9"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -813,6 +826,7 @@
       "004.us-4"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
+      "003.us-9",
       "004.us-3",
       "004.us-6",
       "006.us-5",
@@ -872,7 +886,8 @@
       "010.us-10"
     ],
     "resources/js/Components/Classroom/VideoPlayer.vue": [
-      "003.us-2"
+      "003.us-2",
+      "003.us-9"
     ],
     "resources/js/Components/Course/DripSubscribeForm.vue": [
       "010.us-1"
@@ -1205,6 +1220,9 @@
       "002.us-9",
       "006.us-1",
       "011.us-1"
+    ],
+    "tests/Feature/Classroom/CloudflareStreamTest.php": [
+      "003.us-9"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"

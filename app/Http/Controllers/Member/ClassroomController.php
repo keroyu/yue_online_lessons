@@ -7,6 +7,7 @@ use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
+use App\Services\CloudflareStreamService;
 use App\Services\CouponChainService;
 use App\Services\DripService;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,7 @@ class ClassroomController extends Controller
     public function __construct(
         protected DripService $dripService,
         protected CouponChainService $couponChainService,
+        protected CloudflareStreamService $cloudflareStreamService,
     ) {}
 
     /**
@@ -334,12 +336,25 @@ class ClassroomController extends Controller
             'has_video' => $lesson->has_video,
             'video_platform' => $lesson->video_platform,
             'video_id' => $lesson->video_id,
-            'embed_url' => $lesson->embed_url,
+            'embed_url' => $this->embedUrlFor($lesson),
             'md_content' => $lesson->md_content,
             'is_completed' => false,
             'is_locked' => false,
             'is_preview' => $lesson->is_preview,
         ];
+    }
+
+    /**
+     * Playback embed URL. Cloudflare Stream needs a request-time signed token
+     * (TTL-bound), so it can't come from the static Lesson::embed_url attribute.
+     */
+    private function embedUrlFor(Lesson $lesson): ?string
+    {
+        if ($lesson->video_platform === 'cloudflare' && $lesson->video_id) {
+            return $this->cloudflareStreamService->signedEmbedUrl($lesson->video_id);
+        }
+
+        return $lesson->embed_url;
     }
 
     /**
@@ -365,7 +380,7 @@ class ClassroomController extends Controller
             'has_video' => $isLocked ? false : $lesson->has_video,
             'video_platform' => $isLocked ? null : $lesson->video_platform,
             'video_id' => $isLocked ? null : $lesson->video_id,
-            'embed_url' => $isLocked ? null : $lesson->embed_url,
+            'embed_url' => $isLocked ? null : $this->embedUrlFor($lesson),
             'md_content' => $isLocked ? null : $lesson->md_content,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_locked' => $isLocked,

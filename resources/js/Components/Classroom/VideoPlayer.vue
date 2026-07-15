@@ -20,9 +20,11 @@ const emit = defineEmits(['ended'])
 
 const iframeRef = ref(null)   // Vimeo
 const ytContainer = ref(null) // YouTube
+const cfIframeRef = ref(null) // Cloudflare Stream
 
 let vimeoListening = false
 let ytPlayer = null
+let cfPlayer = null
 
 // ─── Vimeo ───────────────────────────────────────────────────────────────────
 
@@ -116,21 +118,63 @@ const initYouTubePlayer = async () => {
   })
 }
 
+// ─── Cloudflare Stream ───────────────────────────────────────────────────────
+
+const cfSrc = computed(() => {
+  if (props.platform !== 'cloudflare' || !props.embedUrl) return null
+  const url = new URL(props.embedUrl)
+  url.searchParams.set('autoplay', 'true')
+  return url.toString()
+})
+
+// Module-level promise so multiple instances share one SDK load (same pattern as YT API)
+let cfSdkPromise = null
+
+const loadCloudflareSdk = () => {
+  if (!cfSdkPromise) {
+    cfSdkPromise = new Promise((resolve) => {
+      if (window.Stream) { resolve(window.Stream); return }
+      const s = document.createElement('script')
+      s.src = 'https://embed.cloudflarestream.com/embed/sdk.latest.js'
+      s.onload = () => resolve(window.Stream)
+      document.head.appendChild(s)
+    })
+  }
+  return cfSdkPromise
+}
+
+const initCloudflarePlayer = async () => {
+  const Stream = await loadCloudflareSdk()
+  if (!cfIframeRef.value) return // unmounted while awaiting
+  cfPlayer = Stream(cfIframeRef.value)
+  cfPlayer.addEventListener('ended', () => emit('ended'))
+}
+
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 watch(() => props.embedUrl, async () => {
   vimeoListening = false
+  if (props.platform !== 'cloudflare') {
+    cfPlayer = null // cf iframe unmounts when switching platform; re-init if we come back
+  }
   if (props.platform === 'youtube') {
     await nextTick()
     initYouTubePlayer()
+  } else if (props.platform === 'cloudflare' && !cfPlayer) {
+    await nextTick()
+    initCloudflarePlayer()
   }
+  // cloudflare → cloudflare: same iframe element, src swap; SDK instance persists
 })
 
 onMounted(() => {
-  if (props.platform === 'vimeo') {
-    window.addEventListener('message', handleVimeoMessage)
-  } else if (props.platform === 'youtube') {
+  // Vimeo listener registered unconditionally: lesson switches can change the
+  // platform after mount, and the handler already guards by event origin
+  window.addEventListener('message', handleVimeoMessage)
+  if (props.platform === 'youtube') {
     initYouTubePlayer()
+  } else if (props.platform === 'cloudflare') {
+    initCloudflarePlayer()
   }
 })
 
@@ -140,6 +184,7 @@ onUnmounted(() => {
     ytPlayer.destroy()
     ytPlayer = null
   }
+  cfPlayer = null
 })
 </script>
 
@@ -162,6 +207,18 @@ onUnmounted(() => {
       v-else-if="ytVideoId"
       ref="ytContainer"
       class="absolute inset-0 w-full h-full"
+    />
+
+    <!-- Cloudflare Stream: iframe + Stream SDK for the ended event -->
+    <iframe
+      v-else-if="cfSrc"
+      ref="cfIframeRef"
+      :src="cfSrc"
+      :title="title"
+      class="absolute inset-0 w-full h-full"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
     />
 
     <!-- No video -->

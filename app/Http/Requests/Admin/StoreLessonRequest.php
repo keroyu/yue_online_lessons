@@ -25,7 +25,8 @@ class StoreLessonRequest extends FormRequest
         return [
             'chapter_id' => ['nullable', 'exists:chapters,id'],
             'title' => ['required', 'string', 'max:255'],
-            'video_url' => ['nullable', 'url', 'max:500'],
+            // string (not url): a bare Cloudflare Stream UID is also accepted
+            'video_url' => ['nullable', 'string', 'max:500'],
             'md_content' => ['nullable', 'string'],
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
@@ -47,7 +48,6 @@ class StoreLessonRequest extends FormRequest
             'chapter_id.exists' => '指定的章節不存在',
             'title.required' => '請輸入小節標題',
             'title.max' => '小節標題不能超過 255 字',
-            'video_url.url' => '影片連結格式無效',
             'video_url.max' => '影片連結太長',
             'duration_seconds.integer' => '時長必須是整數',
             'duration_seconds.min' => '時長不能為負數',
@@ -71,7 +71,7 @@ class StoreLessonRequest extends FormRequest
             if ($this->video_url) {
                 $service = new VideoEmbedService();
                 if (!$service->isValid($this->video_url)) {
-                    $validator->errors()->add('video_url', '影片連結必須是有效的 Vimeo 或 YouTube 連結');
+                    $validator->errors()->add('video_url', '影片連結必須是有效的 Vimeo / YouTube / Cloudflare Stream 連結');
                 }
             }
         });

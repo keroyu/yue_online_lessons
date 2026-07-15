@@ -16,7 +16,10 @@ owner_files:
   - app/Models/HomeworkNotification.php
   - app/Services/AssignmentService.php
   - app/Services/VideoEmbedService.php
+  - app/Services/CloudflareStreamService.php
   - database/migrations/2026_01_17_000004_create_lesson_progress_table.php
+  - database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php
+  - tests/Feature/Classroom/CloudflareStreamTest.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
   - database/migrations/2026_05_10_000003_create_comments_table.php
   - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
@@ -60,6 +63,18 @@ touchpoints:
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: 全站 Inertia shared props 提供通知鈴鐺資料（notificationCount、notifications 最新 5 則與文案）
+  - file: app/Http/Requests/Admin/StoreLessonRequest.php
+    owner: 004-course-admin
+    why: video_url 驗證需接受 Cloudflare Stream 連結/UID（url 規則放寬為 string + VideoEmbedService::isValid）
+  - file: resources/js/Components/Admin/LessonForm.vue
+    owner: 004-course-admin
+    why: 前端影片連結偵測提示需辨識 Cloudflare Stream 格式
+  - file: config/services.php
+    owner: 000-platform-core
+    why: 新增 cloudflare_stream 設定區塊（customer_code、簽名 key、token TTL）
+  - file: app/Services/PostService.php
+    owner: 012-newsletter
+    why: 行為接點（不改碼）— PostService 呼叫 VideoEmbedService::parse 嵌入文章影片，parse 新認得 Cloudflare URL；開 requireSignedURLs 的影片在部落格嵌入不可播（已知限制）
 ---
 
 # Classroom（會員教室）
@@ -176,6 +191,20 @@ touchpoints:
 - [x] 通知跳轉不檢查題目上架狀態：一律跳至小節，作業區是否顯示由頁面自身邏輯決定
 - [x] 教室頁自有 header 內建鈴鐺（與主導覽列行為一致）；試閱模式不顯示；所有登入角色（含 admin）皆可見鈴鐺
 
+### User Story 9 - Cloudflare Stream 影音來源 (Priority: P2)
+
+管理員上架小節影片時，除 Vimeo / YouTube 外可貼 Cloudflare Stream 連結或影片 UID（影片先在 Cloudflare Dashboard 上傳，用量計費）；會員教室以 Signed URL 限時 token 播放，防止 embed 連結外流白嫖流量。三種來源並行，隨時可換。
+
+**驗收**：
+- [x] `VideoEmbedService::parse()` 認得 Cloudflare Stream 格式：`customer-{code}.cloudflarestream.com/{uid}/watch|iframe`、`watch.cloudflarestream.com/{uid}`、`videodelivery.net/{uid}`、裸 32 位 hex UID，回傳 `platform: cloudflare` + `video_id`（UID）
+- [x] 後台小節表單貼上任一 Cloudflare 格式即時顯示「已偵測到 Cloudflare Stream 影片」提示；Vimeo/YouTube 行為不變（input type url→text，原生驗證不擋裸 UID）
+- [x] `StoreLessonRequest` 接受裸 UID（`url` 規則放寬為 `string`），無效格式錯誤訊息更新為含 Cloudflare Stream
+- [x] 教室播放：`platform = cloudflare` 的小節，後端於 render 時以 signing key 產生限時 JWT token，`embed_url` 為 `https://customer-{code}.cloudflarestream.com/{token}/iframe`；token 不落地 DB
+- [x] `VideoPlayer.vue` 支援 cloudflare 分支：iframe 嵌入 + Stream Player SDK（`embed.cloudflarestream.com/embed/sdk.latest.js`，全域載一次）監聽 `ended` 自動跳下一小節，autoplay 行為與 Vimeo/YouTube 一致（瀏覽器實測待使用者環境有 Stream 影片後進行）
+- [x] 未設定 signing key（本機開發）時 fallback 為未簽名 UID embed URL，不噴錯
+- [x] drip 限時觀看、試閱、進度紀錄等既有邏輯對 cloudflare 小節一體適用（`embedUrlFor()` 統一入口，僅 embed_url 產生方式不同）
+- [x] Feature 測試：parse 各格式、簽名 URL 產生（含 exp claim）、StoreLessonRequest 驗證
+
 ## Requirements
 
 - **FR-001**: 上課權限唯一判斷入口為 `Course::hasAccessForUser()`：admin 恆通過、付費購買（paidStatus）通過、drip 訂閱通過；退款（refunded）即失去權限
@@ -188,7 +217,9 @@ touchpoints:
 - **FR-008**: 積分發放一律經 PointService 帳本，金額由 `homework_reward_points` 站台設定控制（預設 100）
 - **FR-009**: `preview_user_id` 參數僅 admin 生效（學員視角預覽）；非 admin 靜默忽略，不構成資料洩漏
 - **FR-010**: 試閱教室不寫任何 `lesson_progress`，不顯示作業區；drip 課程無試閱（404）
-- **FR-011**: 影片連結解析由 `VideoEmbedService` 統一處理（Vimeo / YouTube URL → platform + video_id + embed_url），格式錯誤回 null
+- **FR-011**: 影片連結解析由 `VideoEmbedService` 統一處理（Vimeo / YouTube / Cloudflare Stream URL → platform + video_id + embed_url），格式錯誤回 null
+- **FR-012**: Cloudflare Stream 播放 token 一律由後端 `CloudflareStreamService` 於教室 render 時產生（RS256 JWT，TTL 預設 12 小時、config 可調）；token 不寫入 DB、不出現在後台表單，僅存 UID
+- **FR-013**: 簽名憑證（key id + private key PEM）存 `.env`，經 `config/services.php` 讀取；未設定時 degrade 為未簽名 embed URL（開發模式），不阻擋頁面
 
 ## 設計決策
 
@@ -199,6 +230,11 @@ touchpoints:
 - **D5**: 通知用自建 `homework_notifications` 輕量表而非 Laravel Notifications — 只需鈴鐺 5 則展示 + 已讀標記，冗餘存 `course_name` 免 join；通知文案在 HandleInertiaRequests 組裝
 - **D6**: 側欄初始折疊狀態只在 setup 計算一次 — 之後 lesson 切換不重算，避免自動跳下一小節時側欄突然折疊、干擾使用者手動展開的狀態
 - **D7**: 積分發放從 hardcode +100 改為 SiteSetting + PointService 帳本（012 積分系統重構）— 保證 users.points 單一寫入點與交易紀錄可稽核
+- **D8**: Cloudflare Stream 採「Dashboard 上傳 + 貼 URL/UID」而非站內直傳 — 與 Vimeo/YouTube 既有上架流程一致、零 API 整合成本；tus 直傳（需 API token、進度 UI、轉檔輪詢）留待未來獨立 US
+- **D9**: 播放保護採本地簽 JWT（RS256, openssl 手寫 ~20 行）而非每次呼叫 Stream `/token` API — 播放不產生外部 API 呼叫與延遲；不新增 composer 依賴（firebase/php-jwt 被否決：單一用途不值得引入套件）。簽名 key 用戶以 `POST /accounts/{id}/stream/keys` 建立一次，回傳的 `id`/`pem` 存 .env
+- **D10**: `lessons.video_platform` 由 enum('vimeo','youtube') 改 string(20) — 前例 `change_content_category_to_string_on_courses`；未來加來源不再動 schema。migration 由本模組擁有（前例：010 擁有 courses 表的 drip 欄位 migration）
+- **D11**: `Lesson::embed_url` attribute 對 cloudflare 維持回 null，簽名 URL 在 `ClassroomController` 兩處 lesson formatter 注入（`CloudflareStreamService::signedEmbedUrl()`）— token 有 TTL 屬 request-time 資料，不塞進 Model 靜態 attribute；Model 不 resolve service
+- **D12**: `CloudflareStreamService` 介面：`signedEmbedUrl(string $uid): ?string`（內含 JWT 組裝：header `{alg: RS256, kid}` + payload `{sub: uid, kid, exp: now+TTL}`，openssl_sign 後 base64url 拼接）；`VideoEmbedService::parse` 的 cloudflare `embed_url` 回未簽名 iframe URL（維持回傳 shape 一致，教室端不使用它）
 
 ## Schema
 
@@ -207,9 +243,38 @@ touchpoints:
 - `comments` — 作業留言；`parent_id` null = 學員頂層提交、非 null = 第二層回覆（批改/追問），最多兩層；`is_edited` 編輯標記；cascade 刪除（刪頂層連同子回覆）
 - `assignment_completions` — 完成標記；(assignment_id, user_id) unique，只有 created_at，建立即觸發積分與通知，不可撤銷
 - `homework_notifications` — 站內通知；`type` enum(reply, completion)、冗餘 `course_name`（免 join）、`lesson_id` 供跳轉、`is_read`；展示端只取最新 5 則
+- `lessons.video_platform`（表歸 004，本 migration 歸 003）— enum → string(20)；合法值 `vimeo` / `youtube` / `cloudflare`，來源真相是 `VideoEmbedService::parse` 的輸出，DB 不再約束
+
+**Config（非資料表）**：`services.cloudflare_stream` = `customer_code`（iframe 子網域 customer-{code}.cloudflarestream.com）、`key_id` + `private_key`（base64 PEM，簽 JWT 用）、`token_ttl`（秒，預設 43200）；對應 env `CLOUDFLARE_STREAM_CUSTOMER_CODE` / `CLOUDFLARE_STREAM_KEY_ID` / `CLOUDFLARE_STREAM_PRIVATE_KEY` / `CLOUDFLARE_STREAM_TOKEN_TTL`
+
+## Tasks
+
+**Phase A — 後端基礎**（T001–T004 完成後前端才能接）
+
+- [x] T001 migration：`video_platform` enum → string(20) in `database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php`
+- [x] T002 [P] config 區塊 `cloudflare_stream` + `.env.example` 四個變數 in `config/services.php`
+- [x] T003 [P] `CloudflareStreamService`：RS256 JWT 簽名 + `signedEmbedUrl()`（未設 key fallback 未簽名 URL）in `app/Services/CloudflareStreamService.php`
+- [x] T004 [P] `parse()` 加 cloudflare 四種格式（customer 子網域 / watch / videodelivery / 裸 UID）in `app/Services/VideoEmbedService.php`
+
+**Phase B — 接點串接**
+
+- [x] T005 [P] `video_url` 規則 `url` → `string`、錯誤訊息含 Cloudflare Stream in `app/Http/Requests/Admin/StoreLessonRequest.php`
+- [x] T006 兩處 lesson formatter：platform=cloudflare 時 embed_url 改由 `CloudflareStreamService::signedEmbedUrl()` 產生 in `app/Http/Controllers/Member/ClassroomController.php`
+
+**Phase C — 前端**
+
+- [x] T007 [P] `videoPlatform` computed 加 cloudflare 偵測與提示文案 in `resources/js/Components/Admin/LessonForm.vue`
+- [x] T008 [P] cloudflare 播放分支：iframe + Stream SDK（全域載一次，比照 YT API pattern）監聽 ended、autoplay in `resources/js/Components/Classroom/VideoPlayer.vue`
+
+**Phase D — 驗證**
+
+- [x] T009 Feature 測試：parse 各格式、JWT exp/kid claim、StoreLessonRequest 驗證 in `tests/Feature/Classroom/CloudflareStreamTest.php`
+- [x] T010 跑 `python3 tools/build_spec_index.py` 對帳索引
 
 ## 進度日誌
 
+- 2026-07-15: 實作 US9 Cloudflare Stream 影音來源完成（T001–T010）— migration enum→string、CloudflareStreamService（本地 RS256 JWT 簽名）、parse 四格式、表單/驗證/播放器三端接通；全套測試 156 passed、npm build 過。附帶修正：VideoPlayer 的 Vimeo message listener 改為無條件註冊（跨平台切換小節後 Vimeo ended 事件原本會失效）
+- 2026-07-15: 規劃 US9 Cloudflare Stream 影音來源（貼 URL/UID 上架 + Signed URL 播放保護），status: draft 待審
 - 2026-07-12: 修正作業題目管理課程選單 — 改列「全部課程」（不再過濾掉無題目課程，供補第一題），無題目課程置底；並將其課程選單自提交列表篩選解耦（獨立 `manage_course_id` 參數 + `manageLessons`），預設選定「最新新增題目」的課程。`$courses` join→leftJoin；`HomeworkController::lessonsForCourse()` 抽出共用。更新 `HomeworkCoursesTest`。
 - 2026-07-11: 作業批改頁課程下拉選單（學員提交列表＋作業題目管理共用）只列「有作業」的課程，並依該課程最新一筆作業建立時間降序排列（HomeworkController@index join+groupBy）。頁面／選單標題「作業批改專區」改「作業批改」。補測試 `tests/Feature/Classroom/HomeworkCoursesTest.php`。
 - 2026-07-06: 領域重組 — 合併 002(前台)+010+001(US3) 重寫，依實際 codebase 校正
