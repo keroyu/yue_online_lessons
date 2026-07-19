@@ -37,7 +37,7 @@ class PostController extends Controller
             // Quick tag-chip filter (by slug).
             ->when($tag !== '', fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('slug', $tag)))
             ->orderByDesc($sort)
-            ->paginate(20)
+            ->paginate(50)
             ->withQueryString()
             ->through(fn (Post $post) => [
                 'id' => $post->id,
