@@ -32,7 +32,7 @@ class AdminPostCrudTest extends TestCase
 
         $post = Post::where('slug', 'prompt-intro')->first();
         $this->assertNotNull($post);
-        $res->assertRedirect(route('admin.posts.edit', $post));
+        $res->assertRedirect(route('admin.posts.index'));
         $this->assertNotNull($post->published_at, 'published post should stamp published_at');
         $this->assertCount(2, $post->tags);
         $this->assertSame(2, Tag::count());
@@ -51,11 +51,28 @@ class AdminPostCrudTest extends TestCase
             ->assertSessionHasErrors('slug');
     }
 
-    public function test_scheduled_status_requires_future_published_at(): void
+    public function test_scheduled_status_requires_published_at(): void
     {
         $this->actingAs($this->admin())
             ->post('/admin/posts', ['title' => 'y', 'slug' => 'sched', 'body_md' => 'x', 'status' => 'scheduled'])
             ->assertSessionHasErrors('published_at');
+    }
+
+    public function test_published_at_can_be_backdated(): void
+    {
+        $past = now()->subMonths(3);
+
+        $this->actingAs($this->admin())->post('/admin/posts', [
+            'title' => 'Backdated',
+            'slug' => 'backdated',
+            'body_md' => 'x',
+            'status' => 'published',
+            'published_at' => $past->format('Y-m-d\TH:i'),
+        ])->assertSessionHasNoErrors();
+
+        $post = Post::where('slug', 'backdated')->first();
+        $this->assertNotNull($post);
+        $this->assertSame($past->format('Y-m-d H:i'), $post->published_at->format('Y-m-d H:i'));
     }
 
     public function test_destroy_soft_deletes(): void

@@ -127,7 +127,7 @@ touchpoints:
 - [ ] PostForm：Markdown textarea + 現有圖片庫 Modal 多選插入、貼上 YouTube 連結存原文（前台才 render embed）
 - [ ] slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、unique；與 course slug 不同命名空間（前台前綴 `/blog/`）故不互撞
 - [ ] tags 以逗號/多選輸入，firstOrCreate Tag 並同步 pivot
-- [ ] status=scheduled 需填未來 published_at；published 立即上線；draft 不出現在任何前台
+- [ ] status=scheduled 需填 published_at、published 立即上線、draft 不出現在任何前台；published_at 可設過去時間（回溯/backdate），scheduled 與 published 皆顯示發佈時間欄（draft 隱藏並清空）；建立成功後導回文章列表 `/admin/posts`（編輯則留在編輯頁）
 - [ ] 有付費/已寄送 broadcast 的文章仍可編輯內容；刪除為軟刪除，前台立即 404
 - [ ] 內文渲染由 `PostService::toHtml(body_md)` 於前台 request 時處理（CommonMark，strip `<script>/<style>`；YouTube/Vimeo 獨立行連結經 VideoEmbedService 轉 responsive iframe），不存 body_html 快取欄（比照 EmailTemplate accessor）
 
@@ -320,3 +320,4 @@ touchpoints:
 - 2026-07-11: 後台寄送體驗優化 — (1) 寄送對象選擇改「最近 5 篇列表 + 搜尋 endpoint（/admin/broadcasts/search-posts）」取代下拉，避免文章多時全載入；(2) 新增排程寄送（broadcasts.scheduled_at + 'scheduled' 狀態 + BroadcastService::schedule/dispatchDue + newsletter:send-scheduled 每分鐘排程）；(3) 修 PostForm 預覽 Markdown 未渲染（全站無 typography plugin、Tailwind preflight 重置樣式 → 改用 :deep 明確樣式）。broadcasts.status 由 enum 改字串（免 enum ALTER、避 sqlite CHECK）。BroadcastTest 11 passed、全 repo 73 passed、build exit 0。
 - 2026-07-11: 後台文章加：(1) 熱門標籤 chips 快選（popularTags 前 10）；(2) 人工精選關聯文章 — 採**輕量 JSON 欄** `posts.related_post_ids`（不開 pivot 表）+ 搜尋 endpoint `/admin/posts/search`；前台 `/blog/{slug}` 底部關聯文章「精選優先、同標籤補滿 4 篇」。PostController::search、relatedPayload/syncRelated；RelatedPostsTest 3、全 repo 77 passed、build exit 0。
 - 2026-07-11: 修 Broadcast 寄送按鈕在 0 訂閱者時被 `subscriberCount === 0` 鎖死（立即/排程都按不了）— 移除該 disabled guard（排程收件人於寄出時才快照，不該卡當下訂閱數），改為 0 訂閱者時顯示琥珀色提示。純前端 UX 修正。
+- 2026-07-19: 後台新增文章表單三項微調 — (1) 送出按鈕列從 grid 下方移進左欄末尾，緊貼「引流課程」欄，長內文預覽撐高右欄時不再留大縫；(2) 發佈時間欄改 `status !== draft` 顯示（scheduled＋published 皆可設），StorePostRequest 移除 `after:now`，允許回溯過去時間；(3) `store()` 導向由 `admin.posts.edit` 改 `admin.posts.index`。測試同步更新（redirect 斷言、重命名 requires_published_at、新增 backdate 測試），Post 篩選 29 passed、build exit 0。純 hotfix，未走 /spec。

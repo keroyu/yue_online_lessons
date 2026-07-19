@@ -23,7 +23,7 @@ class StorePostRequest extends FormRequest
             'cover_image' => ['nullable', 'image', 'max:10240'],
             'og_image' => ['nullable', 'image', 'max:10240'],
             'status' => ['required', 'in:draft,scheduled,published'],
-            'published_at' => ['nullable', 'date', 'required_if:status,scheduled', 'after:now'],
+            'published_at' => ['nullable', 'date', 'required_if:status,scheduled'],
             'is_featured' => ['nullable', 'boolean'],
             'related_course_id' => ['nullable', 'integer', 'exists:courses,id'],
             'tags' => ['nullable', 'array'],
@@ -43,7 +43,6 @@ class StorePostRequest extends FormRequest
             'body_md.required' => '請輸入文章內容',
             'status.in' => '文章狀態無效',
             'published_at.required_if' => '排程發佈需填發佈時間',
-            'published_at.after' => '排程發佈時間必須在未來',
             'related_course_id.exists' => '選擇的引流課程不存在',
         ];
     }

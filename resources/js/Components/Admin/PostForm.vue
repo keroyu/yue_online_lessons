@@ -202,7 +202,7 @@ const insertImage = (url) => {
               <option value="published">已發佈</option>
             </select>
           </div>
-          <div v-if="form.status === 'scheduled'">
+          <div v-if="form.status !== 'draft'">
             <label class="block text-sm font-medium text-gray-700">發佈時間</label>
             <input v-model="form.published_at" type="datetime-local" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
             <p v-if="form.errors.published_at" class="text-sm text-red-600 mt-1">{{ form.errors.published_at }}</p>
@@ -245,6 +245,14 @@ const insertImage = (url) => {
           </div>
           <p v-else class="text-xs text-gray-400 mt-2">尚無圖片。上傳後點縮圖插入內文。</p>
         </div>
+
+        <!-- Submit row: kept in the left column so it hugs the fields regardless of preview height -->
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" :disabled="form.processing" class="bg-brand-teal text-white rounded-md px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50">
+            {{ form.processing ? '儲存中…' : (isEdit ? '更新文章' : '建立文章') }}
+          </button>
+          <a href="/admin/posts" class="text-gray-500 hover:text-gray-700">取消</a>
+        </div>
       </div>
 
       <!-- Right: live preview + meta -->
@@ -281,13 +289,6 @@ const insertImage = (url) => {
           </div>
         </details>
       </div>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <button type="submit" :disabled="form.processing" class="bg-brand-teal text-white rounded-md px-6 py-2 font-medium hover:bg-brand-teal/90 cursor-pointer disabled:opacity-50">
-        {{ form.processing ? '儲存中…' : (isEdit ? '更新文章' : '建立文章') }}
-      </button>
-      <a href="/admin/posts" class="text-gray-500 hover:text-gray-700">取消</a>
     </div>
   </form>
 </template>

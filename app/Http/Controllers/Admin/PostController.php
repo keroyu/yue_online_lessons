@@ -81,7 +81,7 @@ class PostController extends Controller
         $this->syncRelated($post, $request->input('related_post_ids'));
 
         return redirect()
-            ->route('admin.posts.edit', $post)
+            ->route('admin.posts.index')
             ->with('success', '文章已建立');
     }
 
