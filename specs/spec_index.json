@@ -557,8 +557,10 @@
         "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php",
         "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php",
         "app/Models/HomepageFeaturedCourse.php",
+        "app/Services/SidebarService.php",
         "database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php",
         "resources/js/Components/FeaturedCourses.vue",
+        "resources/js/Components/Layout/Sidebar.vue",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue"
       ],
       "status": "implemented"
@@ -2705,12 +2707,15 @@
       "code_files": [
         "app/Http/Controllers/BlogController.php",
         "app/Http/Controllers/BlogFeedController.php",
+        "app/Http/Controllers/HomeController.php",
         "app/Http/Controllers/SitemapController.php",
         "app/Models/Post.php",
         "app/Services/OgImageService.php",
         "app/Services/PostService.php",
+        "app/Services/SidebarService.php",
         "resources/fonts/NotoSansTC.ttf",
         "resources/images/og-logo.png",
+        "resources/js/Components/Layout/Sidebar.vue",
         "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Pages/Blog/Index.vue",
         "resources/js/Pages/Blog/Show.vue",

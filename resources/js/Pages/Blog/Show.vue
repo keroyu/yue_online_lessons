@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import ShareButtons from '@/Components/Newsletter/ShareButtons.vue'
 import PostCard from '@/Components/Newsletter/PostCard.vue'
 import SubscribeForm from '@/Components/Newsletter/SubscribeForm.vue'
+import Sidebar from '@/Components/Layout/Sidebar.vue'
 
 defineProps({
   post: {
@@ -13,13 +14,21 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  // Shared right-hand sidebar (same widgets as the homepage)
+  sidebarOrder: { type: Array, default: () => ['featured_courses', 'social', 'blog'] },
+  featuredCourses: { type: Array, default: () => [] },
+  socialLinks: { type: Array, default: () => [] },
+  snsProfile: { type: Object, default: null },
+  blogArticles: { type: Array, default: () => [] },
 })
 </script>
 
 <template>
   <Head :title="post.title" />
 
-  <article class="max-w-3xl mx-auto my-8 sm:my-12 bg-white border border-gray-200 px-5 sm:px-8 py-8 sm:py-10">
+  <div class="max-w-6xl mx-auto my-8 sm:my-12 px-4 sm:px-6 lg:px-8">
+   <div class="grid grid-cols-1 lg:grid-cols-[1fr_365px] gap-6 items-start">
+    <article class="min-w-0 bg-white border border-gray-200 px-5 sm:px-8 py-8 sm:py-10">
     <div v-if="post.tags && post.tags.length" class="flex flex-wrap gap-2 mb-3">
       <Link
         v-for="tag in post.tags"
@@ -79,7 +88,18 @@ defineProps({
         <PostCard v-for="p in related" :key="p.slug" :post="p" />
       </div>
     </section>
-  </article>
+    </article>
+
+    <!-- Shared right sidebar (same widgets as the homepage) -->
+    <Sidebar
+      :sidebar-order="sidebarOrder"
+      :featured-courses="featuredCourses"
+      :social-links="socialLinks"
+      :sns-profile="snsProfile"
+      :blog-articles="blogArticles"
+    />
+   </div>
+  </div>
 </template>
 
 <style scoped>

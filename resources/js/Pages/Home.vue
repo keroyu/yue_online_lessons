@@ -2,11 +2,9 @@
 import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import CourseCard from '@/Components/CourseCard.vue'
-import SocialLinks from '@/Components/SocialLinks.vue'
-import BlogArticles from '@/Components/BlogArticles.vue'
 import HomePostList from '@/Components/Newsletter/HomePostList.vue'
-import FeaturedCourses from '@/Components/FeaturedCourses.vue'
 import SectionHeader from '@/Components/SectionHeader.vue'
+import Sidebar from '@/Components/Layout/Sidebar.vue'
 
 const props = defineProps({
   courses: {
@@ -211,13 +209,13 @@ const filteredCourses = computed(() =>
         </div>
 
         <!-- Sidebar: widgets rendered in admin-defined order -->
-        <aside class="space-y-6">
-          <template v-for="widget in sidebarOrder" :key="widget">
-            <FeaturedCourses v-if="widget === 'featured_courses'" :courses="featuredCourses" />
-            <SocialLinks v-else-if="widget === 'social'" :links="socialLinks" :profile="snsProfile" />
-            <BlogArticles v-else-if="widget === 'blog'" :articles="blogArticles" />
-          </template>
-        </aside>
+        <Sidebar
+          :sidebar-order="sidebarOrder"
+          :featured-courses="featuredCourses"
+          :social-links="socialLinks"
+          :sns-profile="snsProfile"
+          :blog-articles="blogArticles"
+        />
       </div>
 
     </div>

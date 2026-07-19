@@ -15,6 +15,7 @@ owner_files:
   - app/Models/SocialLink.php
   - app/Models/HomepageFeaturedCourse.php
   - app/Services/BlogRssService.php
+  - app/Services/SidebarService.php
   - database/migrations/2026_03_25_000002_create_social_links_table.php
   - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
   - database/migrations/2026_07_05_000002_extend_blurb_on_homepage_featured_courses.php
@@ -23,6 +24,7 @@ owner_files:
   - resources/js/Components/SubstackArticles.vue
   - resources/js/Components/FeaturedCourses.vue
   - resources/js/Components/SocialLinks.vue
+  - resources/js/Components/Layout/Sidebar.vue
   - resources/js/Components/CourseCard.vue
   - resources/js/Components/SectionHeader.vue
   - resources/js/Components/Course/PriceDisplay.vue
@@ -321,7 +323,7 @@ Phase D — 驗證：
 
 ## 進度日誌
 
-- 2026-07-12: /dev 完成 US10 全站流量追蹤與轉換漏斗分析 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。
+- 2026-07-20: 首頁右側欄（精選推薦/追蹤站長/近期文章 widget，US6）抽成共用 `SidebarService`（後端組資料）+ `Components/Layout/Sidebar.vue`（前端 widget 迴圈），HomeController 改用 service（行為不變、SnsProfileTest 綠）。目的：部落格文章頁 Blog/Show 共用同一側欄（touchpoint 012）。 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。
 
 - 2026-07-12: [draft] 規劃 US 10 全站流量追蹤與轉換漏斗分析 — TrackTrafficSource middleware + cookie 雙觸點（7 天）取代銷售頁 session 捕捉（FR-003/D3 就地改寫）、course_daily_stats 日彙總（views/atc/checkouts/purchases/revenue × channel）、post_cta_clicks + /go redirect、/admin/analytics 漏斗報表。
 - 2026-07-11: 簡介 lead 依回饋改版 — 移至課程資訊列下方，加裝飾框（cream 底 + gold 邊框 + 對角 corner accent）

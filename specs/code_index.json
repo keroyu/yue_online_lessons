@@ -173,6 +173,7 @@
       "002.us-1",
       "002.us-5",
       "002.us-9",
+      "012.us-2",
       "012.us-3"
     ],
     "app/Http/Controllers/Member/AssignmentCommentController.php": [
@@ -636,6 +637,10 @@
       "007.us-7",
       "007.us-8"
     ],
+    "app/Services/SidebarService.php": [
+      "002.us-6",
+      "012.us-2"
+    ],
     "app/Services/SiteAnalyticsService.php": [
       "002.us-10"
     ],
@@ -930,6 +935,10 @@
     "resources/js/Components/Layout/Navigation.vue": [
       "000.us-1",
       "000.us-6"
+    ],
+    "resources/js/Components/Layout/Sidebar.vue": [
+      "002.us-6",
+      "012.us-2"
     ],
     "resources/js/Components/Legal/LegalPolicyModal.vue": [
       "000.us-3"

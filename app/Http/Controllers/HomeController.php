@@ -4,10 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Models\Course;
-use App\Models\HomepageFeaturedCourse;
 use App\Models\Post;
 use App\Models\SiteSetting;
-use App\Models\SocialLink;
+use App\Services\SidebarService;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,8 +44,6 @@ class HomeController extends Controller
         $settings = SiteSetting::getMany([
             'hero_title', 'hero_description', 'hero_button_label',
             'hero_button_url', 'hero_banner_path',
-            'sns_section_enabled',
-            'sns_profile_image_path', 'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
@@ -58,42 +55,6 @@ class HomeController extends Controller
             'button_url'   => $settings->get('hero_button_url') ?: null,
             'banner_url'   => $bannerPath ? Storage::url($bannerPath) : null,
         ];
-
-        // Cast explicitly: stored as "0"/"1" text — (bool)"0" is true in PHP
-        $snsEnabled = (bool) (int) $settings->get('sns_section_enabled', '0');
-
-        $socialLinks = $snsEnabled
-            ? SocialLink::ordered()->get()->map(fn ($link) => [
-                'platform' => $link->platform,
-                'url'      => $link->url,
-            ])->values()->toArray()
-            : [];
-
-        // Hide SNS section entirely when toggle off or no links
-        if (empty($socialLinks)) {
-            $socialLinks = [];
-        }
-
-        // Owner profile (avatar + intro) shown above the SNS links; null when section is off.
-        $snsProfilePath = $settings->get('sns_profile_image_path');
-        $snsProfile = $snsEnabled ? [
-            'image_url' => $snsProfilePath ? Storage::url($snsProfilePath) : null,
-            'intro'     => $settings->get('sns_profile_intro'),
-        ] : null;
-
-        // Sidebar "近期文章" widget: featured first, then latest.
-        $blogArticles = Post::published()
-            ->orderByDesc('is_featured')
-            ->orderByDesc('published_at')
-            ->take(5)
-            ->get(['slug', 'title', 'excerpt', 'cover_image_path', 'published_at'])
-            ->map(fn (Post $post) => [
-                'title' => $post->title,
-                'excerpt' => $post->excerpt,
-                'url' => "/blog/{$post->slug}",
-                'cover' => $post->cover_url,
-                'published_at' => $post->published_at?->toDateString(),
-            ])->values()->all();
 
         // Main-column list block: the 5 most-viewed posts.
         $popularPosts = Post::published()
@@ -110,29 +71,15 @@ class HomeController extends Controller
                 'published_at' => $post->published_at?->toDateString(),
             ])->values()->all();
 
-        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,slug,name,thumbnail')->get()
-            ->filter(fn ($item) => $item->course !== null)
-            ->map(fn ($item) => [
-                'id'        => $item->course->id,
-                'name'      => $item->course->name,
-                'thumbnail' => $item->course->thumbnail_url,
-                'blurb'     => $item->blurb,
-                'url'       => '/course/' . ($item->course->slug ?: $item->course->id),
-            ])->values()->toArray();
-
         return Inertia::render('Home', [
             'courses'         => $courses,
             'hero'            => $hero,
-            'socialLinks'     => $socialLinks,
-            'snsProfile'      => $snsProfile,
-            'blogArticles'    => $blogArticles,
             'popularPosts'    => $popularPosts,
-            'featuredCourses' => $featuredCourses,
-            'sidebarOrder'    => HomepageSettingController::sidebarWidgetOrder(),
             'contentCategories' => HomepageSettingController::contentFilterEnabled()
                 ? HomepageSettingController::contentCategories()
                 : [],
             'isAdmin'         => $isAdmin,
+            ...app(SidebarService::class)->widgets(),
         ]);
     }
 

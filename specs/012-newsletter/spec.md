@@ -88,6 +88,12 @@ touchpoints:
   - file: resources/js/Components/BlogArticles.vue
     owner: 002-storefront
     why: 由 RSS 文章形狀改為原生 Post 形狀（title/excerpt/url/cover/published_at）
+  - file: app/Services/SidebarService.php
+    owner: 002-storefront
+    why: Blog/Show（部落格文章頁）共用首頁右側欄資料（BlogController@show 注入 widgets()）
+  - file: resources/js/Components/Layout/Sidebar.vue
+    owner: 002-storefront
+    why: Blog/Show 渲染與首頁相同的右側欄 widget（精選/SNS/近期文章）
   - file: app/Http/Controllers/SitemapController.php
     owner: 000-platform-core
     why: sitemap 納入 published posts 與 tag 封存頁
@@ -330,4 +336,5 @@ touchpoints:
 - 2026-07-19: 自動 OG 卡片 — 文章無上傳 OG 圖也無封面時，`Post::og_url` fallback 到新路由 `GET /blog/{slug}/og.png`。新增 `OgImageService`（GD + 內建 `resources/fonts/NotoSansTC.ttf` 繁中字型）畫 1200×630 navy 底＋大標題（imagettfbbox 逐字換行、64→40px 自動縮放≤4 行、faux-bold）＋teal accent bar＋網站名（config app.name）footer；快取 public disk（key=標題 hash，改標題自動重生）、PNG level-9 壓縮 ~13–75KB（<150KB）。BlogController::ogImage 串流帶 Cache-Control。OgImageTest 3 綠、全 Newsletter 54 綠。字型 OFL 授權（11MB）隨 repo。
 - 2026-07-19: OG 卡片加入品牌 lockup — 左下角合成 logo（`resources/images/og-logo.png`，透明 PNG 經 imagecopyresampled 疊在 navy 上）＋「經營者時間銀行」白字＋teal 底線，取代原本 config app.name footer（BRAND 常數、cache v2）。標題區改置中於 lockup 上方。~68KB。OgImageTest hash 斷言同步更新，3 綠。
 - 2026-07-20: 後台文章列表每頁筆數 20→50（PostController@index paginate）。純參數調整，前端 page nav 沿用。
+- 2026-07-20: 部落格文章頁 Blog/Show 加上右側欄（與首頁相同 widget）— 版面改 `lg:grid-cols-[1fr_365px]`，BlogController@show 注入共用 `SidebarService::widgets()`（touchpoint 002），前端用共用 `Layout/Sidebar.vue`。手機仍堆疊於文章下方。
 - 2026-07-20: OG 卡片視覺調整（cache v3）— (1) 換乾淨去背 logo；(2) 標題 faux-bold 加粗（drawBold 以 offset grid 疊印，補償變數字型只能渲染 Light 預設實例）；(3) 品牌 lockup 由左下移到右下（依 imagettfbbox 量測寬度右對齊）；(4) 標題行距 1.45→1.5x。維持 1200×630 標準 OG 尺寸（低於建議尺寸部分平台會退小縮圖）。~70KB、全 Newsletter 54 綠。

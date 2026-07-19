@@ -121,6 +121,7 @@ main_files:
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
 - app/Services/CheckoutService.php
+- app/Services/SidebarService.php
 - app/Services/SiteAnalyticsService.php
 - app/Services/TrafficSourceService.php
 - bootstrap/app.php
@@ -133,6 +134,7 @@ main_files:
 - resources/js/Components/Course/PriceDisplay.vue
 - resources/js/Components/CourseCard.vue
 - resources/js/Components/FeaturedCourses.vue
+- resources/js/Components/Layout/Sidebar.vue
 - resources/js/Components/SectionHeader.vue
 - resources/js/Components/SocialLinks.vue
 - resources/js/Layouts/AdminLayout.vue
@@ -530,6 +532,7 @@ main_files:
 - app/Services/NewsletterService.php
 - app/Services/OgImageService.php
 - app/Services/PostService.php
+- app/Services/SidebarService.php
 - app/Services/VerificationCodeService.php
 - database/migrations/2026_07_10_000001_create_posts_table.php
 - database/migrations/2026_07_10_000002_create_tags_table.php
@@ -542,6 +545,7 @@ main_files:
 - resources/images/og-logo.png
 - resources/js/Components/Admin/PostForm.vue
 - resources/js/Components/BlogArticles.vue
+- resources/js/Components/Layout/Sidebar.vue
 - resources/js/Components/Newsletter/PostCard.vue
 - resources/js/Components/Newsletter/ShareButtons.vue
 - resources/js/Components/Newsletter/SubscribeForm.vue
