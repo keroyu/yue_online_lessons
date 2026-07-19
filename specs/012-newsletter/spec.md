@@ -321,3 +321,4 @@ touchpoints:
 - 2026-07-11: 後台文章加：(1) 熱門標籤 chips 快選（popularTags 前 10）；(2) 人工精選關聯文章 — 採**輕量 JSON 欄** `posts.related_post_ids`（不開 pivot 表）+ 搜尋 endpoint `/admin/posts/search`；前台 `/blog/{slug}` 底部關聯文章「精選優先、同標籤補滿 4 篇」。PostController::search、relatedPayload/syncRelated；RelatedPostsTest 3、全 repo 77 passed、build exit 0。
 - 2026-07-11: 修 Broadcast 寄送按鈕在 0 訂閱者時被 `subscriberCount === 0` 鎖死（立即/排程都按不了）— 移除該 disabled guard（排程收件人於寄出時才快照，不該卡當下訂閱數），改為 0 訂閱者時顯示琥珀色提示。純前端 UX 修正。
 - 2026-07-19: 後台新增文章表單三項微調 — (1) 送出按鈕列從 grid 下方移進左欄末尾，緊貼「引流課程」欄，長內文預覽撐高右欄時不再留大縫；(2) 發佈時間欄改 `status !== draft` 顯示（scheduled＋published 皆可設），StorePostRequest 移除 `after:now`，允許回溯過去時間；(3) `store()` 導向由 `admin.posts.edit` 改 `admin.posts.index`。測試同步更新（redirect 斷言、重命名 requires_published_at、新增 backdate 測試），Post 篩選 29 passed、build exit 0。純 hotfix，未走 /spec。
+- 2026-07-19: 後台文章列表標題改為連結，`target="_blank"` 於新視窗開啟前台 `/blog/{slug}`（含 hover 回饋）。純前端 UX 小改。

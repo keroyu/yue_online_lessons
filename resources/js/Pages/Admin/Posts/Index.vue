@@ -100,7 +100,13 @@ const goToPage = (page) => {
         <tbody class="divide-y divide-gray-100">
           <tr v-for="post in posts.data" :key="post.id" class="hover:bg-gray-50">
             <td class="px-4 py-3">
-              <span class="font-medium text-gray-900">{{ post.title }}</span>
+              <a
+                :href="`/blog/${post.slug}`"
+                target="_blank"
+                rel="noopener"
+                class="font-medium text-gray-900 hover:text-brand-teal hover:underline cursor-pointer"
+                title="在新視窗開啟文章"
+              >{{ post.title }}</a>
               <span v-if="post.is_featured" class="ml-2 text-xs text-amber-600">★ 精選</span>
               <div class="text-xs text-gray-400 font-mono">/blog/{{ post.slug }}</div>
             </td>
