@@ -528,6 +528,7 @@ main_files:
 - app/Models/User.php
 - app/Services/BroadcastService.php
 - app/Services/NewsletterService.php
+- app/Services/OgImageService.php
 - app/Services/PostService.php
 - app/Services/VerificationCodeService.php
 - database/migrations/2026_07_10_000001_create_posts_table.php
@@ -537,6 +538,7 @@ main_files:
 - database/migrations/2026_07_10_000005_create_broadcasts_table.php
 - database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
 - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
+- resources/fonts/NotoSansTC.ttf
 - resources/js/Components/Admin/PostForm.vue
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Newsletter/PostCard.vue
@@ -558,6 +560,8 @@ main_files:
 - resources/views/emails/newsletter-welcome.blade.php
 - resources/views/sitemap.blade.php
 - routes/console.php
+- routes/web.php
+- tests/Feature/Newsletter/OgImageTest.php
 
 related_specs:
 - specs/012-newsletter/spec.md

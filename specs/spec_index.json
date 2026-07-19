@@ -2706,13 +2706,18 @@
         "app/Http/Controllers/BlogController.php",
         "app/Http/Controllers/BlogFeedController.php",
         "app/Http/Controllers/SitemapController.php",
-        "resources/views/sitemap.blade.php",
-        "resources/views/app.blade.php",
+        "app/Models/Post.php",
+        "app/Services/OgImageService.php",
+        "app/Services/PostService.php",
+        "resources/fonts/NotoSansTC.ttf",
+        "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Pages/Blog/Index.vue",
         "resources/js/Pages/Blog/Show.vue",
         "resources/js/Pages/Blog/Tag.vue",
-        "resources/js/Components/Newsletter/PostCard.vue",
-        "app/Services/PostService.php"
+        "resources/views/app.blade.php",
+        "resources/views/sitemap.blade.php",
+        "routes/web.php",
+        "tests/Feature/Newsletter/OgImageTest.php"
       ],
       "status": "implemented"
     },

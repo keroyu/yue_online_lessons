@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Post;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Generates a fallback Open Graph card (1200x630 PNG) for posts that have no
+ * uploaded OG/cover image: navy background, large wrapped title, site-name footer.
+ * Rendered with GD + a bundled Traditional-Chinese TTF, cached on the public disk
+ * keyed by a hash of the title so it regenerates automatically when the title changes.
+ */
+class OgImageService
+{
+    private const W = 1200;
+    private const H = 630;
+    private const MARGIN = 90;
+    private const CACHE_VERSION = 'v1'; // bump to invalidate every cached card
+
+    private string $font;
+
+    public function __construct()
+    {
+        $this->font = resource_path('fonts/NotoSansTC.ttf');
+    }
+
+    /**
+     * Absolute URL of the generated card for a post (used as the og:image fallback).
+     */
+    public function url(Post $post): string
+    {
+        return route('blog.og', ['post' => $post->slug]);
+    }
+
+    /**
+     * Ensure the cached PNG exists on the public disk and return its relative path.
+     */
+    public function resolvePath(Post $post): string
+    {
+        $disk = Storage::disk('public');
+        $path = "og/{$post->id}-{$this->hash($post)}.png";
+
+        if (! $disk->exists($path)) {
+            // Drop stale cards for this post (title changed → new hash).
+            foreach ($disk->files('og') as $old) {
+                if (str_starts_with($old, "og/{$post->id}-")) {
+                    $disk->delete($old);
+                }
+            }
+            $disk->put($path, $this->png($post));
+        }
+
+        return $path;
+    }
+
+    private function hash(Post $post): string
+    {
+        return substr(sha1($post->title.'|'.$this->siteName().'|'.self::CACHE_VERSION), 0, 10);
+    }
+
+    private function siteName(): string
+    {
+        return (string) config('app.name', 'Your Time Bank');
+    }
+
+    /**
+     * Render the card and return raw PNG bytes.
+     */
+    public function png(Post $post): string
+    {
+        $im = imagecreatetruecolor(self::W, self::H);
+        $navy = imagecolorallocate($im, 0x37, 0x35, 0x57);
+        $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
+        $teal = imagecolorallocate($im, 0x3F, 0x83, 0xA3);
+        $muted = imagecolorallocate($im, 0xB9, 0xC2, 0xD0);
+        imagefill($im, 0, 0, $navy);
+
+        // Title: wrap to fit, shrinking the size when it would overflow vertically.
+        $maxWidth = self::W - self::MARGIN * 2;
+        [$size, $lines, $lineHeight] = $this->fitTitle($post->title, $maxWidth);
+
+        // Footer block (site name + teal accent bar) anchored near the bottom.
+        $footerY = self::H - 90;
+
+        // Vertically center the title block in the space above the footer.
+        $blockHeight = count($lines) * $lineHeight;
+        $top = (int) max(self::MARGIN, (($footerY - 40) - $blockHeight) / 2);
+
+        $y = $top + (int) ($size * 1.1);
+        foreach ($lines as $line) {
+            // Faux-bold: draw twice with a 1px x-offset for more presence.
+            imagettftext($im, $size, 0, self::MARGIN, $y, $white, $this->font, $line);
+            imagettftext($im, $size, 0, self::MARGIN + 1, $y, $white, $this->font, $line);
+            $y += $lineHeight;
+        }
+
+        // Teal accent bar + site name footer.
+        imagefilledrectangle($im, self::MARGIN, $footerY - 24, self::MARGIN + 70, $footerY - 18, $teal);
+        imagettftext($im, 24, 0, self::MARGIN, $footerY + 14, $muted, $this->font, $this->siteName());
+
+        // Max zlib compression (level 9). The card is a flat navy background with
+        // text, so PNG stays ~60KB — comfortably under 150KB.
+        ob_start();
+        imagepng($im, null, 9);
+        $bytes = ob_get_clean();
+        imagedestroy($im);
+
+        return $bytes;
+    }
+
+    /**
+     * Pick a font size and character-wrapped lines so the title fills the card
+     * without overflowing. CJK has no spaces, so we wrap per character.
+     */
+    private function fitTitle(string $title, int $maxWidth): array
+    {
+        $title = trim(preg_replace('/\s+/u', ' ', $title)) ?: '（無標題）';
+
+        foreach ([64, 58, 52, 46, 40] as $size) {
+            $lines = $this->wrap($title, $size, $maxWidth);
+            $lineHeight = (int) ($size * 1.45);
+            if (count($lines) <= 4) {
+                return [$size, $lines, $lineHeight];
+            }
+        }
+
+        // Still too long at the smallest size → clamp to 4 lines with an ellipsis.
+        $lines = array_slice($this->wrap($title, 40, $maxWidth), 0, 4);
+        $lines[3] = mb_substr($lines[3], 0, max(0, mb_strlen($lines[3]) - 1)).'…';
+
+        return [40, $lines, (int) (40 * 1.45)];
+    }
+
+    /**
+     * Greedy character-wrap using the real rendered width (imagettfbbox).
+     */
+    private function wrap(string $text, int $size, int $maxWidth): array
+    {
+        $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
+        $lines = [];
+        $current = '';
+
+        foreach ($chars as $ch) {
+            $candidate = $current.$ch;
+            $box = imagettfbbox($size, 0, $this->font, $candidate);
+            $width = abs($box[2] - $box[0]);
+            if ($width > $maxWidth && $current !== '') {
+                $lines[] = $current;
+                $current = $ch;
+            } else {
+                $current = $candidate;
+            }
+        }
+
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        return $lines ?: [$text];
+    }
+}

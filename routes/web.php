@@ -65,6 +65,7 @@ Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap')
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/feed', [BlogFeedController::class, 'index'])->name('blog.feed');
 Route::get('/blog/tag/{slug}', [BlogController::class, 'tag'])->name('blog.tag');
+Route::get('/blog/{post:slug}/og.png', [BlogController::class, 'ogImage'])->name('blog.og');
 Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
 
 // Newsletter subscription (OTP two-step) + unsubscribe

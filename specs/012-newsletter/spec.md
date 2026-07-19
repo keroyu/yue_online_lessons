@@ -25,6 +25,7 @@ owner_files:
   - app/Services/PostService.php
   - app/Services/NewsletterService.php
   - app/Services/BroadcastService.php
+  - app/Services/OgImageService.php
   # Jobs / Mail / Console
   - app/Jobs/SendBroadcastEmailJob.php
   - app/Mail/NewsletterBroadcastMail.php
@@ -33,6 +34,7 @@ owner_files:
   - app/Console/Commands/CleanDormantSubscribers.php
   - app/Console/Commands/SendScheduledBroadcasts.php
   # Email views
+  - resources/fonts/NotoSansTC.ttf
   - resources/views/emails/newsletter-broadcast.blade.php
   - resources/views/emails/newsletter-broadcast-text.blade.php
   - resources/views/emails/newsletter-welcome.blade.php
@@ -62,6 +64,7 @@ owner_files:
   - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
   - database/migrations/2026_07_11_000001_add_scheduled_at_to_broadcasts_table.php
   - database/migrations/2026_07_11_000002_add_related_post_ids_to_posts_table.php
+  - tests/Feature/Newsletter/OgImageTest.php
 touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
@@ -98,7 +101,7 @@ touchpoints:
     why: 側欄新增「文章」「電子報」選單項目
   - file: routes/web.php
     owner: 000-platform-core
-    why: 註冊 /blog、/blog/{slug}、/blog/tag/{slug}、/blog/feed、訂閱/退訂/開信追蹤、admin posts/broadcasts 路由
+    why: 註冊 /blog、/blog/{slug}、/blog/{slug}/og.png（自動 OG 卡片）、/blog/tag/{slug}、/blog/feed、訂閱/退訂/開信追蹤、admin posts/broadcasts 路由
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: 分享 newsletter flash keys（newsletter_code_sent / _email / _subscribed / _info）供訂閱表單兩步流程使用
@@ -138,7 +141,8 @@ touchpoints:
 **驗收**：
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
-- [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 站台預設）、meta_description、canonical=`/blog/{slug}`
+- [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋大標題（自動換行/縮放≤4 行）＋網站名 footer，快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~60KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -322,3 +326,4 @@ touchpoints:
 - 2026-07-11: 修 Broadcast 寄送按鈕在 0 訂閱者時被 `subscriberCount === 0` 鎖死（立即/排程都按不了）— 移除該 disabled guard（排程收件人於寄出時才快照，不該卡當下訂閱數），改為 0 訂閱者時顯示琥珀色提示。純前端 UX 修正。
 - 2026-07-19: 後台新增文章表單三項微調 — (1) 送出按鈕列從 grid 下方移進左欄末尾，緊貼「引流課程」欄，長內文預覽撐高右欄時不再留大縫；(2) 發佈時間欄改 `status !== draft` 顯示（scheduled＋published 皆可設），StorePostRequest 移除 `after:now`，允許回溯過去時間；(3) `store()` 導向由 `admin.posts.edit` 改 `admin.posts.index`。測試同步更新（redirect 斷言、重命名 requires_published_at、新增 backdate 測試），Post 篩選 29 passed、build exit 0。純 hotfix，未走 /spec。
 - 2026-07-19: 後台文章列表標題改為連結，`target="_blank"` 於新視窗開啟前台 `/blog/{slug}`（含 hover 回饋）。純前端 UX 小改。
+- 2026-07-19: 自動 OG 卡片 — 文章無上傳 OG 圖也無封面時，`Post::og_url` fallback 到新路由 `GET /blog/{slug}/og.png`。新增 `OgImageService`（GD + 內建 `resources/fonts/NotoSansTC.ttf` 繁中字型）畫 1200×630 navy 底＋大標題（imagettfbbox 逐字換行、64→40px 自動縮放≤4 行、faux-bold）＋teal accent bar＋網站名（config app.name）footer；快取 public disk（key=標題 hash，改標題自動重生）、PNG level-9 壓縮 ~13–75KB（<150KB）。BlogController::ogImage 串流帶 Cache-Control。OgImageTest 3 綠、全 Newsletter 54 綠。字型 OFL 授權（11MB）隨 repo。

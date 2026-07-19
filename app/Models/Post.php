@@ -89,10 +89,12 @@ class Post extends Model
 
     protected function ogUrl(): Attribute
     {
+        // Prefer an uploaded OG image, then the cover, then an auto-generated
+        // navy title card so every post always has a share preview.
         return Attribute::make(
             get: fn () => $this->og_image_path
                 ? Storage::url($this->og_image_path)
-                : $this->cover_url
+                : ($this->cover_url ?: app(\App\Services\OgImageService::class)->url($this))
         );
     }
 }

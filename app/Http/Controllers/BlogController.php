@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Tag;
+use App\Services\OgImageService;
 use App\Services\PostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -96,6 +97,20 @@ class BlogController extends Controller
                 ] : null,
             ],
             'related' => $related,
+        ]);
+    }
+
+    /**
+     * Auto-generated OG card (navy background + title) for posts without an
+     * uploaded OG/cover image. Cached on the public disk; keyed by title hash.
+     */
+    public function ogImage(Post $post, OgImageService $ogImages): \Illuminate\Http\Response
+    {
+        $path = $ogImages->resolvePath($post);
+
+        return response(\Illuminate\Support\Facades\Storage::disk('public')->get($path), 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=86400',
         ]);
     }
 

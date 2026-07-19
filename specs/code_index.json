@@ -492,6 +492,7 @@
     ],
     "app/Models/Post.php": [
       "012.us-1",
+      "012.us-2",
       "012.us-8"
     ],
     "app/Models/PostCtaClick.php": [
@@ -601,6 +602,9 @@
       "000.us-7",
       "012.us-4",
       "012.us-7"
+    ],
+    "app/Services/OgImageService.php": [
+      "012.us-2"
     ],
     "app/Services/PayuniService.php": [
       "005.us-3",
@@ -811,6 +815,9 @@
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
+    ],
+    "resources/fonts/NotoSansTC.ttf": [
+      "012.us-2"
     ],
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3"
@@ -1219,7 +1226,8 @@
       "001.us-3",
       "002.us-9",
       "006.us-1",
-      "011.us-1"
+      "011.us-1",
+      "012.us-2"
     ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
@@ -1229,6 +1237,9 @@
     ],
     "tests/Feature/Member/UserSocialLinkTest.php": [
       "001.us-3"
+    ],
+    "tests/Feature/Newsletter/OgImageTest.php": [
+      "012.us-2"
     ]
   }
 }
