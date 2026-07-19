@@ -3,6 +3,7 @@ import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { useCart } from '@/composables/useCart'
 import { useNotifications } from '@/composables/useNotifications'
+import logoUrl from '../../../images/og-logo.png'
 
 const page = usePage()
 const auth = computed(() => page.props.auth)
@@ -49,7 +50,8 @@ const formatNotificationTime = (d) => {
       <div class="flex justify-between h-16">
         <!-- Logo -->
         <div class="flex items-center">
-          <Link href="/" class="text-xl font-bold text-white tracking-wide">
+          <Link href="/" class="flex items-center gap-2.5 text-xl font-bold text-white tracking-wide">
+            <img :src="logoUrl" alt="經營者時間銀行" class="h-9 w-9 object-contain" />
             經營者時間銀行
           </Link>
         </div>

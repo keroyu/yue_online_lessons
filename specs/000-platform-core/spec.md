@@ -82,6 +82,9 @@ touchpoints:
   - file: app/Models/Order.php
     owner: 005-checkout
     why: US7 — fillable 增加 meta_fbp / meta_fbc（結帳時的 pixel cookie 快照欄位）
+  - file: resources/images/og-logo.png
+    owner: 012-newsletter
+    why: 前台 Navigation 左上角品牌 logo（Vite import，與 OG 卡片共用同一支品牌圖）
 ---
 
 # Platform Core（全站基礎設施）
@@ -264,6 +267,7 @@ Phase 3 — 驗證：
 
 ## 進度日誌
 
+- 2026-07-20: 前台 Navigation 左上角（站名左側）加上品牌 logo — Vite import `resources/images/og-logo.png`（touchpoint 012，與 OG 卡片共用同一支圖），`h-9` 顯示於 brand-navy 導覽列。純前端。
 - 2026-07-12: /dev 完成 US7 Meta CAPI 轉換追蹤強化 — MetaConversionsService + SendMetaConversionJob（queue、3 retries、test_event_code）、Purchase 掛 fulfillOrder/Portaly（eventID 去重）、Lead/CompleteRegistration/FreeEnroll、orders.meta_fbp/meta_fbc 快照（encryptCookies 排除 _fbp/_fbc）、blade Advanced Matching、API 設定頁 CAPI 欄位；順手修正 SettingsController 機密欄位「留空不覆蓋」被 ConvertEmptyStringsToNull 破功的既有 bug；MetaConversionsTest 10 tests。
 
 - 2026-07-12: [draft] 規劃 US 7 Meta CAPI 轉換追蹤強化 — Conversions API（queued job、Purchase 於 fulfillOrder/Portaly webhook 直送 + eventID 去重）、Advanced Matching（sha256 em/ph）、補 Lead/CompleteRegistration/FreeEnroll 事件、orders 快照 fbp/fbc、後台 CAPI token 欄位。
