@@ -35,6 +35,7 @@ owner_files:
   - app/Console/Commands/SendScheduledBroadcasts.php
   # Email views
   - resources/fonts/NotoSansTC.ttf
+  - resources/images/og-logo.png
   - resources/views/emails/newsletter-broadcast.blade.php
   - resources/views/emails/newsletter-broadcast-text.blade.php
   - resources/views/emails/newsletter-welcome.blade.php
@@ -142,7 +143,7 @@ touchpoints:
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
 - [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
-- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋大標題（自動換行/縮放≤4 行）＋網站名 footer，快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~60KB（<150KB）
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋大標題（自動換行/縮放≤4 行）＋左下品牌 lockup（logo `resources/images/og-logo.png` + 「經營者時間銀行」＋teal 底線），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~60–75KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -327,3 +328,4 @@ touchpoints:
 - 2026-07-19: 後台新增文章表單三項微調 — (1) 送出按鈕列從 grid 下方移進左欄末尾，緊貼「引流課程」欄，長內文預覽撐高右欄時不再留大縫；(2) 發佈時間欄改 `status !== draft` 顯示（scheduled＋published 皆可設），StorePostRequest 移除 `after:now`，允許回溯過去時間；(3) `store()` 導向由 `admin.posts.edit` 改 `admin.posts.index`。測試同步更新（redirect 斷言、重命名 requires_published_at、新增 backdate 測試），Post 篩選 29 passed、build exit 0。純 hotfix，未走 /spec。
 - 2026-07-19: 後台文章列表標題改為連結，`target="_blank"` 於新視窗開啟前台 `/blog/{slug}`（含 hover 回饋）。純前端 UX 小改。
 - 2026-07-19: 自動 OG 卡片 — 文章無上傳 OG 圖也無封面時，`Post::og_url` fallback 到新路由 `GET /blog/{slug}/og.png`。新增 `OgImageService`（GD + 內建 `resources/fonts/NotoSansTC.ttf` 繁中字型）畫 1200×630 navy 底＋大標題（imagettfbbox 逐字換行、64→40px 自動縮放≤4 行、faux-bold）＋teal accent bar＋網站名（config app.name）footer；快取 public disk（key=標題 hash，改標題自動重生）、PNG level-9 壓縮 ~13–75KB（<150KB）。BlogController::ogImage 串流帶 Cache-Control。OgImageTest 3 綠、全 Newsletter 54 綠。字型 OFL 授權（11MB）隨 repo。
+- 2026-07-19: OG 卡片加入品牌 lockup — 左下角合成 logo（`resources/images/og-logo.png`，透明 PNG 經 imagecopyresampled 疊在 navy 上）＋「經營者時間銀行」白字＋teal 底線，取代原本 config app.name footer（BRAND 常數、cache v2）。標題區改置中於 lockup 上方。~68KB。OgImageTest hash 斷言同步更新，3 綠。

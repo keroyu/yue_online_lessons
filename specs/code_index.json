@@ -819,6 +819,9 @@
     "resources/fonts/NotoSansTC.ttf": [
       "012.us-2"
     ],
+    "resources/images/og-logo.png": [
+      "012.us-2"
+    ],
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3"
     ],

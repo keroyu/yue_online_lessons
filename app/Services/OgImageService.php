@@ -16,13 +16,17 @@ class OgImageService
     private const W = 1200;
     private const H = 630;
     private const MARGIN = 90;
-    private const CACHE_VERSION = 'v1'; // bump to invalidate every cached card
+    private const BRAND = '經營者時間銀行';
+    private const CACHE_VERSION = 'v2'; // bump to invalidate every cached card
 
     private string $font;
+
+    private string $logo;
 
     public function __construct()
     {
         $this->font = resource_path('fonts/NotoSansTC.ttf');
+        $this->logo = resource_path('images/og-logo.png');
     }
 
     /**
@@ -56,12 +60,7 @@ class OgImageService
 
     private function hash(Post $post): string
     {
-        return substr(sha1($post->title.'|'.$this->siteName().'|'.self::CACHE_VERSION), 0, 10);
-    }
-
-    private function siteName(): string
-    {
-        return (string) config('app.name', 'Your Time Bank');
+        return substr(sha1($post->title.'|'.self::BRAND.'|'.self::CACHE_VERSION), 0, 10);
     }
 
     /**
@@ -73,19 +72,20 @@ class OgImageService
         $navy = imagecolorallocate($im, 0x37, 0x35, 0x57);
         $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
         $teal = imagecolorallocate($im, 0x3F, 0x83, 0xA3);
-        $muted = imagecolorallocate($im, 0xB9, 0xC2, 0xD0);
         imagefill($im, 0, 0, $navy);
 
-        // Title: wrap to fit, shrinking the size when it would overflow vertically.
+        // Brand lockup (logo + name) anchored bottom-left.
+        $logoSize = 76;
+        $logoTop = self::H - 72 - $logoSize;
+
+        // Title: wrap to fit the space above the lockup, shrinking when needed.
         $maxWidth = self::W - self::MARGIN * 2;
         [$size, $lines, $lineHeight] = $this->fitTitle($post->title, $maxWidth);
 
-        // Footer block (site name + teal accent bar) anchored near the bottom.
-        $footerY = self::H - 90;
-
-        // Vertically center the title block in the space above the footer.
+        // Vertically center the title block between the top margin and the lockup.
         $blockHeight = count($lines) * $lineHeight;
-        $top = (int) max(self::MARGIN, (($footerY - 40) - $blockHeight) / 2);
+        $regionBottom = $logoTop - 28;
+        $top = (int) max(self::MARGIN, (self::MARGIN + $regionBottom - $blockHeight) / 2);
 
         $y = $top + (int) ($size * 1.1);
         foreach ($lines as $line) {
@@ -95,9 +95,27 @@ class OgImageService
             $y += $lineHeight;
         }
 
-        // Teal accent bar + site name footer.
-        imagefilledrectangle($im, self::MARGIN, $footerY - 24, self::MARGIN + 70, $footerY - 18, $teal);
-        imagettftext($im, 24, 0, self::MARGIN, $footerY + 14, $muted, $this->font, $this->siteName());
+        // Logo (transparent PNG) composited over navy, then brand name beside it.
+        $textX = self::MARGIN;
+        $logoImg = @imagecreatefrompng($this->logo);
+        if ($logoImg) {
+            imagealphablending($im, true);
+            imagecopyresampled(
+                $im, $logoImg,
+                self::MARGIN, $logoTop, 0, 0,
+                $logoSize, $logoSize, imagesx($logoImg), imagesy($logoImg)
+            );
+            imagedestroy($logoImg);
+            $textX = self::MARGIN + $logoSize + 24;
+        }
+
+        $brandSize = 30;
+        $brandY = $logoTop + (int) ($logoSize / 2) + (int) ($brandSize / 2) + 2;
+        imagettftext($im, $brandSize, 0, $textX, $brandY, $white, $this->font, self::BRAND);
+        imagettftext($im, $brandSize, 0, $textX + 1, $brandY, $white, $this->font, self::BRAND);
+        // Teal underline accent beneath the brand name.
+        $box = imagettfbbox($brandSize, 0, $this->font, self::BRAND);
+        imagefilledrectangle($im, $textX, $brandY + 12, $textX + abs($box[2] - $box[0]), $brandY + 16, $teal);
 
         // Max zlib compression (level 9). The card is a flat navy background with
         // text, so PNG stays ~60KB — comfortably under 150KB.

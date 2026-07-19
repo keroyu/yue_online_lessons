@@ -539,6 +539,7 @@ main_files:
 - database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
 - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
 - resources/fonts/NotoSansTC.ttf
+- resources/images/og-logo.png
 - resources/js/Components/Admin/PostForm.vue
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Newsletter/PostCard.vue

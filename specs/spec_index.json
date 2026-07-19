@@ -2710,6 +2710,7 @@
         "app/Services/OgImageService.php",
         "app/Services/PostService.php",
         "resources/fonts/NotoSansTC.ttf",
+        "resources/images/og-logo.png",
         "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Pages/Blog/Index.vue",
         "resources/js/Pages/Blog/Show.vue",

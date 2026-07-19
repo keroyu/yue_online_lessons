@@ -48,6 +48,6 @@ class OgImageTest extends TestCase
         $res->assertHeader('Content-Type', 'image/png');
         // PNG magic bytes.
         $this->assertStringStartsWith("\x89PNG", $res->getContent());
-        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($post->title.'|'.config('app.name').'|v1'), 0, 10).'.png');
+        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($post->title.'|經營者時間銀行|v2'), 0, 10).'.png');
     }
 }
