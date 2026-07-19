@@ -17,7 +17,7 @@ class OgImageService
     private const H = 630;
     private const MARGIN = 90;
     private const BRAND = '經營者時間銀行';
-    private const CACHE_VERSION = 'v2'; // bump to invalidate every cached card
+    private const CACHE_VERSION = 'v3'; // bump to invalidate every cached card
 
     private string $font;
 
@@ -89,33 +89,37 @@ class OgImageService
 
         $y = $top + (int) ($size * 1.1);
         foreach ($lines as $line) {
-            // Faux-bold: draw twice with a 1px x-offset for more presence.
-            imagettftext($im, $size, 0, self::MARGIN, $y, $white, $this->font, $line);
-            imagettftext($im, $size, 0, self::MARGIN + 1, $y, $white, $this->font, $line);
+            $this->drawBold($im, $size, self::MARGIN, $y, $white, $line);
             $y += $lineHeight;
         }
 
-        // Logo (transparent PNG) composited over navy, then brand name beside it.
-        $textX = self::MARGIN;
+        // Brand lockup (logo + name + teal underline), anchored bottom-right.
+        $brandSize = 30;
+        $gap = 24;
+        $box = imagettfbbox($brandSize, 0, $this->font, self::BRAND);
+        $textWidth = abs($box[2] - $box[0]);
+
         $logoImg = @imagecreatefrompng($this->logo);
-        if ($logoImg) {
+        $hasLogo = (bool) $logoImg;
+        $lockupWidth = ($hasLogo ? $logoSize + $gap : 0) + $textWidth;
+        $lockupLeft = self::W - self::MARGIN - $lockupWidth;
+
+        $textX = $lockupLeft;
+        if ($hasLogo) {
             imagealphablending($im, true);
             imagecopyresampled(
                 $im, $logoImg,
-                self::MARGIN, $logoTop, 0, 0,
+                $lockupLeft, $logoTop, 0, 0,
                 $logoSize, $logoSize, imagesx($logoImg), imagesy($logoImg)
             );
             imagedestroy($logoImg);
-            $textX = self::MARGIN + $logoSize + 24;
+            $textX = $lockupLeft + $logoSize + $gap;
         }
 
-        $brandSize = 30;
         $brandY = $logoTop + (int) ($logoSize / 2) + (int) ($brandSize / 2) + 2;
-        imagettftext($im, $brandSize, 0, $textX, $brandY, $white, $this->font, self::BRAND);
-        imagettftext($im, $brandSize, 0, $textX + 1, $brandY, $white, $this->font, self::BRAND);
+        $this->drawBold($im, $brandSize, $textX, $brandY, $white, self::BRAND);
         // Teal underline accent beneath the brand name.
-        $box = imagettfbbox($brandSize, 0, $this->font, self::BRAND);
-        imagefilledrectangle($im, $textX, $brandY + 12, $textX + abs($box[2] - $box[0]), $brandY + 16, $teal);
+        imagefilledrectangle($im, $textX, $brandY + 12, $textX + $textWidth, $brandY + 16, $teal);
 
         // Max zlib compression (level 9). The card is a flat navy background with
         // text, so PNG stays ~60KB — comfortably under 150KB.
@@ -128,6 +132,18 @@ class OgImageService
     }
 
     /**
+     * Draw text with a faux-bold weight. The bundled TTF is a variable font and
+     * GD/FreeType can only render its (light) default instance, so we thicken the
+     * strokes by overprinting across a small offset grid.
+     */
+    private function drawBold($im, int $size, int $x, int $y, int $color, string $text): void
+    {
+        foreach ([[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]] as [$dx, $dy]) {
+            imagettftext($im, $size, 0, $x + $dx, $y + $dy, $color, $this->font, $text);
+        }
+    }
+
+    /**
      * Pick a font size and character-wrapped lines so the title fills the card
      * without overflowing. CJK has no spaces, so we wrap per character.
      */
@@ -137,7 +153,7 @@ class OgImageService
 
         foreach ([64, 58, 52, 46, 40] as $size) {
             $lines = $this->wrap($title, $size, $maxWidth);
-            $lineHeight = (int) ($size * 1.45);
+            $lineHeight = (int) ($size * 1.5);
             if (count($lines) <= 4) {
                 return [$size, $lines, $lineHeight];
             }
@@ -147,7 +163,7 @@ class OgImageService
         $lines = array_slice($this->wrap($title, 40, $maxWidth), 0, 4);
         $lines[3] = mb_substr($lines[3], 0, max(0, mb_strlen($lines[3]) - 1)).'…';
 
-        return [40, $lines, (int) (40 * 1.45)];
+        return [40, $lines, (int) (40 * 1.5)];
     }
 
     /**

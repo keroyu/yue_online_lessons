@@ -143,7 +143,7 @@ touchpoints:
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
 - [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
-- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋大標題（自動換行/縮放≤4 行）＋左下品牌 lockup（logo `resources/images/og-logo.png` + 「經營者時間銀行」＋teal 底線），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~60–75KB（<150KB）
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo `resources/images/og-logo.png` + 「經營者時間銀行」＋teal 底線），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -329,3 +329,4 @@ touchpoints:
 - 2026-07-19: 後台文章列表標題改為連結，`target="_blank"` 於新視窗開啟前台 `/blog/{slug}`（含 hover 回饋）。純前端 UX 小改。
 - 2026-07-19: 自動 OG 卡片 — 文章無上傳 OG 圖也無封面時，`Post::og_url` fallback 到新路由 `GET /blog/{slug}/og.png`。新增 `OgImageService`（GD + 內建 `resources/fonts/NotoSansTC.ttf` 繁中字型）畫 1200×630 navy 底＋大標題（imagettfbbox 逐字換行、64→40px 自動縮放≤4 行、faux-bold）＋teal accent bar＋網站名（config app.name）footer；快取 public disk（key=標題 hash，改標題自動重生）、PNG level-9 壓縮 ~13–75KB（<150KB）。BlogController::ogImage 串流帶 Cache-Control。OgImageTest 3 綠、全 Newsletter 54 綠。字型 OFL 授權（11MB）隨 repo。
 - 2026-07-19: OG 卡片加入品牌 lockup — 左下角合成 logo（`resources/images/og-logo.png`，透明 PNG 經 imagecopyresampled 疊在 navy 上）＋「經營者時間銀行」白字＋teal 底線，取代原本 config app.name footer（BRAND 常數、cache v2）。標題區改置中於 lockup 上方。~68KB。OgImageTest hash 斷言同步更新，3 綠。
+- 2026-07-20: OG 卡片視覺調整（cache v3）— (1) 換乾淨去背 logo；(2) 標題 faux-bold 加粗（drawBold 以 offset grid 疊印，補償變數字型只能渲染 Light 預設實例）；(3) 品牌 lockup 由左下移到右下（依 imagettfbbox 量測寬度右對齊）；(4) 標題行距 1.45→1.5x。維持 1200×630 標準 OG 尺寸（低於建議尺寸部分平台會退小縮圖）。~70KB、全 Newsletter 54 綠。
