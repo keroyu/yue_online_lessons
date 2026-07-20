@@ -163,27 +163,44 @@ class DripService
     }
 
     /**
-     * Calculate when the video free viewing window expires for a lesson.
+     * Map of lesson_id => actual send time (Carbon) for a subscription's 'sent'
+     * events, fetched in one query. Callers pass the per-lesson value as the
+     * $sentAt anchor to the video-access methods below to avoid N+1 lookups.
      */
-    public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson): ?Carbon
+    public function getSentAtMap(DripSubscription $subscription): Collection
+    {
+        return DripEmailEvent::where('subscription_id', $subscription->id)
+            ->where('event_type', 'sent')
+            ->pluck('created_at', 'lesson_id')
+            ->map(fn ($ts) => $ts instanceof Carbon ? $ts : Carbon::parse($ts));
+    }
+
+    /**
+     * Calculate when the video free viewing window expires for a lesson.
+     *
+     * Anchors on $sentAt (the actual email send time) when known; otherwise
+     * falls back to the theoretical unlock time — pre-change subscriptions with
+     * no 'sent' event, or the brief window after dispatch before the job runs.
+     */
+    public function getVideoAccessExpiresAt(DripSubscription $subscription, Lesson $lesson, ?Carbon $sentAt = null): ?Carbon
     {
         $hours = $lesson->video_access_hours; // null = unlimited access, no countdown UI
         if ($hours === null) {
             return null;
         }
 
-        $unlockDay = $lesson->sort_order * $subscription->course->drip_interval_days;
-        $unlockAt = $subscription->subscribed_at->copy()->addDays($unlockDay);
+        $anchor = $sentAt ?? $subscription->subscribed_at->copy()
+            ->addDays($lesson->sort_order * $subscription->course->drip_interval_days);
 
-        return $unlockAt->addHours($hours);
+        return $anchor->copy()->addHours($hours);
     }
 
     /**
      * Check if the video free viewing window has expired.
      */
-    public function isVideoAccessExpired(DripSubscription $subscription, Lesson $lesson): bool
+    public function isVideoAccessExpired(DripSubscription $subscription, Lesson $lesson, ?Carbon $sentAt = null): bool
     {
-        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson, $sentAt);
 
         return $expiresAt !== null && now()->greaterThan($expiresAt);
     }
@@ -191,9 +208,9 @@ class DripService
     /**
      * Get remaining seconds in the video free viewing window.
      */
-    public function getVideoAccessRemainingSeconds(DripSubscription $subscription, Lesson $lesson): ?int
+    public function getVideoAccessRemainingSeconds(DripSubscription $subscription, Lesson $lesson, ?Carbon $sentAt = null): ?int
     {
-        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson);
+        $expiresAt = $this->getVideoAccessExpiresAt($subscription, $lesson, $sentAt);
         if ($expiresAt === null || now()->greaterThan($expiresAt)) {
             return null;
         }
@@ -262,7 +279,8 @@ class DripService
             ->select(
                 'lesson_id',
                 DB::raw("SUM(CASE WHEN event_type = 'opened' THEN 1 ELSE 0 END) as open_count"),
-                DB::raw("SUM(CASE WHEN event_type = 'clicked' THEN 1 ELSE 0 END) as click_count")
+                DB::raw("SUM(CASE WHEN event_type = 'clicked' THEN 1 ELSE 0 END) as click_count"),
+                DB::raw("MAX(CASE WHEN event_type = 'sent' THEN created_at END) as last_sent_at")
             )
             ->groupBy('lesson_id')
             ->get()
@@ -284,6 +302,9 @@ class DripService
                 'title' => $lesson->title,
                 'sort_order' => $lesson->sort_order,
                 'sent_count' => $sentCount,
+                'last_sent_at' => $stats?->last_sent_at
+                    ? Carbon::parse($stats->last_sent_at)->toIso8601String()
+                    : null,
                 'open_count' => $openCount,
                 'open_rate' => $sentCount > 0 ? round($openCount / $sentCount, 4) : null,
                 'has_promo_url' => $hasPromoUrl,

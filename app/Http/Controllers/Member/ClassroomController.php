@@ -10,6 +10,7 @@ use App\Models\LessonProgress;
 use App\Services\CloudflareStreamService;
 use App\Services\CouponChainService;
 use App\Services\DripService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -144,6 +145,13 @@ class ClassroomController extends Controller
             }
         }
 
+        // Video-access countdown anchors on the lesson's actual send time when
+        // available (one query for the whole subscription); null falls back to
+        // the theoretical unlock time inside DripService.
+        $currentLessonSentAt = ($isDrip && $dripSubscription && $currentLesson)
+            ? $this->dripService->getSentAtMap($dripSubscription)->get($currentLesson->id)
+            : null;
+
         $pageProps = [
             'course' => [
                 'id' => $course->id,
@@ -152,7 +160,7 @@ class ClassroomController extends Controller
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,
-            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription, $assignment, $assignmentComments, $isAssignmentCompleted) : null,
+            'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription, $assignment, $assignmentComments, $isAssignmentCompleted, $currentLessonSentAt) : null,
             'hasContent' => $allLessons->count() > 0,
         ];
 
@@ -368,6 +376,7 @@ class ClassroomController extends Controller
         ?Assignment $assignment = null,
         Collection $assignmentComments = new Collection(),
         bool $isAssignmentCompleted = false,
+        ?Carbon $sentAt = null,
     ): array {
         $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id];
         $isConverted = $dripSubscription?->status === 'converted';
@@ -391,10 +400,10 @@ class ClassroomController extends Controller
                 : null,
             'video_access_hours' => $lesson->video_access_hours,
             'video_access_expired' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
-                ? $this->dripService->isVideoAccessExpired($dripSubscription, $lesson)
+                ? $this->dripService->isVideoAccessExpired($dripSubscription, $lesson, $sentAt)
                 : false,
             'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
-                ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson)
+                ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson, $sentAt)
                 : null,
             'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $lesson->reward_html

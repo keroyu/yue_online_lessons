@@ -2234,6 +2234,37 @@
       "status": "implemented"
     },
     {
+      "id": "010.us-12",
+      "module": "010-drip-email",
+      "title": "觀看期改以實際發信時間起算",
+      "summary": "video_access 到期改以該 Lesson 實際寄出時間（drip_email_events 的 sent 事件 created_at）為錨點，缺席時 fallback 舊理論公式；後台加最近發信時間",
+      "heading": "### User Story 12 - 觀看期改以實際發信時間起算 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-12---觀看期改以實際發信時間起算-priority-p2",
+      "keywords": [
+        "sent event",
+        "實際發信時間",
+        "觀看期起算",
+        "video access anchor",
+        "計時錨點",
+        "fallback",
+        "drip_email_events",
+        "getSentAtMap",
+        "firstOrCreate",
+        "最近發信"
+      ],
+      "code_files": [
+        "app/Jobs/SendDripEmailJob.php",
+        "app/Services/DripService.php",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "app/Models/DripEmailEvent.php",
+        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php",
+        "tests/Feature/Drip/VideoAccessAnchorTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "010.us-2",
       "module": "010-drip-email",
       "title": "已登入會員一鍵訂閱",

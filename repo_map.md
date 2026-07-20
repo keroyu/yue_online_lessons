@@ -446,6 +446,7 @@ main_files:
 - database/migrations/2026_02_28_000001_create_drip_email_events_table.php
 - database/migrations/2026_02_28_000002_add_promo_url_to_lessons_table.php
 - database/migrations/2026_03_01_084230_add_video_access_hours_to_lessons_table.php
+- database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
@@ -457,6 +458,7 @@ main_files:
 - resources/js/Pages/Member/Classroom.vue
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
+- tests/Feature/Drip/VideoAccessAnchorTest.php
 
 related_specs:
 - specs/010-drip-email/spec.md

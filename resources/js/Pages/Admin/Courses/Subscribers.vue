@@ -145,6 +145,7 @@ const goToPage = (page) => {
           <tr>
             <th class="px-4 py-2 text-left font-semibold text-gray-600">課程</th>
             <th class="px-4 py-2 text-right font-semibold text-gray-600">已發送</th>
+            <th class="px-4 py-2 text-right font-semibold text-gray-600">最近發信</th>
             <th class="px-4 py-2 text-right font-semibold text-gray-600">開信</th>
             <th class="px-4 py-2 text-right font-semibold text-gray-600">開信率</th>
             <th class="px-4 py-2 text-right font-semibold text-gray-600">點擊</th>
@@ -155,6 +156,7 @@ const goToPage = (page) => {
           <tr v-for="ls in lessonStats" :key="ls.lesson_id" class="hover:bg-gray-50">
             <td class="px-4 py-2 text-gray-900">{{ ls.title }}</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ ls.sent_count || '—' }}</td>
+            <td class="px-4 py-2 text-right text-gray-600 whitespace-nowrap">{{ ls.last_sent_at ? formatDateTime(ls.last_sent_at) : '—' }}</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ ls.open_count }}</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ formatRate(ls.open_rate) }}</td>
             <td class="px-4 py-2 text-right text-gray-600">

@@ -186,6 +186,7 @@
       "003.us-9",
       "006.us-5",
       "010.us-10",
+      "010.us-12",
       "010.us-7",
       "010.us-9"
     ],
@@ -372,6 +373,7 @@
     ],
     "app/Jobs/SendDripEmailJob.php": [
       "010.us-11",
+      "010.us-12",
       "010.us-3",
       "010.us-8"
     ],
@@ -450,7 +452,8 @@
       "010.us-5"
     ],
     "app/Models/DripEmailEvent.php": [
-      "010.us-11"
+      "010.us-11",
+      "010.us-12"
     ],
     "app/Models/DripSubscription.php": [
       "010.us-6"
@@ -577,6 +580,7 @@
       "010.us-1",
       "010.us-10",
       "010.us-11",
+      "010.us-12",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -818,6 +822,9 @@
     "database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php": [
       "003.us-9"
     ],
+    "database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php": [
+      "010.us-12"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -1044,7 +1051,8 @@
       "004.us-1"
     ],
     "resources/js/Pages/Admin/Courses/Subscribers.vue": [
-      "010.us-11"
+      "010.us-11",
+      "010.us-12"
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-8"
@@ -1246,6 +1254,9 @@
     ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
+    ],
+    "tests/Feature/Drip/VideoAccessAnchorTest.php": [
+      "010.us-12"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"

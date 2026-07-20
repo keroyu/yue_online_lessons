@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Mail\DripLessonMail;
+use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
@@ -97,6 +98,25 @@ class SendDripEmailJob implements ShouldQueue
                 'lesson_id' => $lesson->id,
                 'course_id' => $course->id,
             ]);
+
+            // Record the actual send time as the video free-viewing window anchor.
+            // Recorded only after a successful send so a delivery failure (which
+            // triggers a retry) never leaves a stale anchor. firstOrCreate keeps it
+            // idempotent across retries; a write failure only logs (same policy as
+            // open/click events) and must not re-trigger the email.
+            try {
+                DripEmailEvent::firstOrCreate([
+                    'subscription_id' => $subscription->id,
+                    'lesson_id' => $lesson->id,
+                    'event_type' => 'sent',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Drip email: failed to record sent event', [
+                    'subscription_id' => $subscription->id,
+                    'lesson_id' => $lesson->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error('Drip email failed', [
                 'user_id' => $user->id,
