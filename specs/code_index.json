@@ -1241,6 +1241,9 @@
       "011.us-1",
       "012.us-2"
     ],
+    "tests/Feature/Admin/CourseImageBatchUploadTest.php": [
+      "004.us-4"
+    ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
     ],

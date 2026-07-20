@@ -6,6 +6,7 @@ owner_files:
   - app/Http/Controllers/Admin/ChapterController.php
   - app/Http/Controllers/Admin/LessonController.php
   - app/Http/Controllers/Admin/CourseImageController.php
+  - tests/Feature/Admin/CourseImageBatchUploadTest.php
   - app/Http/Requests/Admin/StoreCourseRequest.php
   - app/Http/Requests/Admin/UpdateCourseRequest.php
   - app/Http/Requests/Admin/StoreChapterRequest.php
@@ -145,8 +146,8 @@ SEO、點數兌換、金流與顯示設定。
 支援批次上傳/刪除，並可在編輯課程介紹時同頁選圖插入 Markdown。
 
 **驗收**：
-- [x] 單張與批次上傳（一次 ≤20 張、單張 ≤10MB、限 jpg/jpeg/png/gif/webp），違規回中文錯誤訊息且整批不上傳
-- [x] 批次上傳採後端反序插入（`array_reverse`）+ `orderByDesc('id')` 查詢，顯示順序與選取順序一致
+- [x] 多選/拖曳上傳（單張 ≤2MB、限 jpg/jpeg/png/gif/webp）：前端採「一檔一請求」序列上傳（`images.batch-store` 每次帶 1 張），每個請求僅 1 張 ≤2MB，遠低於 PHP `post_max_size(8M)`，不再因多張合計超限而整包被丟棄；上傳中顯示 N/總數 進度，某張失敗只回報該張、其餘照常上傳（無需調整伺服器 PHP 上限）
+- [x] 顯示順序 `orderByDesc('id')`（最新在前）；後端 `batchStore` 仍支援一次多張（`array_reverse` 保序），供其他呼叫端使用
 - [x] Modal 多選插入：依點擊順序顯示數字 badge、可取消重排；尺寸統一套用、多張以空行分隔一次插入編輯器游標處
 - [x] 批次刪除：左上角 checkbox 專責勾選，工具列（已選 N / 全選 / 刪除已選）僅在有勾選時顯示
 - [x] 刪圖（單張/批次）後自動以 regex 精確比對 URL，清除 `description_md` 中對應的 `<img>` 與 `![alt](url)` 引用；清理失敗不影響刪圖結果
@@ -218,6 +219,7 @@ SEO、點數兌換、金流與顯示設定。
 
 ## 進度日誌
 
+- 2026-07-20: 修相簿批次上傳 bug（一次多張常失敗）— 根因是前端把整包檔案塞進單一 POST，多張合計超過 PHP `post_max_size(8M)` → PHP 丟棄整個 body → 驗證回「請選擇至少一張圖片」。改為 Gallery.vue「一檔一請求」序列上傳（含 N/總數 進度、逐張失敗回報），每請求僅 1 張，遠低於 8M 上限，故不需調整伺服器 PHP 設定。同步把單張上限從 10MB 校正為實際的 2MB（UI 文案 + `store`/`batchStore` 驗證 `max:2048`），與 `upload_max_filesize=2M` 一致。新增 CourseImageBatchUploadTest（單張/多張/非圖片）3 綠。
 - 2026-07-11: CourseForm 金流未設定警告的連結標籤「金流設定」→「API 設定」，對齊後台頁面改名（純文案）。
 - 2026-07-11: /spec 規劃課程表單 UX 重構（tabs → 單頁分區卡片 + sticky 儲存列），status: draft 待審
 - 2026-07-11: 課程縮圖上傳區標註為「課程縮圖／主視覺 Banner」並加建議尺寸說明（1920×1080 16:9、主體置中，因銷售頁滿版 object-cover 會裁上下）。

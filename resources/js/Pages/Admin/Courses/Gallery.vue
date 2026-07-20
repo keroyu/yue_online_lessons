@@ -20,6 +20,7 @@ const fileInput = ref(null)
 const dragOver = ref(false)
 const uploading = ref(false)
 const uploadError = ref(null)
+const uploadProgress = ref({ done: 0, total: 0 })
 const copiedId = ref(null)
 const selectedForDelete = ref(new Set())
 
@@ -35,26 +36,38 @@ const handleDrop = (event) => {
   if (files.length) uploadFiles(files)
 }
 
-const uploadFiles = (files) => {
+// Upload one file per request. Sending the whole selection in a single POST
+// used to exceed PHP's post_max_size once several images were picked, so the
+// server silently dropped the body and reported "no images selected".
+const uploadFiles = async (files) => {
   uploading.value = true
   uploadError.value = null
+  uploadProgress.value = { done: 0, total: files.length }
+  const failed = []
 
-  const data = new FormData()
-  files.forEach(f => data.append('images[]', f))
+  for (const file of files) {
+    await new Promise((resolve) => {
+      const data = new FormData()
+      data.append('images[]', file)
+      router.post(`/admin/courses/${props.course.id}/images/batch`, data, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: () => {
+          failed.push(file.name)
+        },
+        onFinish: () => {
+          uploadProgress.value.done++
+          resolve()
+        },
+      })
+    })
+  }
 
-  router.post(`/admin/courses/${props.course.id}/images/batch`, data, {
-    preserveScroll: true,
-    onSuccess: () => {
-      uploading.value = false
-      if (fileInput.value) fileInput.value.value = ''
-    },
-    onError: (errors) => {
-      uploading.value = false
-      uploadError.value = errors.images
-        || Object.values(errors)[0]
-        || '上傳失敗，請重試'
-    },
-  })
+  uploading.value = false
+  if (fileInput.value) fileInput.value.value = ''
+  if (failed.length) {
+    uploadError.value = `${failed.length} 張上傳失敗（可能超過單張大小限制）：${failed.join('、')}`
+  }
 }
 
 const copyUrl = async (image) => {
@@ -172,7 +185,7 @@ const batchDelete = () => {
         </label>
       </div>
       <p class="mt-2 text-xs text-gray-500">
-        支援 JPG, PNG, GIF, WebP，單張最大 10MB，一次最多 20 張
+        支援 JPG, PNG, GIF, WebP，單張最大 2MB，可一次多選（逐張上傳）
       </p>
       <div v-if="uploading" class="mt-4">
         <div class="inline-flex items-center text-sm text-brand-teal">
@@ -180,7 +193,7 @@ const batchDelete = () => {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          上傳中...
+          上傳中 {{ uploadProgress.done }}/{{ uploadProgress.total }}...
         </div>
       </div>
       <p v-if="uploadError" class="mt-2 text-sm text-red-600">{{ uploadError }}</p>

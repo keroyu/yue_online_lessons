@@ -45,12 +45,12 @@ class CourseImageController extends Controller
     public function store(Request $request, Course $course): RedirectResponse
     {
         $request->validate([
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:10240'],
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ], [
             'image.required' => '請選擇圖片',
             'image.image' => '檔案必須是圖片',
             'image.mimes' => '圖片格式必須是 jpg, jpeg, png, gif 或 webp',
-            'image.max' => '圖片大小不能超過 10MB',
+            'image.max' => '圖片大小不能超過 2MB',
         ]);
 
         $file = $request->file('image');
@@ -80,13 +80,13 @@ class CourseImageController extends Controller
     {
         $request->validate([
             'images'   => ['required', 'array', 'min:1', 'max:20'],
-            'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:10240'],
+            'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ], [
             'images.required'   => '請選擇至少一張圖片',
             'images.max'        => '單次最多上傳 20 張',
             'images.*.image'    => '檔案必須是圖片',
             'images.*.mimes'    => '僅支援 jpg、png、gif、webp',
-            'images.*.max'      => '單張圖片不可超過 10MB',
+            'images.*.max'      => '單張圖片不可超過 2MB',
         ]);
 
         foreach (array_reverse($request->file('images')) as $file) {

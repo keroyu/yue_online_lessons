@@ -235,6 +235,7 @@ main_files:
 - resources/js/Pages/Admin/Courses/Index.vue
 - resources/views/emails/lesson-added.blade.php
 - routes/console.php
+- tests/Feature/Admin/CourseImageBatchUploadTest.php
 
 related_specs:
 - specs/004-course-admin/spec.md
