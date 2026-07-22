@@ -10,6 +10,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -46,7 +47,7 @@ class PostController extends Controller
                 'status' => $post->status,
                 'is_featured' => $post->is_featured,
                 'view_count' => $post->view_count,
-                'published_at' => $post->published_at?->format('Y-m-d H:i'),
+                'published_at' => $post->published_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
                 'broadcasts_count' => $post->broadcasts()->count(),
             ]);
 
@@ -67,7 +68,7 @@ class PostController extends Controller
     {
         return Inertia::render('Admin/Posts/Create', [
             'courses' => $this->courseOptions(),
-            'popularTags' => $this->popularTags(),
+            'allTags' => $this->allTags(),
         ]);
     }
 
@@ -101,7 +102,7 @@ class PostController extends Controller
                 'cover_url' => $post->cover_url,
                 'og_url' => $post->og_image_path ? Storage::url($post->og_image_path) : null,
                 'status' => $post->status,
-                'published_at' => $post->published_at?->format('Y-m-d\TH:i'),
+                'published_at' => $post->published_at?->timezone('Asia/Taipei')->format('Y-m-d\TH:i'),
                 'is_featured' => $post->is_featured,
                 'related_course_id' => $post->related_course_id,
                 'view_count' => $post->view_count,
@@ -114,7 +115,7 @@ class PostController extends Controller
                 'filename' => $image->filename,
             ]),
             'courses' => $this->courseOptions(),
-            'popularTags' => $this->popularTags(),
+            'allTags' => $this->allTags(),
         ]);
     }
 
@@ -160,6 +161,11 @@ class PostController extends Controller
                 Storage::disk('public')->delete($post->og_image_path);
             }
             $data['og_image_path'] = $request->file('og_image')->store('post-images', 'public');
+        }
+
+        // Form sends Taipei wall time (datetime-local); DB stores UTC.
+        if (! empty($data['published_at'])) {
+            $data['published_at'] = Carbon::parse($data['published_at'], 'Asia/Taipei')->utc();
         }
 
         // Publishing now with no explicit time → stamp now.
@@ -259,14 +265,13 @@ class PostController extends Controller
     }
 
     /**
-     * Top 10 tags by usage, for quick-select in the form.
+     * All tags ordered by usage, for quick-select in the form.
      */
-    private function popularTags(): array
+    private function allTags(): array
     {
         return Tag::withCount('posts')
             ->orderByDesc('posts_count')
             ->orderBy('name')
-            ->take(10)
             ->pluck('name')
             ->all();
     }

@@ -60,6 +60,7 @@ class AdminPostCrudTest extends TestCase
 
     public function test_published_at_can_be_backdated(): void
     {
+        // Form sends Taipei wall time; DB stores UTC (-8h).
         $past = now()->subMonths(3);
 
         $this->actingAs($this->admin())->post('/admin/posts', [
@@ -72,7 +73,14 @@ class AdminPostCrudTest extends TestCase
 
         $post = Post::where('slug', 'backdated')->first();
         $this->assertNotNull($post);
-        $this->assertSame($past->format('Y-m-d H:i'), $post->published_at->format('Y-m-d H:i'));
+        $this->assertSame(
+            $past->copy()->subHours(8)->format('Y-m-d H:i'),
+            $post->published_at->format('Y-m-d H:i')
+        );
+        $this->assertSame(
+            $past->format('Y-m-d H:i'),
+            $post->published_at->timezone('Asia/Taipei')->format('Y-m-d H:i')
+        );
     }
 
     public function test_destroy_soft_deletes(): void

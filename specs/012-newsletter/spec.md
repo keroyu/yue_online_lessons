@@ -65,7 +65,10 @@ owner_files:
   - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
   - database/migrations/2026_07_11_000001_add_scheduled_at_to_broadcasts_table.php
   - database/migrations/2026_07_11_000002_add_related_post_ids_to_posts_table.php
+  - tests/Feature/Newsletter/AdminPostCrudTest.php
+  - tests/Feature/Newsletter/AdminScreensTest.php
   - tests/Feature/Newsletter/OgImageTest.php
+  - tests/Feature/Newsletter/PostServiceTest.php
 touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
@@ -91,6 +94,9 @@ touchpoints:
   - file: app/Services/SidebarService.php
     owner: 002-storefront
     why: Blog/Show（部落格文章頁）共用首頁右側欄資料（BlogController@show 注入 widgets()）
+  - file: app/Services/VideoEmbedService.php
+    owner: 003-classroom
+    why: PostService::toHtml 把文章內獨立行的 YouTube/Vimeo 連結轉 responsive embed；NewsletterBroadcastMail 取首支 YouTube 縮圖
   - file: resources/js/Components/Layout/Sidebar.vue
     owner: 002-storefront
     why: Blog/Show 渲染與首頁相同的右側欄 widget（精選/SNS/近期文章）
@@ -137,7 +143,7 @@ touchpoints:
 - [ ] PostForm：Markdown textarea + 現有圖片庫 Modal 多選插入、貼上 YouTube 連結存原文（前台才 render embed）
 - [ ] slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、unique；與 course slug 不同命名空間（前台前綴 `/blog/`）故不互撞
 - [ ] tags 以逗號/多選輸入，firstOrCreate Tag 並同步 pivot
-- [ ] status=scheduled 需填 published_at、published 立即上線、draft 不出現在任何前台；published_at 可設過去時間（回溯/backdate），scheduled 與 published 皆顯示發佈時間欄（draft 隱藏並清空）；建立成功後導回文章列表 `/admin/posts`（編輯則留在編輯頁）
+- [ ] status=scheduled 需填 published_at、published 立即上線、draft 不出現在任何前台；published_at 可設過去時間（回溯/backdate），scheduled 與 published 皆顯示發佈時間欄（draft 隱藏並清空）；建立成功後導回文章列表 `/admin/posts`（編輯則留在編輯頁）。發佈時間表單以台北時間（Asia/Taipei）顯示與輸入、DB 存 UTC（排程比對用 UTC now()）；新增文章時預填台北當前時間，前台日期顯示亦轉台北時區
 - [ ] 有付費/已寄送 broadcast 的文章仍可編輯內容；刪除為軟刪除，前台立即 404
 - [ ] 內文渲染由 `PostService::toHtml(body_md)` 於前台 request 時處理（CommonMark，strip `<script>/<style>`；YouTube/Vimeo 獨立行連結經 VideoEmbedService 轉 responsive iframe），不存 body_html 快取欄（比照 EmailTemplate accessor）
 
@@ -317,6 +323,9 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-22: 發佈時間時區修正 — 表單以台北時間顯示/輸入（`prepare()` 轉 UTC 入庫、`edit()`/`index()` 轉回台北顯示）、新增文章預填台北當前時間（PostForm `taipeiNow()`）、前台文章日期（Blog/Home）轉台北時區避免跨日誤差。既有手填 published_at 的舊資料晚存 8h 待校正。AdminPostCrudTest backdate 測試同步，全 repo 168 passed。
+- 2026-07-22: 前台文章 YouTube **shorts/live 網址**未自動轉 embed 修正 — `VideoEmbedService::parse()`（003 owned，補 touchpoint）regex 加 `shorts/`、`live/`；連帶 Broadcast 信首圖縮圖也認得 shorts。PostServiceTest 補 shorts 案例。
+- 2026-07-22: 後台文章表單「標籤」欄位的快選 chips 改列出**所有標籤**（原僅熱門前 10；`popularTags()` → `allTags()`，仍按使用次數降冪、同次數按名稱排），文案「熱門標籤」→「所有標籤」。列表頁的熱門前 5 篩選 chips 不變。AdminScreensTest 斷言同步，Newsletter 55 passed。
 - 2026-07-11: 文章管理搜尋擴充為標題／slug／tag 名稱三者命中，並新增最熱門前 5 標籤快速篩選 chip（index 帶 popularTags 含 slug、tag 篩選參數）。PostForm 欄位重排（標籤／狀態／精選／引流課程移到「關聯文章」下方）。文章標籤「知識變現」改「商業策略」（經 002 owned 的 rename migration）。補測試 `tests/Feature/Newsletter/AdminPostSearchTest.php`。
 - 2026-07-10: 建立 spec（draft）。已確認 6 項澄清：既有會員預設不訂閱、新建獨立事件表、dormant 保守判定＋開信自動復活、發佈≠寄信、Markdown+圖片庫編輯、Broadcast 對象=全部 subscribed。
 - 2026-07-10: 一致性稽核後修訂 3 項 — (1) 內文改後端 `PostService::toHtml` request 時渲染、棄 body_html 快取欄（比照 EmailTemplate accessor，且更利 SEO）；(2) slug 改必填手動英文網址；(3) 訂閱改回 OTP 兩步驗證（沿用 VerificationCodeService，防 subscribe-bombing）。

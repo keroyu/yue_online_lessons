@@ -1264,7 +1264,16 @@
     "tests/Feature/Member/UserSocialLinkTest.php": [
       "001.us-3"
     ],
+    "tests/Feature/Newsletter/AdminPostCrudTest.php": [
+      "012.us-1"
+    ],
+    "tests/Feature/Newsletter/AdminScreensTest.php": [
+      "012.us-1"
+    ],
     "tests/Feature/Newsletter/OgImageTest.php": [
+      "012.us-2"
+    ],
+    "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
     ]
   }

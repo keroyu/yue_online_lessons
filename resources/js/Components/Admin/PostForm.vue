@@ -7,10 +7,14 @@ const props = defineProps({
   post: { type: Object, default: null },
   courses: { type: Array, default: () => [] },
   images: { type: Array, default: () => [] },
-  popularTags: { type: Array, default: () => [] },
+  allTags: { type: Array, default: () => [] },
 })
 
 const isEdit = computed(() => !!props.post?.id)
+
+// Current Taipei wall time in datetime-local format (backend stores UTC).
+const taipeiNow = () =>
+  new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 16).replace(' ', 'T')
 
 const form = useForm({
   title: props.post?.title ?? '',
@@ -20,7 +24,7 @@ const form = useForm({
   seo_title: props.post?.seo_title ?? '',
   meta_description: props.post?.meta_description ?? '',
   status: props.post?.status ?? 'draft',
-  published_at: props.post?.published_at ?? '',
+  published_at: isEdit.value ? (props.post?.published_at ?? '') : taipeiNow(),
   is_featured: props.post?.is_featured ?? false,
   related_course_id: props.post?.related_course_id ?? null,
   tagsText: (props.post?.tags ?? []).join(', '),
@@ -176,11 +180,11 @@ const insertImage = (url) => {
         <div>
           <label class="block text-sm font-medium text-gray-700">標籤（逗號分隔）</label>
           <input v-model="form.tagsText" type="text" placeholder="思維升級, 財務覺醒" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          <div v-if="popularTags.length" class="mt-2">
-            <p class="text-xs text-gray-400 mb-1.5">熱門標籤（點選即加入）：</p>
+          <div v-if="allTags.length" class="mt-2">
+            <p class="text-xs text-gray-400 mb-1.5">所有標籤（點選即加入）：</p>
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="tag in popularTags"
+                v-for="tag in allTags"
                 :key="tag"
                 type="button"
                 class="text-xs px-2 py-0.5 rounded-full border cursor-pointer transition-colors"

@@ -9,7 +9,7 @@ defineProps({
   post: { type: Object, required: true },
   courses: { type: Array, default: () => [] },
   images: { type: Array, default: () => [] },
-  popularTags: { type: Array, default: () => [] },
+  allTags: { type: Array, default: () => [] },
 })
 </script>
 
@@ -22,6 +22,6 @@ defineProps({
         <a v-if="post.status === 'published'" :href="`/blog/${post.slug}`" target="_blank" class="text-brand-teal hover:underline">前台檢視 ↗</a>
       </div>
     </div>
-    <PostForm :post="post" :courses="courses" :images="images" :popular-tags="popularTags" />
+    <PostForm :post="post" :courses="courses" :images="images" :all-tags="allTags" />
   </div>
 </template>

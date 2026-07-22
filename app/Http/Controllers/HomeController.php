@@ -68,7 +68,7 @@ class HomeController extends Controller
                 'preview' => \Illuminate\Support\Str::limit($post->excerpt ?: $this->firstLinePreview($post->body_md), 30),
                 'tag' => $post->tags->first()?->name,
                 'url' => "/blog/{$post->slug}",
-                'published_at' => $post->published_at?->toDateString(),
+                'published_at' => $post->published_at?->timezone('Asia/Taipei')->toDateString(),
             ])->values()->all();
 
         return Inertia::render('Home', [

@@ -2707,7 +2707,9 @@
         "database/migrations/2026_07_10_000001_create_posts_table.php",
         "database/migrations/2026_07_10_000002_create_tags_table.php",
         "database/migrations/2026_07_10_000003_create_post_tag_table.php",
-        "database/migrations/2026_07_10_000004_create_post_images_table.php"
+        "database/migrations/2026_07_10_000004_create_post_images_table.php",
+        "tests/Feature/Newsletter/AdminScreensTest.php",
+        "tests/Feature/Newsletter/AdminPostCrudTest.php"
       ],
       "status": "implemented"
     },
@@ -2755,7 +2757,8 @@
         "resources/views/app.blade.php",
         "resources/views/sitemap.blade.php",
         "routes/web.php",
-        "tests/Feature/Newsletter/OgImageTest.php"
+        "tests/Feature/Newsletter/OgImageTest.php",
+        "tests/Feature/Newsletter/PostServiceTest.php"
       ],
       "status": "implemented"
     },

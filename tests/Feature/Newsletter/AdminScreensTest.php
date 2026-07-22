@@ -25,13 +25,13 @@ class AdminScreensTest extends TestCase
             ->assertOk()->assertInertia(fn ($p) => $p->component('Admin/Posts/Index')->has('posts.data', 1));
 
         $this->actingAs($admin)->get('/admin/posts/create')
-            ->assertOk()->assertInertia(fn ($p) => $p->component('Admin/Posts/Create')->has('popularTags'));
+            ->assertOk()->assertInertia(fn ($p) => $p->component('Admin/Posts/Create')->has('allTags'));
 
         $this->actingAs($admin)->get("/admin/posts/{$post->id}/edit")
             ->assertOk()->assertInertia(fn ($p) => $p->component('Admin/Posts/Edit')->where('post.slug', 'x'));
     }
 
-    public function test_popular_tags_ordered_by_usage(): void
+    public function test_all_tags_ordered_by_usage(): void
     {
         $admin = $this->admin();
         $hot = \App\Models\Tag::create(['name' => '熱門', 'slug' => 'hot']);
@@ -46,7 +46,7 @@ class AdminScreensTest extends TestCase
             ->tags()->attach($cold->id);
 
         $this->actingAs($admin)->get('/admin/posts/create')
-            ->assertInertia(fn ($p) => $p->where('popularTags.0', '熱門')->where('popularTags.1', '冷門'));
+            ->assertInertia(fn ($p) => $p->where('allTags.0', '熱門')->where('allTags.1', '冷門'));
     }
 
     public function test_admin_broadcast_screens_render(): void

@@ -569,7 +569,10 @@ main_files:
 - resources/views/sitemap.blade.php
 - routes/console.php
 - routes/web.php
+- tests/Feature/Newsletter/AdminPostCrudTest.php
+- tests/Feature/Newsletter/AdminScreensTest.php
 - tests/Feature/Newsletter/OgImageTest.php
+- tests/Feature/Newsletter/PostServiceTest.php
 
 related_specs:
 - specs/012-newsletter/spec.md

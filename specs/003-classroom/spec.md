@@ -273,6 +273,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-22: `VideoEmbedService::parse()` YouTube regex 加 `shorts/`、`live/` 路徑格式（012-newsletter 文章 shorts 網址未轉 embed 的修正；小節影片上架同步受益）。PostServiceTest 補案例，全 repo 168 passed。
 - 2026-07-15: 實作 US9 Cloudflare Stream 影音來源完成（T001–T010）— migration enum→string、CloudflareStreamService（本地 RS256 JWT 簽名）、parse 四格式、表單/驗證/播放器三端接通；全套測試 156 passed、npm build 過。附帶修正：VideoPlayer 的 Vimeo message listener 改為無條件註冊（跨平台切換小節後 Vimeo ended 事件原本會失效）
 - 2026-07-15: 規劃 US9 Cloudflare Stream 影音來源（貼 URL/UID 上架 + Signed URL 播放保護），status: draft 待審
 - 2026-07-12: 修正作業題目管理課程選單 — 改列「全部課程」（不再過濾掉無題目課程，供補第一題），無題目課程置底；並將其課程選單自提交列表篩選解耦（獨立 `manage_course_id` 參數 + `manageLessons`），預設選定「最新新增題目」的課程。`$courses` join→leftJoin；`HomeworkController::lessonsForCourse()` 抽出共用。更新 `HomeworkCoursesTest`。

@@ -83,8 +83,8 @@ class BlogController extends Controller
                 'slug' => $post->slug,
                 'body_html' => $this->postService->toHtml($post->body_md),
                 'cover_url' => $post->cover_url,
-                'published_at' => $post->published_at?->toDateString(),
-                'published_at_human' => $post->published_at?->translatedFormat('Y 年 n 月 j 日'),
+                'published_at' => $post->published_at?->timezone('Asia/Taipei')->toDateString(),
+                'published_at_human' => $post->published_at?->timezone('Asia/Taipei')->translatedFormat('Y 年 n 月 j 日'),
                 'view_count' => $post->view_count,
                 'tags' => $post->tags->map(fn ($t) => ['name' => $t->name, 'slug' => $t->slug]),
                 'url' => $url,
@@ -176,7 +176,7 @@ class BlogController extends Controller
             'excerpt' => $post->excerpt,
             'cover_url' => $post->cover_url,
             'url' => "/blog/{$post->slug}",
-            'published_at' => $post->published_at?->toDateString(),
+            'published_at' => $post->published_at?->timezone('Asia/Taipei')->toDateString(),
             'tags' => $post->relationLoaded('tags')
                 ? $post->tags->map(fn ($t) => ['name' => $t->name, 'slug' => $t->slug])
                 : [],
