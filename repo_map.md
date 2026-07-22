@@ -145,6 +145,8 @@ main_files:
 - resources/js/Pages/Home.vue
 - resources/js/composables/useCart.js
 - routes/web.php
+- tests/Feature/CheckoutTrafficSourceTest.php
+- tests/Feature/Storefront/SiteAnalyticsTest.php
 
 related_specs:
 - specs/002-storefront/spec.md

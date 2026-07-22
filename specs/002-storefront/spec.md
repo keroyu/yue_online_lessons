@@ -43,6 +43,8 @@ owner_files:
   - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
   - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
   - resources/js/Pages/Admin/Analytics/Index.vue
+  - tests/Feature/CheckoutTrafficSourceTest.php
+  - tests/Feature/Storefront/SiteAnalyticsTest.php
 touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
@@ -219,7 +221,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] `TrackTrafficSource` middleware 掛全站 web 群組（GET 且非 admin/api 路徑）：有 UTM/click id → 記新來源；否則有外部 referrer（黑名單沿用 FR-004）→ 記 referrer 來源；欄位與截斷規則沿用 FR-010
 - [x] 雙觸點 cookie 各存 7 天：`tf_first`（只在不存在時寫入）、`tf_last`（每次新來源覆蓋）；`CourseController::show` 內的舊 session 捕捉邏輯移除，統一走 middleware
 - [x] 建單時 orders 來源欄位改由 `TrafficSourceService::lastTouch()` 提供（語意不變 = 最後觸點），另存 `orders.first_touch` JSON；Traffic CSV 匯出加 first_touch 欄位
-- [x] `SiteAnalyticsService::recordView(Course, Request)`：爬蟲 UA 過濾 + 同 session 同日去重後，upsert `course_daily_stats`（course × date × channel）`views + 1`；channel 由 `TrafficSourceService::classifyChannel()`（server 版歸類：click id → paid、utm/referrer 比對 → social/search/email/video/referral、無 → direct）
+- [x] `SiteAnalyticsService::recordView(Course, Request)`：爬蟲 UA 過濾 + 同 session 同日去重後，upsert `course_daily_stats`（course × date × channel）`views + 1`；channel 由 `TrafficSourceService::classifyChannel()`（server 版歸類：click id → paid、utm/referrer 比對 → social/search/email/video/referral、無 → direct）；歸類來源用 `currentSource()` = 當下 request 的 UTM/click id 優先、無才 fallback tf_last cookie（UTM 落地首擊時 cookie 僅 queue 在 response、request 尚無，直讀 cookie 會誤歸 direct）
 - [x] `POST /api/track/add-to-cart`（IP throttle）：useCart 加購成功後 beacon，`add_to_cart + 1`；auth/guest 同一路徑
 - [x] 建單時 `checkouts + 1`、入帳時 `purchases + 1`／`revenue + unit_price`（皆按訂單 last touch 的 channel、逐 order item 課程計）
 - [x] `GET /go/post/{post}/course/{course}`：`post_cta_clicks`（post × course × date）`clicks + 1` 後 302 到課程頁並附 `utm_source=blog&utm_medium=cta&utm_campaign={post_slug}`；Blog Show.vue CTA 改走此連結
@@ -323,6 +325,7 @@ Phase D — 驗證：
 
 ## 進度日誌
 
+- 2026-07-22: 行銷分析 UTM 落地首擊誤歸 direct 修正 — 新增 `TrafficSourceService::currentSource()`（當下 request 參數優先、fallback tf_last cookie），`recordView()`/`recordAddToCart()` 改用之；補回歸測試（IG UTM 落地 → social）。owner_files 補登 CheckoutTrafficSourceTest / SiteAnalyticsTest。全 repo 169 passed。
 - 2026-07-20: 首頁右側欄（精選推薦/追蹤站長/近期文章 widget，US6）抽成共用 `SidebarService`（後端組資料）+ `Components/Layout/Sidebar.vue`（前端 widget 迴圈），HomeController 改用 service（行為不變、SnsProfileTest 綠）。目的：部落格文章頁 Blog/Show 共用同一側欄（touchpoint 012）。 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。
 
 - 2026-07-12: [draft] 規劃 US 10 全站流量追蹤與轉換漏斗分析 — TrackTrafficSource middleware + cookie 雙觸點（7 天）取代銷售頁 session 捕捉（FR-003/D3 就地改寫）、course_daily_stats 日彙總（views/atc/checkouts/purchases/revenue × channel）、post_cta_clicks + /go redirect、/admin/analytics 漏斗報表。

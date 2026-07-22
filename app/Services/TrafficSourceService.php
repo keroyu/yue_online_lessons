@@ -57,6 +57,18 @@ class TrafficSourceService
     }
 
     /**
+     * Source for classifying the CURRENT request. On the UTM landing hit the
+     * tf_last cookie is only queued for the response and absent from the
+     * request, so live query params take precedence over the cookie.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function currentSource(Request $request): ?array
+    {
+        return $this->extractFromRequest($request) ?: $this->lastTouch($request);
+    }
+
+    /**
      * Same capture rules as the original per-page capture (FR-010):
      * UTM keys trimmed to 100 chars, click ids to 255; referrer host recorded
      * only when no UTM/click id and not on the blacklist (FR-004).

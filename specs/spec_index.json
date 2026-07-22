@@ -412,7 +412,9 @@
         "bootstrap/app.php",
         "app/Models/Order.php",
         "app/Http/Controllers/CheckoutController.php",
-        "app/Http/Controllers/Admin/CourseController.php"
+        "app/Http/Controllers/Admin/CourseController.php",
+        "tests/Feature/Storefront/SiteAnalyticsTest.php",
+        "tests/Feature/CheckoutTrafficSourceTest.php"
       ],
       "status": "implemented"
     },

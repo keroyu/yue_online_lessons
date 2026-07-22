@@ -1252,6 +1252,9 @@
     "tests/Feature/Admin/CourseImageBatchUploadTest.php": [
       "004.us-4"
     ],
+    "tests/Feature/CheckoutTrafficSourceTest.php": [
+      "002.us-10"
+    ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
     ],
@@ -1275,6 +1278,9 @@
     ],
     "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
+    ],
+    "tests/Feature/Storefront/SiteAnalyticsTest.php": [
+      "002.us-10"
     ]
   }
 }

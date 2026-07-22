@@ -115,6 +115,21 @@ class SiteAnalyticsTest extends TestCase
         $this->assertSame('direct', $stat->channel);
     }
 
+    public function test_utm_landing_view_is_classified_from_live_params_not_cookie(): void
+    {
+        $course = $this->makeCourse();
+
+        // First hit carries UTM but no tf_last cookie yet (it is only queued
+        // for the response) — must still classify as social, not direct.
+        $this->get("/course/{$course->slug}?utm_source=instagram&utm_medium=social&utm_campaign=2026-kol-sushi")
+            ->assertOk();
+
+        $stat = CourseDailyStat::where('course_id', $course->id)->first();
+        $this->assertNotNull($stat);
+        $this->assertSame('social', $stat->channel);
+        $this->assertSame(1, $stat->views);
+    }
+
     public function test_bot_view_is_not_counted(): void
     {
         $course = $this->makeCourse();

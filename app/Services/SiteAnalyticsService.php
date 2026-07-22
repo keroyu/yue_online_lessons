@@ -32,7 +32,7 @@ class SiteAnalyticsService
             return;
         }
 
-        $channel = $this->trafficSource->classifyChannel($this->trafficSource->lastTouch($request));
+        $channel = $this->trafficSource->classifyChannel($this->trafficSource->currentSource($request));
         $this->bump($course->id, $channel, 'views');
 
         if ($request->hasSession()) {
@@ -43,7 +43,7 @@ class SiteAnalyticsService
     /** Add-to-cart beacon: single path for auth and guest carts (D15). */
     public function recordAddToCart(int $courseId, Request $request): void
     {
-        $channel = $this->trafficSource->classifyChannel($this->trafficSource->lastTouch($request));
+        $channel = $this->trafficSource->classifyChannel($this->trafficSource->currentSource($request));
         $this->bump($courseId, $channel, 'add_to_cart');
     }
 
