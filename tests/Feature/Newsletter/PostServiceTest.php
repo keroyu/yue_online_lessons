@@ -38,6 +38,14 @@ class PostServiceTest extends TestCase
         $this->assertStringContainsString('https://www.youtube.com/embed/dQw4w9WgXcQ', $html);
     }
 
+    public function test_standalone_youtube_shorts_line_becomes_responsive_embed(): void
+    {
+        $html = $this->service()->toHtml("開頭\n\nhttps://youtube.com/shorts/TQdpBphyzNA\n\n結尾");
+
+        $this->assertStringContainsString('<iframe', $html);
+        $this->assertStringContainsString('https://www.youtube.com/embed/TQdpBphyzNA', $html);
+    }
+
     public function test_inline_video_url_inside_sentence_is_not_embedded(): void
     {
         $html = $this->service()->toHtml('請看 https://youtu.be/dQw4w9WgXcQ 這段');

@@ -24,8 +24,9 @@ class VideoEmbedService
             ];
         }
 
-        // YouTube: https://www.youtube.com/watch?v=xxx or https://youtu.be/xxx or https://www.youtube.com/embed/xxx
-        if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
+        // YouTube: https://www.youtube.com/watch?v=xxx, https://youtu.be/xxx,
+        // https://www.youtube.com/embed/xxx, /shorts/xxx, /live/xxx
+        if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url, $matches)) {
             return [
                 'platform' => 'youtube',
                 'video_id' => $matches[1],
