@@ -33,7 +33,9 @@ class HighTicketBookingService
         $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
 
         try {
-            Mail::to($data['email'])->send(new HighTicketBookingMail($subject, $body));
+            Mail::to($data['email'])
+                ->cc('themustbig+learn@gmail.com')
+                ->send(new HighTicketBookingMail($subject, $body));
         } catch (\Exception $e) {
             Log::error('High ticket booking email failed', [
                 'email' => $data['email'],

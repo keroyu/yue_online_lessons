@@ -73,7 +73,7 @@ touchpoints:
 不建立任何訂單或購買記錄。
 
 **驗收**：
-- [x] 確認信使用 `high_ticket_booking_confirmation` 模板：subject / body 以 str_replace 替換 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`，body Markdown 經 CommonMark 轉 HTML，以 `emails/high-ticket-booking.blade.php` 版型寄出
+- [x] 確認信使用 `high_ticket_booking_confirmation` 模板：subject / body 以 str_replace 替換 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`，body Markdown 經 CommonMark 轉 HTML，以 `emails/high-ticket-booking.blade.php` 版型寄出，並 CC 客服信箱 themustbig+learn@gmail.com
 - [x] 模板不存在時回傳 422「預約確認信模板不存在，請聯絡管理員」，不寄信也不建立 Lead
 - [x] Email 寄送失敗僅記 error log，Lead 記錄照常建立（寄送與記錄解耦）
 - [x] 成功提交建立 `high_ticket_leads` 記錄（status=pending、booked_at=now、notified_count=0）
@@ -175,6 +175,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-07-24: 預約確認信新增 CC 客服信箱 themustbig+learn@gmail.com（管理員同步收到預約通知）。
 - 2026-07-15: 開通「成交價格」欄位完成（T001–T003，TDD 5 測試、全套 148 passed、build 過）。
 - 2026-07-15: 規劃開通「成交價格」欄位（S 級小改，draft 待審）。
 - 2026-07-11: Leads 名單 Email 旁新增快速複製按鈕（clipboard，複製後綠勾回饋）。
