@@ -133,12 +133,13 @@ touchpoints:
 - [x] CTA 依型態切換：免費課「免費報名」、一般課「立即購買/加入購物車」、高價課隱藏價格時「立即預約」（預約表單）、drip 課「免費領取」
 - [x] 已購買者顯示前往上課入口而非購買按鈕；可積分兌換課程顯示兌換按鈕（兩段式確認，顯示兌換後餘額）
 - [x] 優惠價設定且未過期時 `PriceDisplay` 顯示劃線原價＋優惠價＋天/時/分/秒倒數
-- [x] `?lp=1` 進入 Landing Page 模式（隱藏導覽等 UI）；隱藏課程（is_visible=false）銷售頁功能完整、僅不出現在首頁
+- [x] Landing Page 模式（隱藏導覽列、麵包屑、返回列表連結）有兩個觸發來源：網址帶 `?lp=1`，或課程 `is_visible=false`（`hideUiElements = isLandingMode || isHidden`）。後者的銷售頁功能完整、可正常購買，差別在不出現於首頁**且**以獨立 Landing Page 呈現 — 後台「是否顯示於首頁」欄位標註「（Landing Page 模式）」即為此意
 - [x] 後端 share OG meta（title/description/image/url）供社群分享預覽
 - [x] 已在購物車的課程顯示對應狀態（isInCart）；drip 課依 `canSubscribe` / 現有訂閱狀態切換表單與提示
 - [x] `?coupon=CODE` 進入時把正規化後的折扣碼（大寫英數、6 碼）存入 session `checkout_coupon` 供結帳沿用
 - [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）、放大字級（text-base sm:text-lg）、`whitespace-pre-line` 保留換行
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
+- [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方「課程資訊」整塊、頂部與懸浮面板的「免費試閱」；主 CTA（免費領取／立即預約）保留
 - [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式、已購買者不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示，側標籤字樣「領取」）
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
@@ -295,6 +296,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
 - **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。
 
+- **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱），只留敘事與主 CTA。此為全站唯一定義，011 引用之
+
 ## 設計決策
 
 - **D1**: 首頁所有設定集中在 site_settings key-value 表而非專用資料表 — 欄位增減免 migration；結構化資料（分類、側欄順序）以 JSON 字串存放並在讀取端正規化。
@@ -324,6 +327,10 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D24**: 銷售頁促銷另寫 `SalesPromoBlock.vue`，不共用教室的 `LessonPromoBlock.vue` — 後者屬 010 模組、以 lesson_id 為 localStorage key、等待文案是「請先完成學習」（銷售頁語境不通），且銷售頁多了「未領取不渲染」的 gating；共用只會讓兩邊 props 互相汙染。促銷 HTML 為信任輸入、倒數以 localStorage 記憶達標，這兩條沿用教室版的既有慣例。
 - **D25**: 促銷 gating 判定用「是否已領取」而非「本次剛領取」— 重訪的持有者一樣看得到促銷（他已在名單內，促銷本就該對他生效）；否決只認本次 flash（重整一次促銷就永遠消失，等於白設）。
 - **D26**: courses 的促銷欄位沿用 lessons 的命名（`promo_html` / `promo_delay_seconds`）— 不同表不衝突，語意平行、日後閱讀不用記兩套名字。
+
+- **D27**: 落地頁版型以單一 computed `isFunnelLanding` 表達，四個隱藏點共用 — 兩種課型（收 email 的 drip、收預約的高價課）在漏斗中的角色相同：訪客此刻要決定的是「留不留資料」，不是「這門課幾堂」。原 `isBookingLanding`（011 US1 導入時只涵蓋預約）更名以反映語意；否決在四處各寫一次條件（同檔案上個月才因此漂移過一次，見 D18）
+- **D28**: 落地頁隱藏只作用在**內容**，第 3 區外層 `<div ref="topInfoRef">` 與左欄 `div.flex-1` 一律保留 — 前者是懸浮面板 IntersectionObserver 的觀測目標，`observer.observe()` 只在 `onMounted` 當下元素存在才掛載、`topInfoVisible` 預設 `true`，外層若被 `v-if` 移除會讓 `showFloatingPanel` 恆為 false，懸浮 CTA 永遠不出現；後者內含積分兌換確認面板。（原 011 D9，隨規則正典一併移入本模組）
+- **D29**: drip 課的「免費試閱」在本次改動前就不會出現 — 頂部按鈕帶 `!isDrip`、懸浮面板的 drip 走獨立分支（010 US7：drip 不支援訪客試看）。因此對 drip 而言實際新增的隱藏只有 hero 時長行與課程資訊區兩處，另兩處是既有行為的重述，不是回歸風險
 
 ## Schema
 
@@ -400,8 +407,15 @@ Phase B — 前端元件（相依 T027）
 Phase C — 驗證
 - [x] T032 四種組合實測（有/無 free_success_md × drip/免費課）：不跳頁、留客區塊就位、捲入視野、靜音自動播、開聲從頭播、手機不溢出；促銷 gating 三情境（無留客內容即計時／有留客內容未領取不渲染／領取後才計時揭曉）＋ `npm run build` 綠 in resources/js/Pages/Course/Show.vue
 
+### 漏斗落地頁版型擴及 drip（US2 追加）
+
+- [x] T033 `isBookingLanding` 更名為 `isFunnelLanding`，判定改為 `(isHighTicket && highTicketHidePrice) || isDrip`；四處隱藏點沿用（hero durationLabel 行、第 3 區課程資訊區塊、第 3 區與懸浮面板的免費試閱）。外層 `div[ref=topInfoRef]` 與左欄 `div.flex-1` 不得移除（D28）in resources/js/Pages/Course/Show.vue
+- [x] T034 驗證：`npm run build` exit 0、`php artisan test` 全綠（基準 199 passed）；drip 課與高價課各一頁由使用者以瀏覽器確認，一般課程不受影響 in resources/js/Pages/Course/Show.vue
+
 ## 進度日誌
 
+- 2026-08-01: /sync 對帳修正 US2 一條過時驗收條款 — 原寫「隱藏課程僅不出現在首頁」，實際上 `is_visible=false` 同時觸發 Landing Page 模式（AppLayout 的 hide-nav/hide-breadcrumb 與返回連結一併隱藏），與 `?lp=1` 同一條路徑。
+- 2026-08-01: 漏斗落地頁版型（FR-021/D27-D29）擴及 drip 課程 — `isBookingLanding` 更名 `isFunnelLanding`、判定改為 `(高價課且隱藏價格) || isDrip`；規則正典由 011 移入本模組，011 改為引用。drip 的免費試閱本就隱藏（D29），實際新增為 hero 時長行與課程資訊區兩處。203 passed、npm build 綠。
 - 2026-07-31: US11+US12 完成（/sync 對帳：Course.php / CourseForm.vue / 兩支 CourseRequest / Admin CourseController 的 touchpoint 說明補上 US12 促銷欄位，無額外行為差異） — 銷售頁「領取成功留客區塊 + 延遲促銷」。courses 加 free_success_md / promo_html / promo_delay_seconds；FreeSuccessBlock.vue（Markdown + {{email}}/{{name}}/{{course_name}} 變數、Vimeo/YouTube iframe 自動注入 autoplay+靜音、16:9 包覆、「🔊 開啟聲音」換 src 重載）與 SalesPromoBlock.vue（倒數揭曉、localStorage 記憶）插在課程描述與購買區之間；有留客內容時隱藏頂部訂閱成功綠卡與免費報名的「前往我的課程」按鈕，成功後捲入視野；促銷 gating 以「已領取」判定（含重訪持有者）。新增 FreeSuccessBlockTest（4 tests），全套 196 passed、npm build 綠。
 - 2026-07-31: 銷售頁懸浮購買面板與頁首 CTA 對齊（D18）— 抽出 `primaryCtaLabel`/`handlePrimaryCta` 共用，drip 課解除面板封鎖（改判 `canSubscribe && !userSubscription`）並顯示「免費領取」、收合標籤「領取」；drip 訂閱區補上 `purchaseSectionRef`，修正 drip 頁首 CTA 因走 `openFreeForm()`（`isFree` 為真但無滾動目標）而點擊無反應的死按鈕。純前端，vite build 綠。
 - 2026-07-22: 行銷分析 UTM 落地首擊誤歸 direct 修正 — 新增 `TrafficSourceService::currentSource()`（當下 request 參數優先、fallback tf_last cookie），`recordView()`/`recordAddToCart()` 改用之；補回歸測試（IG UTM 落地 → social）。owner_files 補登 CheckoutTrafficSourceTest / SiteAnalyticsTest。全 repo 169 passed。

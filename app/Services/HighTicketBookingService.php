@@ -32,11 +32,18 @@ class HighTicketBookingService
         $subject = $template->renderSubject($vars);
         $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
 
+        // A failed send must not fail the booking — the contact details are worth
+        // more than the email — but the caller has to know, so the page can stop
+        // telling the visitor to go check an inbox that has nothing in it.
+        $mailSent = true;
+
         try {
             Mail::to($data['email'])
                 ->cc('themustbig+learn@gmail.com')
                 ->send(new HighTicketBookingMail($subject, $body));
         } catch (\Exception $e) {
+            $mailSent = false;
+
             Log::error('High ticket booking email failed', [
                 'email' => $data['email'],
                 'course_id' => $course->id,
@@ -74,6 +81,6 @@ class HighTicketBookingService
             'content_name' => $course->name,
         ]);
 
-        return ['success' => true];
+        return ['success' => true, 'mail_sent' => $mailSent];
     }
 }

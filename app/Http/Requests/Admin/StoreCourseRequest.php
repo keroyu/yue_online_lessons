@@ -52,7 +52,7 @@ class StoreCourseRequest extends FormRequest
             'promo_ends_at' => ['nullable', 'date', 'after:now'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
-            'type' => ['required', 'in:lecture,mini,full,high_ticket'],
+            'type' => ['required', 'in:lecture,mini,full,high_ticket,ebook'],
             'content_category' => $this->contentCategoryRule(),
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],

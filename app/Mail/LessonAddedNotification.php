@@ -40,6 +40,7 @@ class LessonAddedNotification extends Mailable
             $this->useTemplate = true;
         } else {
             $typeLabel = match($this->course->type) {
+                'ebook' => '電子書',
                 'lecture' => '講座',
                 'mini'    => '迷你課',
                 default   => '課程',

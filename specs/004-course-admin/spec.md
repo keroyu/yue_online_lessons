@@ -28,6 +28,8 @@ owner_files:
   - resources/js/Pages/Admin/Courses/Edit.vue
   - resources/js/Pages/Admin/Courses/Chapters.vue
   - resources/js/Pages/Admin/Courses/Gallery.vue
+  - database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
+  - tests/Feature/Admin/CourseTypeTest.php
   - database/migrations/2026_01_16_000001_create_courses_table.php
   - database/migrations/2026_01_17_000001_add_status_to_courses_table.php
   - database/migrations/2026_01_17_000002_create_chapters_table.php
@@ -62,6 +64,15 @@ touchpoints:
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
     why: 前台銷售頁展示（定價/優惠倒數/slug 網址/免費試閱入口）讀取本模組維護的課程欄位
+  - file: resources/js/Pages/Course/Show.vue
+    owner: 002-storefront
+    why: 產品類別中文標籤對照（getTypeLabel）與 Meta CAPI 的 content_category — 新增 type 值須同步
+  - file: resources/js/Components/CourseCard.vue
+    owner: 002-storefront
+    why: 首頁課程卡片的類別 badge 標籤對照 — 新增 type 值須同步
+  - file: resources/js/Pages/Home.vue
+    owner: 002-storefront
+    why: 首頁產品類型篩選 badge 的標籤與排序（typeLabels / typeOrder）— 新增 type 值須同步
   - file: resources/js/Pages/Admin/Courses/Traffic.vue
     owner: 002-storefront
     why: 課程來源追蹤頁歸 002；本模組 Index.vue 僅提供「來源」入口按鈕（Portaly 課程不顯示）
@@ -123,6 +134,7 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 表單為單頁分區卡片佈局（無 tabs）：① 課程類型（course_type + type + content_category + high_ticket 設定）② 基本資訊（name / tagline / instructor_name / description / thumbnail）③ 課程介紹（description_md + 插入圖片）④ 販售設定（standard：定價/積分/預購/Portaly/金流；drip：發信間隔/目標商品/排程預覽，卡片標題隨模式切換）⑤ SEO 與顯示（slug / meta_description / is_visible）
 - [x] 儲存列唯一且 sticky 固定於視窗底部（取消 + 儲存），表單內容底部預留 padding 不被遮擋
 - [x] 送出驗證失敗時：自動捲動至第一個錯誤欄位並 focus，sticky 列顯示「有 N 個欄位需要修正」紅字提示（單頁佈局下所有錯誤皆可見，不再有 tab 藏錯誤問題）
+- [x] 產品類別下拉含五個選項：講座課程 / 迷你課 / 完整課程 / 客製服務 / 電子書（值 lecture/mini/full/high_ticket/ebook），前後台標籤一致（FR-013）
 
 ### User Story 3 - 章節與小節編輯 (Priority: P1)
 
@@ -188,6 +200,9 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-011**: 圖片刪除的 `description_md` 清理採 `preg_quote` 精確比對 URL，同 URL 多處引用全部移除，不影響其他圖片
 - **FR-012**: slug 於 Store 驗 `unique:courses,slug`、Update 排除自身；留空時前台網址退回 id
 
+- **FR-013**: `courses.type`（產品類別）值域為 `lecture` / `mini` / `full` / `high_ticket` / `ebook`，中文對照固定為 講座 / 迷你課 / 完整課程 / 客製服務 / 電子書。新增值 MUST 同步這 8 個位置，缺一就會出現「顯示成原始英文值」或「存檔被驗證擋下」：DB enum、Store/UpdateCourseRequest 的 `in:` 規則、CourseForm 選單、Admin Courses Index 篩選、Course/Show 的 getTypeLabel、CourseCard、Home 的 typeLabels + typeOrder、LessonAddedNotification 的信件標籤
+- **FR-014**: 產品類別**只影響顯示與篩選**，不改變任何交付或金流行為（`high_ticket` 是唯一例外，見 D8）。`ebook` 與其他一般類別走完全相同的購買與教室流程
+
 ## 設計決策
 
 - **D1**: `status` + `is_published` 雙欄位而非單一狀態欄 — 下架回草稿後仍可由 `sale_at` 重新推斷發佈狀態；發佈邏輯（未來 sale_at → preorder）collapse 在 `publish()` 一處
@@ -200,7 +215,12 @@ SEO、點數兌換、金流與顯示設定。
 - **D8**: `type`（產品類別）與 `course_type`（交付模式 standard/drip）為兩個獨立維度，不可合併 — high_ticket 是「賣法」、drip 是「交付節奏」
 - **D9**: 課程表單採單頁分區卡片佈局取代 tabs（2026-07-11 UX 重構）— tabs 會把驗證錯誤藏在非當前分頁造成「按儲存沒反應」假象，且欄位歸類混亂（SEO 夾在基本資訊中、開賣時間/金流塞在價格頁）、儲存按鈕重複三份。改為五張分區卡片 + 單一 sticky 儲存列 + 錯誤自動捲動。表單 script 邏輯（useForm 欄位、drip 切換、圖片插入、submit transform）不變，只重排 template（否決：保留 tabs 加錯誤紅點 — 治標不治本；否決：雙欄主從佈局 — 手機仍折回單欄，複雜度不值得）
 
+- **D10**: 擴充 type enum 的 migration 一律用 `Schema::change()` 帶完整值列表，不用 `DB::statement` 分 MySQL/sqlite 兩套 — `2026_04_09_000001` 當初只在 MySQL 分支加 `high_ticket`，sqlite 分支漏掉，導致測試 DB 的 CHECK 至今仍是三值、任何 high_ticket 課程都無法在測試中落庫（011 D12 記錄的限制）。本次 migration 一併把 sqlite 補齊，該限制隨之解除
+- **D11**: 電子書仍是一門「課程」（沿用 courses/lessons），不另建資料表 — 交付形式（PDF 連結、影片、文字）本來就由小節內容決定，type 只負責前台分類與篩選；否決新增 `ebooks` 表（會讓購買、教室、積分兌換、drip 目標全部要多一條分支）
+
 ## Schema
+
+- 本次新增 migration `2026_08_01_000001_add_ebook_to_courses_type.php` — `courses.type` enum 由 4 值擴為 5 值（加 `ebook`）；以 `Schema::change()` 同時作用於 MySQL 與 sqlite（D10）。down() 還原為 4 值前須確保無 ebook 資料列
 
 本模組擁有的資料表（細節見 migrations）：
 
@@ -217,8 +237,19 @@ SEO、點數兌換、金流與顯示設定。
 - [x] T002 單一 sticky 底部儲存列（取消+儲存）、submit onError 捲動至第一個錯誤欄位並顯示錯誤數提示 in `resources/js/Components/Admin/CourseForm.vue`
 - [x] T003 Create/Edit 頁面適配：內容底部 padding 避開 sticky 列、文案校對；手動驗證 standard / drip / high_ticket 三種課程的新增與編輯流程 + 手機 RWD in `resources/js/Pages/Admin/Courses/Create.vue`, `resources/js/Pages/Admin/Courses/Edit.vue`
 
+### 新增產品類別「電子書」（US2 追加）
+
+- [x] T00E1 migration：`courses.type` enum 加 `ebook`，用 `Schema::change()` 帶完整 5 值（MySQL + sqlite 同時生效）in database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
+- [x] T00E2 [P] `in:lecture,mini,full,high_ticket,ebook` in app/Http/Requests/Admin/StoreCourseRequest.php, app/Http/Requests/Admin/UpdateCourseRequest.php
+- [x] T00E3 [P] 後台選單與篩選加「電子書」；課程類別說明文字補上 in resources/js/Components/Admin/CourseForm.vue, resources/js/Pages/Admin/Courses/Index.vue
+- [x] T00E4 [P] 前台標籤對照補 `ebook: '電子書'` in resources/js/Pages/Course/Show.vue, resources/js/Components/CourseCard.vue, resources/js/Pages/Home.vue（含 typeOrder 尾端）〔touchpoint 002〕
+- [x] T00E5 [P] 新增小節通知信的類別標籤補上 in app/Mail/LessonAddedNotification.php
+- [x] T00E6 驗證：`php artisan test` 全綠、`npm run build` exit 0；並補一個測試確認 ebook 課程可落庫（順帶驗證 D10 的 sqlite 修正）in tests/Feature/Admin/
+
 ## 進度日誌
 
+- 2026-08-01: 課程表單「是否顯示於首頁」加註「（Landing Page 模式）」，說明文字補上關閉後銷售頁會隱藏導覽列與麵包屑（純文案，行為未變；對應行為的正典描述見 002 US2）。
+- 2026-08-01: 產品類別新增「電子書」ebook（FR-013 的 8 個同步點全數更新）。migration 改用 Schema::change() 帶完整值列表，順帶補上 sqlite 測試 DB 缺失的 high_ticket（011 D12 的限制解除，高價課終於能在測試落庫）；另修 CourseCard 標籤表原本連 high_ticket 都沒有、卡片會顯示原始英文值。新增 CourseTypeTest（4 tests），203 passed、npm build 綠。
 - 2026-07-20: 修相簿批次上傳 bug（一次多張常失敗）— 根因是前端把整包檔案塞進單一 POST，多張合計超過 PHP `post_max_size(8M)` → PHP 丟棄整個 body → 驗證回「請選擇至少一張圖片」。改為 Gallery.vue「一檔一請求」序列上傳（含 N/總數 進度、逐張失敗回報），每請求僅 1 張，遠低於 8M 上限，故不需調整伺服器 PHP 設定。同步把單張上限從 10MB 校正為實際的 2MB（UI 文案 + `store`/`batchStore` 驗證 `max:2048`），與 `upload_max_filesize=2M` 一致。新增 CourseImageBatchUploadTest（單張/多張/非圖片）3 綠。
 - 2026-07-11: CourseForm 金流未設定警告的連結標籤「金流設定」→「API 設定」，對齊後台頁面改名（純文案）。
 - 2026-07-11: /spec 規劃課程表單 UX 重構（tabs → 單頁分區卡片 + sticky 儲存列），status: draft 待審

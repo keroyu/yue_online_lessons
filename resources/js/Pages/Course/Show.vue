@@ -116,6 +116,7 @@ const getTypeLabel = (type) => {
     mini: '迷你課',
     full: '完整課程',
     high_ticket: '客製服務',
+    ebook: '電子書',
   }
   return labels[type] || type
 }
@@ -423,21 +424,33 @@ const durationLabel = computed(() => {
 const isHighTicket = computed(() => props.course.is_high_ticket === true)
 const highTicketHidePrice = computed(() => props.course.high_ticket_hide_price === true)
 
+// Funnel landing page: drip (collects an email) and hidden-price high ticket
+// (collects a booking). What the visitor decides here is whether to hand over
+// their details, not how many lessons the course has — so product specs and the
+// free-preview detour are stripped out (002 FR-021).
+const isFunnelLanding = computed(() =>
+  (isHighTicket.value && highTicketHidePrice.value) || props.isDrip
+)
+
 // High ticket booking form
 const bookingName = ref(page.props.auth?.user?.real_name || '')
 const bookingEmail = ref(page.props.auth?.user?.email || '')
 const bookingSubmitting = ref(false)
 const bookingSuccess = ref(false)
+// Confirmation mail can fail after the booking itself succeeded — never send the
+// visitor to an inbox with nothing in it (011 FR-013).
+const bookingMailSent = ref(true)
 const bookingErrors = ref({})
 
 const submitBooking = async () => {
   bookingErrors.value = {}
   bookingSubmitting.value = true
   try {
-    await window.axios.post(`/course/${props.course.id}/book`, {
+    const { data } = await window.axios.post(`/course/${props.course.id}/book`, {
       name: bookingName.value,
       email: bookingEmail.value,
     })
+    bookingMailSent.value = data?.mail_sent !== false
     bookingSuccess.value = true
   } catch (e) {
     const errors = e.response?.data?.errors
@@ -487,7 +500,7 @@ const submitBooking = async () => {
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-3xl mx-auto leading-tight">
         {{ course.name }}
       </h1>
-      <p v-if="durationLabel" class="mt-3 text-blue-200 text-sm">
+      <p v-if="durationLabel && !isFunnelLanding" class="mt-3 text-blue-200 text-sm">
         {{ durationLabel }}
       </p>
       <div v-if="course.status === 'preorder'" class="mt-3">
@@ -551,6 +564,8 @@ const submitBooking = async () => {
 
         <!-- Left: Course info -->
         <div class="flex-1">
+          <!-- Specs are noise on a booking landing page (011 FR-012) -->
+          <template v-if="!isFunnelLanding">
           <h3 class="text-sm font-semibold text-gray-700 border-l-4 border-brand-teal pl-2 mb-4">課程資訊</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm text-gray-600">
             <!-- Type -->
@@ -600,6 +615,7 @@ const submitBooking = async () => {
               <span>目前狀態　<strong class="text-yellow-700">預購中</strong></span>
             </div>
           </div>
+          </template>
 
           <!-- 積分兌換確認面板（點綠色按鈕後於此顯示，確定才扣點） -->
           <div
@@ -651,7 +667,7 @@ const submitBooking = async () => {
           />
           <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
             <a
-              v-if="hasPreviewLessons && !isDrip && !isPreviewMode"
+              v-if="hasPreviewLessons && !isDrip && !isPreviewMode && !isFunnelLanding"
               :href="`/course/${course.id}/preview`"
               target="_blank"
               rel="noopener noreferrer"
@@ -893,8 +909,14 @@ const submitBooking = async () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p class="text-sm font-semibold text-gray-900 mb-1">預約申請已送出！</p>
-              <p class="text-sm text-gray-600">通知信已寄出，請立即前往收件匣查收並按照信中指示完成後續步驟。</p>
+              <template v-if="bookingMailSent">
+                <p class="text-sm font-semibold text-gray-900 mb-1">預約申請已送出！</p>
+                <p class="text-sm text-gray-600">通知信已寄出，請立即前往收件匣查收並按照信中指示完成後續步驟。</p>
+              </template>
+              <template v-else>
+                <p class="text-sm font-semibold text-gray-900 mb-1">預約已收到！</p>
+                <p class="text-sm text-gray-600">但確認信寄送失敗，我們會盡快主動與你聯絡。</p>
+              </template>
             </div>
             <!-- Form state -->
             <template v-else>
@@ -1162,7 +1184,7 @@ const submitBooking = async () => {
             </button>
             <template v-else>
             <a
-              v-if="hasPreviewLessons"
+              v-if="hasPreviewLessons && !isFunnelLanding"
               :href="`/course/${course.id}/preview`"
               target="_blank"
               rel="noopener noreferrer"

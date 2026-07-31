@@ -130,6 +130,7 @@ const courseTypes = [
   { value: 'mini', label: '迷你課程' },
   { value: 'full', label: '完整課程' },
   { value: 'high_ticket', label: '客製服務' },
+  { value: 'ebook', label: '電子書' },
 ]
 
 const handleThumbnailChange = (event) => {
@@ -239,7 +240,7 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
                 {{ type.label }}
               </option>
             </select>
-            <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程 / 客製服務」等產品分類。</p>
+            <p :class="helpTextClasses">用於前台顯示「講座 / 迷你課 / 完整課程 / 客製服務 / 電子書」等產品分類。</p>
             <p v-if="form.errors.type" :class="errorTextClasses">{{ form.errors.type }}</p>
           </div>
 
@@ -766,9 +767,10 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           <div class="ml-3">
             <label for="is_visible" class="text-sm font-semibold text-gray-900 cursor-pointer">
               是否顯示於首頁
+              <span class="font-normal text-gray-500">（Landing Page 模式）</span>
             </label>
             <p class="text-sm text-gray-500 mt-1">
-              關閉後課程不會出現在首頁，但仍可透過網址存取和購買
+              關閉後課程不會出現在首頁，但仍可透過網址存取和購買；銷售頁同時隱藏導覽列與麵包屑，成為獨立的 Landing Page
             </p>
           </div>
         </div>

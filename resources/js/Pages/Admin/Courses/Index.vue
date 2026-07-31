@@ -28,6 +28,7 @@ const productTypes = [
   { value: 'lecture', label: '講座課程' },
   { value: 'mini', label: '迷你課程' },
   { value: 'high_ticket', label: '客製服務' },
+  { value: 'ebook', label: '電子書' },
 ]
 
 const filteredCourses = computed(() => {

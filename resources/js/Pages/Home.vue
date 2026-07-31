@@ -63,14 +63,15 @@ function toggleCategory(value) {
   selectedCategory.value = selectedCategory.value === value ? null : value
 }
 
-// Product-type filter badges (迷你課 / 講座 / 完整課程 / 客製服務)
+// Product-type filter badges (迷你課 / 講座 / 完整課程 / 客製服務 / 電子書)
 const typeLabels = {
   lecture: '講座',
   mini: '迷你課',
   full: '完整課程',
   high_ticket: '客製服務',
+  ebook: '電子書',
 }
-const typeOrder = ['lecture', 'mini', 'full', 'high_ticket']
+const typeOrder = ['lecture', 'mini', 'full', 'high_ticket', 'ebook']
 const availableTypes = computed(() =>
   typeOrder.filter(t => props.courses.some(c => c.product_type === t))
 )

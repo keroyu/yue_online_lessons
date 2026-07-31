@@ -422,6 +422,7 @@
       "011.us-2"
     ],
     "app/Mail/LessonAddedNotification.php": [
+      "004.us-2",
       "004.us-6"
     ],
     "app/Mail/NewsletterBroadcastMail.php": [
@@ -624,6 +625,7 @@
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
       "010.us-13",
+      "011.us-1",
       "011.us-2"
     ],
     "app/Services/HighTicketLeadService.php": [
@@ -873,6 +875,9 @@
       "002.us-11",
       "002.us-12"
     ],
+    "database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php": [
+      "004.us-2"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -980,7 +985,8 @@
       "002.us-12"
     ],
     "resources/js/Components/CourseCard.vue": [
-      "002.us-1"
+      "002.us-1",
+      "004.us-2"
     ],
     "resources/js/Components/FeaturedCourses.vue": [
       "002.us-6"
@@ -1108,7 +1114,8 @@
       "004.us-4"
     ],
     "resources/js/Pages/Admin/Courses/Index.vue": [
-      "004.us-1"
+      "004.us-1",
+      "004.us-2"
     ],
     "resources/js/Pages/Admin/Courses/Subscribers.vue": [
       "010.us-11",
@@ -1213,7 +1220,8 @@
       "010.us-1",
       "010.us-13",
       "010.us-2",
-      "011.us-1"
+      "011.us-1",
+      "011.us-2"
     ],
     "resources/js/Pages/Drip/Unsubscribe.vue": [
       "010.us-6"
@@ -1222,6 +1230,7 @@
       "002.us-1",
       "002.us-3",
       "002.us-9",
+      "004.us-2",
       "012.us-3"
     ],
     "resources/js/Pages/Member/Classroom.vue": [
@@ -1321,6 +1330,9 @@
     "tests/Feature/Admin/CourseImageBatchUploadTest.php": [
       "004.us-4"
     ],
+    "tests/Feature/Admin/CourseTypeTest.php": [
+      "004.us-2"
+    ],
     "tests/Feature/CheckoutTrafficSourceTest.php": [
       "002.us-10"
     ],
@@ -1333,6 +1345,10 @@
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"
+    ],
+    "tests/Feature/HighTicket/BookingMailFailureTest.php": [
+      "011.us-1",
+      "011.us-2"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"

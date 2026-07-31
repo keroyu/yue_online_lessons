@@ -26,6 +26,8 @@ const getTypeLabel = (type) => {
     lecture: '講座',
     mini: '迷你課',
     full: '完整課程',
+    high_ticket: '客製服務',
+    ebook: '電子書',
   }
   return labels[type] || type
 }

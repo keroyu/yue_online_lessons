@@ -242,18 +242,22 @@ main_files:
 - database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
 - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
 - database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
+- database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Components/Admin/LessonForm.vue
+- resources/js/Components/CourseCard.vue
 - resources/js/Pages/Admin/Courses/Chapters.vue
 - resources/js/Pages/Admin/Courses/Create.vue
 - resources/js/Pages/Admin/Courses/Edit.vue
 - resources/js/Pages/Admin/Courses/Gallery.vue
 - resources/js/Pages/Admin/Courses/Index.vue
+- resources/js/Pages/Home.vue
 - resources/views/emails/lesson-added.blade.php
 - routes/console.php
 - tests/Feature/Admin/CourseImageBatchUploadTest.php
+- tests/Feature/Admin/CourseTypeTest.php
 
 related_specs:
 - specs/004-course-admin/spec.md
@@ -518,6 +522,7 @@ main_files:
 - resources/js/Pages/Course/Show.vue
 - resources/views/emails/high-ticket-booking.blade.php
 - routes/web.php
+- tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 
 related_specs:

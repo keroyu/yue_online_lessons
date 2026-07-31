@@ -52,7 +52,7 @@ class UpdateCourseRequest extends FormRequest
             'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
             'instructor_name' => ['required', 'string', 'max:100'],
-            'type' => ['required', 'in:lecture,mini,full,high_ticket'],
+            'type' => ['required', 'in:lecture,mini,full,high_ticket,ebook'],
             'content_category' => $this->contentCategoryRule(),
             'high_ticket_hide_price' => ['nullable', 'boolean'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],

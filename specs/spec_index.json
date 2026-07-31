@@ -530,7 +530,7 @@
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",
-      "summary": "/course/{slug} 銷售頁：Markdown 介紹、優惠倒數、依產品型態切換 CTA、OG meta、lp 模式",
+      "summary": "/course/{slug} 銷售頁：Markdown 介紹、優惠倒數、依產品型態切換 CTA、OG meta、lp 模式；drip 與隱藏價格高價課套漏斗落地頁版型（隱藏規格與免費試閱）",
       "heading": "### User Story 2 - 課程銷售頁 (Priority: P1)",
       "file": "specs/002-storefront/spec.md",
       "anchor": "user-story-2---課程銷售頁-priority-p1",
@@ -546,7 +546,11 @@
         "landing page",
         "lp=1",
         "OG meta",
-        "marked"
+        "marked",
+        "漏斗落地頁",
+        "isFunnelLanding",
+        "隱藏課程資訊",
+        "免費試閱"
       ],
       "code_files": [
         "app/Http/Controllers/CourseController.php",
@@ -1070,7 +1074,7 @@
       "id": "004.us-2",
       "module": "004-course-admin",
       "title": "課程表單欄位與定價設定",
-      "summary": "課程表單：type 四類別（含 high_ticket）、內容分類動態下拉、優惠價/原價/倒數到期、SEO slug 與 meta_description、redeem_points 欄位、is_visible、金流選項",
+      "summary": "課程表單：type 四類別（含 high_ticket）、內容分類動態下拉、優惠價/原價/倒數到期、SEO slug 與 meta_description、redeem_points 欄位、is_visible、金流選項；產品類別新增「電子書」ebook",
       "heading": "### User Story 2 - 課程表單欄位與定價設定 (Priority: P1)",
       "file": "specs/004-course-admin/spec.md",
       "anchor": "user-story-2---課程表單欄位與定價設定-priority-p1",
@@ -1086,7 +1090,12 @@
         "content_category",
         "內容分類",
         "high_ticket",
-        "redeem_points"
+        "redeem_points",
+        "電子書",
+        "ebook",
+        "產品類別",
+        "course type",
+        "type enum"
       ],
       "code_files": [
         "resources/js/Components/Admin/CourseForm.vue",
@@ -1097,7 +1106,13 @@
         "database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php",
         "database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php",
         "database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php",
-        "database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php"
+        "database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php",
+        "database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php",
+        "resources/js/Pages/Admin/Courses/Index.vue",
+        "resources/js/Components/CourseCard.vue",
+        "resources/js/Pages/Home.vue",
+        "app/Mail/LessonAddedNotification.php",
+        "tests/Feature/Admin/CourseTypeTest.php"
       ],
       "status": "implemented"
     },
@@ -2662,7 +2677,7 @@
       "id": "011.us-1",
       "module": "011-high-ticket",
       "title": "隱藏價格銷售頁與預約表單",
-      "summary": "high_ticket 隱藏價格課程銷售頁改為預約模式：價格區塊替換為預約須知、按鈕改立即預約，非同步預約表單 inline 成功提示",
+      "summary": "high_ticket 隱藏價格課程銷售頁改為預約模式：價格區塊替換為預約須知、按鈕改立即預約，非同步預約表單 inline 成功提示；預約型頁面隱藏規格區與免費試閱（landing page 觀感）",
       "heading": "### User Story 1 - 隱藏價格銷售頁與預約表單 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-1---隱藏價格銷售頁與預約表單-priority-p1",
@@ -2676,13 +2691,21 @@
         "booking form",
         "銷售頁",
         "1v1 面談",
-        "throttle"
+        "throttle",
+        "landing page",
+        "isBookingLanding",
+        "課程資訊隱藏",
+        "免費試閱",
+        "mail_sent",
+        "寄信失敗"
       ],
       "code_files": [
         "resources/js/Pages/Course/Show.vue",
         "app/Http/Controllers/CourseController.php",
         "app/Http/Controllers/HighTicketBookingController.php",
-        "routes/web.php"
+        "routes/web.php",
+        "app/Services/HighTicketBookingService.php",
+        "tests/Feature/HighTicket/BookingMailFailureTest.php"
       ],
       "status": "implemented"
     },
@@ -2690,7 +2713,7 @@
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",
-      "summary": "預約成功後寄出 DB 模板驅動的確認信（變數替換 + CommonMark），並建立 high_ticket_leads 記錄；寄信失敗與 Lead 儲存解耦",
+      "summary": "預約成功後寄出 DB 模板驅動的確認信（變數替換 + CommonMark），並建立 high_ticket_leads 記錄；寄信失敗與 Lead 儲存解耦；寄信失敗以 mail_sent 誠實回報前台",
       "heading": "### User Story 2 - 預約確認信與 Lead 記錄 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-2---預約確認信與-lead-記錄-priority-p1",
@@ -2704,7 +2727,13 @@
         "變數替換",
         "CommonMark",
         "booked_at",
-        "pending"
+        "pending",
+        "landing page",
+        "isBookingLanding",
+        "課程資訊隱藏",
+        "免費試閱",
+        "mail_sent",
+        "寄信失敗"
       ],
       "code_files": [
         "app/Http/Controllers/HighTicketBookingController.php",
@@ -2713,7 +2742,9 @@
         "resources/views/emails/high-ticket-booking.blade.php",
         "app/Models/HighTicketLead.php",
         "app/Models/EmailTemplate.php",
-        "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php"
+        "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php",
+        "resources/js/Pages/Course/Show.vue",
+        "tests/Feature/HighTicket/BookingMailFailureTest.php"
       ],
       "status": "implemented"
     },

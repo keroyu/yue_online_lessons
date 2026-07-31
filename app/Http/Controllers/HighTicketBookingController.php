@@ -24,6 +24,9 @@ class HighTicketBookingController extends Controller
             return response()->json(['message' => $result['message']], 422);
         }
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'mail_sent' => $result['mail_sent'],
+        ]);
     }
 }
