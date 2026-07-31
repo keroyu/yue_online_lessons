@@ -237,8 +237,29 @@ const submitFreeEnrollment = async () => {
   }
 }
 
-// Ref for purchase section (scroll target when not yet agreed)
+// Ref for purchase section (scroll target when not yet agreed).
+// Drip courses use the same ref on their subscription section (the two blocks are v-if/v-else).
 const purchaseSectionRef = ref(null)
+
+const scrollToPurchaseSection = () => {
+  purchaseSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+// Single source of truth for the primary CTA, shared by the hero and the floating panel
+const primaryCtaLabel = computed(() => {
+  if (props.isDrip) return '免費領取'
+  if (isHighTicket.value && highTicketHidePrice.value) return '立即預約'
+  return isFree.value ? '免費報名' : '立即購買'
+})
+
+const handlePrimaryCta = () => {
+  // Drip has no free-enrollment form: send the user to the subscription section
+  if (!props.isDrip && isFree.value) {
+    openFreeForm()
+    return
+  }
+  scrollToPurchaseSection()
+}
 
 // Floating panel: show when both top info and bottom purchase section are out of view
 const topInfoRef = ref(null)
@@ -246,13 +267,12 @@ const topInfoVisible = ref(true)
 const bottomPurchaseVisible = ref(false)
 const showFloatingPanel = computed(() => !topInfoVisible.value && !bottomPurchaseVisible.value)
 const floatingCollapsed = ref(false)
-const floatingPanelVisible = computed(() =>
-  showFloatingPanel.value
-  && !props.isDrip
-  && !props.isPreviewMode
-  && (hasBuyAction.value || (isHighTicket.value && highTicketHidePrice.value))
-  && !props.hasPurchased,
-)
+const floatingPanelVisible = computed(() => {
+  if (!showFloatingPanel.value || props.isPreviewMode || props.hasPurchased) return false
+  // Drip: only worth showing while the visitor can still subscribe
+  if (props.isDrip) return props.canSubscribe && !props.userSubscription
+  return hasBuyAction.value || (isHighTicket.value && highTicketHidePrice.value)
+})
 
 let observer = null
 
@@ -618,13 +638,13 @@ const submitBooking = async () => {
             </a>
             <button
               v-else
-              @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+              @click="handlePrimaryCta"
               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-8 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer"
             >
               <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              {{ isDrip ? '免費領取' : (isHighTicket && highTicketHidePrice ? '立即預約' : (isFree ? '免費報名' : '立即購買')) }}
+              {{ primaryCtaLabel }}
             </button>
           </div>
 
@@ -671,7 +691,7 @@ const submitBooking = async () => {
     <!-- ============================================================ -->
     <!-- 6a. Drip subscription section                                -->
     <!-- ============================================================ -->
-    <div v-if="isDrip" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
+    <div v-if="isDrip" ref="purchaseSectionRef" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
       <div class="max-w-2xl mx-auto">
         <!-- Already subscribed -->
         <div v-if="userSubscription" class="text-center py-6">
@@ -1036,7 +1056,7 @@ const submitBooking = async () => {
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          <span style="writing-mode:vertical-rl;letter-spacing:0.05em;">購買</span>
+          <span style="writing-mode:vertical-rl;letter-spacing:0.05em;">{{ isDrip ? '領取' : '購買' }}</span>
         </button>
 
         <!-- Expanded panel -->
@@ -1063,6 +1083,16 @@ const submitBooking = async () => {
             :promo-ends-at="course.promo_ends_at"
           />
           <div class="mt-3 flex flex-col gap-2">
+            <!-- Drip: mirror the hero CTA — scroll to the subscription section -->
+            <button
+              v-if="isDrip"
+              type="button"
+              @click="handlePrimaryCta"
+              class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
+            >
+              {{ primaryCtaLabel }}
+            </button>
+            <template v-else>
             <a
               v-if="hasPreviewLessons"
               :href="`/course/${course.id}/preview`"
@@ -1110,11 +1140,12 @@ const submitBooking = async () => {
             <button
               v-else
               type="button"
-              @click="isFree ? openFreeForm() : purchaseSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+              @click="handlePrimaryCta"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
             >
-              {{ isFree ? '免費報名' : '立即購買' }}
+              {{ primaryCtaLabel }}
             </button>
+            </template>
           </div>
         </div>
       </Transition>

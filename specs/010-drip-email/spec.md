@@ -57,7 +57,7 @@ touchpoints:
     why: 會員後台與 drip 訂閱者共用同一份 users 名單（User::dripSubscriptions 關聯）
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
-    why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）
+    why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
     why: 課程詳情頁下發 isDrip / 已訂閱狀態 props（drip 課程隱藏試看與購買入口）
@@ -261,6 +261,7 @@ Phase 5 — 驗證
 
 ## 進度日誌
 
+- 2026-07-31: drip 銷售頁右側懸浮面板同步「免費領取」CTA（touchpoint: Course/Show.vue，owner 002；原本面板對 drip 整個關閉、頁首 CTA 點擊無反應），面板僅在 `canSubscribe` 且無現有訂閱時出現、點擊捲至訂閱區。
 - 2026-07-21: US12 完成 — 影片觀看期改以實際發信時間起算。SendDripEmailJob 於寄信成功後 firstOrCreate 一筆 sent 事件當錨點（冪等）；DripService 加 getSentAtMap + 三方法吃 `?Carbon $sentAt`，缺席 fallback 舊公式；ClassroomController 傳入錨點；後台訂閱者頁加「最近發信」欄。新增 VideoAccessAnchorTest（4 tests）。全測試 167 passed、npm build 綠。
 - 2026-07-11: 銷售頁 drip「免費領取」CTA 標題改「立刻免費領取【課程名】！」，並統一登入／未登入視覺——訪客表單（DripSubscribeForm）由 indigo 改品牌配色（brand-gold 按鈕、brand-teal 聚焦），登入狀態區塊（touchpoint: Course/Show.vue，owner 002）改為同款白底卡片＋同標題＋滿版金按鈕。
 - 2026-07-06: 領域重組 — 自 005-drip-email 重寫，依實際 codebase 校正；整併 partial/planned 故事

@@ -117,7 +117,7 @@ touchpoints:
 
 **驗收**：
 - [x] 草稿課程對非管理員回 404；管理員進入為預覽模式（顯示預覽提示）
-- [x] CTA 依型態切換：免費課「免費報名」、一般課「立即購買/加入購物車」、高價課隱藏價格時「立即預約」（預約表單）、drip 課「免費訂閱」
+- [x] CTA 依型態切換：免費課「免費報名」、一般課「立即購買/加入購物車」、高價課隱藏價格時「立即預約」（預約表單）、drip 課「免費領取」
 - [x] 已購買者顯示前往上課入口而非購買按鈕；可積分兌換課程顯示兌換按鈕（兩段式確認，顯示兌換後餘額）
 - [x] 優惠價設定且未過期時 `PriceDisplay` 顯示劃線原價＋優惠價＋天/時/分/秒倒數
 - [x] `?lp=1` 進入 Landing Page 模式（隱藏導覽等 UI）；隱藏課程（is_visible=false）銷售頁功能完整、僅不出現在首頁
@@ -126,6 +126,7 @@ touchpoints:
 - [x] `?coupon=CODE` 進入時把正規化後的折扣碼（大寫英數、6 碼）存入 session `checkout_coupon` 供結帳沿用
 - [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）、放大字級（text-base sm:text-lg）、`whitespace-pre-line` 保留換行
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
+- [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式、已購買者不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示，側標籤字樣「領取」）
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
 
@@ -266,6 +267,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D15**: AddToCart 計數統一走前端 beacon（加購成功後發）— guest 加購只存 localStorage、server 無從得知，beacon 是唯一能同時覆蓋 auth/guest 的單一路徑；IP throttle 防灌水。
 - **D16**: channel 歸類邏輯做成 server 版 `TrafficSourceService::classifyChannel()`（彙總表寫入用）；Traffic.vue 既有前端 regex 歸類保留不動（US8 行為不變），規則以 server 版為準、前端版待日後收斂 — 否決本次一併重構（擴大 blast radius）。
 - **D17**: 文章引流 CTA 用 `/go` redirect 端點計數後 302 帶 UTM — 不依賴 JS、離站前必經；否決 JS beacon（點擊即離頁、beacon 易丟失）。
+- **D18**: 銷售頁主 CTA 的文案與行為收斂成單一來源（`primaryCtaLabel` / `handlePrimaryCta`），頁首與懸浮面板共用 — 原本兩處各寫一份三元式條件，型態一多就漂移（drip 課頁首「免費領取」、懸浮面板卻停在「立即購買」）。懸浮面板的 drip／一般課分支用 `v-if="isDrip"` + `<template v-else>` 隔開，避免 drip 課同時冒出購物車動線。
 
 ## Schema
 
@@ -325,6 +327,7 @@ Phase D — 驗證：
 
 ## 進度日誌
 
+- 2026-07-31: 銷售頁懸浮購買面板與頁首 CTA 對齊（D18）— 抽出 `primaryCtaLabel`/`handlePrimaryCta` 共用，drip 課解除面板封鎖（改判 `canSubscribe && !userSubscription`）並顯示「免費領取」、收合標籤「領取」；drip 訂閱區補上 `purchaseSectionRef`，修正 drip 頁首 CTA 因走 `openFreeForm()`（`isFree` 為真但無滾動目標）而點擊無反應的死按鈕。純前端，vite build 綠。
 - 2026-07-22: 行銷分析 UTM 落地首擊誤歸 direct 修正 — 新增 `TrafficSourceService::currentSource()`（當下 request 參數優先、fallback tf_last cookie），`recordView()`/`recordAddToCart()` 改用之；補回歸測試（IG UTM 落地 → social）。owner_files 補登 CheckoutTrafficSourceTest / SiteAnalyticsTest。全 repo 169 passed。
 - 2026-07-20: 首頁右側欄（精選推薦/追蹤站長/近期文章 widget，US6）抽成共用 `SidebarService`（後端組資料）+ `Components/Layout/Sidebar.vue`（前端 widget 迴圈），HomeController 改用 service（行為不變、SnsProfileTest 綠）。目的：部落格文章頁 Blog/Show 共用同一側欄（touchpoint 012）。 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。
 
