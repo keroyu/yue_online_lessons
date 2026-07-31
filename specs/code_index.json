@@ -39,10 +39,13 @@
     ],
     "app/Http/Controllers/Admin/CourseController.php": [
       "002.us-10",
+      "002.us-11",
+      "002.us-12",
       "002.us-8",
       "004.us-1",
       "004.us-2",
-      "010.us-11"
+      "010.us-11",
+      "010.us-13"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "004.us-4"
@@ -88,7 +91,8 @@
       "008.us-6",
       "008.us-7",
       "008.us-8",
-      "008.us-9"
+      "008.us-9",
+      "010.us-13"
     ],
     "app/Http/Controllers/Admin/PostController.php": [
       "012.us-1",
@@ -154,6 +158,8 @@
     ],
     "app/Http/Controllers/CourseController.php": [
       "002.us-10",
+      "002.us-11",
+      "002.us-12",
       "002.us-2",
       "002.us-8",
       "006.us-6",
@@ -190,6 +196,7 @@
       "006.us-5",
       "010.us-10",
       "010.us-12",
+      "010.us-14",
       "010.us-7",
       "010.us-9"
     ],
@@ -293,6 +300,8 @@
       "006.us-2"
     ],
     "app/Http/Requests/Admin/StoreCourseRequest.php": [
+      "002.us-11",
+      "002.us-12",
       "004.us-1",
       "004.us-2"
     ],
@@ -325,6 +334,8 @@
       "006.us-2"
     ],
     "app/Http/Requests/Admin/UpdateCourseRequest.php": [
+      "002.us-11",
+      "002.us-12",
       "004.us-1",
       "004.us-2"
     ],
@@ -386,6 +397,7 @@
     "app/Jobs/SendDripEmailJob.php": [
       "010.us-11",
       "010.us-12",
+      "010.us-13",
       "010.us-3",
       "010.us-8"
     ],
@@ -449,6 +461,8 @@
       "006.us-2"
     ],
     "app/Models/Course.php": [
+      "002.us-11",
+      "002.us-12",
       "002.us-7",
       "004.us-1",
       "004.us-2",
@@ -468,6 +482,8 @@
       "010.us-12"
     ],
     "app/Models/DripSubscription.php": [
+      "010.us-13",
+      "010.us-14",
       "010.us-6"
     ],
     "app/Models/EmailTemplate.php": [
@@ -596,6 +612,8 @@
       "010.us-10",
       "010.us-11",
       "010.us-12",
+      "010.us-13",
+      "010.us-14",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -605,9 +623,11 @@
     ],
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
+      "010.us-13",
       "011.us-2"
     ],
     "app/Services/HighTicketLeadService.php": [
+      "010.us-13",
       "011.us-4",
       "011.us-5"
     ],
@@ -843,6 +863,16 @@
     "database/migrations/2026_07_31_000001_create_short_links_table.php": [
       "000.us-8"
     ],
+    "database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php": [
+      "010.us-13"
+    ],
+    "database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php": [
+      "010.us-14"
+    ],
+    "database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php": [
+      "002.us-11",
+      "002.us-12"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
     ],
@@ -862,6 +892,8 @@
       "006.us-2"
     ],
     "resources/js/Components/Admin/CourseForm.vue": [
+      "002.us-11",
+      "002.us-12",
       "004.us-2",
       "010.us-8"
     ],
@@ -935,11 +967,17 @@
     "resources/js/Components/Course/DripSubscribeForm.vue": [
       "010.us-1"
     ],
+    "resources/js/Components/Course/FreeSuccessBlock.vue": [
+      "002.us-11"
+    ],
     "resources/js/Components/Course/PriceDisplay.vue": [
       "002.us-2"
     ],
     "resources/js/Components/Course/RedeemButton.vue": [
       "007.us-1"
+    ],
+    "resources/js/Components/Course/SalesPromoBlock.vue": [
+      "002.us-12"
     ],
     "resources/js/Components/CourseCard.vue": [
       "002.us-1"
@@ -1074,7 +1112,8 @@
     ],
     "resources/js/Pages/Admin/Courses/Subscribers.vue": [
       "010.us-11",
-      "010.us-12"
+      "010.us-12",
+      "010.us-13"
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-8"
@@ -1167,9 +1206,12 @@
       "007.us-7"
     ],
     "resources/js/Pages/Course/Show.vue": [
+      "002.us-11",
+      "002.us-12",
       "002.us-2",
       "007.us-1",
       "010.us-1",
+      "010.us-13",
       "010.us-2",
       "011.us-1"
     ],
@@ -1187,6 +1229,7 @@
       "003.us-3",
       "003.us-4",
       "003.us-8",
+      "010.us-14",
       "010.us-7"
     ],
     "resources/js/Pages/Member/ClassroomUnauthorized.vue": [
@@ -1284,6 +1327,10 @@
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
     ],
+    "tests/Feature/Drip/FunnelStopTest.php": [
+      "010.us-13",
+      "010.us-14"
+    ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"
     ],
@@ -1307,6 +1354,10 @@
     ],
     "tests/Feature/Platform/ShortLinkTest.php": [
       "000.us-8"
+    ],
+    "tests/Feature/Storefront/FreeSuccessBlockTest.php": [
+      "002.us-11",
+      "002.us-12"
     ],
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
       "002.us-10"

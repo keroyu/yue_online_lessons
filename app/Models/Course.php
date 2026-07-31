@@ -20,6 +20,9 @@ class Course extends Model
         'meta_description',
         'description',
         'description_md',
+        'free_success_md',
+        'promo_html',
+        'promo_delay_seconds',
         'price',
         'redeem_points',
         'original_price',
@@ -55,6 +58,7 @@ class Course extends Model
             'promo_ends_at' => 'datetime',
             'duration_minutes' => 'integer',
             'drip_interval_days' => 'integer',
+            'promo_delay_seconds' => 'integer',
         ];
     }
 

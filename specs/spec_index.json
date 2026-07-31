@@ -457,6 +457,76 @@
       "status": "implemented"
     },
     {
+      "id": "002.us-11",
+      "module": "002-storefront",
+      "title": "領取成功後的自訂留客區塊",
+      "summary": "courses.free_success_md（Markdown＋變數）在領取成功後就地顯示於課程描述下方，不跳頁；Vimeo/YouTube iframe 自動注入靜音自動播與「開啟聲音」按鈕",
+      "heading": "### User Story 11 - 領取成功後的自訂留客區塊 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-11---領取成功後的自訂留客區塊-priority-p2",
+      "keywords": [
+        "free_success_md",
+        "領取成功",
+        "留客",
+        "不跳轉",
+        "自訂成功內容",
+        "靜音自動播",
+        "autoplay",
+        "muted",
+        "開啟聲音",
+        "變數替換",
+        "{{email}}",
+        "marked"
+      ],
+      "code_files": [
+        "database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php",
+        "app/Models/Course.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Controllers/CourseController.php",
+        "resources/js/Components/Course/FreeSuccessBlock.vue",
+        "resources/js/Pages/Course/Show.vue",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "tests/Feature/Storefront/FreeSuccessBlockTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "002.us-12",
+      "module": "002-storefront",
+      "title": "銷售頁延遲促銷區塊",
+      "summary": "courses.promo_html + promo_delay_seconds 在課程描述底端、購買區上方延遲揭曉；有留客內容的課程須領取完成後才渲染與計時",
+      "heading": "### User Story 12 - 銷售頁延遲促銷區塊 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-12---銷售頁延遲促銷區塊-priority-p2",
+      "keywords": [
+        "promo_html",
+        "promo_delay_seconds",
+        "延遲促銷",
+        "倒數",
+        "countdown",
+        "銷售頁促銷",
+        "gating",
+        "已領取",
+        "localStorage",
+        "SalesPromoBlock"
+      ],
+      "code_files": [
+        "database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php",
+        "app/Models/Course.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Controllers/CourseController.php",
+        "resources/js/Components/Course/SalesPromoBlock.vue",
+        "resources/js/Pages/Course/Show.vue",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "tests/Feature/Storefront/FreeSuccessBlockTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",
@@ -2301,6 +2371,73 @@
         "resources/js/Pages/Admin/Courses/Subscribers.vue",
         "database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php",
         "tests/Feature/Drip/VideoAccessAnchorTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-13",
+      "module": "010-drip-email",
+      "title": "預約與後台成交也停止序列信",
+      "summary": "高價課預約完成標 booked、後台 Lead 開通與贈課標 converted，皆立即停止序列信；booked 可升級 converted，後台分開統計預約率與轉換率",
+      "heading": "### User Story 13 - 預約與後台成交也停止序列信 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-13---預約與後台成交也停止序列信-priority-p1",
+      "keywords": [
+        "booked",
+        "預約",
+        "高價課預約",
+        "checkAndBook",
+        "停止發信",
+        "stop sequence",
+        "轉換管道",
+        "贈課",
+        "gift",
+        "lead 開通",
+        "convertLead",
+        "STOPS_SENDING",
+        "預約率"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Models/DripSubscription.php",
+        "app/Jobs/SendDripEmailJob.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Services/HighTicketLeadService.php",
+        "app/Http/Controllers/Admin/MemberController.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "resources/js/Pages/Course/Show.vue",
+        "database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php",
+        "tests/Feature/Drip/FunnelStopTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "010.us-14",
+      "module": "010-drip-email",
+      "title": "達標後不再解鎖全部小節",
+      "summary": "converted/booked 改為解鎖凍結在 emails_sent（語意同退訂），只有 completed 與 unlock_all=true 的改版前既有轉換者仍全開",
+      "heading": "### User Story 14 - 達標後不再解鎖全部小節 (Priority: P1)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-14---達標後不再解鎖全部小節-priority-p1",
+      "keywords": [
+        "unlock_all",
+        "解鎖凍結",
+        "isLessonUnlocked",
+        "不再全開",
+        "emails_sent",
+        "漏斗出口",
+        "daysUntilUnlock",
+        "向後相容",
+        "觀看期豁免"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Models/DripSubscription.php",
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "resources/js/Pages/Member/Classroom.vue",
+        "database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php",
+        "tests/Feature/Drip/FunnelStopTest.php"
       ],
       "status": "implemented"
     },

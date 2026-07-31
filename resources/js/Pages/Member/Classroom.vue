@@ -56,6 +56,10 @@ const props = defineProps({
   },
 })
 
+// Booked or converted subscribers are out of the funnel: no viewing countdown,
+// no on-time reward (the backend already withholds those props).
+const isFunnelDone = computed(() => ['booked', 'converted'].includes(props.dripSubscription?.status))
+
 // Current lesson state
 const selectedLesson = ref(props.currentLesson)
 watch(() => props.currentLesson, (newLesson) => {
@@ -584,7 +588,7 @@ const handleVideoEnded = () => {
                 v-if="course.is_drip
                   && selectedLesson?.video_id
                   && selectedLesson.video_access_hours !== null
-                  && dripSubscription?.status !== 'converted'
+                  && !isFunnelDone
                   && (selectedLesson.video_access_expired || selectedLesson.video_access_remaining_seconds > 0)"
                 :key="'video-access-' + selectedLesson.id"
                 :expired="selectedLesson.video_access_expired"

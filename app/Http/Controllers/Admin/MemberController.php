@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\GrantPointsRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\ToggleSalesConsultantRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
+use App\Services\DripService;
 use App\Services\PointService;
 use App\Mail\BatchEmailMail;
 use App\Mail\CourseGiftedMail;
@@ -445,6 +446,9 @@ class MemberController extends Controller
                     ]
                 );
                 $giftedCount++;
+
+                // A gifted target course ends any drip funnel pointing at it (010 US13)
+                app(DripService::class)->checkAndConvert($member, $course);
 
                 // Send notification email if member has email
                 if ($member->email) {

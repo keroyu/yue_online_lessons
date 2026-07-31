@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Jobs\NotifyHighTicketSlotJob;
 use App\Jobs\SubscribeDripLeadJob;
+use App\Models\Course;
 use App\Models\DripSubscription;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class HighTicketLeadService
@@ -102,6 +104,22 @@ class HighTicketLeadService
         );
 
         $lead->update(['status' => 'converted']);
+
+        // A consultant-closed deal is a real sale: end any drip funnel pointing
+        // at this course (010 US13). Best-effort, never blocks the conversion.
+        try {
+            $course = Course::find($courseId);
+
+            if ($course) {
+                app(DripService::class)->checkAndConvert($user, $course);
+            }
+        } catch (\Exception $e) {
+            Log::error('Lead conversion: drip conversion failed', [
+                'lead_id'   => $lead->id,
+                'course_id' => $courseId,
+                'error'     => $e->getMessage(),
+            ]);
+        }
 
         return [
             'success'      => true,

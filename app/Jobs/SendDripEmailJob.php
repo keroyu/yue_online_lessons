@@ -52,11 +52,12 @@ class SendDripEmailJob implements ShouldQueue
             return;
         }
 
-        // Don't send if user unsubscribed or converted (purchased target course).
+        // Don't send once the sequence has stopped — unsubscribed, or the funnel
+        // goal was reached (booked / bought a target course).
         // 'completed' is allowed: status is set to completed at the same time the last
         // job is dispatched, so the job must still run to deliver that final email.
-        if (in_array($subscription->status, ['unsubscribed', 'converted'])) {
-            Log::info('Drip email: Subscription unsubscribed or converted, skipping', [
+        if (in_array($subscription->status, DripSubscription::STOPS_SENDING)) {
+            Log::info('Drip email: Sequence stopped for this subscription, skipping', [
                 'subscription_id' => $subscription->id,
                 'status' => $subscription->status,
             ]);

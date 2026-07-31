@@ -39,6 +39,10 @@ owner_files:
   - app/Http/Controllers/Admin/AnalyticsController.php
   - app/Models/CourseDailyStat.php
   - app/Models/PostCtaClick.php
+  - resources/js/Components/Course/FreeSuccessBlock.vue
+  - resources/js/Components/Course/SalesPromoBlock.vue
+  - tests/Feature/Storefront/FreeSuccessBlockTest.php
+  - database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php
   - database/migrations/2026_07_12_000002_create_course_daily_stats_table.php
   - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
   - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
@@ -48,7 +52,7 @@ owner_files:
 touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
-    why: 首頁列表/銷售頁讀取課程資料（visibleToUser/ordered scope、slug 路由綁定）；分類 slug 改名時 cascade 更新 courses.content_category
+    why: 首頁列表/銷售頁讀取課程資料（visibleToUser/ordered scope、slug 路由綁定）；分類 slug 改名時 cascade 更新 courses.content_category；US11/US12 新欄位 free_success_md / promo_html / promo_delay_seconds 加入 fillable 與 casts
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: hero/RSS/SNS/側欄排序/內容分類等設定的 key-value 存取（get/getMany/set）
@@ -63,7 +67,7 @@ touchpoints:
     why: 結帳建立訂單時讀取 tf_first/tf_last cookie（TrafficSourceService）寫入 orders 來源欄位與 first_touch
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
-    why: traffic()/trafficExport() 兩個方法提供來源統計查詢與 CSV 匯出（頁面 Traffic.vue 屬本模組）
+    why: traffic()/trafficExport() 兩個方法提供來源統計查詢與 CSV 匯出（頁面 Traffic.vue 屬本模組）；US11/US12 — edit() 下發 free_success_md / promo_html / promo_delay_seconds 給課程表單
   - file: database/migrations/2026_07_06_000001_add_content_category_to_courses_table.php
     owner: 004-course-admin
     why: content_category 欄位屬 courses 表；首頁分類篩選只讀取此欄位
@@ -85,6 +89,15 @@ touchpoints:
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
     why: US10 — 側欄新增「行銷分析」入口（admin-only）
+  - file: resources/js/Components/Admin/CourseForm.vue
+    owner: 004-course-admin
+    why: US11 — 新增「領取成功區塊」卡片（free_success_md textarea + 變數說明），僅 drip 課或免費課顯示；US12 — 新增「銷售頁促銷區塊」卡片（promo_delay_seconds + promo_html），全課程類型皆可用
+  - file: app/Http/Requests/Admin/StoreCourseRequest.php
+    owner: 004-course-admin
+    why: US11/US12 — free_success_md / promo_html（nullable string max:5000）與 promo_delay_seconds（nullable integer 0~86400）驗證規則
+  - file: app/Http/Requests/Admin/UpdateCourseRequest.php
+    owner: 004-course-admin
+    why: US11/US12 — 同 StoreCourseRequest
 ---
 
 # Storefront（門市前台）
@@ -229,6 +242,36 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] `GET /admin/analytics`（admin-only）漏斗報表：課程 × 期間（7/30/90/全部）的 views→add_to_cart→checkouts→purchases 各階段數字與轉換率、營收；可切 channel 檢視；另列文章引流區塊（post → course 點擊數）；空狀態與手機橫向捲動比照 Traffic.vue
 - [x] 測試：middleware 捕捉/覆蓋規則、bot 過濾與去重、beacon throttle、redirect 計數、漏斗數字聚合正確
 
+### User Story 11 - 領取成功後的自訂留客區塊 (Priority: P2)
+
+免費領取成功（drip 訂閱／免費課報名）後**留在原頁、原地換內容**：原本表單的位置就地換成管理員自訂的成功內容（Markdown，可含影片 embed 且靜音自動播放），把人留下繼續看，而不是用「前往我的課程」按鈕把人送走。
+
+**驗收**：
+- [x] `courses` 新增 `free_success_md`（nullable text）；後台課程表單新增「領取成功區塊」卡片（只在 drip 課或免費課 `price=0 && !portaly_product_id` 顯示），附可用變數與「貼上 Vimeo/YouTube 內嵌碼即可自動播放」說明
+- [x] 支援變數 `{{email}}` / `{{name}}` / `{{course_name}}`，於 Markdown 轉 HTML **之前**替換；取值：email = 本次領取實際使用的信箱（drip 走登入者 email、免費課走表單填的 email）、name = 暱稱或姓名、course_name = 課程名；無值一律替換為空字串
+- [x] 位置固定：留客區塊渲染在**課程描述（description_md）區塊之後、訂閱/購買區（6a/6b）之前**，其下方緊接 US12 的促銷倒數區塊
+- [x] drip 訂閱成功：有 `free_success_md` → 留客區塊出現，且不再顯示頁面頂部那張「訂閱成功」綠卡；無 → 完全維持現狀
+- [x] 免費課報名成功：有 → 留客區塊出現，購買區**不顯示**「前往我的課程」按鈕；無 → 維持現狀（預設文案 + 按鈕）
+- [x] 成功後 `scrollIntoView({block:'center'})` 把留客區塊帶進視野；全程不 redirect、不換頁（drip 走 Inertia `back()`、免費課走 axios，皆為現況）
+- [x] Markdown 以 marked v17 渲染並放行原生 HTML/iframe（沿用 FR-007）
+- [x] 靜音自動播：渲染後掃描 iframe，src 認得 Vimeo（`player.vimeo.com`）或 YouTube（`youtube.com/embed`、`youtube-nocookie.com`）→ 注入 `autoplay=1` 與靜音參數（Vimeo `muted=1`、YouTube `mute=1`）
+- [x] 內容中有至少一個可控 iframe 時，區塊上方顯示「🔊 開啟聲音」按鈕；點擊把該 iframe 的 src 換成非靜音版本重新載入（影片從頭有聲播），按鈕隨即隱藏
+- [x] 非 Vimeo/YouTube 的 iframe 原樣輸出：不改參數、不計入開聲按鈕的判定
+- [x] RWD：iframe 一律以 16:9 響應式容器包覆（`aspect-video` + `w-full`），手機不溢出
+
+### User Story 12 - 銷售頁延遲促銷區塊 (Priority: P2)
+
+銷售頁在課程描述最底端、購買/預約按鈕上方放一個延遲促銷區塊：停留滿設定秒數後才揭曉促銷內容。有留客內容的課程，這個區塊要等到領取完成才開始存在與計時 — 先讓人拿到東西、看留客內容，才輪到促銷登場。
+
+**驗收**：
+- [x] `courses` 新增 `promo_html`（text nullable）與 `promo_delay_seconds`（unsigned int nullable；null=停用、0=立即顯示）；後台課程表單「銷售頁促銷區塊」卡片編輯
+- [x] 位置：課程描述之後、US11 留客區塊**之下**、訂閱/購買區（6a/6b）之上；`promo_delay_seconds` 為 null 時整塊不渲染
+- [x] 課程**沒有** `free_success_md`：進入銷售頁即渲染並開始倒數，倒數歸零揭曉 `promo_html`
+- [x] 課程**有** `free_success_md`：未領取前整塊**不渲染**（不佔位、不計時）；領取完成後才渲染並從頭開始倒數
+- [x] 「已領取」判定涵蓋兩種時機：本次剛領取（drip flash / 免費報名 axios 成功）與重訪時已是持有者（`userSubscription` 非空或 `hasPurchased`）
+- [x] 倒數中顯示等待區塊（文案 + `M:SS` 倒數）；倒數完成寫入 `localStorage['promo_unlocked_course_{id}']`，之後重訪直接揭曉不再等待
+- [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）；RWD 與內容區同寬
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -247,6 +290,10 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-014**: 流量計數 MUST 存日彙總（course × date × channel），不得存 raw page view 事件列；彙總 upsert MUST 用原子增量（`increment` / `ON DUPLICATE KEY UPDATE`），不可讀改寫。
 - **FR-015**: 瀏覽計數 MUST 過濾爬蟲 UA（bot/crawl/spider/slurp/facebookexternalhit/headless 等 regex）並以 session key 做同課程同日去重；beacon 端點 MUST IP throttle。
 - **FR-016**: 追蹤相關失敗（cookie 缺失、聚合寫入異常）MUST 靜默降級，不得影響頁面回應或結帳流程。
+- **FR-017**: 免費領取（drip 訂閱 / 免費課報名）成功 MUST NOT 導頁 — 成功呈現一律就地替換原表單位置並捲入視野；離站動線（前往我的課程）在有自訂成功內容時 MUST 隱藏。
+- **FR-018**: `free_success_md` 屬管理員信任輸入（比照 FR-007 放行 HTML/iframe）；變數替換 MUST 在 Markdown 轉 HTML 之前執行，避免破壞已產生的 HTML 結構。
+- **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
+- **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。
 
 ## 設計決策
 
@@ -269,8 +316,19 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D17**: 文章引流 CTA 用 `/go` redirect 端點計數後 302 帶 UTM — 不依賴 JS、離站前必經；否決 JS beacon（點擊即離頁、beacon 易丟失）。
 - **D18**: 銷售頁主 CTA 的文案與行為收斂成單一來源（`primaryCtaLabel` / `handlePrimaryCta`），頁首與懸浮面板共用 — 原本兩處各寫一份三元式條件，型態一多就漂移（drip 課頁首「免費領取」、懸浮面板卻停在「立即購買」）。懸浮面板的 drip／一般課分支用 `v-if="isDrip"` + `<template v-else>` 隔開，避免 drip 課同時冒出購物車動線。
 
+- **D19**: 領取成功內容只給一個 Markdown 欄位、不另設結構化影片欄位 — 管理員直接貼平台給的 embed 碼，autoplay/muted 參數由前端改寫補上；否決「video_platform + video_id 兩欄」（多兩個欄位、排版彈性反而變差）。代價：貼非 Vimeo/YouTube 的 embed 就沒有自動播放，屬可接受降級。
+- **D20**: 「開啟聲音」以**換 src 重新載入**實作，不引入 Vimeo/YouTube Player SDK — 只為了切音量就載入第三方 SDK 不划算；代價是開聲後影片從頭播（對「留客用的完整課程影片」而言反而是對的行為）。
+- **D21**: 開聲按鈕由 Vue 渲染在內容區塊**上方**，不注入 v-html 產生的 DOM 內部 — 避免 Vue 與手動 DOM 兩邊各改一份；iframe 的 src 改寫則走 `onMounted` + `querySelectorAll` 純 DOM 操作（此區塊為靜態內容，無反應式需求）。
+- **D22**: 有自訂內容才隱藏「前往我的課程」按鈕 — 沒填的課程行為完全不變，向後相容；否決「一律降為文字連結」（會改到現有免費課的既有行為）。
+- **D23**: 欄位掛 `courses`、drip 課與免費課共用同一欄 — 兩者都是「免費領取」的成功時刻，語意相同；分成兩欄只會讓管理員兩邊各填一次。
+- **D24**: 銷售頁促銷另寫 `SalesPromoBlock.vue`，不共用教室的 `LessonPromoBlock.vue` — 後者屬 010 模組、以 lesson_id 為 localStorage key、等待文案是「請先完成學習」（銷售頁語境不通），且銷售頁多了「未領取不渲染」的 gating；共用只會讓兩邊 props 互相汙染。促銷 HTML 為信任輸入、倒數以 localStorage 記憶達標，這兩條沿用教室版的既有慣例。
+- **D25**: 促銷 gating 判定用「是否已領取」而非「本次剛領取」— 重訪的持有者一樣看得到促銷（他已在名單內，促銷本就該對他生效）；否決只認本次 flash（重整一次促銷就永遠消失，等於白設）。
+- **D26**: courses 的促銷欄位沿用 lessons 的命名（`promo_html` / `promo_delay_seconds`）— 不同表不衝突，語意平行、日後閱讀不用記兩套名字。
+
 ## Schema
 
+- `courses.free_success_md`（US11 新欄，本模組 migration）— nullable text；領取成功後顯示的自訂 Markdown（位置在課程描述之下），空值即維持既有預設成功卡片。
+- `courses.promo_html` / `courses.promo_delay_seconds`（US12 新欄，與 US11 同一支 migration）— 銷售頁延遲促銷區塊內容與等待秒數；`promo_delay_seconds` null=停用整塊、0=立即顯示。與 `lessons` 的同名欄位語意平行但互不相干（一個在銷售頁、一個在教室）。
 - `social_links` — 首頁 SNS 連結；`platform` 限六平台枚舉字串（僅決定 icon，可重複）、`sort_order` 建立時 max+1，無啟用欄位（存在即顯示，整區顯隱由 `sns_section_enabled` 控制）。
 - `homepage_featured_courses` — 首頁精選課程；`course_id` FK cascadeOnDelete、`blurb` varchar(500) nullable（空則前台 fallback 課程名）、`sort_order` 拖曳重排時整批改寫。
 - site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
@@ -325,8 +383,26 @@ Phase C — 報表層：
 Phase D — 驗證：
 - [x] T023 Feature 測試：middleware 捕捉/覆蓋、bot 過濾、同日去重、beacon throttle、/go 計數與 302、漏斗聚合數字 in tests/Feature/SiteAnalyticsTest.php
 
+### US11 + US12 - 領取成功留客區塊與銷售頁延遲促銷
+
+Phase A — 後端欄位（無邏輯）
+- [x] T024 migration：`courses` 加 `free_success_md`（text nullable）、`promo_html`（text nullable）、`promo_delay_seconds`（unsignedInteger nullable），皆放在 description_md 之後 in database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php
+- [x] T025 [P] 三個新欄位加入 `$fillable` in app/Models/Course.php〔touchpoint 004〕
+- [x] T026 [P] 驗證規則：`free_success_md`/`promo_html` `nullable|string|max:5000`、`promo_delay_seconds` `nullable|integer|min:0|max:86400` in app/Http/Requests/Admin/StoreCourseRequest.php, app/Http/Requests/Admin/UpdateCourseRequest.php〔touchpoint 004〕
+- [x] T027 `show()` 下發 `free_success_md` / `promo_html` / `promo_delay_seconds` 三個 prop in app/Http/Controllers/CourseController.php
+
+Phase B — 前端元件（相依 T027）
+- [x] T028 [P] 新元件 `FreeSuccessBlock.vue`：props(content, email, name, courseName) → 變數替換 → marked 渲染 → onMounted 掃 iframe 注入 autoplay+靜音、包 16:9 容器；有可控 iframe 時顯示「🔊 開啟聲音」按鈕（點擊換 src 重載並隱藏自身）in resources/js/Components/Course/FreeSuccessBlock.vue
+- [x] T029 [P] 新元件 `SalesPromoBlock.vue`：props(courseId, delaySeconds, promoHtml) → 倒數 UI（M:SS）→ 歸零揭曉 promoHtml，達標寫 `promo_unlocked_course_{id}` localStorage；delaySeconds null 不渲染 in resources/js/Components/Course/SalesPromoBlock.vue
+- [x] T030 `Show.vue` 接線（相依 T028/T029）：描述區之後依序插入留客區塊與促銷區塊；`hasClaimed` computed（drip flash / freeSuccess / userSubscription / hasPurchased）控制促銷 gating；有留客內容時隱藏頂部綠卡與「前往我的課程」按鈕；領取成功後 `scrollIntoView({block:'center'})` 到留客區塊 in resources/js/Pages/Course/Show.vue
+- [x] T031 [P] 後台兩張卡片：「領取成功區塊」（textarea + 變數說明 + embed 提示，`isDrip || isFree` 才顯示）與「銷售頁促銷區塊」（promo_html textarea + 等待秒數，全課程類型皆可用）in resources/js/Components/Admin/CourseForm.vue〔touchpoint 004〕
+
+Phase C — 驗證
+- [x] T032 四種組合實測（有/無 free_success_md × drip/免費課）：不跳頁、留客區塊就位、捲入視野、靜音自動播、開聲從頭播、手機不溢出；促銷 gating 三情境（無留客內容即計時／有留客內容未領取不渲染／領取後才計時揭曉）＋ `npm run build` 綠 in resources/js/Pages/Course/Show.vue
+
 ## 進度日誌
 
+- 2026-07-31: US11+US12 完成（/sync 對帳：Course.php / CourseForm.vue / 兩支 CourseRequest / Admin CourseController 的 touchpoint 說明補上 US12 促銷欄位，無額外行為差異） — 銷售頁「領取成功留客區塊 + 延遲促銷」。courses 加 free_success_md / promo_html / promo_delay_seconds；FreeSuccessBlock.vue（Markdown + {{email}}/{{name}}/{{course_name}} 變數、Vimeo/YouTube iframe 自動注入 autoplay+靜音、16:9 包覆、「🔊 開啟聲音」換 src 重載）與 SalesPromoBlock.vue（倒數揭曉、localStorage 記憶）插在課程描述與購買區之間；有留客內容時隱藏頂部訂閱成功綠卡與免費報名的「前往我的課程」按鈕，成功後捲入視野；促銷 gating 以「已領取」判定（含重訪持有者）。新增 FreeSuccessBlockTest（4 tests），全套 196 passed、npm build 綠。
 - 2026-07-31: 銷售頁懸浮購買面板與頁首 CTA 對齊（D18）— 抽出 `primaryCtaLabel`/`handlePrimaryCta` 共用，drip 課解除面板封鎖（改判 `canSubscribe && !userSubscription`）並顯示「免費領取」、收合標籤「領取」；drip 訂閱區補上 `purchaseSectionRef`，修正 drip 頁首 CTA 因走 `openFreeForm()`（`isFree` 為真但無滾動目標）而點擊無反應的死按鈕。純前端，vite build 綠。
 - 2026-07-22: 行銷分析 UTM 落地首擊誤歸 direct 修正 — 新增 `TrafficSourceService::currentSource()`（當下 request 參數優先、fallback tf_last cookie），`recordView()`/`recordAddToCart()` 改用之；補回歸測試（IG UTM 落地 → social）。owner_files 補登 CheckoutTrafficSourceTest / SiteAnalyticsTest。全 repo 169 passed。
 - 2026-07-20: 首頁右側欄（精選推薦/追蹤站長/近期文章 widget，US6）抽成共用 `SidebarService`（後端組資料）+ `Components/Layout/Sidebar.vue`（前端 widget 迴圈），HomeController 改用 service（行為不變、SnsProfileTest 綠）。目的：部落格文章頁 Blog/Show 共用同一側欄（touchpoint 012）。 — TrackTrafficSource middleware + tf_first/tf_last cookie 7 天雙觸點（加入 encryptCookies 排除清單）、course_daily_stats/post_cta_clicks 日彙總、orders.first_touch、add-to-cart beacon（throttle 30/min）、/go CTA redirect、/admin/analytics 漏斗報表 + 側欄入口、Traffic CSV 加 first_touch；CheckoutTrafficSourceTest 改寫為 cookie 架構、新增 SiteAnalyticsTest 11 tests；全套 131 passed。

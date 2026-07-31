@@ -11,12 +11,27 @@ use Illuminate\Support\Str;
 
 class DripSubscription extends Model
 {
+    /**
+     * Statuses that stop the sequence. 'completed' is deliberately absent: it is
+     * set at the same moment the final email is dispatched, so that last job
+     * must still run.
+     */
+    public const STOPS_SENDING = ['booked', 'converted', 'unsubscribed'];
+
+    /**
+     * Statuses meaning the subscriber reached the funnel goal (booked or bought).
+     * They are exempt from the video free-viewing countdown and reward UI —
+     * there is nothing left to promote to them.
+     */
+    public const FUNNEL_DONE = ['booked', 'converted'];
+
     protected $fillable = [
         'user_id',
         'course_id',
         'subscribed_at',
         'emails_sent',
         'status',
+        'unlock_all',
         'status_changed_at',
         'unsubscribe_token',
     ];
@@ -27,6 +42,7 @@ class DripSubscription extends Model
             'subscribed_at' => 'datetime',
             'status_changed_at' => 'datetime',
             'emails_sent' => 'integer',
+            'unlock_all' => 'boolean',
         ];
     }
 

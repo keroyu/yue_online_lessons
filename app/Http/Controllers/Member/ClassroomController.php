@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Member;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\Course;
+use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Services\CloudflareStreamService;
@@ -379,7 +380,9 @@ class ClassroomController extends Controller
         ?Carbon $sentAt = null,
     ): array {
         $isLocked = isset($lessonUnlockMap[$lesson->id]) && !$lessonUnlockMap[$lesson->id];
-        $isConverted = $dripSubscription?->status === 'converted';
+        // Booked or converted subscribers are out of the funnel — no viewing
+        // countdown, no on-time reward: there is nothing left to promote.
+        $isFunnelDone = in_array($dripSubscription?->status, DripSubscription::FUNNEL_DONE);
         $hasVideo = !empty($lesson->video_id);
 
         return [
@@ -399,13 +402,13 @@ class ClassroomController extends Controller
                 ? route('drip.track.click', ['les' => $lesson->id, 'url' => $lesson->promo_url])
                 : null,
             'video_access_hours' => $lesson->video_access_hours,
-            'video_access_expired' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
+            'video_access_expired' => (!$isLocked && !$isFunnelDone && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $this->dripService->isVideoAccessExpired($dripSubscription, $lesson, $sentAt)
                 : false,
-            'video_access_remaining_seconds' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
+            'video_access_remaining_seconds' => (!$isLocked && !$isFunnelDone && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $this->dripService->getVideoAccessRemainingSeconds($dripSubscription, $lesson, $sentAt)
                 : null,
-            'reward_html' => (!$isLocked && !$isConverted && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
+            'reward_html' => (!$isLocked && !$isFunnelDone && $hasVideo && $dripSubscription && $lesson->video_access_hours !== null)
                 ? $lesson->reward_html
                 : null,
             'assignment' => $assignment ? [

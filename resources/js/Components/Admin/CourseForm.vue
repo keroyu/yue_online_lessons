@@ -63,9 +63,15 @@ const form = useForm({
   course_type: props.course?.delivery_mode || props.course?.course_type || 'standard',
   drip_interval_days: props.course?.drip_interval_days || '',
   target_course_ids: props.course?.target_course_ids || [],
+  free_success_md: props.course?.free_success_md || '',
+  promo_html: props.course?.promo_html || '',
+  promo_delay_seconds: props.course?.promo_delay_seconds ?? '',
 })
 
 const isDrip = computed(() => form.course_type === 'drip')
+
+// Only these two flows have a "free claim" moment worth writing content for.
+const isFreeClaim = computed(() => isDrip.value || (!form.portaly_product_id && Number(form.price) === 0))
 const showPaymentGateway = computed(() => !form.portaly_product_id)
 
 watch(() => form.portaly_product_id, (val) => {
@@ -414,6 +420,72 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.description_md }"
           />
           <p v-if="form.errors.description_md" :class="errorTextClasses">{{ form.errors.description_md }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3b: Free-claim retention block -->
+    <div v-if="isFreeClaim" :class="cardClasses">
+      <div :class="cardHeaderClasses">
+        <h2 :class="cardTitleClasses">領取成功區塊</h2>
+        <p :class="cardSubtitleClasses">
+          免費領取成功後顯示在課程介紹下方（取代預設的成功通知）。留空則維持預設。
+        </p>
+      </div>
+      <div :class="cardBodyClasses">
+        <div data-field="free_success_md">
+          <textarea
+            v-model="form.free_success_md"
+            rows="10"
+            placeholder="電子書已經送到您的信箱 {{email}}！&#10;&#10;去打開信箱之前，也許您會對這 40 分鐘的課程有興趣。&#10;&#10;<iframe src=&quot;https://player.vimeo.com/video/1032766965&quot;></iframe>"
+            class="block w-full rounded-lg border-gray-300 px-4 py-3 shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono text-sm leading-relaxed"
+            :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.free_success_md }"
+          />
+          <p class="mt-2 text-xs text-gray-500">
+            支援 Markdown 與變數：<code class="px-1 bg-gray-100 rounded">&#123;&#123;email&#125;&#125;</code>
+            <code class="px-1 bg-gray-100 rounded">&#123;&#123;name&#125;&#125;</code>
+            <code class="px-1 bg-gray-100 rounded">&#123;&#123;course_name&#125;&#125;</code>。
+            直接貼上 Vimeo / YouTube 的內嵌碼即可自動播放（先靜音，訪客點一下才有聲音，這是瀏覽器的限制）。
+          </p>
+          <p v-if="form.errors.free_success_md" :class="errorTextClasses">{{ form.errors.free_success_md }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3c: Delayed sales promo block -->
+    <div :class="cardClasses">
+      <div :class="cardHeaderClasses">
+        <h2 :class="cardTitleClasses">銷售頁促銷區塊</h2>
+        <p :class="cardSubtitleClasses">
+          停留滿設定秒數後才揭曉的促銷內容，位置在購買按鈕上方。有填「領取成功區塊」的課程，會等領取完成後才開始倒數。
+        </p>
+      </div>
+      <div :class="cardBodyClasses">
+        <div class="space-y-4">
+          <div data-field="promo_delay_seconds">
+            <label for="promo_delay_seconds" :class="labelClasses">等待秒數</label>
+            <input
+              id="promo_delay_seconds"
+              v-model="form.promo_delay_seconds"
+              type="number"
+              min="0"
+              placeholder="留空 = 不顯示促銷區塊；0 = 立即顯示"
+              :class="[inputClasses, form.errors.promo_delay_seconds ? inputErrorClasses : '']"
+            />
+            <p v-if="form.errors.promo_delay_seconds" :class="errorTextClasses">{{ form.errors.promo_delay_seconds }}</p>
+          </div>
+          <div data-field="promo_html">
+            <label for="promo_html" :class="labelClasses">促銷內容（HTML）</label>
+            <textarea
+              id="promo_html"
+              v-model="form.promo_html"
+              rows="8"
+              placeholder="<h3>限時優惠</h3>&#10;<p>今天報名再送…</p>"
+              class="block w-full rounded-lg border-gray-300 px-4 py-3 shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono text-sm leading-relaxed"
+              :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.promo_html }"
+            />
+            <p v-if="form.errors.promo_html" :class="errorTextClasses">{{ form.errors.promo_html }}</p>
+          </div>
         </div>
       </div>
     </div>

@@ -26,6 +26,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  bookingRate: {
+    type: Number,
+    default: null,
+  },
   filters: {
     type: Object,
     required: true,
@@ -36,6 +40,7 @@ const statusFilter = ref(props.filters.status || '')
 
 const statusLabels = {
   active: '發信中',
+  booked: '已預約',
   converted: '已轉換',
   completed: '已完成',
   unsubscribed: '已退訂',
@@ -43,6 +48,7 @@ const statusLabels = {
 
 const statusClasses = {
   active: 'bg-green-100 text-green-800',
+  booked: 'bg-amber-100 text-amber-800',
   converted: 'bg-blue-100 text-blue-800',
   completed: 'bg-gray-100 text-gray-800',
   unsubscribed: 'bg-red-100 text-red-800',
@@ -109,7 +115,7 @@ const goToPage = (page) => {
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-4 mb-6">
       <div class="bg-white rounded-lg shadow-sm p-4">
         <p class="text-sm text-gray-500">全部</p>
         <p class="text-2xl font-semibold text-gray-900">{{ stats.total }}</p>
@@ -117,6 +123,10 @@ const goToPage = (page) => {
       <div class="bg-white rounded-lg shadow-sm p-4">
         <p class="text-sm text-green-600">發信中</p>
         <p class="text-2xl font-semibold text-green-700">{{ stats.active }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-4">
+        <p class="text-sm text-amber-600">已預約</p>
+        <p class="text-2xl font-semibold text-amber-700">{{ stats.booked }}</p>
       </div>
       <div class="bg-white rounded-lg shadow-sm p-4">
         <p class="text-sm text-blue-600">已轉換</p>
@@ -136,8 +146,14 @@ const goToPage = (page) => {
     <div v-if="lessonStats.length" class="mb-6 bg-white rounded-lg shadow-sm overflow-x-auto">
       <div class="px-4 py-3 border-b border-gray-200">
         <h2 class="text-sm font-semibold text-gray-900">Lesson 發信統計</h2>
-        <p v-if="conversionRate !== null" class="text-xs text-gray-500 mt-0.5">
-          整體轉換率：<span class="font-medium text-blue-700">{{ formatRate(conversionRate) }}</span>
+        <p v-if="conversionRate !== null || bookingRate !== null" class="text-xs text-gray-500 mt-0.5">
+          <span v-if="bookingRate !== null">
+            預約率：<span class="font-medium text-amber-700">{{ formatRate(bookingRate) }}</span>
+          </span>
+          <span v-if="bookingRate !== null && conversionRate !== null" class="mx-1.5 text-gray-300">·</span>
+          <span v-if="conversionRate !== null">
+            轉換率：<span class="font-medium text-blue-700">{{ formatRate(conversionRate) }}</span>
+          </span>
         </p>
       </div>
       <table class="min-w-full text-sm">
@@ -177,6 +193,7 @@ const goToPage = (page) => {
       >
         <option value="">所有狀態</option>
         <option value="active">發信中</option>
+        <option value="booked">已預約</option>
         <option value="converted">已轉換</option>
         <option value="completed">已完成</option>
         <option value="unsubscribed">已退訂</option>

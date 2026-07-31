@@ -1,12 +1,14 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { marked } from 'marked'
 import AppLayout from "@/Components/Layout/AppLayout.vue"
 import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import RedeemButton from '@/Components/Course/RedeemButton.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
+import FreeSuccessBlock from '@/Components/Course/FreeSuccessBlock.vue'
+import SalesPromoBlock from '@/Components/Course/SalesPromoBlock.vue'
 import { useCart } from '@/composables/useCart'
 
 const page = usePage()
@@ -237,6 +239,40 @@ const submitFreeEnrollment = async () => {
   }
 }
 
+// ── Free-claim retention block + delayed sales promo (002 US11/US12) ──
+const freeSuccessRef = ref(null)
+
+// The claim that just happened in this page view (drip flash / free enrollment).
+const justClaimed = computed(() =>
+  (props.isDrip && !!page.props.flash?.drip_subscribed) || freeSuccess.value
+)
+
+// Already holds the thing — this view's claim, or a claim from an earlier visit.
+const hasClaimed = computed(() =>
+  justClaimed.value || (props.isDrip ? !!props.userSubscription : props.hasPurchased)
+)
+
+const showFreeSuccessBlock = computed(() => !!props.course.free_success_md && justClaimed.value)
+
+// Gated so a visitor who has not claimed yet never sees the promo first; with no
+// retention block there is nothing to wait for, so it runs from page load.
+const showSalesPromo = computed(() =>
+  props.course.promo_delay_seconds !== null
+  && props.course.promo_delay_seconds !== undefined
+  && !!props.course.promo_html
+  && (!props.course.free_success_md || hasClaimed.value)
+)
+
+const claimedEmail = computed(() => page.props.auth?.user?.email || freeFormEmail.value || '')
+const claimedName = computed(() =>
+  page.props.auth?.user?.nickname || page.props.auth?.user?.real_name || freeFormName.value || ''
+)
+
+watch(showFreeSuccessBlock, (visible) => {
+  if (!visible) return
+  nextTick(() => freeSuccessRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+}, { immediate: true })
+
 // Ref for purchase section (scroll target when not yet agreed).
 // Drip courses use the same ref on their subscription section (the two blocks are v-if/v-else).
 const purchaseSectionRef = ref(null)
@@ -367,6 +403,7 @@ const memberSubscribe = () => {
 const subscriptionStatusLabel = computed(() => {
   const labels = {
     active: '訂閱中',
+    booked: '已預約',
     converted: '已轉換',
     completed: '已完成',
     unsubscribed: '已退訂',
@@ -488,7 +525,8 @@ const submitBooking = async () => {
     <!-- ============================================================ -->
     <!-- Drip subscription success notification                       -->
     <!-- ============================================================ -->
-    <div v-if="isDrip && $page.props.flash?.drip_subscribed" class="bg-brand-cream px-4 pt-6 pb-2">
+    <!-- Skipped when the course has its own retention block (US11) -->
+    <div v-if="isDrip && $page.props.flash?.drip_subscribed && !course.free_success_md" class="bg-brand-cream px-4 pt-6 pb-2">
       <div class="max-w-2xl mx-auto">
         <div class="bg-white rounded-xl border border-green-100 shadow-sm px-6 py-6 text-center">
           <div class="mx-auto w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
@@ -689,6 +727,29 @@ const submitBooking = async () => {
     </div>
 
     <!-- ============================================================ -->
+    <!-- 5a. Free-claim retention block (custom, admin-authored)      -->
+    <!-- ============================================================ -->
+    <div v-if="showFreeSuccessBlock" ref="freeSuccessRef">
+      <FreeSuccessBlock
+        :content="course.free_success_md"
+        :email="claimedEmail"
+        :name="claimedName"
+        :course-name="course.name"
+      />
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 5b. Delayed sales promo (waits for the claim when there is   -->
+    <!--     a retention block to show first)                         -->
+    <!-- ============================================================ -->
+    <SalesPromoBlock
+      v-if="showSalesPromo"
+      :course-id="course.id"
+      :delay-seconds="course.promo_delay_seconds"
+      :promo-html="course.promo_html"
+    />
+
+    <!-- ============================================================ -->
     <!-- 6a. Drip subscription section                                -->
     <!-- ============================================================ -->
     <div v-if="isDrip" ref="purchaseSectionRef" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
@@ -698,6 +759,7 @@ const submitBooking = async () => {
           <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
             :class="{
               'bg-green-100 text-green-800': userSubscription === 'active',
+              'bg-amber-100 text-amber-800': userSubscription === 'booked',
               'bg-blue-100 text-blue-800': userSubscription === 'converted',
               'bg-gray-100 text-gray-800': userSubscription === 'completed',
               'bg-red-100 text-red-800': userSubscription === 'unsubscribed',
@@ -761,10 +823,16 @@ const submitBooking = async () => {
             </svg>
           </div>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">報名成功！</h3>
-          <p class="text-gray-600 mb-5">已成功取得課程，前往「我的課程」開始學習。</p>
-          <a href="/member/learning" class="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm">
-            前往我的課程
-          </a>
+          <!-- With a retention block above, keep the visitor on the page (US11) -->
+          <template v-if="course.free_success_md">
+            <p class="text-gray-600">已成功取得，請看上方的內容 👆</p>
+          </template>
+          <template v-else>
+            <p class="text-gray-600 mb-5">已成功取得課程，前往「我的課程」開始學習。</p>
+            <a href="/member/learning" class="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm">
+              前往我的課程
+            </a>
+          </template>
         </div>
 
         <!-- ── Already purchased ── -->

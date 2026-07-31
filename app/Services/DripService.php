@@ -94,17 +94,17 @@ class DripService
 
     /**
      * Check if a specific lesson is unlocked for a subscription.
+     *
+     * The drip is a promo funnel, not a course: reaching the goal ends it
+     * rather than unlocking the rest as a reward. Everyone therefore stays on
+     * the emails_sent cursor. The two exceptions are 'completed' (every email
+     * already went out) and unlock_all, the compatibility flag carried by
+     * subscribers who converted before that rule changed.
      */
     public function isLessonUnlocked(DripSubscription $subscription, Lesson $lesson): bool
     {
-        // Converted or completed subscribers can see all lessons
-        if (in_array($subscription->status, ['converted', 'completed'])) {
+        if ($subscription->unlock_all || $subscription->status === 'completed') {
             return true;
-        }
-
-        // Unsubscribed users: only show lessons unlocked up to unsubscription (based on emails_sent)
-        if ($subscription->status === 'unsubscribed') {
-            return $lesson->sort_order < $subscription->emails_sent;
         }
 
         return $lesson->sort_order < $subscription->emails_sent;
@@ -112,7 +112,7 @@ class DripService
 
     /**
      * Calculate days until a lesson unlocks.
-     * Returns -1 for unsubscribed users (lesson will never unlock).
+     * Returns -1 once the sequence has stopped (lesson will never unlock).
      */
     public function daysUntilUnlock(DripSubscription $subscription, Lesson $lesson): int
     {
@@ -120,8 +120,8 @@ class DripService
             return 0;
         }
 
-        // Unsubscribed users won't get new unlocks
-        if ($subscription->status === 'unsubscribed') {
+        // Stopped sequences (booked / converted / unsubscribed) get no new unlocks
+        if (in_array($subscription->status, DripSubscription::STOPS_SENDING)) {
             return -1;
         }
 
@@ -134,10 +134,42 @@ class DripService
 
     /**
      * Check if a purchased course triggers drip conversion.
+     *
+     * Booked subscribers are included: booking then actually buying is the
+     * normal funnel path, and leaving them at 'booked' would understate sales.
      */
     public function checkAndConvert(User $user, Course $purchasedCourse): void
     {
-        $dripCourseIds = DripConversionTarget::where('target_course_id', $purchasedCourse->id)
+        $this->reachGoal($user, $purchasedCourse, 'converted', ['active', 'booked']);
+    }
+
+    /**
+     * Check if a completed high-ticket booking ends the sequence.
+     *
+     * Bookings come from a guest form, so the email is all we have. Subscribers
+     * are always users (D1), so no matching user means no subscription to stop —
+     * creating an account here is 011's job, not the drip's.
+     */
+    public function checkAndBook(string $email, Course $bookedCourse): void
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return;
+        }
+
+        $this->reachGoal($user, $bookedCourse, 'booked', ['active']);
+    }
+
+    /**
+     * Move a user's subscriptions to a funnel-exit status when the course they
+     * just booked/bought is a conversion target of the drip course.
+     *
+     * @param array<int, string> $fromStatuses
+     */
+    private function reachGoal(User $user, Course $targetCourse, string $newStatus, array $fromStatuses): void
+    {
+        $dripCourseIds = DripConversionTarget::where('target_course_id', $targetCourse->id)
             ->pluck('drip_course_id');
 
         if ($dripCourseIds->isEmpty()) {
@@ -146,18 +178,19 @@ class DripService
 
         $subscriptions = DripSubscription::where('user_id', $user->id)
             ->whereIn('course_id', $dripCourseIds)
-            ->where('status', 'active')
+            ->whereIn('status', $fromStatuses)
             ->get();
 
         foreach ($subscriptions as $subscription) {
             $subscription->update([
-                'status' => 'converted',
+                'status' => $newStatus,
                 'status_changed_at' => now(),
             ]);
 
-            Log::info('Drip subscription converted', [
+            Log::info('Drip subscription reached funnel goal', [
                 'subscription_id' => $subscription->id,
-                'purchased_course_id' => $purchasedCourse->id,
+                'status' => $newStatus,
+                'target_course_id' => $targetCourse->id,
             ]);
         }
     }
@@ -271,6 +304,7 @@ class DripService
 
         $totalSubscribers = DripSubscription::where('course_id', $course->id)->count();
         $convertedCount = DripSubscription::where('course_id', $course->id)->where('status', 'converted')->count();
+        $bookedCount = DripSubscription::where('course_id', $course->id)->where('status', 'booked')->count();
 
         // Aggregate open/click counts per lesson from drip_email_events
         $subIds = DripSubscription::where('course_id', $course->id)->pluck('id');
@@ -317,8 +351,12 @@ class DripService
 
         return [
             'lesson_stats' => $lessonStats,
+            // Booking and buying are counted separately: a booked lead is not a sale.
             'conversion_rate' => $totalSubscribers > 0
                 ? round($convertedCount / $totalSubscribers, 4)
+                : null,
+            'booking_rate' => $totalSubscribers > 0
+                ? round($bookedCount / $totalSubscribers, 4)
                 : null,
         ];
     }

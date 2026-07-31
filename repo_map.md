@@ -117,8 +117,10 @@ main_files:
 - app/Http/Controllers/HomeController.php
 - app/Http/Controllers/TrackController.php
 - app/Http/Middleware/TrackTrafficSource.php
+- app/Http/Requests/Admin/StoreCourseRequest.php
 - app/Http/Requests/Admin/StoreFeaturedCourseRequest.php
 - app/Http/Requests/Admin/StoreSocialLinkRequest.php
+- app/Http/Requests/Admin/UpdateCourseRequest.php
 - app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
@@ -139,8 +141,12 @@ main_files:
 - database/migrations/2026_07_12_000002_create_course_daily_stats_table.php
 - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
 - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
+- database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php
+- resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/BlogArticles.vue
+- resources/js/Components/Course/FreeSuccessBlock.vue
 - resources/js/Components/Course/PriceDisplay.vue
+- resources/js/Components/Course/SalesPromoBlock.vue
 - resources/js/Components/CourseCard.vue
 - resources/js/Components/FeaturedCourses.vue
 - resources/js/Components/Layout/Sidebar.vue
@@ -155,6 +161,7 @@ main_files:
 - resources/js/composables/useCart.js
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
+- tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php
 
 related_specs:
@@ -435,6 +442,7 @@ main_files:
 - app/Console/Commands/ProcessDripEmails.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/LessonController.php
+- app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/DripSubscriptionController.php
 - app/Http/Controllers/DripTrackingController.php
 - app/Http/Controllers/Member/ClassroomController.php
@@ -448,6 +456,8 @@ main_files:
 - app/Models/DripSubscription.php
 - app/Services/CheckoutService.php
 - app/Services/DripService.php
+- app/Services/HighTicketBookingService.php
+- app/Services/HighTicketLeadService.php
 - app/Services/PortalyWebhookService.php
 - app/Services/RedemptionService.php
 - config/drip.php
@@ -458,6 +468,8 @@ main_files:
 - database/migrations/2026_02_28_000002_add_promo_url_to_lessons_table.php
 - database/migrations/2026_03_01_084230_add_video_access_hours_to_lessons_table.php
 - database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php
+- database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
+- database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
@@ -469,6 +481,7 @@ main_files:
 - resources/js/Pages/Member/Classroom.vue
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
+- tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 
 related_specs:

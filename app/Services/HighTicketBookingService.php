@@ -52,6 +52,18 @@ class HighTicketBookingService
             'booked_at' => now(),
         ]);
 
+        // Booking is the goal for drip funnels that point at this course (010 US13):
+        // stop the sequence. Best-effort — a drip failure must not fail the booking.
+        try {
+            app(DripService::class)->checkAndBook($data['email'], $course);
+        } catch (\Exception $e) {
+            Log::error('High ticket booking: drip stop failed', [
+                'email' => $data['email'],
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         // High-ticket booking is the Lead conversion for ad optimization (000 US7).
         $meta = app(MetaConversionsService::class);
         $meta->send('Lead', array_merge($meta->userDataFromRequest(request()), [

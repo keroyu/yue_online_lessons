@@ -147,6 +147,9 @@ class CourseController extends Controller
                 'meta_description' => $course->meta_description,
                 'description' => $course->description,
                 'description_md' => $course->description_md,
+                'free_success_md' => $course->free_success_md,
+                'promo_html' => $course->promo_html,
+                'promo_delay_seconds' => $course->promo_delay_seconds,
                 'price' => $course->price,
                 'original_price' => $course->original_price,
                 'promo_ends_at' => $course->promo_ends_at?->format('Y-m-d\TH:i'),
@@ -328,7 +331,7 @@ class CourseController extends Controller
         $query = DripSubscription::where('course_id', $course->id)
             ->with('user:id,email,nickname');
 
-        if ($statusFilter && in_array($statusFilter, ['active', 'converted', 'completed', 'unsubscribed'])) {
+        if ($statusFilter && in_array($statusFilter, ['active', 'booked', 'converted', 'completed', 'unsubscribed'])) {
             $query->where('status', $statusFilter);
         }
 
@@ -341,6 +344,7 @@ class CourseController extends Controller
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked_count,
                 SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_count,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
                 SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
@@ -374,12 +378,14 @@ class CourseController extends Controller
             'stats' => [
                 'total' => (int) $statusStats->total,
                 'active' => (int) $statusStats->active_count,
+                'booked' => (int) $statusStats->booked_count,
                 'converted' => (int) $statusStats->converted_count,
                 'completed' => (int) $statusStats->completed_count,
                 'unsubscribed' => (int) $statusStats->unsubscribed_count,
             ],
             'lessonStats' => $analyticsData['lesson_stats'],
             'conversionRate' => $analyticsData['conversion_rate'],
+            'bookingRate' => $analyticsData['booking_rate'],
             'filters' => [
                 'status' => $statusFilter,
             ],

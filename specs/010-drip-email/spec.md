@@ -26,7 +26,10 @@ owner_files:
   - database/migrations/2026_02_28_000002_add_promo_url_to_lessons_table.php
   - database/migrations/2026_03_01_084230_add_video_access_hours_to_lessons_table.php
   - database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php
+  - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
+  - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
   - tests/Feature/Drip/VideoAccessAnchorTest.php
+  - tests/Feature/Drip/FunnelStopTest.php
 touchpoints:
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
@@ -36,7 +39,7 @@ touchpoints:
     why: Lesson 的 promo_delay_seconds / promo_html / promo_url / reward_html / video_access_hours 欄位、CTA 快速插入、{{classroom_url}} 插入按鈕與影片警示
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
-    why: subscribers() action — 組裝訂閱者清單、狀態統計、Lesson 開信/點擊分析（呼叫 DripService）
+    why: subscribers() action — 組裝訂閱者清單、狀態統計（US13 起含 booked_count）、預約率/轉換率與 Lesson 開信/點擊分析（呼叫 DripService）
   - file: app/Http/Controllers/Admin/LessonController.php
     owner: 004-course-admin
     why: drip 課程新增 Lesson 時呼叫 DripService::reactivateCompletedSubscriptions()
@@ -52,9 +55,21 @@ touchpoints:
   - file: app/Jobs/SubscribeDripLeadJob.php
     owner: 011-high-ticket
     why: 高價課名單（high_ticket_leads）批次訂閱 drip 課程 — 呼叫 DripService::subscribe()
+  - file: app/Services/HighTicketBookingService.php
+    owner: 011-high-ticket
+    why: 高價課預約成功建立 lead 後呼叫 DripService::checkAndBook() — 預約即達標，停止序列信（US13）
+  - file: app/Services/HighTicketLeadService.php
+    owner: 011-high-ticket
+    why: convertLead() 後台開通商品建立 Purchase 後呼叫 checkAndConvert()（US13）
   - file: app/Http/Controllers/Admin/MemberController.php
     owner: 008-members-admin
-    why: 會員後台與 drip 訂閱者共用同一份 users 名單（User::dripSubscriptions 關聯）
+    why: 會員後台與 drip 訂閱者共用同一份 users 名單（User::dripSubscriptions 關聯）；giftCourse() 贈課成功後呼叫 checkAndConvert()（US13）
+  - file: app/Http/Controllers/Member/ClassroomController.php
+    owner: 003-classroom
+    why: drip 教室的 lessonUnlockMap（呼叫 isLessonUnlocked）、觀看期錨點批次查詢、達標訂閱者豁免觀看期/獎勵 props
+  - file: resources/js/Pages/Member/Classroom.vue
+    owner: 003-classroom
+    why: VideoAccessNotice 的顯示條件需排除已達標（booked/converted）訂閱者
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
     why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
@@ -98,7 +113,7 @@ touchpoints:
 **驗收**：
 - [x] 訂閱成功即 dispatchAfterResponse 第一封信並將 emails_sent 設為 1
 - [x] `drip:process-emails` 每日 09:00 排程（routes/console.php），應解鎖數 = floor(訂閱天數/間隔)+1（上限為 Lesson 總數）
-- [x] SendDripEmailJob 發信前跳過 unsubscribed/converted；completed 仍寄出最後一封（狀態與 dispatch 同時發生）
+- [x] SendDripEmailJob 發信前跳過停信狀態（unsubscribed/converted/**booked**，US13 修訂）；completed 仍寄出最後一封（狀態與 dispatch 同時發生）
 - [x] 失敗重試 3 次（backoff 60/300/900 秒）
 - [x] 信件內容 = 問候語（有名字才顯示）+ md_content 轉 HTML（strip style/class）+ 退訂連結 + tracking pixel；`{{classroom_url}}` 佔位符替換為教室 URL（帶 lesson_id）
 - [x] 主旨/問候名字：nickname 優先、fallback real_name；3 個中文字取後 2 字；無名字則省略
@@ -118,9 +133,9 @@ touchpoints:
 drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀態轉為 converted、停止發信、獎勵解鎖全部 Lesson。
 
 **驗收**：
-- [x] checkAndConvert() 由 Portaly webhook、結帳、免費報名、積分兌換四個購買管道觸發
-- [x] 僅 active 訂閱會被轉換；轉換寫入 status_changed_at
-- [x] converted 訂閱者在教室可看全部 Lesson（isLessonUnlocked 直接放行）
+- [x] checkAndConvert() 由 Portaly webhook、結帳、免費報名、積分兌換四個購買管道觸發（US13 再補後台 Lead 開通與贈課兩條）
+- [x] active 與 booked 訂閱都會被轉換（booked→converted 為升級，US13 修訂）；轉換寫入 status_changed_at
+- [x] converted 訂閱者解鎖凍結在 emails_sent，**不再**看到全部 Lesson（US14 修訂；改版前既有 converted 由 unlock_all 旗標維持全開）
 - [x] 已排入佇列的信件在 handle() 時檢查狀態，converted 後不寄出
 
 ### User Story 6 - 使用者退訂連鎖課程 (Priority: P3)
@@ -138,7 +153,7 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 訂閱者進入教室只看到「有影片且已解鎖」的 Lesson；純文字 Lesson 只活在 Email、未解鎖 Lesson 完全不露出（無倒數無鎖頭），維持漏斗黑盒子效果。
 
 **驗收**：
-- [x] 解鎖判定以 emails_sent 為準（sort_order < emails_sent）；converted/completed 全解鎖
+- [x] 解鎖判定一律以 emails_sent 為準（sort_order < emails_sent）；只有 completed 與 unlock_all=true 的舊 converted 全解鎖（US14 修訂）
 - [x] drip 課程側邊欄過濾：無 video_id 或未解鎖的 Lesson 不出現；admin 預覽豁免（可見全部）
 - [x] 直接以 URL 存取未解鎖 Lesson 被擋（改抓第一個未完成的已解鎖影片 Lesson）
 - [x] 無任何可顯示 Lesson 時顯示空白歡迎狀態（currentLesson=null，非錯誤頁）
@@ -172,7 +187,7 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 **驗收**：
 - [x] 過期時間 = subscribed_at + (sort_order × 間隔天數) 天 + video_access_hours 小時；null 不顯示任何相關 UI
 - [x] 過期後影片不鎖定，顯示「免費觀看期已結束…」促銷區塊，附目標課程連結（無目標課程則通用文案）
-- [x] converted 訂閱者豁免全部觀看期/獎勵 UI（後端直接不下發相關 props）
+- [x] 已達標訂閱者（converted **與 booked**，US13 修訂）豁免全部觀看期/獎勵 UI（後端直接不下發相關 props）
 - [x] 獎勵欄前提：有影片 + 有 video_access_hours + 有 reward_html；達標前顯示「你準時來上課了！真棒」，per-session 計時（離開歸零），達標寫 localStorage 永久保留
 - [x] 逾期後曾達標者保留獎勵；未達標者顯示「下次早點來喔，錯過了獎勵 :(」
 - [x] 等待時間由 `config/drip.php` reward_delay_minutes 全站統一（env 可調，null 停用）
@@ -193,20 +208,48 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 原本影片免費觀看期到期時間用 `subscribed_at + 理論排程日` 純推算，若排程延遲補寄，信一寄出觀看期就已被吃掉甚至過期。改為以「該 Lesson 對該訂閱者**實際寄出**的時間」為計時起點：發信後才開始跑 video_access_hours。
 
 **驗收**：
-- [ ] 影片寄出成功時，寫入一筆 `drip_email_events` 的 `sent` 事件（created_at = 實際寄出時刻），為該訂閱該 Lesson 的計時錨點
-- [ ] 過期時間 = `sent 事件 created_at + video_access_hours 小時`（優先）；查無 sent 事件時 fallback 舊公式（`subscribed_at + sort_order × 間隔天數 天 + video_access_hours 小時`）
-- [ ] fallback 涵蓋兩種情境：改版前既有訂閱（無回填 sent 事件）、已 dispatch 但 Job 尚未實際寄出的空窗期；兩者行為與改版前一致，無資料遷移
-- [ ] sent 事件寫入採 firstOrCreate 冪等，Job 重試（$tries=3）不重複；寫入失敗僅 log 不中斷（與開信/點擊事件同策略）
-- [ ] sent 事件在 `Mail::send` 成功**之後**才寫，寄信拋錯（觸發重試）不會留下錨點
-- [ ] converted 訂閱者維持豁免（後端仍不下發觀看期 props），行為不變
-- [ ] 後台訂閱者頁 per-Lesson 統計表新增「最近發信」欄，顯示該 Lesson 最後一次 sent 事件時間（無則「—」）
+- [x] 影片寄出成功時，寫入一筆 `drip_email_events` 的 `sent` 事件（created_at = 實際寄出時刻），為該訂閱該 Lesson 的計時錨點
+- [x] 過期時間 = `sent 事件 created_at + video_access_hours 小時`（優先）；查無 sent 事件時 fallback 舊公式（`subscribed_at + sort_order × 間隔天數 天 + video_access_hours 小時`）
+- [x] fallback 涵蓋兩種情境：改版前既有訂閱（無回填 sent 事件）、已 dispatch 但 Job 尚未實際寄出的空窗期；兩者行為與改版前一致，無資料遷移
+- [x] sent 事件寫入採 firstOrCreate 冪等，Job 重試（$tries=3）不重複；寫入失敗僅 log 不中斷（與開信/點擊事件同策略）
+- [x] sent 事件在 `Mail::send` 成功**之後**才寫，寄信拋錯（觸發重試）不會留下錨點
+- [x] 已達標訂閱者維持豁免（後端仍不下發觀看期 props）；US13 起 booked 一併適用
+- [x] 後台訂閱者頁 per-Lesson 統計表新增「最近發信」欄，顯示該 Lesson 最後一次 sent 事件時間（無則「—」）
+
+### User Story 13 - 預約與後台成交也停止序列信 (Priority: P1)
+
+drip 不直接賣高價課，它的目標常常是「完成預約」。因此達標路徑不只有購買：高價課預約完成即標 `booked`、後台 Lead 開通商品與贈課標 `converted`，三者都立即停止序列信。booked 與 converted 分開統計，才看得出「預約了幾個 / 真的成交幾個」。
+
+**驗收**：
+- [x] `HighTicketBookingService::book()` 成功建立 lead 後呼叫 `DripService::checkAndBook(string $email, Course $bookedCourse)`；book 回傳失敗（非高價課/無模板）不觸發
+- [x] `checkAndBook()` 以 email 反查既有 user，查無 user 直接 return（不建帳號）；沿用 `drip_conversion_targets` 找出以該課為 target 的 drip 課程，將該 user 的 **active** 訂閱標 `booked` + `status_changed_at`
+- [x] 停信整段包 try/catch，失敗僅 Log::error，不影響預約本身的成功回應
+- [x] `booked` 與 `converted`、`unsubscribed` 同屬停信狀態：`processDailyEmails` 只撈 active（原本即是）、`SendDripEmailJob::handle()` 跳過清單改吃 `DripSubscription::STOPS_SENDING` 常數
+- [x] `HighTicketLeadService::convertLead()` 建立 Purchase 後呼叫 `checkAndConvert($user, $course)`
+- [x] `MemberController::giftCourse()` 每位贈課成功的會員呼叫 `checkAndConvert()`，包在既有 try/catch 內，失敗只 log 不中斷批次
+- [x] `checkAndConvert()` 受理 active **與 booked**：先預約後成交的人升級為 converted（不會卡在 booked）
+- [x] 後台訂閱者頁：狀態統計卡加「已預約」、狀態篩選白名單加 `booked`、清單徽章顯示「已預約」（琥珀色）
+- [x] 後台指標拆兩條：預約率 = booked / 總訂閱數、轉換率 = converted / 總訂閱數（分母 0 皆顯示「—」）
+- [x] 前台 `Course/Show.vue` 訂閱狀態標籤與徽章色加 `booked` → 「已預約」
+
+### User Story 14 - 達標後不再解鎖全部小節 (Priority: P1)
+
+drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購買）就結束漏斗 — 停信、已解鎖內容保留、後續小節不再公開（語意同退訂）。改版前既有的 converted 訂閱者維持全開，不回收已給出去的內容。
+
+**驗收**：
+- [x] `isLessonUnlocked()` 判定順序：`unlock_all=true` 或 `completed` → 全開；其餘（含 active/booked/converted/unsubscribed）一律 `sort_order < emails_sent`
+- [x] migration 新增 `unlock_all` boolean（default false），並將現有 `status='converted'` 的列回填為 true；新產生的轉換一律 false
+- [x] `daysUntilUnlock()` 對停信狀態（booked/converted/unsubscribed）一律回 -1（不會再解鎖）
+- [x] 教室側邊欄過濾、URL 直闖擋下皆沿用 isLessonUnlocked，無需個別改動；達標者進教室只看得到已寄達的 Lesson
+- [x] `ClassroomController::formatLessonFull()` 的 `$isConverted` 擴為「已達標」判定（booked/converted 皆豁免觀看期倒數與 reward props）
+- [x] `Classroom.vue` 的 VideoAccessNotice `v-if` 條件同步改為排除全部已達標狀態
 
 ## Requirements
 
 - **FR-001**: 解鎖日公式 `sort_order × drip_interval_days`（sort_order 從 0 起）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
 - **FR-002**: drip_interval_days ≤ 0 時視為全部解鎖（防呆）
 - **FR-003**: 訂閱唯一性：(user_id, course_id) DB unique；unsubscribed 是終態 — 永不能再訂閱同課程
-- **FR-004**: 狀態機：active → converted（購買目標課程）/ completed（寄完全部）/ unsubscribed（退訂）；completed 可因新增 Lesson 回到 active
+- **FR-004**: 狀態機：active → booked（預約目標高價課）/ converted（購買目標課程）/ completed（寄完全部）/ unsubscribed（退訂）；booked → converted 可升級（預約後真的成交），其餘轉移不可逆；completed 可因新增 Lesson 回到 active
 - **FR-005**: 第一封信 dispatchAfterResponse（回應後即發），emails_sent 同步 +1；發送計數在 dispatch 時記錄，實際寄出與否由 Job 內狀態檢查決定
 - **FR-006**: 信件為極簡模板：問候語（可省）＋內文＋退訂連結＋pixel；內文 Markdown 以 CommonMark 轉 HTML 後 strip style/class/`<style>`；無內文時顯示「新的課程內容已經解鎖了，請至網站觀看」
 - **FR-007**: 開信/點擊事件 immutable（無 updated_at），(subscription_id, lesson_id, event_type) unique，firstOrCreate 寫入失敗僅 log 不中斷
@@ -215,6 +258,10 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 - **FR-010**: 課程下架（unpublished）後排程不再對其訂閱者發信（processDailyEmails 僅取 published drip 課程）
 - **FR-011**: 觀看期計時錨點為「實際寄出時間」— `SendDripEmailJob` 於 `Mail::send` 成功後 firstOrCreate 一筆 `(subscription_id, lesson_id, 'sent')` 事件；錨點取該事件 `created_at`。錨點缺席時（既有訂閱／queued 空窗期）fallback 舊理論公式
 - **FR-012**: 觀看期到期／剩餘秒數一律由 DripService 後端計算並吃錨點；教室每次載入以單一查詢批次取回該訂閱所有 sent 事件（lesson_id ⇒ created_at），避免逐 Lesson N+1
+- **FR-013**: 達標管道總表 — 標 `converted`：站內結帳、Portaly webhook、免費領取、積分兌換、後台 Lead 開通商品、後台贈課（六條，皆為實際成交）；標 `booked`：高價課預約表單（一條）。所有管道共用 `drip_conversion_targets` 判定「這門課是哪些 drip 課的目標」
+- **FR-014**: 達標即出漏斗 — 停信且解鎖凍結在 `emails_sent`。全開只剩兩種情況：`completed`（已寄完，本來就等於全部）與 `unlock_all=true` 的改版前既有 converted
+- **FR-015**: 停信狀態集合與豁免集合定義為 `DripSubscription` 常數（`STOPS_SENDING = [booked, converted, unsubscribed]`、`FUNNEL_DONE = [booked, converted]`），Job/Service/Controller 一律引用常數，禁止各處硬編字串陣列
+- **FR-016**: 達標停信為「盡力而為」的副作用 — 預約/贈課/開通的主流程不因 drip 停信失敗而中斷，一律 try/catch + log
 
 ## 設計決策
 
@@ -230,9 +277,17 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 - **D10**: 發信時戳復用 `drip_email_events`（新增 `sent` event_type），不另建發送記錄表 — 該表本已 immutable、有 created_at、且 `(subscription, lesson, event_type)` unique 天然去重，完美當每封信的錨點；代價僅是 enum 加值。刻意不推翻 D2（emails_sent 仍是解鎖游標與 dispatch 計數），sent 事件只服務「觀看期起算」與「實際發信時間顯示」，兩者職責分離
 - **D11**: 錨點缺席一律 fallback 舊公式（非回傳 null）— 既有訂閱免資料遷移即向後相容；queued 空窗期（dispatch 已 +1 但 Job 未跑）短暫且同日，理論值≈實際值。取捨：捨棄一次性 backfill 的帳面一致，換零遷移風險，符合觀看期本為軟性提醒（D6）的定位
 
+- **D12**: 預約用新狀態 `booked` 而非共用 `converted` — 兩者行為完全相同（停信 + 出漏斗），差別只在後台統計要分得出「預約 vs 實際成交」。否決共用 converted：轉換率會被預約灌水，看不出真實成交
+- **D13**: 既有 converted 的全開權以 `unlock_all` 布林旗標保留，migration 一次性回填 — 不回收已經給出去的內容。否決「比對 status_changed_at 與改版日期」：魔術常數 + 依賴伺服器時間，且無法解釋。此欄長期只有舊資料為 true，未來確認無人在意時可整欄移除
+- **D14**: `checkAndBook()` 以 email 反查既有 user，查無不建帳號 — 訂閱者必為 users 會員（D1），查無 user 就必然沒有訂閱，建帳號是 011 高價課的職責，不在 drip 這邊擴張
+- **D15**: booked → converted 允許升級（`checkAndConvert` 受理 active + booked）— 先預約後成交是最正常的漏斗路徑，卡在 booked 會讓成交數統計失真。反向（converted → booked）不允許
+- **D16**: 停信/豁免的狀態集合收斂成 model 常數 — 這次改動要同時碰 Job、Service、Controller 三處的狀態判斷，硬編字串陣列是下次漏改的溫床
+
 ## Schema
 
 - `drip_subscriptions` — 訂閱記錄；(user_id, course_id) unique；emails_sent 恆等於已 dispatch 的信數（也是解鎖游標）；unsubscribe_token 為 UUID、建立時自動產生
+- 本模組新增 migration `2026_07_31_000002_add_booked_to_drip_subscriptions_status.php` — status enum 由 4 值擴為 5 值（加 `booked`）。**須以 `Schema::change()` 且重新指定 `->default('active')`**，否則 MySQL MODIFY 會掉預設值；sqlite 測試 DB 也才會更新 CHECK constraint（比照 `2026_07_20_000001` 的寫法）
+- 本模組新增 migration `2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php` — 加 `unlock_all` boolean default false（放在 status 後），up() 內回填 `UPDATE drip_subscriptions SET unlock_all = 1 WHERE status = 'converted'`；語意為「此訂閱不受解鎖游標限制」，只服務改版前既有轉換者的向後相容
 - `drip_conversion_targets` — drip 課程 ↔ 目標課程多對多；購買任一 target 即轉換
 - `drip_email_events` — 開信（opened）/教室促銷點擊（clicked）/**實際發信（sent）** 事件；(subscription_id, lesson_id, event_type) unique 保證去重；只有 created_at。`sent` 事件的 created_at 即該封信對該訂閱者的實際寄出時刻，作為影片觀看期計時錨點；target_url/ip/user_agent 為 null
 - 本模組新增 migration `2026_07_20_000001_add_sent_to_drip_email_events_event_type.php` — 將 event_type enum 由 `['opened','clicked']` 擴為 `['opened','clicked','sent']`（僅擴值，不動既有資料；down 還原為兩值前需先確保無 sent 列）
@@ -259,8 +314,42 @@ Phase 4 — 後台發信時間顯示（相依 T002）
 Phase 5 — 驗證
 - [x] T008 自動化驗證（feature test 取代手動）：VideoAccessAnchorTest 覆蓋 fallback 舊公式、sent 錨點起算、null 無倒數、Job 冪等寫 sent 事件 in tests/Feature/Drip/VideoAccessAnchorTest.php
 
+## Tasks（US13 + US14 — 達標即停信、不再全開）
+
+Phase 1 — Schema（US14 的 T002 為後續判定前提）
+- [x] T101 新增 migration：`drip_subscriptions.status` enum 加 `'booked'`，用 `Schema::change()` 並保留 `->default('active')` in database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
+- [x] T102 新增 migration：加 `unlock_all` boolean default false（after status），up() 回填既有 `status='converted'` 為 true；down() dropColumn in database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
+
+Phase 2 — Model 與 Service 核心（相依 Phase 1）
+- [x] T103 `DripSubscription`：加常數 `STOPS_SENDING = ['booked','converted','unsubscribed']`、`FUNNEL_DONE = ['booked','converted']`；`unlock_all` 進 fillable + cast boolean in app/Models/DripSubscription.php
+- [x] T104 `DripService::isLessonUnlocked()` 改寫：`unlock_all || status==='completed'` → true，其餘一律 `sort_order < emails_sent` in app/Services/DripService.php
+- [x] T105 `DripService::daysUntilUnlock()`：停信狀態（STOPS_SENDING）一律回 -1 in app/Services/DripService.php
+- [x] T106 `DripService::checkAndConvert()`：狀態條件由 `where('status','active')` 改 `whereIn('status', ['active','booked'])`（booked 升級 converted）in app/Services/DripService.php
+- [x] T107 `DripService::checkAndBook(string $email, Course $bookedCourse): void`：email 查 user（查無 return）→ 查 drip_conversion_targets → 該 user 的 active 訂閱標 booked + status_changed_at + Log::info in app/Services/DripService.php
+
+Phase 3 — 觸發點接線（相依 Phase 2）
+- [x] T108 [P] `SendDripEmailJob::handle()` 跳過清單改吃 `DripSubscription::STOPS_SENDING` in app/Jobs/SendDripEmailJob.php
+- [x] T109 [P] `HighTicketBookingService::book()`：lead 建立後 try/catch 呼叫 `checkAndBook($data['email'], $course)`，失敗僅 Log::error in app/Services/HighTicketBookingService.php
+- [x] T110 [P] `HighTicketLeadService::convertLead()`：Purchase 建立後呼叫 `checkAndConvert($user, Course::find($courseId))`，try/catch + log in app/Services/HighTicketLeadService.php
+- [x] T111 [P] `MemberController::giftCourse()`：贈課迴圈內 Purchase 成功後呼叫 `checkAndConvert($member, $course)`（沿用既有 try/catch）in app/Http/Controllers/Admin/MemberController.php
+
+Phase 4 — 教室豁免（相依 Phase 2）
+- [x] T112 `ClassroomController::formatLessonFull()`：`$isConverted` 改為 `$isFunnelDone = in_array($status, DripSubscription::FUNNEL_DONE)`，三處 props 條件同步 in app/Http/Controllers/Member/ClassroomController.php
+- [x] T113 [P] `Classroom.vue`：VideoAccessNotice 的 `dripSubscription?.status !== 'converted'` 改為排除 booked + converted in resources/js/Pages/Member/Classroom.vue
+
+Phase 5 — 後台與前台顯示（相依 Phase 1）
+- [x] T114 `CourseController::subscribers()`：狀態篩選白名單加 `booked`、statusStats 加 `booked_count`、stats props 加 `booked` in app/Http/Controllers/Admin/CourseController.php
+- [x] T115 `DripService::getSubscriberStats()`：回傳加 `booking_rate`（booked / 總訂閱數，分母 0 為 null）in app/Services/DripService.php
+- [x] T116 [P] `Subscribers.vue`：狀態卡加「已預約」、篩選 option 加 booked、徽章 label/色（琥珀）加 booked、指標區顯示預約率與轉換率 in resources/js/Pages/Admin/Courses/Subscribers.vue
+- [x] T117 [P] `Course/Show.vue`：`subscriptionStatusLabel` 加 `booked: '已預約'`、徽章 class 加 booked 配色 in resources/js/Pages/Course/Show.vue
+
+Phase 6 — 驗證
+- [x] T118 新增 FunnelStopTest：預約高價課→active 訂閱轉 booked 且排程不再發信、查無 user 不報錯、booked 後購買升級 converted、新 converted 只看得到已寄達 Lesson、`unlock_all=true` 舊訂閱仍全開、贈課/Lead 開通觸發轉換 in tests/Feature/Drip/FunnelStopTest.php
+- [x] T119 `php artisan test` 全綠 + `npm run build` 通過
+
 ## 進度日誌
 
+- 2026-07-31: US13+US14 完成（/sync 對帳：touchpoint 說明與 code_files 已補齊，無額外行為差異） — 達標即出漏斗。高價課預約（HighTicketBookingService）新增 booked 狀態並停止序列信；後台 Lead 開通與贈課補上 checkAndConvert（booked→converted 可升級）；停信/豁免狀態集合收斂為 DripSubscription::STOPS_SENDING / FUNNEL_DONE；converted 不再全開小節（解鎖凍結在 emails_sent），改版前既有 converted 由 unlock_all 旗標回填保留全開；後台訂閱者頁加「已預約」統計卡/篩選/徽章與預約率。順手補 ClassroomController 缺失的 DripSubscription import（型別提示原本解析到不存在的類別）。新增 FunnelStopTest（8 tests），全套 192 passed、npm build 綠。
 - 2026-07-31: drip 銷售頁右側懸浮面板同步「免費領取」CTA（touchpoint: Course/Show.vue，owner 002；原本面板對 drip 整個關閉、頁首 CTA 點擊無反應），面板僅在 `canSubscribe` 且無現有訂閱時出現、點擊捲至訂閱區。
 - 2026-07-21: US12 完成 — 影片觀看期改以實際發信時間起算。SendDripEmailJob 於寄信成功後 firstOrCreate 一筆 sent 事件當錨點（冪等）；DripService 加 getSentAtMap + 三方法吃 `?Carbon $sentAt`，缺席 fallback 舊公式；ClassroomController 傳入錨點；後台訂閱者頁加「最近發信」欄。新增 VideoAccessAnchorTest（4 tests）。全測試 167 passed、npm build 綠。
 - 2026-07-11: 銷售頁 drip「免費領取」CTA 標題改「立刻免費領取【課程名】！」，並統一登入／未登入視覺——訪客表單（DripSubscribeForm）由 indigo 改品牌配色（brand-gold 按鈕、brand-teal 聚焦），登入狀態區塊（touchpoint: Course/Show.vue，owner 002）改為同款白底卡片＋同標題＋滿版金按鈕。
