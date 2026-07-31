@@ -107,6 +107,9 @@
       "007.us-5",
       "007.us-7"
     ],
+    "app/Http/Controllers/Admin/ShortLinkController.php": [
+      "000.us-8"
+    ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
       "002.us-4"
     ],
@@ -233,6 +236,9 @@
       "007.us-2",
       "007.us-7"
     ],
+    "app/Http/Controllers/ShortLinkRedirectController.php": [
+      "000.us-8"
+    ],
     "app/Http/Controllers/SitemapController.php": [
       "000.us-4",
       "012.us-2"
@@ -300,6 +306,9 @@
     "app/Http/Requests/Admin/StorePostRequest.php": [
       "012.us-1"
     ],
+    "app/Http/Requests/Admin/StoreShortLinkRequest.php": [
+      "000.us-8"
+    ],
     "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
       "002.us-4"
     ],
@@ -331,6 +340,9 @@
     ],
     "app/Http/Requests/Admin/UpdatePostRequest.php": [
       "012.us-1"
+    ],
+    "app/Http/Requests/Admin/UpdateShortLinkRequest.php": [
+      "000.us-8"
     ],
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "002.us-4"
@@ -510,6 +522,9 @@
       "005.us-6",
       "005.us-7",
       "011.us-5"
+    ],
+    "app/Models/ShortLink.php": [
+      "000.us-8"
     ],
     "app/Models/SiteSetting.php": [
       "000.us-5",
@@ -825,8 +840,14 @@
     "database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php": [
       "010.us-12"
     ],
+    "database/migrations/2026_07_31_000001_create_short_links_table.php": [
+      "000.us-8"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
+    ],
+    "database/seeders/ShortLinkSeeder.php": [
+      "000.us-8"
     ],
     "resources/fonts/NotoSansTC.ttf": [
       "012.us-2"
@@ -1000,6 +1021,7 @@
     "resources/js/Layouts/AdminLayout.vue": [
       "000.us-2",
       "000.us-6",
+      "000.us-8",
       "002.us-10"
     ],
     "resources/js/Pages/Admin/Analytics/Index.vue": [
@@ -1107,6 +1129,9 @@
       "007.us-5",
       "007.us-7",
       "007.us-8"
+    ],
+    "resources/js/Pages/Admin/ShortLinks/Index.vue": [
+      "000.us-8"
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "009.us-1",
@@ -1243,6 +1268,7 @@
     "routes/web.php": [
       "000.us-2",
       "000.us-6",
+      "000.us-8",
       "001.us-3",
       "002.us-9",
       "006.us-1",
@@ -1278,6 +1304,9 @@
     ],
     "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
+    ],
+    "tests/Feature/Platform/ShortLinkTest.php": [
+      "000.us-8"
     ],
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
       "002.us-10"

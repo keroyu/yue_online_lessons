@@ -227,6 +227,44 @@
       "status": "implemented"
     },
     {
+      "id": "000.us-8",
+      "module": "000-platform-core",
+      "title": "短網址轉址管理",
+      "summary": "後台自建短網址（/1v1 等）302 轉外部連結，換連結只改後台不動 code；動態保留字檢查、同表點擊計數",
+      "heading": "### User Story 8 - 短網址轉址管理 (Priority: P2)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-8---短網址轉址管理-priority-p2",
+      "keywords": [
+        "short link",
+        "短網址",
+        "轉址",
+        "redirect",
+        "302",
+        "slug",
+        "catch-all",
+        "預約連結",
+        "Google Calendar",
+        "clicks",
+        "點擊統計",
+        "保留字",
+        "reserved slug"
+      ],
+      "code_files": [
+        "app/Models/ShortLink.php",
+        "app/Http/Controllers/Admin/ShortLinkController.php",
+        "app/Http/Controllers/ShortLinkRedirectController.php",
+        "app/Http/Requests/Admin/StoreShortLinkRequest.php",
+        "app/Http/Requests/Admin/UpdateShortLinkRequest.php",
+        "database/migrations/2026_07_31_000001_create_short_links_table.php",
+        "database/seeders/ShortLinkSeeder.php",
+        "resources/js/Pages/Admin/ShortLinks/Index.vue",
+        "resources/js/Layouts/AdminLayout.vue",
+        "routes/web.php",
+        "tests/Feature/Platform/ShortLinkTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "001.us-1",
       "module": "001-auth-account",
       "title": "Email 驗證碼登入/註冊",

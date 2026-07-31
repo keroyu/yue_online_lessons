@@ -13,15 +13,20 @@ specs: specs/000-platform-core/
 
 main_files:
 - app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Controllers/Admin/ShortLinkController.php
 - app/Http/Controllers/Auth/LoginController.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
+- app/Http/Controllers/ShortLinkRedirectController.php
 - app/Http/Controllers/SitemapController.php
 - app/Http/Middleware/AdminMiddleware.php
 - app/Http/Middleware/HandleInertiaRequests.php
 - app/Http/Middleware/StaffMiddleware.php
+- app/Http/Requests/Admin/StoreShortLinkRequest.php
+- app/Http/Requests/Admin/UpdateShortLinkRequest.php
 - app/Jobs/SendMetaConversionJob.php
 - app/Models/Order.php
+- app/Models/ShortLink.php
 - app/Models/SiteSetting.php
 - app/Providers/AppServiceProvider.php
 - app/Services/CheckoutService.php
@@ -34,6 +39,8 @@ main_files:
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
 - database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
+- database/migrations/2026_07_31_000001_create_short_links_table.php
+- database/seeders/ShortLinkSeeder.php
 - resources/js/Components/Layout/AppLayout.vue
 - resources/js/Components/Layout/Footer.vue
 - resources/js/Components/Layout/Navigation.vue
@@ -43,10 +50,12 @@ main_files:
 - resources/js/Components/Legal/TermsContent.vue
 - resources/js/Layouts/AdminLayout.vue
 - resources/js/Pages/Admin/Settings/Payment.vue
+- resources/js/Pages/Admin/ShortLinks/Index.vue
 - resources/js/app.js
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
 - routes/web.php
+- tests/Feature/Platform/ShortLinkTest.php
 
 related_specs:
 - specs/000-platform-core/spec.md

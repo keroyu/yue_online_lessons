@@ -20,7 +20,9 @@ use App\Http\Controllers\Admin\HomepageFeaturedCourseController;
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\HomeworkController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\ShortLinkController as AdminShortLinkController;
 use App\Http\Controllers\Admin\SocialLinkController;
+use App\Http\Controllers\ShortLinkRedirectController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\PostImageController;
 use App\Http\Controllers\Member\AssignmentCommentController;
@@ -309,6 +311,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Content categories (homepage type filter) + visibility toggle
     Route::post('/homepage/content-categories', [HomepageSettingController::class, 'updateContentCategories'])->name('homepage.content-categories');
 
+    // Short links (redirect manager)
+    Route::get('/short-links', [AdminShortLinkController::class, 'index'])->name('short-links.index');
+    Route::post('/short-links', [AdminShortLinkController::class, 'store'])->name('short-links.store');
+    Route::put('/short-links/{short_link}', [AdminShortLinkController::class, 'update'])->name('short-links.update');
+    Route::delete('/short-links/{short_link}', [AdminShortLinkController::class, 'destroy'])->name('short-links.destroy');
+
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
     Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
@@ -329,3 +337,17 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/homework/{assignment}/completions/{user}', [HomeworkController::class, 'markComplete'])->name('homework.completions.store');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Short link catch-all — MUST STAY LAST (000 US8, FR-014)
+|--------------------------------------------------------------------------
+| Matches any single unclaimed segment (e.g. /1v1) and redirects to the
+| target managed in /admin/short-links. Laravel matches routes in
+| registration order, so every route above still wins.
+|
+| ⚠️ 新增任何路由都要加在這一行「之前」，否則會被這條吃掉。
+*/
+Route::get('/{slug}', ShortLinkRedirectController::class)
+    ->where('slug', '[A-Za-z0-9_-]+')
+    ->name('short-link.redirect');

@@ -5,6 +5,15 @@ owner_files:
   - app/Http/Controllers/Controller.php
   - app/Http/Controllers/SitemapController.php
   - app/Http/Controllers/Admin/SettingsController.php
+  - app/Http/Controllers/Admin/ShortLinkController.php
+  - app/Http/Controllers/ShortLinkRedirectController.php
+  - app/Http/Requests/Admin/StoreShortLinkRequest.php
+  - app/Http/Requests/Admin/UpdateShortLinkRequest.php
+  - app/Models/ShortLink.php
+  - database/migrations/2026_07_31_000001_create_short_links_table.php
+  - database/seeders/ShortLinkSeeder.php
+  - resources/js/Pages/Admin/ShortLinks/Index.vue
+  - tests/Feature/Platform/ShortLinkTest.php
   - app/Http/Middleware/AdminMiddleware.php
   - app/Http/Middleware/StaffMiddleware.php
   - app/Http/Middleware/HandleInertiaRequests.php
@@ -190,6 +199,21 @@ touchpoints:
 - [x] API 設定頁（Payment.vue）新增 CAPI access token（機密遮罩、留空不覆蓋）與 test_event_code（非機密）欄位
 - [x] 測試：hash 正規化、payload 結構、fulfillOrder / book / 註冊點以 `Queue::fake()` 驗證 job dispatch 與 no-op 條件
 
+### User Story 8 - 短網址轉址管理 (Priority: P2)
+
+管理員在後台自建短網址（如 `/1v1`）指向任意外部連結（Google Calendar 預約頁、Zoom、表單…），訪客造訪即轉走。
+換人接手或換連結時只改後台一個欄位，不動 code、不重新部署。
+
+**驗收**：
+- [ ] 後台 `/admin/short-links` 單頁管理：列表 + inline 新增/編輯/刪除，欄位為 slug、目標網址、備註名稱、啟用開關
+- [ ] 前台 `GET /{slug}` 命中啟用中的短網址 → 302 轉外部網址（`redirect()->away()`），回應帶 `Cache-Control: no-store`
+- [ ] 停用中或不存在的 slug → 404（不洩漏「曾經存在」）
+- [ ] slug 大小寫不敏感：一律小寫正規化後儲存與比對，`/1V1` 與 `/1v1` 同一筆
+- [ ] slug 驗證：1–64 字、僅小寫英數與 `-` `_`、unique；撞到現有路由第一段（admin/blog/course/cart/member/login…）時擋下並回中文提示
+- [ ] 每次成功轉址原子累加 `clicks` 並寫入 `last_clicked_at`；後台列表顯示點擊數與最後點擊時間
+- [ ] 後台列表可一鍵複製完整網址（`https://<host>/<slug>`）
+- [ ] 首筆資料 `/1v1` → `https://calendar.app.google/4oQaEE1JbDgSmhhD9`，之後由後台自行修改
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -205,6 +229,10 @@ touchpoints:
 - **FR-011**: CAPI 呼叫 MUST 走 queue（`SendMetaConversionJob`），不得同步阻塞金流 webhook 或表單回應；Meta API 失敗不得影響任何業務流程（訂單照常入帳、表單照常成功）
 - **FR-012**: PII（email/phone）MUST 經 SHA-256 正規化雜湊後才送 Meta，原文不出站；瀏覽器端 Advanced Matching 的 hash 由 server 計算後輸出，不在前端做
 - **FR-013**: 瀏覽器與 CAPI 同時存在的事件（目前僅 Purchase）MUST 帶相同 eventID 供 Meta 去重；單邊事件（Lead/CompleteRegistration/FreeEnroll）不需 eventID
+- **FR-014**: 短網址 catch-all（單段 `/{slug}`）MUST 註冊在 `routes/web.php` 最末行；日後新增的任何具名路由都必須加在它之前，否則會被吃掉。路由以 `->where('slug', '[A-Za-z0-9_-]+')` 限制字元集，含 `.` `/` 的路徑不進入此路由
+- **FR-015**: slug 保留字不寫死清單，改由 `Route::getRoutes()` 動態推導所有已註冊路由的第一段靜態片段 — 新功能加路由後保護自動生效
+- **FR-016**: 轉址一律 302 且 `Cache-Control: no-store` — 目標網址本來就會換（換人接手），不得讓瀏覽器或 CDN 快取
+- **FR-017**: `target_url` 僅接受 `http`/`https` 絕對網址，防止 `javascript:` 等 scheme 進入 redirect
 
 ## 設計決策
 
@@ -221,6 +249,13 @@ touchpoints:
 - **D11**: Lead / CompleteRegistration / FreeEnroll 僅送 CAPI、不加瀏覽器端對應 — 這些動作的事實發生點就在 server（表單 POST、建帳號），單邊發送零去重複雜度；否決雙邊發送（要生成共享 eventID、收益趨近零）
 - **D12**: `_fbp`/`_fbc` 在結帳 initiate 快照進 orders 欄位 — Purchase 是 webhook 時刻發送，屆時無瀏覽器 cookie 可讀，不快照則 CAPI 事件無法歸因回廣告點擊
 - **D13**: CAPI access token 沿用 D3 機密欄位 pattern（DB 明文 + UI 遮罩 + 留空不覆蓋），與金流憑證同頁管理
+- **D14**: 短網址走乾淨的 catch-all `/{slug}`，不用 `/go/{slug}` 或 `/l/{slug}` 前綴 — 短網址的用途就是口播/名片/IG bio，多一段前綴等於失去意義；吃掉未來路由的風險用「註冊在最末 + 建立時保留字檢查」兩道防線控制（否決前綴方案：安全但沒解決使用者的需求）
+- **D15**: 保留字檢查動態掃 route collection 第一段（`ShortLink::isReservedSlug()`），不維護黑名單常數 — 半年後有人加 `/webinar` 路由時，保護自動跟上；只擋靜態片段，`{param}` 開頭的路由不納入
+- **D16**: 302 而非 301 — 這個功能的前提就是「以後會換目標」，301 被瀏覽器永久快取後使用者換了後台也叫不回來（同理加 `no-store`）
+- **D17**: 點擊統計用同表計數器（`clicks` + `last_clicked_at`，單句原子 UPDATE），不建事件表 — 短網址量級極小，與 002 D13「彙總不存 raw event」同一思路；要看流量趨勢請走既有的 UTM/GA 路線
+- **D18**: 不做軟刪除、不留歷史版本、不做 QR code — 刪掉就沒了，YAGNI；未來真的要，加欄位即可
+- **D19**: 後台單頁 inline CRUD（比照 `SocialLinkController` + 首頁設定頁的做法），不開 Create/Edit 獨立頁 — 欄位只有四個，跳頁反而慢
+- **D20**: `redirect()->away()` 而非 `redirect()->to()` — 目標是站外網址，`to()` 會被當成內部路徑處理
 
 ## Schema
 
@@ -231,6 +266,8 @@ touchpoints:
 - `users.is_sales_consultant` — boolean 預設 false；標記該會員兼任銷售顧問（後台受限存取用）。與 `role` 正交，不影響 `members()` / `isManageableMember()` 的會員範圍判斷。（users 表基礎欄位歸 001）
 - `orders.meta_fbp` varchar(100) nullable / `orders.meta_fbc` varchar(255) nullable — 結帳 initiate 時的 `_fbp`/`_fbc` cookie 快照，供 webhook 時刻的 CAPI Purchase 歸因（orders 表主體歸 005，本欄位 migration 歸本模組）。
 - `site_settings` 新鍵：`meta_capi_access_token`（機密、遮罩）、`meta_capi_test_event_code`（非機密，空 = 正式發送）。
+- `short_links`（US8 新表）— 後台可管理的站內短網址轉址；`slug` varchar(64) unique（**恆為小寫**，寫入時正規化）、`target_url` varchar(2048)、`name` varchar(100) nullable（人看的備註）、`is_active` boolean default true、`clicks` unsigned int default 0、`last_clicked_at` timestamp nullable、timestamps。
+  不變量：`clicks` 只增不減（原子 `increment`，不重算）；`slug` 唯一且不得與任何已註冊路由的第一段相同；停用不刪資料（`is_active=false` 即 404，點擊數保留）。
 
 ## Tasks
 
@@ -265,8 +302,29 @@ Phase 2 — 事件接點：
 Phase 3 — 驗證：
 - [x] T019 Feature/Unit 測試：hash 正規化、payload 結構、各接點 `Queue::fake()` 驗 dispatch、未設 token 時 no-op in `tests/Feature/MetaConversionsTest.php`
 
+US 8（短網址轉址管理）：
+
+Phase 1 — 資料層：
+- [x] T020 migration 建 `short_links`（slug unique / target_url / name / is_active / clicks / last_clicked_at）in `database/migrations/2026_07_31_000001_create_short_links_table.php`
+- [x] T021 `ShortLink` model：fillable、`is_active` bool + `last_clicked_at` datetime cast、slug 小寫正規化 mutator、`scopeActive()`、`recordClick()`（`increment('clicks', 1, ['last_clicked_at' => now()])`）、static `isReservedSlug()`（掃 `Route::getRoutes()` 第一段靜態片段）in `app/Models/ShortLink.php`
+
+Phase 2 — 後台：
+- [x] T022 [P] `StoreShortLinkRequest` / `UpdateShortLinkRequest`：slug regex `^[a-z0-9_-]{1,64}$`、unique(ignore self)、保留字 rule、`target_url` url + `active_url` 不驗（外部連結可能擋機器人）、僅 http/https、中文錯誤訊息 in `app/Http/Requests/Admin/StoreShortLinkRequest.php`, `app/Http/Requests/Admin/UpdateShortLinkRequest.php`
+- [x] T023 `Admin\ShortLinkController`：index（列表 + `app.url` 供前端組完整網址）/ store / update / destroy，redirect back with flash in `app/Http/Controllers/Admin/ShortLinkController.php`
+- [x] T024 admin 路由（`admin` 內層群組，非 staff）`/admin/short-links` resource 四條 in `routes/web.php`
+- [x] T025 [P] `Admin/ShortLinks/Index.vue`：表格（短網址/目標/備註/點擊/最後點擊/啟用 toggle/編輯/刪除）+ 頂部新增列 + 複製按鈕（`navigator.clipboard`，含 fallback）+ RWD（窄螢幕改卡片）in `resources/js/Pages/Admin/ShortLinks/Index.vue`
+- [x] T026 [P] AdminLayout 側欄加「短網址」入口（放在「API 設定」上方）in `resources/js/Layouts/AdminLayout.vue`
+
+Phase 3 — 前台轉址與驗證：
+- [x] T027 `ShortLinkRedirectController`（`__invoke`）：查 active slug → 找不到 `abort(404)` → `recordClick()` → `redirect()->away($url, 302)->header('Cache-Control', 'no-store')` in `app/Http/Controllers/ShortLinkRedirectController.php`
+- [x] T028 catch-all 路由 `Route::get('/{slug}', ShortLinkRedirectController::class)->where('slug', '[A-Za-z0-9_-]+')` **加在 web.php 最末行**，並在檔尾留註解警告新路由要加在上面 in `routes/web.php`
+- [x] T029 [P] `ShortLinkSeeder`（`firstOrCreate` 冪等，首筆 `/1v1`）in `database/seeders/ShortLinkSeeder.php`
+- [x] T030 Feature 測試：命中轉址 302 + 計數 +1、大小寫不敏感、停用 404、不存在 404、既有路由（/blog、/admin）不被 catch-all 吃掉、保留字擋下、非 admin 進不了後台 in `tests/Feature/Platform/ShortLinkTest.php`
+
 ## 進度日誌
 
+- 2026-07-31: /dev 完成 US8 短網址轉址管理 — `short_links` 表、`ShortLink` model（slug 小寫正規化、`recordClick()` 原子計數、`isReservedSlug()` 掃 route collection）、後台 `/admin/short-links` 單頁 inline CRUD（複製網址、啟停 toggle、點擊數）、side nav 入口、catch-all `/{slug}` 302 + no-store 轉址、`ShortLinkSeeder` 種 `/1v1`。TDD：ShortLinkTest 15 tests（含既有路由不被吃掉的回歸），全套 184 passed、vite build 綠。**部署後正式站要跑 `php artisan db:seed --class=ShortLinkSeeder` 或直接在後台新增 /1v1**。
+- 2026-07-31: [draft] 規劃 US 8 短網址轉址管理 — `short_links` 表 + 後台單頁 CRUD + catch-all `/{slug}` 302 轉址（D14~D20：乾淨短路徑、動態保留字檢查、302 no-store、同表點擊計數）。首用途：`/1v1` → 1對1 諮詢的 Google Calendar 預約頁，日後交接員工只改後台。
 - 2026-07-20: 前台 Navigation 左上角（站名左側）加上品牌 logo — Vite import `resources/images/og-logo.png`（touchpoint 012，與 OG 卡片共用同一支圖），`h-9` 顯示於 brand-navy 導覽列。純前端。
 - 2026-07-12: /dev 完成 US7 Meta CAPI 轉換追蹤強化 — MetaConversionsService + SendMetaConversionJob（queue、3 retries、test_event_code）、Purchase 掛 fulfillOrder/Portaly（eventID 去重）、Lead/CompleteRegistration/FreeEnroll、orders.meta_fbp/meta_fbc 快照（encryptCookies 排除 _fbp/_fbc）、blade Advanced Matching、API 設定頁 CAPI 欄位；順手修正 SettingsController 機密欄位「留空不覆蓋」被 ConvertEmptyStringsToNull 破功的既有 bug；MetaConversionsTest 10 tests。
 
