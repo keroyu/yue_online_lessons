@@ -56,7 +56,10 @@ const formattedTime = computed(() => {
        promo reads as a continuation of it rather than a separate strip -->
   <div class="bg-white px-4 sm:px-6 pb-10 overflow-x-hidden">
     <div class="max-w-4xl mx-auto">
-      <div v-if="isUnlocked && promoHtml" v-html="promoHtml" />
+      <!-- course-content gives the admin-authored HTML the same heading, list and
+           image styling as the course description (Tailwind preflight otherwise
+           strips h2/h3 back to body text) -->
+      <div v-if="isUnlocked && promoHtml" class="course-content" v-html="promoHtml" />
       <div v-else-if="!isUnlocked" class="bg-gray-50 rounded-xl border border-dashed border-gray-300 px-6 py-7 text-center">
         <p class="text-gray-600 mb-2">還有一個東西要給你，稍等一下…</p>
         <p class="text-2xl font-mono text-gray-800">{{ formattedTime }}</p>

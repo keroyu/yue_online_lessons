@@ -142,7 +142,7 @@ touchpoints:
 - [x] `?coupon=CODE` 進入時把正規化後的折扣碼（大寫英數、6 碼）存入 session `checkout_coupon` 供結帳沿用
 - [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）；內容以 Markdown 渲染（`marked`，`breaks: true` 保留單行換行）並套用與第 4 區相同的 `.course-content` 樣式
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
-- [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方「課程資訊」整塊、頂部與懸浮面板的「免費試閱」；主 CTA（免費領取／立即預約）保留
+- [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方第 3 區**整塊**（課程資訊、價格、頂部主 CTA／「前往學習」、免費試閱、積分兌換入口）、懸浮面板的「免費試閱」；成交動線只留頁面下方的領取／預約表單與懸浮面板 CTA
 - [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式、已購買者不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示，側標籤字樣「領取」）
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
@@ -274,7 +274,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 課程**有** `free_success_md`：未領取前整塊**不渲染**（不佔位、不計時）；領取完成後才渲染並從頭開始倒數
 - [x] 「已領取」判定涵蓋兩種時機：本次剛領取（drip flash / 免費報名 axios 成功）與重訪時已是持有者（`userSubscription` 非空或 `hasPurchased`）
 - [x] 倒數中顯示等待區塊（文案 + `M:SS` 倒數）；倒數完成寫入 `localStorage['promo_unlocked_course_{id}']`，之後重訪直接揭曉不再等待
-- [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）；RWD 與內容區同寬
+- [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）並套 `.course-content` 樣式（Tailwind preflight 會把 `<h2>`/`<h3>` 打回內文字級，不套就沒有標題樣式）；RWD 與內容區同寬
 - [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；直接接在描述之後時（中間沒有留客區塊）兩者看起來是同一個白色 container，只留段落級間距（描述區 `pb-6`）
 
 ## Requirements
@@ -300,7 +300,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
 - **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。促銷緊接在課程描述之後時（`promoFollowsIntro`：促銷要顯示且留客區塊不顯示）兩區 MUST 視覺連續 — 同白底、同欄寬、無分隔帶。
 
-- **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱），只留敘事與主 CTA。此為全站唯一定義，011 引用之
+- **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱、頂部價格與主 CTA），只留敘事與下方的領取／預約表單。影片下方的第 3 區整塊 MUST 不渲染 — 規格拿掉後它只剩一個空盒配一顆與下方表單重複的按鈕。此為全站唯一定義，011 引用之
 
 ## 設計決策
 
@@ -333,7 +333,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D26**: courses 的促銷欄位沿用 lessons 的命名（`promo_html` / `promo_delay_seconds`）— 不同表不衝突，語意平行、日後閱讀不用記兩套名字。
 
 - **D27**: 落地頁版型以單一 computed `isFunnelLanding` 表達，四個隱藏點共用 — 兩種課型（收 email 的 drip、收預約的高價課）在漏斗中的角色相同：訪客此刻要決定的是「留不留資料」，不是「這門課幾堂」。原 `isBookingLanding`（011 US1 導入時只涵蓋預約）更名以反映語意；否決在四處各寫一次條件（同檔案上個月才因此漂移過一次，見 D18）
-- **D28**: 落地頁隱藏只作用在**內容**，第 3 區外層 `<div ref="topInfoRef">` 與左欄 `div.flex-1` 一律保留 — 前者是懸浮面板 IntersectionObserver 的觀測目標，`observer.observe()` 只在 `onMounted` 當下元素存在才掛載、`topInfoVisible` 預設 `true`，外層若被 `v-if` 移除會讓 `showFloatingPanel` 恆為 false，懸浮 CTA 永遠不出現；後者內含積分兌換確認面板。（原 011 D9，隨規則正典一併移入本模組）
+- **D28**: 落地頁改為整塊移除第 3 區（含外層 `<div ref="topInfoRef">`），代價由 `onMounted` 補償 — 該外層是懸浮面板 IntersectionObserver 的觀測目標，`observer.observe()` 只在 `onMounted` 當下元素存在才掛載、`topInfoVisible` 預設 `true`，直接 `v-if` 掉會讓 `showFloatingPanel` 恆為 false、懸浮 CTA 永不出現；因此 `onMounted` 在 `topInfoRef` 為 null 時 MUST 將 `topInfoVisible` 設為 `false`，讓懸浮面板只依底部購買區的可見性決定（否決 `v-show`：空盒仍佔版面高度，等於沒改）。已知取捨：第 3 區內的積分兌換入口（`RedeemButton` 全站僅此一處）在落地頁一併消失 — drip 為免費、隱藏價格高價課走預約，兩者都不會設 `redeem_points`，屬可接受。（本條原文為「外層一律保留」，2026-08-01 使用者要求整塊隱藏後改寫；原 011 D9）
 - **D29**: drip 課的「免費試閱」在本次改動前就不會出現 — 頂部按鈕帶 `!isDrip`、懸浮面板的 drip 走獨立分支（010 US7：drip 不支援訪客試看）。因此對 drip 而言實際新增的隱藏只有 hero 時長行與課程資訊區兩處，另兩處是既有行為的重述，不是回歸風險
 
 ## Schema
@@ -418,6 +418,8 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-01: 漏斗落地頁把影片下方第 3 區整塊隱藏（原本只隱藏內容，留下一個空盒配「立即預約／前往學習」按鈕）— `div[ref=topInfoRef]` 加 `v-if="!isFunnelLanding"`，`onMounted` 在 ref 為 null 時把 `topInfoVisible` 設 false 以保住懸浮面板；D28 由「外層一律保留」改寫為「整塊移除 + observer 補償」。npm build 綠、php artisan test 207 passed。
+- 2026-08-01: 促銷區塊內容改套 `.course-content` — 管理員寫的 `<h2>`/`<h3>`/`<img>` 原本被 Tailwind preflight 重設成內文字級，現在與課程介紹同一套標題/清單/圖片樣式；app.css 補 `.course-content > *:first-child { margin-top: 0 }` 讓區塊開頭不多一截空白。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 銷售頁促銷區塊版面併回課程描述 — SalesPromoBlock 去掉米色橫幅與白卡外框，改用與描述區相同的 `bg-white` + `max-w-4xl`；Show.vue 加 `promoFollowsIntro`，促銷直接接在描述後時描述區 padding 由 `pb-10` 收為 `pb-6`，兩區呈現為同一個白色 container（有留客區塊時順序與樣式不變）。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 課程描述（`description`）改為 Markdown 渲染 — Show.vue 新增 `renderedLeadIntro`（`marked` + `breaks: true`），金色裝飾框內改套 `.course-content`，樣式與「課程介紹」一致；app.css 補 `.course-content > *:last-child { margin-bottom: 0 }`（touchpoint 000）；後台「課程描述」說明文字改為「顯示於銷售頁影片下方的前言區塊，支援 Markdown」（touchpoint 004）。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: /sync 對帳修正 US2 一條過時驗收條款 — 原寫「隱藏課程僅不出現在首頁」，實際上 `is_visible=false` 同時觸發 Landing Page 模式（AppLayout 的 hide-nav/hide-breadcrumb 與返回連結一併隱藏），與 `?lp=1` 同一條路徑。

@@ -177,6 +177,10 @@ body {
     margin-bottom: 0;
 }
 
+.course-content > *:first-child {
+    margin-top: 0;
+}
+
 .course-content h2:first-child {
     margin-top: 0;
 }

@@ -342,7 +342,13 @@ onMounted(() => {
     },
     { threshold: 0 }
   )
-  if (topInfoRef.value) observer.observe(topInfoRef.value)
+  if (topInfoRef.value) {
+    observer.observe(topInfoRef.value)
+  } else {
+    // Funnel landing pages drop the whole top info block; without this the
+    // ref stays "visible" forever and the floating panel never appears.
+    topInfoVisible.value = false
+  }
   // purchaseSectionRef may not be mounted yet (v-else), watch for it
   watch(purchaseSectionRef, (el) => {
     if (el && observer) observer.observe(el)
@@ -568,13 +574,17 @@ const submitBooking = async () => {
     <!-- ============================================================ -->
     <!-- 3. Info row + quick buy (directly below video, no gap)       -->
     <!-- ============================================================ -->
-    <div ref="topInfoRef" class="bg-white px-4 sm:px-6 py-5 border-b border-gray-100">
+    <!-- Dropped entirely on a funnel landing page: with the specs gone the strip
+         is an empty box, and its CTA only duplicates the claim/booking form below -->
+    <div
+      v-if="!isFunnelLanding"
+      ref="topInfoRef"
+      class="bg-white px-4 sm:px-6 py-5 border-b border-gray-100"
+    >
       <div class="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-start gap-6">
 
         <!-- Left: Course info -->
         <div class="flex-1">
-          <!-- Specs are noise on a booking landing page (011 FR-012) -->
-          <template v-if="!isFunnelLanding">
           <h3 class="text-sm font-semibold text-gray-700 border-l-4 border-brand-teal pl-2 mb-4">課程資訊</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm text-gray-600">
             <!-- Type -->
@@ -624,7 +634,6 @@ const submitBooking = async () => {
               <span>目前狀態　<strong class="text-yellow-700">預購中</strong></span>
             </div>
           </div>
-          </template>
 
           <!-- 積分兌換確認面板（點綠色按鈕後於此顯示，確定才扣點） -->
           <div
