@@ -53,6 +53,9 @@ touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
     why: 首頁列表/銷售頁讀取課程資料（visibleToUser/ordered scope、slug 路由綁定）；分類 slug 改名時 cascade 更新 courses.content_category；US11/US12 新欄位 free_success_md / promo_html / promo_delay_seconds 加入 fillable 與 casts
+  - file: resources/css/app.css
+    owner: 000-platform-core
+    why: 銷售頁 Markdown 內容的 `.course-content` 樣式（含 `> *:last-child` 去除尾端 margin，供 lead 裝飾框內使用）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: hero/RSS/SNS/側欄排序/內容分類等設定的 key-value 存取（get/getMany/set）
@@ -137,7 +140,7 @@ touchpoints:
 - [x] 後端 share OG meta（title/description/image/url）供社群分享預覽
 - [x] 已在購物車的課程顯示對應狀態（isInCart）；drip 課依 `canSubscribe` / 現有訂閱狀態切換表單與提示
 - [x] `?coupon=CODE` 進入時把正規化後的折扣碼（大寫英數、6 碼）存入 session `checkout_coupon` 供結帳沿用
-- [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）、放大字級（text-base sm:text-lg）、`whitespace-pre-line` 保留換行
+- [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）；內容以 Markdown 渲染（`marked`，`breaks: true` 保留單行換行）並套用與第 4 區相同的 `.course-content` 樣式
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
 - [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方「課程資訊」整塊、頂部與懸浮面板的「免費試閱」；主 CTA（免費領取／立即預約）保留
 - [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式、已購買者不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示，側標籤字樣「領取」）
@@ -272,6 +275,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 「已領取」判定涵蓋兩種時機：本次剛領取（drip flash / 免費報名 axios 成功）與重訪時已是持有者（`userSubscription` 非空或 `hasPurchased`）
 - [x] 倒數中顯示等待區塊（文案 + `M:SS` 倒數）；倒數完成寫入 `localStorage['promo_unlocked_course_{id}']`，之後重訪直接揭曉不再等待
 - [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）；RWD 與內容區同寬
+- [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；直接接在描述之後時（中間沒有留客區塊）兩者看起來是同一個白色 container，只留段落級間距（描述區 `pb-6`）
 
 ## Requirements
 
@@ -281,7 +285,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-004**: referrer 黑名單 MUST 含自站網域與金流回跳網域（payuni.com.tw、newebpay.com），避免付款回跳覆蓋真實來源。
 - **FR-005**: 課程路由綁定 MUST 先以 slug 再 fallback id 解析（`Course::resolveRouteBinding`），舊 id 連結不失效。
 - **FR-006**: 分類 slug 改名 cascade 以「格位」比對新舊值，僅在同格位 slug 變更時執行，避免誤改。
-- **FR-007**: 銷售頁 Markdown 渲染（marked v17）放行原生 HTML/iframe——內容僅管理員可寫，屬信任輸入。
+- **FR-007**: 銷售頁 Markdown 渲染（marked v17）放行原生 HTML/iframe——內容僅管理員可寫，屬信任輸入。`description`（lead 區塊）與 `description_md`（完整介紹）皆適用，前者額外帶 `breaks: true` 以保留舊有純文字內容的換行。
 - **FR-008**: 橫幅圖存於 `Storage::disk('public')` 的 `hero-banner/` 目錄；替換或刪除時 MUST 一併刪除舊檔，避免孤兒檔案累積。
 - **FR-009**: 精選課程 blurb 上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server 端 max:500）。
 - **FR-010**: UTM 參數捕捉 MUST trim 後截斷長度（UTM 100 字、click id 255 字）再寫入 session，防止超長 query 汙染資料。
@@ -294,7 +298,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-017**: 免費領取（drip 訂閱 / 免費課報名）成功 MUST NOT 導頁 — 成功呈現一律就地替換原表單位置並捲入視野；離站動線（前往我的課程）在有自訂成功內容時 MUST 隱藏。
 - **FR-018**: `free_success_md` 屬管理員信任輸入（比照 FR-007 放行 HTML/iframe）；變數替換 MUST 在 Markdown 轉 HTML 之前執行，避免破壞已產生的 HTML 結構。
 - **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
-- **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。
+- **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。促銷緊接在課程描述之後時（`promoFollowsIntro`：促銷要顯示且留客區塊不顯示）兩區 MUST 視覺連續 — 同白底、同欄寬、無分隔帶。
 
 - **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱），只留敘事與主 CTA。此為全站唯一定義，011 引用之
 
@@ -310,7 +314,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D8**: 來源統計以 `order_items` join `orders` 計算（訂單數 count distinct、營收 sum unit_price）— 一張訂單可含多課程，統計以「該課程」維度切分；被否決：直接查 purchases（缺 UTM 欄位）。
 - **D9**: hero 標題/說明等文字設定不設預設值 fallback 於前端 — 由 `HomepageSettingsSeeder` 播種初始值，前端只負責「空值不渲染」。
 - **D10**: 站長形象圖片與介紹沿用 site_settings KV（`sns_profile_image_path` / `sns_profile_intro`）＋圖片存 public disk，**不加欄位、不建表、不 migration** — 屬單例全站設定，與 D1、hero banner 完全同構。圖片移除比照 hero banner 走獨立路由（`deleteSnsProfileImage`，鏡射 `deleteBanner`）。
-- **D11**: `courses.description` 定位為銷售頁開場 lead（課程資訊列下方、Markdown 介紹上方，含裝飾框；原 Banner 漸層上的裸文字版被使用者否決）— 欄位分工：`tagline` 一句話（卡片/CTA）→ `description` 一段話（銷售頁開場簡介）→ `description_md` 完整長文；原本 description 僅在無 Markdown 時作 fallback、形同死欄位。純前端調整 Show.vue，controller 已傳 description、無後端/schema 變更（否決：廢除欄位併入 Markdown — 損失結構化簡介，未來 SEO/摘要用得上）
+- **D11**: `courses.description` 定位為銷售頁開場 lead（課程資訊列下方、Markdown 介紹上方，含裝飾框；原 Banner 漸層上的裸文字版被使用者否決）— 欄位分工：`tagline` 一句話（卡片/CTA）→ `description` 一段話（銷售頁開場簡介）→ `description_md` 完整長文；原本 description 僅在無 Markdown 時作 fallback、形同死欄位。內容與 `description_md` 同樣走 Markdown（`.course-content` 樣式一致，差別只在外層裝飾框），純前端調整 Show.vue，controller 已傳 description、無後端/schema 變更（否決：廢除欄位併入 Markdown — 損失結構化簡介，未來 SEO/摘要用得上）
 - **D12**: 來源捕捉搬進全站 `TrackTrafficSource` middleware + cookie 雙觸點（`tf_first` 只寫一次、`tf_last` 新來源即覆蓋，各 7 天）— 廣告導首頁/部落格不再丟失來源、跨 session 歸因；session 捕捉廢用。首末觸點都留才能看出「廣告帶認識、電子報促下單」路徑。
 - **D13**: 流量計數用 `course_daily_stats` 日彙總 upsert（course × date × channel 一列），不存 raw event — 表尺寸 = 課程數 × 天數 × ~7 管道，永遠很小；否決 raw page view 表（爆量、本平台不需要逐筆回放）。
 - **D14**: 漏斗四階段（views/add_to_cart/checkouts/purchases + revenue）全部進同一張彙總表計數器 — 報表查詢零 join、channel 歸類只在事件當下算一次；否決查詢時從 orders 重算（歸類邏輯要重複執行、頁面慢）。代價：計數器與 orders 可能有微小出入（重送 webhook 等），報表定位為趨勢參考、金額對帳仍以 009 交易後台為準。
@@ -414,6 +418,8 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-01: 銷售頁促銷區塊版面併回課程描述 — SalesPromoBlock 去掉米色橫幅與白卡外框，改用與描述區相同的 `bg-white` + `max-w-4xl`；Show.vue 加 `promoFollowsIntro`，促銷直接接在描述後時描述區 padding 由 `pb-10` 收為 `pb-6`，兩區呈現為同一個白色 container（有留客區塊時順序與樣式不變）。npm build 綠、php artisan test 207 passed。
+- 2026-08-01: 課程描述（`description`）改為 Markdown 渲染 — Show.vue 新增 `renderedLeadIntro`（`marked` + `breaks: true`），金色裝飾框內改套 `.course-content`，樣式與「課程介紹」一致；app.css 補 `.course-content > *:last-child { margin-bottom: 0 }`（touchpoint 000）；後台「課程描述」說明文字改為「顯示於銷售頁影片下方的前言區塊，支援 Markdown」（touchpoint 004）。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: /sync 對帳修正 US2 一條過時驗收條款 — 原寫「隱藏課程僅不出現在首頁」，實際上 `is_visible=false` 同時觸發 Landing Page 模式（AppLayout 的 hide-nav/hide-breadcrumb 與返回連結一併隱藏），與 `?lp=1` 同一條路徑。
 - 2026-08-01: 漏斗落地頁版型（FR-021/D27-D29）擴及 drip 課程 — `isBookingLanding` 更名 `isFunnelLanding`、判定改為 `(高價課且隱藏價格) || isDrip`；規則正典由 011 移入本模組，011 改為引用。drip 的免費試閱本就隱藏（D29），實際新增為 hero 時長行與課程資訊區兩處。203 passed、npm build 綠。
 - 2026-07-31: US11+US12 完成（/sync 對帳：Course.php / CourseForm.vue / 兩支 CourseRequest / Admin CourseController 的 touchpoint 說明補上 US12 促銷欄位，無額外行為差異） — 銷售頁「領取成功留客區塊 + 延遲促銷」。courses 加 free_success_md / promo_html / promo_delay_seconds；FreeSuccessBlock.vue（Markdown + {{email}}/{{name}}/{{course_name}} 變數、Vimeo/YouTube iframe 自動注入 autoplay+靜音、16:9 包覆、「🔊 開啟聲音」換 src 重載）與 SalesPromoBlock.vue（倒數揭曉、localStorage 記憶）插在課程描述與購買區之間；有留客內容時隱藏頂部訂閱成功綠卡與免費報名的「前往我的課程」按鈕，成功後捲入視野；促銷 gating 以「已領取」判定（含重訪持有者）。新增 FreeSuccessBlockTest（4 tests），全套 196 passed、npm build 綠。

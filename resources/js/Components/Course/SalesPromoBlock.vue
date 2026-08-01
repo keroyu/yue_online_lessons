@@ -52,10 +52,12 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="bg-brand-cream px-4 pb-8">
-    <div class="max-w-3xl mx-auto">
-      <div v-if="isUnlocked && promoHtml" class="bg-white rounded-xl shadow-sm px-5 sm:px-8 py-7" v-html="promoHtml" />
-      <div v-else-if="!isUnlocked" class="bg-white/70 rounded-xl border border-dashed border-gray-300 px-6 py-7 text-center">
+  <!-- Same white band and column width as the course description section, so the
+       promo reads as a continuation of it rather than a separate strip -->
+  <div class="bg-white px-4 sm:px-6 pb-10 overflow-x-hidden">
+    <div class="max-w-4xl mx-auto">
+      <div v-if="isUnlocked && promoHtml" v-html="promoHtml" />
+      <div v-else-if="!isUnlocked" class="bg-gray-50 rounded-xl border border-dashed border-gray-300 px-6 py-7 text-center">
         <p class="text-gray-600 mb-2">還有一個東西要給你，稍等一下…</p>
         <p class="text-2xl font-mono text-gray-800">{{ formattedTime }}</p>
       </div>

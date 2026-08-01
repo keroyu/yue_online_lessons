@@ -392,7 +392,7 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             placeholder="詳細說明課程內容與學習目標"
             :class="[inputClasses, form.errors.description ? inputErrorClasses : '']"
           />
-          <p :class="helpTextClasses">顯示於課程卡片與銷售頁開頭的簡短文字；完整介紹請寫在下方「課程介紹」。</p>
+          <p :class="helpTextClasses">顯示於銷售頁影片下方的前言區塊，支援 Markdown；完整介紹請寫在下方「課程介紹」。</p>
           <p v-if="form.errors.description" :class="errorTextClasses">{{ form.errors.description }}</p>
         </div>
 

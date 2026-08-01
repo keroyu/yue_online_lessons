@@ -172,6 +172,11 @@ body {
     margin-bottom: 1.25em;
 }
 
+/* Trailing margin would leave dead space inside the lead-intro frame */
+.course-content > *:last-child {
+    margin-bottom: 0;
+}
+
 .course-content h2:first-child {
     margin-top: 0;
 }

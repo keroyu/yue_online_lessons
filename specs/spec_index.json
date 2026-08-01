@@ -555,7 +555,8 @@
       "code_files": [
         "app/Http/Controllers/CourseController.php",
         "resources/js/Pages/Course/Show.vue",
-        "resources/js/Components/Course/PriceDisplay.vue"
+        "resources/js/Components/Course/PriceDisplay.vue",
+        "resources/css/app.css"
       ],
       "status": "implemented"
     },

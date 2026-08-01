@@ -264,6 +264,10 @@ const showSalesPromo = computed(() =>
   && (!props.course.free_success_md || hasClaimed.value)
 )
 
+// With no retention block in between, the promo sits directly under the course
+// description and both render as one white container (no band separating them).
+const promoFollowsIntro = computed(() => showSalesPromo.value && !showFreeSuccessBlock.value)
+
 const claimedEmail = computed(() => page.props.auth?.user?.email || freeFormEmail.value || '')
 const claimedName = computed(() =>
   page.props.auth?.user?.nickname || page.props.auth?.user?.real_name || freeFormName.value || ''
@@ -381,6 +385,11 @@ const closeLegalModal = () => {
 // marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
 // Do NOT add DOMPurify here — admin content is trusted and iframes must be preserved.
 const renderedDescription = computed(() => marked(props.course.description_md || ''))
+
+// The lead intro shares the description_md styling. breaks:true keeps single
+// newlines meaningful for the plain-text descriptions written before Markdown
+// support existed — they used to rely on whitespace-pre-line.
+const renderedLeadIntro = computed(() => marked(props.course.description || '', { breaks: true }))
 
 // Drip subscription
 const subscribing = ref(false)
@@ -723,9 +732,7 @@ const submitBooking = async () => {
         <!-- Corner accents -->
         <span class="absolute -top-px -left-px w-6 h-6 border-t-2 border-l-2 border-brand-gold rounded-tl-xl"></span>
         <span class="absolute -bottom-px -right-px w-6 h-6 border-b-2 border-r-2 border-brand-gold rounded-br-xl"></span>
-        <p class="text-base sm:text-lg leading-relaxed text-gray-700 whitespace-pre-line">
-          {{ course.description }}
-        </p>
+        <div class="course-content" v-html="renderedLeadIntro" />
       </div>
     </div>
 
@@ -733,7 +740,11 @@ const submitBooking = async () => {
     <!-- 4. Course description (h2 headings break out to full width)  -->
     <!-- ============================================================ -->
     <!-- description no longer falls back here: it renders as the lead intro above -->
-    <div v-if="course.description_md" class="bg-white pb-10 overflow-x-hidden">
+    <div
+      v-if="course.description_md"
+      class="bg-white overflow-x-hidden"
+      :class="promoFollowsIntro ? 'pb-6' : 'pb-10'"
+    >
       <div class="max-w-4xl mx-auto px-4 sm:px-6">
         <div
           class="course-content"
