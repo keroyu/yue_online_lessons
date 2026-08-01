@@ -293,6 +293,13 @@ const primaryCtaLabel = computed(() => {
   return isFree.value ? '免費報名' : '立即購買'
 })
 
+// Collapsed floating tab: two characters echoing the primary CTA
+const floatingTabLabel = computed(() => {
+  if (props.isDrip) return '領取'
+  if (isHighTicket.value && highTicketHidePrice.value) return '預約'
+  return '購買'
+})
+
 const handlePrimaryCta = () => {
   // Drip has no free-enrollment form: send the user to the subscription section
   if (!props.isDrip && isFree.value) {
@@ -309,8 +316,12 @@ const bottomPurchaseVisible = ref(false)
 const showFloatingPanel = computed(() => !topInfoVisible.value && !bottomPurchaseVisible.value)
 const floatingCollapsed = ref(false)
 const floatingPanelVisible = computed(() => {
-  if (!showFloatingPanel.value || props.isPreviewMode || props.hasPurchased) return false
-  // Drip: only worth showing while the visitor can still subscribe
+  if (!showFloatingPanel.value || props.isPreviewMode) return false
+  // A funnel landing has no top CTA block left, so the floating one is the only
+  // CTA on the page and stays even for owners (booking a 1v1 is repeatable).
+  // Drip still falls through to the canSubscribe check, so nobody who already
+  // claimed sees 「免費領取」 again.
+  if (props.hasPurchased && !isFunnelLanding.value) return false
   if (props.isDrip) return props.canSubscribe && !props.userSubscription
   return hasBuyAction.value || (isHighTicket.value && highTicketHidePrice.value)
 })
@@ -1166,7 +1177,7 @@ const submitBooking = async () => {
           <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          <span style="writing-mode:vertical-rl;letter-spacing:0.05em;">{{ isDrip ? '領取' : '購買' }}</span>
+          <span style="writing-mode:vertical-rl;letter-spacing:0.05em;">{{ floatingTabLabel }}</span>
         </button>
 
         <!-- Expanded panel -->
@@ -1193,9 +1204,11 @@ const submitBooking = async () => {
             :promo-ends-at="course.promo_ends_at"
           />
           <div class="mt-3 flex flex-col gap-2">
-            <!-- Drip: mirror the hero CTA — scroll to the subscription section -->
+            <!-- Funnel landing (drip / hidden-price high ticket): the page has a
+                 single CTA and this panel mirrors it — 免費領取 or 立即預約.
+                 Owners land here too, so no 進入課程 / cart detour appears. -->
             <button
-              v-if="isDrip"
+              v-if="isFunnelLanding"
               type="button"
               @click="handlePrimaryCta"
               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer text-sm"
@@ -1204,7 +1217,7 @@ const submitBooking = async () => {
             </button>
             <template v-else>
             <a
-              v-if="hasPreviewLessons && !isFunnelLanding"
+              v-if="hasPreviewLessons"
               :href="`/course/${course.id}/preview`"
               target="_blank"
               rel="noopener noreferrer"

@@ -143,7 +143,8 @@ touchpoints:
 - [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）；內容以 Markdown 渲染（`marked`，`breaks: true` 保留單行換行）並套用與第 4 區相同的 `.course-content` 樣式
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
 - [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方第 3 區**整塊**（課程資訊、價格、頂部主 CTA／「前往學習」、免費試閱、積分兌換入口）、懸浮面板的「免費試閱」；成交動線只留頁面下方的領取／預約表單與懸浮面板 CTA
-- [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式、已購買者不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示，側標籤字樣「領取」）
+- [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示）；側標籤字樣為「領取」／「預約」／「購買」，與主 CTA 對應
+- [x] 漏斗落地頁的懸浮面板**不因已購買而消失**：頂部第 3 區整塊已隱藏，懸浮面板是頁面上唯一的 CTA，`hasPurchased` 只在一般商品頁抑制面板；落地頁的面板內容直接用 `primaryCtaLabel`（不走「進入課程」／購物車分支），drip 仍受 `canSubscribe && !userSubscription` 節制，已領取者不會再看到「免費領取」
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
 
@@ -300,7 +301,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
 - **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。促銷緊接在課程描述之後時（`promoFollowsIntro`：促銷要顯示且留客區塊不顯示）兩區 MUST 視覺連續 — 同白底、同欄寬、無分隔帶。
 
-- **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱、頂部價格與主 CTA），只留敘事與下方的領取／預約表單。影片下方的第 3 區整塊 MUST 不渲染 — 規格拿掉後它只剩一個空盒配一顆與下方表單重複的按鈕。此為全站唯一定義，011 引用之
+- **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱、頂部價格與主 CTA），只留敘事與下方的領取／預約表單。影片下方的第 3 區整塊 MUST 不渲染 — 規格拿掉後它只剩一個空盒配一顆與下方表單重複的按鈕；相對地懸浮面板 CTA 在落地頁 MUST 一律保留（含已購買者），否則頁面會完全沒有可點的成交入口。此為全站唯一定義，011 引用之
 
 ## 設計決策
 
@@ -418,6 +419,7 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-01: 落地頁隱藏第 3 區後補上懸浮 CTA 的兩個缺口 — `floatingPanelVisible` 的 `hasPurchased` 抑制改為只作用於一般商品頁（落地頁已無其他 CTA）；面板內容在落地頁直接走 `primaryCtaLabel`，不再因 `isOwned` 落到「進入課程」分支；收合側標籤抽 `floatingTabLabel`，隱藏價格高價課由「購買」改為「預約」。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 漏斗落地頁把影片下方第 3 區整塊隱藏（原本只隱藏內容，留下一個空盒配「立即預約／前往學習」按鈕）— `div[ref=topInfoRef]` 加 `v-if="!isFunnelLanding"`，`onMounted` 在 ref 為 null 時把 `topInfoVisible` 設 false 以保住懸浮面板；D28 由「外層一律保留」改寫為「整塊移除 + observer 補償」。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 促銷區塊內容改套 `.course-content` — 管理員寫的 `<h2>`/`<h3>`/`<img>` 原本被 Tailwind preflight 重設成內文字級，現在與課程介紹同一套標題/清單/圖片樣式；app.css 補 `.course-content > *:first-child { margin-top: 0 }` 讓區塊開頭不多一截空白。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 銷售頁促銷區塊版面併回課程描述 — SalesPromoBlock 去掉米色橫幅與白卡外框，改用與描述區相同的 `bg-white` + `max-w-4xl`；Show.vue 加 `promoFollowsIntro`，促銷直接接在描述後時描述區 padding 由 `pb-10` 收為 `pb-6`，兩區呈現為同一個白色 container（有留客區塊時順序與樣式不變）。npm build 綠、php artisan test 207 passed。
