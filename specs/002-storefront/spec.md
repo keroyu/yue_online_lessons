@@ -143,7 +143,7 @@ touchpoints:
 - [x] 課程資訊列下方顯示「課程簡介」lead 區塊：`course.description` 非空才渲染，置中 `max-w-3xl` 裝飾框（cream 底、gold 細框＋對角 corner accent）；內容以 Markdown 渲染（`marked`，`breaks: true` 保留單行換行）並套用與第 4 區相同的 `.course-content` 樣式
 - [x] Markdown 介紹段（頁面第 4 區）不再以 `description` 作 fallback，避免簡介在同頁出現兩次；`description_md` 為空時該區不渲染
 - [x] 漏斗落地頁版型（`isFunnelLanding`）：drip 課程與隱藏價格的高價課隱藏商品規格與次要動線 — hero 標題下方的堂數/時長行、影片下方第 3 區**整塊**（課程資訊、價格、頂部主 CTA／「前往學習」、免費試閱、積分兌換入口）、懸浮面板的「免費試閱」；成交動線只留頁面下方的領取／預約表單與懸浮面板 CTA
-- [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示）；側標籤字樣為「領取」／「預約」／「購買」，與主 CTA 對應
+- [x] 右側懸浮購買面板：頂部課程資訊列與底部購買/訂閱區都不在視野內時出現（IntersectionObserver），可收合成側標籤；預覽模式不顯示。面板 CTA 文案與行為與頁首主 CTA 共用同一組 `primaryCtaLabel` / `handlePrimaryCta`，含 drip 課「免費領取」（drip 僅在 `canSubscribe` 且尚無訂閱時顯示）；側標籤字樣為「領取」／「預約」／「購買」，與主 CTA 對應；面板底部另有「回到課程介紹」次要按鈕，捲回銷售內容起點（lead 區塊 → `description_md` 區塊 → 頁首，依存在與否 fallback）
 - [x] 漏斗落地頁的懸浮面板**不因已購買而消失**：頂部第 3 區整塊已隱藏，懸浮面板是頁面上唯一的 CTA，`hasPurchased` 只在一般商品頁抑制面板；落地頁的面板內容直接用 `primaryCtaLabel`（不走「進入課程」／購物車分支），drip 仍受 `canSubscribe && !userSubscription` 節制，已領取者不會再看到「免費領取」
 
 ### User Story 3 - Hero Unit 首頁橫幅設定與呈現 (Priority: P1)
@@ -421,6 +421,7 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-01: 懸浮面板底部新增「回到課程介紹」按鈕 — 捲回銷售內容起點，目標依序 fallback 為 lead 簡介區塊 / `description_md` 區塊 / 頁首。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 留客區塊（FreeSuccessBlock）版面併入課程描述的白色 container — 去掉米色橫幅、欄寬由 `max-w-3xl` 改 `max-w-4xl`，內容樣式由失效的 `prose`（未安裝 @tailwindcss/typography，等於沒樣式）改為 `.course-content`；`promoFollowsIntro` 改名 `introFollowedByWhiteBlock`，留客或促銷任一存在時描述區都收為 `pb-6`。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 落地頁隱藏第 3 區後補上懸浮 CTA 的兩個缺口 — `floatingPanelVisible` 的 `hasPurchased` 抑制改為只作用於一般商品頁（落地頁已無其他 CTA）；面板內容在落地頁直接走 `primaryCtaLabel`，不再因 `isOwned` 落到「進入課程」分支；收合側標籤抽 `floatingTabLabel`，隱藏價格高價課由「購買」改為「預約」。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 漏斗落地頁把影片下方第 3 區整塊隱藏（原本只隱藏內容，留下一個空盒配「立即預約／前往學習」按鈕）— `div[ref=topInfoRef]` 加 `v-if="!isFunnelLanding"`，`onMounted` 在 ref 為 null 時把 `topInfoVisible` 設 false 以保住懸浮面板；D28 由「外層一律保留」改寫為「整塊移除 + observer 補償」。npm build 綠、php artisan test 207 passed。

@@ -264,6 +264,20 @@ const showSalesPromo = computed(() =>
   && (!props.course.free_success_md || hasClaimed.value)
 )
 
+// Floating panel shortcut back to the start of the sales content. Both blocks
+// are conditional, so fall through to the next one and finally to the page top.
+const leadIntroRef = ref(null)
+const descriptionRef = ref(null)
+
+const scrollToContentTop = () => {
+  const target = leadIntroRef.value || descriptionRef.value
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 // The description, the retention block and the promo render as one white
 // container. When anything follows the description it keeps a paragraph-sized
 // gap instead of the section-sized one that ends the container.
@@ -748,7 +762,7 @@ const submitBooking = async () => {
     <!-- ============================================================ -->
     <!-- 3.5 Lead intro (course.description) in a decorative frame    -->
     <!-- ============================================================ -->
-    <div v-if="course.description" class="bg-white px-4 sm:px-6 pt-8 pb-4">
+    <div v-if="course.description" ref="leadIntroRef" class="bg-white px-4 sm:px-6 pt-8 pb-4">
       <div class="relative max-w-3xl mx-auto rounded-xl border border-brand-gold/60 bg-brand-cream/60 px-6 py-6 sm:px-10 sm:py-8">
         <!-- Corner accents -->
         <span class="absolute -top-px -left-px w-6 h-6 border-t-2 border-l-2 border-brand-gold rounded-tl-xl"></span>
@@ -763,6 +777,7 @@ const submitBooking = async () => {
     <!-- description no longer falls back here: it renders as the lead intro above -->
     <div
       v-if="course.description_md"
+      ref="descriptionRef"
       class="bg-white overflow-x-hidden"
       :class="introFollowedByWhiteBlock ? 'pb-6' : 'pb-10'"
     >
@@ -1271,6 +1286,18 @@ const submitBooking = async () => {
             </button>
             </template>
           </div>
+
+          <!-- Back to the start of the sales content (lead intro / description) -->
+          <button
+            type="button"
+            @click="scrollToContentTop"
+            class="mt-3 w-full inline-flex items-center justify-center gap-1 pt-3 border-t border-gray-100 text-xs text-gray-500 hover:text-brand-teal transition-colors cursor-pointer"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+            回到課程介紹
+          </button>
         </div>
       </Transition>
     </Teleport>
