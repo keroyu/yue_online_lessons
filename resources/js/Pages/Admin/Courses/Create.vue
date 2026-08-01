@@ -13,6 +13,11 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  // Selectable drip conversion targets — same list the edit page receives
+  availableCourses: {
+    type: Array,
+    default: () => [],
+  },
 })
 </script>
 
@@ -28,6 +33,7 @@ defineProps({
       <CourseForm
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
+        :available-courses="availableCourses"
         submit-url="/admin/courses"
         method="post"
       />

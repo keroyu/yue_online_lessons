@@ -1074,7 +1074,7 @@
       "id": "004.us-2",
       "module": "004-course-admin",
       "title": "課程表單欄位與定價設定",
-      "summary": "課程表單：type 四類別（含 high_ticket）、內容分類動態下拉、優惠價/原價/倒數到期、SEO slug 與 meta_description、redeem_points 欄位、is_visible、金流選項；產品類別新增「電子書」ebook",
+      "summary": "課程表單：type 四類別（含 high_ticket）、內容分類動態下拉、優惠價/原價/倒數到期、SEO slug 與 meta_description、redeem_points 欄位、is_visible、金流選項；產品類別新增「電子書」ebook；修復新增流程欄位契約缺口（course_type/drip/high_ticket_hide_price 被靜默丟棄、目標商品清單為空）與隱形驗證錯誤",
       "heading": "### User Story 2 - 課程表單欄位與定價設定 (Priority: P1)",
       "file": "specs/004-course-admin/spec.md",
       "anchor": "user-story-2---課程表單欄位與定價設定-priority-p1",
@@ -1095,7 +1095,16 @@
         "ebook",
         "產品類別",
         "course type",
-        "type enum"
+        "type enum",
+        "新增課程",
+        "建立課程",
+        "store",
+        "驗證錯誤",
+        "validation error",
+        "目標商品",
+        "target_course_ids",
+        "drip_conversion_targets",
+        "required_unless"
       ],
       "code_files": [
         "resources/js/Components/Admin/CourseForm.vue",
@@ -1112,7 +1121,9 @@
         "resources/js/Components/CourseCard.vue",
         "resources/js/Pages/Home.vue",
         "app/Mail/LessonAddedNotification.php",
-        "tests/Feature/Admin/CourseTypeTest.php"
+        "tests/Feature/Admin/CourseTypeTest.php",
+        "tests/Feature/Admin/CourseCreateFieldsTest.php",
+        "resources/js/Pages/Admin/Courses/Create.vue"
       ],
       "status": "implemented"
     },

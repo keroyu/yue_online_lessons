@@ -1105,7 +1105,8 @@
       "004.us-3"
     ],
     "resources/js/Pages/Admin/Courses/Create.vue": [
-      "004.us-1"
+      "004.us-1",
+      "004.us-2"
     ],
     "resources/js/Pages/Admin/Courses/Edit.vue": [
       "004.us-1"
@@ -1326,6 +1327,9 @@
       "006.us-1",
       "011.us-1",
       "012.us-2"
+    ],
+    "tests/Feature/Admin/CourseCreateFieldsTest.php": [
+      "004.us-2"
     ],
     "tests/Feature/Admin/CourseImageBatchUploadTest.php": [
       "004.us-4"

@@ -141,15 +141,66 @@ const handleThumbnailChange = (event) => {
   }
 }
 
-// Validation error helpers: count for the sticky bar, scroll to the first
-// errored field in DOM order (fields are marked with data-field="<name>")
-const errorCount = computed(() => Object.keys(form.errors).length)
+// Validation error helpers. Some cards are conditionally rendered (drip hides
+// the pricing card, for example), so an errored field may not exist in the DOM
+// at all — the sticky bar always lists every error in words so nothing is
+// invisible, and scrolling is best-effort on top of that.
+const fieldLabels = {
+  name: '課程名稱',
+  slug: '網址代稱',
+  tagline: '副標題',
+  meta_description: 'SEO 描述',
+  description: '課程描述',
+  description_md: '課程內容',
+  free_success_md: '免費領取成功頁文案',
+  promo_html: '促銷區塊',
+  promo_delay_seconds: '促銷區塊延遲秒數',
+  price: '售價',
+  redeem_points: '兌換所需積分',
+  original_price: '原價',
+  promo_ends_at: '優惠到期時間',
+  thumbnail: '課程縮圖',
+  instructor_name: '講師名稱',
+  type: '產品類型',
+  content_category: '內容分類',
+  high_ticket_hide_price: '隱藏價格',
+  duration_minutes: '時間總長',
+  sale_at: '開賣時間',
+  portaly_product_id: 'Portaly 商品 ID',
+  payment_gateway: '金流商',
+  is_visible: '是否顯示於首頁',
+  course_type: '課程模式',
+  drip_interval_days: '發信間隔天數',
+  target_course_ids: '目標商品',
+}
+
+const errorList = computed(() =>
+  Object.entries(form.errors).map(([key, message]) => ({
+    key,
+    label: fieldLabels[key] ?? key,
+    message,
+  }))
+)
+
+const errorCount = computed(() => errorList.value.length)
+
+// Fields are marked with data-field="<name>"; returns false when the field is
+// not currently rendered so callers can fall back to the list alone.
+const scrollToField = (key) => {
+  const wrapper = document.querySelector(`[data-field="${key}"]`)
+  if (!wrapper) return false
+  wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  wrapper.querySelector('input, select, textarea')?.focus({ preventScroll: true })
+  return true
+}
 
 const scrollToFirstError = () => {
   nextTick(() => {
-    const keys = Object.keys(form.errors)
-    if (keys.length === 0) return
-    const selector = keys.map((key) => `[data-field="${key}"]`).join(',')
+    if (errorCount.value === 0) return
+    // querySelector with a grouped selector returns the first match in DOM
+    // order; if none of the errored fields is rendered we simply stay put —
+    // the sticky bar still spells out every error.
+    const selector = errorList.value.map((error) => `[data-field="${error.key}"]`).join(',')
     const wrapper = document.querySelector(selector)
     if (!wrapper) return
     wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -779,9 +830,31 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
 
     <!-- Sticky action bar -->
     <div class="sticky bottom-0 z-10 -mx-4 sm:mx-0">
-      <div class="bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)] sm:rounded-t-xl px-4 py-3 sm:px-6 flex items-center justify-between gap-4">
+      <!-- Error list: always spells out every error, including fields hidden by
+           a conditionally rendered card (e.g. pricing on a drip course) -->
+      <div
+        v-if="errorCount > 0"
+        class="bg-red-50 border-t border-x-0 sm:border-x border-red-200 sm:rounded-t-xl px-4 py-3 sm:px-6"
+      >
+        <p class="text-sm font-medium text-red-700">有 {{ errorCount }} 個欄位需要修正</p>
+        <ul class="mt-2 space-y-1 max-h-40 overflow-y-auto">
+          <li v-for="error in errorList" :key="error.key">
+            <button
+              type="button"
+              class="text-left text-sm text-red-600 hover:text-red-800 hover:underline"
+              @click="scrollToField(error.key)"
+            >
+              <span class="font-medium">{{ error.label }}</span>：{{ error.message }}
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div
+        class="bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.1)] px-4 py-3 sm:px-6 flex items-center justify-between gap-4"
+        :class="errorCount > 0 ? '' : 'sm:rounded-t-xl'"
+      >
         <p v-if="errorCount > 0" class="text-sm font-medium text-red-600">
-          有 {{ errorCount }} 個欄位需要修正
+          請修正上方列出的欄位
         </p>
         <p v-else class="hidden sm:block text-sm text-gray-400">
           所有區塊都在這一頁，填完按儲存即可

@@ -67,7 +67,21 @@ class CourseController extends Controller
         return Inertia::render('Admin/Courses/Create', [
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
+            'availableCourses' => $this->availableTargetCourses(),
         ]);
+    }
+
+    /**
+     * Courses selectable as drip conversion targets, shared by create() and edit().
+     * A drip course cannot be its own funnel target, nor can another drip course.
+     */
+    private function availableTargetCourses(?Course $exclude = null)
+    {
+        return Course::when($exclude, fn ($query) => $query->where('id', '!=', $exclude->id))
+            ->where('course_type', '!=', 'drip')
+            ->published()
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     /**
@@ -77,9 +91,18 @@ class CourseController extends Controller
     {
         $data = $request->validated();
 
+        // Extract target_course_ids before saving (not a course column)
+        $targetCourseIds = $data['target_course_ids'] ?? null;
+        unset($data['target_course_ids']);
+
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $request->file('thumbnail')->store('thumbnails', 'public');
+        }
+
+        // Clear drip fields on a standard course
+        if (($data['course_type'] ?? 'standard') === 'standard') {
+            $data['drip_interval_days'] = null;
         }
 
         // Set default values
@@ -94,8 +117,18 @@ class CourseController extends Controller
         }
 
         // Create course and auto-assign ownership to admin within a transaction
-        $course = DB::transaction(function () use ($data) {
+        $course = DB::transaction(function () use ($data, $targetCourseIds) {
             $course = Course::create($data);
+
+            // Store conversion targets for drip courses
+            if (($data['course_type'] ?? 'standard') === 'drip' && $targetCourseIds) {
+                foreach ($targetCourseIds as $targetId) {
+                    DripConversionTarget::create([
+                        'drip_course_id' => $course->id,
+                        'target_course_id' => $targetId,
+                    ]);
+                }
+            }
 
             // Auto-assign course ownership to the creating admin
             Purchase::create([
@@ -122,11 +155,7 @@ class CourseController extends Controller
     public function edit(Course $course): Response
     {
         // Get available courses for conversion target selection (exclude self)
-        $availableCourses = Course::where('id', '!=', $course->id)
-            ->where('course_type', '!=', 'drip')
-            ->published()
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $availableCourses = $this->availableTargetCourses($course);
 
         // Get current target course IDs
         $targetCourseIds = $course->dripConversionTargets()

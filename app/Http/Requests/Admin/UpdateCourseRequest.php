@@ -30,6 +30,17 @@ class UpdateCourseRequest extends FormRequest
     }
 
     /**
+     * Drip courses have no pricing card in the form, so no price is posted.
+     * Default it here instead of relying on the client to send a hidden zero.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('course_type') === 'drip') {
+            $this->merge(['price' => 0]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -46,7 +57,7 @@ class UpdateCourseRequest extends FormRequest
             'free_success_md' => ['nullable', 'string', 'max:5000'],
             'promo_html' => ['nullable', 'string', 'max:5000'],
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required_unless:course_type,drip', 'numeric', 'min:0'],
             'redeem_points' => ['nullable', 'integer', 'min:0'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date'],
@@ -78,6 +89,8 @@ class UpdateCourseRequest extends FormRequest
             'tagline.required' => '請輸入課程副標題',
             'description.required' => '請輸入課程描述',
             'price.required' => '請輸入課程價格',
+            'price.required_unless' => '請輸入課程價格',
+            'price.numeric' => '課程價格必須是數字',
             'price.min' => '課程價格不能為負數',
             'thumbnail.image' => '縮圖必須是圖片格式',
             'thumbnail.max' => '縮圖大小不能超過 10MB',

@@ -30,6 +30,7 @@ owner_files:
   - resources/js/Pages/Admin/Courses/Gallery.vue
   - database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
   - tests/Feature/Admin/CourseTypeTest.php
+  - tests/Feature/Admin/CourseCreateFieldsTest.php
   - database/migrations/2026_01_16_000001_create_courses_table.php
   - database/migrations/2026_01_17_000001_add_status_to_courses_table.php
   - database/migrations/2026_01_17_000002_create_chapters_table.php
@@ -135,6 +136,9 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 儲存列唯一且 sticky 固定於視窗底部（取消 + 儲存），表單內容底部預留 padding 不被遮擋
 - [x] 送出驗證失敗時：自動捲動至第一個錯誤欄位並 focus，sticky 列顯示「有 N 個欄位需要修正」紅字提示（單頁佈局下所有錯誤皆可見，不再有 tab 藏錯誤問題）
 - [x] 產品類別下拉含五個選項：講座課程 / 迷你課 / 完整課程 / 客製服務 / 電子書（值 lecture/mini/full/high_ticket/ebook），前後台標籤一致（FR-013）
+- [x] 新增頁與編輯頁的欄位能力等價：新增頁同樣帶入可選目標商品清單（`availableCourses`），`course_type` / `drip_interval_days` / `target_course_ids` / `high_ticket_hide_price` 在建立時同樣被驗證並落庫（FR-015）
+- [x] drip 課程的 `price` 非必填：表單無定價欄位，後端建立時預設 0（FR-016）
+- [x] 任何驗證錯誤都必須在畫面上看得到：sticky 儲存列上方浮出紅色錯誤面板，標題為「有 N 個欄位需要修正」，其下逐條列出「欄位中文名：訊息」且每條可點擊捲至該欄位（儲存列文案同步改為「請修正上方列出的欄位」）；欄位因條件隱藏而不在 DOM 時，清單仍完整呈現（FR-017）
 
 ### User Story 3 - 章節與小節編輯 (Priority: P1)
 
@@ -203,6 +207,10 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-013**: `courses.type`（產品類別）值域為 `lecture` / `mini` / `full` / `high_ticket` / `ebook`，中文對照固定為 講座 / 迷你課 / 完整課程 / 客製服務 / 電子書。新增值 MUST 同步這 8 個位置，缺一就會出現「顯示成原始英文值」或「存檔被驗證擋下」：DB enum、Store/UpdateCourseRequest 的 `in:` 規則、CourseForm 選單、Admin Courses Index 篩選、Course/Show 的 getTypeLabel、CourseCard、Home 的 typeLabels + typeOrder、LessonAddedNotification 的信件標籤
 - **FR-014**: 產品類別**只影響顯示與篩選**，不改變任何交付或金流行為（`high_ticket` 是唯一例外，見 D8）。`ebook` 與其他一般類別走完全相同的購買與教室流程
 
+- **FR-015**: 建立與更新走同一份欄位契約 — 凡是 `CourseForm` 送得出來的欄位，`StoreCourseRequest` 與 `UpdateCourseRequest` MUST 都有對應規則，`store()` 與 `update()` MUST 都有對應的落庫處理，`create()` 與 `edit()` MUST 都提供該欄位所需的選項資料。**缺規則不會報錯，只會讓值被 `validated()` 靜默丟棄** — `course_type`、`drip_interval_days`、`target_course_ids`、`high_ticket_hide_price` 四欄即為此類（新增頁選了連鎖課程/勾了隱藏價格，存完全部復原成 standard 且無轉換目標）
+- **FR-016**: drip 課程沒有定價概念（免費領取，靠 `target_course_ids` 導購），`price` 對 drip MUST 非必填並以 0 落庫；standard 維持必填。此規則同時適用 Store 與 Update
+- **FR-017**: 驗證錯誤 MUST 永遠可見。錯誤欄位若被條件渲染隱藏（drip 隱藏定價卡、standard 隱藏 drip 卡），`[data-field]` 錨點不存在，捲動與 focus 都會失效——此時 MUST 退回文字清單呈現（欄位中文名 + 訊息），不得只留一個數字讓使用者猜。**任何新增的條件渲染區塊都受此規則約束**
+
 ## 設計決策
 
 - **D1**: `status` + `is_published` 雙欄位而非單一狀態欄 — 下架回草稿後仍可由 `sale_at` 重新推斷發佈狀態；發佈邏輯（未來 sale_at → preorder）collapse 在 `publish()` 一處
@@ -217,6 +225,10 @@ SEO、點數兌換、金流與顯示設定。
 
 - **D10**: 擴充 type enum 的 migration 一律用 `Schema::change()` 帶完整值列表，不用 `DB::statement` 分 MySQL/sqlite 兩套 — `2026_04_09_000001` 當初只在 MySQL 分支加 `high_ticket`，sqlite 分支漏掉，導致測試 DB 的 CHECK 至今仍是三值、任何 high_ticket 課程都無法在測試中落庫（011 D12 記錄的限制）。本次 migration 一併把 sqlite 補齊，該限制隨之解除
 - **D11**: 電子書仍是一門「課程」（沿用 courses/lessons），不另建資料表 — 交付形式（PDF 連結、影片、文字）本來就由小節內容決定，type 只負責前台分類與篩選；否決新增 `ebooks` 表（會讓購買、教室、積分兌換、drip 目標全部要多一條分支）
+
+- **D12**: 錯誤呈現改為「捲動 + 常駐清單」雙軌，而不是只修 `price` 的必填規則 — 只改規則能解掉今天這個 case，但條件渲染的卡片還會再長（drip 卡、high_ticket 卡、未來的其他模式），任何一個隱藏欄位出錯就會重演「有 1 個欄位需要修正、但畫面上找不到紅字」。清單以 `fieldLabels` 對照表把 key 轉中文，`scrollToFirstError` 找不到 `[data-field]` 時不再靜默 `return`（否決：只把 price 改成 `required_unless` — 治標；否決：把隱藏卡片改成 `v-show` 讓 DOM 恆存 — 錯誤會捲到一張視覺上不存在的卡片，更難懂）
+- **D13**: drip 的 `price` 用 `required_unless:course_type,drip` + `prepareForValidation` 補 0，而不是在前端塞 hidden input — 驗證契約留在後端單一來源，前端少一個「為了過驗證而存在」的隱形欄位；且 API/測試直接 POST 時行為一致
+- **D14**: `create()` 的 `availableCourses` 查詢與 `edit()` 相同但不排除自身（新課還沒有 id）— 兩處共用一個 private helper `availableTargetCourses(?Course $exclude = null)`，避免日後條件（如「排除 drip」「僅已發布」）在兩處漂移
 
 ## Schema
 
@@ -246,8 +258,28 @@ SEO、點數兌換、金流與顯示設定。
 - [x] T00E5 [P] 新增小節通知信的類別標籤補上 in app/Mail/LessonAddedNotification.php
 - [x] T00E6 驗證：`php artisan test` 全綠、`npm run build` exit 0；並補一個測試確認 ebook 課程可落庫（順帶驗證 D10 的 sqlite 修正）in tests/Feature/Admin/
 
+### 修復新增課程流程與隱形驗證錯誤（US2 追加，FR-015~017）
+
+Phase 1 — 後端欄位契約補齊（先做，前端的可見錯誤才有正確語意）
+- [x] T00F1 `StoreCourseRequest` 補 `course_type`(required,in:standard,drip)、`drip_interval_days`(nullable,required_if,integer,1..30)、`target_course_ids`(nullable,array)+`.*`(exists)、`high_ticket_hide_price`(nullable,boolean) 四組規則與中文 messages，與 `UpdateCourseRequest` 對齊 in app/Http/Requests/Admin/StoreCourseRequest.php
+- [x] T00F2 `price` 改 `required_unless:course_type,drip`，並在兩個 Request 的 `prepareForValidation()` 對 drip 補 `price = 0`；messages 補 `price.required_unless` in app/Http/Requests/Admin/StoreCourseRequest.php, app/Http/Requests/Admin/UpdateCourseRequest.php
+- [x] T00F3 `store()` 比照 `update()`：抽出 `target_course_ids` 不進 `Course::create`，drip 時於同一 transaction 寫入 `drip_conversion_targets`；standard 時清空 `drip_interval_days` in app/Http/Controllers/Admin/CourseController.php
+- [x] T00F4 抽 private `availableTargetCourses(?Course $exclude = null)`（`course_type != drip` + `published()` + orderBy name），`create()` 與 `edit()` 共用；`create()` 傳 `availableCourses`（D14）in app/Http/Controllers/Admin/CourseController.php
+
+Phase 2 — 前端
+- [x] T00F5 `Create.vue` 宣告並下傳 `availableCourses` prop in resources/js/Pages/Admin/Courses/Create.vue
+- [x] T00F6 [P] sticky 列錯誤清單：加 `fieldLabels` key→中文對照，錯誤逐條顯示「欄位名：訊息」且可點擊捲至該欄位；`scrollToFirstError` 找不到 `[data-field]` 時改為不捲動但清單照常呈現（不得靜默 return）in resources/js/Components/Admin/CourseForm.vue
+
+Phase 3 — 驗證
+- [x] T00F7 測試：(a) POST 建立 drip 課程不帶 price → 201/redirect 且 `course_type=drip`、`price=0`、`drip_interval_days` 與 `drip_conversion_targets` 正確落庫；(b) POST 建立 high_ticket 且 `high_ticket_hide_price=true` → 該欄位為 true；(c) standard 不帶 price 仍擋下並回 `price` 錯誤 in tests/Feature/Admin/CourseCreateFieldsTest.php
+- [x] T00F8 `php artisan test` 全綠 + `npm run build` exit 0；手動確認新增頁選「連鎖課程」時目標商品清單有選項
+
 ## 進度日誌
 
+- 2026-08-01: /sync 對帳 — 本批 6 個 code 檔全屬 004，spec 已於 /dev 同步；補記實作與規劃的一處差異：錯誤計數改置於紅色錯誤面板標題，sticky 列文案改為「請修正上方列出的欄位」。
+- 2026-08-01: 實作 T00F1~T00F8 — Store/Update 欄位契約對齊（補 course_type/drip_interval_days/target_course_ids/high_ticket_hide_price 規則）、price 改 required_unless:course_type,drip + prepareForValidation 補 0、store() 寫入 drip_conversion_targets、抽 availableTargetCourses() 供 create()/edit() 共用、Create.vue 下傳 availableCourses、sticky 列改常駐錯誤清單（可點擊捲動、隱藏欄位也看得到）；新增 CourseCreateFieldsTest 4 例，php artisan test 207 passed、npm run build exit 0。
+
+- 2026-08-01: /spec 規劃「修復新增課程流程與隱形驗證錯誤」（FR-015~017、D12~D14、T00F1~T00F8），status: draft 待審。根因查證：`Create.vue` 未宣告/下傳 `availableCourses` → 目標商品永遠空；`StoreCourseRequest` 缺 `course_type`/`drip_interval_days`/`target_course_ids`/`high_ticket_hide_price` 四條規則 → 新增頁選連鎖或勾隱藏價格被 `validated()` 靜默丟棄、`store()` 也沒寫 `drip_conversion_targets`；`price` required 但 drip 定價卡被 `v-if` 移除 → `data-field="price"` 不在 DOM，`scrollToFirstError` 靜默 return，形成「有 1 個欄位需要修正但找不到紅字」。
 - 2026-08-01: 課程表單「是否顯示於首頁」加註「（Landing Page 模式）」，說明文字補上關閉後銷售頁會隱藏導覽列與麵包屑（純文案，行為未變；對應行為的正典描述見 002 US2）。
 - 2026-08-01: 產品類別新增「電子書」ebook（FR-013 的 8 個同步點全數更新）。migration 改用 Schema::change() 帶完整值列表，順帶補上 sqlite 測試 DB 缺失的 high_ticket（011 D12 的限制解除，高價課終於能在測試落庫）；另修 CourseCard 標籤表原本連 high_ticket 都沒有、卡片會顯示原始英文值。新增 CourseTypeTest（4 tests），203 passed、npm build 綠。
 - 2026-07-20: 修相簿批次上傳 bug（一次多張常失敗）— 根因是前端把整包檔案塞進單一 POST，多張合計超過 PHP `post_max_size(8M)` → PHP 丟棄整個 body → 驗證回「請選擇至少一張圖片」。改為 Gallery.vue「一檔一請求」序列上傳（含 N/總數 進度、逐張失敗回報），每請求僅 1 張，遠低於 8M 上限，故不需調整伺服器 PHP 設定。同步把單張上限從 10MB 校正為實際的 2MB（UI 文案 + `store`/`batchStore` 驗證 `max:2048`），與 `upload_max_filesize=2M` 一致。新增 CourseImageBatchUploadTest（單張/多張/非圖片）3 綠。

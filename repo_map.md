@@ -256,6 +256,7 @@ main_files:
 - resources/js/Pages/Home.vue
 - resources/views/emails/lesson-added.blade.php
 - routes/console.php
+- tests/Feature/Admin/CourseCreateFieldsTest.php
 - tests/Feature/Admin/CourseImageBatchUploadTest.php
 - tests/Feature/Admin/CourseTypeTest.php
 
