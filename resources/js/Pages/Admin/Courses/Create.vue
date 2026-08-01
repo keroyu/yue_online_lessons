@@ -13,6 +13,10 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  couponChains: {
+    type: Array,
+    default: () => [],
+  },
   // Selectable drip conversion targets — same list the edit page receives
   availableCourses: {
     type: Array,
@@ -33,6 +37,7 @@ defineProps({
       <CourseForm
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
+        :coupon-chains="couponChains"
         :available-courses="availableCourses"
         submit-url="/admin/courses"
         method="post"

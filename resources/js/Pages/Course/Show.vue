@@ -253,7 +253,10 @@ const hasClaimed = computed(() =>
   justClaimed.value || (props.isDrip ? !!props.userSubscription : props.hasPurchased)
 )
 
-const showFreeSuccessBlock = computed(() => !!props.course.free_success_md && justClaimed.value)
+// Shown to anyone who holds the thing, not only the visit where they claimed it:
+// the block carries the delivery itself (video, download links), so someone
+// coming back to the page still needs to reach it.
+const showFreeSuccessBlock = computed(() => !!props.course.free_success_md && hasClaimed.value)
 
 // Gated so a visitor who has not claimed yet never sees the promo first; with no
 // retention block there is nothing to wait for, so it runs from page load.
@@ -288,8 +291,10 @@ const claimedName = computed(() =>
   page.props.auth?.user?.nickname || page.props.auth?.user?.real_name || freeFormName.value || ''
 )
 
-watch(showFreeSuccessBlock, (visible) => {
-  if (!visible) return
+// Only jump to the block on the claim itself. A returning visitor gets it in
+// place instead of having the page scroll out from under them.
+watch(justClaimed, (claimed) => {
+  if (!claimed || !showFreeSuccessBlock.value) return
   nextTick(() => freeSuccessRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
 }, { immediate: true })
 
@@ -444,7 +449,9 @@ const memberSubscribe = () => {
 
 const subscriptionStatusLabel = computed(() => {
   const labels = {
-    active: '訂閱中',
+    // On the sales page the drip course reads as a free gift, so the visitor
+    // cares that they got it, not that a mail sequence is running.
+    active: '已領取',
     booked: '已預約',
     converted: '已轉換',
     completed: '已完成',
@@ -833,11 +840,6 @@ const submitBooking = async () => {
             </svg>
             {{ subscriptionStatusLabel }}
           </div>
-          <p v-if="userSubscription === 'active'" class="mt-2 text-sm text-gray-600">
-            <Link :href="`/member/classroom/${course.id}`" class="text-indigo-600 hover:underline">
-              前往教室
-            </Link>
-          </p>
         </div>
 
         <!-- Can subscribe: logged-in member — same card/heading/colors as the guest form -->

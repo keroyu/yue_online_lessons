@@ -31,6 +31,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  couponChains: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const statusBadge = computed(() => {
@@ -153,6 +157,7 @@ const unpublish = () => {
         :course-lessons="courseLessons"
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
+        :coupon-chains="couponChains"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"
       />

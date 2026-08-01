@@ -15,6 +15,28 @@ class CouponChainService
     private const CODE_LENGTH = 6;
 
     /**
+     * Active chains offered by the promo editors (lesson modal and course form).
+     * Single source for the filter and the label format so the two admin forms
+     * cannot drift apart.
+     *
+     * @return \Illuminate\Support\Collection<int, array{id: int, alias: string, label: string}>
+     */
+    public function editorOptions()
+    {
+        return CouponChain::where('is_active', true)
+            ->with('course:id,name')
+            ->orderBy('alias')
+            ->get(['id', 'alias', 'course_id'])
+            ->map(fn (CouponChain $chain) => [
+                'id'    => $chain->id,
+                'alias' => $chain->alias,
+                'label' => $chain->course_id
+                    ? "{$chain->alias}（{$chain->course->name}）"
+                    : "{$chain->alias}（全站通用）",
+            ]);
+    }
+
+    /**
      * Replace {alias} placeholders in a promo HTML string with the current
      * active code for each matching chain. Unknown aliases are left as-is.
      */

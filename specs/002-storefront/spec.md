@@ -49,6 +49,7 @@ owner_files:
   - resources/js/Pages/Admin/Analytics/Index.vue
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
+  - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
@@ -56,6 +57,9 @@ touchpoints:
   - file: resources/css/app.css
     owner: 000-platform-core
     why: 銷售頁 Markdown 內容的 `.course-content` 樣式（含 `> *:last-child` 去除尾端 margin，供 lead 裝飾框內使用）
+  - file: app/Services/CouponChainService.php
+    owner: 006-coupons
+    why: 銷售頁 `promo_html` 的 {alias} 展開（substitutePlaceholders），與教室頁共用同一個服務
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: hero/RSS/SNS/側欄排序/內容分類等設定的 key-value 存取（get/getMany/set）
@@ -259,6 +263,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 留客內容的 Markdown 套 `.course-content`（與課程介紹、促銷區塊同一套標題/清單/圖片樣式）；不可用 `prose`，本專案未安裝 `@tailwindcss/typography`
 - [x] drip 訂閱成功：有 `free_success_md` → 留客區塊出現，且不再顯示頁面頂部那張「訂閱成功」綠卡；無 → 完全維持現狀
 - [x] 免費課報名成功：有 → 留客區塊出現，購買區**不顯示**「前往我的課程」按鈕；無 → 維持現狀（預設文案 + 按鈕）
+- [x] 顯示條件為「已持有」而非「本次剛領取」：`showFreeSuccessBlock = free_success_md && hasClaimed`，回訪者再進頁面仍看得到區塊（區塊本身就是交付物：影片、下載連結）。已知限制：drip 的持有判定走 `userSubscription`（依 user_id），用 Email 領取但未登入的訪客回訪時認不出來，會看到未領取版面
+- [x] 自動捲動只在**領取當下**觸發（watch `justClaimed`），回訪者不會被頁面拉走捲動位置
 - [x] 成功後 `scrollIntoView({block:'center'})` 把留客區塊帶進視野；全程不 redirect、不換頁（drip 走 Inertia `back()`、免費課走 axios，皆為現況）
 - [x] Markdown 以 marked v17 渲染並放行原生 HTML/iframe（沿用 FR-007）
 - [x] 靜音自動播：渲染後掃描 iframe，src 認得 Vimeo（`player.vimeo.com`）或 YouTube（`youtube.com/embed`、`youtube-nocookie.com`）→ 注入 `autoplay=1` 與靜音參數（Vimeo `muted=1`、YouTube `mute=1`）
@@ -278,6 +284,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 「已領取」判定涵蓋兩種時機：本次剛領取（drip flash / 免費報名 axios 成功）與重訪時已是持有者（`userSubscription` 非空或 `hasPurchased`）
 - [x] 倒數中顯示等待區塊（文案 + `M:SS` 倒數）；倒數完成寫入 `localStorage['promo_unlocked_course_{id}']`，之後重訪直接揭曉不再等待
 - [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）並套 `.course-content` 樣式（Tailwind preflight 會把 `<h2>`/`<h3>` 打回內文字級，不套就沒有標題樣式）；RWD 與內容區同寬
+- [x] `promo_html` 支援輪換折扣碼 `{alias}` 佔位符：由 `CourseController::show()` 呼叫 `CouponChainService::substitutePlaceholders()` 在**伺服器端**展開為當前有效代碼（規則與 fallback 見 006 US5 / FR-010）；後台課程表單提供插入器，前端不做任何替換
 - [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；與描述區、留客區塊構成同一個白色 container，彼此只留段落級間距（前面的區塊 `pb-6`，整段結尾 `pb-10`）
 
 ## Requirements
@@ -421,6 +428,7 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 銷售頁三項變更（未走 /spec，事後對帳）— (1) 促銷區塊支援輪換折扣碼 `{alias}`，伺服器端展開，後台課程表單加插入器（規則正典在 006 US5，本模組僅記使用點）；(2) 留客區塊顯示條件由 `justClaimed` 改 `hasClaimed`，回訪者仍看得到，自動捲動改綁 `justClaimed` 以免劫持回訪者的捲動；(3) drip 訂閱徽章 active 文案由「訂閱中」改「已領取」並移除其下「前往教室」連結。新增 SalesPromoCouponChainTest（5 tests），全套 212 passed、npm build 綠。
 - 2026-08-01: 懸浮面板底部新增「回到課程介紹」按鈕 — 捲回銷售內容起點，目標依序 fallback 為 lead 簡介區塊 / `description_md` 區塊 / 頁首。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 留客區塊（FreeSuccessBlock）版面併入課程描述的白色 container — 去掉米色橫幅、欄寬由 `max-w-3xl` 改 `max-w-4xl`，內容樣式由失效的 `prose`（未安裝 @tailwindcss/typography，等於沒樣式）改為 `.course-content`；`promoFollowsIntro` 改名 `introFollowedByWhiteBlock`，留客或促銷任一存在時描述區都收為 `pb-6`。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 落地頁隱藏第 3 區後補上懸浮 CTA 的兩個缺口 — `floatingPanelVisible` 的 `hasPurchased` 抑制改為只作用於一般商品頁（落地頁已無其他 CTA）；面板內容在落地頁直接走 `primaryCtaLabel`，不再因 `isOwned` 落到「進入課程」分支；收合側標籤抽 `floatingTabLabel`，隱藏價格高價課由「購買」改為「預約」。npm build 綠、php artisan test 207 passed。

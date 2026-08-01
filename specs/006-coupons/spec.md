@@ -13,6 +13,7 @@ owner_files:
   - app/Models/CouponChain.php
   - app/Services/CouponService.php
   - app/Services/CouponChainService.php
+  - resources/js/Components/Admin/CouponChainInserter.vue
   - database/migrations/2026_06_09_000001_create_coupon_codes_table.php
   - database/migrations/2026_06_09_000002_add_discount_columns_to_orders_table.php
   - database/migrations/2026_06_26_000001_create_coupon_chains_table.php
@@ -48,16 +49,28 @@ touchpoints:
     why: coupon_code / original_amount / discount_amount 快照欄位（fillable + casts）
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: 銷售頁捕捉 ?coupon=CODE（消毒後）存入 session('checkout_coupon')
+    why: 銷售頁捕捉 ?coupon=CODE（消毒後）存入 session('checkout_coupon')；show() 以 CouponChainService::substitutePlaceholders() 展開 promo_html 的 {alias}
+  - file: app/Http/Controllers/Admin/CourseController.php
+    owner: 004-course-admin
+    why: 以 CouponChainService::editorOptions() 傳 couponChains 給課程表單的促銷區塊（create/edit 共用）
+  - file: resources/js/Components/Admin/CourseForm.vue
+    owner: 004-course-admin
+    why: 「銷售頁促銷區塊」掛載 CouponChainInserter（傳 chains / v-model / textarea ref）
+  - file: resources/js/Pages/Admin/Courses/Create.vue
+    owner: 004-course-admin
+    why: 下傳 couponChains prop
+  - file: resources/js/Pages/Admin/Courses/Edit.vue
+    owner: 004-course-admin
+    why: 下傳 couponChains prop
   - file: app/Http/Controllers/Member/ClassroomController.php
     owner: TBD-classroom
     why: formatLessonFull() 以 CouponChainService::substitutePlaceholders() 展開 promo_html 的 {alias}
   - file: app/Http/Controllers/Admin/ChapterController.php
-    owner: TBD-course-admin
-    why: 傳啟用中 couponChains 給小節編輯表單（插入佔位符下拉）
+    owner: 004-course-admin
+    why: 以 CouponChainService::editorOptions() 傳 couponChains 給小節編輯表單
   - file: resources/js/Components/Admin/LessonForm.vue
-    owner: TBD-course-admin
-    why: 促銷內容區的輪換折扣碼下拉 + 「插入折扣碼」按鈕（游標處插入 {alias}）
+    owner: 004-course-admin
+    why: 促銷內容區掛載 CouponChainInserter（傳 chains / v-model / textarea ref）
 ---
 
 # Coupons（折扣碼）
@@ -115,7 +128,7 @@ touchpoints:
 
 ### User Story 5 - 輪換折扣碼 CouponChain (Priority: P2)
 
-管理員建立輪換折扣碼模板（alias、折扣、每碼名額），系統自動生成首支代碼並在每支達名額後自動補下一支；課程小節促銷內容以 `{alias}` 佔位符引用，學員永遠看到當前有效代碼。
+管理員建立輪換折扣碼模板（alias、折扣、每碼名額），系統自動生成首支代碼並在每支達名額後自動補下一支；教室小節與課程銷售頁的促銷內容都以 `{alias}` 佔位符引用，讀者永遠看到當前有效代碼。
 
 **驗收**：
 - [x] 後台以「折扣碼管理」第二個 tab 呈現 CRUD；列表含佔位符、折扣、每碼名額、當前有效代碼、歷史代碼數、啟用狀態
@@ -123,8 +136,9 @@ touchpoints:
 - [x] 建立時立即自動生成首支 CouponCode（chain_id 關聯；type/value/course_id 繼承；max_uses = code_max_uses，0 則為 null 無限）
 - [x] redeem 後若 used_count ≥ code_max_uses（且 > 0）自動生成下一支；code_max_uses = 0 不補碼
 - [x] 自動生成碼為 6 位大寫英數，迴圈檢查唯一（含軟刪列）
-- [x] 教室 promo_html 的 {alias} 由伺服器展開為 currentCode()（啟用、未達上限、最新建立）；unknown alias、chain 停用或無可用碼時「保留佔位符原樣」（不展開為空字串）
-- [x] 小節編輯 modal 下拉列出啟用中 chain（標籤含課程名/全站通用），點「插入折扣碼」於游標處插入 {alias}；未選擇時按鈕 disabled
+- [x] 教室小節與銷售頁促銷區塊（`courses.promo_html`）的 {alias} 都由伺服器展開為 currentCode()（啟用、未達上限、最新建立）；unknown alias、chain 停用或無可用碼時「保留佔位符原樣」（不展開為空字串）
+- [x] 小節編輯 modal 與課程表單「銷售頁促銷區塊」都提供同一組插入器：下拉列出啟用中 chain（標籤含課程名/全站通用），點「插入折扣碼」於游標處插入 {alias}、插入後游標停在佔位符之後；未選擇時按鈕 disabled
+- [x] 清單與插入 UI 各只有一份實作：`CouponChainService::editorOptions()` 提供 `id` / `alias` / `label`（`ChapterController` 與 `Admin\CourseController` 皆呼叫它），`CouponChainInserter.vue` 提供下拉＋按鈕（`LessonForm` 與 `CourseForm` 皆掛載它，contract 為 `chains` + `v-model` + `textarea`）
 - [x] Show 頁列出鏈上所有歷史代碼（is_current 標記）；刪除 chain 為硬刪除，codes 的 chain_id 經 nullOnDelete 設 null，歷史代碼保留
 
 ### User Story 6 - 分享連結自動帶入折扣碼 (Priority: P3)
@@ -149,7 +163,7 @@ touchpoints:
 - **FR-007**: 驗證端點公開（支援訪客），以 RateLimiter（key = coupon-apply:{ip}）節流：5 次失敗 / 60 秒冷卻 / 成功清零。
 - **FR-008**: 訂單的 coupon_code 為字串快照、無 FK；折扣碼事後編輯/刪除不回溯影響歷史訂單與統計。
 - **FR-009**: session key `checkout_coupon` 與 traffic_source 同機制跨頁保留；僅課程銷售頁捕捉 ?coupon=；訂單建立後或用戶移除時清除。
-- **FR-010**: CouponChain 的 {alias} 展開為伺服器端操作（教室 API 回傳前）；後台編輯者看到的 promo_html 永遠是原始佔位符。
+- **FR-010**: CouponChain 的 {alias} 展開為伺服器端操作（教室 API 回傳前、銷售頁 Inertia props 組裝時）；後台編輯者看到的 promo_html 永遠是原始佔位符。前台以 `v-html` 直接輸出該字串，因此展開 MUST 留在後端，前端不得再做一次替換。
 - **FR-011**: 補碼時機在 redeem() 內（付款確認後），新舊碼交替瞬間的競態不加原子鎖：用戶撞到已滿舊碼時收到「已達使用上限」提示即可。
 - **FR-012**: chain alias 與 coupon code 為兩個獨立命名空間；alias 唯一性僅限 coupon_chains 現存列（chain 為硬刪除，刪後可重建同名）。
 
@@ -163,6 +177,7 @@ touchpoints:
 - **D6**: 節流用 Laravel RateLimiter（cache-based）而非 DB 記錄 — 短代碼防枚舉只需暫時性計數，無稽核需求。
 - **D7**: apply 端點由伺服器依 course_ids 重算小計 — 不信任前端傳入金額，防改價。
 - **D8**: 錯誤分類查詢不套 active() scope — 先撈 code 再逐項判斷，才能區分「無效 / 過期 / 達上限」給出精準訊息。
+- **D9**: chain 清單查詢與插入 UI 各收斂成一份 — `CouponChainService::editorOptions()`（後端）與 `CouponChainInserter.vue`（前端），兩個後台表單共用。銷售頁接上輪換折扣碼時原本是把 `ChapterController` 的查詢與 `LessonForm` 的插入函式各複製一份，`{alias}（課程名）` 這種標籤格式散在兩處必然漂移（同一個症狀見 002 D18）；共用後「兩處一致」由結構保證，不靠自律
 
 ## Schema
 
@@ -173,6 +188,8 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-08-02: 去除銷售頁接線帶進來的重複 — chain 清單查詢上移到 `CouponChainService::editorOptions()`（ChapterController 與 Admin\CourseController 共用）、插入器抽成 `CouponChainInserter.vue`（LessonForm 與 CourseForm 共用），記為 D5。行為不變，212 passed、npm build 綠。
+- 2026-08-02: 輪換折扣碼延伸到銷售頁促銷區塊 — `CourseController::show()` 展開 `courses.promo_html` 的 {alias}；後台課程表單加同一組插入器（`Admin\CourseController::couponChainOptions()` + CourseForm 下拉/按鈕，資料形狀比照 ChapterController）。既有機制不變，只是多一個使用點。新增 SalesPromoCouponChainTest（5 tests）。
 - 2026-07-11: 折扣碼列表代碼旁新增快速複製按鈕（clipboard，複製後綠勾回饋）。
 - 2026-07-06: 領域重組 — 自 011-discount-coupon 重寫，依實際 codebase 校正（{alias} 無碼時保留原樣非空字串、chain 為硬刪除、alias 轉小寫儲存、結帳頁 ?coupon= query 優先於 session）
 - 2026-06-26: 新增 CouponChain 輪換折扣碼：後台 tab CRUD、自動補碼、{alias} 佔位符展開、小節編輯插入 UI

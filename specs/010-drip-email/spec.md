@@ -36,7 +36,7 @@ touchpoints:
     why: 「連鎖 Email 設定」分頁 — course_type、drip_interval_days、目標課程選擇、發信排程預覽
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
-    why: Lesson 的 promo_delay_seconds / promo_html / promo_url / reward_html / video_access_hours 欄位、CTA 快速插入、{{classroom_url}} 插入按鈕與影片警示
+    why: Lesson 的 promo_delay_seconds / promo_html / promo_url / reward_html / video_access_hours 欄位、CTA 快速插入、{{classroom_url}} 插入按鈕與影片警示、drip 信固定格式（開頭問候 + 結尾退訂）的說明區塊
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
     why: subscribers() action — 組裝訂閱者清單、狀態統計（US13 起含 booked_count）、預約率/轉換率與 Lesson 開信/點擊分析（呼叫 DripService）
@@ -94,8 +94,9 @@ touchpoints:
 - [x] Step 1 驗證 email + nickname（required, max:50, regex `/\p{L}/u` 防純空格/符號），發送驗證碼並 flash 帶暱稱至 Step 2
 - [x] Step 2 驗證碼正確 → 新 Email 建立 member 帳號（email_verified_at 即時）、既有帳號一律以輸入值覆蓋 nickname，登入並建立訂閱
 - [x] 已退訂者再訂閱同課程 → 「此課程已無法再次訂閱」；已訂閱 → 「此 Email 已訂閱此課程」
-- [x] 驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」
+- [x] 驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」；送出鈕文案為「確認驗證碼」（非「確認訂閱」— 這一步只是驗證信箱）
 - [x] 訂閱成功通知顯示於頁面頂部主圖下方（flash `drip_subscribed`）
+- [x] 銷售頁的訂閱徽章對讀者說「已領取」（active 狀態）且不附「前往教室」連結 — 銷售頁語境是免費贈品的交付，教室動線留給會員中心與留客區塊；後台的訂閱者/名單頁仍用「訂閱中」（營運語彙，見 002 US11 進度日誌）
 
 ### User Story 2 - 已登入會員一鍵訂閱 (Priority: P1)
 
@@ -168,6 +169,7 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 - [x] 解鎖日全自動：sort_order × drip_interval_days，管理員只調排序與間隔
 - [x] LessonForm（drip 課程）「+ 插入教室連結」在游標處插入 `{{classroom_url}}`；偵測到影片 URL 時顯示琥珀色提醒
 - [x] 信件不含系統固定區塊（課程標題行/影片提醒/教室連結），內容連結全由管理員在 md_content 維護（退訂連結除外）
+- [x] 系統會在 md_content **之前**自動加一行「Hi {暱稱}，」、主旨自動組成「{暱稱}，{小節標題}」（無暱稱時兩者都省略），**之後**自動附退訂連結；LessonForm 的 Markdown 內容欄上方 MUST 在 drip 課程時說明這件事，避免管理員在正文重複寫稱呼
 
 ### User Story 9 - Lesson 促銷區塊與教室點擊追蹤 (Priority: P2)
 
@@ -349,6 +351,8 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 訪客訂閱表單 Step 2 按鈕文案改「確認驗證碼」；銷售頁訂閱徽章 active 改「已領取」並移除「前往教室」連結（檔案為 002 owner，本模組僅記語彙決定）。
+- 2026-08-01: LessonForm 的 Markdown 內容欄在 drip 課程時新增固定格式說明（信件開頭自動加「Hi {暱稱}，」、主旨為「{暱稱}，{小節標題}」、結尾自動附退訂連結，正文不必再寫稱呼），對應 US8 新增一條驗收；純 UI 文案，無行為變更。npm build 綠。
 - 2026-07-31: US13+US14 完成（/sync 對帳：touchpoint 說明與 code_files 已補齊，無額外行為差異） — 達標即出漏斗。高價課預約（HighTicketBookingService）新增 booked 狀態並停止序列信；後台 Lead 開通與贈課補上 checkAndConvert（booked→converted 可升級）；停信/豁免狀態集合收斂為 DripSubscription::STOPS_SENDING / FUNNEL_DONE；converted 不再全開小節（解鎖凍結在 emails_sent），改版前既有 converted 由 unlock_all 旗標回填保留全開；後台訂閱者頁加「已預約」統計卡/篩選/徽章與預約率。順手補 ClassroomController 缺失的 DripSubscription import（型別提示原本解析到不存在的類別）。新增 FunnelStopTest（8 tests），全套 192 passed、npm build 綠。
 - 2026-07-31: drip 銷售頁右側懸浮面板同步「免費領取」CTA（touchpoint: Course/Show.vue，owner 002；原本面板對 drip 整個關閉、頁首 CTA 點擊無反應），面板僅在 `canSubscribe` 且無現有訂閱時出現、點擊捲至訂閱區。
 - 2026-07-21: US12 完成 — 影片觀看期改以實際發信時間起算。SendDripEmailJob 於寄信成功後 firstOrCreate 一筆 sent 事件當錨點（冪等）；DripService 加 getSentAtMap + 三方法吃 `?Carbon $sentAt`，缺席 fallback 舊公式；ClassroomController 傳入錨點；後台訂閱者頁加「最近發信」欄。新增 VideoAccessAnchorTest（4 tests）。全測試 167 passed、npm build 綠。

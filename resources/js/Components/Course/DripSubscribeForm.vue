@@ -155,7 +155,7 @@ const goBack = () => {
         :disabled="processing || !code"
         class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {{ processing ? '驗證中...' : '確認訂閱' }}
+        {{ processing ? '驗證中...' : '確認驗證碼' }}
       </button>
 
       <button

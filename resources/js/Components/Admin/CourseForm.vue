@@ -2,6 +2,7 @@
 import { useForm, router } from '@inertiajs/vue3'
 import { ref, computed, watch, nextTick } from 'vue'
 import ImageGalleryModal from './ImageGalleryModal.vue'
+import CouponChainInserter from './CouponChainInserter.vue'
 
 const props = defineProps({
   course: {
@@ -28,6 +29,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  couponChains: {
+    type: Array,
+    default: () => [],
+  },
   submitUrl: {
     type: String,
     required: true,
@@ -39,6 +44,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['submitted'])
+
+// Rotating coupon codes: the editor stores a {alias} placeholder and the sales
+// page swaps it for the chain's current live code at render time (006 US5).
+const promoHtmlRef = ref(null)
 
 const form = useForm({
   name: props.course?.name || '',
@@ -528,8 +537,15 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           </div>
           <div data-field="promo_html">
             <label for="promo_html" :class="labelClasses">促銷內容（HTML）</label>
+            <CouponChainInserter
+              v-model="form.promo_html"
+              :chains="couponChains"
+              :textarea="promoHtmlRef"
+              class="mb-2"
+            />
             <textarea
               id="promo_html"
+              ref="promoHtmlRef"
               v-model="form.promo_html"
               rows="8"
               placeholder="<h3>限時優惠</h3>&#10;<p>今天報名再送…</p>"
@@ -537,6 +553,9 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
               :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': form.errors.promo_html }"
             />
             <p v-if="form.errors.promo_html" :class="errorTextClasses">{{ form.errors.promo_html }}</p>
+            <p v-if="couponChains.length > 0" :class="helpTextClasses">
+              插入的 <span class="font-mono">{alias}</span> 會在銷售頁自動換成該組目前有效的折扣碼。用完一組會自動換下一組，不必回來改文案。
+            </p>
           </div>
         </div>
       </div>

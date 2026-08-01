@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CartItem;
 use App\Models\Course;
 use App\Models\Purchase;
+use App\Services\CouponChainService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,6 +13,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class CourseController extends Controller
 {
+    public function __construct(
+        protected CouponChainService $couponChainService,
+    ) {}
+
     public function show(Request $request, Course $course): Response
     {
         $user = auth()->user();
@@ -57,7 +62,8 @@ class CourseController extends Controller
                 'description' => $course->description,
                 'description_md' => $course->description_md,
                 'free_success_md' => $course->free_success_md,
-                'promo_html' => $course->promo_html,
+                // {alias} placeholders resolve to each chain's current live code
+                'promo_html' => $this->couponChainService->substitutePlaceholders($course->promo_html),
                 'promo_delay_seconds' => $course->promo_delay_seconds,
                 'price' => $course->price,
                 'original_price' => $course->original_price,

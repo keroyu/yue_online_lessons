@@ -163,6 +163,7 @@ main_files:
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
+- tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php
 
 related_specs:
@@ -313,6 +314,7 @@ main_files:
 - app/Http/Controllers/Admin/ChapterController.php
 - app/Http/Controllers/Admin/CouponChainController.php
 - app/Http/Controllers/Admin/CouponController.php
+- app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/CartController.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/CouponController.php
@@ -332,7 +334,9 @@ main_files:
 - database/migrations/2026_06_09_000002_add_discount_columns_to_orders_table.php
 - database/migrations/2026_06_26_000001_create_coupon_chains_table.php
 - database/migrations/2026_06_26_000002_add_chain_id_to_coupon_codes_table.php
+- resources/js/Components/Admin/CouponChainInserter.vue
 - resources/js/Components/Admin/CouponForm.vue
+- resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Cart/CouponInput.vue
 - resources/js/Pages/Admin/CouponChains/Create.vue
@@ -346,6 +350,7 @@ main_files:
 - resources/js/Pages/Cart/Index.vue
 - resources/js/Pages/Checkout/Index.vue
 - routes/web.php
+- tests/Feature/Storefront/SalesPromoCouponChainTest.php
 
 related_specs:
 - specs/006-coupons/spec.md

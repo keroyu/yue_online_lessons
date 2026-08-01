@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
+import CouponChainInserter from './CouponChainInserter.vue'
 
 const props = defineProps({
   lesson: {
@@ -90,26 +91,6 @@ const insertClassroomUrl = () => {
 }
 
 const promoHtmlRef = ref(null)
-const selectedChainAlias = ref('')
-
-const insertCouponChain = () => {
-  if (!selectedChainAlias.value) return
-  const placeholder = `{${selectedChainAlias.value}}`
-  const textarea = promoHtmlRef.value
-  if (!textarea) {
-    form.value.promo_html = (form.value.promo_html || '') + placeholder
-    return
-  }
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const text = form.value.promo_html || ''
-  form.value.promo_html = text.substring(0, start) + placeholder + text.substring(end)
-  nextTick(() => {
-    textarea.selectionStart = textarea.selectionEnd = start + placeholder.length
-    textarea.focus()
-  })
-  selectedChainAlias.value = ''
-}
 
 const ctaUrl = ref('')
 const ctaText = ref('')
@@ -312,6 +293,16 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                     + 插入教室連結
                   </button>
                 </div>
+                <!-- The drip mail template wraps this content, so say what it adds -->
+                <p
+                  v-if="courseType === 'drip'"
+                  class="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600"
+                >
+                  這封信會自動在你的內容<span class="font-medium text-gray-800">前面</span>加一行「Hi {暱稱}，」，
+                  主旨也會是「{暱稱}，{小節標題}」；訂閱者沒有暱稱時兩者都會省略。
+                  內容<span class="font-medium text-gray-800">後面</span>自動附上退訂連結。
+                  所以這裡直接從正文寫起就好，不用再寫稱呼與問候。
+                </p>
                 <textarea
                   id="md_content"
                   ref="mdContentRef"
@@ -415,26 +406,12 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                         插入按鈕
                       </button>
                     </div>
-                    <!-- Insert coupon chain placeholder -->
-                    <div v-if="couponChains.length > 0" class="mt-2 flex items-center gap-2">
-                      <select
-                        v-model="selectedChainAlias"
-                        class="flex-1 rounded border-gray-300 px-3 py-1.5 text-sm font-mono"
-                      >
-                        <option value="">選擇輪換折扣碼…</option>
-                        <option v-for="c in couponChains" :key="c.id" :value="c.alias">
-                          {{ c.label }}
-                        </option>
-                      </select>
-                      <button
-                        type="button"
-                        :disabled="!selectedChainAlias"
-                        class="shrink-0 rounded bg-brand-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-40 transition-colors"
-                        @click="insertCouponChain"
-                      >
-                        插入折扣碼
-                      </button>
-                    </div>
+                    <CouponChainInserter
+                      v-model="form.promo_html"
+                      :chains="couponChains"
+                      :textarea="promoHtmlRef"
+                      class="mt-2"
+                    />
                     <textarea
                       id="promo_html"
                       ref="promoHtmlRef"

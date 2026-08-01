@@ -276,6 +276,8 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 課程表單「銷售頁促銷區塊」新增輪換折扣碼插入器、`Admin\CourseController`／`ChapterController` 改注入 `CouponChainService` 取清單、Create/Edit 下傳 `couponChains`；插入 UI 抽成 006 owner 的 `CouponChainInserter.vue`，`LessonForm`／`CourseForm` 共用 — 由 006-coupons 以 touchpoint 身分修改，規則見 006 US5／D9。
+- 2026-08-01: LessonForm 的 Markdown 內容欄新增 drip 專屬說明區塊（信件固定格式：開頭問候、結尾退訂）— 由 010-drip-email 以 touchpoint 身分修改，規則與驗收記在 010 US8。
 - 2026-08-01: 後台「課程描述」說明文字改為「顯示於銷售頁影片下方的前言區塊，支援 Markdown；完整介紹請寫在下方「課程介紹」」（原文誤稱顯示於課程卡片，卡片實際顯示 tagline）；渲染端變更見 002-storefront。
 - 2026-08-01: /sync 對帳 — 本批 6 個 code 檔全屬 004，spec 已於 /dev 同步；補記實作與規劃的一處差異：錯誤計數改置於紅色錯誤面板標題，sticky 列文案改為「請修正上方列出的欄位」。
 - 2026-08-01: 實作 T00F1~T00F8 — Store/Update 欄位契約對齊（補 course_type/drip_interval_days/target_course_ids/high_ticket_hide_price 規則）、price 改 required_unless:course_type,drip + prepareForValidation 補 0、store() 寫入 drip_conversion_targets、抽 availableTargetCourses() 供 create()/edit() 共用、Create.vue 下傳 availableCourses、sticky 列改常駐錯誤清單（可點擊捲動、隱藏欄位也看得到）；新增 CourseCreateFieldsTest 4 例，php artisan test 207 passed、npm run build exit 0。

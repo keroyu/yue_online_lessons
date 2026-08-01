@@ -10,6 +10,7 @@ use App\Models\DripConversionTarget;
 use App\Models\DripSubscription;
 use App\Models\Purchase;
 use App\Models\SiteSetting;
+use App\Services\CouponChainService;
 use App\Services\DripService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,10 @@ use Inertia\Response;
 
 class CourseController extends Controller
 {
-    public function __construct(protected DripService $dripService) {}
+    public function __construct(
+        protected DripService $dripService,
+        protected CouponChainService $couponChainService,
+    ) {}
     /**
      * Display a listing of courses.
      */
@@ -68,6 +72,7 @@ class CourseController extends Controller
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
             'availableCourses' => $this->availableTargetCourses(),
+            'couponChains' => $this->couponChainService->editorOptions(),
         ]);
     }
 
@@ -217,6 +222,7 @@ class CourseController extends Controller
             'courseLessons' => $courseLessons,
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
+            'couponChains' => $this->couponChainService->editorOptions(),
         ]);
     }
 
