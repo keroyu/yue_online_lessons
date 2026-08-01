@@ -264,9 +264,10 @@ const showSalesPromo = computed(() =>
   && (!props.course.free_success_md || hasClaimed.value)
 )
 
-// With no retention block in between, the promo sits directly under the course
-// description and both render as one white container (no band separating them).
-const promoFollowsIntro = computed(() => showSalesPromo.value && !showFreeSuccessBlock.value)
+// The description, the retention block and the promo render as one white
+// container. When anything follows the description it keeps a paragraph-sized
+// gap instead of the section-sized one that ends the container.
+const introFollowedByWhiteBlock = computed(() => showFreeSuccessBlock.value || showSalesPromo.value)
 
 const claimedEmail = computed(() => page.props.auth?.user?.email || freeFormEmail.value || '')
 const claimedName = computed(() =>
@@ -763,7 +764,7 @@ const submitBooking = async () => {
     <div
       v-if="course.description_md"
       class="bg-white overflow-x-hidden"
-      :class="promoFollowsIntro ? 'pb-6' : 'pb-10'"
+      :class="introFollowedByWhiteBlock ? 'pb-6' : 'pb-10'"
     >
       <div class="max-w-4xl mx-auto px-4 sm:px-6">
         <div

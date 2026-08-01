@@ -255,6 +255,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] `courses` 新增 `free_success_md`（nullable text）；後台課程表單新增「領取成功區塊」卡片（只在 drip 課或免費課 `price=0 && !portaly_product_id` 顯示），附可用變數與「貼上 Vimeo/YouTube 內嵌碼即可自動播放」說明
 - [x] 支援變數 `{{email}}` / `{{name}}` / `{{course_name}}`，於 Markdown 轉 HTML **之前**替換；取值：email = 本次領取實際使用的信箱（drip 走登入者 email、免費課走表單填的 email）、name = 暱稱或姓名、course_name = 課程名；無值一律替換為空字串
 - [x] 位置固定：留客區塊渲染在**課程描述（description_md）區塊之後、訂閱/購買區（6a/6b）之前**，其下方緊接 US12 的促銷倒數區塊
+- [x] 版面與課程描述、促銷區塊連續：三者共用同一組 `bg-white` 與 `max-w-4xl` 欄寬，不自帶米色橫幅；留客內容仍保有綠框卡片以標示「領取成功」。描述區在其後還有白色區塊時 padding 收為 `pb-6`（`introFollowedByWhiteBlock`）
+- [x] 留客內容的 Markdown 套 `.course-content`（與課程介紹、促銷區塊同一套標題/清單/圖片樣式）；不可用 `prose`，本專案未安裝 `@tailwindcss/typography`
 - [x] drip 訂閱成功：有 `free_success_md` → 留客區塊出現，且不再顯示頁面頂部那張「訂閱成功」綠卡；無 → 完全維持現狀
 - [x] 免費課報名成功：有 → 留客區塊出現，購買區**不顯示**「前往我的課程」按鈕；無 → 維持現狀（預設文案 + 按鈕）
 - [x] 成功後 `scrollIntoView({block:'center'})` 把留客區塊帶進視野；全程不 redirect、不換頁（drip 走 Inertia `back()`、免費課走 axios，皆為現況）
@@ -276,7 +278,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 「已領取」判定涵蓋兩種時機：本次剛領取（drip flash / 免費報名 axios 成功）與重訪時已是持有者（`userSubscription` 非空或 `hasPurchased`）
 - [x] 倒數中顯示等待區塊（文案 + `M:SS` 倒數）；倒數完成寫入 `localStorage['promo_unlocked_course_{id}']`，之後重訪直接揭曉不再等待
 - [x] `promo_html` 為管理員信任輸入，`v-html` 渲染（比照 FR-007）並套 `.course-content` 樣式（Tailwind preflight 會把 `<h2>`/`<h3>` 打回內文字級，不套就沒有標題樣式）；RWD 與內容區同寬
-- [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；直接接在描述之後時（中間沒有留客區塊）兩者看起來是同一個白色 container，只留段落級間距（描述區 `pb-6`）
+- [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；與描述區、留客區塊構成同一個白色 container，彼此只留段落級間距（前面的區塊 `pb-6`，整段結尾 `pb-10`）
 
 ## Requirements
 
@@ -419,6 +421,7 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-01: 留客區塊（FreeSuccessBlock）版面併入課程描述的白色 container — 去掉米色橫幅、欄寬由 `max-w-3xl` 改 `max-w-4xl`，內容樣式由失效的 `prose`（未安裝 @tailwindcss/typography，等於沒樣式）改為 `.course-content`；`promoFollowsIntro` 改名 `introFollowedByWhiteBlock`，留客或促銷任一存在時描述區都收為 `pb-6`。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 落地頁隱藏第 3 區後補上懸浮 CTA 的兩個缺口 — `floatingPanelVisible` 的 `hasPurchased` 抑制改為只作用於一般商品頁（落地頁已無其他 CTA）；面板內容在落地頁直接走 `primaryCtaLabel`，不再因 `isOwned` 落到「進入課程」分支；收合側標籤抽 `floatingTabLabel`，隱藏價格高價課由「購買」改為「預約」。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 漏斗落地頁把影片下方第 3 區整塊隱藏（原本只隱藏內容，留下一個空盒配「立即預約／前往學習」按鈕）— `div[ref=topInfoRef]` 加 `v-if="!isFunnelLanding"`，`onMounted` 在 ref 為 null 時把 `topInfoVisible` 設 false 以保住懸浮面板；D28 由「外層一律保留」改寫為「整塊移除 + observer 補償」。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 促銷區塊內容改套 `.course-content` — 管理員寫的 `<h2>`/`<h3>`/`<img>` 原本被 Tailwind preflight 重設成內文字級，現在與課程介紹同一套標題/清單/圖片樣式；app.css 補 `.course-content > *:first-child { margin-top: 0 }` 讓區塊開頭不多一截空白。npm build 綠、php artisan test 207 passed。

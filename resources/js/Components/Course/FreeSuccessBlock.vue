@@ -83,9 +83,11 @@ watch(rendered, () => nextTick(prepareVideos))
 </script>
 
 <template>
-  <div class="bg-brand-cream px-4 py-8">
-    <div class="max-w-3xl mx-auto">
-      <div class="bg-white rounded-xl border border-green-100 shadow-sm px-5 sm:px-8 py-7">
+  <!-- Same white band and column width as the course description and the promo:
+       the three render as one continuous white container -->
+  <div class="bg-white px-4 sm:px-6 pb-6 overflow-x-hidden">
+    <div class="max-w-4xl mx-auto">
+      <div class="rounded-xl border border-green-200 shadow-sm px-5 sm:px-8 py-7">
         <div class="flex items-center gap-2 mb-4">
           <span class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -104,7 +106,9 @@ watch(rendered, () => nextTick(prepareVideos))
           🔊 點此開啟聲音
         </button>
 
-        <div ref="contentRef" class="prose prose-sm sm:prose-base max-w-none" v-html="rendered" />
+        <!-- course-content, not prose: @tailwindcss/typography is not installed,
+             so the prose classes styled nothing and headings came out as body text -->
+        <div ref="contentRef" class="course-content" v-html="rendered" />
       </div>
     </div>
   </div>
