@@ -73,6 +73,16 @@ class Course extends Model
         return $this->where('slug', $value)->orWhere('id', $value)->firstOrFail();
     }
 
+    /**
+     * Generate URLs with the slug (marketing links, OG meta, tracking links).
+     * resolveRouteBinding() accepts both, so courses with no slug yet keep
+     * working on their id.
+     */
+    public function getRouteKey(): mixed
+    {
+        return $this->slug ?: $this->id;
+    }
+
     public function purchases(): HasMany
     {
         return $this->hasMany(Purchase::class);

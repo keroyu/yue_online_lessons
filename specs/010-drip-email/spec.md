@@ -30,6 +30,7 @@ owner_files:
   - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
   - tests/Feature/Drip/VideoAccessAnchorTest.php
   - tests/Feature/Drip/FunnelStopTest.php
+  - tests/Feature/Drip/ClaimWordingTest.php
 touchpoints:
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
@@ -73,6 +74,9 @@ touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
     why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
+  - file: app/Http/Middleware/HandleInertiaRequests.php
+    owner: 000-platform-core
+    why: flash 白名單新增 `drip_already_claimed`（已領取者的登入提示；白名單制，不註冊就永遠 undefined）
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
     why: 課程詳情頁下發 isDrip / 已訂閱狀態 props（drip 課程隱藏試看與購買入口）
@@ -93,7 +97,7 @@ touchpoints:
 **驗收**：
 - [x] Step 1 驗證 email + nickname（required, max:50, regex `/\p{L}/u` 防純空格/符號），發送驗證碼並 flash 帶暱稱至 Step 2
 - [x] Step 2 驗證碼正確 → 新 Email 建立 member 帳號（email_verified_at 即時）、既有帳號一律以輸入值覆蓋 nickname，登入並建立訂閱
-- [x] 已退訂者再訂閱同課程 → 「此課程已無法再次訂閱」；已訂閱 → 「此 Email 已訂閱此課程」
+- [x] 已停止接收者再次領取 → 「您已停止接收此商品的信件，無法再次領取」；已領取過 → 「此 Email 已經領取過了，登入後即可繼續觀看內容」，並以 flash `drip_already_claimed` 讓表單長出「用 Email 登入」連結（既有的免密碼驗證碼登入），不留死路
 - [x] 驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」；送出鈕文案為「確認驗證碼」（非「確認訂閱」— 這一步只是驗證信箱）
 - [x] 訂閱成功通知顯示於頁面頂部主圖下方（flash `drip_subscribed`）
 - [x] 銷售頁的訂閱徽章對讀者說「已領取」（active 狀態）且不附「前往教室」連結 — 銷售頁語境是免費贈品的交付，教室動線留給會員中心與留客區塊；後台的訂閱者/名單頁仍用「訂閱中」（營運語彙，見 002 US11 進度日誌）
@@ -139,15 +143,15 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 - [x] converted 訂閱者解鎖凍結在 emails_sent，**不再**看到全部 Lesson（US14 修訂；改版前既有 converted 由 unlock_all 旗標維持全開）
 - [x] 已排入佇列的信件在 handle() 時檢查狀態，converted 後不寄出
 
-### User Story 6 - 使用者退訂連鎖課程 (Priority: P3)
+### User Story 6 - 使用者停止接收連鎖信件 (Priority: P3)
 
-信件末尾退訂連結（UUID token）→ 確認頁警告「限期商品，退訂後無法再次訂閱」→ 確認後停止發信，已解鎖內容保留觀看權。
+信件末尾「按此停止接收」連結（UUID token）→ 確認頁警告「限期商品，停止接收後無法再次領取」→ 確認後停止發信，已解鎖內容保留觀看權。
 
 **驗收**：
 - [x] `/drip/unsubscribe/{token}` 顯示確認頁（Drip/Unsubscribe.vue），token 建立訂閱時自動產生（model booted）
-- [x] 確認後 status=unsubscribed；重複退訂顯示「您已退訂此課程」
-- [x] 退訂者解鎖狀態凍結在 emails_sent（已收信的 Lesson 仍可看，不再解鎖新內容）
-- [x] 退訂者無法再次訂閱同課程（US1 驗收）
+- [x] 確認後 status=unsubscribed（欄位值不變，只有文案改）；重複進入顯示「您已停止接收此商品的信件」
+- [x] 停止接收者解鎖狀態凍結在 emails_sent（已收信的 Lesson 仍可看，不再解鎖新內容）
+- [x] 停止接收者無法再次領取同商品（US1 驗收）
 
 ### User Story 7 - 教室觀看與側邊欄過濾 (Priority: P1)
 
@@ -265,6 +269,8 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - **FR-015**: 停信狀態集合與豁免集合定義為 `DripSubscription` 常數（`STOPS_SENDING = [booked, converted, unsubscribed]`、`FUNNEL_DONE = [booked, converted]`），Job/Service/Controller 一律引用常數，禁止各處硬編字串陣列
 - **FR-016**: 達標停信為「盡力而為」的副作用 — 預約/贈課/開通的主流程不因 drip 停信失敗而中斷，一律 try/catch + log
 
+- **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
+
 ## 設計決策
 
 - **D1**: 訂閱者統一為 users 會員 — 不另建 Email 名單表；訪客訂閱即建帳號並登入，後台會員/批次發信/贈課功能無縫共用
@@ -351,6 +357,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向登入的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。
 - 2026-08-02: 訪客訂閱表單 Step 2 按鈕文案改「確認驗證碼」；銷售頁訂閱徽章 active 改「已領取」並移除「前往教室」連結（檔案為 002 owner，本模組僅記語彙決定）。
 - 2026-08-01: LessonForm 的 Markdown 內容欄在 drip 課程時新增固定格式說明（信件開頭自動加「Hi {暱稱}，」、主旨為「{暱稱}，{小節標題}」、結尾自動附退訂連結，正文不必再寫稱呼），對應 US8 新增一條驗收；純 UI 文案，無行為變更。npm build 綠。
 - 2026-07-31: US13+US14 完成（/sync 對帳：touchpoint 說明與 code_files 已補齊，無額外行為差異） — 達標即出漏斗。高價課預約（HighTicketBookingService）新增 booked 狀態並停止序列信；後台 Lead 開通與贈課補上 checkAndConvert（booked→converted 可升級）；停信/豁免狀態集合收斂為 DripSubscription::STOPS_SENDING / FUNNEL_DONE；converted 不再全開小節（解鎖凍結在 emails_sent），改版前既有 converted 由 unlock_all 旗標回填保留全開；後台訂閱者頁加「已預約」統計卡/篩選/徽章與預約率。順手補 ClassroomController 缺失的 DripSubscription import（型別提示原本解析到不存在的類別）。新增 FunnelStopTest（8 tests），全套 192 passed、npm build 綠。

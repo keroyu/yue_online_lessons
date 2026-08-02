@@ -455,7 +455,7 @@ const subscriptionStatusLabel = computed(() => {
     booked: '已預約',
     converted: '已轉換',
     completed: '已完成',
-    unsubscribed: '已退訂',
+    unsubscribed: '已停止接收',
   }
   return labels[props.userSubscription] || props.userSubscription
 })
@@ -595,9 +595,9 @@ const submitBooking = async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">訂閱成功</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">領取成功</h3>
           <p class="text-gray-600">
-            課程已寄送到您的信箱 <strong class="text-gray-800">{{ $page.props.auth?.user?.email }}</strong>，請去收取歡迎信！<br>
+            商品已寄送到您的信箱 <strong class="text-gray-800">{{ $page.props.auth?.user?.email }}</strong>，請去收取歡迎信！<br>
             如找不到，有可能在「促銷」或「廣告」信箱，記得加入白名單避免漏信。
           </p>
         </div>

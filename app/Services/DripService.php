@@ -35,9 +35,9 @@ class DripService
 
         if ($existing) {
             if ($existing->status === 'unsubscribed') {
-                return ['success' => false, 'error' => '此課程已無法再次訂閱'];
+                return ['success' => false, 'error' => '您已停止接收此商品的信件，無法再次領取'];
             }
-            return ['success' => false, 'error' => '您已訂閱此課程'];
+            return ['success' => false, 'error' => '您已領取過此商品'];
         }
 
         // Create subscription

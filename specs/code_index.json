@@ -263,7 +263,8 @@
     ],
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "000.us-1",
-      "000.us-6"
+      "000.us-6",
+      "010.us-1"
     ],
     "app/Http/Middleware/StaffMiddleware.php": [
       "000.us-6"
@@ -467,6 +468,7 @@
       "002.us-11",
       "002.us-12",
       "002.us-7",
+      "002.us-8",
       "004.us-1",
       "004.us-2",
       "004.us-5"
@@ -1352,6 +1354,9 @@
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
     ],
+    "tests/Feature/Drip/ClaimWordingTest.php": [
+      "010.us-1"
+    ],
     "tests/Feature/Drip/FunnelStopTest.php": [
       "010.us-13",
       "010.us-14"
@@ -1383,6 +1388,9 @@
     ],
     "tests/Feature/Platform/ShortLinkTest.php": [
       "000.us-8"
+    ],
+    "tests/Feature/Storefront/CourseUrlSlugTest.php": [
+      "002.us-8"
     ],
     "tests/Feature/Storefront/FreeSuccessBlockTest.php": [
       "002.us-11",

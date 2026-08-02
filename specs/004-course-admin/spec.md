@@ -230,6 +230,8 @@ SEO、點數兌換、金流與顯示設定。
 - **D13**: drip 的 `price` 用 `required_unless:course_type,drip` + `prepareForValidation` 補 0，而不是在前端塞 hidden input — 驗證契約留在後端單一來源，前端少一個「為了過驗證而存在」的隱形欄位；且 API/測試直接 POST 時行為一致
 - **D14**: `create()` 的 `availableCourses` 查詢與 `edit()` 相同但不排除自身（新課還沒有 id）— 兩處共用一個 private helper `availableTargetCourses(?Course $exclude = null)`，避免日後條件（如「排除 drip」「僅已發布」）在兩處漂移
 
+- **D15**: `Course` 覆寫 `getRouteKey()` 回傳 `slug ?: id`，而不是覆寫 `getRouteKeyName()` — 後者會讓尚未設定 slug 的課程產生 `/course/`（正式站確實有 slug 空白的課），前者只影響**產生**網址、解析仍走既有的 `resolveRouteBinding`（slug 或 id 皆可）。修正前所有由模型產生的連結（OG url、後台追蹤連結、領取後導向、教室 sales_url）都是 id 版；改在模型單點修，勝過在五個呼叫點各自傳 slug
+
 ## Schema
 
 - 本次新增 migration `2026_08_01_000001_add_ebook_to_courses_type.php` — `courses.type` enum 由 4 值擴為 5 值（加 `ebook`）；以 `Schema::change()` 同時作用於 MySQL 與 sqlite（D10）。down() 還原為 4 值前須確保無 ebook 資料列
@@ -276,6 +278,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: `Course::getRouteKey()` 改回傳 slug（無 slug 才用 id），修正全站由模型產生的課程網址；Gallery 頁麵包屑課程名補連結（D15）。
 - 2026-08-02: 課程表單「銷售頁促銷區塊」新增輪換折扣碼插入器、`Admin\CourseController`／`ChapterController` 改注入 `CouponChainService` 取清單、Create/Edit 下傳 `couponChains`；插入 UI 抽成 006 owner 的 `CouponChainInserter.vue`，`LessonForm`／`CourseForm` 共用 — 由 006-coupons 以 touchpoint 身分修改，規則見 006 US5／D9。
 - 2026-08-01: LessonForm 的 Markdown 內容欄新增 drip 專屬說明區塊（信件固定格式：開頭問候、結尾退訂）— 由 010-drip-email 以 touchpoint 身分修改，規則與驗收記在 010 US8。
 - 2026-08-01: 後台「課程描述」說明文字改為「顯示於銷售頁影片下方的前言區塊，支援 Markdown；完整介紹請寫在下方「課程介紹」」（原文誤稱顯示於課程卡片，卡片實際顯示 tagline）；渲染端變更見 002-storefront。

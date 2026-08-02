@@ -22,6 +22,10 @@ const step = ref('email') // 'email' or 'code'
 const processing = ref(false)
 const errors = ref({})
 
+// Set when the email has already claimed this product — the form then offers
+// a login link instead of leaving the visitor stuck on the error message.
+const alreadyClaimed = computed(() => !!page.props.flash?.drip_already_claimed)
+
 // Check flash data for step progression
 const flashEmail = computed(() => page.props.flash?.drip_email)
 const flashCourseId = computed(() => page.props.flash?.drip_course_id)
@@ -97,6 +101,13 @@ const goBack = () => {
           :class="{ 'border-red-300': errors.email }"
         />
         <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+        <!-- Already claimed: give them the way back in rather than a dead end -->
+        <p v-if="alreadyClaimed" class="mt-2 text-sm text-gray-600">
+          <a href="/login" class="font-medium text-brand-teal underline hover:text-brand-navy transition-colors">
+            用 Email 登入
+          </a>
+          即可繼續觀看已領取的內容。
+        </p>
       </div>
 
       <div>

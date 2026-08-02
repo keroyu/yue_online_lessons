@@ -44,7 +44,7 @@ class ClassroomController extends Controller
                     'id' => $course->id,
                     'name' => $course->name,
                 ],
-                'message' => $isDrip ? '您尚未訂閱此課程' : '您尚未購買此課程',
+                'message' => $isDrip ? '您尚未領取此商品' : '您尚未購買此課程',
             ]);
         }
 

@@ -735,7 +735,9 @@
         "app/Http/Controllers/CourseController.php",
         "app/Http/Controllers/Admin/CourseController.php",
         "resources/js/Pages/Admin/Courses/Traffic.vue",
-        "app/Http/Controllers/CheckoutController.php"
+        "app/Http/Controllers/CheckoutController.php",
+        "app/Models/Course.php",
+        "tests/Feature/Storefront/CourseUrlSlugTest.php"
       ],
       "status": "implemented"
     },
@@ -2310,7 +2312,9 @@
         "app/Services/DripService.php",
         "resources/js/Components/Course/DripSubscribeForm.vue",
         "resources/js/Pages/Course/Show.vue",
-        "app/Http/Requests/StoreDripSubscriptionRequest.php"
+        "app/Http/Requests/StoreDripSubscriptionRequest.php",
+        "tests/Feature/Drip/ClaimWordingTest.php",
+        "app/Http/Middleware/HandleInertiaRequests.php"
       ],
       "status": "implemented"
     },
@@ -2586,11 +2590,11 @@
     {
       "id": "010.us-6",
       "module": "010-drip-email",
-      "title": "使用者退訂連鎖課程",
+      "title": "使用者停止接收連鎖信件",
       "summary": "信末退訂連結（UUID token）進確認頁，退訂後停止發信、保留已解鎖內容、永不可再訂閱",
-      "heading": "### User Story 6 - 使用者退訂連鎖課程 (Priority: P3)",
+      "heading": "### User Story 6 - 使用者停止接收連鎖信件 (Priority: P3)",
       "file": "specs/010-drip-email/spec.md",
-      "anchor": "user-story-6---使用者退訂連鎖課程-priority-p3",
+      "anchor": "user-story-6---使用者停止接收連鎖信件-priority-p3",
       "keywords": [
         "退訂",
         "unsubscribe",

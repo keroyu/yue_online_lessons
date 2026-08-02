@@ -26,7 +26,7 @@ const confirmUnsubscribe = () => {
 </script>
 
 <template>
-  <Head title="退訂確認" />
+  <Head title="停止接收確認" />
 
   <div class="min-h-screen bg-gray-100 flex items-center justify-center px-4">
     <div class="max-w-md w-full bg-white rounded-lg shadow-sm p-8">
@@ -37,8 +37,8 @@ const confirmUnsubscribe = () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 class="text-xl font-semibold text-gray-900 mb-2">已退訂</h1>
-        <p class="text-gray-600 mb-6">您已退訂「{{ subscription.course_name }}」課程。</p>
+        <h1 class="text-xl font-semibold text-gray-900 mb-2">已停止接收</h1>
+        <p class="text-gray-600 mb-6">您已停止接收「{{ subscription.course_name }}」的信件。</p>
         <a href="/" class="text-indigo-600 hover:underline text-sm">返回首頁</a>
       </div>
 
@@ -50,13 +50,13 @@ const confirmUnsubscribe = () => {
           </svg>
         </div>
 
-        <h1 class="text-xl font-semibold text-gray-900 mb-2">確認退訂</h1>
+        <h1 class="text-xl font-semibold text-gray-900 mb-2">確認停止接收</h1>
         <p class="text-gray-900 font-medium mb-4">{{ subscription.course_name }}</p>
 
         <!-- Warning -->
         <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
           <p class="text-sm text-red-800">
-            這是限期商品，一旦退訂將無法再次訂閱此課程。已解鎖的內容仍可觀看，但不會再收到後續信件。
+            這是限期商品，一旦停止接收將無法再次領取。已解鎖的內容仍可觀看，但不會再收到後續信件。
           </p>
         </div>
 
@@ -66,7 +66,7 @@ const confirmUnsubscribe = () => {
             :disabled="processing"
             class="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ processing ? '處理中...' : '確認退訂' }}
+            {{ processing ? '處理中...' : '確定停止接收' }}
           </button>
           <a
             href="/"

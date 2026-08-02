@@ -50,6 +50,7 @@ owner_files:
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
   - tests/Feature/Storefront/SalesPromoCouponChainTest.php
+  - tests/Feature/Storefront/CourseUrlSlugTest.php
 touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
@@ -221,6 +222,8 @@ touchpoints:
 - [x] 管道彙總檢視依訂單數由多至少排序；來源/管道兩種檢視可切換
 - [x] 無資料時顯示空狀態；統計表可橫向捲動適配手機
 - [x] 天數參數後端白名單驗證（7/30/90，其餘視為全部），匯出連結沿用當前參數
+- [x] 產生的追蹤連結以**課程 slug** 為網址（`route('course.show', $course)`，見 004 D15）；課程尚未設定 slug 時才退回 id
+- [x] 麵包屑「課程管理 › {課程名} › 連結來源追蹤」中的課程名為連結，指向該課程編輯頁（Gallery 頁同此規則）
 
 ### User Story 9 - 站長形象與介紹 (Priority: P2)
 
@@ -428,6 +431,7 @@ Phase C — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 連結來源追蹤產生的網址改用 slug（根因在 `Course` 只覆寫 `resolveRouteBinding` 沒覆寫 `getRouteKey`，見 004 D15；同時修正 OG url、領取後導向、教室 sales_url 等所有由模型產生的課程連結）；Traffic 與 Gallery 兩頁麵包屑的課程名補上連往編輯頁的連結。新增 CourseUrlSlugTest（3 tests），全套 218 passed。
 - 2026-08-02: 銷售頁三項變更（未走 /spec，事後對帳）— (1) 促銷區塊支援輪換折扣碼 `{alias}`，伺服器端展開，後台課程表單加插入器（規則正典在 006 US5，本模組僅記使用點）；(2) 留客區塊顯示條件由 `justClaimed` 改 `hasClaimed`，回訪者仍看得到，自動捲動改綁 `justClaimed` 以免劫持回訪者的捲動；(3) drip 訂閱徽章 active 文案由「訂閱中」改「已領取」並移除其下「前往教室」連結。新增 SalesPromoCouponChainTest（5 tests），全套 212 passed、npm build 綠。
 - 2026-08-01: 懸浮面板底部新增「回到課程介紹」按鈕 — 捲回銷售內容起點，目標依序 fallback 為 lead 簡介區塊 / `description_md` 區塊 / 頁首。npm build 綠、php artisan test 207 passed。
 - 2026-08-01: 留客區塊（FreeSuccessBlock）版面併入課程描述的白色 container — 去掉米色橫幅、欄寬由 `max-w-3xl` 改 `max-w-4xl`，內容樣式由失效的 `prose`（未安裝 @tailwindcss/typography，等於沒樣式）改為 `.course-content`；`promoFollowsIntro` 改名 `introFollowedByWhiteBlock`，留客或促銷任一存在時描述區都收為 `pb-6`。npm build 綠、php artisan test 207 passed。

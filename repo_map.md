@@ -162,6 +162,7 @@ main_files:
 - resources/js/composables/useCart.js
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
+- tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php
@@ -458,6 +459,7 @@ main_files:
 - app/Http/Controllers/DripTrackingController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
+- app/Http/Middleware/HandleInertiaRequests.php
 - app/Http/Requests/StoreDripSubscriptionRequest.php
 - app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
@@ -492,6 +494,7 @@ main_files:
 - resources/js/Pages/Member/Classroom.vue
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
+- tests/Feature/Drip/ClaimWordingTest.php
 - tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 

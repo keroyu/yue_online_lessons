@@ -45,7 +45,7 @@ class DripSubscriptionController extends Controller
         // Check if course is a drip course
         $course = Course::findOrFail($courseId);
         if ($course->course_type !== 'drip') {
-            return back()->withErrors(['email' => '此課程不支援訂閱']);
+            return back()->withErrors(['email' => '此商品不支援免費領取']);
         }
 
         // Check for existing subscription (including unsubscribed)
@@ -56,11 +56,15 @@ class DripSubscriptionController extends Controller
                 ->first();
 
             if ($existing && $existing->status === 'unsubscribed') {
-                return back()->withErrors(['email' => '此課程已無法再次訂閱']);
+                return back()->withErrors(['email' => '您已停止接收此商品的信件，無法再次領取']);
             }
 
             if ($existing) {
-                return back()->withErrors(['email' => '此 Email 已訂閱此課程']);
+                // Not a dead end: the visitor already holds this, they just need
+                // to be logged in to see it (the form offers a login link).
+                return back()
+                    ->with('drip_already_claimed', true)
+                    ->withErrors(['email' => '此 Email 已經領取過了，登入後即可繼續觀看內容']);
             }
         }
 
@@ -206,7 +210,7 @@ class DripSubscriptionController extends Controller
             ->firstOrFail();
 
         if ($subscription->status === 'unsubscribed') {
-            return redirect()->route('home')->with('info', '您已退訂此課程');
+            return redirect()->route('home')->with('info', '您已停止接收此商品的信件');
         }
 
         $subscription->update([
@@ -219,6 +223,6 @@ class DripSubscriptionController extends Controller
             'user_id' => $subscription->user_id,
         ]);
 
-        return redirect()->route('home')->with('success', '已成功退訂');
+        return redirect()->route('home')->with('success', '已停止接收後續信件');
     }
 }
