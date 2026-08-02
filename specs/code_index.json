@@ -475,7 +475,8 @@
       "004.us-5"
     ],
     "app/Models/CourseDailyStat.php": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-13"
     ],
     "app/Models/CourseImage.php": [
       "004.us-4"
@@ -688,10 +689,12 @@
       "012.us-2"
     ],
     "app/Services/SiteAnalyticsService.php": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-13"
     ],
     "app/Services/TrafficSourceService.php": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-13"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -883,6 +886,9 @@
     ],
     "database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php": [
       "004.us-2"
+    ],
+    "database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php": [
+      "002.us-13"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
@@ -1082,7 +1088,8 @@
       "002.us-10"
     ],
     "resources/js/Pages/Admin/Analytics/Index.vue": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-13"
     ],
     "resources/js/Pages/Admin/Broadcasts/Index.vue": [
       "012.us-5"
@@ -1137,6 +1144,7 @@
       "010.us-13"
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
+      "002.us-13",
       "002.us-8"
     ],
     "resources/js/Pages/Admin/Dashboard.vue": [
@@ -1406,7 +1414,8 @@
       "006.us-5"
     ],
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-13"
     ]
   }
 }

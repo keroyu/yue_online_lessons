@@ -32,14 +32,34 @@ function setDays(days) {
 
 const viewMode = ref('source')
 
+// Mirrors TrafficSourceService::PLATFORM_MAP — utm_source first, then the
+// referrer host (same fallback order as the server, so the same order is not
+// filed under two different channels here and on 行銷分析).
+const CHANNEL_RULES = [
+  {
+    label: '社群',
+    utm: /instagram|^ig$|threads|facebook|^fb$|twitter|^x$|linkedin|^line$/,
+    host: /(^|\.)(instagram|threads|facebook|twitter|linkedin|line)\.|^(fb\.me|fb\.com|x\.com|t\.co|lnkd\.in)$/,
+  },
+  { label: '搜尋引擎', utm: /google|bing|yahoo|duckduckgo/, host: /(^|\.)(google|bing|yahoo|duckduckgo)\./ },
+  { label: '電子報', utm: /email|newsletter|edm|mailchimp|resend/, host: null },
+  { label: '影音', utm: /youtube|tiktok|vimeo/, host: /(^|\.)(youtube|tiktok|vimeo)\.|^youtu\.be$/ },
+]
+
 function classifyChannel(row) {
   if (row.gclid || row.fbclid || row.ttclid) return '付費廣告'
+
   const src = (row.utm_source || '').toLowerCase()
-  if (/instagram|ig|facebook|fb|threads|twitter|^x$/.test(src)) return '社群'
-  if (/google|bing|yahoo|duckduckgo/.test(src)) return '搜尋引擎'
-  if (/email|newsletter|edm|mailchimp|resend/.test(src)) return '電子報'
-  if (/youtube|tiktok|vimeo/.test(src)) return '影音'
-  if (src || row.referrer_domain) return '其他'
+  const host = (row.referrer_domain || '').toLowerCase()
+
+  for (const rule of CHANNEL_RULES) {
+    if (src && rule.utm.test(src)) return rule.label
+  }
+  for (const rule of CHANNEL_RULES) {
+    if (host && rule.host?.test(host)) return rule.label
+  }
+
+  if (src || host) return '其他'
   return '(直接造訪)'
 }
 

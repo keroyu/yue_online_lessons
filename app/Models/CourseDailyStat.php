@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CourseDailyStat extends Model
 {
     protected $fillable = [
-        'course_id', 'date', 'channel',
+        'course_id', 'date', 'channel', 'source',
         'views', 'add_to_cart', 'checkouts', 'purchases', 'revenue',
     ];
 

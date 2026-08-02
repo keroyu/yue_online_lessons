@@ -100,6 +100,73 @@ class SiteAnalyticsTest extends TestCase
         $this->assertSame('direct', $s->classifyChannel([]));
     }
 
+    // --- source resolution (US13) ---
+
+    public function test_resolve_source_maps_referrer_hosts_to_platform(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        // No UTM at all — the referrer host alone decides both channel and source.
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'instagram'],
+            $s->resolveSource(['referrer_domain' => 'l.instagram.com'])
+        );
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'threads'],
+            $s->resolveSource(['referrer_domain' => 'threads.net'])
+        );
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'facebook'],
+            $s->resolveSource(['referrer_domain' => 'm.facebook.com'])
+        );
+        $this->assertSame(
+            ['channel' => 'search', 'source' => 'google'],
+            $s->resolveSource(['referrer_domain' => 'google.com.tw'])
+        );
+        $this->assertSame(
+            ['channel' => 'video', 'source' => 'youtube'],
+            $s->resolveSource(['referrer_domain' => 'youtu.be'])
+        );
+    }
+
+    public function test_resolve_source_maps_utm_and_click_ids(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        $this->assertSame(['channel' => 'paid', 'source' => 'facebook'], $s->resolveSource(['fbclid' => 'x']));
+        $this->assertSame(['channel' => 'paid', 'source' => 'google'], $s->resolveSource(['gclid' => 'x']));
+        $this->assertSame(['channel' => 'paid', 'source' => 'tiktok'], $s->resolveSource(['ttclid' => 'x']));
+        $this->assertSame(['channel' => 'social', 'source' => 'threads'], $s->resolveSource(['utm_source' => 'Threads']));
+        $this->assertSame(['channel' => 'email', 'source' => 'newsletter'], $s->resolveSource(['utm_source' => 'edm']));
+        $this->assertSame(['channel' => 'direct', 'source' => 'direct'], $s->resolveSource(null));
+        $this->assertSame(['channel' => 'direct', 'source' => 'direct'], $s->resolveSource([]));
+    }
+
+    public function test_resolve_source_keeps_raw_value_when_platform_is_unknown(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        // FR-023: the host itself is actionable information, do not flatten to "other".
+        $this->assertSame(
+            ['channel' => 'referral', 'source' => 'blog.example.com'],
+            $s->resolveSource(['referrer_domain' => 'blog.example.com'])
+        );
+        $this->assertSame(
+            ['channel' => 'referral', 'source' => 'partner-site'],
+            $s->resolveSource(['utm_source' => 'partner-site'])
+        );
+    }
+
+    public function test_utm_source_wins_over_referrer_domain(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        $this->assertSame(
+            ['channel' => 'email', 'source' => 'newsletter'],
+            $s->resolveSource(['utm_source' => 'newsletter', 'referrer_domain' => 'l.instagram.com'])
+        );
+    }
+
     // --- view counting ---
 
     public function test_course_view_increments_daily_stat_once_per_session(): void
@@ -128,6 +195,36 @@ class SiteAnalyticsTest extends TestCase
         $this->assertNotNull($stat);
         $this->assertSame('social', $stat->channel);
         $this->assertSame(1, $stat->views);
+    }
+
+    public function test_organic_social_referrer_is_counted_as_social_with_platform(): void
+    {
+        $course = $this->makeCourse();
+
+        // No UTM anywhere — this used to land in "referral" (US13 changes it).
+        $this->withHeaders(['Referer' => 'https://l.instagram.com/'])
+            ->get("/course/{$course->slug}")
+            ->assertOk();
+
+        $stat = CourseDailyStat::where('course_id', $course->id)->first();
+        $this->assertNotNull($stat);
+        $this->assertSame('social', $stat->channel);
+        $this->assertSame('instagram', $stat->source);
+        $this->assertSame(1, $stat->views);
+    }
+
+    public function test_same_channel_different_sources_are_separate_rows(): void
+    {
+        $course = $this->makeCourse();
+        $svc = app(SiteAnalyticsService::class);
+
+        $svc->bump($course->id, 'social', 'views', 8, 'instagram');
+        $svc->bump($course->id, 'social', 'views', 3, 'threads');
+        $svc->bump($course->id, 'social', 'views', 2, 'instagram');
+
+        $this->assertSame(2, CourseDailyStat::where('course_id', $course->id)->count());
+        $this->assertSame(10, CourseDailyStat::where('source', 'instagram')->value('views'));
+        $this->assertSame(3, CourseDailyStat::where('source', 'threads')->value('views'));
     }
 
     public function test_bot_view_is_not_counted(): void
@@ -212,6 +309,50 @@ class SiteAnalyticsTest extends TestCase
             ->where('funnel.0.add_to_cart', 4)
             ->where('funnel.0.purchases', 1)
         );
+    }
+
+    public function test_channel_report_nests_sources_and_totals_reconcile(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $course = $this->makeCourse();
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($course->id, 'social', 'views', 8, 'instagram');
+        $svc->bump($course->id, 'social', 'purchases', 2, 'instagram');
+        $svc->bump($course->id, 'social', 'views', 3, 'threads');
+        $svc->bump($course->id, 'search', 'views', 5, 'google');
+
+        $report = collect($svc->channelReport(null))->keyBy('channel');
+
+        // Channel level is the sum of its sources, sorted by views desc.
+        $this->assertSame(11, $report['social']['views']);
+        $this->assertSame(2, $report['social']['purchases']);
+        $this->assertCount(2, $report['social']['sources']);
+        $this->assertSame('instagram', $report['social']['sources'][0]['source']);
+        $this->assertSame(8, $report['social']['sources'][0]['views']);
+        $this->assertSame('threads', $report['social']['sources'][1]['source']);
+        $this->assertSame(5, $report['search']['views']);
+
+        $this->actingAs($admin)->get('/admin/analytics')->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('channels.0.channel', 'social')
+                ->where('channels.0.sources.0.source', 'instagram')
+            );
+    }
+
+    public function test_legacy_rows_without_source_are_kept_as_a_blank_bucket(): void
+    {
+        $course = $this->makeCourse();
+        $svc = app(SiteAnalyticsService::class);
+
+        // Pre-US13 call signature (no $source) — must not crash or be dropped.
+        $svc->bump($course->id, 'social', 'views', 4);
+        $svc->bump($course->id, 'social', 'views', 6, 'instagram');
+
+        $report = collect($svc->channelReport(null))->firstWhere('channel', 'social');
+
+        $this->assertSame(10, $report['views']);
+        $this->assertSame(['instagram', ''], array_column($report['sources'], 'source'));
     }
 
     public function test_analytics_page_is_admin_only(): void

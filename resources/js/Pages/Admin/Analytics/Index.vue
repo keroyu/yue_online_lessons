@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
@@ -27,6 +28,43 @@ const channelLabels = {
   video: '影音',
   referral: '其他來源',
   direct: '直接造訪',
+}
+
+// Known platforms get a proper display name; anything else is a referrer host
+// and is shown as-is — the host itself is the useful part.
+const sourceLabels = {
+  instagram: 'Instagram',
+  threads: 'Threads',
+  facebook: 'Facebook',
+  line: 'LINE',
+  twitter: 'X / Twitter',
+  linkedin: 'LinkedIn',
+  google: 'Google',
+  bing: 'Bing',
+  yahoo: 'Yahoo',
+  duckduckgo: 'DuckDuckGo',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+  vimeo: 'Vimeo',
+  newsletter: '電子報',
+  direct: '直接造訪',
+}
+
+const sourceLabel = (source) => {
+  if (!source) return '未分類（舊資料）'
+  return sourceLabels[source] ?? source
+}
+
+const expanded = ref(new Set())
+
+// Single-source channels have nothing to reveal — keep them flat.
+const isExpandable = (row) => (row.sources?.length ?? 0) > 1
+
+const toggle = (row) => {
+  if (!isExpandable(row)) return
+  const next = new Set(expanded.value)
+  next.has(row.channel) ? next.delete(row.channel) : next.add(row.channel)
+  expanded.value = next
 }
 
 const setFilter = (params) => {
@@ -115,7 +153,10 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
 
     <!-- Channel breakdown -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-      <h2 class="px-4 py-3 text-sm font-semibold text-gray-700 border-b border-gray-100">各管道成效</h2>
+      <h2 class="px-4 py-3 text-sm font-semibold text-gray-700 border-b border-gray-100">
+        各管道成效
+        <span class="ml-2 font-normal text-xs text-gray-400">點管道可展開來源明細</span>
+      </h2>
 
       <div v-if="channels.length === 0" class="p-8 text-center text-sm text-gray-400">
         此期間尚無管道資料
@@ -125,7 +166,7 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
         <table class="w-full text-sm min-w-[720px]">
           <thead>
             <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
-              <th class="px-4 py-2.5 font-medium">管道</th>
+              <th class="px-4 py-2.5 font-medium">管道 / 來源</th>
               <th class="px-4 py-2.5 font-medium text-right">瀏覽</th>
               <th class="px-4 py-2.5 font-medium text-right">加購</th>
               <th class="px-4 py-2.5 font-medium text-right">結帳</th>
@@ -135,15 +176,42 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in channels" :key="row.channel" class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="px-4 py-3 font-medium text-gray-900">{{ channelLabels[row.channel] ?? row.channel }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.views) }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.add_to_cart) }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.checkouts) }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.purchases) }}</td>
-              <td class="px-4 py-3 text-right text-gray-500">{{ rate(row.purchases, row.views) }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">NT${{ formatNumber(row.revenue) }}</td>
-            </tr>
+            <template v-for="row in channels" :key="row.channel">
+              <tr
+                @click="toggle(row)"
+                :class="[
+                  'border-b border-gray-50 hover:bg-gray-50',
+                  isExpandable(row) ? 'cursor-pointer' : '',
+                ]"
+              >
+                <td class="px-4 py-3 font-medium text-gray-900">
+                  <span class="inline-block w-4 text-gray-400">
+                    <template v-if="isExpandable(row)">{{ expanded.has(row.channel) ? '▾' : '▸' }}</template>
+                  </span>
+                  {{ channelLabels[row.channel] ?? row.channel }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.views) }}</td>
+                <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.add_to_cart) }}</td>
+                <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.checkouts) }}</td>
+                <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.purchases) }}</td>
+                <td class="px-4 py-3 text-right text-gray-500">{{ rate(row.purchases, row.views) }}</td>
+                <td class="px-4 py-3 text-right text-gray-900">NT${{ formatNumber(row.revenue) }}</td>
+              </tr>
+
+              <tr
+                v-for="sub in (expanded.has(row.channel) ? row.sources : [])"
+                :key="`${row.channel}-${sub.source}`"
+                class="border-b border-gray-50 bg-gray-50/60 text-gray-600"
+              >
+                <td class="pl-12 pr-4 py-2">{{ sourceLabel(sub.source) }}</td>
+                <td class="px-4 py-2 text-right">{{ formatNumber(sub.views) }}</td>
+                <td class="px-4 py-2 text-right">{{ formatNumber(sub.add_to_cart) }}</td>
+                <td class="px-4 py-2 text-right">{{ formatNumber(sub.checkouts) }}</td>
+                <td class="px-4 py-2 text-right">{{ formatNumber(sub.purchases) }}</td>
+                <td class="px-4 py-2 text-right text-gray-500">{{ rate(sub.purchases, sub.views) }}</td>
+                <td class="px-4 py-2 text-right">NT${{ formatNumber(sub.revenue) }}</td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -177,8 +245,10 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
       </div>
     </div>
 
-    <p class="text-xs text-gray-400">
-      計數為趨勢參考（爬蟲過濾、同工作階段去重）；金額對帳請以「交易紀錄」為準。管道歸類依最後觸點來源。
+    <p class="text-xs text-gray-400 leading-relaxed">
+      計數為趨勢參考（爬蟲過濾、同工作階段去重）；金額對帳請以「交易紀錄」為準。管道歸類依最後觸點來源。<br>
+      管道歸類自 2026-08 起納入 referrer 網域（沒帶 UTM 的 IG／Threads 流量會歸到「社群」），先前資料未重算，跨這個時間點比較管道數字會有落差；「未分類（舊資料）」即該次改版前寫入的列。<br>
+      IG／FB 的 App 內建瀏覽器常不送 referrer，那部分流量會落在「直接造訪」——要精準追蹤，貼文連結請帶 <code class="text-gray-500">?utm_source=instagram</code>。
     </p>
   </div>
 </template>

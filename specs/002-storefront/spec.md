@@ -46,6 +46,7 @@ owner_files:
   - database/migrations/2026_07_12_000002_create_course_daily_stats_table.php
   - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
   - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
+  - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
   - resources/js/Pages/Admin/Analytics/Index.vue
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
@@ -290,6 +291,25 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] `promo_html` 支援輪換折扣碼 `{alias}` 佔位符：由 `CourseController::show()` 呼叫 `CouponChainService::substitutePlaceholders()` 在**伺服器端**展開為當前有效代碼（規則與 fallback 見 006 US5 / FR-010）；後台課程表單提供插入器，前端不做任何替換
 - [x] 版面與課程描述區連續：促銷區塊用同一組白底與 `max-w-4xl` 欄寬、不再自帶米色橫幅與卡片外框；與描述區、留客區塊構成同一個白色 container，彼此只留段落級間距（前面的區塊 `pb-6`，整段結尾 `pb-10`）
 
+### User Story 13 - 管道成效的來源細分 (Priority: P2)
+
+行銷分析的「各管道成效」只看得到 7 個管道，「社群」那 1,240 次瀏覽裡有多少來自 Instagram、多少來自 Threads 或 Facebook 完全看不出來，無法判斷內容力氣該押哪個平台。
+成因有二：`course_daily_stats` 只有 channel 維度（US10/D13），以及 `classifyChannel()` 只讀 `utm_source` — 從 IG 簡介、Threads 貼文點進來但沒帶 UTM 的自然流量，現在全被歸到「其他來源」。
+本故事補上 source 維度，並把 referrer 網域納入管道歸類，讓每個管道都能展開看到來源明細。
+
+**驗收**：
+- [ ] `course_daily_stats` 新增 `source` varchar(100) default `''`，unique key 由 (course_id, date, channel) 擴為 (course_id, date, channel, source)
+- [ ] `TrafficSourceService` 新增 `PLATFORM_MAP` 為 channel 與 source 的**共同**真相，並提供 `resolveSource(?array): array{channel, source}`；`classifyChannel()` 簽名與值域不變（改為委派 `resolveSource()['channel']`）
+- [ ] 判斷順序：click id → `paid`（`fbclid`→facebook、`gclid`→google、`ttclid`→tiktok）→ `utm_source` 比對 PLATFORM_MAP → `referrer_domain` 正規化（剝 `l.` / `lm.` / `m.` 前綴，`www.` 已在 `extractFromRequest()` 剝除）後比對 → 比不到但有 utm/referrer → `referral` + 原值 → 皆無 → `direct` / `direct`
+- [ ] 管道歸類納入 referrer 網域：無 UTM 的 IG / Threads / Facebook 自然流量由「其他來源」改歸「社群」，`google.com*` 自然搜尋改歸「搜尋引擎」；**舊資料不重算**，規則生效日前後的管道數字會有落差
+- [ ] 四個計數入口（`recordView` / `recordAddToCart` / `recordCheckout` / `recordPurchase`）改為解析一次拿到 channel + source 一起寫入，不各跑一次 regex；`bump()` 尾端加 `string $source = ''`（保住既有呼叫端）
+- [ ] `channelReport()` 單一 query `groupBy('channel','source')`，回傳前在 PHP 組成巢狀 `sources[]`（依 views desc）；管道層數字 = 子列加總
+- [ ] 「各管道成效」表格：管道列可展開／收合子列（`sources.length > 1` 才顯示箭頭並可點；子列縮排 + 淺底），可點列須 `cursor-pointer` + `hover:bg-*`（非 button 元素，見專案規則）
+- [ ] 來源顯示走 label 對照（Instagram / Threads / Facebook / LINE / X / Google / Bing / YouTube / TikTok / 電子報 / 直接造訪）；對照表沒有的 key 直接顯示原值（即 referrer 網域，本身就是資訊）；`source=''` 顯示為「未分類（舊資料）」
+- [ ] `Traffic.vue` 的前端 `classifyChannel()` 同步納入 `referrer_domain`（收斂 D7/D16 預告的前後端漂移），避免同一筆訂單在兩個後台頁被歸到不同管道
+- [ ] 頁尾註腳補上：管道歸類自 2026-08 起納入 referrer、先前資料未重算；IG/FB App 內建瀏覽器常不送 referrer，該類流量會落在「直接造訪」，精準追蹤仍建議貼文連結帶 `?utm_source=instagram`
+- [ ] 測試：`resolveSource()` 各判斷分支、UTM 優先於 referrer、`recordView` 帶 IG referrer 落出 social/instagram 列、`channelReport()` 巢狀正確且子列加總 = 管道層、既有 `classifyChannel` 斷言續過
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -312,6 +332,9 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-018**: `free_success_md` 屬管理員信任輸入（比照 FR-007 放行 HTML/iframe）；變數替換 MUST 在 Markdown 轉 HTML 之前執行，避免破壞已產生的 HTML 結構。
 - **FR-019**: 自動播放 MUST 靜音（瀏覽器一律封鎖有聲自動播放）；開聲 MUST 由使用者手勢觸發，不得嘗試繞過。
 - **FR-020**: 銷售頁區塊順序固定為 課程描述 → 留客區塊（US11）→ 促銷倒數區塊（US12）→ 訂閱/購買區；促銷區塊在「課程有留客內容且使用者尚未領取」時 MUST 完全不渲染（不佔位、計時器不啟動），避免未領取者先看到促銷而錯過領取動線。促銷緊接在課程描述之後時（`promoFollowsIntro`：促銷要顯示且留客區塊不顯示）兩區 MUST 視覺連續 — 同白底、同欄寬、無分隔帶。
+
+- **FR-022**: channel 與 source MUST 由同一張對照表（`TrafficSourceService::PLATFORM_MAP`）推導，判斷序為 click id → `utm_source` → `referrer_domain`；不得為兩個維度各寫一份規則（D31）。
+- **FR-023**: 比對不到平台時 source MUST 存正規化後的 referrer 網域或 `utm_source` 原值（截斷 100 字），不得一律塞 `other` — 網域本身即為可行動的資訊；同時該筆 channel 為 `referral`。
 
 - **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱、頂部價格與主 CTA），只留敘事與下方的領取／預約表單。影片下方的第 3 區整塊 MUST 不渲染 — 規格拿掉後它只剩一個空盒配一顆與下方表單重複的按鈕；相對地懸浮面板 CTA 在落地頁 MUST 一律保留（含已購買者），否則頁面會完全沒有可點的成交入口。此為全站唯一定義，011 引用之
 
@@ -349,6 +372,11 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D28**: 落地頁改為整塊移除第 3 區（含外層 `<div ref="topInfoRef">`），代價由 `onMounted` 補償 — 該外層是懸浮面板 IntersectionObserver 的觀測目標，`observer.observe()` 只在 `onMounted` 當下元素存在才掛載、`topInfoVisible` 預設 `true`，直接 `v-if` 掉會讓 `showFloatingPanel` 恆為 false、懸浮 CTA 永不出現；因此 `onMounted` 在 `topInfoRef` 為 null 時 MUST 將 `topInfoVisible` 設為 `false`，讓懸浮面板只依底部購買區的可見性決定（否決 `v-show`：空盒仍佔版面高度，等於沒改）。已知取捨：第 3 區內的積分兌換入口（`RedeemButton` 全站僅此一處）在落地頁一併消失 — drip 為免費、隱藏價格高價課走預約，兩者都不會設 `redeem_points`，屬可接受。（本條原文為「外層一律保留」，2026-08-01 使用者要求整塊隱藏後改寫；原 011 D9）
 - **D29**: drip 課的「免費試閱」在本次改動前就不會出現 — 頂部按鈕帶 `!isDrip`、懸浮面板的 drip 走獨立分支（010 US7：drip 不支援訪客試看）。因此對 drip 而言實際新增的隱藏只有 hero 時長行與課程資訊區兩處，另兩處是既有行為的重述，不是回歸風險
 
+- **D30**: 來源細分做成既有 `course_daily_stats` 的第四個維度（加 `source` 欄、unique key 擴充），不另建表 — 維度同構、報表零 join，upsert 競態處理沿用同一份 `bump()`；否決另建 source_daily_stats（同樣的原子增量邏輯要寫兩份、報表得 join 兩表）。表尺寸仍受控：課程 × 天 × 管道 × 少數來源，且 source 只在該管道實際有流量時才長出列。
+- **D31**: channel 與 source 由同一張 `PLATFORM_MAP` 推導，`classifyChannel()` 保留原簽名改為委派 — 兩份規則必然漂移（D16 早已預告要收斂），本次一併把 `Traffic.vue` 的前端鏡像對齊。D7「歸類放前端才好調規則、免部署後端」的理由在彙總表上線後已不成立：彙總表的 channel 是寫入當下算死的，前端改規則救不回歷史資料，規則本來就只能有一份且在後端。
+- **D32**: 舊資料 `source` 留空、不 backfill；管道歸類規則改變後舊資料也不重算 — 原始 referrer 從未逐筆落庫（D13 只存彙總），無從還原。UI 直接標「未分類（舊資料）」比猜一個歸類誠實，頁尾註明規則生效日供跨期間比較時判讀。
+- **D33**: 細分以「管道列展開子列」呈現，不另開一張來源表 — 管道數與子列數都小，同一張表才看得出「Instagram 佔社群多少」的佔比關係；否決獨立表格（同樣的數字要在兩處對照著看）。細分範圍涵蓋所有管道而非只有社群：搜尋拆 Google/Bing、影音拆 YouTube/TikTok、其他來源直接列 referrer 網域，實作成本與只做社群幾乎相同。
+
 ## Schema
 
 - `courses.free_success_md`（US11 新欄，本模組 migration）— nullable text；領取成功後顯示的自訂 Markdown（位置在課程描述之下），空值即維持既有預設成功卡片。
@@ -358,7 +386,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
 - **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
 - 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 語意 = 最後觸點；US10 起由 cookie（TrafficSourceService）提供、middleware 捕捉。
-- `course_daily_stats`（US10 新表）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`)、index(`date`)。不變量：只增不改（原子 increment），channel 值域 = paid/social/search/email/video/referral/direct。
+- `course_daily_stats`（US10 新表，US13 加維度）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`source` varchar(100) default `''`（US13 新欄）、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`,`source`)（US13 由三欄擴為四欄）、index(`date`)。不變量：只增不改（原子 increment）；channel 值域 = paid/social/search/email/video/referral/direct；source 為平台 slug（instagram/threads/facebook/line/twitter/google/bing/yahoo/duckduckgo/youtube/tiktok/vimeo/newsletter/direct）或比對不到時的 referrer 網域／utm_source 原值（FR-023），`''` 專指 US13 上線前的舊資料。
 - `post_cta_clicks`（US10 新表）— `post_id` FK cascadeOnDelete、`course_id` FK cascadeOnDelete、`date`、`clicks` unsigned int；unique(`post_id`,`course_id`,`date`)。
 - `orders.first_touch`（US10 新欄）— JSON nullable，首次觸點完整來源快照；既有欄位（最後觸點）不動。
 - cookie：`tf_first` / `tf_last` — JSON（UTM 五參數 + click ids + referrer_domain + ts），7 天，`SameSite=Lax`，非機密不加密簽章亦可（僅統計用途）。
@@ -429,8 +457,29 @@ Phase C — 驗證
 - [x] T033 `isBookingLanding` 更名為 `isFunnelLanding`，判定改為 `(isHighTicket && highTicketHidePrice) || isDrip`；四處隱藏點沿用（hero durationLabel 行、第 3 區課程資訊區塊、第 3 區與懸浮面板的免費試閱）。外層 `div[ref=topInfoRef]` 與左欄 `div.flex-1` 不得移除（D28）in resources/js/Pages/Course/Show.vue
 - [x] T034 驗證：`npm run build` exit 0、`php artisan test` 全綠（基準 199 passed）；drip 課與高價課各一頁由使用者以瀏覽器確認，一般課程不受影響 in resources/js/Pages/Course/Show.vue
 
+### US13 - 管道成效的來源細分
+
+Phase A — 資料層
+- [x] T035 migration：`course_daily_stats` 加 `source` varchar(100) default `''`（after `channel`）；**先**建 `unique(['course_id','date','channel','source'])` **再** `dropUnique(['course_id','date','channel'])`（course_id 外鍵需隨時有前導欄索引，反過來會撞 MySQL errno 150），`down()` 反向 in database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
+- [x] T036 [P] `$fillable` 加 `source` in app/Models/CourseDailyStat.php
+
+Phase B — 歸類層（相依 T035）
+- [x] T037 `PLATFORM_MAP` 常數 + `resolveSource(?array): array{channel, source}`（判斷序見 US13 驗收）；`classifyChannel()` 改為委派；移除註解中「mirrors Traffic.vue 的 regex」改指向 PLATFORM_MAP 為唯一真相 in app/Services/TrafficSourceService.php
+- [x] T038 `bump()` 尾端加 `string $source = ''` 並納入 where/create 條件（抽 `dailyRow()` 避免三處重複 where）；四個 record* 方法改為解析一次拿 channel+source 一起傳入 in app/Services/SiteAnalyticsService.php
+- [x] T039 `channelReport()` 改 `groupBy('channel','source')` 單一 query，PHP 組成巢狀 `sources[]`（子列 views desc、管道層為加總）in app/Services/SiteAnalyticsService.php
+
+Phase C — 報表層（相依 T039）
+- [x] T040 「各管道成效」表格加展開箭頭與 `expanded` Set；子列縮排 + 淺底 + `sourceLabels` 對照（未知 key 顯示原值、`''` → 未分類（舊資料））；可點列加 `cursor-pointer` + `hover:bg-gray-50`；頁尾註腳補歸類規則生效日與 in-app browser 無 referrer 的限制 in resources/js/Pages/Admin/Analytics/Index.vue
+- [x] T041 [P] 前端 `classifyChannel()` 各管道比對納入 `referrer_domain`（抽 `CHANNEL_RULES` 對齊 PLATFORM_MAP；比對序與 server 一致 = 先掃完所有 utm 規則、再掃 host 規則，utm 有值但比不到時仍 fallback 比 host），比不到的情況 fallback 到「其他」 in resources/js/Pages/Admin/Courses/Traffic.vue
+
+Phase D — 驗證
+- [x] T042 Feature 測試（8 個新測試）：`resolveSource()` 分支（`l.instagram.com`→social/instagram、`threads.net`→social/threads、`m.facebook.com`→social/facebook、`utm_source=Threads`→social/threads、`google.com.tw`→search/google、`blog.example.com`→referral/blog.example.com、`fbclid`→paid/facebook、null→direct/direct）、UTM 優先於 referrer、`recordView` 帶 IG referrer 落列、`channelReport()` 巢狀與加總、既有 `classifyChannel` 斷言續過 in tests/Feature/Storefront/SiteAnalyticsTest.php
+- [x] T043 驗證：`php artisan migrate` DONE、`php artisan test` **231 passed (1214 assertions)**、`npm run build` exit 0。瀏覽器目視（展開互動、手機橫向捲動）留給使用者確認 — `/dev` 不自動開瀏覽器
+
 ## 進度日誌
 
+- 2026-08-02: US13 完成 — 行銷分析「各管道成效」可展開到來源層。`course_daily_stats` 加 `source` 維度（唯一鍵擴四欄；migration 須**先**建新索引再刪舊的，否則撞 course_id 外鍵的前導欄索引限制 errno 150）；`TrafficSourceService::PLATFORM_MAP` + `resolveSource()` 成為 channel 與 source 的唯一真相，referrer host 以「網域標籤 == 平台 slug」比對（google.com.tw / m.youtube.com / l.instagram.com 免列舉 ccTLD），短網址另走 `HOST_ALIASES`；沒帶 UTM 的 IG/Threads/FB 自然流量由「其他來源」改歸「社群」；`channelReport()` 單一 query 巢狀輸出 sources[]；Traffic.vue 的前端歸類抽 `CHANNEL_RULES` 對齊 server（含 utm 比不到時 fallback 比 host 這個原本漂掉的分支）。新增 8 個測試，全套 231 passed、npm build 綠。
+- 2026-08-02: [draft] 規劃 US13 管道成效來源細分 — `course_daily_stats` 加 `source` 維度（unique key 擴為四欄）、`PLATFORM_MAP` 統一推導 channel+source（D31）、referrer 網域納入管道歸類（無 UTM 的 IG/Threads/FB 自然流量改歸社群）、各管道成效表改為可展開子列（D33）；舊資料不 backfill、不重算（D32）。
 - 2026-08-02: 連結來源追蹤產生的網址改用 slug（根因在 `Course` 只覆寫 `resolveRouteBinding` 沒覆寫 `getRouteKey`，見 004 D15；同時修正 OG url、領取後導向、教室 sales_url 等所有由模型產生的課程連結）；Traffic 與 Gallery 兩頁麵包屑的課程名補上連往編輯頁的連結。新增 CourseUrlSlugTest（3 tests），全套 218 passed。
 - 2026-08-02: 銷售頁三項變更（未走 /spec，事後對帳）— (1) 促銷區塊支援輪換折扣碼 `{alias}`，伺服器端展開，後台課程表單加插入器（規則正典在 006 US5，本模組僅記使用點）；(2) 留客區塊顯示條件由 `justClaimed` 改 `hasClaimed`，回訪者仍看得到，自動捲動改綁 `justClaimed` 以免劫持回訪者的捲動；(3) drip 訂閱徽章 active 文案由「訂閱中」改「已領取」並移除其下「前往教室」連結。新增 SalesPromoCouponChainTest（5 tests），全套 212 passed、npm build 綠。
 - 2026-08-01: 懸浮面板底部新增「回到課程介紹」按鈕 — 捲回銷售內容起點，目標依序 fallback 為 lead 簡介區塊 / `description_md` 區塊 / 頁首。npm build 綠、php artisan test 207 passed。

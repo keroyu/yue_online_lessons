@@ -32,8 +32,9 @@ class SiteAnalyticsService
             return;
         }
 
-        $channel = $this->trafficSource->classifyChannel($this->trafficSource->currentSource($request));
-        $this->bump($course->id, $channel, 'views');
+        ['channel' => $channel, 'source' => $source] =
+            $this->trafficSource->resolveSource($this->trafficSource->currentSource($request));
+        $this->bump($course->id, $channel, 'views', 1, $source);
 
         if ($request->hasSession()) {
             $request->session()->put($dedupKey, true);
@@ -43,26 +44,29 @@ class SiteAnalyticsService
     /** Add-to-cart beacon: single path for auth and guest carts (D15). */
     public function recordAddToCart(int $courseId, Request $request): void
     {
-        $channel = $this->trafficSource->classifyChannel($this->trafficSource->currentSource($request));
-        $this->bump($courseId, $channel, 'add_to_cart');
+        ['channel' => $channel, 'source' => $source] =
+            $this->trafficSource->resolveSource($this->trafficSource->currentSource($request));
+        $this->bump($courseId, $channel, 'add_to_cart', 1, $source);
     }
 
     /** Checkout stage: called once per order at creation, per order item. */
     public function recordCheckout(Order $order): void
     {
-        $channel = $this->trafficSource->classifyChannel($this->orderSource($order));
+        ['channel' => $channel, 'source' => $source] =
+            $this->trafficSource->resolveSource($this->orderSource($order));
         foreach ($order->items as $item) {
-            $this->bump($item->course_id, $channel, 'checkouts');
+            $this->bump($item->course_id, $channel, 'checkouts', 1, $source);
         }
     }
 
     /** Purchase stage: called once per order on fulfillment (paid). */
     public function recordPurchase(Order $order): void
     {
-        $channel = $this->trafficSource->classifyChannel($this->orderSource($order));
+        ['channel' => $channel, 'source' => $source] =
+            $this->trafficSource->resolveSource($this->orderSource($order));
         foreach ($order->items as $item) {
-            $this->bump($item->course_id, $channel, 'purchases');
-            $this->bump($item->course_id, $channel, 'revenue', (int) round($item->unit_price));
+            $this->bump($item->course_id, $channel, 'purchases', 1, $source);
+            $this->bump($item->course_id, $channel, 'revenue', (int) round($item->unit_price), $source);
         }
     }
 
@@ -95,30 +99,27 @@ class SiteAnalyticsService
     }
 
     /**
-     * Atomic counter bump on the (course, date, channel) daily row (FR-014).
-     * Failures degrade silently — analytics must never break a page (FR-016).
+     * Atomic counter bump on the (course, date, channel, source) daily row
+     * (FR-014). Failures degrade silently — analytics must never break a
+     * page (FR-016). $source defaults to '' so pre-US13 callers still work;
+     * that value also marks legacy rows written before the source dimension.
      */
-    public function bump(int $courseId, string $channel, string $column, int $amount = 1): void
+    public function bump(int $courseId, string $channel, string $column, int $amount = 1, string $source = ''): void
     {
         $date = now()->toDateString();
 
         try {
-            $affected = CourseDailyStat::where('course_id', $courseId)
-                ->whereDate('date', $date)
-                ->where('channel', $channel)
-                ->increment($column, $amount);
+            $affected = $this->dailyRow($courseId, $date, $channel, $source)->increment($column, $amount);
 
             if (!$affected) {
                 try {
                     CourseDailyStat::create([
                         'course_id' => $courseId, 'date' => $date,
-                        'channel' => $channel, $column => $amount,
+                        'channel' => $channel, 'source' => $source, $column => $amount,
                     ]);
                 } catch (QueryException) {
-                    CourseDailyStat::where('course_id', $courseId)
-                        ->whereDate('date', $date)
-                        ->where('channel', $channel)
-                        ->increment($column, $amount);
+                    // Lost the insert race — the row exists now, increment it.
+                    $this->dailyRow($courseId, $date, $channel, $source)->increment($column, $amount);
                 }
             }
         } catch (\Throwable $e) {
@@ -126,6 +127,15 @@ class SiteAnalyticsService
                 'course_id' => $courseId, 'column' => $column, 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Builder<CourseDailyStat> */
+    private function dailyRow(int $courseId, string $date, string $channel, string $source)
+    {
+        return CourseDailyStat::where('course_id', $courseId)
+            ->whereDate('date', $date)
+            ->where('channel', $channel)
+            ->where('source', $source);
     }
 
     /**
@@ -159,29 +169,54 @@ class SiteAnalyticsService
             ->all();
     }
 
+    /** Metric columns carried through every report row. */
+    private const METRICS = ['views', 'add_to_cart', 'checkouts', 'purchases', 'revenue'];
+
     /**
-     * Per-channel totals for the same period (channel view toggle).
+     * Per-channel totals for the same period, each with its source breakdown
+     * (US13). One query grouped by channel + source; the channel-level numbers
+     * are the sum of their sources, so the expanded rows always reconcile.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<string, mixed>> each row has a nested `sources` list
      */
     public function channelReport(?int $days): array
     {
-        return CourseDailyStat::query()
+        $rows = CourseDailyStat::query()
             ->when($days, fn ($q) => $q->where('date', '>=', now()->subDays($days)->toDateString()))
-            ->selectRaw('channel, SUM(views) as views, SUM(add_to_cart) as add_to_cart,'
+            ->selectRaw('channel, source, SUM(views) as views, SUM(add_to_cart) as add_to_cart,'
                 . ' SUM(checkouts) as checkouts, SUM(purchases) as purchases, SUM(revenue) as revenue')
-            ->groupBy('channel')
-            ->orderByDesc(DB::raw('SUM(views)'))
-            ->get()
-            ->map(fn ($row) => [
-                'channel'     => $row->channel,
-                'views'       => (int) $row->views,
-                'add_to_cart' => (int) $row->add_to_cart,
-                'checkouts'   => (int) $row->checkouts,
-                'purchases'   => (int) $row->purchases,
-                'revenue'     => (int) $row->revenue,
-            ])
-            ->all();
+            ->groupBy('channel', 'source')
+            ->get();
+
+        $channels = [];
+
+        foreach ($rows as $row) {
+            $channels[$row->channel] ??= array_merge(
+                ['channel' => $row->channel],
+                array_fill_keys(self::METRICS, 0),
+                ['sources' => []],
+            );
+
+            $source = ['source' => (string) $row->source];
+            foreach (self::METRICS as $metric) {
+                $source[$metric] = (int) $row->$metric;
+                $channels[$row->channel][$metric] += $source[$metric];
+            }
+
+            $channels[$row->channel]['sources'][] = $source;
+        }
+
+        $byViewsDesc = fn (array $a, array $b) => $b['views'] <=> $a['views'];
+
+        foreach ($channels as &$channel) {
+            usort($channel['sources'], $byViewsDesc);
+        }
+        unset($channel);
+
+        $channels = array_values($channels);
+        usort($channels, $byViewsDesc);
+
+        return $channels;
     }
 
     /**

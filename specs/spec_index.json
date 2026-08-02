@@ -528,6 +528,47 @@
       "status": "implemented"
     },
     {
+      "id": "002.us-13",
+      "module": "002-storefront",
+      "title": "管道成效的來源細分",
+      "summary": "行銷分析各管道成效可展開到來源層（Instagram/Threads/Facebook、Google/Bing、YouTube/TikTok…）；course_daily_stats 加 source 維度，referrer 網域納入管道歸類",
+      "heading": "### User Story 13 - 管道成效的來源細分 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-13---管道成效的來源細分-priority-p2",
+      "keywords": [
+        "來源細分",
+        "source breakdown",
+        "管道",
+        "channel",
+        "referrer",
+        "referrer_domain",
+        "instagram",
+        "threads",
+        "facebook",
+        "utm_source",
+        "行銷分析",
+        "analytics",
+        "course_daily_stats",
+        "PLATFORM_MAP",
+        "resolveSource",
+        "classifyChannel",
+        "自然流量",
+        "organic",
+        "展開子列",
+        "drill down"
+      ],
+      "code_files": [
+        "database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php",
+        "app/Models/CourseDailyStat.php",
+        "app/Services/TrafficSourceService.php",
+        "app/Services/SiteAnalyticsService.php",
+        "resources/js/Pages/Admin/Analytics/Index.vue",
+        "resources/js/Pages/Admin/Courses/Traffic.vue",
+        "tests/Feature/Storefront/SiteAnalyticsTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",
