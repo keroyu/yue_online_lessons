@@ -49,7 +49,7 @@ class ClaimWordingTest extends TestCase
         ]);
     }
 
-    public function test_claiming_again_points_the_visitor_at_login_instead_of_saying_subscribed(): void
+    public function test_claiming_again_points_the_visitor_at_their_inbox(): void
     {
         Mail::fake();
 
@@ -63,10 +63,15 @@ class ClaimWordingTest extends TestCase
             'nickname'  => '小明',
         ]);
 
-        $response->assertSessionHas('drip_already_claimed', true);
+        // The flash carries the address so the form can name the inbox
+        $response->assertSessionHas('drip_already_claimed', 'reader@example.com');
 
         $error = session('errors')->first('email');
         $this->assertStringContainsString('領取過', $error);
+        $this->assertStringContainsString('信箱', $error);
+        // The content is delivered by mail — never promise on-site viewing
+        $this->assertStringNotContainsString('登入', $error);
+        $this->assertStringNotContainsString('觀看', $error);
         $this->assertStringNotContainsString('訂閱', $error);
         $this->assertStringNotContainsString('課程', $error);
 

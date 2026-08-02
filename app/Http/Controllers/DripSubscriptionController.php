@@ -60,11 +60,11 @@ class DripSubscriptionController extends Controller
             }
 
             if ($existing) {
-                // Not a dead end: the visitor already holds this, they just need
-                // to be logged in to see it (the form offers a login link).
+                // Not a dead end: the content was mailed to this address, so the
+                // form tells them where to look (and how to claim on another one).
                 return back()
-                    ->with('drip_already_claimed', true)
-                    ->withErrors(['email' => '此 Email 已經領取過了，登入後即可繼續觀看內容']);
+                    ->with('drip_already_claimed', $email)
+                    ->withErrors(['email' => '此 Email 已經領取過了，內容已寄到這個信箱']);
             }
         }
 

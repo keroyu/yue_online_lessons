@@ -76,7 +76,7 @@ touchpoints:
     why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
-    why: flash 白名單新增 `drip_already_claimed`（已領取者的登入提示；白名單制，不註冊就永遠 undefined）
+    why: flash 白名單新增 `drip_already_claimed`（值為已領取過的 Email，供領取表單顯示「內容已寄到這個信箱」提示；白名單制，不註冊就永遠 undefined）
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
     why: 課程詳情頁下發 isDrip / 已訂閱狀態 props（drip 課程隱藏試看與購買入口）
@@ -97,7 +97,7 @@ touchpoints:
 **驗收**：
 - [x] Step 1 驗證 email + nickname（required, max:50, regex `/\p{L}/u` 防純空格/符號），發送驗證碼並 flash 帶暱稱至 Step 2
 - [x] Step 2 驗證碼正確 → 新 Email 建立 member 帳號（email_verified_at 即時）、既有帳號一律以輸入值覆蓋 nickname，登入並建立訂閱
-- [x] 已停止接收者再次領取 → 「您已停止接收此商品的信件，無法再次領取」；已領取過 → 「此 Email 已經領取過了，登入後即可繼續觀看內容」，並以 flash `drip_already_claimed` 讓表單長出「用 Email 登入」連結（既有的免密碼驗證碼登入），不留死路
+- [x] 已停止接收者再次領取 → 「您已停止接收此商品的信件，無法再次領取」；已領取過 → 「此 Email 已經領取過了，內容已寄到這個信箱」，並以 flash `drip_already_claimed`（值為該 Email）讓表單顯示醒目提示框：內容寄到哪個信箱、找不到請查促銷/廣告分頁與垃圾郵件、想再領一份就換別的 Email。**不得**引導去登入或宣稱可在網站上觀看 —— 交付物在信箱裡，登入看不到
 - [x] 驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」；送出鈕文案為「確認驗證碼」（非「確認訂閱」— 這一步只是驗證信箱）
 - [x] 訂閱成功通知顯示於頁面頂部主圖下方（flash `drip_subscribed`）
 - [x] 銷售頁的訂閱徽章對讀者說「已領取」（active 狀態）且不附「前往教室」連結 — 銷售頁語境是免費贈品的交付，教室動線留給會員中心與留客區塊；後台的訂閱者/名單頁仍用「訂閱中」（營運語彙，見 002 US11 進度日誌）
@@ -357,7 +357,8 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
-- 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向登入的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。
+- 2026-08-02: 修正已領取者的提示 — 原本引導「登入後即可繼續觀看」是錯的（交付走 Email，站上看不到），改為醒目提示框：指名信箱、垃圾郵件提醒、換別的 Email 再領；flash `drip_already_claimed` 由布林改為帶該 Email。215→218 全綠。
+- 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向信箱的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。
 - 2026-08-02: 訪客訂閱表單 Step 2 按鈕文案改「確認驗證碼」；銷售頁訂閱徽章 active 改「已領取」並移除「前往教室」連結（檔案為 002 owner，本模組僅記語彙決定）。
 - 2026-08-01: LessonForm 的 Markdown 內容欄在 drip 課程時新增固定格式說明（信件開頭自動加「Hi {暱稱}，」、主旨為「{暱稱}，{小節標題}」、結尾自動附退訂連結，正文不必再寫稱呼），對應 US8 新增一條驗收；純 UI 文案，無行為變更。npm build 綠。
 - 2026-07-31: US13+US14 完成（/sync 對帳：touchpoint 說明與 code_files 已補齊，無額外行為差異） — 達標即出漏斗。高價課預約（HighTicketBookingService）新增 booked 狀態並停止序列信；後台 Lead 開通與贈課補上 checkAndConvert（booked→converted 可升級）；停信/豁免狀態集合收斂為 DripSubscription::STOPS_SENDING / FUNNEL_DONE；converted 不再全開小節（解鎖凍結在 emails_sent），改版前既有 converted 由 unlock_all 旗標回填保留全開；後台訂閱者頁加「已預約」統計卡/篩選/徽章與預約率。順手補 ClassroomController 缺失的 DripSubscription import（型別提示原本解析到不存在的類別）。新增 FunnelStopTest（8 tests），全套 192 passed、npm build 綠。

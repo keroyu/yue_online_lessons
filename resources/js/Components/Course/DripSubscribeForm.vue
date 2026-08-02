@@ -22,9 +22,10 @@ const step = ref('email') // 'email' or 'code'
 const processing = ref(false)
 const errors = ref({})
 
-// Set when the email has already claimed this product — the form then offers
-// a login link instead of leaving the visitor stuck on the error message.
-const alreadyClaimed = computed(() => !!page.props.flash?.drip_already_claimed)
+// Carries the email that already claimed this product, so the form can say
+// exactly which inbox the content went to instead of leaving the visitor stuck.
+const claimedEmail = computed(() => page.props.flash?.drip_already_claimed || '')
+const alreadyClaimed = computed(() => !!claimedEmail.value)
 
 // Check flash data for step progression
 const flashEmail = computed(() => page.props.flash?.drip_email)
@@ -85,6 +86,32 @@ const goBack = () => {
   <div class="bg-white rounded-xl border border-gray-200 p-6">
     <h3 class="text-lg font-semibold text-gray-900 mb-4">立刻免費領取{{ courseName ? `【${courseName}】` : '' }}！</h3>
 
+    <!-- Already claimed: the content lives in their inbox, not on the site, so
+         point them at the mail rather than at a login they gain nothing from -->
+    <div
+      v-if="alreadyClaimed"
+      class="mb-5 rounded-lg border-2 border-brand-gold bg-brand-gold/10 px-4 py-4"
+    >
+      <div class="flex items-start gap-3">
+        <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-gold">
+          <svg class="h-4 w-4 text-brand-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </span>
+        <div class="text-sm leading-relaxed">
+          <p class="text-base font-bold text-brand-navy">這個 Email 已經領取過了</p>
+          <p class="mt-1.5 text-gray-700">
+            內容是<strong class="text-brand-navy">寄到信箱</strong>的，不會在網站上觀看。
+            請到<strong class="text-brand-navy">{{ claimedEmail }}</strong>收信；
+            找不到的話看一下「促銷」「廣告」分頁或垃圾郵件，並把我們加入白名單。
+          </p>
+          <p class="mt-2 text-gray-700">
+            想再領一份？把上面的 Email 換成<strong class="text-brand-navy">另一個信箱</strong>再送出一次即可。
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Step 1: Enter email -->
     <form v-if="step === 'email'" @submit.prevent="sendCode" class="space-y-4">
       <div>
@@ -101,13 +128,6 @@ const goBack = () => {
           :class="{ 'border-red-300': errors.email }"
         />
         <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
-        <!-- Already claimed: give them the way back in rather than a dead end -->
-        <p v-if="alreadyClaimed" class="mt-2 text-sm text-gray-600">
-          <a href="/login" class="font-medium text-brand-teal underline hover:text-brand-navy transition-colors">
-            用 Email 登入
-          </a>
-          即可繼續觀看已領取的內容。
-        </p>
       </div>
 
       <div>
