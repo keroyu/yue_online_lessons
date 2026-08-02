@@ -324,6 +324,28 @@ const copyEmail = async (lead) => {
     console.error('Copy failed', e)
   }
 }
+
+// Batch copy of selected emails as a mail-client friendly ", " joined list.
+// Deduped because the same email may book the same course more than once.
+const selectedEmails = computed(() =>
+  [...new Set(selectedLeads.value.map(l => l.email))]
+)
+
+const copiedAll = ref(false)
+let copiedAllTimeout = null
+
+const copySelectedEmails = async () => {
+  if (selectedEmails.value.length === 0) return
+  try {
+    await navigator.clipboard.writeText(selectedEmails.value.join(', '))
+    copiedAll.value = true
+    clearTimeout(copiedAllTimeout)
+    copiedAllTimeout = setTimeout(() => { copiedAll.value = false }, 2000)
+  } catch (e) {
+    console.error('Copy failed', e)
+    actionResult.value = '複製失敗，請手動選取 Email'
+  }
+}
 </script>
 
 <template>
@@ -391,6 +413,25 @@ const copyEmail = async (lead) => {
     <!-- Batch actions -->
     <div class="mb-4 flex flex-wrap items-center gap-3">
       <span class="text-sm text-gray-500">已選 {{ selectedIds.length }} 筆</span>
+      <button
+        :disabled="selectedIds.length === 0"
+        @click="copySelectedEmails"
+        class="px-3 py-1.5 text-sm rounded-md border font-medium inline-flex items-center gap-1.5"
+        :class="selectedIds.length > 0
+          ? (copiedAll
+            ? 'bg-green-50 text-green-700 border-green-300 cursor-pointer'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer')
+          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
+        title="以逗號分隔複製所選 Email，可直接貼到郵件收件人欄"
+      >
+        <svg v-if="copiedAll" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        {{ copiedAll ? `已複製 ${selectedEmails.length} 個 Email` : '複製 Email' }}
+      </button>
       <button
         :disabled="!canNotifySlot || actionLoading"
         @click="openNotifyModal"
