@@ -119,6 +119,7 @@ touchpoints:
 - [x] 行動版收合為漢堡選單，含購物車與通知清單（RWD mobile-first）
 - [x] flash `success` / `error` 以右上角浮動訊息顯示，5 秒後自動消失（AppLayout 與 AdminLayout 皆同）
 - [x] `HandleInertiaRequests` 全域共享：`auth.user`（id/email/nickname/real_name/phone/role）、`flash`（含 drip_* 鍵）、`cartCount`、`notificationCount`、`notifications`
+- [x] `bootstrap/app.php` 對 `drip/unsubscribe/*` 與 `newsletter/unsubscribe/*` 豁免 CSRF —— RFC 8058 一鍵退訂由郵件用戶端直接 POST、無 session，不豁免會回 419（授權來源是網址中的 per-recipient token）。**注意**：`withMiddleware` 的 closure 只在 HTTP Kernel 被解析時執行，console/tinker 讀 `getExcludedPaths()` 永遠是空的
 
 ### User Story 2 - 管理後台版面與權限 (Priority: P1)
 
@@ -210,7 +211,7 @@ touchpoints:
 - [ ] 停用中或不存在的 slug → 404（不洩漏「曾經存在」）
 - [ ] slug 大小寫不敏感：一律小寫正規化後儲存與比對，`/1V1` 與 `/1v1` 同一筆
 - [ ] slug 驗證：1–64 字、僅小寫英數與 `-` `_`、unique；撞到現有路由第一段（admin/blog/course/cart/member/login…）時擋下並回中文提示
-- [ ] 每次成功轉址原子累加 `clicks` 並寫入 `last_clicked_at`；後台列表顯示點擊數與最後點擊時間
+- [ ] 每次成功轉址原子累加 `clicks` 並寫入 `last_clicked_at`；後台列表顯示點擊數與最後點擊時間（**存 UTC、顯示轉 `Asia/Taipei`**，比照 PostController 的慣例；app timezone 為 UTC，直接 format 會少 8 小時）
 - [ ] 後台列表可一鍵複製完整網址（`https://<host>/<slug>`）
 - [ ] 首筆資料 `/1v1` → `https://calendar.app.google/4oQaEE1JbDgSmhhD9`，之後由後台自行修改
 
@@ -323,6 +324,7 @@ Phase 3 — 前台轉址與驗證：
 
 ## 進度日誌
 
+- 2026-08-02: 短網址「最後點擊」改以 `Asia/Taipei` 顯示（原本直接 format 吐 UTC，少 8 小時；DB 仍存 UTC）；`bootstrap/app.php` 新增兩條退訂路徑的 CSRF 豁免供 RFC 8058 一鍵退訂使用。ShortLinkTest 加時區斷言。
 - 2026-07-31: /dev 完成 US8 短網址轉址管理 — `short_links` 表、`ShortLink` model（slug 小寫正規化、`recordClick()` 原子計數、`isReservedSlug()` 掃 route collection）、後台 `/admin/short-links` 單頁 inline CRUD（複製網址、啟停 toggle、點擊數）、side nav 入口、catch-all `/{slug}` 302 + no-store 轉址、`ShortLinkSeeder` 種 `/1v1`。TDD：ShortLinkTest 15 tests（含既有路由不被吃掉的回歸），全套 184 passed、vite build 綠。**部署後正式站要跑 `php artisan db:seed --class=ShortLinkSeeder` 或直接在後台新增 /1v1**。
 - 2026-07-31: [draft] 規劃 US 8 短網址轉址管理 — `short_links` 表 + 後台單頁 CRUD + catch-all `/{slug}` 302 轉址（D14~D20：乾淨短路徑、動態保留字檢查、302 no-store、同表點擊計數）。首用途：`/1v1` → 1對1 諮詢的 Google Calendar 預約頁，日後交接員工只改後台。
 - 2026-07-20: 前台 Navigation 左上角（站名左側）加上品牌 logo — Vite import `resources/images/og-logo.png`（touchpoint 012，與 OG 卡片共用同一支圖），`h-9` 顯示於 brand-navy 導覽列。純前端。

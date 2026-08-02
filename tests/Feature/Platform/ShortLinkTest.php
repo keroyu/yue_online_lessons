@@ -86,6 +86,19 @@ class ShortLinkTest extends TestCase
         $this->actingAs($this->admin())->get('/admin/short-links')->assertOk();
     }
 
+    public function test_last_click_time_is_shown_in_taipei_time(): void
+    {
+        // Stored in UTC; Taipei is UTC+8, so this must read back as 09:30 next day
+        $link = $this->makeLink(['last_clicked_at' => '2026-08-02 01:30:00']);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/short-links')
+            ->assertInertia(fn ($page) => $page
+                ->where('links.0.last_clicked_at', '2026-08-02 09:30'));
+
+        $this->assertSame('2026-08-02 01:30:00', $link->fresh()->last_clicked_at->utc()->toDateTimeString());
+    }
+
     public function test_non_admin_cannot_access_short_links(): void
     {
         $this->actingAs(User::factory()->create())

@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class DripLessonMail extends Mailable
@@ -33,6 +34,19 @@ class DripLessonMail extends Mailable
         return new Envelope(
             subject: $subject,
         );
+    }
+
+    /**
+     * Machine-readable unsubscribe, same as the newsletter mailables. Without it
+     * the only signal a mail client has is the wording in the body, which is a
+     * weak spam-filter defence for bulk mail.
+     */
+    public function headers(): Headers
+    {
+        return new Headers(text: [
+            'List-Unsubscribe' => '<' . $this->unsubscribeUrl . '>',
+            'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+        ]);
     }
 
     public function content(): Content

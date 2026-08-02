@@ -70,6 +70,9 @@ owner_files:
   - tests/Feature/Newsletter/OgImageTest.php
   - tests/Feature/Newsletter/PostServiceTest.php
 touchpoints:
+  - file: bootstrap/app.php
+    owner: 000-platform-core
+    why: `newsletter/unsubscribe/*` 的 CSRF 豁免（RFC 8058 一鍵退訂的 POST 無 session，否則 419）
   - file: app/Models/User.php
     owner: 001-auth-account
     why: newsletter_status / newsletter_subscribed_at / newsletter_unsubscribe_token / newsletter_last_opened_at 欄位 casts、broadcasts 開信關聯、scopeNewsletterSubscribed
@@ -323,6 +326,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-08-02: 電子報宣告的 RFC 8058 一鍵退訂原本是壞的 — `newsletter/unsubscribe/*` 的 POST 未豁免 CSRF，郵件用戶端直接 POST 會吃 419；`bootstrap/app.php` 補上豁免後才真正生效（隨 010 的連鎖信一併處理）。
 - 2026-07-22: 發佈時間時區修正 — 表單以台北時間顯示/輸入（`prepare()` 轉 UTC 入庫、`edit()`/`index()` 轉回台北顯示）、新增文章預填台北當前時間（PostForm `taipeiNow()`）、前台文章日期（Blog/Home）轉台北時區避免跨日誤差。既有手填 published_at 的舊資料晚存 8h 待校正。AdminPostCrudTest backdate 測試同步，全 repo 168 passed。
 - 2026-07-22: 前台文章 YouTube **shorts/live 網址**未自動轉 embed 修正 — `VideoEmbedService::parse()`（003 owned，補 touchpoint）regex 加 `shorts/`、`live/`；連帶 Broadcast 信首圖縮圖也認得 shorts。PostServiceTest 補 shorts 案例。
 - 2026-07-22: 後台文章表單「標籤」欄位的快選 chips 改列出**所有標籤**（原僅熱門前 10；`popularTags()` → `allTags()`，仍按使用次數降冪、同次數按名稱排），文案「熱門標籤」→「所有標籤」。列表頁的熱門前 5 篩選 chips 不變。AdminScreensTest 斷言同步，Newsletter 55 passed。

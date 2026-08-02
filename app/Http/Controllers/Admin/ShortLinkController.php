@@ -21,7 +21,8 @@ class ShortLinkController extends Controller
             'name'            => $link->name,
             'is_active'       => $link->is_active,
             'clicks'          => $link->clicks,
-            'last_clicked_at' => $link->last_clicked_at?->format('Y-m-d H:i'),
+            // Stored in UTC (app timezone); the admin reads Taipei time
+            'last_clicked_at' => $link->last_clicked_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
         ]);
 
         return Inertia::render('Admin/ShortLinks/Index', [

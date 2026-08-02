@@ -419,7 +419,8 @@
       "008.us-6"
     ],
     "app/Mail/DripLessonMail.php": [
-      "010.us-3"
+      "010.us-3",
+      "010.us-6"
     ],
     "app/Mail/HighTicketBookingMail.php": [
       "011.us-2"
@@ -708,7 +709,8 @@
     "bootstrap/app.php": [
       "000.us-6",
       "000.us-7",
-      "002.us-10"
+      "002.us-10",
+      "010.us-6"
     ],
     "config/drip.php": [
       "010.us-10"
@@ -1356,6 +1358,9 @@
     ],
     "tests/Feature/Drip/ClaimWordingTest.php": [
       "010.us-1"
+    ],
+    "tests/Feature/Drip/DripMailDeliverabilityTest.php": [
+      "010.us-6"
     ],
     "tests/Feature/Drip/FunnelStopTest.php": [
       "010.us-13",

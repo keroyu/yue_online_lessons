@@ -2607,7 +2607,10 @@
         "app/Http/Controllers/DripSubscriptionController.php",
         "app/Models/DripSubscription.php",
         "resources/js/Pages/Drip/Unsubscribe.vue",
-        "resources/views/emails/drip-lesson.blade.php"
+        "resources/views/emails/drip-lesson.blade.php",
+        "app/Mail/DripLessonMail.php",
+        "bootstrap/app.php",
+        "tests/Feature/Drip/DripMailDeliverabilityTest.php"
       ],
       "status": "implemented"
     },

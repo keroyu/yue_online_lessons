@@ -31,6 +31,7 @@ owner_files:
   - tests/Feature/Drip/VideoAccessAnchorTest.php
   - tests/Feature/Drip/FunnelStopTest.php
   - tests/Feature/Drip/ClaimWordingTest.php
+  - tests/Feature/Drip/DripMailDeliverabilityTest.php
 touchpoints:
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
@@ -74,6 +75,9 @@ touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
     why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
+  - file: bootstrap/app.php
+    owner: 000-platform-core
+    why: `drip/unsubscribe/*` 的 CSRF 豁免（RFC 8058 一鍵退訂的 POST 無 session）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: flash 白名單新增 `drip_already_claimed`（值為已領取過的 Email，供領取表單顯示「內容已寄到這個信箱」提示；白名單制，不註冊就永遠 undefined）
@@ -149,6 +153,8 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 
 **驗收**：
 - [x] `/drip/unsubscribe/{token}` 顯示確認頁（Drip/Unsubscribe.vue），token 建立訂閱時自動產生（model booted）
+- [x] 序列信帶 `List-Unsubscribe` 與 `List-Unsubscribe-Post: One-Click`（比照電子報），並在 `bootstrap/app.php` 豁免該路徑的 CSRF，否則郵件用戶端的一鍵 POST 會 419
+- [x] 信件內的停止接收行位於正文之後空兩行＋分隔線，以 12px 淺灰呈現並附英文 `Unsubscribe`：既是垃圾郵件過濾器認得的訊號，也不會讀起來像正文的結尾句
 - [x] 確認後 status=unsubscribed（欄位值不變，只有文案改）；重複進入顯示「您已停止接收此商品的信件」
 - [x] 停止接收者解鎖狀態凍結在 emails_sent（已收信的 Lesson 仍可看，不再解鎖新內容）
 - [x] 停止接收者無法再次領取同商品（US1 驗收）
@@ -357,6 +363,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-02: 序列信被 Gmail 丟進垃圾郵件 — 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。
 - 2026-08-02: 修正已領取者的提示 — 原本引導「登入後即可繼續觀看」是錯的（交付走 Email，站上看不到），改為醒目提示框：指名信箱、垃圾郵件提醒、換別的 Email 再領；flash `drip_already_claimed` 由布林改為帶該 Email。215→218 全綠。
 - 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向信箱的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。
 - 2026-08-02: 訪客訂閱表單 Step 2 按鈕文案改「確認驗證碼」；銷售頁訂閱徽章 active 改「已領取」並移除「前往教室」連結（檔案為 002 owner，本模組僅記語彙決定）。

@@ -22,6 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Without the exclusion $request->cookie() decrypts them to null.
         $middleware->encryptCookies(except: ['_fbp', '_fbc', 'tf_first', 'tf_last']);
 
+        // One-click unsubscribe (RFC 8058): the mail client POSTs straight to
+        // these URLs with no session, so CSRF verification would 419 them. The
+        // per-recipient token in the path is the authorisation.
+        $middleware->validateCsrfTokens(except: [
+            'drip/unsubscribe/*',
+            'newsletter/unsubscribe/*',
+        ]);
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'staff' => \App\Http\Middleware\StaffMiddleware::class,

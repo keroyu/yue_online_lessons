@@ -473,6 +473,7 @@ main_files:
 - app/Services/HighTicketLeadService.php
 - app/Services/PortalyWebhookService.php
 - app/Services/RedemptionService.php
+- bootstrap/app.php
 - config/drip.php
 - database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
 - database/migrations/2026_02_16_000004_add_promo_fields_to_lessons_table.php
@@ -495,6 +496,7 @@ main_files:
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
 - tests/Feature/Drip/ClaimWordingTest.php
+- tests/Feature/Drip/DripMailDeliverabilityTest.php
 - tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 
