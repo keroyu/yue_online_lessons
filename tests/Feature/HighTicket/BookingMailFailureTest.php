@@ -74,6 +74,21 @@ class BookingMailFailureTest extends TestCase
         $this->assertTrue($result['mail_sent']);
     }
 
+    public function test_confirmation_is_copied_to_the_admin_only(): void
+    {
+        Mail::fake();
+        $this->bookingTemplate();
+
+        app(HighTicketBookingService::class)->book($this->makeHighTicketCourse(), $this->bookingData());
+
+        Mail::assertSent(\App\Mail\HighTicketBookingMail::class, function ($mail) {
+            // The customer-service address is not a lead recipient
+            return $mail->hasTo('booker@example.com')
+                && $mail->hasCc('themustbig+leads@gmail.com')
+                && !$mail->hasCc('themustbig+learn@gmail.com');
+        });
+    }
+
     public function test_failed_send_reports_mail_sent_false_but_keeps_the_lead(): void
     {
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('smtp is down'));

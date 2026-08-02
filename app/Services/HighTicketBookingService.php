@@ -11,6 +11,16 @@ use Illuminate\Support\Facades\Mail;
 
 class HighTicketBookingService
 {
+    /**
+     * Internal recipients copied on every booking confirmation — a new lead has
+     * to reach a human even if nobody is watching the admin panel. Add the sales
+     * consultant here when there is one (the customer-service address used on
+     * the payment and legal pages is a different role, not a lead recipient).
+     */
+    private const NOTIFY_CC = [
+        'themustbig+leads@gmail.com',  // 管理員
+    ];
+
     public function book(Course $course, array $data): array
     {
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
@@ -39,7 +49,7 @@ class HighTicketBookingService
 
         try {
             Mail::to($data['email'])
-                ->cc('themustbig+learn@gmail.com')
+                ->cc(self::NOTIFY_CC)
                 ->send(new HighTicketBookingMail($subject, $body));
         } catch (\Exception $e) {
             $mailSent = false;
