@@ -38,7 +38,9 @@ const props = defineProps({
   },
 })
 
-// Status config — one square button per status for one-click switching.
+// Status config — single source of truth for every status affordance on this
+// page: the square switcher in each row AND the filter pills above the table,
+// so one colour always means one status.
 // Letters: P=Pending 待聯繫 / C=Contacted 已聯繫 / D=Deal 已成交 / X=Closed 已關閉
 // (class strings are written out in full so Tailwind's scanner keeps them)
 const statusButtons = [
@@ -48,6 +50,8 @@ const statusButtons = [
     label: '待聯繫',
     active: 'bg-yellow-500 text-white ring-yellow-500',
     idle: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-200',
+    tabActive: 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600',
+    tabIdle: 'bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100',
   },
   {
     value: 'contacted',
@@ -55,6 +59,8 @@ const statusButtons = [
     label: '已聯繫',
     active: 'bg-blue-500 text-white ring-blue-500',
     idle: 'bg-blue-50 text-blue-700 hover:bg-blue-200',
+    tabActive: 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600',
+    tabIdle: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
   },
   {
     value: 'converted',
@@ -62,6 +68,8 @@ const statusButtons = [
     label: '已成交',
     active: 'bg-green-600 text-white ring-green-600',
     idle: 'bg-green-50 text-green-700 hover:bg-green-200',
+    tabActive: 'bg-green-600 text-white border-green-600 hover:bg-green-700',
+    tabIdle: 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100',
   },
   {
     value: 'closed',
@@ -69,16 +77,20 @@ const statusButtons = [
     label: '已關閉',
     active: 'bg-gray-500 text-white ring-gray-500',
     idle: 'bg-gray-100 text-gray-500 hover:bg-gray-300',
+    tabActive: 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600',
+    tabIdle: 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200',
   },
 ]
 
-// Filter tabs
+// Filter tabs — status pills inherit the colour coding above; only 全部 is neutral
 const tabs = [
-  { label: '全部', value: '' },
-  { label: '待聯繫', value: 'pending' },
-  { label: '已聯繫', value: 'contacted' },
-  { label: '已成交', value: 'converted' },
-  { label: '已關閉', value: 'closed' },
+  {
+    label: '全部',
+    value: '',
+    tabActive: 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90',
+    tabIdle: 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+  },
+  ...statusButtons.map(({ value, label, tabActive, tabIdle }) => ({ value, label, tabActive, tabIdle })),
 ]
 
 // Search & course filter
@@ -414,10 +426,10 @@ const copySelectedEmails = async () => {
         v-for="tab in tabs"
         :key="tab.value"
         @click="applyFilter(tab.value)"
-        class="px-4 py-1.5 rounded-full text-sm font-medium border cursor-pointer"
+        class="px-4 py-1.5 rounded-full text-sm font-medium border cursor-pointer transition-colors"
         :class="filters.status === (tab.value || null) || (!filters.status && !tab.value)
-          ? 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90'
-          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+          ? tab.tabActive
+          : tab.tabIdle"
       >
         {{ tab.label }}
       </button>
