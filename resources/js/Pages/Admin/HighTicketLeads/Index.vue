@@ -38,22 +38,39 @@ const props = defineProps({
   },
 })
 
-// Status config
-const statusLabels = {
-  pending: '待聯繫',
-  contacted: '已聯繫',
-  converted: '已成交',
-  closed: '已關閉',
-}
-
-const statusClasses = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  contacted: 'bg-blue-100 text-blue-800',
-  converted: 'bg-green-100 text-green-800',
-  closed: 'bg-gray-100 text-gray-800',
-}
-
-const statusOptions = ['pending', 'contacted', 'converted', 'closed']
+// Status config — one square button per status for one-click switching.
+// Letters: P=Pending 待聯繫 / C=Contacted 已聯繫 / D=Deal 已成交 / X=Closed 已關閉
+// (class strings are written out in full so Tailwind's scanner keeps them)
+const statusButtons = [
+  {
+    value: 'pending',
+    letter: 'P',
+    label: '待聯繫',
+    active: 'bg-yellow-500 text-white ring-yellow-500',
+    idle: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-200',
+  },
+  {
+    value: 'contacted',
+    letter: 'C',
+    label: '已聯繫',
+    active: 'bg-blue-500 text-white ring-blue-500',
+    idle: 'bg-blue-50 text-blue-700 hover:bg-blue-200',
+  },
+  {
+    value: 'converted',
+    letter: 'D',
+    label: '已成交',
+    active: 'bg-green-600 text-white ring-green-600',
+    idle: 'bg-green-50 text-green-700 hover:bg-green-200',
+  },
+  {
+    value: 'closed',
+    letter: 'X',
+    label: '已關閉',
+    active: 'bg-gray-500 text-white ring-gray-500',
+    idle: 'bg-gray-100 text-gray-500 hover:bg-gray-300',
+  },
+]
 
 // Filter tabs
 const tabs = [
@@ -139,6 +156,7 @@ const canSubscribeDrip = computed(() =>
 const updatingStatus = ref(null)
 
 const updateStatus = async (lead, newStatus) => {
+  if (lead.status === newStatus) return
   updatingStatus.value = lead.id
   try {
     const res = await axios.patch(`/admin/high-ticket-leads/${lead.id}/status`, { status: newStatus })
@@ -482,9 +500,12 @@ const copySelectedEmails = async () => {
             </th>
             <th class="px-4 py-3 text-left">姓名</th>
             <th class="px-4 py-3 text-left">Email</th>
-            <th class="hidden md:table-cell w-52 px-4 py-3 text-left">課程</th>
-            <th class="px-4 py-3 text-left">狀態</th>
-            <th class="hidden sm:table-cell w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
+            <th class="hidden md:table-cell w-[173px] px-4 py-3 text-left">課程</th>
+            <th class="whitespace-nowrap px-4 py-3 text-left">
+              狀態
+              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待 / C聯 / D成 / X關</span>
+            </th>
+            <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
             <th class="hidden lg:table-cell px-4 py-3 text-left">預約時間</th>
           </tr>
@@ -518,7 +539,7 @@ const copySelectedEmails = async () => {
                 </button>
               </div>
             </td>
-            <td class="hidden md:table-cell w-52 py-4 px-3 text-sm text-gray-600">
+            <td class="hidden md:table-cell w-[173px] py-4 px-3 text-sm text-gray-600">
               <div class="flex items-center gap-2">
                 <span class="truncate">{{ lead.course?.name ?? '-' }}</span>
                 <button
@@ -531,15 +552,21 @@ const copySelectedEmails = async () => {
               </div>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm">
-              <select
-                :value="lead.status"
-                :disabled="updatingStatus === lead.id"
-                @change="updateStatus(lead, $event.target.value)"
-                class="rounded border-gray-300 text-sm focus:ring-brand-teal focus:border-brand-teal"
-                :class="statusClasses[lead.status]"
-              >
-                <option v-for="s in statusOptions" :key="s" :value="s">{{ statusLabels[s] }}</option>
-              </select>
+              <div class="flex items-center gap-1">
+                <button
+                  v-for="s in statusButtons"
+                  :key="s.value"
+                  type="button"
+                  :disabled="updatingStatus === lead.id"
+                  :title="s.label"
+                  :aria-pressed="lead.status === s.value"
+                  @click="updateStatus(lead, s.value)"
+                  class="h-[25px] w-[25px] flex-shrink-0 rounded text-xs font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-wait"
+                  :class="lead.status === s.value ? `${s.active} ring-2 ring-offset-1` : s.idle"
+                >
+                  {{ s.letter }}
+                </button>
+              </div>
             </td>
             <td class="hidden sm:table-cell w-20 whitespace-nowrap py-4 px-2 text-sm text-right text-gray-600">
               {{ lead.notified_count ?? 0 }}
