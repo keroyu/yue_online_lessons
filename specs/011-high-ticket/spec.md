@@ -1,6 +1,6 @@
 ---
 id: 011-high-ticket
-status: draft
+status: building
 owner_files:
   - app/Mail/LeadConvertedMail.php
   - app/Http/Controllers/HighTicketBookingController.php
@@ -11,6 +11,7 @@ owner_files:
   - app/Models/EmailTemplate.php
   - app/Services/HighTicketBookingService.php
   - app/Services/HighTicketLeadService.php
+  - app/Services/EmailMarkdownService.php
   - app/Jobs/NotifyHighTicketSlotJob.php
   - app/Jobs/SubscribeDripLeadJob.php
   - app/Mail/HighTicketBookingMail.php
@@ -18,12 +19,15 @@ owner_files:
   - resources/js/Pages/Admin/HighTicketLeads/Index.vue
   - resources/js/Pages/Admin/EmailTemplates/Index.vue
   - resources/js/Pages/Admin/EmailTemplates/Edit.vue
+  - resources/views/emails/template-text.blade.php
   - database/migrations/2026_04_09_000002_create_email_templates_table.php
   - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
+  - database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
   - database/seeders/EmailTemplateSeeder.php
   - tests/Feature/HighTicket/LeadConvertTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
+  - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
@@ -39,7 +43,10 @@ touchpoints:
     why: SubscribeDripLeadJob 呼叫 DripService::subscribe() 建立訂閱並立即發送第一封序列信
   - file: app/Mail/BatchEmailMail.php
     owner: 008-members-admin
-    why: Leads「發送郵件」批次功能沿用會員後台的 BatchEmailMail（Markdown 渲染）
+    why: Leads「發送郵件」批次功能沿用會員後台的 BatchEmailMail（Markdown 渲染）；本模組把裸 `new CommonMarkConverter()` 換成 `EmailMarkdownService::toHtml()`，讓單次換行行為與模板信一致（FR-021），寄出內容其餘不變
+  - file: app/Jobs/SendDripEmailJob.php
+    owner: 010-drip-email
+    why: 序列信的 `md_content` 渲染同樣改用 `EmailMarkdownService::toHtml()`（FR-021）；僅換 converter 設定，後續的 `stripStylesForEmail()` 與寄送流程不動
   - file: app/Mail/CourseGiftedMail.php
     owner: 008-members-admin
     why: 讀取本模組 email_templates（event_type=course_gifted）；模板存在時改用 emails/high-ticket-booking.blade.php 版型寄送
@@ -141,11 +148,28 @@ touchpoints:
 **驗收**：
 - [ ] 列表顯示 5 個模板，event_type 以中文標籤呈現：客製服務預約確認、課程贈禮通知、課程新增小節通知、客製服務新時段通知、顧問成交開通通知
 - [x] 編輯頁顯示模板名稱、觸發事件（唯讀）、主旨、body_md 內容編輯區；「插入變數」按鈕列依 event_type 顯示可用變數，點擊插入 textarea 游標位置
-- [x] 編輯 / 預覽模式切換：預覽以 `marked` + `breaks: true` 渲染，單行換行與寄出效果一致
+- [x] 編輯 / 預覽模式切換：預覽以 `marked` + `breaks: true` 渲染，單行換行與寄出效果一致（**此條在 FR-021 之前為假** — 預覽會換行、寄出不會，管理員得按兩次 Enter 才有效果）
 - [x] 儲存驗證 name ≤ 100、subject ≤ 255、body_md 必填（中文錯誤訊息），成功後導回列表並 flash「模板已更新」
 - [ ] `EmailTemplateSeeder` 以 event_type 為 key `updateOrCreate` seed 5 個預設模板，可重複執行不覆蓋主鍵
 - [x] `course_gifted` / `lesson_added` 事件由對應 Mailable 建構時讀取模板，模板不存在時 fallback 至寫死內容；high_ticket 預約相關兩事件無 fallback（缺模板直接擋下操作）；`lead_converted` 缺模板不擋操作但也不 fallback — 不寄信並回報 `mail_sent: false`（見 D15）
 - [x] 列表頁上方有「預約通知收件者（CC）」設定卡：單一文字框（逗號分隔多筆）+ 儲存按鈕，`PUT /admin/email-templates/notify-cc` 寫入 `site_settings`；每筆須為合法 Email 格式否則 inline 顯示「「xxx」不是有效的 Email 格式」；留空即 fallback 至預設值（placeholder 與說明文字均顯示該預設）
+
+### User Story 7 - HTML 模板模式與純文字備援 (Priority: P2)
+
+管理員手上已有設計好的 HTML 版信件（彩色 Step 標籤、多段強調），
+Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
+要能在編輯頁把模板切成 HTML 模式、直接貼原始碼、看到與收件匣一致的預覽並原樣寄出。
+
+**驗收**：
+- [x] 編輯頁內容區有 Markdown / HTML 兩顆分段切換鈕，切換只改變「怎麼解讀 body_md」，MUST NOT 自動轉換既有內容；切換狀態隨表單一起儲存
+- [x] HTML 模式：貼進去的原始 HTML 原樣寄出（inline style / 屬性 / 巢狀標籤完整保留，不經 CommonMark、不 sanitize）
+- [x] `{{var}}` 替換在兩種模式行為一致（含放在 `href` 等屬性值內）
+- [x] 預覽改用 sandbox `<iframe srcdoc>`：兩種模式共用同一個預覽框，看到的樣式等同真實信件（不再套後台的 `prose` class），且貼進來的 `<script>` 不會在後台頁面執行
+- [x] 「插入變數」按鈕在 HTML 模式照常運作（插入 textarea 游標位置）
+- [x] 四種模板皆可各自切換模式；未設定者維持 `markdown`，既有模板行為零變化
+- [x] 儲存驗證 `body_type` 僅接受 `markdown` / `html`，非法值 inline 顯示中文錯誤
+- [x] 四封模板信 MUST 以 `multipart/alternative` 寄出（HTML + 純文字兩段），純文字版由模板自動產生，管理員不需額外維護
+- [x] Markdown 模式按一次 Enter 即為真正的換行（寄出結果與編輯時所見一致），不需按兩次；空一行仍是新段落
 
 ## Requirements
 
@@ -161,7 +185,7 @@ touchpoints:
   | `lesson_added` | `{{course_name}}`、`{{lesson_title}}`、`{{classroom_url}}` |
   | `high_ticket_slot_available` | Job 實際替換 `{{user_name}}`、`{{course_name}}`；編輯頁變數清單未登錄此 event_type，不顯示插入按鈕 |
 
-- **FR-005**: 模板變數以 `str_replace` 全量替換（無 escape / 白名單機制）；event_type 建立後不可修改（update 僅驗證 name / subject / body_md）
+- **FR-005**: 模板變數以 `str_replace` 全量替換（無 escape / 白名單機制）；event_type 建立後不可修改（update 僅驗證 name / subject / body_md / body_type）
 - **FR-006**: 「通知新時段」後端 MUST 以 `status=pending` 過濾傳入的 lead_ids；notified_count / last_notified_at 由 Job 於寄送成功後更新，非派送當下
 - **FR-007**: 「加入序列信」後端 MUST 以 `status IN (pending, closed)` 過濾；去重條件為該 email 對「任何課程」存在 active 訂閱即跳過，最後防線是 `DripService::subscribe()` 內的重複訂閱檢查（Job 內失敗僅記 log，lead 狀態不變）
 - **FR-008**: 開通使用 `Purchase::updateOrCreate([user_id, course_id])`，同人同課重複開通不會產生第二筆購買記錄（重複開通以最新成交價覆寫 amount）；購買類型固定 `lead_conversion`（「顧問轉換」，後台與會員頁以 teal 樣式與贈送 / 購買區分）。**覆寫僅限既有記錄本身就是 `lead_conversion`，或 `status=refunded` 的作廢記錄**；其餘情形受 FR-015 守門
@@ -180,6 +204,11 @@ touchpoints:
 - **FR-014**: 新 lead 的內部通知收件者存於 `site_settings.high_ticket_lead_notify_cc`（逗號分隔），由後台 Email 模板管理頁編輯；未設定或格式無效時 fallback 至 `HighTicketBookingService::DEFAULT_NOTIFY_CC` 常數。解析一律走 `HighTicketBookingService::parseRecipients()`（逗號 / 分號 / 空白皆可分隔、去空去重），前後端共用同一份規則。**這份清單與付款/法律頁的「客服信箱」是不同角色**，不得混用：客服是對外聯絡管道，此清單是誰該接手這條 lead。會員的 `is_sales_consultant` 旗標**目前不參與寄信**（只管後台權限），要改成依身分自動通知需另立設計 —— CC 會把顧問信箱曝露給預約者，屆時應改用 bcc 或另寄內部通知信。
 
 - **FR-018**: 預約 MUST 以 `(email, course_id)` 為唯一鍵去重（見 D17）；`recordLead()` 命中既有記錄時只更新 name / booked_at 與（僅限 closed → pending 的）status，不新增列、不動 notified_count / last_notified_at
+
+- **FR-019**: 模板內容的渲染唯一入口為 `EmailTemplate::renderBody(array $vars)`（原已存在但無人呼叫）與新增的 `renderText(array $vars)`。`body_type` 僅兩值 `markdown` / `html`：markdown 走 CommonMark，html **原樣輸出、不 sanitize、不做任何後處理**。所有呼叫端（`HighTicketBookingService`、`NotifyHighTicketSlotJob`、`CourseGiftedMail`、`LessonAddedNotification`、日後的 `LeadConvertedMail`）MUST NOT 自行 `new CommonMarkConverter()` — 目前這段 `str_replace + CommonMark` 在四處各寫一次，HTML 模式必須四條路徑一致，否則同一個模板在不同事件下會渲染成不同結果
+- **FR-020**: 四封模板信 MUST 以 `multipart/alternative` 寄出（`Content(view:, text:)`），純文字段由 `renderText()` 自動產生：markdown 模式回傳替換變數後的原始 md（本來就是可讀純文字）；html 模式把 `<a href>` 還原成「文字 (網址)」（文字本身即網址時不重複）、區塊結束標籤轉換行、`strip_tags` + `html_entity_decode`、收斂連續空行。**不另開 `body_text` 欄位讓管理員手寫** — 雙欄位必然漂移，而純文字段的唯一目的是通過 spam filter 的 MIME_HTML_ONLY 檢查與純文字客戶端可讀，不需要逐字打磨
+
+- **FR-021**: **後台手打的 Markdown 信件內容** MUST 以 hard break 語意渲染：converter 設 `['renderer' => ['soft_break' => "<br />\n"]]`，單次換行即產出 `<br>`，與編輯頁預覽的 `marked(..., { breaks: true })` 對齊；空一行仍是新段落（`<p>`），行為不變。此設定收在 `EmailMarkdownService::toHtml()`，適用**三個呼叫點**：`EmailTemplate::renderBody()`（011 模板信）、`BatchEmailMail`（008 批次寄信）、`SendDripEmailJob`（010 序列信）—— 這三處都是管理員在 textarea 手打的信，行為必須一致。**部落格文章（012 `PostService`）不適用**：長文散文語意、且前台 `HtmlContent.vue` 的 `marked()` 未開 `breaks`，前後端本來就一致，改了會讓既有文章版面跑掉。**這是修正而非破壞**：既有 4 筆 seeder 模板皆以 `\n\n` 分段、清單前的單換行由 list 語法接手，渲染結果不受影響；受影響的只有「管理員按一次 Enter 卻被吃掉」的內容，那本來就是錯的
 
 ## 設計決策
 
@@ -208,15 +237,26 @@ touchpoints:
 
 - **D18**: CC 清單放 `site_settings` 並掛在 **Email 模板管理頁**，不放付款/API 設定頁 — 那頁是金流與第三方憑證，這是信件收件人，語意不同；Email 模板管理頁本來就是「信件相關設定」的入口，管理員找得到。保留 `DEFAULT_NOTIFY_CC` 常數當 fallback 而非改成必填設定：新環境（含測試 DB）沒有這筆設定時，lead 通知信仍必須寄得出去，絕不能因為沒設定就靜默不通知任何人
 
+- **D19**: HTML 模式採「每列一個 `body_type` 旗標」而非自動偵測內容格式 —— `str_contains($body, '<')` 之類的猜測會在「Markdown 裡夾一個 `<br>`」時誤判，而誤判的後果是整封信變成裸露的原始碼寄給客戶。連帶四個取捨：（1）**切換模式不轉換既有內容**，只改變解讀方式 —— 自動 md→html 之後切回來就回不去了；（2）**html 不 sanitize**，比照 D2 與 `HtmlContent.vue` 對後台內容的既有立場，sanitizer 會吃掉 inline style 與 `<table>`，那正是 email HTML 唯一能用的排版手段；（3）**欄位仍叫 `body_md`**，改名要動 model / request / seeder / 四個 Mailable / 前端，收益只有命名好看；（4）**預覽改 sandbox iframe**，現行預覽套後台的 `prose` class 但真實信件的 blade 完全沒有 CSS，預覽比實際好看，iframe 讓兩種模式看到的都等於收件匣，順便擋掉貼進來的 `<script>` 在後台執行
+
+- **D20**: 純文字備援（FR-020）與 HTML 模式同批交付，不另案處理 —— 兩者共用 `renderBody` / `renderText` 這條收斂後的渲染管線，分開做等於把同一段程式改兩次。動機是投遞率：模板信目前是 HTML-only，這是 SpamAssassin 明確扣分的 MIME_HTML_ONLY，而 010 的 drip 信已經因為同類問題被 Gmail 丟過垃圾桶（見 `DripMailDeliverabilityTest`）。要寄的那份 HTML 文案本身帶有收入數字、限量名額、時限與黑名單警告等高風險詞組，內容分數已經吃緊，能補的技術分不該省。寫法沿用 `NewsletterBroadcastMail` 既有的 `view: + text:`，不引入新機制
+
+- **D21**: 換行不一致選擇「改後端去配合預覽」而不是「改預覽去配合後端」或「教管理員按兩次 Enter」—— 模板是寫給非工程師用的信件編輯器，「按一次 Enter 不會換行」是 Markdown 的規格，不是任何人的心智模型；而 US6 驗收條款從一開始就宣告「單行換行與寄出效果一致」，所以這是把實作對齊到早已聲明的規格，不是改需求。改預覽（拿掉 `breaks: true`）雖然也能達成一致，但那是把兩邊一起對齊到錯的那一邊。實作只有一行 converter 設定（`renderer.soft_break`），比在 UI 上加說明文字或做編輯器層的自動 `\n\n` 轉換都便宜
+
+- **D22**: hard break 設定抽成 `EmailMarkdownService::toHtml()` 而非在三處各寫一次設定陣列 —— 一模一樣的 duplication 正是 FR-019 這次要消滅的東西，再手動複製三份等於當場製造下一個漂移點。owner 掛 **011** 而不是 000：這條規則是從 `EmailTemplate::renderBody()` 抽出來的，模板系統與 D2「信件內容走 CommonMark」的決策都在本模組，008 / 010 是消費者（已列 touchpoints）。日後若第四、第五個信件路徑出現、或需要更多 email 專用的渲染規則（例如自動加 `max-width` 容器），再評估是否升格到 000
+
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
 
 ## Schema
 
-- **本次無 schema 變更**（新增的是 `email_templates` 的一筆資料，不是欄位；覆寫守門與 transaction 皆為既有欄位上的邏輯）
-- 前次亦無 schema 變更（US1 landing page 隱藏與 mail_sent 回報皆為既有欄位與前端呈現）
+- **本次 schema 變更**：`2026_08_03_000001_add_body_type_to_email_templates_table.php` — `string('body_type', 10)->default('markdown')->after('subject')`。用 string 不用 enum（比照 004 `change_content_category_to_string_on_courses` 的既有作法）；有 default，既有 4 筆自動落在 markdown，正式站不需資料處理
+- US5（開通補強）無 schema 變更（新增的是 `email_templates` 的一筆資料，不是欄位；覆寫守門與 transaction 皆為既有欄位上的邏輯）
+- US1 亦無 schema 變更（landing page 隱藏與 mail_sent 回報皆為既有欄位與前端呈現）
 - `high_ticket_leads` — 預約產生的潛在客戶；status 銷售漏斗 enum(pending 待聯繫 / contacted 已聯繫 / converted 已成交 / closed 已關閉) 預設 pending；notified_count（unsigned tinyint）與 last_notified_at 只由 NotifyHighTicketSlotJob 寄送成功後更新；booked_at 為最近一次提交時間（非 created_at 語意）；email / status / course_id 皆有索引。**DB 無 (email, course_id) unique 約束**，去重由 `recordLead()` 在應用層負責（D17）— 歷史資料可能已有重複列，加 unique 需先清理，現階段不值得
 - `site_settings.high_ticket_lead_notify_cc` — 預約通知 CC 收件者，逗號分隔字串；不存在或為空即 fallback 至 `DEFAULT_NOTIFY_CC`（FR-014）
-- `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；body_md 為 Markdown，寄出時經 CommonMark 轉 HTML；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
+- `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
+- `email_templates.body_md` — **模板原始內容，格式由 `body_type` 決定**（歷史命名，非僅 Markdown，見 D19）
+- `email_templates.body_type` — `markdown`（預設，經 CommonMark 轉 HTML）或 `html`（原樣輸出）；無 DB 層 enum 約束，合法值由 `EmailTemplateRequest` 把關，未知值一律當 markdown 處理
 
 ## Tasks
 
@@ -269,8 +309,38 @@ Phase D — 驗證
 - [x] T026 新增測試：重複預約不重複建 lead、跨課程各自獨立、closed 回 pending 而 converted 不變、寄信拋例外仍留 lead、設定 CC 取代預設、留空 fallback 預設、後台儲存與格式驗證 in `tests/Feature/HighTicket/BookingLeadRecordTest.php`
 - [x] T027 `php artisan test` 全綠（238 passed，既有 BookingMailFailureTest 對預設 CC 的斷言維持通過）＋ `npm run build` exit 0
 
+### HTML 模板模式與純文字備援（US7）
+
+Phase A — Schema 與渲染收斂（先做，後面全部依賴）
+- [x] T028a 新增 `EmailMarkdownService::toHtml(string $md): string` — CommonMark + `renderer.soft_break => "<br />\n"`（FR-021 / D22）in `app/Services/EmailMarkdownService.php`
+- [x] T028 新增 migration：`email_templates` 加 `body_type`（string 10、default `markdown`、after `subject`）in `database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php`
+- [x] T029 `$fillable` 加 `body_type`；`renderBody()` 改為唯一渲染入口（替換變數 → html 原樣 / markdown 走 CommonMark **並設 `renderer.soft_break => "<br />\n"`**，FR-021）；新增 `renderText()`（markdown 回原始 md、html 走 a 標籤還原 + 區塊轉換行 + strip_tags + entity decode + 收斂空行）in `app/Models/EmailTemplate.php`
+- [x] T030 建構子不再自行轉 Markdown，改收已渲染的 `$htmlBody` 與 `$textBody`；`content()` 加 `text: 'emails.template-text'` in `app/Mail/HighTicketBookingMail.php`
+- [x] T031 新增純文字版 blade（單行 `{!! $textBody !!}`）in `resources/views/emails/template-text.blade.php`
+
+Phase B — 四個呼叫端改吃 renderBody / renderText（可平行，皆依賴 Phase A）
+- [x] T032 [P] `book()` 改用 `$template->renderBody($vars)` / `renderText($vars)` 並傳給 Mailable，刪除本地 `str_replace` in `app/Services/HighTicketBookingService.php`
+- [x] T033 [P] 同上改法 in `app/Jobs/NotifyHighTicketSlotJob.php`
+- [x] T034 [P] 刪除建構子內的 `new CommonMarkConverter()`，改用 `renderBody()` / `renderText()`；模板分支的 `content()` 加 `text:`（無模板 fallback 分支維持原樣）in `app/Mail/CourseGiftedMail.php`
+- [x] T035 [P] 同上改法 in `app/Mail/LessonAddedNotification.php`
+
+Phase B2 — 換行修正擴及其他兩條信件路徑（跨模組，依賴 T028a）
+- [x] T035a [P] 裸 `new CommonMarkConverter()` 改用 `EmailMarkdownService::toHtml()`（touchpoint，owner 008-members-admin）in `app/Mail/BatchEmailMail.php`
+- [x] T035b [P] 同上改法，`stripStylesForEmail()` 與寄送流程不動（touchpoint，owner 010-drip-email）in `app/Jobs/SendDripEmailJob.php`
+
+Phase C — 後台編輯
+- [x] T036 驗證加 `body_type` in `['markdown','html']` + 中文錯誤訊息 in `app/Http/Requests/Admin/EmailTemplateRequest.php`
+- [x] T037 `form` 加 `body_type`；內容區加 Markdown / HTML 分段切換鈕（`cursor-pointer` + 選中態 + 一行說明「切換只改變解讀方式，不會轉換既有內容」）；預覽改 sandbox `<iframe :srcdoc>`（HTML 模式回原字串、Markdown 模式維持 `marked(..., { breaks: true })`）；placeholder 依模式切換 in `resources/js/Pages/Admin/EmailTemplates/Edit.vue`
+
+Phase D — 驗證
+- [x] T038 新增測試：html 模式原樣輸出（不被包 `<p>`、inline style 保留）、markdown 模式仍轉 HTML（回歸）、**markdown 單次換行渲染成 `<br>` 且空行仍分段（FR-021）**、`{{var}}` 在 html 屬性內照樣替換、預約信 `htmlBody` 為原始 HTML、`renderText()` 兩種模式輸出、後台 PUT 接受 html 並拒絕非法 `body_type` in `tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php`
+- [x] T039 `php artisan test` 全綠（基準 238 passed；`BookingMailFailureTest` / `BookingLeadRecordTest` / `LeadConvertTest` 在 Mailable 簽章變更後必須維持通過；010 的 `DripMailDeliverabilityTest` / `ClaimWordingTest` 在 converter 換掉後必須維持通過）＋ `npx vite build` exit 0
+- [x] T039a `/sync` 對帳：008 與 010 的 spec 進度日誌各補一行換行修正（touchpoint 變更需回寫 owner 模組）
+- [ ] T040 實寄驗證：後台切 HTML 模式貼入模板 → tinker 觸發 `book()` 寄到自己信箱 → 「顯示原始郵件」確認 `Content-Type: multipart/alternative` 且兩段內容皆正確
+
 ## 進度日誌
 
+- 2026-08-03: US7 完成（T028a–T039a）— Email 模板加 `body_type`（markdown / html），HTML 模式原樣寄出、編輯頁加格式切換鈕與 sandbox iframe 預覽；渲染收斂到 `EmailTemplate::renderBody()` / `renderText()`，四個呼叫端不再各自 `new CommonMarkConverter()`，`HighTicketBookingMail` 改收已渲染的 HTML + 純文字；四封模板信改 `multipart/alternative` 補純文字段（FR-020，解 MIME_HTML_ONLY）。另修長期存在的換行 bug：新增 `EmailMarkdownService::toHtml()` 設 `soft_break`，單次 Enter 即真換行，同步套用 008 `BatchEmailMail` 與 010 `SendDripEmailJob`（FR-021 / D21 / D22）。查驗本機既有內容：4 個模板中 3 個、16 篇 drip 小節中 3 篇會多出換行，全部是作者手動斷行卻被吃掉的位置，屬修正。新增 EmailTemplateHtmlModeTest（12 tests），全套 249 passed（1249 assertions）、`npx vite build` 綠。T040 實寄驗證待業主操作。
 - 2026-08-03: 預約流程三項修正 —（1）lead 改以 (email, course_id) 去重，重複預約更新既有列、closed 回復 pending（D17）；（2）lead 寫入移到寄信之前，SMTP 卡住不再有掉單風險；（3）通知 CC 從寫死常數改為 `site_settings` + 後台 Email 模板管理頁可編輯，常數降級為 fallback（D18）。新增 BookingLeadRecordTest（7 tests），全套 238 passed、build 綠。
 - 2026-08-03: 狀態篩選 tab 改用與列內色塊相同的配色（tabActive / tabIdle 併入 statusButtons，tabs 由其 map 產生，「全部」另外定義為中性色）— 配色只有一份定義，日後改色不會兩處漂移。
 - 2026-08-03: 狀態欄下拉改為四顆 25×25 字母色塊按鈕（P/C/D/X），一鍵切換不用展開；課程欄寬 w-52 → w-[173px] 讓出空間給狀態欄，狀態與通知次數兩個 th 加 `whitespace-nowrap`（只讓寬度不夠，圖例仍會在「X關」斷行、通知次數被壓成直排）。原 statusLabels / statusClasses / statusOptions 三張表併為單一 statusButtons 設定（class 字串寫全，Tailwind scanner 才掃得到）。

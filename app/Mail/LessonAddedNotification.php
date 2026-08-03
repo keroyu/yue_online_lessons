@@ -10,13 +10,13 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use League\CommonMark\CommonMarkConverter;
 
 class LessonAddedNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
     public ?string $htmlBody = null;
+    public ?string $textBody = null;
     private string $resolvedSubject;
     private bool $useTemplate = false;
 
@@ -34,9 +34,8 @@ class LessonAddedNotification extends Mailable
             ];
 
             $this->resolvedSubject = $template->renderSubject($vars);
-            $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
-            $converter = new CommonMarkConverter();
-            $this->htmlBody = $converter->convert($body)->getContent();
+            $this->htmlBody = $template->renderBody($vars);
+            $this->textBody = $template->renderText($vars);
             $this->useTemplate = true;
         } else {
             $typeLabel = match($this->course->type) {
@@ -62,6 +61,7 @@ class LessonAddedNotification extends Mailable
         if ($this->useTemplate) {
             return new Content(
                 view: 'emails.high-ticket-booking',
+                text: 'emails.template-text',
             );
         }
 

@@ -279,7 +279,8 @@
       "003.us-6"
     ],
     "app/Http/Requests/Admin/EmailTemplateRequest.php": [
-      "011.us-6"
+      "011.us-6",
+      "011.us-7"
     ],
     "app/Http/Requests/Admin/GiftCourseRequest.php": [
       "008.us-6"
@@ -392,7 +393,8 @@
       "007.us-2"
     ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
-      "011.us-4"
+      "011.us-4",
+      "011.us-7"
     ],
     "app/Jobs/SendBroadcastEmailJob.php": [
       "012.us-5"
@@ -402,7 +404,8 @@
       "010.us-12",
       "010.us-13",
       "010.us-3",
-      "010.us-8"
+      "010.us-8",
+      "011.us-7"
     ],
     "app/Jobs/SendMetaConversionJob.php": [
       "000.us-7"
@@ -413,17 +416,20 @@
     ],
     "app/Mail/BatchEmailMail.php": [
       "008.us-5",
-      "011.us-4"
+      "011.us-4",
+      "011.us-7"
     ],
     "app/Mail/CourseGiftedMail.php": [
-      "008.us-6"
+      "008.us-6",
+      "011.us-7"
     ],
     "app/Mail/DripLessonMail.php": [
       "010.us-3",
       "010.us-6"
     ],
     "app/Mail/HighTicketBookingMail.php": [
-      "011.us-2"
+      "011.us-2",
+      "011.us-7"
     ],
     "app/Mail/LeadConvertedMail.php": [
       "011.us-5",
@@ -431,7 +437,8 @@
     ],
     "app/Mail/LessonAddedNotification.php": [
       "004.us-2",
-      "004.us-6"
+      "004.us-6",
+      "011.us-7"
     ],
     "app/Mail/NewsletterBroadcastMail.php": [
       "012.us-5"
@@ -499,7 +506,8 @@
     ],
     "app/Models/EmailTemplate.php": [
       "011.us-2",
-      "011.us-6"
+      "011.us-6",
+      "011.us-7"
     ],
     "app/Models/HighTicketLead.php": [
       "011.us-2",
@@ -633,12 +641,16 @@
       "010.us-7",
       "011.us-5"
     ],
+    "app/Services/EmailMarkdownService.php": [
+      "011.us-7"
+    ],
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
       "010.us-13",
       "011.us-1",
       "011.us-2",
-      "011.us-6"
+      "011.us-6",
+      "011.us-7"
     ],
     "app/Services/HighTicketLeadService.php": [
       "010.us-13",
@@ -895,6 +907,9 @@
     ],
     "database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php": [
       "002.us-13"
+    ],
+    "database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php": [
+      "011.us-7"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-6"
@@ -1157,7 +1172,8 @@
       "009.us-7"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
-      "011.us-6"
+      "011.us-6",
+      "011.us-7"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
       "011.us-6"
@@ -1329,6 +1345,9 @@
     "resources/views/emails/newsletter-welcome.blade.php": [
       "012.us-4"
     ],
+    "resources/views/emails/template-text.blade.php": [
+      "011.us-7"
+    ],
     "resources/views/emails/verification-code.blade.php": [
       "001.us-1"
     ],
@@ -1390,6 +1409,9 @@
     "tests/Feature/HighTicket/BookingMailFailureTest.php": [
       "011.us-1",
       "011.us-2"
+    ],
+    "tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php": [
+      "011.us-7"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"

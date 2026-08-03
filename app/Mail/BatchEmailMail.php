@@ -6,8 +6,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use App\Services\EmailMarkdownService;
 use Illuminate\Queue\SerializesModels;
-use League\CommonMark\CommonMarkConverter;
 
 class BatchEmailMail extends Mailable
 {
@@ -19,8 +19,8 @@ class BatchEmailMail extends Mailable
         public string $emailSubject,
         public string $emailBody
     ) {
-        $converter = new CommonMarkConverter();
-        $this->htmlBody = $converter->convert($emailBody)->getContent();
+        // Single Enter is a real line break here too (011 FR-021).
+        $this->htmlBody = EmailMarkdownService::toHtml($emailBody);
     }
 
     public function envelope(): Envelope

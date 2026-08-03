@@ -7,21 +7,20 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use League\CommonMark\CommonMarkConverter;
 
 class HighTicketBookingMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public string $htmlBody;
-
+    /**
+     * Takes an already-rendered body: EmailTemplate::renderBody() is the single
+     * place that knows whether the template is Markdown or raw HTML (FR-019).
+     */
     public function __construct(
         public string $emailSubject,
-        public string $emailBody
-    ) {
-        $converter = new CommonMarkConverter();
-        $this->htmlBody = $converter->convert($emailBody)->getContent();
-    }
+        public string $htmlBody,
+        public string $textBody
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -34,6 +33,7 @@ class HighTicketBookingMail extends Mailable
     {
         return new Content(
             view: 'emails.high-ticket-booking',
+            text: 'emails.template-text',
         );
     }
 

@@ -48,7 +48,6 @@ class HighTicketBookingService
         ];
 
         $subject = $template->renderSubject($vars);
-        $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
 
         // A failed send must not fail the booking — the lead is already saved —
         // but the caller has to know, so the page can stop telling the visitor
@@ -58,7 +57,11 @@ class HighTicketBookingService
         try {
             Mail::to($data['email'])
                 ->cc($this->notifyCc())
-                ->send(new HighTicketBookingMail($subject, $body));
+                ->send(new HighTicketBookingMail(
+                    $subject,
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                ));
         } catch (\Exception $e) {
             $mailSent = false;
 

@@ -363,6 +363,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-03: 序列信的 `md_content` 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，小節內容手動斷行在信裡會黏成一段。現在單次換行即 `<br>`，空一行仍是新段落；`stripStylesForEmail()` 與寄送流程不動。查驗現有 16 篇有 md_content 的小節，3 篇（id 20、46 各多 7 / 2 個換行；id 14 無變化）會多出換行，皆為作者原本就手動斷行的位置。
 - 2026-08-02: 序列信被 Gmail 丟進垃圾郵件 — 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。
 - 2026-08-02: 修正已領取者的提示 — 原本引導「登入後即可繼續觀看」是錯的（交付走 Email，站上看不到），改為醒目提示框：指名信箱、垃圾郵件提醒、換別的 Email 再領；flash `drip_already_claimed` 由布林改為帶該 Email。215→218 全綠。
 - 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向信箱的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。

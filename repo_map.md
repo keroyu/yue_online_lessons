@@ -517,28 +517,35 @@ main_files:
 - app/Http/Controllers/HighTicketBookingController.php
 - app/Http/Requests/Admin/EmailTemplateRequest.php
 - app/Jobs/NotifyHighTicketSlotJob.php
+- app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
+- app/Mail/CourseGiftedMail.php
 - app/Mail/HighTicketBookingMail.php
 - app/Mail/LeadConvertedMail.php
+- app/Mail/LessonAddedNotification.php
 - app/Models/EmailTemplate.php
 - app/Models/HighTicketLead.php
 - app/Models/Purchase.php
 - app/Models/SiteSetting.php
 - app/Services/DripService.php
+- app/Services/EmailMarkdownService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/HighTicketLeadService.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
+- database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Pages/Admin/EmailTemplates/Edit.vue
 - resources/js/Pages/Admin/EmailTemplates/Index.vue
 - resources/js/Pages/Admin/HighTicketLeads/Index.vue
 - resources/js/Pages/Course/Show.vue
 - resources/views/emails/high-ticket-booking.blade.php
+- resources/views/emails/template-text.blade.php
 - routes/web.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
+- tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 
 related_specs:

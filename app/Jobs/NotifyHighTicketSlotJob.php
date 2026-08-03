@@ -45,10 +45,13 @@ class NotifyHighTicketSlotJob implements ShouldQueue
         ];
 
         $subject = $template->renderSubject($vars);
-        $body = str_replace(array_keys($vars), array_values($vars), $template->body_md);
 
         try {
-            Mail::to($lead->email)->send(new HighTicketBookingMail($subject, $body));
+            Mail::to($lead->email)->send(new HighTicketBookingMail(
+                $subject,
+                $template->renderBody($vars),
+                $template->renderText($vars),
+            ));
 
             $lead->increment('notified_count');
             $lead->update(['last_notified_at' => now()]);

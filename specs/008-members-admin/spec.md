@@ -211,6 +211,7 @@ UI 改版（2026-07-12 回饋：詳情 modal 開關小題大作）：
 
 ## 進度日誌
 
+- 2026-08-03: 批次寄信的 Markdown 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，管理員在 modal 裡按一次 Enter 沒有效果、得按兩次。現在單次換行即 `<br>`，空一行仍是新段落；`BatchEmailMail` 其餘行為與版型不變。
 - 2026-07-12: US9 指派 UI 依回饋改版 — 移除詳情 modal 開關，改為工具列「銷售顧問」按鈕開專屬管理視窗（現任列表＋移除、搜尋＋指派，salesConsultants endpoint admin-only、結果排除已指派者上限 8 筆）；全套 109 passed
 
 - 2026-07-12: /dev 完成 US9 指派銷售顧問 — ToggleSalesConsultantRequest + updateSalesConsultant（isManageableMember 守門、單欄位寫入）、詳情 modal 開關（僅 role=member）、列表「銷售顧問」badge；測試併入 SalesConsultantTest

@@ -7,6 +7,7 @@ use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Services\EmailMarkdownService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,7 +16,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
-use League\CommonMark\CommonMarkConverter;
 
 class SendDripEmailJob implements ShouldQueue
 {
@@ -69,10 +69,10 @@ class SendDripEmailJob implements ShouldQueue
         $unsubscribeUrl = config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}";
 
         $hasVideo = (bool) $lesson->has_video;
-        $converter = new CommonMarkConverter();
         $rawMd = str_replace('{{classroom_url}}', $classroomUrl, $lesson->md_content ?: '');
+        // Single Enter is a real line break here too (011 FR-021).
         $htmlContent = $rawMd
-            ? $this->stripStylesForEmail($converter->convert($rawMd)->getContent())
+            ? $this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd))
             : '';
 
         // Generate open-tracking pixel URL (signed, 180-day expiry)
