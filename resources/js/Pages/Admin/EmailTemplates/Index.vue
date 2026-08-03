@@ -1,15 +1,29 @@
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 
 defineOptions({ layout: AdminLayout })
 
-defineProps({
+const props = defineProps({
   templates: {
     type: Array,
     required: true,
   },
+  notifyCc: {
+    type: String,
+    default: '',
+  },
+  notifyCcDefault: {
+    type: String,
+    default: '',
+  },
 })
+
+const notifyCcForm = useForm({ notify_cc: props.notifyCc })
+
+const saveNotifyCc = () => {
+  notifyCcForm.put('/admin/email-templates/notify-cc', { preserveScroll: true })
+}
 
 const eventTypeLabels = {
   high_ticket_booking_confirmation: '客製服務預約確認',
@@ -26,6 +40,33 @@ const eventTypeLabels = {
           <h1 class="text-2xl font-bold text-gray-900">Email 模板管理</h1>
           <p class="mt-1 text-sm text-gray-500">管理系統自動寄送的 Email 模板內容</p>
         </div>
+      </div>
+
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5 mb-6">
+        <h2 class="text-sm font-semibold text-gray-900">預約通知收件者（CC）</h2>
+        <p class="mt-1 text-sm text-gray-500">
+          高價課預約確認信會同時副本給這些信箱。多筆用逗號分隔，留空則使用預設值
+          <span class="font-mono text-gray-600">{{ notifyCcDefault }}</span>。
+        </p>
+        <div class="mt-3 flex flex-col sm:flex-row gap-3">
+          <input
+            v-model="notifyCcForm.notify_cc"
+            type="text"
+            :placeholder="notifyCcDefault"
+            class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+            :class="{ 'border-red-300': notifyCcForm.errors.notify_cc }"
+            @keyup.enter="saveNotifyCc"
+          />
+          <button
+            type="button"
+            :disabled="notifyCcForm.processing"
+            class="shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-teal hover:bg-brand-navy transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="saveNotifyCc"
+          >
+            {{ notifyCcForm.processing ? '儲存中...' : '儲存' }}
+          </button>
+        </div>
+        <p v-if="notifyCcForm.errors.notify_cc" class="mt-2 text-sm text-red-600">{{ notifyCcForm.errors.notify_cc }}</p>
       </div>
 
       <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">

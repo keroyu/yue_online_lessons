@@ -520,9 +520,11 @@ main_files:
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/HighTicketBookingMail.php
+- app/Mail/LeadConvertedMail.php
 - app/Models/EmailTemplate.php
 - app/Models/HighTicketLead.php
 - app/Models/Purchase.php
+- app/Models/SiteSetting.php
 - app/Services/DripService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/HighTicketLeadService.php
@@ -535,6 +537,7 @@ main_files:
 - resources/js/Pages/Course/Show.vue
 - resources/views/emails/high-ticket-booking.blade.php
 - routes/web.php
+- tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 

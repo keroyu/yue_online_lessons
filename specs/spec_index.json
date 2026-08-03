@@ -2779,7 +2779,7 @@
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",
-      "summary": "預約成功後寄出 DB 模板驅動的確認信（變數替換 + CommonMark），並建立 high_ticket_leads 記錄；寄信失敗與 Lead 儲存解耦；寄信失敗以 mail_sent 誠實回報前台",
+      "summary": "預約成功後先寫入 Lead 再寄出 DB 模板驅動的確認信（變數替換 + CommonMark）；同 email + 同課程去重更新既有 lead；寄信失敗以 mail_sent 誠實回報前台，CC 收件者由後台設定",
       "heading": "### User Story 2 - 預約確認信與 Lead 記錄 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-2---預約確認信與-lead-記錄-priority-p1",
@@ -2799,7 +2799,11 @@
         "課程資訊隱藏",
         "免費試閱",
         "mail_sent",
-        "寄信失敗"
+        "寄信失敗",
+        "去重",
+        "dedup",
+        "notify cc",
+        "site_settings"
       ],
       "code_files": [
         "app/Http/Controllers/HighTicketBookingController.php",
@@ -2810,7 +2814,9 @@
         "app/Models/EmailTemplate.php",
         "database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php",
         "resources/js/Pages/Course/Show.vue",
-        "tests/Feature/HighTicket/BookingMailFailureTest.php"
+        "tests/Feature/HighTicket/BookingMailFailureTest.php",
+        "tests/Feature/HighTicket/BookingLeadRecordTest.php",
+        "app/Models/SiteSetting.php"
       ],
       "status": "implemented"
     },
@@ -2903,15 +2909,16 @@
         "app/Services/DripService.php",
         "app/Models/Purchase.php",
         "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
-        "tests/Feature/HighTicket/LeadConvertTest.php"
+        "tests/Feature/HighTicket/LeadConvertTest.php",
+        "app/Mail/LeadConvertedMail.php"
       ],
-      "status": "implemented"
+      "status": "planned"
     },
     {
       "id": "011.us-6",
       "module": "011-high-ticket",
       "title": "Email 模板系統後台管理",
-      "summary": "後台統一編輯 4 種系統 Email 模板：Markdown 編輯器 + 變數插入 + 預覽，seeder 初始化，跨模組事件讀取",
+      "summary": "後台統一編輯系統 Email 模板：Markdown 編輯器 + 變數插入 + 預覽，seeder 初始化，跨模組事件讀取；列表頁另可設定預約通知 CC 收件者",
       "heading": "### User Story 6 - Email 模板系統後台管理 (Priority: P2)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-6---email-模板系統後台管理-priority-p2",
@@ -2935,9 +2942,12 @@
         "database/seeders/EmailTemplateSeeder.php",
         "database/migrations/2026_04_09_000002_create_email_templates_table.php",
         "resources/js/Pages/Admin/EmailTemplates/Index.vue",
-        "resources/js/Pages/Admin/EmailTemplates/Edit.vue"
+        "resources/js/Pages/Admin/EmailTemplates/Edit.vue",
+        "app/Mail/LeadConvertedMail.php",
+        "routes/web.php",
+        "app/Services/HighTicketBookingService.php"
       ],
-      "status": "implemented"
+      "status": "planned"
     },
     {
       "id": "012.us-1",

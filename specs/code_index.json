@@ -425,6 +425,10 @@
     "app/Mail/HighTicketBookingMail.php": [
       "011.us-2"
     ],
+    "app/Mail/LeadConvertedMail.php": [
+      "011.us-5",
+      "011.us-6"
+    ],
     "app/Mail/LessonAddedNotification.php": [
       "004.us-2",
       "004.us-6"
@@ -551,7 +555,8 @@
     ],
     "app/Models/SiteSetting.php": [
       "000.us-5",
-      "007.us-4"
+      "007.us-4",
+      "011.us-2"
     ],
     "app/Models/SocialLink.php": [
       "002.us-4"
@@ -632,7 +637,8 @@
       "000.us-7",
       "010.us-13",
       "011.us-1",
-      "011.us-2"
+      "011.us-2",
+      "011.us-6"
     ],
     "app/Services/HighTicketLeadService.php": [
       "010.us-13",
@@ -1347,6 +1353,7 @@
       "002.us-9",
       "006.us-1",
       "011.us-1",
+      "011.us-6",
       "012.us-2"
     ],
     "tests/Feature/Admin/CourseCreateFieldsTest.php": [
@@ -1376,6 +1383,9 @@
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"
+    ],
+    "tests/Feature/HighTicket/BookingLeadRecordTest.php": [
+      "011.us-2"
     ],
     "tests/Feature/HighTicket/BookingMailFailureTest.php": [
       "011.us-1",
