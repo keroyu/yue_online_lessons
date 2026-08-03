@@ -46,7 +46,8 @@
       "004.us-2",
       "006.us-5",
       "010.us-11",
-      "010.us-13"
+      "010.us-13",
+      "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "004.us-4"
@@ -60,7 +61,8 @@
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
       "011.us-3",
       "011.us-4",
-      "011.us-5"
+      "011.us-5",
+      "011.us-8"
     ],
     "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php": [
       "002.us-6"
@@ -427,14 +429,6 @@
       "010.us-3",
       "010.us-6"
     ],
-    "app/Mail/HighTicketBookingMail.php": [
-      "011.us-2",
-      "011.us-7"
-    ],
-    "app/Mail/LeadConvertedMail.php": [
-      "011.us-5",
-      "011.us-6"
-    ],
     "app/Mail/LessonAddedNotification.php": [
       "004.us-2",
       "004.us-6",
@@ -445,6 +439,12 @@
     ],
     "app/Mail/NewsletterWelcomeMail.php": [
       "012.us-4"
+    ],
+    "app/Mail/TemplatedMail.php": [
+      "011.us-2",
+      "011.us-5",
+      "011.us-6",
+      "011.us-7"
     ],
     "app/Mail/VerificationCodeMail.php": [
       "001.us-1",
@@ -639,7 +639,8 @@
       "010.us-4",
       "010.us-5",
       "010.us-7",
-      "011.us-5"
+      "011.us-5",
+      "011.us-8"
     ],
     "app/Services/EmailMarkdownService.php": [
       "011.us-7"
@@ -945,6 +946,15 @@
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "004.us-4"
     ],
+    "resources/js/Components/Admin/Leads/BookingListTab.vue": [
+      "011.us-8"
+    ],
+    "resources/js/Components/Admin/Leads/SubscriberListTab.vue": [
+      "010.us-11",
+      "010.us-12",
+      "010.us-13",
+      "011.us-8"
+    ],
     "resources/js/Components/Admin/LessonForm.vue": [
       "003.us-9",
       "004.us-3",
@@ -1150,7 +1160,8 @@
       "004.us-2"
     ],
     "resources/js/Pages/Admin/Courses/Edit.vue": [
-      "004.us-1"
+      "004.us-1",
+      "011.us-8"
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
       "004.us-4"
@@ -1158,11 +1169,6 @@
     "resources/js/Pages/Admin/Courses/Index.vue": [
       "004.us-1",
       "004.us-2"
-    ],
-    "resources/js/Pages/Admin/Courses/Subscribers.vue": [
-      "010.us-11",
-      "010.us-12",
-      "010.us-13"
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-13",
@@ -1181,7 +1187,8 @@
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
       "011.us-3",
       "011.us-4",
-      "011.us-5"
+      "011.us-5",
+      "011.us-8"
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
       "002.us-3",
@@ -1373,6 +1380,7 @@
       "006.us-1",
       "011.us-1",
       "011.us-6",
+      "011.us-8",
       "012.us-2"
     ],
     "tests/Feature/Admin/CourseCreateFieldsTest.php": [
@@ -1415,6 +1423,9 @@
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"
+    ],
+    "tests/Feature/HighTicket/LeadsTabsTest.php": [
+      "011.us-8"
     ],
     "tests/Feature/Member/UserSocialLinkTest.php": [
       "001.us-3"

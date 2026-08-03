@@ -124,7 +124,7 @@ class BookingLeadRecordTest extends TestCase
             ['name' => 'Booker', 'email' => 'booker@example.com']
         );
 
-        Mail::assertSent(\App\Mail\HighTicketBookingMail::class, function ($mail) {
+        Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             return $mail->hasCc('sales@example.com')
                 && $mail->hasCc('boss@example.com')
                 && !$mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]);
@@ -142,7 +142,7 @@ class BookingLeadRecordTest extends TestCase
             ['name' => 'Booker', 'email' => 'booker@example.com']
         );
 
-        Mail::assertSent(\App\Mail\HighTicketBookingMail::class, fn ($mail) => $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
+        Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
     }
 
     public function test_admin_can_save_the_cc_list_and_bad_emails_are_rejected(): void

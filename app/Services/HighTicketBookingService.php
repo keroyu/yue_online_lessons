@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Mail\HighTicketBookingMail;
+use App\Mail\TemplatedMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
@@ -57,7 +57,7 @@ class HighTicketBookingService
         try {
             Mail::to($data['email'])
                 ->cc($this->notifyCc())
-                ->send(new HighTicketBookingMail(
+                ->send(new TemplatedMail(
                     $subject,
                     $template->renderBody($vars),
                     $template->renderText($vars),

@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\User;
+use App\Services\DripService;
 use App\Services\HighTicketLeadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,13 +19,73 @@ use Inertia\Response;
 
 class HighTicketLeadController extends Controller
 {
-    public function __construct(private HighTicketLeadService $leadService) {}
+    private const PURCHASE_TYPE_LABELS = [
+        'paid'            => '線上付款',
+        'gift'            => '贈送',
+        'system_assigned' => '系統開通',
+        'lead_conversion' => '顧問轉換',
+    ];
 
+    /** Tabs of the leads admin page (US8). Anything else falls back to booking. */
+    private const TABS = ['booking', 'subscribers'];
+
+    public function __construct(
+        private HighTicketLeadService $leadService,
+        private DripService $dripService,
+    ) {}
+
+    /**
+     * Hosts both lists behind ?tab=: the booking leads (default) and the drip
+     * subscribers of one selected drip course. Only the active tab's data is
+     * assembled — the subscriber side runs per-lesson aggregates that should
+     * not be paid for on every visit to the leads page (FR-022 / D24).
+     */
     public function index(Request $request): Response
     {
-        $status   = $request->query('status');
-        $search   = $request->query('search');
-        $courseId = $request->query('course_id');
+        $tab = $request->query('tab');
+        $tab = in_array($tab, self::TABS, true) ? $tab : 'booking';
+
+        $status    = $request->query('status');
+        $search    = $request->query('search');
+        $courseId  = $request->query('course_id');
+        $subCourse = $request->query('sub_course');
+        $subStatus = $request->query('sub_status');
+
+        $filters = [
+            'status'     => $status,
+            'search'     => $search,
+            'course_id'  => $courseId,
+            'sub_course' => $subCourse ? (int) $subCourse : null,
+            'sub_status' => $subStatus,
+        ];
+
+        $dripCourses = Course::drip()
+            ->select('id', 'name')
+            ->ordered()
+            ->get();
+
+        if ($tab === 'subscribers') {
+            // Only ever read subscribers of a course that is actually drip —
+            // an arbitrary sub_course must not expose other courses' data (FR-023).
+            $selected = $dripCourses->firstWhere('id', $filters['sub_course']) ?? $dripCourses->first();
+
+            $subscriberData = $selected
+                ? $this->dripService->subscriberPageData(
+                    Course::findOrFail($selected->id),
+                    $subStatus,
+                )
+                : null;
+
+            $filters['sub_course'] = $selected?->id;
+
+            return Inertia::render('Admin/HighTicketLeads/Index', [
+                'tab'               => $tab,
+                'filters'           => $filters,
+                'dripCourseOptions' => $dripCourses,
+                'subscriberData'    => $subscriberData,
+                'leads'             => null,
+            ]);
+        }
 
         $leads = HighTicketLead::with('course:id,name')
             ->when($status, fn ($q) => $q->byStatus($status))
@@ -42,11 +103,6 @@ class HighTicketLeadController extends Controller
             ->orderBy('name')
             ->get();
 
-        $dripCourses = Course::where('course_type', 'drip')
-            ->select('id', 'name')
-            ->ordered()
-            ->get();
-
         $notifyTemplate = EmailTemplate::forEvent('high_ticket_slot_available')
             ->first(['id', 'subject', 'body_md'])
             ?->toArray();
@@ -61,6 +117,19 @@ class HighTicketLeadController extends Controller
                 'status'      => $s->status,
             ])->values());
 
+        // Feeds the convert modal's "already owns this" warning (D16) — same
+        // single-query, compare-in-the-browser shape as dripByEmail above.
+        $purchasesByEmail = User::whereIn('email', $emails)
+            ->with(['purchases:id,user_id,course_id,type,amount,status'])
+            ->get(['id', 'email'])
+            ->keyBy('email')
+            ->map(fn ($u) => $u->purchases->map(fn ($p) => [
+                'course_id' => $p->course_id,
+                'type'      => $p->type,
+                'amount'    => (int) $p->amount,
+                'status'    => $p->status,
+            ])->values());
+
         // display_price feeds the convert modal's default deal amount (FR-011).
         $grantableCourses = Course::select('id', 'name', 'price', 'original_price', 'promo_ends_at')
             ->orderBy('name')
@@ -73,13 +142,17 @@ class HighTicketLeadController extends Controller
             ->values();
 
         return Inertia::render('Admin/HighTicketLeads/Index', [
+            'tab'               => $tab,
             'leads'             => $leads,
-            'filters'           => ['status' => $status, 'search' => $search, 'course_id' => $courseId],
+            'filters'           => $filters,
             'highTicketCourses' => $highTicketCourses,
             'dripCourses'       => $dripCourses,
             'notifyTemplate'    => $notifyTemplate,
             'dripByEmail'       => $dripByEmail,
+            'purchasesByEmail'  => $purchasesByEmail,
             'grantableCourses'  => $grantableCourses,
+            'dripCourseOptions' => $dripCourses,
+            'subscriberData'    => null,
         ]);
     }
 
@@ -170,9 +243,28 @@ class HighTicketLeadController extends Controller
         $validated = $request->validate([
             'course_id' => ['required', 'integer', 'exists:courses,id'],
             'amount'    => ['required', 'integer', 'min:0'],
+            'force'     => ['sometimes', 'boolean'],
         ]);
 
-        $result = $this->leadService->convertLead($lead, $validated['course_id'], $validated['amount']);
+        $result = $this->leadService->convertLead(
+            $lead,
+            $validated['course_id'],
+            $validated['amount'],
+            (bool) ($validated['force'] ?? false),
+        );
+
+        // 409: the buyer already owns this course through another channel, and
+        // overwriting would rewrite both the transaction type and its amount
+        // with no way back (FR-015).
+        if (isset($result['conflict'])) {
+            $conflict = $result['conflict'];
+            $label = self::PURCHASE_TYPE_LABELS[$conflict['type']] ?? $conflict['type'];
+
+            return response()->json([
+                'error'    => "此會員已有本課程的購買紀錄（{$label}，NT$ " . number_format($conflict['amount']) . '），開通會覆寫該筆紀錄的類型與金額。確認要覆寫請勾選下方確認框。',
+                'conflict' => $conflict,
+            ], 409);
+        }
 
         return response()->json($result);
     }

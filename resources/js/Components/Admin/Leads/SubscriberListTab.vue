@@ -1,0 +1,302 @@
+<script setup>
+import { router } from '@inertiajs/vue3'
+import { ref, computed, watch } from 'vue'
+
+const props = defineProps({
+  // null when there is no drip course at all — the tab then renders empty state.
+  data: {
+    type: Object,
+    default: null,
+  },
+  courseOptions: {
+    type: Array,
+    default: () => [],
+  },
+  filters: {
+    type: Object,
+    required: true,
+  },
+})
+
+const courseId = ref(props.filters.sub_course || '')
+const statusFilter = ref(props.filters.sub_status || '')
+
+// Server resolves an invalid sub_course to the first drip course; mirror that
+// back into the select so the dropdown never shows a course we are not listing.
+watch(() => props.filters.sub_course, (v) => { courseId.value = v || '' })
+watch(() => props.filters.sub_status, (v) => { statusFilter.value = v || '' })
+
+const reload = () => {
+  router.get('/admin/high-ticket-leads', {
+    tab: 'subscribers',
+    sub_course: courseId.value || undefined,
+    sub_status: statusFilter.value || undefined,
+  }, { preserveState: true, replace: true })
+}
+
+const changeCourse = () => {
+  // A different course means a different page of results.
+  statusFilter.value = ''
+  reload()
+}
+
+const clearFilter = () => {
+  statusFilter.value = ''
+  reload()
+}
+
+const goToPage = (page) => {
+  router.get('/admin/high-ticket-leads', {
+    tab: 'subscribers',
+    sub_course: courseId.value || undefined,
+    sub_status: statusFilter.value || undefined,
+    page,
+  }, { preserveState: true })
+}
+
+const course = computed(() => props.data?.course ?? null)
+const subscribers = computed(() => props.data?.subscribers ?? { data: [], last_page: 1 })
+const stats = computed(() => props.data?.stats ?? {})
+const lessonStats = computed(() => props.data?.lessonStats ?? [])
+
+const statusLabels = {
+  active: '發信中',
+  booked: '已預約',
+  converted: '已轉換',
+  completed: '已完成',
+  unsubscribed: '已退訂',
+}
+
+const statusClasses = {
+  active: 'bg-green-100 text-green-800',
+  booked: 'bg-amber-100 text-amber-800',
+  converted: 'bg-blue-100 text-blue-800',
+  completed: 'bg-gray-100 text-gray-800',
+  unsubscribed: 'bg-red-100 text-red-800',
+}
+
+const formatRate = (rate) => {
+  if (rate === null || rate === undefined) return '—'
+  return (rate * 100).toFixed(1) + '%'
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleDateString('zh-TW')
+}
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleString('zh-TW')
+}
+</script>
+
+<template>
+  <div>
+    <!-- No drip course exists at all -->
+    <div v-if="!data" class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+      <p class="text-sm text-gray-500">尚未建立任何連鎖 Email 課程</p>
+      <p class="mt-1 text-xs text-gray-400">在課程管理把課程類型設為「連鎖 Email」後，訂閱者就會出現在這裡。</p>
+    </div>
+
+    <template v-else>
+      <!-- Course selector -->
+      <div class="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">連鎖 Email 課程</label>
+        <select
+          v-model="courseId"
+          @change="changeCourse"
+          class="block w-full sm:w-72 rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm cursor-pointer"
+        >
+          <option v-for="c in courseOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+        <span class="text-sm text-gray-500">共 {{ course.total_lessons }} 個小節</span>
+      </div>
+
+      <!-- Email Timing Notice -->
+      <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <span class="font-medium">序列信發送時間：</span>
+        第一封在訂閱後立即發出；第二封起每天台北時間 17:00 自動判斷並發送。
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-gray-500">全部</p>
+          <p class="text-2xl font-semibold text-gray-900">{{ stats.total }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-green-600">發信中</p>
+          <p class="text-2xl font-semibold text-green-700">{{ stats.active }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-amber-600">已預約</p>
+          <p class="text-2xl font-semibold text-amber-700">{{ stats.booked }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-blue-600">已轉換</p>
+          <p class="text-2xl font-semibold text-blue-700">{{ stats.converted }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-gray-500">已完成</p>
+          <p class="text-2xl font-semibold text-gray-700">{{ stats.completed }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-red-600">已退訂</p>
+          <p class="text-2xl font-semibold text-red-700">{{ stats.unsubscribed }}</p>
+        </div>
+      </div>
+
+      <!-- Lesson Stats Table -->
+      <div v-if="lessonStats.length" class="mb-6 bg-white rounded-lg shadow-sm overflow-x-auto">
+        <div class="px-4 py-3 border-b border-gray-200">
+          <h2 class="text-sm font-semibold text-gray-900">Lesson 發信統計</h2>
+          <p v-if="data.conversionRate !== null || data.bookingRate !== null" class="text-xs text-gray-500 mt-0.5">
+            <span v-if="data.bookingRate !== null">
+              預約率：<span class="font-medium text-amber-700">{{ formatRate(data.bookingRate) }}</span>
+            </span>
+            <span v-if="data.bookingRate !== null && data.conversionRate !== null" class="mx-1.5 text-gray-300">·</span>
+            <span v-if="data.conversionRate !== null">
+              轉換率：<span class="font-medium text-blue-700">{{ formatRate(data.conversionRate) }}</span>
+            </span>
+          </p>
+        </div>
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <tr>
+              <th class="px-4 py-2 text-left font-semibold text-gray-600">課程</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">已發送</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">最近發信</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">開信</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">開信率</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">點擊</th>
+              <th class="px-4 py-2 text-right font-semibold text-gray-600">點擊率</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="ls in lessonStats" :key="ls.lesson_id" class="hover:bg-gray-50">
+              <td class="px-4 py-2 text-gray-900">{{ ls.title }}</td>
+              <td class="px-4 py-2 text-right text-gray-600">{{ ls.sent_count || '—' }}</td>
+              <td class="px-4 py-2 text-right text-gray-600 whitespace-nowrap">{{ ls.last_sent_at ? formatDateTime(ls.last_sent_at) : '—' }}</td>
+              <td class="px-4 py-2 text-right text-gray-600">{{ ls.open_count }}</td>
+              <td class="px-4 py-2 text-right text-gray-600">{{ formatRate(ls.open_rate) }}</td>
+              <td class="px-4 py-2 text-right text-gray-600">
+                {{ ls.has_promo_url ? ls.click_count : '—' }}
+              </td>
+              <td class="px-4 py-2 text-right text-gray-600">{{ formatRate(ls.click_rate) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Filter -->
+      <div class="mb-4 flex items-center gap-3">
+        <select
+          v-model="statusFilter"
+          @change="reload"
+          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm cursor-pointer"
+        >
+          <option value="">所有狀態</option>
+          <option value="active">發信中</option>
+          <option value="booked">已預約</option>
+          <option value="converted">已轉換</option>
+          <option value="completed">已完成</option>
+          <option value="unsubscribed">已退訂</option>
+        </select>
+        <button
+          v-if="statusFilter"
+          @click="clearFilter"
+          class="text-gray-400 hover:text-gray-600 cursor-pointer"
+          title="清除篩選"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100">
+          <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <tr>
+              <th scope="col" class="px-4 py-3 text-left">Email</th>
+              <th scope="col" class="hidden sm:table-cell px-4 py-3 text-left">暱稱</th>
+              <th scope="col" class="px-4 py-3 text-left">狀態</th>
+              <th scope="col" class="hidden md:table-cell px-4 py-3 text-left">進度</th>
+              <th scope="col" class="hidden md:table-cell px-4 py-3 text-left">開信數</th>
+              <th scope="col" class="hidden md:table-cell px-3 py-3.5 text-center text-sm font-semibold text-gray-900">點擊</th>
+              <th scope="col" class="hidden lg:table-cell px-4 py-3 text-left">訂閱時間</th>
+              <th scope="col" class="hidden lg:table-cell px-4 py-3 text-left">狀態變更</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white">
+            <tr v-for="sub in subscribers.data" :key="sub.id">
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
+                {{ sub.user?.email || '-' }}
+              </td>
+              <td class="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {{ sub.user?.nickname || '-' }}
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm">
+                <span
+                  class="inline-flex rounded-full px-2 py-1 text-xs font-semibold"
+                  :class="statusClasses[sub.status] || 'bg-gray-100 text-gray-800'"
+                >
+                  {{ statusLabels[sub.status] || sub.status }}
+                </span>
+              </td>
+              <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {{ sub.emails_sent }} / {{ course.total_lessons }}
+              </td>
+              <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                已開 {{ sub.opened_count }}/{{ sub.emails_sent }} 封
+              </td>
+              <td class="hidden md:table-cell whitespace-nowrap px-3 py-4 text-sm text-center">
+                <span v-if="sub.has_clicked" class="text-green-600 font-medium">✓</span>
+                <span v-else class="text-gray-300">—</span>
+              </td>
+              <td class="hidden lg:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {{ formatDate(sub.subscribed_at) }}
+              </td>
+              <td class="hidden lg:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {{ formatDateTime(sub.status_changed_at) }}
+              </td>
+            </tr>
+            <tr v-if="subscribers.data?.length === 0">
+              <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                {{ statusFilter ? '沒有符合條件的訂閱者' : '尚無訂閱者' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="subscribers.last_page > 1" class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-gray-700">
+          顯示第 {{ (subscribers.current_page - 1) * subscribers.per_page + 1 }} - {{ Math.min(subscribers.current_page * subscribers.per_page, subscribers.total) }} 筆，共 {{ subscribers.total }} 筆
+        </div>
+        <nav class="flex items-center space-x-2">
+          <button
+            @click="goToPage(subscribers.current_page - 1)"
+            :disabled="subscribers.current_page === 1"
+            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            上一頁
+          </button>
+          <span class="text-sm text-gray-700">
+            {{ subscribers.current_page }} / {{ subscribers.last_page }}
+          </span>
+          <button
+            @click="goToPage(subscribers.current_page + 1)"
+            :disabled="subscribers.current_page === subscribers.last_page"
+            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            下一頁
+          </button>
+        </nav>
+      </div>
+    </template>
+  </div>
+</template>

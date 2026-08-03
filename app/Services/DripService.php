@@ -362,6 +362,77 @@ class DripService
     }
 
     /**
+     * Assemble everything the admin subscriber list needs for one drip course:
+     * the paginated rows (with per-row event metrics), the unfiltered status
+     * summary, and the per-lesson send/open/click analytics.
+     *
+     * Lives here rather than in a controller because every piece of it is drip
+     * domain logic; the leads admin page (011 US8) is only the host.
+     *
+     * @param  string|null  $status  filters the rows only — the summary always covers the whole course
+     * @return array{course: array, subscribers: mixed, stats: array, lessonStats: mixed, conversionRate: ?float, bookingRate: ?float}
+     */
+    public function subscriberPageData(Course $course, ?string $status = null, string $pageName = 'page'): array
+    {
+        $query = DripSubscription::where('course_id', $course->id)
+            ->with('user:id,email,nickname');
+
+        if ($status && in_array($status, ['active', 'booked', 'converted', 'completed', 'unsubscribed'], true)) {
+            $query->where('status', $status);
+        }
+
+        $subscribers = $query->orderByDesc('subscribed_at')
+            ->paginate(20, ['*'], $pageName)
+            ->withQueryString();
+
+        // Status summary aggregation
+        $statusStats = DripSubscription::where('course_id', $course->id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked_count,
+                SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_count,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
+            ")
+            ->first();
+
+        // Per-lesson analytics (opened/clicked counts)
+        $analyticsData = $this->getSubscriberStats($course);
+
+        // Per-subscriber event metrics (open count + has_clicked)
+        $eventCounts = $this->getSubscriberEventCounts($subscribers->pluck('id'));
+
+        $subscribers->getCollection()->transform(function ($sub) use ($eventCounts) {
+            $events = $eventCounts->get($sub->id);
+            $sub->opened_count = (int) ($events?->opened_count ?? 0);
+            $sub->has_clicked = (bool) ($events?->has_clicked ?? false);
+
+            return $sub;
+        });
+
+        return [
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'total_lessons' => $course->lessons()->count(),
+            ],
+            'subscribers' => $subscribers,
+            'stats' => [
+                'total' => (int) $statusStats->total,
+                'active' => (int) $statusStats->active_count,
+                'booked' => (int) $statusStats->booked_count,
+                'converted' => (int) $statusStats->converted_count,
+                'completed' => (int) $statusStats->completed_count,
+                'unsubscribed' => (int) $statusStats->unsubscribed_count,
+            ],
+            'lessonStats' => $analyticsData['lesson_stats'],
+            'conversionRate' => $analyticsData['conversion_rate'],
+            'bookingRate' => $analyticsData['booking_rate'],
+        ];
+    }
+
+    /**
      * Get per-subscription open count and has_clicked (bool) for subscriber list rows.
      *
      * @param Collection $subscriptionIds

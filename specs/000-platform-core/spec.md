@@ -180,6 +180,7 @@ touchpoints:
 - [x] `HandleInertiaRequests` 全域共享的 `auth.user` 增加 `is_sales_consultant` 欄位，前端據以判斷
 - [x] 前台 Navigation 帳號選單：`user.role === 'admin' || user.is_sales_consultant` 顯示「管理後台」連結（admin → `/admin`，純銷售顧問 → `/admin/high-ticket-leads`）
 - [x] 銷售顧問直接輸入其他 `/admin/*` 網址（`/admin`、`/admin/members` 等）→ 被內層 `admin` middleware 擋下重導首頁
+- [x] 2026-08-04 起「Leads 名單」頁多了「訂閱者名單」tab（drip 訂閱者的開信/進度），顧問一併看得到 —— 路由層邊界不變（仍是 staff 群組的同一個 endpoint），只是該頁內容變多；理由見 011 D27
 
 ### User Story 7 - Meta CAPI 轉換追蹤強化 (Priority: P1)
 
@@ -324,6 +325,7 @@ Phase 3 — 前台轉址與驗證：
 
 ## 進度日誌
 
+- 2026-08-04: Leads 名單頁併入 drip 訂閱者名單 tab（011 US8），銷售顧問的可視範圍隨之含訂閱者行為資料；路由與 middleware 未動，`/admin/courses/{course}/subscribers` 路由移除。
 - 2026-08-02: 短網址「最後點擊」改以 `Asia/Taipei` 顯示（原本直接 format 吐 UTC，少 8 小時；DB 仍存 UTC）；`bootstrap/app.php` 新增兩條退訂路徑的 CSRF 豁免供 RFC 8058 一鍵退訂使用。ShortLinkTest 加時區斷言。
 - 2026-07-31: /dev 完成 US8 短網址轉址管理 — `short_links` 表、`ShortLink` model（slug 小寫正規化、`recordClick()` 原子計數、`isReservedSlug()` 掃 route collection）、後台 `/admin/short-links` 單頁 inline CRUD（複製網址、啟停 toggle、點擊數）、side nav 入口、catch-all `/{slug}` 302 + no-store 轉址、`ShortLinkSeeder` 種 `/1v1`。TDD：ShortLinkTest 15 tests（含既有路由不被吃掉的回歸），全套 184 passed、vite build 綠。**部署後正式站要跑 `php artisan db:seed --class=ShortLinkSeeder` 或直接在後台新增 /1v1**。
 - 2026-07-31: [draft] 規劃 US 8 短網址轉址管理 — `short_links` 表 + 後台單頁 CRUD + catch-all `/{slug}` 302 轉址（D14~D20：乾淨短路徑、動態保留字檢查、302 no-store、同表點擊計數）。首用途：`/1v1` → 1對1 諮詢的 Google Calendar 預約頁，日後交接員工只改後台。

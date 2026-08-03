@@ -81,7 +81,7 @@ class BookingMailFailureTest extends TestCase
 
         app(HighTicketBookingService::class)->book($this->makeHighTicketCourse(), $this->bookingData());
 
-        Mail::assertSent(\App\Mail\HighTicketBookingMail::class, function ($mail) {
+        Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             // The customer-service address is not a lead recipient
             return $mail->hasTo('booker@example.com')
                 && $mail->hasCc('themustbig+leads@gmail.com')

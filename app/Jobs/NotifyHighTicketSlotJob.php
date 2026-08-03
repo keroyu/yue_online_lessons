@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Mail\HighTicketBookingMail;
+use App\Mail\TemplatedMail;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use Illuminate\Bus\Queueable;
@@ -47,7 +47,7 @@ class NotifyHighTicketSlotJob implements ShouldQueue
         $subject = $template->renderSubject($vars);
 
         try {
-            Mail::to($lead->email)->send(new HighTicketBookingMail(
+            Mail::to($lead->email)->send(new TemplatedMail(
                 $subject,
                 $template->renderBody($vars),
                 $template->renderText($vars),

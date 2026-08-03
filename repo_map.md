@@ -486,11 +486,11 @@ main_files:
 - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
 - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
 - resources/js/Components/Admin/CourseForm.vue
+- resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
 - resources/js/Components/Classroom/VideoAccessNotice.vue
 - resources/js/Components/Course/DripSubscribeForm.vue
-- resources/js/Pages/Admin/Courses/Subscribers.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
@@ -511,6 +511,7 @@ purpose: 高價課預約 — 隱藏價格銷售頁預約表單、leads 後台、
 specs: specs/011-high-ticket/
 
 main_files:
+- app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/EmailTemplateController.php
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/CourseController.php
@@ -521,9 +522,8 @@ main_files:
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/CourseGiftedMail.php
-- app/Mail/HighTicketBookingMail.php
-- app/Mail/LeadConvertedMail.php
 - app/Mail/LessonAddedNotification.php
+- app/Mail/TemplatedMail.php
 - app/Models/EmailTemplate.php
 - app/Models/HighTicketLead.php
 - app/Models/Purchase.php
@@ -536,6 +536,9 @@ main_files:
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
 - database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
 - database/seeders/EmailTemplateSeeder.php
+- resources/js/Components/Admin/Leads/BookingListTab.vue
+- resources/js/Components/Admin/Leads/SubscriberListTab.vue
+- resources/js/Pages/Admin/Courses/Edit.vue
 - resources/js/Pages/Admin/EmailTemplates/Edit.vue
 - resources/js/Pages/Admin/EmailTemplates/Index.vue
 - resources/js/Pages/Admin/HighTicketLeads/Index.vue
@@ -547,6 +550,7 @@ main_files:
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
+- tests/Feature/HighTicket/LeadsTabsTest.php
 
 related_specs:
 - specs/011-high-ticket/spec.md

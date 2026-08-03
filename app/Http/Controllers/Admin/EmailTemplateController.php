@@ -30,6 +30,13 @@ class EmailTemplateController extends Controller
             ['key' => '{{lesson_title}}', 'label' => '小節標題'],
             ['key' => '{{classroom_url}}', 'label' => '教室連結'],
         ],
+        'lead_converted' => [
+            ['key' => '{{user_name}}', 'label' => '客戶姓名'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{amount}}', 'label' => '成交金額（含千分位，不含幣別）'],
+            ['key' => '{{classroom_url}}', 'label' => '教室連結'],
+            ['key' => '{{app_url}}', 'label' => '網站網址'],
+        ],
     ];
 
     public function index(): Response

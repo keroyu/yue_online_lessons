@@ -8,7 +8,12 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class HighTicketBookingMail extends Mailable
+/**
+ * Carrier for every `email_templates`-driven mail — booking confirmation, slot
+ * notification, lead conversion. It knows nothing about any of them: the caller
+ * looks the template up and hands over finished strings.
+ */
+class TemplatedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

@@ -147,7 +147,7 @@ class EmailTemplateHtmlModeTest extends TestCase
             ['name' => 'Booker', 'email' => 'booker@example.com']
         );
 
-        Mail::assertSent(\App\Mail\HighTicketBookingMail::class, function ($mail) {
+        Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             return $mail->htmlBody === '<div style="color:#ff1f1f">請看完影片</div>'
                 && str_contains($mail->textBody, '請看完影片');
         });
@@ -156,7 +156,7 @@ class EmailTemplateHtmlModeTest extends TestCase
     public function test_the_mail_actually_renders_both_an_html_and_a_text_part(): void
     {
         // FR-020 — HTML-only mail is a spam-filter penalty of its own.
-        $mail = new \App\Mail\HighTicketBookingMail('主旨', '<div>圖文版</div>', '純文字版');
+        $mail = new \App\Mail\TemplatedMail('主旨', '<div>圖文版</div>', '純文字版');
 
         $mail->assertSeeInHtml('<div>圖文版</div>', false);
         $mail->assertSeeInText('純文字版');

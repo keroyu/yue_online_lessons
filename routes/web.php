@@ -234,9 +234,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/images/batch', [CourseImageController::class, 'batchDestroy'])->name('images.batch-destroy');
     Route::delete('/images/{image}', [CourseImageController::class, 'destroy'])->name('images.destroy');
 
-    // Drip subscribers
-    Route::get('/courses/{course}/subscribers', [AdminCourseController::class, 'subscribers'])->name('courses.subscribers');
-
     // Traffic source analytics
     Route::get('/courses/{course}/traffic', [AdminCourseController::class, 'traffic'])->name('courses.traffic');
     Route::get('/courses/{course}/traffic/export', [AdminCourseController::class, 'trafficExport'])->name('courses.traffic.export');

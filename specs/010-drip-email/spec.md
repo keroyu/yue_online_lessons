@@ -16,7 +16,7 @@ owner_files:
   - resources/views/emails/drip-lesson.blade.php
   - resources/js/Components/Course/DripSubscribeForm.vue
   - resources/js/Pages/Drip/Unsubscribe.vue
-  - resources/js/Pages/Admin/Courses/Subscribers.vue
+  - resources/js/Components/Admin/Leads/SubscriberListTab.vue
   - database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
   - database/migrations/2026_02_16_000002_create_drip_subscriptions_table.php
   - database/migrations/2026_02_16_000003_create_drip_conversion_targets_table.php
@@ -39,9 +39,9 @@ touchpoints:
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
     why: Lesson 的 promo_delay_seconds / promo_html / promo_url / reward_html / video_access_hours 欄位、CTA 快速插入、{{classroom_url}} 插入按鈕與影片警示、drip 信固定格式（開頭問候 + 結尾退訂）的說明區塊
-  - file: app/Http/Controllers/Admin/CourseController.php
-    owner: 004-course-admin
-    why: subscribers() action — 組裝訂閱者清單、狀態統計（US13 起含 booked_count）、預約率/轉換率與 Lesson 開信/點擊分析（呼叫 DripService）
+  - file: app/Http/Controllers/Admin/HighTicketLeadController.php
+    owner: 011-high-ticket
+    why: 2026-08-04 起訂閱者頁併入 Leads 名單頁的「訂閱者名單」tab（011 US8），由該 controller 的 index() 呼叫 `DripService::subscriberPageData()`；原 `CourseController@subscribers` 已刪除
   - file: app/Http/Controllers/Admin/LessonController.php
     owner: 004-course-admin
     why: drip 課程新增 Lesson 時呼叫 DripService::reactivateCompletedSubscriptions()
@@ -210,7 +210,7 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 
 **驗收**：
 - [x] pixel 為 signed URL（180 天效期），驗簽失敗仍回 1x1 GIF 不報錯；事件以 (subscription, lesson, event_type) DB unique 去重
-- [x] 訂閱者清單：分頁 20 筆、狀態篩選（active/converted/completed/unsubscribed）、狀態統計卡
+- [x] 訂閱者清單：分頁 20 筆、狀態篩選（active/converted/completed/unsubscribed）、狀態統計卡（2026-08-04 起頁面位置改為 Leads 名單頁的「訂閱者名單」tab，課程以頁內下拉選擇；資料組裝為 `DripService::subscriberPageData()`，見 011 US8）
 - [x] Lesson 統計表：已發送數（emails_sent > sort_order 的訂閱數）、開信數/率、點擊數/率；無 promo_url 或分母 0 顯示「—」
 - [x] 整體轉換率 = converted / 總訂閱數（分母 0 顯示「—」）
 - [x] 每位訂閱者行顯示「已開 N/M 封」與是否曾點擊促銷按鈕（✓/—）
@@ -363,6 +363,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-04: 訂閱者後台頁搬家（011 US8 touchpoint）— `Pages/Admin/Courses/Subscribers.vue` 改為 `Components/Admin/Leads/SubscriberListTab.vue`，掛在 Leads 名單頁的第二個 tab，課程改頁內下拉（只列 drip 課）。資料組裝從 `CourseController@subscribers` 下沉為 `DripService::subscriberPageData()`（該 action 與 `/admin/courses/{course}/subscribers` 路由已刪）。顯示內容與統計邏輯不變。
 - 2026-08-03: 序列信的 `md_content` 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，小節內容手動斷行在信裡會黏成一段。現在單次換行即 `<br>`，空一行仍是新段落；`stripStylesForEmail()` 與寄送流程不動。查驗現有 16 篇有 md_content 的小節，3 篇（id 20、46 各多 7 / 2 個換行；id 14 無變化）會多出換行，皆為作者原本就手動斷行的位置。
 - 2026-08-02: 序列信被 Gmail 丟進垃圾郵件 — 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。
 - 2026-08-02: 修正已領取者的提示 — 原本引導「登入後即可繼續觀看」是錯的（交付走 Email，站上看不到），改為醒目提示框：指名信箱、垃圾郵件提醒、換別的 Email 再領；flash `drip_already_claimed` 由布林改為帶該 Email。215→218 全綠。

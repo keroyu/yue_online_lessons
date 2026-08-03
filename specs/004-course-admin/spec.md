@@ -55,10 +55,10 @@ touchpoints:
     why: 課程表單雖可切換 course_type / drip_interval_days / 轉換目標，欄位語意與發信排程歸 drip 模組
   - file: app/Services/DripService.php
     owner: 010-drip-email
-    why: 新增小節時 reactivate 已完成訂閱者；CourseController@subscribers 的統計亦呼叫此 service
-  - file: resources/js/Pages/Admin/Courses/Subscribers.vue
+    why: 新增小節時 reactivate 已完成訂閱者（`CourseController@subscribers` 已於 2026-08-04 刪除，訂閱者統計改由 011 US8 的 Leads 名單頁呼叫 `DripService::subscriberPageData()`）
+  - file: resources/js/Components/Admin/Leads/SubscriberListTab.vue
     owner: 010-drip-email
-    why: drip 訂閱者頁由本模組 CourseController@subscribers 渲染，頁面本身歸 drip 模組
+    why: 歷史接點 —— 2026-08-04 前 drip 訂閱者頁由本模組 `CourseController@subscribers` 渲染；現已移交 011 US8 的 Leads 名單頁，本模組不再涉入（課程編輯頁的「訂閱者」按鈕亦一併移除）
   - file: app/Services/RedemptionService.php
     owner: 007-points-referral
     why: redeem_points 兌換邏輯歸 007；本模組僅擁有表單欄位與 courses.redeem_points 欄位定義
@@ -278,6 +278,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-08-04: 移除 `CourseController@subscribers` 與課程編輯頁的「訂閱者」按鈕（011 US8 touchpoint）— drip 訂閱者名單改由 Leads 名單頁的 tab 承載，本模組不再持有 drip 的資料組裝邏輯。
 - 2026-08-02: `Course::getRouteKey()` 改回傳 slug（無 slug 才用 id），修正全站由模型產生的課程網址；Gallery 頁麵包屑課程名補連結（D15）。
 - 2026-08-02: 課程表單「銷售頁促銷區塊」新增輪換折扣碼插入器、`Admin\CourseController`／`ChapterController` 改注入 `CouponChainService` 取清單、Create/Edit 下傳 `couponChains`；插入 UI 抽成 006 owner 的 `CouponChainInserter.vue`，`LessonForm`／`CourseForm` 共用 — 由 006-coupons 以 touchpoint 身分修改，規則見 006 US5／D9。
 - 2026-08-01: LessonForm 的 Markdown 內容欄新增 drip 專屬說明區塊（信件固定格式：開頭問候、結尾退訂）— 由 010-drip-email 以 touchpoint 身分修改，規則與驗收記在 010 US8。

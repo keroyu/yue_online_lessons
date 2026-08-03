@@ -2416,7 +2416,7 @@
         "app/Services/DripService.php",
         "app/Jobs/SendDripEmailJob.php",
         "app/Http/Controllers/Admin/CourseController.php",
-        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
         "database/migrations/2026_02_28_000001_create_drip_email_events_table.php"
       ],
       "status": "implemented"
@@ -2446,7 +2446,7 @@
         "app/Services/DripService.php",
         "app/Http/Controllers/Member/ClassroomController.php",
         "app/Models/DripEmailEvent.php",
-        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
         "database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php",
         "tests/Feature/Drip/VideoAccessAnchorTest.php"
       ],
@@ -2483,7 +2483,7 @@
         "app/Services/HighTicketLeadService.php",
         "app/Http/Controllers/Admin/MemberController.php",
         "app/Http/Controllers/Admin/CourseController.php",
-        "resources/js/Pages/Admin/Courses/Subscribers.vue",
+        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
         "resources/js/Pages/Course/Show.vue",
         "database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php",
         "tests/Feature/Drip/FunnelStopTest.php"
@@ -2808,7 +2808,7 @@
       "code_files": [
         "app/Http/Controllers/HighTicketBookingController.php",
         "app/Services/HighTicketBookingService.php",
-        "app/Mail/HighTicketBookingMail.php",
+        "app/Mail/TemplatedMail.php",
         "resources/views/emails/high-ticket-booking.blade.php",
         "app/Models/HighTicketLead.php",
         "app/Models/EmailTemplate.php",
@@ -2910,7 +2910,7 @@
         "app/Models/Purchase.php",
         "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
         "tests/Feature/HighTicket/LeadConvertTest.php",
-        "app/Mail/LeadConvertedMail.php"
+        "app/Mail/TemplatedMail.php"
       ],
       "status": "planned"
     },
@@ -2943,7 +2943,7 @@
         "database/migrations/2026_04_09_000002_create_email_templates_table.php",
         "resources/js/Pages/Admin/EmailTemplates/Index.vue",
         "resources/js/Pages/Admin/EmailTemplates/Edit.vue",
-        "app/Mail/LeadConvertedMail.php",
+        "app/Mail/TemplatedMail.php",
         "routes/web.php",
         "app/Services/HighTicketBookingService.php"
       ],
@@ -2984,7 +2984,7 @@
       "code_files": [
         "database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php",
         "app/Models/EmailTemplate.php",
-        "app/Mail/HighTicketBookingMail.php",
+        "app/Mail/TemplatedMail.php",
         "app/Mail/CourseGiftedMail.php",
         "app/Mail/LessonAddedNotification.php",
         "app/Jobs/NotifyHighTicketSlotJob.php",
@@ -2996,6 +2996,44 @@
         "app/Services/EmailMarkdownService.php",
         "app/Mail/BatchEmailMail.php",
         "app/Jobs/SendDripEmailJob.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "011.us-8",
+      "module": "011-high-ticket",
+      "title": "名單管理頁合併預約名單與訂閱者名單",
+      "summary": "後台 /admin/high-ticket-leads 加兩顆 tab（預約名單 / 訂閱者名單），tab 由 ?tab= 決定並只載入該分頁資料；訂閱者名單改以頁內下拉切換 drip 課程，舊的 /admin/courses/{course}/subscribers 入口整組移除",
+      "heading": "### User Story 8 - 名單管理頁合併預約名單與訂閱者名單 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-8---名單管理頁合併預約名單與訂閱者名單-priority-p2",
+      "keywords": [
+        "tab",
+        "分頁切換",
+        "Leads 名單",
+        "預約名單",
+        "訂閱者名單",
+        "subscribers",
+        "drip",
+        "後台資訊架構",
+        "admin",
+        "課程下拉",
+        "sub_course",
+        "sub_status",
+        "銷售顧問",
+        "staff",
+        "subscriberPageData"
+      ],
+      "code_files": [
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "app/Services/DripService.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Pages/Admin/Courses/Edit.vue",
+        "routes/web.php",
+        "tests/Feature/HighTicket/LeadsTabsTest.php"
       ],
       "status": "implemented"
     },

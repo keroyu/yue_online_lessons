@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\DripConversionTarget;
-use App\Models\DripSubscription;
 use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Services\CouponChainService;
@@ -354,77 +353,6 @@ class CourseController extends Controller
         return redirect()
             ->route('admin.courses.edit', $course)
             ->with('success', '課程已下架為草稿');
-    }
-
-    /**
-     * Display subscribers list for a drip course.
-     */
-    public function subscribers(Request $request, Course $course): Response
-    {
-        $statusFilter = $request->input('status');
-
-        $query = DripSubscription::where('course_id', $course->id)
-            ->with('user:id,email,nickname');
-
-        if ($statusFilter && in_array($statusFilter, ['active', 'booked', 'converted', 'completed', 'unsubscribed'])) {
-            $query->where('status', $statusFilter);
-        }
-
-        $subscribers = $query->orderByDesc('subscribed_at')
-            ->paginate(20)
-            ->withQueryString();
-
-        // Status summary aggregation
-        $statusStats = DripSubscription::where('course_id', $course->id)
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-                SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked_count,
-                SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_count,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
-                SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
-            ")
-            ->first();
-
-        // Per-lesson analytics (opened/clicked counts)
-        $analyticsData = $this->dripService->getSubscriberStats($course);
-
-        // Per-subscriber event metrics (open count + has_clicked)
-        $subIds = $subscribers->pluck('id');
-        $eventCounts = $this->dripService->getSubscriberEventCounts($subIds);
-
-        // Merge event metrics into subscriber collection
-        $subscribers->getCollection()->transform(function ($sub) use ($eventCounts) {
-            $events = $eventCounts->get($sub->id);
-            $sub->opened_count = (int) ($events?->opened_count ?? 0);
-            $sub->has_clicked = (bool) ($events?->has_clicked ?? false);
-            return $sub;
-        });
-
-        $totalLessons = $course->lessons()->count();
-
-        return Inertia::render('Admin/Courses/Subscribers', [
-            'course' => [
-                'id' => $course->id,
-                'name' => $course->name,
-                'total_lessons' => $totalLessons,
-            ],
-            'subscribers' => $subscribers,
-            'stats' => [
-                'total' => (int) $statusStats->total,
-                'active' => (int) $statusStats->active_count,
-                'booked' => (int) $statusStats->booked_count,
-                'converted' => (int) $statusStats->converted_count,
-                'completed' => (int) $statusStats->completed_count,
-                'unsubscribed' => (int) $statusStats->unsubscribed_count,
-            ],
-            'lessonStats' => $analyticsData['lesson_stats'],
-            'conversionRate' => $analyticsData['conversion_rate'],
-            'bookingRate' => $analyticsData['booking_rate'],
-            'filters' => [
-                'status' => $statusFilter,
-            ],
-        ]);
     }
 
     public function traffic(Course $course, Request $request): Response
