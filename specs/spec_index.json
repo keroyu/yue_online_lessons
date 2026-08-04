@@ -2909,6 +2909,44 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-13",
+      "module": "011-high-ticket",
+      "title": "諮詢時段週曆化操作",
+      "summary": "後台諮詢時段改以週曆格線（1 格 = 15 分鐘）拖曳釋出／收回，起點決定意圖；四狀態配色、預約區塊由後端聚合並顯示暱稱與 Zoom 連結；手機改單日檢視",
+      "heading": "### User Story 13 - 諮詢時段週曆化操作 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-13---諮詢時段週曆化操作-priority-p2",
+      "keywords": [
+        "週曆",
+        "行事曆",
+        "calendar",
+        "week view",
+        "格線",
+        "grid",
+        "拖曳",
+        "drag",
+        "時段管理",
+        "諮詢時段",
+        "批次收回",
+        "releaseRange",
+        "weekView",
+        "單日檢視",
+        "RWD",
+        "Zoom 連結",
+        "配色圖例"
+      ],
+      "code_files": [
+        "app/Services/ConsultationSlotService.php",
+        "app/Http/Controllers/Admin/ConsultationSlotController.php",
+        "app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php",
+        "resources/js/Pages/Admin/ConsultationSlots/Index.vue",
+        "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
+        "routes/web.php",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",

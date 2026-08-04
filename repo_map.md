@@ -522,6 +522,7 @@ main_files:
 - app/Http/Controllers/BookingConfirmController.php
 - app/Http/Controllers/CourseController.php
 - app/Http/Controllers/HighTicketBookingController.php
+- app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
 - app/Http/Requests/Admin/EmailTemplateRequest.php
 - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
@@ -556,6 +557,7 @@ main_files:
 - database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php
 - database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php
 - database/seeders/EmailTemplateSeeder.php
+- resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
@@ -575,6 +577,7 @@ main_files:
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php
+- tests/Feature/HighTicket/ConsultationSlotAdminTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php

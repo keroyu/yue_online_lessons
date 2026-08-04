@@ -16,6 +16,9 @@ owner_files:
   - resources/js/Components/Course/HighTicketBookingWizard.vue
   - resources/js/Pages/Booking/Confirm.vue
   - resources/js/Pages/Admin/ConsultationSlots/Index.vue
+  - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
+  - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
+  - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
   - database/migrations/2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php
   - database/migrations/2026_08_05_000002_create_consultation_slots_table.php
   - database/migrations/2026_08_05_000003_widen_phone_columns_to_30.php
@@ -313,6 +316,30 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] `zoom_meeting_id` 與 `zoom_join_url` 落庫於 lead；後台 Leads 名單展開該筆時顯示會議連結（可點開）
 - [x] 測試：憑證未設定時走同步寄信路徑、Job 成功時信中含連結、Job 三次失敗後仍寄出且帶 fallback 文案（皆以 fake HTTP client，不打真實 API）
 
+### User Story 13 - 諮詢時段週曆化操作 (Priority: P2)
+
+現行 `/admin/consultation-slots` 要開時段得填「日期 + 開始時間 + 結束時間」三個欄位再送出，
+一週開五天就是填五次表；開完之後看到的是依日期分組的方塊清單，看不出哪一天整天是空的、
+哪幾段連得起來、下週還有沒有排。時段管理本質上是**空間問題**，用表單解等於把行事曆退化成打字。
+
+改為一張週曆格線（1 格 = 15 分鐘），直接在格線上拖曳釋出或收回時段；四種狀態以顏色區分，
+已成立的預約在格子上直接顯示預約人與 Zoom 連結，不必再跳去 Leads 名單對照。
+
+**驗收**：
+- [x] 週曆檢視：7 天（週一起）× 每天 08:00–22:00，`?week=YYYY-MM-DD` 決定顯示哪一週（預設本週）；提供上一週 / 下一週 / 回到本週三個切換，切換走 Inertia partial reload 不整頁重載
+- [x] 顯示範圍固定 08:00–22:00，但該週若有落在範圍外的既有時段，格線 MUST **自動往外撐開**至涵蓋它 —— 顯示範圍是預設值，不是資料的過濾器（見 D47）
+- [x] 在空白格按下並拖曳到另一格放開 → 建立該區間所有 15 分鐘單位，一次請求；已存在的單位略過，flash「已釋出 N 個、略過 M 個」
+- [x] 在**已釋出且未被佔用**的格上起手拖曳 → 收回該區間的單位（起點決定意圖，見 D45）；區間內已被佔用的單位一律跳過，flash 回報略過數
+- [x] 已被佔用（暫留中 / 已預約）的格 MUST NOT 作為拖曳起點；拖曳經過時不受影響、不被覆寫
+- [x] 今天之前的格不可新增（後端 `date` 不得早於今天的既有規則保留），前端以灰底 + `cursor-not-allowed` 呈現並擋下拖曳起手
+- [x] 四種狀態顏色可區分且頁面上有圖例：未釋出（白）、可預約（teal）、暫留中（amber）、已預約（indigo）
+- [x] 同一筆預約的連續單位在畫面上 MUST **合併為一個區塊**（30 分鐘 = 1 塊而非 2 格），顯示起訖時間、預約人暱稱、狀態；暱稱連往 `/admin/high-ticket-leads?search={email}`
+- [x] 已確認的預約若已建立 Zoom 會議，區塊內顯示「Zoom」連結（`target="_blank" rel="noopener"`）；未建立時該連結不出現（不顯示空連結或「—」）
+- [x] 暫留中的區塊額外顯示保留到期時間（`held_until`），讓管理員看得出這格隨時可能被釋出
+- [x] 手機（`< sm`）改為**單日檢視**：`< 日期 >` 切換 + 單欄格線，拖曳（觸控）行為與桌機一致
+- [x] 原有的「日期 + 起訖時間」表單與依日期分組的方塊清單移除；所有可點元素 `cursor-pointer` + hover 回饋
+- [x] 測試：週資料組裝（跨週邊界、台北時區）、範圍外既有時段會撐開格線、批次收回只刪未佔用者、佔用中的單位收不掉、同 lead 連續單位合併為一個區塊
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -410,6 +437,12 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **FR-039**: Zoom 為**選配**：未設定憑證時系統行為 MUST 完全等同 US11（含測試）。測試 MUST 以 fake HTTP client 驗證，不得打真實 Zoom API
 
+- **FR-045**: 批次收回 MUST 只刪除**未被佔用**的單位（`lead_id` 為 null 或暫留已逾時）。區間內已被佔用者跳過並計入 flash 的略過數 —— 沿用既有 `destroy()` 的守門理由：把已確認預約的時段抽掉，對方手上會留著一張指向系統已不認得的時段的行事曆邀請
+
+- **FR-044**: 新增批次收回端點 `DELETE /admin/consultation-slots`（帶 `date` / `start_time` / `end_time`，staff 群組）。既有的單筆 `DELETE /admin/consultation-slots/{slot}` 保留 —— 兩者共用同一段守門邏輯，收在 `ConsultationSlotService` 內
+
+- **FR-043**: 後台諮詢時段 MUST 以週曆格線操作（1 格 = 15 分鐘），拖曳選取範圍後一次送出；`GET /admin/consultation-slots?week=YYYY-MM-DD` 回傳該週資料，`week` 缺省或不合法時取本週。回傳的預約 MUST 由後端**聚合為區塊**（同一 lead 的連續單位合併，附起訖時間、暱稱、Email、狀態、`zoom_join_url`、`held_until`），前端不得自行拼接（見 D46）
+
 - **FR-042**: 候補（無時段可選）的 lead MUST 取得一組永久有效的 `resume_token`；寄送「新時段通知」時若該 lead 尚無 token（FR-042 之前的舊資料，或走完整流程而非候補的 lead）MUST 當場補發，使**任何被通知的 lead 都有可用的深連結**。信 MUST 提供 `{{booking_url}}` = `/course/{slug}?resume={token}`。持該 token 造訪銷售頁 MUST 回傳完整 draft（姓名 / Email / 問卷五欄 / 已命中的 `booking_code`）且**不要求登入**；`booking_code` 只在當初驗證通過時才存在，帶回不會讓失效碼復活，漏帶則會把對方已取得的 45 分鐘悄悄縮回 30；問卷四個必填欄位齊全時 `resume: true`，精靈直接開在第 3 步並視五條承諾為已接受，否則 `resume: false` 由第 1 步開始（否則會把人丟在後面的步驟、前面卻是空的）。token MUST 與課程綁定（跨課程無效）；重複送出候補申請 MUST 沿用同一 token，使既發出的信不失效
 
 - **FR-041**: 問卷的手機號碼 MUST 在 lead 轉為會員帳號時寫入 `users.phone`，且 MUST NOT 覆寫既有會員的值（以 `firstOrCreate` 的建立屬性帶入，非 `update`）。所有電話欄位 MUST 為 `varchar(30)`：`users.phone`、`orders.buyer_phone`、`high_ticket_leads.phone` 三者與 Form Request 的 `max:30` 一致
@@ -497,6 +530,17 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **D42**: 本次**不做改期 / 取消同步**（FR-040）。改期是一條完整的支線 —— 要有對外的改期連結、時段釋放與重佔、Zoom `PATCH`/`DELETE`、以及改期後重寄哪封信的決策，跟本次「把門檻拉高」的目標無關。目前量體下，改期是顧問私訊喬時間的事，人工到 Zoom 後台改一分鐘的事情不值得先寫進系統。明確記為已知限制，比做半套（例如只刪時段不動 Zoom）好 —— 半套會讓管理員以為系統處理過了
 
+- **D48**: **不做**「複製上週」、週期性時段、預設班表（US13 範圍外）。這三個都是「我每週二四都開下午」的變形，聽起來很省事，但它們各自要回答「改了母版之後既有的預約怎麼辦」—— 而那正是行事曆類功能最容易做爛的地方。目前顧問一週開一次時段，拖三下就完事；等到真的每週重複排到覺得煩，再回頭做，那時也才知道該做成哪一種。先把「拖曳一次開一整段」做對就是這次的全部
+
+- **D47**: 顯示範圍固定 **08:00–22:00**，但**不當成資料的過濾器** —— 該週若有落在範圍外的既有時段，格線自動撐開到涵蓋它（FR-043 / US13 驗收第 2 條）。做成可設定（存 `site_settings`）被否決：多一組設定要維護、要驗證、要在 UI 上找地方放，而它要解的問題（半夜或清晨排諮詢）用「自動撐開」就已經解掉，而且不需要顧問先知道自己等一下要排幾點。固定值寫在前端常數即可，不進資料庫
+
+- **D46**: 週檢視的預約區塊在**後端聚合**，前端只負責畫（FR-043）。一場 30 分鐘的諮詢在 DB 是 2 列、45 分鐘是 3 列，畫面上必須是一塊；把「同 lead 且 `starts_at` 相隔恰 15 分鐘就併」這條規則放到前端，等於讓 Vue 重新實作一次 FR-028 的連續性判斷 —— 那條規則已經在 `ConsultationSlotService::availableStarts()` 裡了，兩處各寫一份遲早會不一致。後端多回一個 `bookings` 陣列，前端 `v-for` 就好
+
+- **D45**: 拖曳的**起點決定意圖**：起手在空白格 = 釋出，起手在已釋出格 = 收回，起手在已佔用格 = 不啟動（FR-043）。替代方案是「拖曳只能新增，收回改用區塊上的 ✕」，被否決的理由是收回一整個上午會變成點十六次 ✕ —— 新增可以一次拖，收回不行，這種不對稱在用的時候特別煩。
+  起點決定意圖是 drag-to-paint 的通用作法（試算表選取、小畫家橡皮擦都是這個模型），使用者不需要先切換模式，手勢本身就宣告了意圖。代價是拖曳中途經過的格會混雜狀態，處理方式明確：**經過的格只套用起點決定的那一種動作**，已佔用的一律跳過（不是中止整段）。
+  實作走 **Pointer Events 單一路徑**（滑鼠與觸控共用），而且拖曳中的命中判定用 `document.elementFromPoint()` 而非在每格掛 `pointerenter` —— 觸控指標會被起始元素捕獲，經過的格根本不會觸發 enter，手機拖曳會靜默地只選到一格。`pointermove` / `pointerup` / `pointercancel` 都綁在 `window` 上，拖到格線外放開也要正確收尾，否則會留下一個永遠選取中的狀態。
+  代價：格子設 `touch-action: none` 才能吃到觸控拖曳，於是手機上格線區域無法用手指捲頁 —— 左側時間欄不設此屬性，作為捲動用的握把
+
 - **D44**: 候補回訪走**獨立的 `resume_token`**，不重用 `confirm_token`（FR-042）。兩者的生命週期相反：`confirm_token` 一小時到期、用過即廢，是「這個 Email 是真的」的一次性證明；`resume_token` 可能要撐好幾週（顧問什麼時候開時段沒人知道），是「這份申請是你的」的持續憑證。把兩種語意壓在同一欄，早晚會有人為了讓其中一邊過期而弄壞另一邊。
   身分驗證只靠持有 token，**不要求登入** —— 候補者絕大多數不是會員，要求登入等於把這條路關掉；64 字元隨機值的猜中機率與確認連結同級，信任模型一致。token 與 `course_id` 綁定比對，避免一組 token 打開任何課程的既有申請。
   承諾清單**自動視為已接受**（使用者決策）：`commitments_accepted_at` 已經落在 lead 上，等待期間再要求重勾，讀起來像是在懷疑已經收到的答覆；畫面仍停留在可回頭修改的狀態，不是把步驟藏起來。
@@ -541,6 +585,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - `site_settings.high_ticket_booking_bonus_codes` — 預約專屬優惠碼，逗號分隔字串；命中者諮詢延長 15 分鐘（FR-031）。未設定即所有碼皆無效，流程照走 30 分鐘
 - `email_templates` 新增第 6 筆 `high_ticket_booking_verify`（「客製服務預約待確認」），變數 `{{user_name}}`、`{{course_name}}`、`{{confirm_url}}`、`{{slot_time}}`、`{{expires_at}}`；既有 `high_ticket_booking_confirmation` 的可用變數擴充 `{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}`
+- **US13（諮詢時段週曆化）無 schema 變更** —— `consultation_slots` 的三個欄位（`starts_at` / `lead_id` / `held_until`）已經足以推導週曆要畫的一切：格子有沒有被釋出看列存不存在，顏色看 `lead_id` + `held_until`（FR-029 的既有推導），區塊合併看 `starts_at` 是否相隔 15 分鐘。這次新增的是一個批次收回端點與一種呈現方式，不是新的事實
 - `high_ticket_leads.resume_token` — char(64) unique nullable（`2026_08_05_000004`）；候補回訪的永久憑證，與一小時到期的 `confirm_token` 是兩種東西（D44）。只有走候補路徑的 lead 會有值
 - `email_templates` 的 `high_ticket_slot_available` — 2026-08-05 由 `2026_08_05_000005` **附加**（非覆寫）`{{booking_url}}` 段落；已含該變數者跳過。正式站的模板內容可能已被業主編輯過，seeder 的 `updateOrCreate` 不能用來做這件事
 - `users.phone` / `orders.buyer_phone` — 2026-08-05 由 varchar(20) 加寬為 **varchar(30)**（`2026_08_05_000003`），與 `high_ticket_leads.phone` 及所有 Form Request 的 `max:30` 對齊；加寬無損，舊值必然放得下
@@ -717,8 +762,29 @@ Phase H — 候補回訪連結（US10 追加，FR-042 / D44）
 - [x] T090 [P] 精靈依 `draft.resume` 開在第 3 步、承諾預設全勾、掛載即查時段，並顯示「歡迎回來」提示條 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T091 新增 10 個測試：候補產 token、重複候補沿用同一 token、通知信含深連結、無 token 者寄送時補發、未登入持 token 可預填、問卷不全者退回第 1 步、優惠碼帶回、無效碼不帶回、錯誤 token 不預填、跨課程 token 無效 in `tests/Feature/HighTicket/BookingWizardTest.php`
 
+### 諮詢時段週曆化操作（US13）
+
+Phase A — 後端週資料與批次收回（前端全部相依於此）
+- [x] T092 `weekView(?string $week = null): array` —— 以台北時間求該週一 00:00 ~ 週日 24:00，轉 UTC 撈該區間全部單位（eager load lead 避免 N+1）；回傳 `week`（start / end / label / prev / next / is_current）、`range`（依實際資料撐開的起訖，預設 08:00–22:00）、`days[]`（每天含 `free[]` 可預約時刻與 `bookings[]` 聚合區塊）。同 lead 且 `starts_at` 相隔恰 15 分鐘者併為一塊（D46）in `app/Services/ConsultationSlotService.php`
+- [x] T093 `releaseRange(CarbonInterface $from, CarbonInterface $to): array{released, skipped}` —— 只刪未佔用單位，佔用者計入 skipped；與既有 `destroy()` 共用 `ConsultationSlot::isAvailable()` 判定（FR-045）in `app/Services/ConsultationSlotService.php`
+- [x] T094 [P] Form Request：`date` / `start_time` / `end_time` 規則比照 `StoreConsultationSlotsRequest`（15 分鐘刻度、end > start），但**不擋過去日期**（收回舊時段是合理操作），中文錯誤訊息 in `app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php`
+- [x] T095 `index(Request)` 改回傳 `weekView()` 的結果（`?week=` 缺省或不合法取本週）；新增 `destroyRange(DestroyConsultationSlotsRequest)` 呼叫 `releaseRange()` 並 flash「已收回 N 個、略過 M 個（已被預約）」；既有 `store()` / `destroy()` 不動 in `app/Http/Controllers/Admin/ConsultationSlotController.php`
+- [x] T096 [P] 路由：staff 群組加 `DELETE /admin/consultation-slots`（批次，置於單筆 `{slot}` 路由**之前**避免被吃掉）（touchpoint，owner 000-platform-core）in `routes/web.php`
+
+Phase B — 週曆格線元件（相依 Phase A）
+- [x] T097 新元件：格線渲染（列 = 15 分鐘、欄 = 天）、四狀態配色與圖例、預約區塊以 `row-span` 跨格顯示暱稱 / 起訖 / Zoom 連結 / 暫留到期；以 Pointer Events（`pointerdown` + `window` 上的 `pointermove`/`pointerup`/`pointercancel`）實作拖曳選取，滑鼠與觸控共用一條路徑，起點決定意圖（D45），已佔用與過去的格不可起手；`sm` 以下切為單日單欄 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T098 頁面改寫：移除「日期 + 起訖時間」表單與日期分組方塊清單，改掛 `<WeekGrid>`；上一週 / 本週 / 下一週切換走 `router.get` + `preserveScroll`；拖曳完成後 `router.post` / `router.delete` 送出並保留捲動位置 in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+
+Phase C — 驗證
+- [x] T099 新增測試：`weekView()` 的週邊界與台北時區換算、範圍外既有時段撐開 `range`、同 lead 連續單位併為一個 booking、不連續者不併、`?week=` 不合法時退回本週 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+- [x] T100 [P] 新增測試：批次收回只刪未佔用者並正確回報 released / skipped、區間內已確認的單位收不掉、批次端點需 staff 權限 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+- [x] T101 `php artisan test` 全綠（基準 323 passed）＋ `npm run build` exit 0
+- [ ] T102 使用者以瀏覽器實測：桌機拖曳釋出 / 拖曳收回 / 拖過已預約格、手機單日檢視的觸控拖曳、週切換、Zoom 連結可點
+
 ## 進度日誌
 
+- 2026-08-05: US13 完成（T092–T101）— 後台諮詢時段從「日期 + 起訖時間」表單改為週曆格線。`weekView()` 在後端把該週資料組成前端能直接畫的形狀：以**台北日期**分桶（23:30 台北是同日 15:30 UTC，用原始 UTC 分桶會落到錯的欄、跨午夜甚至錯的週）、同 lead 連續單位併為一個 booking 區塊（D46）、顯示範圍 08:00–22:00 會被範圍外的既有時段自動撐開（D47）。新增 `releaseRange()` 與 `DELETE /admin/consultation-slots` 批次收回，只刪未佔用者、佔用者計入 skipped 而非中止整段（FR-045）；路由置於單筆 `{slot}` 之前避免被 model binding 吃掉。前端 `WeekGrid.vue` 以 Pointer Events 單一路徑處理滑鼠與觸控，**拖曳命中改用 `elementFromPoint()`** —— 原本掛 `pointerenter` 在手機上會靜默失效（觸控指標被起始元素捕獲，經過的格不觸發 enter），只選得到一格。舊表單與日期分組清單整組移除，controller 的 `state()` 私有方法一併清掉。新增 ConsultationSlotAdminTest（17 tests），全套 340 passed（1761 assertions）、`npm run build` exit 0。T102 瀏覽器實測待業主確認，尤其手機觸控拖曳與捲動的取捨（見 D45 末段）。
+- 2026-08-05: 規劃 US13 諮詢時段週曆化（已審核，status: building） — 現行「日期 + 起訖時間」表單改為週曆格線（1 格 = 15 分鐘）拖曳操作。**拖曳起點決定意圖**（空白格起手 = 釋出、已釋出格起手 = 收回、已佔用格不可起手，D45），避免「新增能一次拖、收回要點十六次 ✕」的不對稱。預約區塊在**後端聚合**（同 lead 連續單位併為一塊），前端不重寫一次連續性判斷（D46）。顯示範圍固定 08:00–22:00 但會被範圍外的既有時段自動撐開，不做成可設定（D47）。四狀態配色 + 圖例，已確認的區塊直接顯示暱稱與 Zoom 連結；手機改單日檢視。無 schema 變更 —— 新增的只有一個批次收回端點 `DELETE /admin/consultation-slots` 與一種呈現方式。明確不做複製上週 / 週期性班表（D48）。status: draft 待審核。
 - 2026-08-05: 候補回訪連結（FR-042 / D44）— 沒有時段時仍收申請，但「通知新時段」信只帶 `{{user_name}}`／`{{course_name}}`，**連個入口都沒有**（`$availableVariables` 甚至沒有這個 event_type 的條目）；候補者自己回課程頁也是從第 1 步重來，因為問卷預填只給「已登入且 email 相符」的人，而候補者多半不是會員。新增永久 `resume_token`（與一小時到期的 `confirm_token` 分開，D44），信中 `{{booking_url}}` 深連結直接把精靈開在第 3 步、承諾自動視為已接受。身分只憑持有 token，不要求登入；token 與 course 綁定，重複候補沿用同一組使舊信不失效。token 改為**寄送當下補發**（不做全表 backfill），所以 FR-042 之前就在名單上的舊 lead 一樣拿得到深連結；問卷不齊全者仍由第 1 步開始，避免把人丟在後面的步驟而前面是空的。另補一支資料 migration 把變數**附加**到正式站既有模板（seeder 的 `updateOrCreate` 會蓋掉業主改過的文案）。draft 一併帶回當初命中的 `booking_code` —— 少帶這一欄，等於把對方已取得的 45 分鐘悄悄縮回 30。新增 10 個測試，全套 323 passed（1702 assertions）、`npm run build` 綠。
 - 2026-08-05: 問卷手機號碼接上會員資料（FR-041 / D43）— 原本號碼只留在 `high_ticket_leads.phone`，lead 被開通或加序列信而變成會員時不會帶過去，會員的 `phone` 永遠是空的。改為在兩個轉換點以 `firstOrCreate` 的建立屬性帶入（既有會員不覆寫，帳號設定填的值權威性較高）。連帶把 `users.phone` 與 `orders.buyer_phone` 從 varchar(20) 加寬到 30，與 lead 表及 Form Request 對齊 —— 順手修掉既有的截斷風險：`FreePurchaseController` 早就收 `max:30`。新增 4 個測試，全套 313 passed。
 - 2026-08-05: US9–US12 完成（T053–T084）— 預約由「姓名 + Email 一步送出」改為四步驟申請 + Email 二次確認 + Zoom。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，可用性由 `lead_id` + `held_until` 推導、不設 status 欄，D33）與 lead 的 12 個申請/確認欄位。送出申請在單一 transaction 內寫 lead 並以 `lockForUpdate` 佔用連續 N 個單位（撞車回 409），寄「預約待確認」信；點信中 token 才 `confirmed_at` 落地、時段轉正、寄原本的確認信、停 drip、送 CAPI（D35 行為變更，既有 5 支測試同步改寫）。逾時釋出走查詢時 lazy 判定，`booking:release-holds` 每 10 分鐘只做資料整理。Zoom 走 Server-to-Server OAuth、憑證放後台「API 設定」頁，確認信改由 `CreateZoomMeetingJob` 帶著 join_url 寄出（D38）；未設定憑證整條跳過（D40），三次失敗仍寄出 fallback 文案並 CC 內部（D39）。前台流程抽成 `HighTicketBookingWizard.vue`，舊表單整組移除（D29/D36）。**規劃外補了兩項驗收缺口**：沒有可預約時段時的候補申請路徑（`POST /course/{course}/waitlist`，伺服器端擋「其實有時段」），以及重新申請的問卷預填 —— 後者改由 `CourseController` 傳 prop 而非開查詢端點，因為以 email 查既有 lead 會變成「這個信箱申請過嗎」的探測器。新增 BookingWizardTest（20）、SlotHoldTest（12）、ZoomMeetingTest（6），全套 309 passed（1607 assertions）、`npm run build` 綠。T084 瀏覽器實測與真實 Zoom 建會議待業主確認。

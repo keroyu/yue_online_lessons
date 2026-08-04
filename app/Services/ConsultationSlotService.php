@@ -101,6 +101,228 @@ class ConsultationSlotService
         return ['created' => $created, 'skipped' => $skipped];
     }
 
+    /** Default first and last row of the week grid, in minutes from midnight (D47). */
+    private const GRID_START_MINUTE = 8 * 60;
+
+    private const GRID_END_MINUTE = 22 * 60;
+
+    /**
+     * Everything the admin week grid needs to draw itself (011 US13 / FR-043).
+     *
+     * Assembled here rather than in Vue because a 30-minute consultation is two
+     * rows in the database and one block on screen: re-deriving "consecutive"
+     * in the frontend would be a second copy of the rule availableStarts()
+     * already owns, and two copies drift (D46).
+     *
+     * @param  string|null  $week  Any date in the wanted week (Y-m-d). Anything
+     *                             unparseable falls back to the current week —
+     *                             a hand-edited URL should show a calendar, not
+     *                             an error page.
+     */
+    public function weekView(?string $week = null): array
+    {
+        $tz = self::DISPLAY_TZ;
+        $monday = $this->parseWeek($week);
+
+        $rows = ConsultationSlot::with('lead:id,name,email,zoom_join_url')
+            ->where('starts_at', '>=', $monday->copy()->utc())
+            ->where('starts_at', '<', $monday->copy()->addDays(7)->utc())
+            ->orderBy('starts_at')
+            ->get();
+
+        // Bucket on the Taipei date, never the stored UTC one: 23:30 Taipei is
+        // 15:30 UTC the same day, but 00:30 Taipei is the *previous* UTC day,
+        // which would file it under the wrong column — and near midnight on a
+        // Monday, the wrong week (D32).
+        $free = [];
+        $busy = [];
+        $earliest = self::GRID_START_MINUTE;
+        $latest = self::GRID_END_MINUTE;
+
+        foreach ($rows as $row) {
+            $local = $row->starts_at->copy()->timezone($tz);
+            $date = $local->format('Y-m-d');
+            $minute = $local->hour * 60 + $local->minute;
+
+            $earliest = min($earliest, $minute);
+            $latest = max($latest, $minute + ConsultationSlot::UNIT_MINUTES);
+
+            if ($row->isAvailable()) {
+                $free[$date][] = $local->format('H:i');
+            } else {
+                $busy[$date][] = ['row' => $row, 'local' => $local];
+            }
+        }
+
+        $today = Carbon::now($tz)->startOfDay();
+        $days = [];
+
+        for ($i = 0; $i < 7; $i++) {
+            $day = $monday->copy()->addDays($i);
+            $date = $day->format('Y-m-d');
+
+            $days[] = [
+                'date'     => $date,
+                'label'    => $day->format('n/j'),
+                'weekday'  => $this->weekdayName($day),
+                'is_today' => $day->isSameDay($today),
+                'is_past'  => $day->lt($today),
+                'free'     => $free[$date] ?? [],
+                'bookings' => $this->mergeBookings($busy[$date] ?? []),
+            ];
+        }
+
+        return [
+            'week'  => [
+                'start'      => $monday->format('Y-m-d'),
+                'end'        => $monday->copy()->addDays(6)->format('Y-m-d'),
+                'label'      => $monday->format('Y/m/d') . ' – ' . $monday->copy()->addDays(6)->format('m/d'),
+                'prev'       => $monday->copy()->subWeek()->format('Y-m-d'),
+                'next'       => $monday->copy()->addWeek()->format('Y-m-d'),
+                'current'    => Carbon::now($tz)->startOfWeek()->format('Y-m-d'),
+                'is_current' => $monday->isSameDay(Carbon::now($tz)->startOfWeek()),
+            ],
+            'range' => [
+                'start' => $this->minuteLabel($earliest),
+                'end'   => $this->minuteLabel($latest),
+                'rows'  => $this->rowLabels($earliest, $latest),
+            ],
+            'days'  => $days,
+        ];
+    }
+
+    /**
+     * Collapse one day's occupied units into the blocks a human sees.
+     *
+     * A run breaks on a different lead or a gap — two consultations for the
+     * same person on the same day are two blocks, not one long one.
+     *
+     * @param  array<int, array{row: ConsultationSlot, local: Carbon}>  $items
+     */
+    private function mergeBookings(array $items): array
+    {
+        $blocks = [];
+        $current = null;
+
+        foreach ($items as $item) {
+            $row = $item['row'];
+            $local = $item['local'];
+
+            $continues = $current !== null
+                && $current['lead_id'] === $row->lead_id
+                && $current['next']->equalTo($local);
+
+            if (!$continues) {
+                if ($current !== null) {
+                    $blocks[] = $this->finishBlock($current);
+                }
+
+                $current = [
+                    'lead_id'    => $row->lead_id,
+                    'lead'       => $row->lead,
+                    'start'      => $local->copy(),
+                    'units'      => 0,
+                    'held_until' => $row->held_until,
+                    'next'       => $local->copy(),
+                ];
+            }
+
+            $current['units']++;
+            $current['next'] = $local->copy()->addMinutes(ConsultationSlot::UNIT_MINUTES);
+        }
+
+        if ($current !== null) {
+            $blocks[] = $this->finishBlock($current);
+        }
+
+        return $blocks;
+    }
+
+    private function finishBlock(array $b): array
+    {
+        // A hold that is still running can still evaporate; one with no
+        // held_until is a confirmed booking (FR-029).
+        $held = $b['held_until'];
+
+        return [
+            'lead_id'       => $b['lead_id'],
+            'start'         => $b['start']->format('H:i'),
+            'end'           => $b['next']->format('H:i'),
+            'start_minute'  => $b['start']->hour * 60 + $b['start']->minute,
+            'units'         => $b['units'],
+            'state'         => $held === null ? 'booked' : 'held',
+            'name'          => $b['lead']?->name,
+            'email'         => $b['lead']?->email,
+            'zoom_join_url' => $b['lead']?->zoom_join_url,
+            'held_until'    => $held?->copy()->timezone(self::DISPLAY_TZ)->format('H:i'),
+        ];
+    }
+
+    /**
+     * Delete every unoccupied unit in a dragged range (011 FR-044/FR-045).
+     *
+     * Occupied units are skipped rather than refused: dragging over a booked
+     * slot on the way past should not abort the whole gesture, and the count
+     * comes back so the flash message can say what was left behind.
+     *
+     * @return array{released: int, skipped: int}
+     */
+    public function releaseRange(CarbonInterface $from, CarbonInterface $to): array
+    {
+        $rows = ConsultationSlot::where('starts_at', '>=', Carbon::instance($from)->utc())
+            ->where('starts_at', '<', Carbon::instance($to)->utc())
+            ->get();
+
+        $removable = $rows->filter(fn (ConsultationSlot $row) => $row->isAvailable());
+
+        if ($removable->isNotEmpty()) {
+            ConsultationSlot::whereIn('id', $removable->pluck('id'))->delete();
+        }
+
+        return [
+            'released' => $removable->count(),
+            'skipped'  => $rows->count() - $removable->count(),
+        ];
+    }
+
+    private function parseWeek(?string $week): Carbon
+    {
+        $tz = self::DISPLAY_TZ;
+
+        if (is_string($week) && $week !== '') {
+            try {
+                return Carbon::createFromFormat('Y-m-d', $week, $tz)->startOfWeek()->startOfDay();
+            } catch (\Throwable) {
+                // A typo in the URL should not be an error page.
+            }
+        }
+
+        return Carbon::now($tz)->startOfWeek()->startOfDay();
+    }
+
+    /** @return array<int, string> Every row's start time, e.g. 08:00 … 21:45. */
+    private function rowLabels(int $from, int $to): array
+    {
+        $labels = [];
+
+        for ($m = $from; $m < $to; $m += ConsultationSlot::UNIT_MINUTES) {
+            $labels[] = $this->minuteLabel($m);
+        }
+
+        return $labels;
+    }
+
+    /** Minutes from midnight as HH:MM — 1440 stays 24:00 rather than rolling over. */
+    private function minuteLabel(int $minutes): string
+    {
+        return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    private function weekdayName(CarbonInterface $at): string
+    {
+        return ['日', '一', '二', '三', '四', '五', '六'][$at->dayOfWeek];
+    }
+
     /**
      * Start times a consultation of $minutes can actually begin at.
      *

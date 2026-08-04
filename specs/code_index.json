@@ -39,7 +39,8 @@
       "006.us-5"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
-      "011.us-10"
+      "011.us-10",
+      "011.us-13"
     ],
     "app/Http/Controllers/Admin/CouponChainController.php": [
       "006.us-5"
@@ -301,6 +302,9 @@
     ],
     "app/Http/Requests/Admin/AssignmentRequest.php": [
       "003.us-6"
+    ],
+    "app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php": [
+      "011.us-13"
     ],
     "app/Http/Requests/Admin/EmailTemplateRequest.php": [
       "011.us-6",
@@ -663,7 +667,8 @@
     ],
     "app/Services/ConsultationSlotService.php": [
       "011.us-10",
-      "011.us-11"
+      "011.us-11",
+      "011.us-13"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -1005,6 +1010,9 @@
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3"
     ],
+    "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
+      "011.us-13"
+    ],
     "resources/js/Components/Admin/CouponChainInserter.vue": [
       "006.us-5"
     ],
@@ -1210,7 +1218,8 @@
       "012.us-6"
     ],
     "resources/js/Pages/Admin/ConsultationSlots/Index.vue": [
-      "011.us-10"
+      "011.us-10",
+      "011.us-13"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -1472,6 +1481,7 @@
       "011.us-1",
       "011.us-10",
       "011.us-11",
+      "011.us-13",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1514,6 +1524,9 @@
     "tests/Feature/HighTicket/BookingWizardTest.php": [
       "011.us-10",
       "011.us-9"
+    ],
+    "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
+      "011.us-13"
     ],
     "tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php": [
       "011.us-7"
