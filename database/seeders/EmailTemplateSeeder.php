@@ -46,6 +46,18 @@ class EmailTemplateSeeder extends Seeder
                 'subject' => '【開通完成】{{course_name}} 已可開始學習',
                 'body_md' => "{{user_name}} 您好，\n\n已收到您的款項，「{{course_name}}」的學習權限已為您開通。\n\n成交金額：NT$ {{amount}}\n\n登入方式：直接用**這封信的收件 email** 到網站登入，系統會寄一組驗證碼給您，不需要設定密碼。\n\n登入頁面：\n{{app_url}}/login\n\n登入後即可開始上課：\n{{classroom_url}}\n\n若有任何問題，直接回覆此信即可。\n\n經營者時間銀行",
             ],
+            [
+                'name' => '客製服務預約已改期',
+                'event_type' => 'high_ticket_booking_rescheduled',
+                'subject' => '【時段已更新】{{course_name}} — {{slot_time}}',
+                'body_md' => "您好 {{user_name}}，\n\n您的「{{course_name}}」1v1 諮詢時段已更新：\n\n- 原時段：{{old_slot_time}}\n- **新時段：{{slot_time}}**\n- 長度：{{consult_minutes}} 分鐘\n\n會議連結不變，原本的連結仍然可用：\n{{zoom_join_url}}\n\n本信附有行事曆檔案，開啟後即可更新您日曆上的行程時間。\n\n若這個時間不方便，或需要取消，請直接回覆此信告訴我們。\n\n經營者時間銀行",
+            ],
+            [
+                'name' => '客製服務預約已取消',
+                'event_type' => 'high_ticket_booking_cancelled',
+                'subject' => '【預約已取消】{{course_name}} — {{slot_time}}',
+                'body_md' => "您好 {{user_name}}，\n\n您原訂於 {{slot_time}} 的「{{course_name}}」1v1 諮詢已取消，該場次的會議連結同時失效。\n\n本信附有行事曆取消檔案，開啟後即可從您的日曆移除這筆行程。\n\n若想重新安排時間，歡迎再次預約：\n{{course_url}}\n\n或直接回覆此信與我們聯繫。\n\n經營者時間銀行",
+            ],
         ];
 
         foreach ($templates as $template) {

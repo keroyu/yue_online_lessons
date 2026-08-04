@@ -7,7 +7,7 @@ const props = defineProps({
   days: { type: Array, required: true },
 })
 
-const emit = defineEmits(['create', 'release'])
+const emit = defineEmits(['create', 'release', 'reschedule', 'cancel'])
 
 // ---- responsive: one column on phones (011 US13) ---------------------------
 
@@ -24,10 +24,12 @@ onMounted(() => {
   media = window.matchMedia('(max-width: 639px)')
   syncNarrow(media)
   media.addEventListener('change', syncNarrow)
+  window.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
   media?.removeEventListener('change', syncNarrow)
+  window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', commit)
   window.removeEventListener('pointercancel', commit)
@@ -66,6 +68,124 @@ function cellState(dIndex, rIndex) {
   return free.has(props.range.rows[rIndex]) ? 'free' : 'empty'
 }
 
+// ---- booking selection & reschedule mode (011 US14 / D53) ------------------
+
+// Two-stage rather than dragging the block itself: `pointerdown` on a cell is
+// already spoken for by release/reclaim (D45), and stacking a third meaning on
+// it would make every mouse-down ambiguous.
+const selected = ref(null)
+const rescheduling = ref(false)
+
+function selectBooking(dIndex, booking) {
+  if (selected.value?.booking.lead_id === booking.lead_id && !rescheduling.value) {
+    clearSelection()
+    return
+  }
+
+  selected.value = { dIndex, booking }
+  rescheduling.value = false
+}
+
+function clearSelection() {
+  selected.value = null
+  rescheduling.value = false
+}
+
+function startReschedule() {
+  if (selected.value) rescheduling.value = true
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape') clearSelection()
+}
+
+/**
+ * Can the selected booking start here? Its own units count as free, because the
+ * server releases them before it checks (FR-048) — otherwise nudging a booking
+ * by 15 minutes would look impossible.
+ */
+function canStartHere(dIndex, rIndex) {
+  const booking = selected.value?.booking
+  if (!booking) return false
+
+  const day = visibleDays.value[dIndex]
+  if (day.is_past) return false
+
+  const { free, busy } = dayState.value[dIndex]
+  const own = ownRows(dIndex)
+
+  for (let i = 0; i < booking.units; i++) {
+    const row = rIndex + i
+    if (row >= props.range.rows.length) return false
+    if (own.has(row)) continue
+    if (busy.has(row)) return false
+    if (!free.has(props.range.rows[row])) return false
+  }
+
+  return true
+}
+
+/** Rows the selected booking currently occupies, in the given column. */
+function ownRows(dIndex) {
+  const rows = new Set()
+  const booking = selected.value?.booking
+
+  if (!booking || selected.value.dIndex !== dIndex) return rows
+
+  const from = props.range.rows.indexOf(booking.start)
+  if (from < 0) return rows
+
+  for (let i = 0; i < booking.units; i++) rows.add(from + i)
+
+  return rows
+}
+
+function chooseNewStart(dIndex, rIndex) {
+  const booking = selected.value?.booking
+  if (!booking || !canStartHere(dIndex, rIndex)) return
+
+  const day = visibleDays.value[dIndex]
+  const startTime = props.range.rows[rIndex]
+  const endTime = props.range.rows[rIndex + booking.units] ?? props.range.end
+
+  const ok = window.confirm(
+    `將 ${booking.name} 的諮詢改期？\n\n`
+    + `原時段：${selectedDayLabel.value} ${booking.start}–${booking.end}\n`
+    + `新時段：${day.label}（週${day.weekday}） ${startTime}–${endTime}\n\n`
+    + '系統會寄出更新通知與行事曆邀請，並同步調整 Zoom 會議時間。'
+  )
+
+  if (!ok) return
+
+  emit('reschedule', { lead_id: booking.lead_id, date: day.date, start_time: startTime })
+  clearSelection()
+}
+
+function confirmCancel() {
+  const booking = selected.value?.booking
+  if (!booking) return
+
+  const ok = window.confirm(
+    `取消 ${booking.name} 的諮詢？\n\n`
+    + `時段：${selectedDayLabel.value} ${booking.start}–${booking.end}\n\n`
+    + '時段會釋出、Zoom 會議會被刪除，並寄出取消通知與行事曆更新。此操作無法復原。'
+  )
+
+  if (!ok) return
+
+  emit('cancel', { lead_id: booking.lead_id })
+  clearSelection()
+}
+
+const selectedDayLabel = computed(() => {
+  const day = visibleDays.value[selected.value?.dIndex]
+  return day ? `${day.label}（週${day.weekday}）` : ''
+})
+
+function isSelected(booking) {
+  return selected.value?.booking.lead_id === booking.lead_id
+}
+
 /** Blocks are placed by grid-row so a 30-minute booking is one box, not two. */
 function blockStyle(booking) {
   const from = props.range.rows.indexOf(booking.start)
@@ -81,6 +201,12 @@ function blockStyle(booking) {
 const drag = ref(null)
 
 function startDrag(dIndex, rIndex) {
+  // While picking a new time the grid is a target list, not a canvas.
+  if (rescheduling.value) {
+    chooseNewStart(dIndex, rIndex)
+    return
+  }
+
   const state = cellState(dIndex, rIndex)
   if (state === 'past' || state === 'busy') return
 
@@ -222,7 +348,7 @@ function isHalf(label) {
 
     <!-- Readout of the gesture in progress. Kept out of the grid: inside it,
          a one-cell selection is 20px tall and the text has nowhere to go. -->
-    <div class="h-8 mb-1 flex items-center">
+    <div class="min-h-8 mb-1 flex items-center">
       <div
         v-if="drag"
         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium"
@@ -234,7 +360,67 @@ function isHalf(label) {
         <span class="tabular-nums">{{ dragLabel.text }}</span>
         <span class="opacity-70">{{ dragLabel.minutes }} 分鐘</span>
       </div>
-      <p v-else class="text-xs text-gray-400">在格線上按住並拖曳以選取時段範圍。</p>
+
+      <!-- Picking a new time. The buttons live here rather than inside the
+           block: a 30-minute booking is 40px tall and already holds three
+           lines. -->
+      <div
+        v-else-if="rescheduling"
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-1.5 text-xs"
+      >
+        <span class="font-bold text-brand-teal">改期中</span>
+        <span class="text-gray-700">
+          點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔），可選的格子已標示
+        </span>
+        <button
+          type="button"
+          class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
+          @click="clearSelection"
+        >
+          取消改期（Esc）
+        </button>
+      </div>
+
+      <div
+        v-else-if="selected"
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs"
+      >
+        <span class="font-semibold text-indigo-900">{{ selected.booking.name }}</span>
+        <span class="tabular-nums text-indigo-800">
+          {{ selectedDayLabel }} {{ selected.booking.start }}–{{ selected.booking.end }}
+        </span>
+        <span class="text-indigo-700 opacity-80">{{ STATE_LABEL[selected.booking.state] }}</span>
+        <button
+          type="button"
+          :disabled="selected.booking.state !== 'booked'"
+          class="rounded bg-brand-teal px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-teal-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          @click="startReschedule"
+        >
+          改期
+        </button>
+        <button
+          type="button"
+          :disabled="selected.booking.state !== 'booked'"
+          class="rounded bg-rose-600 px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-rose-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          @click="confirmCancel"
+        >
+          取消預約
+        </button>
+        <span v-if="selected.booking.state !== 'booked'" class="text-gray-500">
+          暫留中的申請尚未確認，逾時會自動釋出
+        </span>
+        <button
+          type="button"
+          class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
+          @click="clearSelection"
+        >
+          關閉
+        </button>
+      </div>
+
+      <p v-else class="text-xs text-gray-400">
+        在格線上按住並拖曳以選取時段範圍；點一筆預約可改期或取消。
+      </p>
     </div>
 
     <div class="overflow-x-auto">
@@ -302,7 +488,11 @@ function isHalf(label) {
             :key="`${day.date}-${label}`"
             class="border-t transition-colors touch-none"
             :class="[
-              CELL_CLASS[cellState(dIndex, rIndex)],
+              rescheduling
+                ? (canStartHere(dIndex, rIndex)
+                  ? 'bg-brand-teal/20 hover:bg-brand-teal/50 cursor-pointer'
+                  : 'bg-gray-100 cursor-not-allowed')
+                : CELL_CLASS[cellState(dIndex, rIndex)],
               isHour(label) ? 'border-gray-300' : (isHalf(label) ? 'border-gray-200' : 'border-gray-100'),
               rIndex === range.rows.length - 1 ? 'border-b border-b-gray-300' : '',
               inDrag(dIndex, rIndex)
@@ -315,18 +505,30 @@ function isHalf(label) {
             @pointerdown.prevent="startDrag(dIndex, rIndex)"
           />
 
+          <!-- Faded while picking a new time so the selectable cells read as
+               the foreground; the selected one stays lit as the reference. -->
           <div
             v-for="booking in day.bookings"
             :key="`${day.date}-${booking.start}-${booking.lead_id}`"
-            class="z-10 m-px rounded border px-1.5 py-1 overflow-hidden text-[11px] leading-tight"
-            :class="BLOCK_CLASS[booking.state]"
+            class="z-10 m-px rounded border px-1.5 py-1 overflow-hidden text-[11px] leading-tight cursor-pointer transition"
+            :class="[
+              BLOCK_CLASS[booking.state],
+              isSelected(booking) ? 'ring-2 ring-offset-1 ring-brand-teal' : 'hover:brightness-95',
+              rescheduling && !isSelected(booking) ? 'opacity-40' : '',
+              // Blocks sit above the cells, so while picking they would swallow
+              // the click on any row they cover — including the booking's own,
+              // which is exactly where a 15-minute nudge has to land.
+              rescheduling ? 'pointer-events-none' : '',
+            ]"
             :style="blockStyle(booking)"
+            @click="selectBooking(dIndex, booking)"
           >
             <p class="font-semibold tabular-nums">{{ booking.start }}–{{ booking.end }}</p>
             <a
               v-if="booking.email"
               :href="leadUrl(booking.email)"
               class="block truncate underline cursor-pointer hover:opacity-70"
+              @click.stop
             >
               {{ booking.name }}
             </a>
@@ -339,6 +541,7 @@ function isHalf(label) {
               target="_blank"
               rel="noopener"
               class="block truncate font-medium underline cursor-pointer hover:opacity-70"
+              @click.stop
             >
               Zoom
             </a>

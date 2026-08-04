@@ -2,16 +2,21 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\SlotUnavailableException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RescheduleBookingRequest;
 use App\Mail\BatchEmailMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\User;
 use App\Services\DripService;
+use App\Services\HighTicketBookingService;
 use App\Services\HighTicketLeadService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -32,6 +37,7 @@ class HighTicketLeadController extends Controller
     public function __construct(
         private HighTicketLeadService $leadService,
         private DripService $dripService,
+        private HighTicketBookingService $bookingService,
     ) {}
 
     /**
@@ -156,6 +162,12 @@ class HighTicketLeadController extends Controller
         ]);
     }
 
+    /**
+     * `cancelled` is deliberately absent (US14 / FR-051): setting it here would
+     * label the lead without releasing the slot, deleting the Zoom meeting or
+     * telling the applicant — the state would be a lie. The only way in is the
+     * cancel action below; leaving it is free, since every other value is here.
+     */
     public function updateStatus(Request $request, HighTicketLead $lead): JsonResponse
     {
         $validated = $request->validate([
@@ -165,6 +177,41 @@ class HighTicketLeadController extends Controller
         $lead->update($validated);
 
         return response()->json($lead->fresh());
+    }
+
+    /**
+     * Move a confirmed booking to another slot (011 US14 / FR-048).
+     *
+     * Admin-only: there is no self-service path, so reaching here always means
+     * somebody asked for the change in a message (D50).
+     */
+    public function reschedule(RescheduleBookingRequest $request, HighTicketLead $lead): RedirectResponse
+    {
+        try {
+            $result = $this->bookingService->reschedule($lead, $request->startsAt());
+        } catch (SlotUnavailableException $e) {
+            // 409 rather than a flash: the grid the admin was looking at is out
+            // of date and needs reloading, not a message on top of stale data.
+            abort(409, $e->getMessage());
+        }
+
+        if (!$result['success']) {
+            return back()->withErrors(['booking' => $result['message']]);
+        }
+
+        return back()->with('success', "已改期至 {$result['slot_label']}，並已寄出更新通知與行事曆邀請");
+    }
+
+    /** Call a confirmed booking off and hand the slot back (FR-049). */
+    public function cancelBooking(HighTicketLead $lead): RedirectResponse
+    {
+        $result = $this->bookingService->cancel($lead);
+
+        if (!$result['success']) {
+            return back()->withErrors(['booking' => $result['message']]);
+        }
+
+        return back()->with('success', '已取消預約，時段已釋出，並已寄出取消通知與行事曆更新');
     }
 
     public function notifySlot(Request $request): JsonResponse

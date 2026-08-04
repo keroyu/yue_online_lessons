@@ -71,9 +71,11 @@
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
       "011.us-10",
       "011.us-12",
+      "011.us-14",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
+      "011.us-14",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -316,6 +318,9 @@
     "app/Http/Requests/Admin/GrantPointsRequest.php": [
       "007.us-6"
     ],
+    "app/Http/Requests/Admin/RescheduleBookingRequest.php": [
+      "011.us-14"
+    ],
     "app/Http/Requests/Admin/SendBatchEmailRequest.php": [
       "008.us-5"
     ],
@@ -461,6 +466,9 @@
       "011.us-5",
       "011.us-9"
     ],
+    "app/Jobs/SyncZoomMeetingJob.php": [
+      "011.us-14"
+    ],
     "app/Mail/BatchEmailMail.php": [
       "008.us-5",
       "011.us-4",
@@ -486,6 +494,7 @@
       "012.us-4"
     ],
     "app/Mail/TemplatedMail.php": [
+      "011.us-14",
       "011.us-2",
       "011.us-5",
       "011.us-6",
@@ -651,6 +660,9 @@
       "012.us-5",
       "012.us-6"
     ],
+    "app/Services/CalendarInviteService.php": [
+      "011.us-14"
+    ],
     "app/Services/CartService.php": [
       "005.us-1",
       "005.us-5"
@@ -672,7 +684,8 @@
     "app/Services/ConsultationSlotService.php": [
       "011.us-10",
       "011.us-11",
-      "011.us-13"
+      "011.us-13",
+      "011.us-14"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -708,6 +721,7 @@
       "011.us-10",
       "011.us-11",
       "011.us-12",
+      "011.us-14",
       "011.us-2",
       "011.us-6",
       "011.us-7",
@@ -790,7 +804,8 @@
       "003.us-9"
     ],
     "app/Services/ZoomMeetingService.php": [
-      "011.us-12"
+      "011.us-12",
+      "011.us-14"
     ],
     "bootstrap/app.php": [
       "000.us-6",
@@ -994,9 +1009,19 @@
     "database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php": [
       "011.us-10"
     ],
+    "database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php": [
+      "011.us-14"
+    ],
+    "database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php": [
+      "011.us-14"
+    ],
+    "database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php": [
+      "011.us-14"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
+      "011.us-14",
       "011.us-6"
     ],
     "database/seeders/ShortLinkSeeder.php": [
@@ -1015,7 +1040,8 @@
       "004.us-3"
     ],
     "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
-      "011.us-13"
+      "011.us-13",
+      "011.us-14"
     ],
     "resources/js/Components/Admin/CouponChainInserter.vue": [
       "006.us-5"
@@ -1034,6 +1060,7 @@
       "004.us-4"
     ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
+      "011.us-14",
       "011.us-8",
       "011.us-9"
     ],
@@ -1223,7 +1250,8 @@
     ],
     "resources/js/Pages/Admin/ConsultationSlots/Index.vue": [
       "011.us-10",
-      "011.us-13"
+      "011.us-13",
+      "011.us-14"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -1275,6 +1303,7 @@
       "009.us-7"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
+      "011.us-14",
       "011.us-6",
       "011.us-7"
     ],
@@ -1486,6 +1515,7 @@
       "011.us-10",
       "011.us-11",
       "011.us-13",
+      "011.us-14",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1518,6 +1548,9 @@
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"
     ],
+    "tests/Feature/HighTicket/BookingChangeTest.php": [
+      "011.us-14"
+    ],
     "tests/Feature/HighTicket/BookingLeadRecordTest.php": [
       "011.us-2"
     ],
@@ -1529,6 +1562,9 @@
       "011.us-10",
       "011.us-9"
     ],
+    "tests/Feature/HighTicket/CalendarInviteTest.php": [
+      "011.us-14"
+    ],
     "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
       "011.us-10",
       "011.us-13"
@@ -1537,6 +1573,9 @@
       "011.us-7"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
+      "011.us-5"
+    ],
+    "tests/Feature/HighTicket/LeadSubscribeDripTest.php": [
       "011.us-5"
     ],
     "tests/Feature/HighTicket/LeadsTabsTest.php": [

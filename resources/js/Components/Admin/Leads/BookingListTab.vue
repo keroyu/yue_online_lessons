@@ -42,32 +42,40 @@ const props = defineProps({
 // Status config — single source of truth for every status affordance on this
 // page: the square switcher in each row AND the filter pills above the table,
 // so one colour always means one status.
-// Letters: P=Pending 待聯繫 / C=Contacted 已聯繫 / N=No response 未回應
-//          / D=Deal 已成交 / X=Closed 已關閉
+// Letters: P=Pending 待面談 / C=Consulted 已面談 / N=No-show 未出席
+//          / D=Deal 已成交 / X=Closed 已關閉 / V=Cancelled 已取消
+//
+// The funnel talks about consultations, not contact attempts (2026-08-05):
+// every lead here booked a 1v1 session, so "已聯繫" was describing the wrong
+// event. The stored values still read pending / contacted / no_response —
+// display-only rename, see the note on each below.
 // (class strings are written out in full so Tailwind's scanner keeps them)
 const statusButtons = [
   {
     value: 'pending',
     letter: 'P',
-    label: '待聯繫',
+    label: '待面談',
     active: 'bg-yellow-500 text-white ring-yellow-500',
     idle: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-200',
     tabActive: 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600',
     tabIdle: 'bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100',
   },
   {
+    // Stored as `contacted` — the consultation happened.
     value: 'contacted',
     letter: 'C',
-    label: '已聯繫',
+    label: '已面談',
     active: 'bg-blue-500 text-white ring-blue-500',
     idle: 'bg-blue-50 text-blue-700 hover:bg-blue-200',
     tabActive: 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600',
     tabIdle: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
   },
   {
+    // Stored as `no_response` — now means the applicant never showed up.
+    // Matches the wording already in the confirmation mail:「無故不出席」.
     value: 'no_response',
     letter: 'N',
-    label: '未回應',
+    label: '未出席',
     active: 'bg-orange-500 text-white ring-orange-500',
     idle: 'bg-orange-50 text-orange-700 hover:bg-orange-200',
     tabActive: 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600',
@@ -93,6 +101,22 @@ const statusButtons = [
   },
 ]
 
+// Filterable and colour-coded, but NOT settable from the row: a booking is
+// cancelled by cancelling it on the 諮詢時段 grid, which also frees the slot,
+// kills the Zoom meeting and mails the applicant. A one-click status flip here
+// would set the label and do none of that (FR-051) — the endpoint rejects it.
+const cancelledStatus = {
+  value: 'cancelled',
+  letter: 'V',
+  label: '已取消',
+  active: 'bg-rose-600 text-white ring-rose-600',
+  idle: 'bg-rose-50 text-rose-700 hover:bg-rose-200',
+  tabActive: 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700',
+  tabIdle: 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100',
+}
+
+const allStatuses = [...statusButtons, cancelledStatus]
+
 // Filter tabs — status pills inherit the colour coding above; only 全部 is neutral
 const tabs = [
   {
@@ -101,7 +125,7 @@ const tabs = [
     tabActive: 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90',
     tabIdle: 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
   },
-  ...statusButtons.map(({ value, label, tabActive, tabIdle }) => ({ value, label, tabActive, tabIdle })),
+  ...allStatuses.map(({ value, label, tabActive, tabIdle }) => ({ value, label, tabActive, tabIdle })),
 ]
 
 // Search & course filter
@@ -212,9 +236,17 @@ const selectedLeads = computed(() =>
 // worth telling, not a status whitelist.
 const canNotifySlot = computed(() => selectedIds.value.length > 0)
 
-const canSubscribeDrip = computed(() =>
-  selectedIds.value.length > 0 &&
-  selectedLeads.value.every(l => ['pending', 'no_response', 'closed'].includes(l.status))
+// Same reasoning as canNotifySlot: the admin ticking the box is the decision.
+// A whitelist here meant 已面談 and 已取消 leads — often the warmest ones — sat
+// on the list with the button greyed out and no explanation why.
+const canSubscribeDrip = computed(() => selectedIds.value.length > 0)
+
+// The one case worth a second look: somebody who already bought does not need
+// the sequence that exists to sell to them. Surfaced in the modal rather than
+// blocked, because re-nurturing a customer for a *different* course is a real
+// thing an admin might mean.
+const selectedConverted = computed(() =>
+  selectedLeads.value.filter(l => l.status === 'converted')
 )
 
 // Inline status update
@@ -606,7 +638,7 @@ const copySelectedEmails = async () => {
             <th class="hidden md:table-cell w-[173px] px-4 py-3 text-left">課程</th>
             <th class="whitespace-nowrap px-4 py-3 text-left">
               狀態
-              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待 / C聯 / N未回 / D成 / X關</span>
+              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待談 / C已談 / N未出席 / D成 / X關</span>
             </th>
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
@@ -673,6 +705,16 @@ const copySelectedEmails = async () => {
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm">
               <div class="flex items-center gap-1">
+                <!-- Read-only: none of the five buttons below can represent it,
+                     and it must not be settable from here (FR-051). -->
+                <span
+                  v-if="lead.status === 'cancelled'"
+                  :title="cancelledStatus.label"
+                  class="h-[25px] w-[25px] flex-shrink-0 rounded text-xs font-bold flex items-center justify-center ring-2 ring-offset-1"
+                  :class="cancelledStatus.active"
+                >
+                  {{ cancelledStatus.letter }}
+                </span>
                 <button
                   v-for="s in statusButtons"
                   :key="s.value"
@@ -980,6 +1022,15 @@ const copySelectedEmails = async () => {
       <p class="text-sm text-gray-600 mb-4">
         將為 {{ selectedIds.length }} 位 Lead 加入序列信（已有 active 訂閱者將略過）。
       </p>
+      <!-- Not a block, a heads-up: nurturing an existing customer toward a
+           different course is legitimate, doing it by accident is not. -->
+      <div
+        v-if="selectedConverted.length > 0"
+        class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+      >
+        其中 <strong>{{ selectedConverted.length }} 位已成交</strong>，他們會收到這門課的招生序列信。
+        若不是刻意要向他們推另一門課，建議先取消勾選。
+      </div>
       <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-1">序列課程</label>
         <select

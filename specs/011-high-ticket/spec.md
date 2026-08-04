@@ -7,6 +7,14 @@ owner_files:
   - app/Exceptions/SlotUnavailableException.php
   - app/Services/ZoomMeetingService.php
   - app/Jobs/CreateZoomMeetingJob.php
+  - app/Services/CalendarInviteService.php
+  - app/Jobs/SyncZoomMeetingJob.php
+  - app/Http/Requests/Admin/RescheduleBookingRequest.php
+  - database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php
+  - database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php
+  - tests/Feature/HighTicket/CalendarInviteTest.php
+  - tests/Feature/HighTicket/BookingChangeTest.php
   - app/Http/Controllers/Admin/ConsultationSlotController.php
   - app/Http/Requests/HighTicketBookingRequest.php
   - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
@@ -52,6 +60,7 @@ owner_files:
   - database/migrations/2026_08_04_000002_add_no_response_to_high_ticket_leads_status.php
   - database/seeders/EmailTemplateSeeder.php
   - tests/Feature/HighTicket/LeadConvertTest.php
+  - tests/Feature/HighTicket/LeadSubscribeDripTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
@@ -95,7 +104,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）
   - file: routes/console.php
     owner: 000-platform-core
     why: US11 的 `booking:release-holds` 每 10 分鐘排程（逾時暫留的清理，非正確性來源，見 D33）
@@ -154,9 +163,9 @@ touchpoints:
 
 **驗收**：
 - [x] 列表顯示姓名、Email、課程、狀態、通知次數、序列信紀錄、預約時間；依 booked_at 降冪、每頁 20 筆分頁
-- [x] 狀態篩選（待聯繫 / 已聯繫 / 未回應 / 已成交 / 已關閉）、課程下拉篩選（僅列 `type=high_ticket` 課程）、姓名或 Email 關鍵字搜尋（LIKE 模糊比對、300ms debounce）三者可組合，分頁保留查詢參數
-- [x] 可直接更新單筆 lead 狀態（`PATCH /admin/high-ticket-leads/{lead}/status`），列表即時反映；狀態欄為五顆色塊按鈕（P 待聯繫黃 / C 已聯繫藍 / N 未回應橘 / D 已成交綠 / X 已關閉灰），一鍵切換免展開下拉，目前狀態以實心底色 + ring 標示、其餘為淺色底，欄頭附 `P待 / C聯 / N未回 / D成 / X關` 圖例，點擊當前狀態不發請求
-- [x] `no_response`（未回應）代表「已聯繫但對方沒下文」，排在 `contacted` 之後：可被批次「加入序列信」（同 pending / closed），且對方重新預約同課程時狀態自動回 `pending`（重新預約本身就是回應）
+- [x] 狀態篩選（待面談 / 已面談 / 未出席 / 已成交 / 已關閉 / 已取消，顯示名稱見 FR-055）、課程下拉篩選（僅列 `type=high_ticket` 課程）、姓名或 Email 關鍵字搜尋（LIKE 模糊比對、300ms debounce）三者可組合，分頁保留查詢參數
+- [x] 可直接更新單筆 lead 狀態（`PATCH /admin/high-ticket-leads/{lead}/status`），列表即時反映；狀態欄為五顆色塊按鈕（P 待面談黃 / C 已面談藍 / N 未出席橘 / D 已成交綠 / X 已關閉灰）＋ 已取消（V 玫瑰）唯讀徽章，一鍵切換免展開下拉，目前狀態以實心底色 + ring 標示、其餘為淺色底，欄頭附 `P待談 / C已談 / N未出席 / D成 / X關` 圖例，點擊當前狀態不發請求
+- [x] `no_response`（顯示為**未出席**，US14 後語意改為 no-show，見 FR-055）排在 `contacted` 之後：可被批次「加入序列信」（同 pending / closed），且對方重新預約同課程時狀態自動回 `pending`（重新預約本身就是回應）
 - [x] 「序列信紀錄」欄以 email 關聯 `users` → `drip_subscriptions` 顯示曾加入的 drip 課程與訂閱狀態；無紀錄顯示 `—`（不需額外欄位）
 - [x] 狀態篩選按鈕 active / 非 active 均為 cursor-pointer，active 提供 hover 深化效果；四個狀態 tab 與列內色塊按鈕共用同一組配色（黃/藍/綠/灰），active 為實心、非 active 為同色系淺底，「全部」維持 brand-teal 中性色 — 全頁同一顏色恆等於同一狀態
 - [x] 批次動作列有「複製 Email」按鈕：把已勾選 leads 的 email 以 `, ` 串接寫入剪貼簿（去重，同人重複預約只出現一次），可直接貼進郵件收件人欄；未勾選時停用，複製成功後 2 秒顯示綠勾與「已複製 N 個 Email」，複製不會清空勾選
@@ -169,7 +178,7 @@ touchpoints:
 **驗收**：
 - [x] 勾選任意狀態的 leads 點「通知新時段」先開確認 modal：顯示 `high_ticket_slot_available` 模板主旨、body Markdown 渲染預覽、收件人列表、前往編輯模板的連結
 - [x] 模板不存在時 modal 顯示警告並停用「確認發送」；後端亦回 422 引導先建立模板
-- [x] 確認後 per-lead 派送 `NotifyHighTicketSlotJob`（不依狀態過濾 — 新時段對已聯繫 / 未回應 / 已關閉的 lead 同樣值得一提，由勾選的管理員判斷），立即回應 dispatched 數
+- [x] 確認後 per-lead 派送 `NotifyHighTicketSlotJob`（不依狀態過濾 — 新時段對已面談 / 未出席 / 已關閉的 lead 同樣值得一提，由勾選的管理員判斷），立即回應 dispatched 數
 - [x] Job 成功寄出後該 lead `notified_count` +1、`last_notified_at` 更新為當下；寄送失敗 throw 觸發重試（3 次，backoff 60/300/900 秒）
 - [x] 「發送郵件」可勾選任意狀態 leads：modal 填主旨（上限 200 字）與內容（上限 10000 字，含字元計數），以 `BatchEmailMail` 逐一同步寄出（以 lead.email 為收件地址，不依賴 User 帳號）；單筆失敗僅記 log 不中斷，回應「已發送 N 封郵件」
 
@@ -178,7 +187,7 @@ touchpoints:
 冷掉或未成交的 leads 交給 drip 自動化培養；面談成交者由管理員直接開通商品。
 
 **驗收**：
-- [x] 勾選 `pending`（冷掉）、`no_response`（未回應）或 `closed` 的 leads 點「加入序列信」，下拉選單列出所有 `course_type=drip` 課程供選擇
+- [x] 勾選任意狀態的 leads 點「加入序列信」（2026-08-05 起不依狀態過濾，FR-007），下拉選單列出所有 `course_type=drip` 課程供選擇；選取中含「已成交」時 modal 顯示提示但不擋下
 - [x] lead 的 email 已有「任一」active drip_subscription 時跳過（不限同課程），回應摘要 `{dispatched, skipped}`
 - [x] 每筆派送 `SubscribeDripLeadJob`：以 email `firstOrCreate` user（nickname=lead.name、無密碼，沿用驗證碼登入）→ `DripService::subscribe()` 建立訂閱並立即發第一封序列信 → 成功後 lead status 自動改 `closed`
 - [x] 非「已成交」的 lead 課程欄有「開通」按鈕：確認 modal 顯示 lead 姓名 / Email、三條操作說明、商品下拉（所有課程）
@@ -341,6 +350,37 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 原有的「日期 + 起訖時間」表單與依日期分組的方塊清單移除；所有可點元素 `cursor-pointer` + hover 回饋
 - [x] 測試：週資料組裝（跨週邊界、台北時區）、範圍外既有時段會撐開格線、批次收回只刪未佔用者、佔用中的單位收不掉、同 lead 連續單位合併為一個區塊
 
+### User Story 14 - 行事曆邀請與預約異動 (Priority: P1)
+
+確認信目前只給一段時間文字加一條 Zoom 連結，對方得自己把時間抄進行事曆 —— 這是 1v1 諮詢
+最大的 no-show 來源：人不是故意不出現，是那個時間根本沒進他的行程表。
+
+同時，系統至今**沒有任何取消或改期的路徑**（FR-040 把它列為明確的已知限制）。對方臨時有事只能寫信，
+你只能到 Zoom 後台手動刪會議，而那個時段仍然卡在週曆上放不出去，別人也選不到。
+US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆預約才能收回」指向一個當時還不存在的動作。
+
+這個故事補上兩件事：確認信附一份真正的行事曆邀請（`.ics`），以及後台可以改期／取消已成立的預約，
+而異動會同步反映到對方的行事曆與 Zoom 會議上。
+
+**驗收**：
+- [x] 「客製服務預約確認」信 MUST 附一份 `.ics`（`text/calendar; charset=UTF-8; method=REQUEST`，檔名 `consultation.ics`）；Zoom 已建會議時 `LOCATION` 與 `DESCRIPTION` 帶 `join_url`，未啟用或建立失敗時兩者留白但**附件照樣附** —— 時間本身就是要進行事曆的東西，有沒有連結是另一回事
+- [x] `.ics` 的 `UID` MUST 由 lead id 推導且終生不變（`high-ticket-lead-{id}@{host}`），`SEQUENCE` 每次異動遞增並落庫；改期與取消能對上對方日曆裡的同一筆行程，靠的就是這兩個值（見 D49）
+- [x] `DTSTART` / `DTEND` MUST 為 UTC（結尾 `Z`）；內容 MUST 以 **CRLF** 換行、超過 75 octets 的行做 folding 且 **MUST NOT 切在 UTF-8 多位元組字元中間**；`DESCRIPTION` / `SUMMARY` 內的 `,` `;` `\` 與換行 MUST escape（見 D51）
+- [x] 後台可將已確認的預約**改期**到週曆上的另一個時段：舊單位釋出、新單位直接落為已確認佔用，包在單一 transaction；**不限改期次數**（使用者決策）
+- [x] 改期 MUST 沿用 FR-032 的併發保護（`lockForUpdate` + 連續 N 單位檢查），撞車回 **409**；新舊區間重疊時屬於本 lead 自己的單位 MUST 視為可用（10:00 改到 10:15 不該被自己擋下）
+- [x] 改期 MUST 呼叫 Zoom `PATCH /meetings/{id}` 更新 `start_time` / `duration`，**MUST NOT 刪除重建** —— `join_url` 不變，對方行事曆裡的連結與已經存下來的連結繼續有效（見 D52）
+- [x] 改期 MUST 寄「客製服務預約已改期」信，附 `SEQUENCE+1`、同 `UID`、`METHOD:REQUEST` 的 `.ics`，對方日曆自動更新為新時間（不會多出第二筆行程）
+- [x] 後台可**取消**已確認的預約：單位釋出回可預約、`cancelled_at` 落地、`status` 轉 `cancelled`
+- [x] 取消 MUST 呼叫 Zoom `DELETE /meetings/{id}` 並清空 lead 的 `zoom_meeting_id` / `zoom_join_url`；Zoom 回 404（會議已被人工刪掉）MUST 視同成功
+- [x] 取消 MUST 寄「客製服務預約已取消」信，附 `METHOD:CANCEL` + `STATUS:CANCELLED` 的 `.ics`，對方日曆自動移除該行程
+- [x] 兩封異動信 MUST CC `high_ticket_lead_notify_cc`（沿用 FR-014）
+- [x] Zoom 的更新／刪除 MUST 走 Job（`tries=3`），失敗只 log 並 CC 內部收件者，**MUST NOT 讓已成立的異動失敗** —— 時段與信件是事實，Zoom 是副作用（沿用 FR-016 原則）
+- [x] 改期與取消的入口在**週曆的預約區塊**（US13）：區塊上兩顆按鈕。「改期」進入改期模式 —— 格線只讓能容納該長度的起始格可點，點選後跳確認（顯示舊時間 → 新時間）；「取消」跳確認 modal。改期模式可用 Esc 或再點一次按鈕退出（見 D53）
+- [x] `cancelled` 為 status enum 第六值，Leads 名單篩選多一顆 tab；取消後的 lead **重新申請 MUST 自動轉回 `pending`**（沿用 `recordLead()` 對 closed / no_response 的既有處理）
+- [x] 申請人端 MUST NOT 有任何自助改期／取消入口（使用者決策，見 D50）：信中不放管理連結，異動一律經由聯絡管理員
+- [x] 所有新增的可點元素 `cursor-pointer` + hover 回饋；改期／取消為破壞性操作，MUST 二次確認
+- [x] 測試：ics 的 UID / SEQUENCE / UTC 格式 / CRLF / 中文 folding 不斷字 / escape、Zoom 未啟用時仍附件、改期的併發與自我重疊、改期後 `join_url` 不變、取消釋出單位並轉狀態、Zoom 404 視同成功、兩封信的 CC 與附件 method（皆以 fake HTTP client）
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -353,11 +393,14 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
   | `high_ticket_booking_confirmation` | `{{user_name}}`、`{{user_email}}`、`{{course_name}}` |
   | `course_gifted` | `{{course_name}}`、`{{course_description}}`、`{{app_url}}` |
   | `lesson_added` | `{{course_name}}`、`{{lesson_title}}`、`{{classroom_url}}` |
-  | `high_ticket_slot_available` | Job 實際替換 `{{user_name}}`、`{{course_name}}`；編輯頁變數清單未登錄此 event_type，不顯示插入按鈕 |
+  | `high_ticket_slot_available` | Job 實際替換 `{{user_name}}`、`{{course_name}}`、`{{booking_url}}`（FR-042） |
+  | `high_ticket_booking_rescheduled` / `high_ticket_booking_cancelled` | 見 FR-052（US14 新增） |
 
 - **FR-005**: 模板變數以 `str_replace` 全量替換（無 escape / 白名單機制）；event_type 建立後不可修改（update 僅驗證 name / subject / body_md / body_type）
 - **FR-006**: 「通知新時段」MUST NOT 依 lead 狀態過濾傳入的 lead_ids（2026-08-04 放寬，原為只收 `status=pending`）— 收件人由管理員勾選決定；notified_count / last_notified_at 由 Job 於寄送成功後更新，非派送當下
-- **FR-007**: 「加入序列信」後端 MUST 以 `status IN (pending, closed)` 過濾；去重條件為該 email 對「任何課程」存在 active 訂閱即跳過，最後防線是 `DripService::subscribe()` 內的重複訂閱檢查（Job 內失敗僅記 log，lead 狀態不變）
+- **FR-007**: 「加入序列信」MUST NOT 依 lead 狀態過濾（2026-08-05 放寬，原為 `status IN (pending, no_response, closed)`）—— 收件人由管理員勾選決定，與「通知新時段」（FR-006）採同一原則。**放寬的理由是舊規則會靜靜吃掉勾選**：`已面談` / `已成交` / `已取消` 被無聲丟棄，管理員勾了 6 位卻只看到「已加入 3 位」，而且前端按鈕會在選到這些人時變灰、不說原因 —— 其中「已取消」往往正是最該進序列的一群。
+  真正的守門是**去重**：該 email 對「任何課程」存在 active 訂閱即跳過（計入 `skipped`），最後防線是 `DripService::subscribe()` 內的重複訂閱檢查（Job 內失敗僅記 log，lead 狀態不變）。
+  唯一需要提醒的情形是 `converted`（已成交）—— 對已付費的人再寄一次這門課的招生序列信是尷尬的。處理方式為**在確認 modal 顯示提示**（「其中 N 位已成交…」）而非擋下：把既有客戶推向**另一門**課是合理操作，誤勾才不是，而這兩者只有管理員分得出來
 - **FR-008**: 開通使用 `Purchase::updateOrCreate([user_id, course_id])`，同人同課重複開通不會產生第二筆購買記錄（重複開通以最新成交價覆寫 amount）；購買類型固定 `lead_conversion`（「顧問轉換」，後台與會員頁以 teal 樣式與贈送 / 購買區分）。**覆寫僅限既有記錄本身就是 `lead_conversion`，或 `status=refunded` 的作廢記錄**；其餘情形受 FR-015 守門
 - **FR-011**: 開通時 `amount` 由管理員輸入（`required|integer|min:0`），寫入 `Purchase.amount`；0 元開通合法（免費體驗 / 補開通，不計營收）。前端預設值為所選課程 `display_price`，`grantableCourses` 需帶 `price / original_price / promo_ends_at` 以計算之
 - **FR-009**: 兩個 Job 均為 `tries=3`、`backoff=[60, 300, 900]`；lead 或 template 已被刪除時記 warning 後靜默結束，不 retry
@@ -438,6 +481,49 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **FR-039**: Zoom 為**選配**：未設定憑證時系統行為 MUST 完全等同 US11（含測試）。測試 MUST 以 fake HTTP client 驗證，不得打真實 Zoom API
 
+- **FR-046**: `.ics` 的產生 MUST 收斂於單一入口 `CalendarInviteService`，對外只有兩個方法：`invite()`（`METHOD:REQUEST`）與 `cancellation()`（`METHOD:CANCEL`）。**不引入 iCalendar 套件**（見 D51）。格式硬性要求：
+  - 換行一律 **CRLF**（`\r\n`）；用 `\n` 有客戶端直接不解析
+  - 行長超過 **75 octets** 需 folding（下一行以單一空白起始），且切點 MUST 落在 UTF-8 字元邊界 —— 中文一字 3 bytes，切在中間會讓整段變亂碼
+  - `DTSTART` / `DTEND` / `DTSTAMP` 為 UTC 且以 `Z` 結尾；時段本來就存 UTC（D32），MUST NOT 繞經台北時區再轉回來
+  - `SUMMARY` / `DESCRIPTION` / `LOCATION` 的 `\` `;` `,` 與換行 MUST escape（`\\` `\;` `\,` `\n`）
+  - MUST 含 `ATTENDEE`（申請人 Email）與 `ORGANIZER` —— 少了 `ATTENDEE`，`METHOD:CANCEL` 在 Outlook 上不會生效
+
+- **FR-047**: 行事曆行程的身分 MUST 由 `UID` + `SEQUENCE` 構成。`UID` = `high-ticket-lead-{lead_id}@{app_url 的 host}`，**推導而非落庫**（沿用 D33 的「狀態不存欄位」原則，lead id 不變則 UID 不變）；`SEQUENCE` 存於 `high_ticket_leads.calendar_sequence`，每次寄出異動邀請前 +1。同一 `UID` 配遞增 `SEQUENCE`，對方日曆才會**更新既有行程**而不是新增第二筆
+
+- **FR-048**: 改期 = 「釋放舊單位 + 佔用新單位」的原子操作，MUST 包在單一 `DB::transaction()` 並 `lockForUpdate()`，撞車回 **409**（與 FR-032 同構）。既有 `ConsultationSlotService::reserve()` 已在檢查可用性前先 `release($lead)`，**自我重疊因此不需要特例**；本次只把 `$holdUntil` 放寬為 nullable，null 即新單位直接落為已確認佔用（`held_until = null`），不必再走一次 `confirm()`。改期 MUST 只對 `confirmed_at` 非 null 且未取消的 lead 生效；未確認的申請沒有「行程」可改，只有暫留會自然逾時
+
+- **FR-049**: 取消 MUST 釋放該 lead 的全部單位、寫入 `cancelled_at`、`status` 轉 `cancelled`，並清空 `zoom_meeting_id` / `zoom_join_url`。`confirm_token` / `resume_token` **不清除** —— 對方若改變主意重新申請，`recordLead()` 會把 `cancelled` 一併視為可復活的狀態轉回 `pending`（比照既有的 closed / no_response 處理），舊 token 沿用不失效
+
+- **FR-050**: Zoom 的改期／取消同步 MUST 走 Job（`SyncZoomMeetingJob`，`tries=3`、`backoff=[30, 120, 300]`），且 MUST NOT 阻擋或回滾已成立的異動。`updateMeeting()` 走 `PATCH /v2/meetings/{id}`（回 204），`deleteMeeting()` 走 `DELETE /v2/meetings/{id}`（回 204；**404 視同成功** —— 會議已經不在了，正是我們要的結果）。Zoom 未啟用或 lead 沒有 `zoom_meeting_id` 時整條跳過（沿用 FR-039）。**此條取代 FR-040**
+
+- **FR-051**: `high_ticket_leads.status` 新增第六值 `cancelled`（「已取消」）。取消與 `closed` 是不同的事實 —— closed 是「聊過但冷掉／轉序列信」，cancelled 是「約好了但沒發生」，混在一起就看不出哪些人其實根本沒談過（使用者決策）。enum 變更 MUST 以 `Schema::change()` 帶完整值列表（比照 `2026_08_04_000002`，讓 sqlite 測試 DB 的 CHECK 一併更新），Leads 名單的篩選 tab 與色塊沿用既有的 `statusButtons` 單一設定表
+
+- **FR-055**: Leads 名單的狀態**顯示名稱**與 DB 值刻意脫鉤（2026-08-05，使用者決策）。US14 之後每一筆 lead 都是「約了 1v1 面談」，漏斗講的是面談而不是聯繫，因此對照表如下：
+
+  | DB 值 | 顯示名稱 | 意義 |
+  |-------|---------|------|
+  | `pending` | 待面談 | 已預約，面談還沒發生 |
+  | `contacted` | 已面談 | 面談完成 |
+  | `no_response` | **未出席** | 約了但沒出現（no-show）。與預約表單第 4 步警語「若確定預約卻無故**不出席**，我們將永久黑名單」（FR-025 區塊，`HighTicketBookingWizard.vue`）同一個詞 —— 申請人送出前讀到的就是它 |
+  | `converted` | 已成交 | |
+  | `closed` | 已關閉 | 談過但冷掉 |
+  | `cancelled` | 已取消 | 預約被取消（FR-051），唯讀（FR-054） |
+
+  **MUST NOT 改動 DB 值**：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
+
+- **FR-054**: `updateStatus` 端點 MUST NOT 接受 `cancelled`。從名單上一鍵改成「已取消」會貼上標籤卻不釋出時段、不刪 Zoom 會議、不通知對方 —— 那個狀態會是假的。唯一入口是週曆區塊的取消動作（FR-049）；名單上的「已取消」為**唯讀徽章**，可篩選、不可點擊設定
+
+- **FR-052**: 新增兩個 `email_templates`：
+
+  | event_type | 名稱 | 可用變數 |
+  |------------|------|---------|
+  | `high_ticket_booking_rescheduled` | 客製服務預約已改期 | `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{old_slot_time}}`、`{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}` |
+  | `high_ticket_booking_cancelled` | 客製服務預約已取消 | `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{slot_time}}`、`{{course_url}}` |
+
+  兩者 MUST 同時登記於 `EmailTemplateSeeder` 與**一支資料 migration**（見 D54）。migration MUST 以「先查 `event_type` 是否存在再 insert」實作，**不可用 `insertOrIgnore`** —— `event_type` 只有一般索引、沒有 unique 約束（見 Schema 段），IGNORE 沒有約束可觸發，重跑會直接多一列，而 `forEvent()->first()` 會沉默地取到其中一筆。變數清單 MUST 補進 `EmailTemplateController::$availableVariables`，否則編輯頁沒有插入按鈕、管理員不知道有哪些變數可用（`high_ticket_slot_available` 就漏過一次，見 FR-004 表格）
+
+- **FR-053**: `TemplatedMail` MUST 支援附件，但 MUST 維持它「對信件內容一無所知」的定位：建構子多收一個 `array $attachments`（Laravel `Illuminate\Mail\Mailables\Attachment` 實例陣列），`attachments()` 原樣回傳。MIME type 由**呼叫端**決定 —— `method=REQUEST` 與 `method=CANCEL` 是兩個不同的 content type，Mailable 不該知道差別
+
 - **FR-045**: 批次收回 MUST 只刪除**未被佔用**的單位（`lead_id` 為 null 或暫留已逾時）。區間內已被佔用者跳過並計入 flash 的略過數 —— 沿用既有 `destroy()` 的守門理由：把已確認預約的時段抽掉，對方手上會留著一張指向系統已不認得的時段的行事曆邀請
 
 - **FR-044**: 新增批次收回端點 `DELETE /admin/consultation-slots`（帶 `date` / `start_time` / `end_time`，staff 群組）。既有的單筆 `DELETE /admin/consultation-slots/{slot}` 保留 —— 兩者共用同一段守門邏輯，收在 `ConsultationSlotService` 內
@@ -448,7 +534,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **FR-041**: 問卷的手機號碼 MUST 在 lead 轉為會員帳號時寫入 `users.phone`，且 MUST NOT 覆寫既有會員的值（以 `firstOrCreate` 的建立屬性帶入，非 `update`）。所有電話欄位 MUST 為 `varchar(30)`：`users.phone`、`orders.buyer_phone`、`high_ticket_leads.phone` 三者與 Form Request 的 `max:30` 一致
 
-- **FR-040**: 本次 MUST NOT 實作改期 / 取消同步。管理員在後台改動 lead 狀態或刪除時段時，**已建立的 Zoom 會議不會自動取消** —— 這是明確的已知限制（見 D42），需人工到 Zoom 後台處理
+- **FR-040**: ~~本次 MUST NOT 實作改期 / 取消同步~~ **已由 FR-050 取代（2026-08-05, US14）**。原條款記錄 US12 當時的取捨：改期／取消不同步，Zoom 會議需人工到後台刪除（D42）。US14 補上後台改期與取消，兩者皆經 `SyncZoomMeetingJob` 同步 Zoom 並寄出更新／取消的 `.ics`。**仍未涵蓋的殘留情形**：管理員直接在 Leads 名單把狀態改成 `closed`，或用批次收回硬刪未被佔用的單位 —— 這兩條路徑不觸發任何同步，取消預約請一律走預約區塊的「取消」按鈕
 
 - **FR-035**: 逾時釋出的正確性來源 MUST 是查詢時的 lazy 判定（FR-029 第四列），排程 `booking:release-holds` 只做資料整理。排程停擺時系統行為 MUST 完全正確 —— 使用者選得到逾時釋出的時段，只是後台會看到殘留的 `lead_id`
 
@@ -456,11 +542,31 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 ## 設計決策
 
+- **D49**: `.ics` 用 **`METHOD:REQUEST`** 而不是 `METHOD:PUBLISH`（FR-046）。兩者的差別很實際：Gmail 只對 REQUEST 顯示可互動的「加入日曆」卡片，PUBLISH 多半退化成一個附件圖示 —— 而這張卡片就是整個功能存在的理由，退化了等於沒做。
+  REQUEST 的代價是它語意上是一份**正式邀請**，發出去就欠對方一套生命週期：改期要送同 `UID` 的更新、取消要送 `METHOD:CANCEL`，否則對方日曆會留下指向已不存在的會議的幽靈行程。這正是這個故事把 `.ics` 與「後台改期／取消」綁在同一個 US 的原因 —— 先前 US12 之所以沒做 `.ics`，缺的不是產生器，是這套生命週期（FR-040/D42）。單獨上 `.ics` 而不做取消，等於把 US12 的已知限制從「Zoom 後台有殘留」升級成「對方手機會在你早就取消的時間跳提醒」。
+  另外**不再額外提供「加入 Google 日曆」按鈕連結**：它只服務 Google 用戶、且是一次性複製（之後的改期完全同步不到），與 REQUEST 的更新語意互相矛盾 —— 兩套並存會讓同一個人的日曆裡出現一筆會更新、一筆不會更新的重複行程
+
+- **D50**: 申請人端**完全不做自助改期／取消**（使用者決策）。原規劃是拿既有的 `resume_token`（D44）開一個 `/booking/manage/{token}` 自助頁，被否決；理由是高價諮詢的異動本身就是一次接觸機會，讓對方按個鈕就消失，等於把唯一一次挽回的對話丟掉。政策面因此也不需要「開始前 N 小時截止」的門檻與改期次數上限 —— 沒有自助入口，就沒有需要限制的行為，`rescheduled_count` 欄位隨之取消。
+  代價要說清楚：對方臨時有事**只能寫信或私訊**，如果他懶得聯絡就會直接是 no-show，而你到當下才知道。緩解的不是系統而是文案 —— 確認信與 `.ics` 的 `DESCRIPTION` 都要明確寫「需異動請直接回信」，並附上聯絡方式；否則對方連該找誰都不知道，只好放生。
+  這也是為什麼改期不限次數：把它交給人之後，判斷「這個人改第三次了」是你的工作，不是系統的
+
+- **D51**: `.ics` **自己產生，不引 iCalendar 套件**（FR-046）。需要的只有一個 `VEVENT`、七八個欄位，套件帶來的是 RRULE、時區資料庫、VALARM 那些我們用不到的東西，以及一個要跟著升級的相依。真正有難度的只有兩件事，而它們套件也不見得做對：**CRLF** 與 **UTF-8 安全的 75-octet folding**。中文一個字 3 bytes，天真的 `wordwrap()` / `str_split()` 會切在字元中間，讓整段 `DESCRIPTION` 變亂碼 —— 這是中文 `.ics` 最常見的失敗模式，所以 folding 要按 byte 累計、按字元邊界斷，並且**測試要直接斷言中文長行 folding 後仍可正確解回原字串**。
+  同理，`UID` 選擇**推導而非落庫**（`high-ticket-lead-{id}@{host}`）：lead id 不變則 UID 不變，多一個欄位只是多一個會跟事實不同步的地方（沿用 D33 的推導優先原則）。`SEQUENCE` 則**必須落庫** —— 它是計數，推不出來
+
+- **D52**: 改期走 Zoom `PATCH /meetings/{id}` 而**不是刪掉重建**（FR-050）。PATCH 保留同一個 `join_url`，於是三件事同時成立：對方日曆裡的 `LOCATION` 不用換、他先前自己存下來的連結還能用、`.ics` 的更新只需要改時間。刪除重建則會讓所有已發出的連結同時失效，而其中至少一份在對方的日曆裡 —— 那正是我們剛剛才更新過的那筆。
+  刪除時把 Zoom 的 **404 視同成功**：這個 API 是宣告式的（「這個會議不該存在」），會議已被人工刪掉時 404 恰恰代表目標達成，當成錯誤重試三次只會產生三筆假的 error log
+
+- **D53**: 後台改期／取消的入口放在**週曆的預約區塊**，不放 Leads 名單。理由是時段是空間問題（US13 的整個論點）：改期要看的是「哪裡還有空」，而那張圖只有週曆有；Leads 名單連時段欄位都沒有，在那裡改期等於盲選。
+  改期的手勢選**兩段式**（點「改期」進模式 → 點新起始格 → 確認），不做「拖曳預約區塊到新位置」。拖放看起來更直覺，但 D45 已經把「拖曳起點」這個手勢分配給釋出／收回了，再疊一種語意上去，使用者每次按下滑鼠都得先想自己在做哪件事。兩段式的另一個好處是進入模式後可以**把不可用的起始格全部變灰**（不足 N 個連續單位的位置直接不給點），把「選了才被拒絕」變成「根本選不到」。
+  取消不做 undo，改為二次確認 modal —— 取消會寄信給對方並刪掉 Zoom 會議，這兩件事收不回來，undo 只會給人錯誤的安全感
+
+- **D54**: 兩個新模板同時寫進 **seeder 與一支資料 migration**（FR-052）。正式站的部署只跑 `migrate`，不跑 seeder，所以只加 seeder 的話功能上線即形同虛設（寄信時找不到模板，只會在 log 留一行 warning）。這與 D44 那支 `2026_08_05_000005` 是同一類問題但**方向相反**：那次是既有模板不能被 seeder 蓋掉，所以用 migration 做「附加」；這次是全新的 event_type，正式站根本沒有這兩列，migration 用 `insertOrIgnore`（已存在就跳過）即可，不會有覆寫業主文案的風險
+
 - **D23**: 合併後的殼**沿用 `Admin/HighTicketLeads/Index.vue` 這個 component 路徑**（Inertia render 字串與路由名不變），內容拆成兩個 tab 元件：`Components/Admin/Leads/BookingListTab.vue`（現有 987 行整段搬入）與 `Components/Admin/Leads/SubscriberListTab.vue`。不把訂閱者那 300 行直接塞進去 —— 987 + 300 行的單檔沒人改得動，而且兩個 tab 的 state（勾選、modal、篩選）互不相干，天然就該分檔。Page 檔只留 h1 + tab nav + 兩個 `v-if`
 
 - **D24**: tab 走 **server-side query param**（`?tab=`）而非 Points.vue 的純前端 `v-show` 兩份都載。理由是兩頁的成本結構不同：Points.vue 的兩份資料都輕（一組設定 + 一張推薦統計表）；訂閱者 tab 要跑 per-lesson 開信/點擊聚合、per-subscriber 事件統計與分頁，把它掛在每次開 Leads 頁的路徑上，等於為了「可能會切過去看」而固定付一次重查詢。代價是切 tab 有一次 round-trip，但換來網址可分享、可重整、可加書籤，對後台是划算的
 
-- **D25**: 訂閱者 tab 的參數加 `sub_` 前綴而非共用 `status`（FR-024）—— 兩邊狀態 enum 沒有交集，共用的話「篩已聯繫的 lead → 切到訂閱者」會變成篩一個不存在的訂閱狀態，得在切 tab 時清掉對方參數，那是更繞的做法。分開命名的附帶好處是切回來時原本的篩選還在
+- **D25**: 訂閱者 tab 的參數加 `sub_` 前綴而非共用 `status`（FR-024）—— 兩邊狀態 enum 沒有交集，共用的話「篩已面談的 lead → 切到訂閱者」會變成篩一個不存在的訂閱狀態，得在切 tab 時清掉對方參數，那是更繞的做法。分開命名的附帶好處是切回來時原本的篩選還在
 
 - **D26**: 訂閱者 tab **不做「全部課程」聚合**，一定選定一門 drip 課程。因為這頁的每個數字都以單一課程為分母 —— 進度是「第 N / 共 M 個小節」、Lesson 發信統計逐課列出、轉換率是該課的目標課程達成率，跨課程加總沒有語意。預設選第一門而非空白，是為了讓頁面一進來就有東西看（目前 drip 課程數量是個位數）
 
@@ -489,7 +595,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **D16**: 前端的既有購買警告以 `index()` 一次撈出的 `purchasesByEmail` 比對，不另開 API endpoint — 比照同一頁既有的 `dripByEmail`（`HighTicketLeadController.php`）作法，單頁 20 筆、單一查詢，選課程時純前端比對，免 roundtrip
 
-- **D17**: 同 email + 同課程的重複預約改為「更新既有 lead」而非新增一列（2026-08-03，推翻原 D7 的保留完整歷史）— 後台是一份**待辦名單**不是事件流水帳：同一個人送三次表單就變三列待聯繫，管理員得逐列判斷是不是同一人，複製 Email 也得靠去重補救。狀態處理採「closed 回復 pending、其餘保留」：closed 多半是冷掉後丟進序列信，本人再次主動預約等於重新有意願，該回到待辦；contacted / converted 是管理員基於真實接觸下的判斷，程式不該覆寫。代價是失去重複預約的次數與時間軸 —— 目前沒有任何功能讀這份歷史，等真的要做「預約熱度」再另開事件表，不為假想需求先犧牲日常可用性
+- **D17**: 同 email + 同課程的重複預約改為「更新既有 lead」而非新增一列（2026-08-03，推翻原 D7 的保留完整歷史）— 後台是一份**待辦名單**不是事件流水帳：同一個人送三次表單就變三列待處理，管理員得逐列判斷是不是同一人，複製 Email 也得靠去重補救。狀態處理採「closed 回復 pending、其餘保留」：closed 多半是冷掉後丟進序列信，本人再次主動預約等於重新有意願，該回到待辦；contacted / converted 是管理員基於真實接觸下的判斷，程式不該覆寫。代價是失去重複預約的次數與時間軸 —— 目前沒有任何功能讀這份歷史，等真的要做「預約熱度」再另開事件表，不為假想需求先犧牲日常可用性
 
 - **D18**: CC 清單放 `site_settings` 並掛在 **Email 模板管理頁**，不放付款/API 設定頁 — 那頁是金流與第三方憑證，這是信件收件人，語意不同；Email 模板管理頁本來就是「信件相關設定」的入口，管理員找得到。保留 `DEFAULT_NOTIFY_CC` 常數當 fallback 而非改成必填設定：新環境（含測試 DB）沒有這筆設定時，lead 通知信仍必須寄得出去，絕不能因為沒設定就靜默不通知任何人
 
@@ -553,6 +659,22 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 ## Schema
 
+- **US14 schema 變更（三支 migration）**：
+
+  `2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php` — `high_ticket_leads` 增兩欄：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `calendar_sequence` | unsignedTinyInteger, default 0 | `.ics` 的 `SEQUENCE`；每次寄出異動邀請前 +1（FR-047） |
+  | `cancelled_at` | timestamp nullable | 取消時間；null = 未取消。與 `status = cancelled` 並存是刻意的 —— status 可被管理員手改，時間戳是事實 |
+
+  `2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php` — status enum 擴為六值
+  `['pending', 'contacted', 'no_response', 'converted', 'closed', 'cancelled']`，`Schema::change()` 帶完整列表 + 重述 `default('pending')`（比照 `2026_08_04_000002`，否則 sqlite 的 CHECK 不會更新、default 會被丟掉）
+
+  `2026_08_06_000003_insert_booking_change_email_templates.php` — 寫入 `high_ticket_booking_rescheduled` 與 `high_ticket_booking_cancelled` 兩筆模板（D54）。已存在即跳過（**逐筆查 `event_type`，不是 `insertOrIgnore`** —— 該欄無 unique 約束，見 FR-052），不覆寫任何既有文案
+
+  **不變量**：`UID` 不落庫（由 lead id 推導，FR-047）；改期不新增列、不留歷史 —— `consultation_slots` 只表達「現在誰佔著哪一格」，改期軌跡要查請看信件與 log（若日後需要異動歷史，那是一張新表，不是往這裡加欄位）
+
 - **US9–US11 schema 變更（兩支 migration）**：
 
   `2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php` — `high_ticket_leads` 增欄，**全部 nullable**（既有列沒有這些值，不得設 NOT NULL）：
@@ -596,7 +718,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - **US8（名單管理頁合併）無 schema 變更** —— 純後台資訊架構調整，讀的是既有 `high_ticket_leads` 與 `drip_subscriptions` / `drip_email_events`
 - US5（開通補強）無 schema 變更（新增的是 `email_templates` 的一筆資料，不是欄位；覆寫守門與 transaction 皆為既有欄位上的邏輯）
 - US1 亦無 schema 變更（landing page 隱藏與 mail_sent 回報皆為既有欄位與前端呈現）
-- `high_ticket_leads` — 預約產生的潛在客戶；status 銷售漏斗 enum(pending 待聯繫 / contacted 已聯繫 / no_response 未回應 / converted 已成交 / closed 已關閉) 預設 pending；notified_count（unsigned tinyint）與 last_notified_at 只由 NotifyHighTicketSlotJob 寄送成功後更新；booked_at 為最近一次提交時間（非 created_at 語意）；email / status / course_id 皆有索引。**DB 無 (email, course_id) unique 約束**，去重由 `recordLead()` 在應用層負責（D17）— 歷史資料可能已有重複列，加 unique 需先清理，現階段不值得
+- `high_ticket_leads` — 預約產生的潛在客戶；status 銷售漏斗 enum(pending / contacted / no_response / converted / closed / cancelled) 預設 pending；**DB 值與顯示名稱刻意脫鉤，對照表見 FR-055**；notified_count（unsigned tinyint）與 last_notified_at 只由 NotifyHighTicketSlotJob 寄送成功後更新；booked_at 為最近一次提交時間（非 created_at 語意）；email / status / course_id 皆有索引。**DB 無 (email, course_id) unique 約束**，去重由 `recordLead()` 在應用層負責（D17）— 歷史資料可能已有重複列，加 unique 需先清理，現階段不值得
 - `site_settings.high_ticket_lead_notify_cc` — 預約通知 CC 收件者，逗號分隔字串；不存在或為空即 fallback 至 `DEFAULT_NOTIFY_CC`（FR-014）
 - `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
 - `email_templates.body_md` — **模板原始內容，格式由 `body_type` 決定**（歷史命名，非僅 Markdown，見 D19）
@@ -783,8 +905,48 @@ Phase C — 驗證
 - [x] T103 補 FR-031 的後台介面缺口：優惠碼原本只存在 `site_settings`，沒有任何填寫畫面（只能 tinker）。「諮詢時段」頁加設定欄位 + `updateSettings()` + `PUT /admin/consultation-slots/settings` + Form Request，儲存時以 `parseRecipients()` 正規化；新增 5 個測試 in `app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php`
 - [ ] T102 使用者以瀏覽器實測：桌機拖曳釋出 / 拖曳收回 / 拖過已預約格、手機單日檢視的觸控拖曳、週切換、Zoom 連結可點
 
+### 行事曆邀請與預約異動（US14）
+
+Phase A — Schema（其餘全部相依於此）
+- [x] T104 [P] `calendar_sequence`（unsignedTinyInteger default 0）+ `cancelled_at`（timestamp nullable）in `database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php`
+- [x] T105 [P] status enum 擴為六值（加 `cancelled`），`Schema::change()` 帶完整列表並重述 `default('pending')`（FR-051）in `database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php`
+- [x] T106 [P] `insertOrIgnore` 寫入兩筆新模板；同步登記於 seeder（D54）in `database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php` + `database/seeders/EmailTemplateSeeder.php`
+
+Phase B — `.ics` 產生器（可與 Phase C 平行）
+- [x] T107 **測試先行**：`fold()` 對中文長行折行後可正確解回原字串、CRLF、`escapeText()` 處理 `\` `;` `,` 與換行、`DTSTART` 為 UTC `Z` 格式、`UID` 由 lead id 推導且穩定、`METHOD:CANCEL` 版本含 `STATUS:CANCELLED` 與 `ATTENDEE` in `tests/Feature/HighTicket/CalendarInviteTest.php`
+- [x] T108 新 service：`invite(HighTicketLead, Course, CarbonInterface $startsAt, int $minutes, ?string $zoomUrl): string` 與 `cancellation(...): string`；private `uid()` / `fold()`（按 byte 累計、按 UTF-8 字元邊界斷）/ `escapeText()` / `utcStamp()`（FR-046 / FR-047 / D51）in `app/Services/CalendarInviteService.php`
+- [x] T109 建構子加 `array $attachments = []`（Laravel `Attachment` 實例），`attachments()` 原樣回傳；MIME 由呼叫端決定（FR-053）in `app/Mail/TemplatedMail.php`
+- [x] T110 `sendConfirmationMail()` 掛上 `.ics` 附件（`consultation.ics`，`text/calendar; charset=UTF-8; method=REQUEST`）—— Zoom 成功與失敗兩條路徑都經過這裡，附件邏輯只寫一次 in `app/Services/HighTicketBookingService.php`
+
+Phase C — 改期／取消後端（相依 Phase A）
+- [x] T111 `reserve()` 的 `$holdUntil` 放寬為 `?CarbonInterface`，null 即新單位直接落為已確認佔用（`held_until = null`）；既有呼叫端不受影響（FR-048）in `app/Services/ConsultationSlotService.php`
+- [x] T112 `updateMeeting(string $meetingId, CarbonInterface $startsAt, int $minutes): void`（`PATCH /v2/meetings/{id}`）與 `deleteMeeting(string $meetingId): void`（`DELETE`，404 視同成功）（FR-050 / D52）in `app/Services/ZoomMeetingService.php`
+- [x] T113 新 Job：`tries=3`、`backoff=[30,120,300]`，依動作分派 update / delete；Zoom 未啟用或無 `zoom_meeting_id` 即靜默結束；`failed()` 記 error 並 CC `notifyCc()`（FR-050）in `app/Jobs/SyncZoomMeetingJob.php`
+- [x] T114 **測試先行**：`reschedule(HighTicketLead, CarbonInterface): array` —— 只對已確認且未取消的 lead 生效、transaction + `lockForUpdate`、撞車回 409、自我重疊可通過、`calendar_sequence` +1、寄改期信附新 ics、派送 Zoom PATCH job；`cancel(HighTicketLead): array` —— 釋出單位、`cancelled_at` / status 落地、清空 zoom 欄位、寄取消信附 `METHOD:CANCEL` ics、派送 delete job in `app/Services/HighTicketBookingService.php` + `tests/Feature/HighTicket/BookingChangeTest.php`
+- [x] T115 `reschedule(RescheduleBookingRequest, HighTicketLead)` 與 `cancelBooking(HighTicketLead)` 兩個 action（thin，只轉呼叫 service 並 flash）；`recordLead()` 的復活狀態清單加 `cancelled`（FR-049）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T116 [P] Form Request：`slot_starts_at` required + `date` + 15 分鐘刻度 + 不得早於現在，中文錯誤訊息 in `app/Http/Requests/Admin/RescheduleBookingRequest.php`
+- [x] T117 [P] 路由：staff 群組加 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）（touchpoint，owner 000-platform-core）in `routes/web.php`
+
+Phase D — 週曆 UI（相依 Phase C）
+- [x] T118 預約區塊加「改期」／「取消」兩顆按鈕（`cursor-pointer` + hover）；改期模式：該區塊 highlight、格線只讓能容納 N 個連續可用單位的起始格可點（其餘變灰不可點）、點選後跳確認顯示「舊時間 → 新時間」、Esc 或再點一次退出；取消跳二次確認 modal（D53）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T119 承接 `@reschedule` / `@cancel` 事件送出請求（`preserveScroll`）；頁尾註腳「已被預約的時段要先到 Leads 名單處理」改寫為指向區塊上的按鈕 in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T120 [P] Leads 名單 `statusButtons` 加 `cancelled`（「取」，灰／紅色系，與 closed 可區分）；篩選 tab 隨之多一顆（沿用既有由 statusButtons 產生 tabs 的作法）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T121 [P] `$availableVariables` 補兩個新 event_type 的變數清單（FR-052）in `resources/js/Pages/Admin/EmailTemplates/Edit.vue`
+
+Phase E — 驗證
+- [x] T122 `php artisan test` 全綠（基準 349 passed）＋ `npm run build` exit 0
+- [x] T124 `updateStatus` 拿掉 `cancelled`，名單改為唯讀徽章（FR-054）in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T126 `.ics` 的 `DESCRIPTION` 移除「請直接回覆此信」—— 聯絡管道是業主在模板裡自訂的政策（線上模板寫的是「請勿直接回覆此信」），`.ics` 不該複製一份會漂移的版本 in `app/Services/CalendarInviteService.php`
+- [x] T127 「加入序列信」拿掉狀態白名單（FR-007）；前端按鈕 gate 一併移除，確認 modal 加「已成交」提示；補 LeadSubscribeDripTest（5 tests，此路徑原本零覆蓋）in `app/Services/HighTicketLeadService.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue` + `tests/Feature/HighTicket/LeadSubscribeDripTest.php`
+- [x] T125 狀態顯示名稱改為面談語彙：待面談 / 已面談 / 未出席（FR-055，DB 值不動）；欄頭圖例同步 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [ ] T123 使用者以瀏覽器實測：確認信收到後 `.ics` 在 Gmail / Apple Mail 顯示為可加入的邀請、改期後日曆自動更新為新時間（不是多一筆）、取消後日曆行程消失、Zoom 會議實際被改時間 / 刪除、中文標題在日曆中無亂碼
+
 ## 進度日誌
 
+- 2026-08-05: 「加入序列信」不再依狀態過濾（T127 / FR-007）+ `.ics` 移除聯絡管道指示（T126）— 序列信的狀態白名單會**靜靜吃掉勾選**：`已面談` / `已成交` / `已取消` 被無聲丟棄，勾 6 位只加了 3 位，前端按鈕還會在選到他們時變灰不說原因。改為完全由管理員勾選決定（比照 FR-006 的既有原則），真正的守門留給去重（active 訂閱即 skip）；唯一會尷尬的 `converted` 改為在確認 modal 提示而非擋下 —— 把既有客戶推向另一門課是合理操作，只有管理員分得出誤勾。此路徑原本**零測試覆蓋**，補 LeadSubscribeDripTest（5 tests）。另修一個 US14 帶進來的矛盾：`.ics` 的 `DESCRIPTION` 寫「需要改期或取消，請直接回覆預約確認信」，但線上那封確認信（業主 2026-08-04 編輯過）結尾寫的是「**請勿直接回覆此信**，請寄信到客服信箱」。D50 說「不做自助入口、靠文案告訴對方怎麼聯絡」，對著實際模板是失效的。`.ics` 改為中性的「如需改期或取消，請與我們聯繫」—— 聯絡管道是業主在可編輯模板裡設定的政策，`.ics` 不該複製一份會漂移的版本。
+- 2026-08-05: 狀態顯示名稱改為面談語彙（T125 / FR-055）— US14 之後每一筆 lead 都是「約了 1v1 面談」，「待聯繫 / 已聯繫」描述的是錯的事件。改為 **待面談 / 已面談**，`no_response` 由「未回應」改為 **未出席**（no-show），取其中性標準（「爽約」帶指責、「缺席」偏機構用語），且與預約表單第 4 步警語「無故**不出席**」同一個詞 —— 申請人送出前讀到的就是它。**DB 值刻意不動**（使用者決策）：改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no_show 等於把那段歷史重新貼標。代價是 `contacted` / `no_response` 的字面意思與顯示不符，以 FR-055 的對照表 + `statusButtons` 每個值旁的註解承擔。行為零變化（重新預約回 pending 對 no-show 同樣成立）。
+- 2026-08-05: US14 完成（T104–T122、T124）— 確認信改為附 `.ics`（`METHOD:REQUEST`），並補上後台改期／取消。`CalendarInviteService` 自己產生 iCalendar，folding 按 byte 累計、按 UTF-8 字元邊界斷 —— 測試直接斷言中文長行 fold 後 `mb_check_encoding` 仍為合法 UTF-8 且可解回原字串（天真的 `wordwrap()` 在這裡會切出亂碼）。`UID` 由 lead id 推導、`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`。改期只需把 `reserve()` 的 `$holdUntil` 放寬為 nullable —— 它本來就先 `release($lead)` 再檢查可用性，**自我重疊因此不必特例**（10:00 改 10:15 直接可行）。Zoom 走 `PATCH` 保住 `join_url`（D52），刪除的 404 視同成功。週曆的改期採兩段式：點區塊 → 上方動作列出現 → 點「改期」後只有能容納 N 格連續空檔的起始格可點，其餘變灰；改期模式下所有區塊設 `pointer-events-none`，否則區塊會蓋住自己底下那幾格，而 15 分鐘的微調正好要點在那裡。**實作中補了 FR-054**：`updateStatus` 原本會接受 `cancelled`，那條路只貼標籤、不釋時段不刪會議不寄信，狀態會是假的 —— 改為拒絕，名單上的「已取消」降為唯讀徽章。另修一個測試層面的真實風險：`event_type` 沒有 unique 索引，migration 若用 `insertOrIgnore` 重跑會多一列而 `forEvent()->first()` 沉默取錯（測試 seeder 也一併改 `updateOrCreate`）。新增 CalendarInviteTest（13）與 BookingChangeTest（29），全套 391 passed（1945 assertions）、`npm run build` exit 0。T123 瀏覽器／真實信箱實測待業主確認。
+- 2026-08-05: 規劃 US14 行事曆邀請與預約異動（已審核，開始實作）— 確認信附 `.ics`（`METHOD:REQUEST`，D49），並補上後台改期／取消。兩件事綁在同一個 US 是因為它們是同一件事的兩半：REQUEST 型的邀請一旦發出就欠對方一套生命週期，只做 `.ics` 而不做取消，會把 US12 的已知限制（FR-040/D42：Zoom 後台有殘留）升級成「對方手機在你早就取消的時間跳提醒」。`UID` 由 lead id 推導不落庫（沿用 D33），`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`（FR-047）。ics 自己產生不引套件，難點只有 CRLF 與 **UTF-8 安全的 75-octet folding** —— 中文一字 3 bytes，天真折行會把 `DESCRIPTION` 切成亂碼（D51）。改期走 Zoom `PATCH` 而非刪除重建，`join_url` 因此不變、已發出的連結全部繼續有效（D52）；刪除時 404 視同成功。**申請人端不做任何自助入口**（使用者決策，D50）：改期／取消一律經由聯絡管理員，於是門檻與次數上限都不需要，`rescheduled_count` 欄位取消 —— 代價是懶得聯絡的人會直接 no-show，緩解靠信件與 ics 內文明確寫「需異動請直接回信」。後台入口放週曆的預約區塊而非 Leads 名單（改期要看的是哪裡還有空，只有週曆有那張圖），手勢用兩段式而非拖放，避免與 D45 的拖曳語意打架（D53）。`status` 加第六值 `cancelled`（與 closed 分開，否則看不出誰其實根本沒談過）。三支 migration，其中新模板同時進 seeder 與 `insertOrIgnore` 的資料 migration —— 正式站只跑 migrate 不跑 seeder（D54）。status: draft 待審核。
 - 2026-08-05: 社群網址改為 scheme 限定（FR-027）— 原本的 `url` 規則擋得掉沒有 scheme 的 `instagram.com/someone`，但 `ftp://`、`javascript:alert(1)`、`data:text/html,...` 全部放行，而這個值會直接成為後台 Leads 名單裡的 `href`。改為 `url:http,https`，錯誤訊息改寫成「須為完整網址，並以 http:// 或 https:// 開頭」。新增 4 個測試（無 scheme 擋下、三種非 http scheme 擋下、http/https 皆放行、留空仍可）。
 - 2026-08-05: 補 FR-031 的後台介面缺口（T103）— 預約優惠碼從 US10 起就只存在 `site_settings.high_ticket_booking_bonus_codes`，程式讀得到、但**後台從來沒有填它的畫面**，只能 tinker 或直接改 DB。US10 的驗收條款只寫「填入命中 `site_settings...` 的碼」，沒有要求介面，所以測試全綠也照樣漏掉 —— 驗收寫的是資料在哪，不是人怎麼設定它。「諮詢時段」頁加設定欄位（諮詢長度是它改變的東西，放這裡比放「API 設定」語意連貫，比照 `high_ticket_lead_notify_cc` 放在 Email 模板頁的既有作法），儲存時以 `parseRecipients()` 正規化為逗號分隔字串。新增 5 個測試，全套 345 passed。
 - 2026-08-05: 前台第 3 步版面調整 — 優惠碼由時段清單上方的整寬欄位改為左右兩欄（`sm:grid-cols-[minmax(0,14rem)_1fr]`，手機堆疊），金色虛線卡片 + 「填入可將諮詢延長為 45 分鐘」說明。原本只標「（選填）」，看不出填了有什麼好處，那才是它被略過的原因。後台週曆同步修三處版面 bug：頁面缺水平留白（AdminLayout 只給 `py-6`）、時間標籤用 `-mt-2` 導致整欄被負 margin 壓縮（56 格差約 450px，看起來像格子超出 22:00）、格線畫在 `border-b` 使整點線落在自己標籤的下一格。拖曳讀數由格內文字框改為格線上方浮條 —— 格內版本在單格選取時只有 20px 高卻要放兩行字，文字擠爛且蓋住游標。

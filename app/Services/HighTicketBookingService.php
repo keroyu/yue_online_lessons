@@ -4,11 +4,14 @@ namespace App\Services;
 
 use App\Exceptions\SlotUnavailableException;
 use App\Jobs\CreateZoomMeetingJob;
+use App\Jobs\SyncZoomMeetingJob;
 use App\Mail\TemplatedMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use Carbon\CarbonInterface;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -244,6 +247,14 @@ class HighTicketBookingService
             '{{zoom_join_url}}'   => $zoomUrl ?? ($lead->zoom_join_url ?? ''),
         ];
 
+        // The calendar entry goes out whether or not Zoom produced a link: the
+        // time is the thing that has to reach their calendar, the link is extra
+        // (FR-046). Without this the applicant is left copying a date out of an
+        // email by hand, which is where no-shows come from.
+        $attachments = $slot
+            ? [$this->inviteAttachment($lead, $course, $slot->starts_at, $vars['{{zoom_join_url}}'] ?: null)]
+            : [];
+
         try {
             Mail::to($lead->email)
                 ->cc(array_values(array_unique(array_merge($this->notifyCc(), $extraCc))))
@@ -251,6 +262,7 @@ class HighTicketBookingService
                     $template->renderSubject($vars),
                     $template->renderBody($vars),
                     $template->renderText($vars),
+                    $attachments,
                 ));
 
             return true;
@@ -262,6 +274,223 @@ class HighTicketBookingService
 
             return false;
         }
+    }
+
+    /**
+     * Move a confirmed booking to another slot (011 US14 / FR-048).
+     *
+     * Admin-only by design (D50): there is no self-service path, so this is
+     * always somebody acting on a message the applicant sent them.
+     *
+     * @throws SlotUnavailableException when the target range is taken
+     * @return array{success: bool, message?: string, slot_label?: string}
+     */
+    public function reschedule(HighTicketLead $lead, CarbonInterface $newStartsAt): array
+    {
+        if (!$lead->isActiveBooking()) {
+            return ['success' => false, 'message' => '這筆預約尚未確認或已取消，無法改期'];
+        }
+
+        $course = Course::find($lead->course_id);
+
+        if (!$course) {
+            return ['success' => false, 'message' => '找不到對應的課程'];
+        }
+
+        $oldSlot = $lead->slots()->first();
+        $oldLabel = $oldSlot ? $this->slots->label($oldSlot->starts_at) : '';
+        $minutes = $this->slots->minutesFor($lead->booking_code);
+        $newStart = Carbon::instance($newStartsAt)->utc();
+
+        // reserve() drops this lead's own units before it checks availability,
+        // so moving 10:00 to 10:15 is not blocked by the booking itself. A null
+        // hold books the new range outright — it was already confirmed.
+        $this->slots->reserve($lead, $newStart, $minutes, null);
+
+        $lead->increment('calendar_sequence');
+        $lead->refresh();
+
+        // Outside the slot move, and each independently non-fatal: the schedule
+        // has already changed, and neither a mail server nor Zoom gets a vote on
+        // that (沿用 FR-016).
+        $this->sendChangeMail($lead, $course, 'high_ticket_booking_rescheduled', [
+            '{{old_slot_time}}' => $oldLabel,
+            '{{slot_time}}'     => $this->slots->label($newStart),
+        ], $this->inviteAttachment($lead, $course, $newStart, $lead->zoom_join_url ?: null));
+
+        if ($lead->zoom_meeting_id) {
+            SyncZoomMeetingJob::dispatch(SyncZoomMeetingJob::ACTION_UPDATE, $lead->zoom_meeting_id, $lead->id);
+        }
+
+        return ['success' => true, 'slot_label' => $this->slots->label($newStart)];
+    }
+
+    /**
+     * Call the booking off (011 US14 / FR-049).
+     *
+     * The token columns survive: a cancelled lead who changes their mind is the
+     * same person, and `recordLead()` treats `cancelled` as revivable, so links
+     * already in their inbox keep working.
+     *
+     * @return array{success: bool, message?: string}
+     */
+    public function cancel(HighTicketLead $lead): array
+    {
+        if (!$lead->isActiveBooking()) {
+            return ['success' => false, 'message' => '這筆預約尚未確認或已取消'];
+        }
+
+        $course = Course::find($lead->course_id);
+        $slot = $lead->slots()->first();
+        $startsAt = $slot?->starts_at?->copy();
+        $meetingId = (string) ($lead->zoom_meeting_id ?? '');
+
+        DB::transaction(function () use ($lead) {
+            $this->slots->release($lead);
+
+            $lead->update([
+                'cancelled_at'    => now(),
+                'status'          => 'cancelled',
+                'zoom_meeting_id' => null,
+                'zoom_join_url'   => null,
+            ]);
+        });
+
+        $lead->increment('calendar_sequence');
+        $lead->refresh();
+
+        if ($course && $startsAt) {
+            $this->sendChangeMail($lead, $course, 'high_ticket_booking_cancelled', [
+                '{{slot_time}}'  => $this->slots->label($startsAt),
+                '{{course_url}}' => $this->courseUrl($course),
+            ], $this->cancellationAttachment($lead, $course, $startsAt));
+        }
+
+        if ($meetingId !== '') {
+            SyncZoomMeetingJob::dispatch(SyncZoomMeetingJob::ACTION_DELETE, $meetingId, $lead->id);
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Tell the internal recipients that Zoom did not keep up. Only reached from
+     * SyncZoomMeetingJob::failed() — the applicant already has the right times,
+     * this is somebody needing to open the Zoom panel (FR-050).
+     */
+    public function notifyZoomSyncFailure(string $action, string $meetingId, ?int $leadId): void
+    {
+        $verb = $action === SyncZoomMeetingJob::ACTION_DELETE ? '刪除' : '更新';
+        $lead = $leadId ? HighTicketLead::find($leadId) : null;
+
+        try {
+            Mail::to($this->notifyCc())->send(new TemplatedMail(
+                "【需人工處理】Zoom 會議{$verb}失敗",
+                "<p>Zoom 會議 {$meetingId} 的{$verb}重試三次後仍失敗，請到 Zoom 後台手動處理。</p>"
+                . '<p>預約人：' . e($lead?->name ?? '(不明)') . ' / ' . e($lead?->email ?? '-') . '</p>',
+                "Zoom 會議 {$meetingId} 的{$verb}重試三次後仍失敗，請到 Zoom 後台手動處理。\n"
+                . '預約人：' . ($lead?->name ?? '(不明)') . ' / ' . ($lead?->email ?? '-'),
+            ));
+        } catch (\Exception $e) {
+            Log::error('Zoom sync failure notice could not be sent', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Shared body of the two change mails. A missing template is logged rather
+     * than thrown: the booking has already moved, and refusing to finish because
+     * nobody seeded a template would leave the schedule and the applicant's
+     * calendar disagreeing.
+     *
+     * @param array<string, string> $extraVars
+     */
+    private function sendChangeMail(
+        HighTicketLead $lead,
+        Course $course,
+        string $eventType,
+        array $extraVars,
+        Attachment $attachment
+    ): bool {
+        $template = EmailTemplate::forEvent($eventType)->first();
+
+        if (!$template) {
+            Log::warning('High ticket booking: change template missing', [
+                'lead_id'    => $lead->id,
+                'event_type' => $eventType,
+            ]);
+
+            return false;
+        }
+
+        $vars = array_merge([
+            '{{user_name}}'       => $lead->name,
+            '{{user_email}}'      => $lead->email,
+            '{{course_name}}'     => $course->name,
+            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{zoom_join_url}}'   => $lead->zoom_join_url ?? '',
+        ], $extraVars);
+
+        try {
+            Mail::to($lead->email)
+                ->cc($this->notifyCc())
+                ->send(new TemplatedMail(
+                    $template->renderSubject($vars),
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                    [$attachment],
+                ));
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('High ticket booking change email failed', [
+                'lead_id'    => $lead->id,
+                'event_type' => $eventType,
+                'error'      => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function inviteAttachment(HighTicketLead $lead, Course $course, CarbonInterface $startsAt, ?string $zoomUrl): Attachment
+    {
+        $ics = app(CalendarInviteService::class)->invite(
+            $lead,
+            $course,
+            $startsAt,
+            $this->slots->minutesFor($lead->booking_code),
+            $zoomUrl
+        );
+
+        return $this->calendarAttachment($ics, 'REQUEST');
+    }
+
+    private function cancellationAttachment(HighTicketLead $lead, Course $course, CarbonInterface $startsAt): Attachment
+    {
+        $ics = app(CalendarInviteService::class)->cancellation(
+            $lead,
+            $course,
+            $startsAt,
+            $this->slots->minutesFor($lead->booking_code)
+        );
+
+        return $this->calendarAttachment($ics, 'CANCEL');
+    }
+
+    /**
+     * The `method=` parameter is what makes a client treat the file as an
+     * invitation or a withdrawal rather than a plain attachment — it has to
+     * match the METHOD line inside the file (FR-053).
+     */
+    private function calendarAttachment(string $ics, string $method): Attachment
+    {
+        return Attachment::fromData(fn () => $ics, 'consultation.ics')
+            ->withMime("text/calendar; charset=UTF-8; method={$method}");
+    }
+
+    private function courseUrl(Course $course): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/course/' . ($course->slug ?: $course->id);
     }
 
     private function sendVerifyMail(
@@ -344,7 +573,10 @@ class HighTicketBookingService
         }
 
         $lead->update(array_merge($application, [
-            'status' => in_array($lead->status, ['closed', 'no_response'], true) ? 'pending' : $lead->status,
+            // 'cancelled' joins the revivable set (FR-049): somebody re-applying
+            // after calling one off is exactly the re-engagement we wanted.
+            'status'       => in_array($lead->status, ['closed', 'no_response', 'cancelled'], true) ? 'pending' : $lead->status,
+            'cancelled_at' => null,
         ]));
 
         return $lead;

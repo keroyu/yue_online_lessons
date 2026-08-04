@@ -378,9 +378,13 @@ class ConsultationSlotService
      * by the same lead is dropped first, so re-applying never leaves one person
      * sitting on two ranges.
      *
+     * A null `$holdUntil` books the units outright (US14 / FR-048): rescheduling
+     * an already-confirmed booking has nothing left to verify, so going through
+     * a hold and an immediate confirm() would just be two writes for one fact.
+     *
      * @throws SlotUnavailableException
      */
-    public function reserve(HighTicketLead $lead, CarbonInterface $startsAt, int $minutes, CarbonInterface $holdUntil): void
+    public function reserve(HighTicketLead $lead, CarbonInterface $startsAt, int $minutes, ?CarbonInterface $holdUntil): void
     {
         $units = $this->unitsFor($minutes);
         $start = Carbon::instance($startsAt)->utc();
@@ -409,7 +413,7 @@ class ConsultationSlotService
 
             ConsultationSlot::whereIn('id', $rows->pluck('id'))->update([
                 'lead_id'    => $lead->id,
-                'held_until' => Carbon::instance($holdUntil)->utc(),
+                'held_until' => $holdUntil ? Carbon::instance($holdUntil)->utc() : null,
                 'updated_at' => now(),
             ]);
         });

@@ -223,6 +223,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');
         Route::post('/high-ticket-leads/batch-email', [HighTicketLeadController::class, 'batchEmail'])->name('high-ticket-leads.batch-email');
         Route::post('/high-ticket-leads/{lead}/convert', [HighTicketLeadController::class, 'convert'])->name('high-ticket-leads.convert');
+        // The booking is a sub-resource of the lead (US14): PUT moves it, DELETE calls it off.
+        Route::put('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'reschedule'])->name('high-ticket-leads.reschedule');
+        Route::delete('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'cancelBooking'])->name('high-ticket-leads.cancel-booking');
     });
 
     Route::middleware('admin')->group(function () {

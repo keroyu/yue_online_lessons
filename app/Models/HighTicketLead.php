@@ -30,6 +30,8 @@ class HighTicketLead extends Model
         'resume_token',
         'zoom_meeting_id',
         'zoom_join_url',
+        'calendar_sequence',
+        'cancelled_at',
     ];
 
     protected function casts(): array
@@ -41,6 +43,8 @@ class HighTicketLead extends Model
             'commitments_accepted_at' => 'datetime',
             'confirm_expires_at' => 'datetime',
             'confirmed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'calendar_sequence' => 'integer',
         ];
     }
 
@@ -59,6 +63,12 @@ class HighTicketLead extends Model
     public function isConfirmed(): bool
     {
         return $this->confirmed_at !== null;
+    }
+
+    /** A booking that exists right now — confirmed and not called off (FR-048). */
+    public function isActiveBooking(): bool
+    {
+        return $this->confirmed_at !== null && $this->cancelled_at === null;
     }
 
     /** A pending confirmation that has not run out its hour yet. */

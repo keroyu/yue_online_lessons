@@ -30,6 +30,22 @@ class EmailTemplateController extends Controller
             ['key' => '{{consult_minutes}}', 'label' => '諮詢長度（分鐘）'],
             ['key' => '{{zoom_join_url}}', 'label' => 'Zoom 會議連結（未設定 Zoom 時為空）'],
         ],
+        'high_ticket_booking_rescheduled' => [
+            ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
+            ['key' => '{{user_email}}', 'label' => '申請人 Email'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{old_slot_time}}', 'label' => '原時段'],
+            ['key' => '{{slot_time}}', 'label' => '新時段'],
+            ['key' => '{{consult_minutes}}', 'label' => '諮詢長度（分鐘）'],
+            ['key' => '{{zoom_join_url}}', 'label' => 'Zoom 會議連結（改期不會換連結）'],
+        ],
+        'high_ticket_booking_cancelled' => [
+            ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
+            ['key' => '{{user_email}}', 'label' => '申請人 Email'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{slot_time}}', 'label' => '原訂時段'],
+            ['key' => '{{course_url}}', 'label' => '課程銷售頁網址（讓對方可以重新預約）'],
+        ],
         'high_ticket_slot_available' => [
             ['key' => '{{user_name}}', 'label' => '候補者暱稱'],
             ['key' => '{{course_name}}', 'label' => '課程名稱'],

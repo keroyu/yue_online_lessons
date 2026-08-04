@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -20,11 +21,19 @@ class TemplatedMail extends Mailable
     /**
      * Takes an already-rendered body: EmailTemplate::renderBody() is the single
      * place that knows whether the template is Markdown or raw HTML (FR-019).
+     *
+     * `$fileAttachments` holds ready-made Attachment instances (FR-053). The
+     * MIME type is the caller's call on purpose — a calendar invite and a
+     * calendar cancellation differ only by `method=REQUEST` vs `method=CANCEL`
+     * in the content type, and this class has no business knowing that.
+     *
+     * @param array<int, Attachment> $fileAttachments
      */
     public function __construct(
         public string $emailSubject,
         public string $htmlBody,
-        public string $textBody
+        public string $textBody,
+        public array $fileAttachments = []
     ) {}
 
     public function envelope(): Envelope
@@ -44,6 +53,6 @@ class TemplatedMail extends Mailable
 
     public function attachments(): array
     {
-        return [];
+        return $this->fileAttachments;
     }
 }

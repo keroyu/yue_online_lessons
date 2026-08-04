@@ -67,6 +67,50 @@ class ZoomMeetingService
     }
 
     /**
+     * Move an existing meeting (011 US14 / FR-050 / D52).
+     *
+     * PATCH rather than delete-and-recreate on purpose: the `join_url` survives,
+     * so the link already sitting in the applicant's calendar entry — and in the
+     * confirmation mail they may have starred — keeps working.
+     *
+     * @throws \RuntimeException when Zoom rejects the request
+     */
+    public function updateMeeting(string $meetingId, CarbonInterface $startsAt, int $minutes): void
+    {
+        $response = Http::withToken($this->token())
+            ->acceptJson()
+            ->patch(self::API_BASE . '/meetings/' . $meetingId, [
+                'start_time' => Carbon::instance($startsAt)->utc()->format('Y-m-d\TH:i:s\Z'),
+                'duration'   => $minutes,
+                'timezone'   => ConsultationSlotService::DISPLAY_TZ,
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('Zoom meeting update failed: ' . $response->status() . ' ' . $response->body());
+        }
+    }
+
+    /**
+     * Withdraw a meeting. A 404 counts as success — this call is a declaration
+     * that the meeting should not exist, and somebody having already removed it
+     * by hand is that declaration being true, not an error worth retrying.
+     *
+     * @throws \RuntimeException when Zoom rejects the request for any other reason
+     */
+    public function deleteMeeting(string $meetingId): void
+    {
+        $response = Http::withToken($this->token())
+            ->acceptJson()
+            ->delete(self::API_BASE . '/meetings/' . $meetingId);
+
+        if ($response->successful() || $response->status() === 404) {
+            return;
+        }
+
+        throw new \RuntimeException('Zoom meeting delete failed: ' . $response->status() . ' ' . $response->body());
+    }
+
+    /**
      * Account-credentials grant. Cached per client id so rotating the
      * credentials in the admin panel does not keep serving the old token.
      */

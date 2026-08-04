@@ -524,6 +524,7 @@ main_files:
 - app/Http/Controllers/HighTicketBookingController.php
 - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
 - app/Http/Requests/Admin/EmailTemplateRequest.php
+- app/Http/Requests/Admin/RescheduleBookingRequest.php
 - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
@@ -534,6 +535,7 @@ main_files:
 - app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
+- app/Jobs/SyncZoomMeetingJob.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/CourseGiftedMail.php
 - app/Mail/LessonAddedNotification.php
@@ -543,6 +545,7 @@ main_files:
 - app/Models/HighTicketLead.php
 - app/Models/Purchase.php
 - app/Models/SiteSetting.php
+- app/Services/CalendarInviteService.php
 - app/Services/ConsultationSlotService.php
 - app/Services/DripService.php
 - app/Services/EmailMarkdownService.php
@@ -557,6 +560,9 @@ main_files:
 - database/migrations/2026_08_05_000003_widen_phone_columns_to_30.php
 - database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php
 - database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php
+- database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php
+- database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php
+- database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -575,12 +581,15 @@ main_files:
 - resources/views/emails/template-text.blade.php
 - routes/console.php
 - routes/web.php
+- tests/Feature/HighTicket/BookingChangeTest.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php
+- tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
+- tests/Feature/HighTicket/LeadSubscribeDripTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
 - tests/Feature/HighTicket/ZoomMeetingTest.php

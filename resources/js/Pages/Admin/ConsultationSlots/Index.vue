@@ -37,6 +37,14 @@ function release(payload) {
   router.delete('/admin/consultation-slots', { ...VISIT, data: payload })
 }
 
+function reschedule({ lead_id, date, start_time }) {
+  router.put(`/admin/high-ticket-leads/${lead_id}/booking`, { date, start_time }, VISIT)
+}
+
+function cancelBooking({ lead_id }) {
+  router.delete(`/admin/high-ticket-leads/${lead_id}/booking`, VISIT)
+}
+
 const LEGEND = [
   { label: '未釋出', class: 'bg-white border-gray-300' },
   { label: '可預約', class: 'bg-teal-100 border-teal-300' },
@@ -52,6 +60,7 @@ const LEGEND = [
         <h1 class="text-xl font-bold text-gray-900">諮詢時段</h1>
         <p class="mt-1 text-sm text-gray-500">
           1 格 = 15 分鐘。在空白格上拖曳可釋出時段，在已釋出的格上拖曳則收回；已被預約的格不會被動到。
+          點一筆已預約的區塊可以改期或取消。
         </p>
       </div>
 
@@ -100,7 +109,14 @@ const LEGEND = [
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
-      <WeekGrid :range="props.range" :days="props.days" @create="create" @release="release" />
+      <WeekGrid
+        :range="props.range"
+        :days="props.days"
+        @create="create"
+        @release="release"
+        @reschedule="reschedule"
+        @cancel="cancelBooking"
+      />
     </div>
 
     <form class="bg-white rounded-xl border border-gray-200 p-4 space-y-2" @submit.prevent="saveSettings">
@@ -130,9 +146,9 @@ const LEGEND = [
     </form>
 
     <p class="text-xs text-gray-400">
-      一場諮詢預設佔 2 格（30 分鐘），使用預約優惠碼者佔 3 格（45 分鐘）。已被預約的時段要先到
-      <a href="/admin/high-ticket-leads" class="underline cursor-pointer hover:text-gray-600">Leads 名單</a>
-      處理該筆預約才能收回。
+      一場諮詢預設佔 2 格（30 分鐘），使用預約優惠碼者佔 3 格（45 分鐘）。已被預約的時段不能直接拖曳收回 ——
+      點該區塊選「取消預約」，系統會釋出時段、刪除 Zoom 會議並寄出取消通知與行事曆更新；申請人資料在
+      <a href="/admin/high-ticket-leads" class="underline cursor-pointer hover:text-gray-600">Leads 名單</a>。
     </p>
   </div>
 </template>
