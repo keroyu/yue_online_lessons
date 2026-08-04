@@ -165,10 +165,9 @@ const selectedLeads = computed(() =>
   props.leads.data.filter(l => selectedIds.value.includes(l.id))
 )
 
-const canNotifySlot = computed(() =>
-  selectedIds.value.length > 0 &&
-  selectedLeads.value.every(l => l.status === 'pending')
-)
+// Any status may be notified about a new slot — the admin decides who is
+// worth telling, not a status whitelist.
+const canNotifySlot = computed(() => selectedIds.value.length > 0)
 
 const canSubscribeDrip = computed(() =>
   selectedIds.value.length > 0 &&

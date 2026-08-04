@@ -19,7 +19,11 @@ use Illuminate\Support\Str;
 class HighTicketLeadService
 {
     /**
-     * Dispatch slot-available notification emails to pending leads.
+     * Dispatch slot-available notification emails to the given leads.
+     *
+     * Any status is allowed: a new slot is worth telling a contacted, silent
+     * or even closed lead about, and the admin picking the rows is a better
+     * judge of that than a whitelist.
      *
      * @param array $leadIds
      * @return array{dispatched: int}|array{success: false, error: string}
@@ -32,9 +36,7 @@ class HighTicketLeadService
             return ['success' => false, 'error' => '新時段通知 Email 模板不存在，請先建立 high_ticket_slot_available 模板'];
         }
 
-        $leads = HighTicketLead::whereIn('id', $leadIds)
-            ->where('status', 'pending')
-            ->get();
+        $leads = HighTicketLead::whereIn('id', $leadIds)->get();
 
         foreach ($leads as $lead) {
             NotifyHighTicketSlotJob::dispatch($lead->id, $template->id);

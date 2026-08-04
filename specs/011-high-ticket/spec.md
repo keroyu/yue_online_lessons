@@ -125,13 +125,13 @@ touchpoints:
 
 ### User Story 4 - 通知新時段與批次郵件 (Priority: P2)
 
-新面談時段釋出時，管理員批次通知 pending leads；也可對任意勾選的 leads
+新面談時段釋出時，管理員批次通知已勾選的 leads；也可對任意勾選的 leads
 發送一次性客製郵件。
 
 **驗收**：
-- [x] 勾選 pending leads 點「通知新時段」先開確認 modal：顯示 `high_ticket_slot_available` 模板主旨、body Markdown 渲染預覽、收件人列表、前往編輯模板的連結
+- [x] 勾選任意狀態的 leads 點「通知新時段」先開確認 modal：顯示 `high_ticket_slot_available` 模板主旨、body Markdown 渲染預覽、收件人列表、前往編輯模板的連結
 - [x] 模板不存在時 modal 顯示警告並停用「確認發送」；後端亦回 422 引導先建立模板
-- [x] 確認後 per-lead 派送 `NotifyHighTicketSlotJob`（後端只接受 status=pending 的 leads，前端勾選限制外再過濾一層），立即回應 dispatched 數
+- [x] 確認後 per-lead 派送 `NotifyHighTicketSlotJob`（不依狀態過濾 — 新時段對已聯繫 / 未回應 / 已關閉的 lead 同樣值得一提，由勾選的管理員判斷），立即回應 dispatched 數
 - [x] Job 成功寄出後該 lead `notified_count` +1、`last_notified_at` 更新為當下；寄送失敗 throw 觸發重試（3 次，backoff 60/300/900 秒）
 - [x] 「發送郵件」可勾選任意狀態 leads：modal 填主旨（上限 200 字）與內容（上限 10000 字，含字元計數），以 `BatchEmailMail` 逐一同步寄出（以 lead.email 為收件地址，不依賴 User 帳號）；單筆失敗僅記 log 不中斷，回應「已發送 N 封郵件」
 
@@ -215,7 +215,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
   | `high_ticket_slot_available` | Job 實際替換 `{{user_name}}`、`{{course_name}}`；編輯頁變數清單未登錄此 event_type，不顯示插入按鈕 |
 
 - **FR-005**: 模板變數以 `str_replace` 全量替換（無 escape / 白名單機制）；event_type 建立後不可修改（update 僅驗證 name / subject / body_md / body_type）
-- **FR-006**: 「通知新時段」後端 MUST 以 `status=pending` 過濾傳入的 lead_ids；notified_count / last_notified_at 由 Job 於寄送成功後更新，非派送當下
+- **FR-006**: 「通知新時段」MUST NOT 依 lead 狀態過濾傳入的 lead_ids（2026-08-04 放寬，原為只收 `status=pending`）— 收件人由管理員勾選決定；notified_count / last_notified_at 由 Job 於寄送成功後更新，非派送當下
 - **FR-007**: 「加入序列信」後端 MUST 以 `status IN (pending, closed)` 過濾；去重條件為該 email 對「任何課程」存在 active 訂閱即跳過，最後防線是 `DripService::subscribe()` 內的重複訂閱檢查（Job 內失敗僅記 log，lead 狀態不變）
 - **FR-008**: 開通使用 `Purchase::updateOrCreate([user_id, course_id])`，同人同課重複開通不會產生第二筆購買記錄（重複開通以最新成交價覆寫 amount）；購買類型固定 `lead_conversion`（「顧問轉換」，後台與會員頁以 teal 樣式與贈送 / 購買區分）。**覆寫僅限既有記錄本身就是 `lead_conversion`，或 `status=refunded` 的作廢記錄**；其餘情形受 FR-015 守門
 - **FR-011**: 開通時 `amount` 由管理員輸入（`required|integer|min:0`），寫入 `Purchase.amount`；0 元開通合法（免費體驗 / 補開通，不計營收）。前端預設值為所選課程 `display_price`，`grantableCourses` 需帶 `price / original_price / promo_ends_at` 以計算之
