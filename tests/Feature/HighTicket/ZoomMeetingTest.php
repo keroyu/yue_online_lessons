@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\HighTicket;
 
-use App\Jobs\CreateZoomMeetingJob;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
@@ -83,26 +82,33 @@ class ZoomMeetingTest extends TestCase
 
         $this->applyAndConfirm($this->makeHighTicketCourse());
 
-        Queue::assertNotPushed(CreateZoomMeetingJob::class);
+        Queue::assertNothingPushed();
         Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '預約確認'));
     }
 
-    public function test_with_credentials_the_job_is_queued_instead(): void
+    /**
+     * D55: the whole point of dropping the job. Queue::fake() means nothing
+     * deferred will ever run, and the mail must still arrive.
+     */
+    public function test_the_confirmation_is_sent_without_any_queue_worker(): void
     {
         Mail::fake();
         Queue::fake();
         $this->confirmationTemplate();
         $this->configureZoom();
 
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(['access_token' => 'tok-1', 'expires_in' => 3600]),
+            'api.zoom.us/v2/users/me/meetings' => Http::response(['id' => 5, 'join_url' => 'https://zoom.us/j/5']),
+        ]);
+
         $this->applyAndConfirm($this->makeHighTicketCourse());
 
-        Queue::assertPushed(CreateZoomMeetingJob::class);
-        // The confirmation is the job's responsibility now (D38) — only the
-        // verify mail has gone out at this point.
-        Mail::assertNotSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '預約確認'));
+        Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '預約確認'));
+        Queue::assertNothingPushed();
     }
 
-    public function test_job_creates_the_meeting_and_mails_the_link(): void
+    public function test_confirming_creates_the_meeting_and_mails_the_link(): void
     {
         Mail::fake();
         $this->confirmationTemplate();
@@ -121,12 +127,6 @@ class ZoomMeetingTest extends TestCase
         $lead = HighTicketLead::first();
         app(\App\Services\HighTicketBookingService::class)->confirm($lead->confirm_token);
 
-        (new CreateZoomMeetingJob($lead->id))->handle(
-            app(ZoomMeetingService::class),
-            app(\App\Services\HighTicketBookingService::class),
-            app(\App\Services\ConsultationSlotService::class)
-        );
-
         $lead->refresh();
         $this->assertSame('987654321', $lead->zoom_meeting_id);
         $this->assertSame('https://zoom.us/j/987654321', $lead->zoom_join_url);
@@ -136,24 +136,28 @@ class ZoomMeetingTest extends TestCase
             && str_contains($mail->htmlBody, 'https://zoom.us/j/987654321'));
     }
 
-    public function test_giving_up_still_sends_the_confirmation_with_a_fallback_line(): void
+    /** D39: a Zoom outage must not cost the applicant their confirmation. */
+    public function test_a_zoom_failure_still_confirms_with_a_fallback_line(): void
     {
         Mail::fake();
-        // Fake the queue so confirming does not run the job for real — this
-        // test is about what happens after the retries are exhausted.
-        Queue::fake();
         $this->confirmationTemplate();
         $this->configureZoom();
+
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(['access_token' => 'tok-1', 'expires_in' => 3600]),
+            'api.zoom.us/v2/users/me/meetings' => Http::response(['message' => 'boom'], 500),
+        ]);
 
         $course = $this->makeHighTicketCourse();
         $this->applyForBooking($course);
         $lead = HighTicketLead::first();
-        app(\App\Services\HighTicketBookingService::class)->confirm($lead->confirm_token);
 
-        (new CreateZoomMeetingJob($lead->id))->failed(new \RuntimeException('zoom is down'));
+        $result = app(\App\Services\HighTicketBookingService::class)->confirm($lead->confirm_token);
 
-        // The applicant already did their part — they must hear that the
-        // booking stands, even without a link (D39).
+        // The booking still stands — the exception must not escape.
+        $this->assertSame('confirmed', $result['state']);
+        $this->assertNotNull($lead->fresh()->confirmed_at);
+
         Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) =>
             str_contains($mail->emailSubject, '預約確認')
             && str_contains($mail->htmlBody, '會議連結將另行寄出'));
@@ -175,12 +179,6 @@ class ZoomMeetingTest extends TestCase
         $this->applyForBooking($course, ['code' => 'VIP2026']);
         $lead = HighTicketLead::first();
         app(\App\Services\HighTicketBookingService::class)->confirm($lead->confirm_token);
-
-        (new CreateZoomMeetingJob($lead->id))->handle(
-            app(ZoomMeetingService::class),
-            app(\App\Services\HighTicketBookingService::class),
-            app(\App\Services\ConsultationSlotService::class)
-        );
 
         Http::assertSent(function ($request) use ($lead) {
             if (!str_contains($request->url(), '/users/me/meetings')) {

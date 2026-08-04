@@ -199,7 +199,8 @@ class HighTicketLeadController extends Controller
             return back()->withErrors(['booking' => $result['message']]);
         }
 
-        return back()->with('success', "已改期至 {$result['slot_label']}，並已寄出更新通知與行事曆邀請");
+        return back()->with('success', "已改期至 {$result['slot_label']}，並已寄出更新通知與行事曆邀請"
+            . $this->zoomNote($result, '會議時間'));
     }
 
     /** Call a confirmed booking off and hand the slot back (FR-049). */
@@ -211,7 +212,24 @@ class HighTicketLeadController extends Controller
             return back()->withErrors(['booking' => $result['message']]);
         }
 
-        return back()->with('success', '已取消預約，時段已釋出，並已寄出取消通知與行事曆更新');
+        return back()->with('success', '已取消預約，時段已釋出，並已寄出取消通知與行事曆更新'
+            . $this->zoomNote($result, '會議刪除'));
+    }
+
+    /**
+     * Zoom now runs inline (D55), so a failure is known here and there is no
+     * reason to tell the admin by email — say it while they are looking.
+     * Silence when the lead never had a meeting: nothing failed.
+     */
+    private function zoomNote(array $result, string $what): string
+    {
+        // Only false means a call was made and lost; null means there was
+        // nothing to sync, which is not worth a warning.
+        if (($result['zoom_synced'] ?? null) !== false) {
+            return '';
+        }
+
+        return "。⚠️ Zoom {$what}同步失敗，請到 Zoom 後台手動處理";
     }
 
     public function notifySlot(Request $request): JsonResponse

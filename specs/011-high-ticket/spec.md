@@ -6,9 +6,7 @@ owner_files:
   - app/Http/Controllers/BookingConfirmController.php
   - app/Exceptions/SlotUnavailableException.php
   - app/Services/ZoomMeetingService.php
-  - app/Jobs/CreateZoomMeetingJob.php
   - app/Services/CalendarInviteService.php
-  - app/Jobs/SyncZoomMeetingJob.php
   - app/Http/Requests/Admin/RescheduleBookingRequest.php
   - database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php
   - database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php
@@ -317,7 +315,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 **驗收**：
 - [x] Zoom 憑證走 **Server-to-Server OAuth**，三個值（`account_id` / `client_id` / `client_secret`）由管理員在後台「API 設定」頁（`/admin/settings/payment`）填寫，存 `site_settings`，沿用該頁既有的遮罩式密鑰處理：`client_secret` 為 secret 欄位（顯示 `maskSecret()` 預覽、留白即維持原值、填了才覆寫），`account_id` / `client_id` 為一般欄位可直接顯示（見 D41）
 - [x] `ZoomMeetingService::createMeeting()`：以 `account_credentials` 換 access token（快取 55 分鐘，Zoom token 效期 1 小時）→ `POST /v2/users/me/meetings` 帶 `start_time`（該時段 UTC）、`duration`（30 或 45）、`timezone: Asia/Taipei`、`topic`（課程名 + 申請人暱稱）；回傳 `meeting_id` 與 `join_url`
-- [x] 確認流程改為：`confirmed_at` 落地 → 派送 `CreateZoomMeetingJob` → **Job 內建好會議、寫回 lead、才寄出**「客製服務預約確認」信；確認當下不寄（見 D38）
+- [x] 確認流程改為：`confirmed_at` 落地 → **同步建好會議、寫回 lead、才寄出**「客製服務預約確認」信（原為派送 `CreateZoomMeetingJob`，2026-08-05 改為同步，見 D55）
 - [x] 確認頁文案不變（「確認已完成預約，相關資料已寄出」），信件抵達有數秒延遲屬正常
 - [x] `high_ticket_booking_confirmation` 模板新增變數 `{{zoom_join_url}}`；模板可自由決定要不要放
 - [x] Job `tries=3`、`backoff=[30, 120, 300]`；三次皆失敗時 MUST 仍寄出確認信，`{{zoom_join_url}}` 替換為「（會議連結將另行寄出）」，同時 log error 並 CC 通知 `high_ticket_lead_notify_cc` 收件者 —— 對方一定要收到「預約成立」，只是連結晚到（見 D39）
@@ -438,7 +436,9 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
   五條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 5 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，五條全真才寫入，存了也只會是五個 true（見 D30）
 
-- **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）
+- **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）。
+  **前端 MUST 同步擋下**（2026-08-05 追加）：`social_url` 格式錯誤時 MUST NOT 讓使用者離開第 1 步，且第 4 步覆核區 MUST 把該列標紅、附修正提示並停用送出鈕 —— 只靠後端 422 的話，使用者要按完「送出申請」才被丟回第 1 步，而覆核畫面在那之前完全看不出哪裡有問題。判定用 `new URL()` 而非 regex（瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與危險的 `javascript:`）；空字串一律略過（選填）。
+  **後端仍是權威**：前端規則與 Laravel `url` 規則在極端輸入上可能有落差（例如單標籤 host），因此 `submit()` 與 `submitWaitlist()` 兩條路徑 MUST 共用同一套 422 欄位錯誤處理，把使用者帶回擁有該欄位的步驟。`submitWaitlist()` 原本把欄位錯誤壓成「請稍後再試」—— 一句永遠不會成功的建議，且沒說是哪一欄
 
 - **FR-028**: 時段的最小單位為 **15 分鐘**，一列 `consultation_slots` = 一個單位，`starts_at` 為 unique。一次預約佔用 **N 個時間上連續**的單位（N = 諮詢分鐘 ÷ 15）；連續的定義是 `starts_at` 每隔恰好 15 分鐘皆存在對應列且皆可用，缺一不可 —— 中間少一格就不是可選的起始時間
 
@@ -474,8 +474,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   | 情境 | 行為 |
   |------|------|
   | Zoom 未啟用 | 確認當下同步寄信，`{{zoom_join_url}}` → 空字串 |
-  | Zoom 啟用、建會議成功 | Job 內建好會議、寫回 lead、才寄信，`{{zoom_join_url}}` → `join_url` |
-  | Zoom 啟用、三次重試皆失敗 | Job 最終仍寄信，`{{zoom_join_url}}` → 「（會議連結將另行寄出）」，log error + CC 內部收件者 |
+  | Zoom 啟用、建會議成功 | 同步建好會議、寫回 lead、才寄信，`{{zoom_join_url}}` → `join_url` |
+  | Zoom 啟用、建會議失敗 | 仍寄信，`{{zoom_join_url}}` → 「（會議連結將另行寄出）」，log error |
 
   MUST NOT 出現「確認成功但對方收不到任何信」的組合
 
@@ -494,7 +494,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-049**: 取消 MUST 釋放該 lead 的全部單位、寫入 `cancelled_at`、`status` 轉 `cancelled`，並清空 `zoom_meeting_id` / `zoom_join_url`。`confirm_token` / `resume_token` **不清除** —— 對方若改變主意重新申請，`recordLead()` 會把 `cancelled` 一併視為可復活的狀態轉回 `pending`（比照既有的 closed / no_response 處理），舊 token 沿用不失效
 
-- **FR-050**: Zoom 的改期／取消同步 MUST 走 Job（`SyncZoomMeetingJob`，`tries=3`、`backoff=[30, 120, 300]`），且 MUST NOT 阻擋或回滾已成立的異動。`updateMeeting()` 走 `PATCH /v2/meetings/{id}`（回 204），`deleteMeeting()` 走 `DELETE /v2/meetings/{id}`（回 204；**404 視同成功** —— 會議已經不在了，正是我們要的結果）。Zoom 未啟用或 lead 沒有 `zoom_meeting_id` 時整條跳過（沿用 FR-039）。**此條取代 FR-040**
+- **FR-050**: Zoom 的改期／取消同步 MUST **同步執行**（2026-08-05 改，見 D55），且 MUST NOT 阻擋或回滾已成立的異動 —— 失敗只記 log 並回傳 `zoom_synced: false`，由 controller 在 flash 訊息附警告，讓管理員當場知道要去 Zoom 後台補。`updateMeeting()` 走 `PATCH /v2/meetings/{id}`（回 204），`deleteMeeting()` 走 `DELETE /v2/meetings/{id}`（回 204；**404 視同成功** —— 會議已經不在了，正是我們要的結果）。Zoom 未啟用或 lead 沒有 `zoom_meeting_id` 時整條跳過（沿用 FR-039）。**此條取代 FR-040**
 
 - **FR-051**: `high_ticket_leads.status` 新增第六值 `cancelled`（「已取消」）。取消與 `closed` 是不同的事實 —— closed 是「聊過但冷掉／轉序列信」，cancelled 是「約好了但沒發生」，混在一起就看不出哪些人其實根本沒談過（使用者決策）。enum 變更 MUST 以 `Schema::change()` 帶完整值列表（比照 `2026_08_04_000002`，讓 sqlite 測試 DB 的 CHECK 一併更新），Leads 名單的篩選 tab 與色塊沿用既有的 `statusButtons` 單一設定表
 
@@ -510,6 +510,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   | `cancelled` | 已取消 | 預約被取消（FR-051），唯讀（FR-054） |
 
   **MUST NOT 改動 DB 值**：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
+
+- **FR-056**: 預約流程 MUST NOT 依賴 queue worker（2026-08-05，見 D55）。建立 Zoom 會議、寄確認信、改期／取消的 Zoom 同步一律**同步執行**；`ZoomMeetingService` 的每個 HTTP 呼叫 MUST 設 timeout（8 秒）與短重試（2 次、間隔 300ms），避免 Zoom 掛掉時把訪客的請求拖住。測試 MUST 以 `Queue::fake()` + `Queue::assertNothingPushed()` 釘住這件事 —— 沒有 worker 也要能寄出確認信
 
 - **FR-054**: `updateStatus` 端點 MUST NOT 接受 `cancelled`。從名單上一鍵改成「已取消」會貼上標籤卻不釋出時段、不刪 Zoom 會議、不通知對方 —— 那個狀態會是假的。唯一入口是週曆區塊的取消動作（FR-049）；名單上的「已取消」為**唯讀徽章**，可篩選、不可點擊設定
 
@@ -534,13 +536,19 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-041**: 問卷的手機號碼 MUST 在 lead 轉為會員帳號時寫入 `users.phone`，且 MUST NOT 覆寫既有會員的值（以 `firstOrCreate` 的建立屬性帶入，非 `update`）。所有電話欄位 MUST 為 `varchar(30)`：`users.phone`、`orders.buyer_phone`、`high_ticket_leads.phone` 三者與 Form Request 的 `max:30` 一致
 
-- **FR-040**: ~~本次 MUST NOT 實作改期 / 取消同步~~ **已由 FR-050 取代（2026-08-05, US14）**。原條款記錄 US12 當時的取捨：改期／取消不同步，Zoom 會議需人工到後台刪除（D42）。US14 補上後台改期與取消，兩者皆經 `SyncZoomMeetingJob` 同步 Zoom 並寄出更新／取消的 `.ics`。**仍未涵蓋的殘留情形**：管理員直接在 Leads 名單把狀態改成 `closed`，或用批次收回硬刪未被佔用的單位 —— 這兩條路徑不觸發任何同步，取消預約請一律走預約區塊的「取消」按鈕
+- **FR-040**: ~~本次 MUST NOT 實作改期 / 取消同步~~ **已由 FR-050 取代（2026-08-05, US14）**。原條款記錄 US12 當時的取捨：改期／取消不同步，Zoom 會議需人工到後台刪除（D42）。US14 補上後台改期與取消，兩者皆同步呼叫 Zoom 並寄出更新／取消的 `.ics`（D55）。**仍未涵蓋的殘留情形**：管理員直接在 Leads 名單把狀態改成 `closed`，或用批次收回硬刪未被佔用的單位 —— 這兩條路徑不觸發任何同步，取消預約請一律走預約區塊的「取消」按鈕
 
 - **FR-035**: 逾時釋出的正確性來源 MUST 是查詢時的 lazy 判定（FR-029 第四列），排程 `booking:release-holds` 只做資料整理。排程停擺時系統行為 MUST 完全正確 —— 使用者選得到逾時釋出的時段，只是後台會看到殘留的 `lead_id`
 
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
 ## 設計決策
+
+- **D55**: Zoom 與確認信改為**同步執行**，移除 `CreateZoomMeetingJob` 與 `SyncZoomMeetingJob`（2026-08-05，使用者決策）。
+  觸發點是 `QUEUE_CONNECTION=database` —— jobs 需要有 worker 常駐。而 D38 當初把確認信搬進了 job（為了讓對方只收一封含連結的完整信），於是**確認信成為這個模組裡唯一一條「訪客被告知成功、但結果掛在 worker 上」的路徑**，而且失敗是無聲的：頁面說「相關資料已寄出」，對方什麼都收不到。其餘的 job（通知新時段、加序列信）都是管理員主動觸發、看得到回報，性質不同。
+  同步之後最差的情況是「頁面多等幾秒」或「信到了但沒連結 + log 有紀錄」，兩個都是吵的、可發現的。代價是**失去 `tries=3` + `backoff=[30,120,300]`**：Zoom 若有 30 秒等級的抽風，原本第二次重試會成功，現在對方就是收到沒有連結的信。以本模組的量級（一週數場 1v1）這個交換划算 —— 用「一定會寄到」換「連結偶爾要人工補」。
+  補償措施：HTTP 層設 8 秒 timeout + 2 次短重試（間隔 300ms），吸收掉斷線等級的抖動而不影響 happy path；Laravel 預設 30 秒 timeout 在同步情境下會讓一次 Zoom 中斷把頁面卡住將近一分鐘。
+  改期／取消的 Zoom 同步一併改為同步，理由相同但更強：那兩條路的信本來就是同步寄的，只有 Zoom 掛在 worker 上，等於「對方拿到新時間、Zoom 卻停在舊時間」而沒人會發現。同步之後 `syncZoom()` 回傳三態（null = 沒東西要同步 / true / false），controller 只在 false 時於 flash 附警告 —— 「本來就沒有會議」不是失敗，為它跳警告只會訓練管理員忽略警告。原本 job `failed()` 寄給內部的通知信隨之移除：管理員當下就在畫面前面，沒有理由改用 email 告知。
 
 - **D49**: `.ics` 用 **`METHOD:REQUEST`** 而不是 `METHOD:PUBLISH`（FR-046）。兩者的差別很實際：Gmail 只對 REQUEST 顯示可互動的「加入日曆」卡片，PUBLISH 多半退化成一個附件圖示 —— 而這張卡片就是整個功能存在的理由，退化了等於沒做。
   REQUEST 的代價是它語意上是一份**正式邀請**，發出去就欠對方一套生命週期：改期要送同 `UID` 的更新、取消要送 `METHOD:CANCEL`，否則對方日曆會留下指向已不存在的會議的幽靈行程。這正是這個故事把 `.ics` 與「後台改期／取消」綁在同一個 US 的原因 —— 先前 US12 之所以沒做 `.ics`，缺的不是產生器，是這套生命週期（FR-040/D42）。單獨上 `.ics` 而不做取消，等於把 US12 的已知限制從「Zoom 後台有殘留」升級成「對方手機會在你早就取消的時間跳提醒」。
@@ -627,7 +635,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D37**: 「永久黑名單」只做**警示文案**，不做系統實作（使用者決策）。爽約與否是線下事實，系統無從自動判定；真要擋人，現有的 `closed` 狀態加上管理員記憶已足夠應付目前的量。文案本身才是它的作用 —— 它要嚇阻的是「隨便按送出」的人，而那個效果在覆核頁顯示的當下就已經達成，不需要後端配合
 
-- **D38**: 確認信改由 `CreateZoomMeetingJob` 在建好會議後才寄，而不是確認當下先寄、連結後補。因為這封信的用途就是「告訴對方什麼時間、去哪裡」—— 少了連結就得再補寄一封，而補寄信的開信率遠低於第一封，且兩封信講同一件事最容易讓人以為預約重複了。代價是信件抵達比確認頁晚幾秒，這對使用者不可見（確認頁本來就寫「相關資料已寄出」，沒有承諾秒到）
+- **D38**（部分被 D55 取代：「一封完整的信」保留，但改為同步而非 job）: 確認信改由 `CreateZoomMeetingJob` 在建好會議後才寄，而不是確認當下先寄、連結後補。因為這封信的用途就是「告訴對方什麼時間、去哪裡」—— 少了連結就得再補寄一封，而補寄信的開信率遠低於第一封，且兩封信講同一件事最容易讓人以為預約重複了。代價是信件抵達比確認頁晚幾秒，這對使用者不可見（確認頁本來就寫「相關資料已寄出」，沒有承諾秒到）
 
 - **D39**: Zoom 建立失敗三次後**照常寄出確認信**（帶 fallback 文案），而不是靜默重試到天荒地老或讓確認流程失敗。原則與 D11 / D34 同一條：已經成立的事實不能因為周邊服務失敗而被推翻 —— 對方已完成 Email 驗證、時段已正式保留，這是既成事實。同時 CC 內部收件者，是因為這種情況一定要有人去手動開會議並補連結，只寫 log 沒人會看
 
@@ -862,7 +870,7 @@ Phase E — Email 模板與排程（可與 Phase D 平行）
 
 Phase F — Zoom 串接（US12，相依 Phase C）
 - [x] T077 新服務：`isEnabled()`（三個設定皆非空）、`token()`（`account_credentials` grant + Basic auth，`Cache::remember` 55 分鐘、鍵含 client_id）、`createMeeting(CarbonInterface $startsAt, int $minutes, string $topic): array{meeting_id, join_url}`；全程 `Http::` facade 以利 fake in `app/Services/ZoomMeetingService.php`
-- [x] T078 [P] 新 Job：`tries=3`、`backoff=[30,120,300]`；建會議 → 寫回 lead 的 `zoom_meeting_id` / `zoom_join_url` → 寄確認信；`failed()` 中仍寄出確認信（`{{zoom_join_url}}` → 「（會議連結將另行寄出）」）並 CC 內部收件者 + log error（FR-038）in `app/Jobs/CreateZoomMeetingJob.php`
+- [x] ~~T078 [P] 新 Job `CreateZoomMeetingJob`~~ **已由 T130 移除（D55，改為同步）**；行為（建會議 → 寫回 lead → 寄信、失敗仍寄出 fallback 文案）保留於 `HighTicketBookingService::createMeetingAndConfirm()`
 - [x] T079 [P] 「API 設定」頁後端加三個 Zoom 欄位：`zoom_account_id` / `zoom_client_id` 為一般欄位，`zoom_client_secret` 併入既有 `$secretFields` 陣列（留白即維持原值）（touchpoint，owner 000-platform-core）in `app/Http/Controllers/Admin/SettingsController.php`
 - [x] T080 [P] 「API 設定」頁加「Zoom 會議」設定卡，版面比照既有金流 / Meta CAPI 卡（touchpoint，owner 000-platform-core）in `resources/js/Pages/Admin/Settings/Payment.vue`
 
@@ -921,7 +929,7 @@ Phase B — `.ics` 產生器（可與 Phase C 平行）
 Phase C — 改期／取消後端（相依 Phase A）
 - [x] T111 `reserve()` 的 `$holdUntil` 放寬為 `?CarbonInterface`，null 即新單位直接落為已確認佔用（`held_until = null`）；既有呼叫端不受影響（FR-048）in `app/Services/ConsultationSlotService.php`
 - [x] T112 `updateMeeting(string $meetingId, CarbonInterface $startsAt, int $minutes): void`（`PATCH /v2/meetings/{id}`）與 `deleteMeeting(string $meetingId): void`（`DELETE`，404 視同成功）（FR-050 / D52）in `app/Services/ZoomMeetingService.php`
-- [x] T113 新 Job：`tries=3`、`backoff=[30,120,300]`，依動作分派 update / delete；Zoom 未啟用或無 `zoom_meeting_id` 即靜默結束；`failed()` 記 error 並 CC `notifyCc()`（FR-050）in `app/Jobs/SyncZoomMeetingJob.php`
+- [x] ~~T113 新 Job `SyncZoomMeetingJob`~~ **已由 T130 移除（D55，改為同步）**；行為保留於 `HighTicketBookingService::syncZoom()`，失敗改為 flash 警告而非內部通知信
 - [x] T114 **測試先行**：`reschedule(HighTicketLead, CarbonInterface): array` —— 只對已確認且未取消的 lead 生效、transaction + `lockForUpdate`、撞車回 409、自我重疊可通過、`calendar_sequence` +1、寄改期信附新 ics、派送 Zoom PATCH job；`cancel(HighTicketLead): array` —— 釋出單位、`cancelled_at` / status 落地、清空 zoom 欄位、寄取消信附 `METHOD:CANCEL` ics、派送 delete job in `app/Services/HighTicketBookingService.php` + `tests/Feature/HighTicket/BookingChangeTest.php`
 - [x] T115 `reschedule(RescheduleBookingRequest, HighTicketLead)` 與 `cancelBooking(HighTicketLead)` 兩個 action（thin，只轉呼叫 service 並 flash）；`recordLead()` 的復活狀態清單加 `cancelled`（FR-049）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T116 [P] Form Request：`slot_starts_at` required + `date` + 15 分鐘刻度 + 不得早於現在，中文錯誤訊息 in `app/Http/Requests/Admin/RescheduleBookingRequest.php`
@@ -936,6 +944,9 @@ Phase D — 週曆 UI（相依 Phase C）
 Phase E — 驗證
 - [x] T122 `php artisan test` 全綠（基準 349 passed）＋ `npm run build` exit 0
 - [x] T124 `updateStatus` 拿掉 `cancelled`，名單改為唯讀徽章（FR-054）in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T130 Zoom 與確認信改為同步執行（D55 / FR-050 / FR-056）：移除 `CreateZoomMeetingJob` 與 `SyncZoomMeetingJob`，邏輯內收至 `HighTicketBookingService::createMeetingAndConfirm()` 與 `syncZoom()`；`ZoomMeetingService` 每個呼叫加 8 秒 timeout + 2 次短重試；改期／取消失敗改由 flash 警告管理員（原本寄內部通知信）；ZoomMeetingTest 與 BookingChangeTest 改寫，新增「沒有 worker 也要寄得出確認信」的斷言 in `app/Services/HighTicketBookingService.php` + `app/Services/ZoomMeetingService.php` + `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T129 第 4 步覆核區改為分區呈現：「申請資料」7 列共用一顆修改（皆屬第 1 步）、「諮詢時段」自成一區另一顆（屬第 3 步）；原本每列一顆共 8 顆，其中 7 顆去同一個地方 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T128 `social_url` 前端即時驗證（FR-027）：`new URL()` 判定、第 1 步擋下並顯示提示、第 4 步覆核列標紅 + 停用送出、候補按鈕同步；`submitWaitlist()` 的 422 欄位錯誤改與 `submit()` 共用 `routeFieldErrors()` in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T126 `.ics` 的 `DESCRIPTION` 移除「請直接回覆此信」—— 聯絡管道是業主在模板裡自訂的政策（線上模板寫的是「請勿直接回覆此信」），`.ics` 不該複製一份會漂移的版本 in `app/Services/CalendarInviteService.php`
 - [x] T127 「加入序列信」拿掉狀態白名單（FR-007）；前端按鈕 gate 一併移除，確認 modal 加「已成交」提示；補 LeadSubscribeDripTest（5 tests，此路徑原本零覆蓋）in `app/Services/HighTicketLeadService.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue` + `tests/Feature/HighTicket/LeadSubscribeDripTest.php`
 - [x] T125 狀態顯示名稱改為面談語彙：待面談 / 已面談 / 未出席（FR-055，DB 值不動）；欄頭圖例同步 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
@@ -943,6 +954,9 @@ Phase E — 驗證
 
 ## 進度日誌
 
+- 2026-08-05: Zoom 與確認信改為同步、移除兩支 job（T130 / D55 / FR-056）— 起因是覆核 Zoom 串接時發現 `QUEUE_CONNECTION=database`，而 D38 把確認信搬進了 `CreateZoomMeetingJob`：**正式站沒有 queue worker 的話，Zoom 啟用後確認信永遠不會寄出**，而畫面還是顯示「相關資料已寄出」。這是本模組唯一一條「訪客被告知成功、結果卻掛在 worker 上」的路徑，其餘 job 都是管理員觸發、看得到回報。改為同步後最差是頁面多等幾秒或信沒連結（log 有紀錄），兩者都是可發現的。代價是失去 `tries=3` 的重試，改以 HTTP 層 8 秒 timeout + 2 次短重試補一部分 —— Laravel 預設 30 秒 timeout 在同步情境會讓一次 Zoom 中斷把頁面卡住將近一分鐘。改期／取消的 Zoom 同步一併改同步（那兩條的信本來就同步寄，只有 Zoom 掛在 worker 上，等於對方拿到新時間、Zoom 停在舊時間而沒人發現）；`syncZoom()` 回傳三態，controller 只在真的失敗時於 flash 附警告，「本來就沒有會議」不跳警告以免訓練管理員忽略它。原 job 的內部通知信移除 —— 管理員當下就在畫面前。ZoomMeetingTest 改寫為同步版本並新增 `Queue::assertNothingPushed()` 斷言，全套 397 passed。
+- 2026-08-05: 第 4 步覆核區的「修改」由每列一顆改為每區一顆（T129）— 原本 8 顆按鈕裡有 7 顆做同一件事（回第 1 步），視覺上像是每一欄都能單獨編輯，實際上全部通往同一個畫面。改為兩張卡片：「申請資料」（7 列，標題列一顆修改 → 第 1 步）與「諮詢時段」（自成一區，另一顆 → 第 3 步）。沒有併成單一顆，是因為這兩顆去的是不同步驟 —— 真的只留一顆的話，改時段會變成「修改 → 第 1 步 → 下一步 → 下一步」。社群網址格式錯誤時，「申請資料」那顆會轉紅粗體，指向唯一需要處理的地方。
+- 2026-08-05: 社群網址改為前端即時驗證（T128 / FR-027）— 原本只有後端擋，使用者要一路填到第 4 步、按下「送出申請」才被丟回第 1 步，而「請再確認一次你的申請資料」那個畫面在那之前完全看不出哪一欄有問題（該列就只是顯示那串壞掉的網址）。改為：第 1 步即時提示且不放行、第 4 步覆核列標紅 + 附修正說明 + 停用送出鈕、候補路徑的按鈕同步處理。判定用 `new URL()` 不用 regex —— 瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與 `javascript:` / `data:` / `ftp:`，逐一比對過後端那 4 個測試的案例。順手修掉一個既有 bug：`submitWaitlist()` 把 422 的欄位錯誤全壓成「送出失敗，請稍後再試」，那是一句永遠不會成功的建議、也沒說是哪一欄；兩條送出路徑改為共用 `routeFieldErrors()`。後端仍是權威（前端規則在單標籤 host 這類極端輸入上可能與 Laravel `url` 有落差），落差由共用的欄位錯誤處理接住。
 - 2026-08-05: 「加入序列信」不再依狀態過濾（T127 / FR-007）+ `.ics` 移除聯絡管道指示（T126）— 序列信的狀態白名單會**靜靜吃掉勾選**：`已面談` / `已成交` / `已取消` 被無聲丟棄，勾 6 位只加了 3 位，前端按鈕還會在選到他們時變灰不說原因。改為完全由管理員勾選決定（比照 FR-006 的既有原則），真正的守門留給去重（active 訂閱即 skip）；唯一會尷尬的 `converted` 改為在確認 modal 提示而非擋下 —— 把既有客戶推向另一門課是合理操作，只有管理員分得出誤勾。此路徑原本**零測試覆蓋**，補 LeadSubscribeDripTest（5 tests）。另修一個 US14 帶進來的矛盾：`.ics` 的 `DESCRIPTION` 寫「需要改期或取消，請直接回覆預約確認信」，但線上那封確認信（業主 2026-08-04 編輯過）結尾寫的是「**請勿直接回覆此信**，請寄信到客服信箱」。D50 說「不做自助入口、靠文案告訴對方怎麼聯絡」，對著實際模板是失效的。`.ics` 改為中性的「如需改期或取消，請與我們聯繫」—— 聯絡管道是業主在可編輯模板裡設定的政策，`.ics` 不該複製一份會漂移的版本。
 - 2026-08-05: 狀態顯示名稱改為面談語彙（T125 / FR-055）— US14 之後每一筆 lead 都是「約了 1v1 面談」，「待聯繫 / 已聯繫」描述的是錯的事件。改為 **待面談 / 已面談**，`no_response` 由「未回應」改為 **未出席**（no-show），取其中性標準（「爽約」帶指責、「缺席」偏機構用語），且與預約表單第 4 步警語「無故**不出席**」同一個詞 —— 申請人送出前讀到的就是它。**DB 值刻意不動**（使用者決策）：改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no_show 等於把那段歷史重新貼標。代價是 `contacted` / `no_response` 的字面意思與顯示不符，以 FR-055 的對照表 + `statusButtons` 每個值旁的註解承擔。行為零變化（重新預約回 pending 對 no-show 同樣成立）。
 - 2026-08-05: US14 完成（T104–T122、T124）— 確認信改為附 `.ics`（`METHOD:REQUEST`），並補上後台改期／取消。`CalendarInviteService` 自己產生 iCalendar，folding 按 byte 累計、按 UTF-8 字元邊界斷 —— 測試直接斷言中文長行 fold 後 `mb_check_encoding` 仍為合法 UTF-8 且可解回原字串（天真的 `wordwrap()` 在這裡會切出亂碼）。`UID` 由 lead id 推導、`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`。改期只需把 `reserve()` 的 `$holdUntil` 放寬為 nullable —— 它本來就先 `release($lead)` 再檢查可用性，**自我重疊因此不必特例**（10:00 改 10:15 直接可行）。Zoom 走 `PATCH` 保住 `join_url`（D52），刪除的 404 視同成功。週曆的改期採兩段式：點區塊 → 上方動作列出現 → 點「改期」後只有能容納 N 格連續空檔的起始格可點，其餘變灰；改期模式下所有區塊設 `pointer-events-none`，否則區塊會蓋住自己底下那幾格，而 15 分鐘的微調正好要點在那裡。**實作中補了 FR-054**：`updateStatus` 原本會接受 `cancelled`，那條路只貼標籤、不釋時段不刪會議不寄信，狀態會是假的 —— 改為拒絕，名單上的「已取消」降為唯讀徽章。另修一個測試層面的真實風險：`event_type` 沒有 unique 索引，migration 若用 `insertOrIgnore` 重跑會多一列而 `forEvent()->first()` 沉默取錯（測試 seeder 也一併改 `updateOrCreate`）。新增 CalendarInviteTest（13）與 BookingChangeTest（29），全套 391 passed（1945 assertions）、`npm run build` exit 0。T123 瀏覽器／真實信箱實測待業主確認。

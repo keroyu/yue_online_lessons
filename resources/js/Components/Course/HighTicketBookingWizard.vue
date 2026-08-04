@@ -74,6 +74,25 @@ function openQuestionnaire() {
   questionnaireOpen.value = true
 }
 
+// Mirrors the server's `url:http,https` (FR-027). Not a regex: the URL
+// constructor is the same parser the browser uses, and it rejects both the
+// scheme-less "instagram.com/me" and the dangerous "javascript:" in one go.
+// The server still validates — this only saves a round-trip that would
+// otherwise dump the visitor back on step 1 after they pressed 送出.
+const SOCIAL_URL_HINT = '社群網址須為完整網址，並以 http:// 或 https:// 開頭'
+
+const socialUrlInvalid = computed(() => {
+  const raw = form.social_url.trim()
+
+  if (raw === '') return false // optional field
+
+  try {
+    return !['http:', 'https:'].includes(new URL(raw).protocol)
+  } catch {
+    return true
+  }
+})
+
 // ---- step 2 ----------------------------------------------------------------
 
 const allCommitted = computed(() => commitments.value.every(Boolean))
@@ -130,7 +149,7 @@ async function goTo(n) {
 }
 
 function canLeave(n) {
-  if (n === 1) return identityFilled.value && questionnaireFilled.value
+  if (n === 1) return identityFilled.value && questionnaireFilled.value && !socialUrlInvalid.value
   if (n === 2) return allCommitted.value
   if (n === 3) return form.slot_starts_at !== ''
   return true
@@ -156,6 +175,31 @@ const mailSent = ref(true)
 const holdExpiresAt = ref(null)
 const confirmedSlotLabel = ref('')
 const confirmedMinutes = ref(30)
+
+/**
+ * Show a 422's field errors and land on the step that owns the first offending
+ * one. Returns false when the response carries no field errors, so the caller
+ * can fall back to a generic message.
+ */
+function routeFieldErrors(e) {
+  const fields = e.response?.data?.errors
+
+  if (!fields) return false
+
+  errors.value = fields
+  const keys = Object.keys(fields)
+
+  if (keys.some(k => ['name', 'email', 'phone', 'occupation', 'bottleneck', 'expertise', 'social_url'].includes(k))) {
+    step.value = 1
+    questionnaireOpen.value = true
+  } else if (keys.includes('commitments')) {
+    step.value = 2
+  } else if (keys.includes('slot_starts_at')) {
+    step.value = 3
+  }
+
+  return true
+}
 
 async function submit() {
   errors.value = {}
@@ -190,18 +234,8 @@ async function submit() {
       form.slot_starts_at = ''
       await fetchSlots()
       step.value = 3
-    } else if (e.response?.data?.errors) {
-      errors.value = e.response.data.errors
-      // Land on the step that owns the first offending field.
-      const keys = Object.keys(errors.value)
-      if (keys.some(k => ['name', 'email', 'phone', 'occupation', 'bottleneck', 'expertise', 'social_url'].includes(k))) {
-        step.value = 1
-        questionnaireOpen.value = true
-      } else if (keys.includes('commitments')) {
-        step.value = 2
-      } else if (keys.includes('slot_starts_at')) {
-        step.value = 3
-      }
+    } else if (routeFieldErrors(e)) {
+      // handled
     } else {
       errors.value = { submit: e.response?.data?.message || '送出失敗，請稍後再試。' }
     }
@@ -231,7 +265,11 @@ async function submitWaitlist() {
     waitlisted.value = true
     submitted.value = true
   } catch (e) {
-    errors.value = { slot: e.response?.data?.message || '送出失敗，請稍後再試。' }
+    // Field errors used to collapse into 「請稍後再試」 here — advice that can
+    // never work, on a message that never said which field was wrong.
+    if (!routeFieldErrors(e)) {
+      errors.value = { slot: e.response?.data?.message || '送出失敗，請稍後再試。' }
+    }
   } finally {
     submitting.value = false
   }
@@ -264,6 +302,19 @@ function startCountdown() {
 }
 
 onUnmounted(() => clearInterval(timer))
+
+// Step 4's review rows. Out of the template because the invalid-URL row needs
+// more than a label/value pair, and because every one of these lives on step 1
+// — which is why the block gets a single 修改 rather than one button per row.
+const reviewRows = computed(() => [
+  { label: 'Email', value: form.email },
+  { label: '暱稱', value: form.name },
+  { label: '手機電話', value: form.phone },
+  { label: '職業和從事時長', value: form.occupation },
+  { label: '事業瓶頸', value: form.bottleneck },
+  { label: '知識或能力專長', value: form.expertise },
+  { label: '經營社群網址', value: form.social_url || '—', invalid: socialUrlInvalid.value, hint: SOCIAL_URL_HINT },
+])
 
 function firstError(key) {
   const e = errors.value[key]
@@ -413,8 +464,9 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">經營社群網址<span class="text-gray-400">（如有）</span></label>
-            <input v-model="form.social_url" type="url" placeholder="https://instagram.com/..." :class="[inputClass, { 'border-red-300': errors.social_url }]" />
+            <input v-model="form.social_url" type="url" placeholder="https://instagram.com/..." :class="[inputClass, { 'border-red-300': errors.social_url || socialUrlInvalid }]" />
             <p v-if="errors.social_url" class="mt-1 text-sm text-red-600">{{ firstError('social_url') }}</p>
+            <p v-else-if="socialUrlInvalid" class="mt-1 text-sm text-red-600">{{ SOCIAL_URL_HINT }}</p>
           </div>
 
           <button
@@ -497,12 +549,16 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
               <p class="mt-1 text-xs text-gray-500">送出申請後，新時段釋出時我們會主動以 Email 通知你。</p>
               <button
                 type="button"
-                :disabled="submitting"
+                :disabled="submitting || socialUrlInvalid"
                 class="mt-4 w-full px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="submitWaitlist"
               >
                 {{ submitting ? '送出中…' : '送出申請並等候通知' }}
               </button>
+              <p v-if="socialUrlInvalid" class="mt-2 text-xs text-red-600">
+                {{ SOCIAL_URL_HINT }}
+                <button type="button" class="underline cursor-pointer hover:opacity-70" @click="editFrom(1)">前往修改</button>
+              </p>
             </div>
 
             <div v-else class="space-y-4 max-h-80 overflow-y-auto pr-1">
@@ -547,22 +603,56 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
       <div v-show="step === 4" class="mt-6 space-y-4">
         <p class="text-sm font-semibold text-gray-900">請再確認一次你的申請資料</p>
 
-        <dl class="rounded-lg border border-gray-200 divide-y divide-gray-100 text-sm">
-          <div v-for="row in [
-            { label: 'Email', value: form.email, step: 1 },
-            { label: '暱稱', value: form.name, step: 1 },
-            { label: '手機電話', value: form.phone, step: 1 },
-            { label: '職業和從事時長', value: form.occupation, step: 1 },
-            { label: '事業瓶頸', value: form.bottleneck, step: 1 },
-            { label: '知識或能力專長', value: form.expertise, step: 1 },
-            { label: '經營社群網址', value: form.social_url || '—', step: 1 },
-            { label: '諮詢時段', value: `${selectedSlotLabel}（${slotMinutes} 分鐘）`, step: 3 },
-          ]" :key="row.label" class="flex items-start gap-3 px-4 py-3">
-            <dt class="w-28 shrink-0 text-xs text-gray-500">{{ row.label }}</dt>
-            <dd class="flex-1 text-gray-800 break-words whitespace-pre-wrap">{{ row.value }}</dd>
-            <button type="button" class="text-xs text-brand-teal shrink-0 cursor-pointer hover:opacity-70 transition" @click="editFrom(row.step)">修改</button>
+        <!-- One 修改 per destination, not per row: all seven fields below live
+             on step 1, so seven buttons were seven ways to do one thing. -->
+        <div class="rounded-lg border border-gray-200 overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
+            <p class="text-xs font-semibold text-gray-600">申請資料</p>
+            <button
+              type="button"
+              class="text-xs cursor-pointer hover:opacity-70 transition"
+              :class="socialUrlInvalid ? 'font-semibold text-red-600' : 'text-brand-teal'"
+              @click="editFrom(1)"
+            >
+              修改
+            </button>
           </div>
-        </dl>
+
+          <dl class="divide-y divide-gray-100 text-sm">
+            <div
+              v-for="row in reviewRows"
+              :key="row.label"
+              class="flex items-start gap-3 px-4 py-3"
+              :class="{ 'bg-red-50': row.invalid }"
+            >
+              <dt class="w-28 shrink-0 text-xs" :class="row.invalid ? 'text-red-700' : 'text-gray-500'">{{ row.label }}</dt>
+              <dd class="flex-1 break-words whitespace-pre-wrap" :class="row.invalid ? 'text-red-800' : 'text-gray-800'">
+                {{ row.value }}
+                <span v-if="row.invalid" class="mt-1 block text-xs font-medium text-red-600">{{ row.hint }}</span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Separate card because its 修改 goes somewhere else (step 3). -->
+        <div class="rounded-lg border border-gray-200 overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
+            <p class="text-xs font-semibold text-gray-600">諮詢時段</p>
+            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(3)">
+              修改
+            </button>
+          </div>
+          <p class="px-4 py-3 text-sm font-medium text-gray-900">
+            {{ selectedSlotLabel }}（{{ slotMinutes }} 分鐘）
+          </p>
+        </div>
+
+        <!-- Only reachable on a resumed draft: step 1 will not let an invalid
+             URL through, but a lead saved before FR-027 tightened can arrive
+             here with one already in the form. -->
+        <p v-if="socialUrlInvalid" class="text-sm text-red-600">
+          社群網址格式不正確，請先修改後再送出。留白也可以，這欄是選填的。
+        </p>
 
         <div class="rounded-lg bg-red-50 border border-red-200 p-4">
           <p class="text-sm font-bold text-red-800">若確定預約卻無故不出席，我們將永久黑名單。</p>
@@ -577,7 +667,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>
           <button
             type="button"
-            :disabled="submitting"
+            :disabled="submitting || socialUrlInvalid"
             class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             @click="submit"
           >

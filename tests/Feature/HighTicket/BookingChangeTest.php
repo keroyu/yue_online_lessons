@@ -3,7 +3,6 @@
 namespace Tests\Feature\HighTicket;
 
 use App\Exceptions\SlotUnavailableException;
-use App\Jobs\SyncZoomMeetingJob;
 use App\Mail\TemplatedMail;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
@@ -391,40 +390,76 @@ class BookingChangeTest extends TestCase
 
     // ---------------------------------------------------------------- Zoom
 
-    public function test_reschedule_dispatches_a_zoom_update_job(): void
+    /** D55: inline, so a missing queue worker cannot leave Zoom stale. */
+    public function test_reschedule_patches_zoom_inline(): void
     {
+        $this->configureZoom();
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(['access_token' => 't'], 200),
+            'api.zoom.us/v2/meetings/555' => Http::response('', 204),
+        ]);
+
         $course = $this->makeHighTicketCourse();
         $lead = $this->confirmedLead($course);
         $lead->update(['zoom_meeting_id' => '555']);
         $newStart = $this->freeStartLaterThan($lead->slots()->first()->starts_at);
 
         Queue::fake();
-        app(HighTicketBookingService::class)->reschedule($lead, $newStart);
+        $result = app(HighTicketBookingService::class)->reschedule($lead, $newStart);
 
-        Queue::assertPushed(SyncZoomMeetingJob::class, fn (SyncZoomMeetingJob $job) => $job->action === SyncZoomMeetingJob::ACTION_UPDATE);
+        $this->assertTrue($result['zoom_synced']);
+        Http::assertSent(fn ($request) => $request->method() === 'PATCH');
+        Queue::assertNothingPushed();
     }
 
-    public function test_cancel_dispatches_a_zoom_delete_job(): void
+    public function test_cancel_deletes_the_zoom_meeting_inline(): void
     {
+        $this->configureZoom();
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(['access_token' => 't'], 200),
+            'api.zoom.us/v2/meetings/555' => Http::response('', 204),
+        ]);
+
         $course = $this->makeHighTicketCourse();
         $lead = $this->confirmedLead($course);
         $lead->update(['zoom_meeting_id' => '555']);
 
-        Queue::fake();
-        app(HighTicketBookingService::class)->cancel($lead);
+        $result = app(HighTicketBookingService::class)->cancel($lead);
 
-        Queue::assertPushed(SyncZoomMeetingJob::class, fn (SyncZoomMeetingJob $job) => $job->action === SyncZoomMeetingJob::ACTION_DELETE);
+        $this->assertTrue($result['zoom_synced']);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE');
     }
 
-    public function test_no_zoom_job_when_the_lead_has_no_meeting(): void
+    /** A Zoom outage must not undo a change the applicant has already been told about. */
+    public function test_a_zoom_failure_does_not_fail_the_cancellation(): void
     {
+        $this->configureZoom();
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(['access_token' => 't'], 200),
+            'api.zoom.us/v2/meetings/555' => Http::response(['message' => 'boom'], 500),
+        ]);
+
+        $course = $this->makeHighTicketCourse();
+        $lead = $this->confirmedLead($course);
+        $lead->update(['zoom_meeting_id' => '555']);
+
+        $result = app(HighTicketBookingService::class)->cancel($lead);
+
+        $this->assertTrue($result['success']);
+        $this->assertFalse($result['zoom_synced'], '管理員要看得出 Zoom 沒同步到');
+        $this->assertSame('cancelled', $lead->fresh()->status);
+    }
+
+    public function test_no_zoom_call_when_the_lead_has_no_meeting(): void
+    {
+        Http::fake();
         $course = $this->makeHighTicketCourse();
         $lead = $this->confirmedLead($course);
 
-        Queue::fake();
-        app(HighTicketBookingService::class)->cancel($lead);
+        $result = app(HighTicketBookingService::class)->cancel($lead);
 
-        Queue::assertNotPushed(SyncZoomMeetingJob::class);
+        $this->assertNull($result['zoom_synced'], '沒有會議可同步不算失敗');
+        Http::assertNothingSent();
     }
 
     /** D52: PATCH, never delete-and-recreate — the join_url has to survive. */

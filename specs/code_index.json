@@ -439,9 +439,6 @@
     "app/Http/Requests/ValidateReferralRequest.php": [
       "007.us-2"
     ],
-    "app/Jobs/CreateZoomMeetingJob.php": [
-      "011.us-12"
-    ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
       "011.us-10",
       "011.us-4",
@@ -465,9 +462,6 @@
       "010.us-4",
       "011.us-5",
       "011.us-9"
-    ],
-    "app/Jobs/SyncZoomMeetingJob.php": [
-      "011.us-14"
     ],
     "app/Mail/BatchEmailMail.php": [
       "008.us-5",

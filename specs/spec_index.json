@@ -2902,7 +2902,6 @@
       ],
       "code_files": [
         "app/Services/ZoomMeetingService.php",
-        "app/Jobs/CreateZoomMeetingJob.php",
         "app/Http/Controllers/Admin/SettingsController.php",
         "resources/js/Pages/Admin/Settings/Payment.vue",
         "app/Services/HighTicketBookingService.php",
@@ -2980,7 +2979,6 @@
         "no-show",
         "Zoom PATCH",
         "Zoom DELETE",
-        "SyncZoomMeetingJob",
         "CalendarInviteService",
         "附件",
         "attachment",
@@ -2992,7 +2990,6 @@
         "app/Services/HighTicketBookingService.php",
         "app/Services/ZoomMeetingService.php",
         "app/Services/ConsultationSlotService.php",
-        "app/Jobs/SyncZoomMeetingJob.php",
         "app/Mail/TemplatedMail.php",
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
         "app/Http/Requests/Admin/RescheduleBookingRequest.php",

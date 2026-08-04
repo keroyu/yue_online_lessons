@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\SlotUnavailableException;
-use App\Jobs\CreateZoomMeetingJob;
-use App\Jobs\SyncZoomMeetingJob;
 use App\Mail\TemplatedMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
@@ -184,15 +182,7 @@ class HighTicketBookingService
             return;
         }
 
-        $zoom = app(ZoomMeetingService::class);
-
-        if ($zoom->isEnabled() && $startsAt) {
-            // The confirmation mail is sent by the job, so the meeting link is
-            // in the first (and only) mail the applicant gets (D38).
-            CreateZoomMeetingJob::dispatch($lead->id);
-        } else {
-            $this->sendConfirmationMail($lead, $course);
-        }
+        $this->createMeetingAndConfirm($lead, $course, $startsAt);
 
         try {
             app(DripService::class)->checkAndBook($lead->email, $course);
@@ -223,8 +213,57 @@ class HighTicketBookingService
     }
 
     /**
-     * The real "客製服務預約確認" mail. Called either directly (no Zoom) or from
-     * CreateZoomMeetingJob once the meeting exists (FR-038).
+     * Build the Zoom meeting (if configured) and send the one confirmation mail
+     * that carries its link — both inline (D55).
+     *
+     * This used to run in a queued job so the API call would not sit in the
+     * visitor's request. The mail went with it, which made the confirmation the
+     * only visitor-facing path in this module whose outcome depended on a queue
+     * worker being alive — and its failure was silent: the page says 相關資料已寄出
+     * and nothing ever arrives. Inline, the worst case is a slower page and a
+     * mail without a link, both of which are visible.
+     *
+     * Zoom failing MUST NOT cost the applicant the confirmation (FR-038).
+     */
+    private function createMeetingAndConfirm(HighTicketLead $lead, Course $course, ?Carbon $startsAt): void
+    {
+        $zoom = app(ZoomMeetingService::class);
+
+        if (!$zoom->isEnabled() || !$startsAt) {
+            $this->sendConfirmationMail($lead, $course);
+
+            return;
+        }
+
+        try {
+            $meeting = $zoom->createMeeting(
+                $startsAt,
+                $this->slots->minutesFor($lead->booking_code),
+                "{$course->name} 1v1 諮詢 - {$lead->name}"
+            );
+
+            $lead->update([
+                'zoom_meeting_id' => $meeting['meeting_id'],
+                'zoom_join_url'   => $meeting['join_url'],
+            ]);
+
+            $this->sendConfirmationMail($lead, $course, $meeting['join_url']);
+        } catch (\Exception $e) {
+            // The booking is a settled fact — the applicant confirmed and the
+            // slot is theirs — so the confirmation still goes out, just without
+            // a link, and the internal recipients are told to open one by hand
+            // (D39).
+            Log::error('High ticket booking: Zoom meeting could not be created, confirming without a link', [
+                'lead_id' => $lead->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            $this->sendConfirmationMail($lead, $course, '（會議連結將另行寄出）');
+        }
+    }
+
+    /**
+     * The real "客製服務預約確認" mail (FR-038).
      */
     public function sendConfirmationMail(HighTicketLead $lead, Course $course, ?string $zoomUrl = null, array $extraCc = []): bool
     {
@@ -318,11 +357,18 @@ class HighTicketBookingService
             '{{slot_time}}'     => $this->slots->label($newStart),
         ], $this->inviteAttachment($lead, $course, $newStart, $lead->zoom_join_url ?: null));
 
-        if ($lead->zoom_meeting_id) {
-            SyncZoomMeetingJob::dispatch(SyncZoomMeetingJob::ACTION_UPDATE, $lead->zoom_meeting_id, $lead->id);
-        }
+        $zoomSynced = $this->syncZoom(
+            fn (ZoomMeetingService $zoom) => $zoom->updateMeeting($lead->zoom_meeting_id, $newStart, $minutes),
+            $lead->zoom_meeting_id,
+            $lead,
+            'update'
+        );
 
-        return ['success' => true, 'slot_label' => $this->slots->label($newStart)];
+        return [
+            'success'     => true,
+            'slot_label'  => $this->slots->label($newStart),
+            'zoom_synced' => $zoomSynced,
+        ];
     }
 
     /**
@@ -366,33 +412,48 @@ class HighTicketBookingService
             ], $this->cancellationAttachment($lead, $course, $startsAt));
         }
 
-        if ($meetingId !== '') {
-            SyncZoomMeetingJob::dispatch(SyncZoomMeetingJob::ACTION_DELETE, $meetingId, $lead->id);
-        }
+        $zoomSynced = $this->syncZoom(
+            fn (ZoomMeetingService $zoom) => $zoom->deleteMeeting($meetingId),
+            $meetingId,
+            $lead,
+            'delete'
+        );
 
-        return ['success' => true];
+        return ['success' => true, 'zoom_synced' => $zoomSynced];
     }
 
     /**
-     * Tell the internal recipients that Zoom did not keep up. Only reached from
-     * SyncZoomMeetingJob::failed() — the applicant already has the right times,
-     * this is somebody needing to open the Zoom panel (FR-050).
+     * Push a booking change through to Zoom, inline (D55).
+     *
+     * Tri-state on purpose: null when there was nothing to sync (Zoom off, or
+     * the booking never had a meeting), true on success, false when the call
+     * failed. The caller only warns on false — "no meeting existed" is not a
+     * failure, and warning about it would train the admin to ignore the notice.
+     *
+     * Never throws: the slots have already moved and the applicant already has
+     * the mail, so a Zoom outage MUST NOT undo a settled fact (FR-050).
      */
-    public function notifyZoomSyncFailure(string $action, string $meetingId, ?int $leadId): void
+    private function syncZoom(callable $call, ?string $meetingId, HighTicketLead $lead, string $action): ?bool
     {
-        $verb = $action === SyncZoomMeetingJob::ACTION_DELETE ? '刪除' : '更新';
-        $lead = $leadId ? HighTicketLead::find($leadId) : null;
+        $zoom = app(ZoomMeetingService::class);
+
+        if (!$zoom->isEnabled() || blank($meetingId)) {
+            return null;
+        }
 
         try {
-            Mail::to($this->notifyCc())->send(new TemplatedMail(
-                "【需人工處理】Zoom 會議{$verb}失敗",
-                "<p>Zoom 會議 {$meetingId} 的{$verb}重試三次後仍失敗，請到 Zoom 後台手動處理。</p>"
-                . '<p>預約人：' . e($lead?->name ?? '(不明)') . ' / ' . e($lead?->email ?? '-') . '</p>',
-                "Zoom 會議 {$meetingId} 的{$verb}重試三次後仍失敗，請到 Zoom 後台手動處理。\n"
-                . '預約人：' . ($lead?->name ?? '(不明)') . ' / ' . ($lead?->email ?? '-'),
-            ));
+            $call($zoom);
+
+            return true;
         } catch (\Exception $e) {
-            Log::error('Zoom sync failure notice could not be sent', ['error' => $e->getMessage()]);
+            Log::error('High ticket booking: Zoom is now out of step with the booking', [
+                'lead_id'    => $lead->id,
+                'meeting_id' => $meetingId,
+                'action'     => $action,
+                'error'      => $e->getMessage(),
+            ]);
+
+            return false;
         }
     }
 

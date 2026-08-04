@@ -27,6 +27,17 @@ class ZoomMeetingService
     /** Zoom tokens last an hour; refresh a little early rather than mid-call. */
     private const TOKEN_TTL_MINUTES = 55;
 
+    /**
+     * These calls now run inside the visitor's confirmation request (D55), so
+     * they need a ceiling: Laravel's default is 30s per call, and a token
+     * refresh plus a create would let one Zoom outage hold the page for a
+     * minute. Two quick tries absorb a dropped connection without adding
+     * anything measurable to the happy path.
+     */
+    private const TIMEOUT_SECONDS = 8;
+    private const RETRY_TIMES = 2;
+    private const RETRY_SLEEP_MS = 300;
+
     public function isEnabled(): bool
     {
         return $this->accountId() !== '' && $this->clientId() !== '' && $this->clientSecret() !== '';
@@ -40,8 +51,7 @@ class ZoomMeetingService
      */
     public function createMeeting(CarbonInterface $startsAt, int $minutes, string $topic): array
     {
-        $response = Http::withToken($this->token())
-            ->acceptJson()
+        $response = $this->client()
             ->post(self::API_BASE . '/users/me/meetings', [
                 'topic'      => $topic,
                 'type'       => 2, // scheduled
@@ -77,8 +87,7 @@ class ZoomMeetingService
      */
     public function updateMeeting(string $meetingId, CarbonInterface $startsAt, int $minutes): void
     {
-        $response = Http::withToken($this->token())
-            ->acceptJson()
+        $response = $this->client()
             ->patch(self::API_BASE . '/meetings/' . $meetingId, [
                 'start_time' => Carbon::instance($startsAt)->utc()->format('Y-m-d\TH:i:s\Z'),
                 'duration'   => $minutes,
@@ -99,9 +108,7 @@ class ZoomMeetingService
      */
     public function deleteMeeting(string $meetingId): void
     {
-        $response = Http::withToken($this->token())
-            ->acceptJson()
-            ->delete(self::API_BASE . '/meetings/' . $meetingId);
+        $response = $this->client()->delete(self::API_BASE . '/meetings/' . $meetingId);
 
         if ($response->successful() || $response->status() === 404) {
             return;
@@ -123,6 +130,8 @@ class ZoomMeetingService
             now()->addMinutes(self::TOKEN_TTL_MINUTES),
             function () use ($clientId) {
                 $response = Http::asForm()
+                    ->timeout(self::TIMEOUT_SECONDS)
+                    ->retry(self::RETRY_TIMES, self::RETRY_SLEEP_MS, throw: false)
                     ->withBasicAuth($clientId, $this->clientSecret())
                     ->post(self::TOKEN_URL, [
                         'grant_type' => 'account_credentials',
@@ -136,6 +145,15 @@ class ZoomMeetingService
                 return (string) $response->json('access_token');
             }
         );
+    }
+
+    /** Authenticated, bounded, and retried once — see the constants above. */
+    private function client(): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::withToken($this->token())
+            ->acceptJson()
+            ->timeout(self::TIMEOUT_SECONDS)
+            ->retry(self::RETRY_TIMES, self::RETRY_SLEEP_MS, throw: false);
     }
 
     private function accountId(): string
