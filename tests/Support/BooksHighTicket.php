@@ -4,7 +4,6 @@ namespace Tests\Support;
 
 use App\Models\ConsultationSlot;
 use App\Models\Course;
-use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Services\ConsultationSlotService;
 use App\Services\HighTicketBookingService;
@@ -19,20 +18,6 @@ use Illuminate\Support\Carbon;
  */
 trait BooksHighTicket
 {
-    protected function seedVerifyTemplate(): void
-    {
-        if (EmailTemplate::forEvent('high_ticket_booking_verify')->exists()) {
-            return;
-        }
-
-        EmailTemplate::create([
-            'name'       => '預約待確認',
-            'event_type' => 'high_ticket_booking_verify',
-            'subject'    => '請確認你的 {{course_name}} 預約',
-            'body_md'    => 'Hi {{user_name}}，請點 {{confirm_url}}',
-        ]);
-    }
-
     /** Consecutive 15-minute units starting tomorrow at 10:00 Taipei time. */
     protected function seedSlots(int $count = 16): Carbon
     {
@@ -86,8 +71,6 @@ trait BooksHighTicket
     /** Submit an application (stage one). */
     protected function applyForBooking(Course $course, array $overrides = []): array
     {
-        $this->seedVerifyTemplate();
-
         return app(HighTicketBookingService::class)->apply($course, $this->applicationData($overrides));
     }
 

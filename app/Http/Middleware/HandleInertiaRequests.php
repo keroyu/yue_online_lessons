@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SiteSetting;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -38,6 +39,10 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            // Site-wide because the legal modal lives in the footer (011 FR-057):
+            // there is no single controller to pass it from. Costs one indexed
+            // read per request on a tiny table.
+            'supportEmail' => fn () => SiteSetting::supportEmail(),
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,

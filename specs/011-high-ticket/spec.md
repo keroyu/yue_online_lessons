@@ -46,6 +46,11 @@ owner_files:
   - app/Jobs/NotifyHighTicketSlotJob.php
   - app/Jobs/SubscribeDripLeadJob.php
   - app/Mail/TemplatedMail.php
+  - app/Mail/BookingVerifyMail.php
+  - resources/views/emails/booking-verify.blade.php
+  - resources/views/emails/booking-verify-text.blade.php
+  - database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php
+  - tests/Feature/HighTicket/SupportEmailTest.php
   - resources/views/emails/high-ticket-booking.blade.php
   - resources/js/Pages/Admin/HighTicketLeads/Index.vue
   - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -102,13 +107,31 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）
+  - file: app/Http/Middleware/HandleInertiaRequests.php
+    owner: 000-platform-core
+    why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
+  - file: app/Http/Controllers/Payment/NewebpayController.php
+    owner: 005-checkout
+    why: FR-057 付款失敗訊息裡硬寫的客服信箱改讀 `SiteSetting::supportEmail()`（3 處），訊息其餘文字不變
+  - file: app/Http/Controllers/Payment/PayuniController.php
+    owner: 005-checkout
+    why: 同上，1 處
+  - file: resources/js/Pages/Payment/Success.vue
+    owner: 005-checkout
+    why: FR-057 客服 mailto 連結改讀 shared prop `supportEmail`
+  - file: resources/js/Components/Legal/PrivacyContent.vue
+    owner: 002-storefront
+    why: FR-057「客服信箱」欄改讀 shared prop `supportEmail`
+  - file: resources/js/Components/Legal/PurchaseContent.vue
+    owner: 002-storefront
+    why: 同上
   - file: routes/console.php
     owner: 000-platform-core
     why: US11 的 `booking:release-holds` 每 10 分鐘排程（逾時暫留的清理，非正確性來源，見 D33）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
-    why: 唯讀取用 —— 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），US10/US12 另加 `high_ticket_booking_bonus_codes` 與三組 `zoom_*` 憑證，沿用 000 的全站設定機制，未新增欄位
+    why: 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），US10/US12 另加 `high_ticket_booking_bonus_codes` 與三組 `zoom_*` 憑證，沿用 000 的全站設定機制，未新增欄位；2026-08-05 起另在此類別上新增 `SUPPORT_EMAIL_KEY` 常數與 `supportEmail()` helper（FR-057）—— 客服信箱是跨模組都要印的值，放在 SiteSetting 比放在任一功能 service 合理
   - file: app/Http/Controllers/Admin/SettingsController.php
     owner: 000-platform-core
     why: US12 在「API 設定」頁（`showPayment` / `updatePayment`）加一組 Zoom 憑證欄位，沿用該頁既有的 `maskSecret()` 與「留白即維持原值」的 secret 處理（D41），不新增頁面與路由
@@ -511,6 +534,15 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
   **MUST NOT 改動 DB 值**：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
 
+- **FR-057**: 對外客服信箱 MUST 收在 `site_settings.support_email`，由「Email 模板管理」頁維護；未設定或留空時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。取值一律走 `SiteSetting::supportEmail()`。
+  **`{{support_email}}` 與 `{{app_url}}` MUST 對所有模板自動可用**：注入點在 `EmailTemplate::renderSubject()` / `substitute()`，不是各呼叫端 —— 呼叫端有六個，漏一個的症狀是收件人信箱裡出現字面的 `{{support_email}}`。呼叫端明確傳入的值 MUST 覆蓋全域值。編輯頁的變數清單以 `GLOBAL_VARIABLES` 附加於每個 event_type 之後。
+  **與 `high_ticket_lead_notify_cc` 是不同角色**（沿用 FR-014 的區分）：那是「誰接手這條 lead」，這是「訪客有問題寫給誰」；兩者共用同一頁但文案 MUST 說明差別。
+  **全站唯一真相**：`app/` 與 `resources/` MUST NOT 出現硬寫的客服地址，唯一例外是 `SiteSetting::DEFAULT_SUPPORT_EMAIL` 常數本身；前台以 Inertia shared prop `supportEmail` 取用（法律條款 modal 掛在 footer，沒有單一 controller 可傳），後端一律 `SiteSetting::supportEmail()`。此條 MUST 由測試掃描原始碼把關 —— 一個只有一半應用程式遵守的設定，比沒有設定更糟
+
+- **FR-058**: 「預約待確認」信 MUST NOT 由 `email_templates` 驅動，改為寫死的 `BookingVerifyMail` + Blade（比照 `VerificationCodeMail`）。理由有二：（1）這封信是**機制**不是訊息 —— 它唯一的任務是送出確認連結，沒有業主會想改的措辭；（2）原本模板不存在時 `apply()` 直接回 422「預約待確認信模板不存在，請聯絡管理員」，**而正式站的資料庫正是這個狀態**（seeder 不隨部署執行），等於整條申請路徑在上線後是壞的。
+  `apply()` MUST NOT 再檢查任何模板。信件 MUST 為 `multipart/alternative`（比照 FR-020 —— 確認連結進垃圾桶等於預約斷掉）。到期時間 MUST 帶日期（`n/j H:i`）：23:45 送出的申請隔天 00:45 到期，「今天 00:45」是錯的。
+  `high_ticket_booking_verify` 這筆模板 MUST 從 seeder、編輯頁變數清單、後台清單標籤一併移除，並以資料 migration 刪除既有列 —— 留著會在後台顯示成一個「可編輯但改了沒用」的模板，比沒有更糟
+
 - **FR-056**: 預約流程 MUST NOT 依賴 queue worker（2026-08-05，見 D55）。建立 Zoom 會議、寄確認信、改期／取消的 Zoom 同步一律**同步執行**；`ZoomMeetingService` 的每個 HTTP 呼叫 MUST 設 timeout（8 秒）與短重試（2 次、間隔 300ms），避免 Zoom 掛掉時把訪客的請求拖住。測試 MUST 以 `Queue::fake()` + `Queue::assertNothingPushed()` 釘住這件事 —— 沒有 worker 也要能寄出確認信
 
 - **FR-054**: `updateStatus` 端點 MUST NOT 接受 `cancelled`。從名單上一鍵改成「已取消」會貼上標籤卻不釋出時段、不刪 Zoom 會議、不通知對方 —— 那個狀態會是假的。唯一入口是週曆區塊的取消動作（FR-049）；名單上的「已取消」為**唯讀徽章**，可篩選、不可點擊設定
@@ -543,6 +575,12 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
 ## 設計決策
+
+- **D56**: 「預約待確認」信改為寫死，客服信箱改為設定值（FR-057 / FR-058，使用者決策）。
+  兩件事同一個根：**可設定性要放在會被改的東西上**。待確認信的措辭沒人會想改，卻因為模板缺列而讓整條申請 422；客服信箱是真的會換的東西，卻硬寫在六個地方。原本的設計把這兩者搞反了。
+  判斷準則：**這封信是機制還是訊息？** 機制（驗證碼、確認連結）寫死；訊息（預約確認、改期通知、成交開通）留模板。前者改文案的需求是零、缺失的代價是流程中斷；後者相反。
+  掃掉全站 6 處硬寫（藍新 3、統一 1、付款成功頁 1、隱私政策與購買須知各 1）。前台走 Inertia shared prop 而非逐頁傳 prop —— 法律條款 modal 在 footer，等於每一頁都可能要印，逐頁傳會漏。代價是每次請求多一次索引查詢，與這張表既有的讀取模式一致；沒有加 per-request memo，因為靜態快取跨測試殘留的風險大於省下的那次查詢。掃描結果由測試把關（`test_no_source_file_hardcodes_the_address`），否則下一個人複製貼上就又長回來。
+  客服信箱注入在 `EmailTemplate` 的渲染入口而非各呼叫端 —— 六個呼叫端漏掉一個，症狀是收件人看到字面的 `{{support_email}}`，而那是寄出去之後才會發現的。放在 Email 模板頁而非另開設定頁：它服務的就是這一頁的模板，且旁邊已經有 `notify_cc`，兩者都是「信要去哪」。代價是要在文案裡明講兩者角色不同，否則很容易把客服信箱填成 lead 收件人。
 
 - **D55**: Zoom 與確認信改為**同步執行**，移除 `CreateZoomMeetingJob` 與 `SyncZoomMeetingJob`（2026-08-05，使用者決策）。
   觸發點是 `QUEUE_CONNECTION=database` —— jobs 需要有 worker 常駐。而 D38 當初把確認信搬進了 job（為了讓對方只收一封含連結的完整信），於是**確認信成為這個模組裡唯一一條「訪客被告知成功、但結果掛在 worker 上」的路徑**，而且失敗是無聲的：頁面說「相關資料已寄出」，對方什麼都收不到。其餘的 job（通知新時段、加序列信）都是管理員主動觸發、看得到回報，性質不同。
@@ -727,6 +765,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - US5（開通補強）無 schema 變更（新增的是 `email_templates` 的一筆資料，不是欄位；覆寫守門與 transaction 皆為既有欄位上的邏輯）
 - US1 亦無 schema 變更（landing page 隱藏與 mail_sent 回報皆為既有欄位與前端呈現）
 - `high_ticket_leads` — 預約產生的潛在客戶；status 銷售漏斗 enum(pending / contacted / no_response / converted / closed / cancelled) 預設 pending；**DB 值與顯示名稱刻意脫鉤，對照表見 FR-055**；notified_count（unsigned tinyint）與 last_notified_at 只由 NotifyHighTicketSlotJob 寄送成功後更新；booked_at 為最近一次提交時間（非 created_at 語意）；email / status / course_id 皆有索引。**DB 無 (email, course_id) unique 約束**，去重由 `recordLead()` 在應用層負責（D17）— 歷史資料可能已有重複列，加 unique 需先清理，現階段不值得
+- `site_settings.support_email` — 對外客服信箱（FR-057）；空值或未設定時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。與下面的 notify_cc 是不同角色，不可混用
+- `email_templates` 的 `high_ticket_booking_verify` — 2026-08-05 由 `2026_08_06_000004` **刪除**（FR-058，改為寫死的 `BookingVerifyMail`）；`down()` 為 no-op，沒有東西會再讀這個 event_type
 - `site_settings.high_ticket_lead_notify_cc` — 預約通知 CC 收件者，逗號分隔字串；不存在或為空即 fallback 至 `DEFAULT_NOTIFY_CC`（FR-014）
 - `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
 - `email_templates.body_md` — **模板原始內容，格式由 `body_type` 決定**（歷史命名，非僅 Markdown，見 D19）
@@ -944,6 +984,9 @@ Phase D — 週曆 UI（相依 Phase C）
 Phase E — 驗證
 - [x] T122 `php artisan test` 全綠（基準 349 passed）＋ `npm run build` exit 0
 - [x] T124 `updateStatus` 拿掉 `cancelled`，名單改為唯讀徽章（FR-054）in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T131 「預約待確認」信改為寫死的 `BookingVerifyMail` + Blade（含純文字版），`apply()` 拿掉模板檢查；`high_ticket_booking_verify` 自 seeder／變數清單／後台標籤移除並以 migration 刪除既有列（FR-058）in `app/Mail/BookingVerifyMail.php` + `resources/views/emails/booking-verify*.blade.php` + `database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php`
+- [x] T133 全站掃除硬寫客服地址（FR-057）：藍新／統一金流的付款失敗訊息、付款成功頁、隱私政策、購買須知共 6 處；前台以 Inertia shared prop `supportEmail` 取用（touchpoint，owner 000-platform-core / 002-storefront / 005-checkout）；新增原始碼掃描測試把關 in `app/Http/Middleware/HandleInertiaRequests.php` + `app/Http/Controllers/Payment/*.php` + `resources/js/Components/Legal/*.vue` + `resources/js/Pages/Payment/Success.vue`
+- [x] T132 客服信箱設定：`SiteSetting::SUPPORT_EMAIL_KEY` + `supportEmail()`、Email 模板頁新增欄位與 `PUT /admin/email-templates/support-email`、`{{support_email}}` 與 `{{app_url}}` 注入 `EmailTemplate` 渲染入口並附加於編輯頁變數清單（FR-057）；新增 SupportEmailTest（10 tests）in `app/Models/SiteSetting.php` + `app/Models/EmailTemplate.php` + `app/Http/Controllers/Admin/EmailTemplateController.php` + `resources/js/Pages/Admin/EmailTemplates/Index.vue`
 - [x] T130 Zoom 與確認信改為同步執行（D55 / FR-050 / FR-056）：移除 `CreateZoomMeetingJob` 與 `SyncZoomMeetingJob`，邏輯內收至 `HighTicketBookingService::createMeetingAndConfirm()` 與 `syncZoom()`；`ZoomMeetingService` 每個呼叫加 8 秒 timeout + 2 次短重試；改期／取消失敗改由 flash 警告管理員（原本寄內部通知信）；ZoomMeetingTest 與 BookingChangeTest 改寫，新增「沒有 worker 也要寄得出確認信」的斷言 in `app/Services/HighTicketBookingService.php` + `app/Services/ZoomMeetingService.php` + `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T129 第 4 步覆核區改為分區呈現：「申請資料」7 列共用一顆修改（皆屬第 1 步）、「諮詢時段」自成一區另一顆（屬第 3 步）；原本每列一顆共 8 顆，其中 7 顆去同一個地方 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T128 `social_url` 前端即時驗證（FR-027）：`new URL()` 判定、第 1 步擋下並顯示提示、第 4 步覆核列標紅 + 停用送出、候補按鈕同步；`submitWaitlist()` 的 422 欄位錯誤改與 `submit()` 共用 `routeFieldErrors()` in `resources/js/Components/Course/HighTicketBookingWizard.vue`
@@ -954,6 +997,7 @@ Phase E — 驗證
 
 ## 進度日誌
 
+- 2026-08-05: 「預約待確認」信改為寫死 + 客服信箱改為設定值（T131 / T132 / FR-057 / FR-058 / D56）— 業主實測送出申請時撞到 422「預約待確認信模板不存在，請聯絡管理員」：seeder 不隨部署執行，所以**正式站的資料庫本來就沒有這一列**，等於整條申請路徑上線即是壞的。根本問題是可設定性放錯了東西 —— 這封信是機制不是訊息（唯一任務是送出確認連結，沒人會想改措辭），卻做成可編輯模板且缺列即中斷；反過來客服信箱是真的會換的東西，卻硬寫在六個地方。判斷準則寫進 D56：機制寫死、訊息留模板。改為 `BookingVerifyMail` + Blade（比照既有的 `VerificationCodeMail`），含純文字版（確認連結進垃圾桶等於預約斷掉）；到期時間帶日期，因為 23:45 送出的申請隔天 00:45 到期、「今天」是錯的。`high_ticket_booking_verify` 自 seeder／變數清單／後台標籤移除並以 migration 刪列 —— 留著會顯示成「可編輯但改了沒用」的模板，比沒有更糟。客服信箱新增 `site_settings.support_email` + Email 模板頁欄位，`{{support_email}}` 與 `{{app_url}}` 注入 `EmailTemplate` 的渲染入口而非各呼叫端（六個呼叫端漏一個的症狀是收件人看到字面的 `{{support_email}}`，寄出去才會發現）。全站另掃掉 6 處硬寫地址（金流失敗訊息、付款成功頁、隱私政策、購買須知），前台走 Inertia shared prop —— 法律條款 modal 掛在 footer，每一頁都可能要印，逐頁傳 prop 一定會漏。加了一個掃描原始碼的測試把關，否則下一個人複製貼上就又長回來。新增 SupportEmailTest（13 tests），全套 410 passed（2001 assertions）。
 - 2026-08-05: Zoom 與確認信改為同步、移除兩支 job（T130 / D55 / FR-056）— 起因是覆核 Zoom 串接時發現 `QUEUE_CONNECTION=database`，而 D38 把確認信搬進了 `CreateZoomMeetingJob`：**正式站沒有 queue worker 的話，Zoom 啟用後確認信永遠不會寄出**，而畫面還是顯示「相關資料已寄出」。這是本模組唯一一條「訪客被告知成功、結果卻掛在 worker 上」的路徑，其餘 job 都是管理員觸發、看得到回報。改為同步後最差是頁面多等幾秒或信沒連結（log 有紀錄），兩者都是可發現的。代價是失去 `tries=3` 的重試，改以 HTTP 層 8 秒 timeout + 2 次短重試補一部分 —— Laravel 預設 30 秒 timeout 在同步情境會讓一次 Zoom 中斷把頁面卡住將近一分鐘。改期／取消的 Zoom 同步一併改同步（那兩條的信本來就同步寄，只有 Zoom 掛在 worker 上，等於對方拿到新時間、Zoom 停在舊時間而沒人發現）；`syncZoom()` 回傳三態，controller 只在真的失敗時於 flash 附警告，「本來就沒有會議」不跳警告以免訓練管理員忽略它。原 job 的內部通知信移除 —— 管理員當下就在畫面前。ZoomMeetingTest 改寫為同步版本並新增 `Queue::assertNothingPushed()` 斷言，全套 397 passed。
 - 2026-08-05: 第 4 步覆核區的「修改」由每列一顆改為每區一顆（T129）— 原本 8 顆按鈕裡有 7 顆做同一件事（回第 1 步），視覺上像是每一欄都能單獨編輯，實際上全部通往同一個畫面。改為兩張卡片：「申請資料」（7 列，標題列一顆修改 → 第 1 步）與「諮詢時段」（自成一區，另一顆 → 第 3 步）。沒有併成單一顆，是因為這兩顆去的是不同步驟 —— 真的只留一顆的話，改時段會變成「修改 → 第 1 步 → 下一步 → 下一步」。社群網址格式錯誤時，「申請資料」那顆會轉紅粗體，指向唯一需要處理的地方。
 - 2026-08-05: 社群網址改為前端即時驗證（T128 / FR-027）— 原本只有後端擋，使用者要一路填到第 4 步、按下「送出申請」才被丟回第 1 步，而「請再確認一次你的申請資料」那個畫面在那之前完全看不出哪一欄有問題（該列就只是顯示那串壞掉的網址）。改為：第 1 步即時提示且不放行、第 4 步覆核列標紅 + 附修正說明 + 停用送出鈕、候補路徑的按鈕同步處理。判定用 `new URL()` 不用 regex —— 瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與 `javascript:` / `data:` / `ftp:`，逐一比對過後端那 4 個測試的案例。順手修掉一個既有 bug：`submitWaitlist()` 把 422 的欄位錯誤全壓成「送出失敗，請稍後再試」，那是一句永遠不會成功的建議、也沒說是哪一欄；兩條送出路徑改為共用 `routeFieldErrors()`。後端仍是權威（前端規則在單標籤 host 這類極端輸入上可能與 Laravel `url` 有落差），落差由共用的欄位錯誤處理接住。

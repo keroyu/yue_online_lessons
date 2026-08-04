@@ -535,6 +535,7 @@ main_files:
 - app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
+- app/Mail/BookingVerifyMail.php
 - app/Mail/CourseGiftedMail.php
 - app/Mail/LessonAddedNotification.php
 - app/Mail/TemplatedMail.php
@@ -561,6 +562,7 @@ main_files:
 - database/migrations/2026_08_06_000001_add_calendar_fields_to_high_ticket_leads_table.php
 - database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php
 - database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php
+- database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -575,6 +577,8 @@ main_files:
 - resources/js/Pages/Admin/Settings/Payment.vue
 - resources/js/Pages/Booking/Confirm.vue
 - resources/js/Pages/Course/Show.vue
+- resources/views/emails/booking-verify-text.blade.php
+- resources/views/emails/booking-verify.blade.php
 - resources/views/emails/high-ticket-booking.blade.php
 - resources/views/emails/template-text.blade.php
 - routes/console.php
@@ -590,6 +594,7 @@ main_files:
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
+- tests/Feature/HighTicket/SupportEmailTest.php
 - tests/Feature/HighTicket/ZoomMeetingTest.php
 - tests/Support/BooksHighTicket.php
 

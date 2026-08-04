@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
 
 defineOptions({ layout: false })
@@ -10,6 +10,8 @@ const props = defineProps({
   isLoggedIn:{ type: Boolean, default: false },
   waiting:   { type: Boolean, default: false },
 })
+
+const supportEmail = computed(() => usePage().props.supportEmail)
 
 let pollTimer = null
 const pollTimedOut = ref(false)
@@ -89,7 +91,7 @@ const formatPrice = (val) => {
             金流系統處理時間較久。您的款項若已扣款，課程將在數分鐘內自動開通。
           </p>
           <p class="text-gray-500 text-xs mt-3 text-center">
-            如有疑問請聯絡客服 <a href="mailto:themustbig+learn@gmail.com" class="underline">themustbig+learn@gmail.com</a>
+            如有疑問請聯絡客服 <a :href="`mailto:${supportEmail}`" class="underline">{{ supportEmail }}</a>
           </p>
           <div class="mt-5 flex gap-3">
             <button

@@ -2876,7 +2876,16 @@
         "tests/Feature/HighTicket/SlotHoldTest.php",
         "app/Exceptions/SlotUnavailableException.php",
         "app/Http/Requests/HighTicketBookingRequest.php",
-        "tests/Support/BooksHighTicket.php"
+        "tests/Support/BooksHighTicket.php",
+        "app/Mail/BookingVerifyMail.php",
+        "app/Models/SiteSetting.php",
+        "app/Models/EmailTemplate.php",
+        "resources/views/emails/booking-verify.blade.php",
+        "resources/views/emails/booking-verify-text.blade.php",
+        "database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php",
+        "tests/Feature/HighTicket/SupportEmailTest.php",
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "resources/js/Pages/Admin/EmailTemplates/Index.vue"
       ],
       "status": "implemented"
     },

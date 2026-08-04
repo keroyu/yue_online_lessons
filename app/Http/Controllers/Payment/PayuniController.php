@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Payment;
 
+use App\Models\SiteSetting;
 use App\Http\Controllers\Controller;
 use App\Services\PayuniService;
 use Illuminate\Http\RedirectResponse;
@@ -94,6 +95,6 @@ class PayuniController extends Controller
             Log::warning('PayUni Return: verification failed, falling back to redirect');
         }
 
-        return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
+        return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 ' . SiteSetting::supportEmail());
     }
 }

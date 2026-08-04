@@ -11,12 +11,6 @@ class EmailTemplateSeeder extends Seeder
     {
         $templates = [
             [
-                'name' => '客製服務預約待確認',
-                'event_type' => 'high_ticket_booking_verify',
-                'subject' => '【請於 1 小時內確認】{{course_name}} 預約時段保留中',
-                'body_md' => "您好 {{user_name}}，\n\n我們已收到您的「{{course_name}}」1v1 諮詢申請，時段正**暫時保留**中：\n\n- 時段：{{slot_time}}\n- 保留到：今天 {{expires_at}}\n\n請點擊下方連結完成確認，時段才會正式為您保留：\n\n{{confirm_url}}\n\n**超過 1 小時未確認，時段會自動釋出給其他人。**\n\n若這不是您本人申請的，忽略這封信即可。\n\n經營者時間銀行",
-            ],
-            [
                 'name' => '客製服務預約確認',
                 'event_type' => 'high_ticket_booking_confirmation',
                 'subject' => '【預約完成】{{course_name}} — {{slot_time}}',

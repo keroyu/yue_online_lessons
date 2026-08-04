@@ -15,13 +15,6 @@ use Inertia\Response;
 class EmailTemplateController extends Controller
 {
     private array $availableVariables = [
-        'high_ticket_booking_verify' => [
-            ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
-            ['key' => '{{course_name}}', 'label' => '課程名稱'],
-            ['key' => '{{confirm_url}}', 'label' => '確認連結（必放，否則對方無法完成預約）'],
-            ['key' => '{{slot_time}}', 'label' => '所選時段（含長度）'],
-            ['key' => '{{expires_at}}', 'label' => '保留到期時間（時:分）'],
-        ],
         'high_ticket_booking_confirmation' => [
             ['key' => '{{user_name}}', 'label' => '訪客姓名'],
             ['key' => '{{user_email}}', 'label' => '訪客 Email'],
@@ -54,7 +47,6 @@ class EmailTemplateController extends Controller
         'course_gifted' => [
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
             ['key' => '{{course_description}}', 'label' => '課程描述'],
-            ['key' => '{{app_url}}', 'label' => '網站網址'],
         ],
         'lesson_added' => [
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
@@ -66,8 +58,16 @@ class EmailTemplateController extends Controller
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
             ['key' => '{{amount}}', 'label' => '成交金額（含千分位，不含幣別）'],
             ['key' => '{{classroom_url}}', 'label' => '教室連結'],
-            ['key' => '{{app_url}}', 'label' => '網站網址'],
         ],
+    ];
+
+    /**
+     * Offered on every template (FR-057) — appended rather than repeated in each
+     * list above, so adding a global variable is one edit, not seven.
+     */
+    private const GLOBAL_VARIABLES = [
+        ['key' => '{{support_email}}', 'label' => '客服信箱（在本頁設定，改一次全部更新）'],
+        ['key' => '{{app_url}}', 'label' => '網站網址'],
     ];
 
     public function index(): Response
@@ -78,7 +78,30 @@ class EmailTemplateController extends Controller
             'templates' => $templates,
             'notifyCc' => (string) SiteSetting::get(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, ''),
             'notifyCcDefault' => implode(', ', HighTicketBookingService::DEFAULT_NOTIFY_CC),
+            'supportEmail' => (string) SiteSetting::get(SiteSetting::SUPPORT_EMAIL_KEY, ''),
+            'supportEmailDefault' => SiteSetting::DEFAULT_SUPPORT_EMAIL,
         ]);
+    }
+
+    /**
+     * The address visitors are told to write to (FR-057). Shares this page with
+     * the CC list because both are "where does mail go", but they are different
+     * roles and the copy says so — one is outward-facing support, the other is
+     * who picks a lead up internally (FR-014).
+     */
+    public function updateSupportEmail(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'support_email' => ['nullable', 'string', 'email', 'max:255'],
+        ], [
+            'support_email.email' => '請填寫有效的 Email 格式',
+        ]);
+
+        SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, trim((string) $request->input('support_email', '')));
+
+        return redirect()
+            ->route('admin.email-templates.index')
+            ->with('success', '客服信箱已更新');
     }
 
     /**
@@ -111,7 +134,10 @@ class EmailTemplateController extends Controller
     {
         return Inertia::render('Admin/EmailTemplates/Edit', [
             'template' => $template,
-            'availableVariables' => $this->availableVariables[$template->event_type] ?? [],
+            'availableVariables' => array_merge(
+                $this->availableVariables[$template->event_type] ?? [],
+                self::GLOBAL_VARIABLES,
+            ),
         ]);
     }
 

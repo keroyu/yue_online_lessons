@@ -70,6 +70,7 @@
     ],
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
       "011.us-10",
+      "011.us-11",
       "011.us-12",
       "011.us-14",
       "011.us-6"
@@ -468,6 +469,9 @@
       "011.us-4",
       "011.us-7"
     ],
+    "app/Mail/BookingVerifyMail.php": [
+      "011.us-11"
+    ],
     "app/Mail/CourseGiftedMail.php": [
       "008.us-6",
       "011.us-7"
@@ -556,6 +560,7 @@
       "010.us-6"
     ],
     "app/Models/EmailTemplate.php": [
+      "011.us-11",
       "011.us-2",
       "011.us-6",
       "011.us-7"
@@ -618,6 +623,7 @@
     "app/Models/SiteSetting.php": [
       "000.us-5",
       "007.us-4",
+      "011.us-11",
       "011.us-2"
     ],
     "app/Models/SocialLink.php": [
@@ -1012,6 +1018,9 @@
     "database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php": [
       "011.us-14"
     ],
+    "database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php": [
+      "011.us-11"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1302,6 +1311,7 @@
       "011.us-7"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
+      "011.us-11",
       "011.us-6"
     ],
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
@@ -1458,6 +1468,12 @@
     "resources/views/emails/batch-email.blade.php": [
       "008.us-5"
     ],
+    "resources/views/emails/booking-verify-text.blade.php": [
+      "011.us-11"
+    ],
+    "resources/views/emails/booking-verify.blade.php": [
+      "011.us-11"
+    ],
     "resources/views/emails/course-gifted.blade.php": [
       "008.us-6"
     ],
@@ -1579,6 +1595,9 @@
       "011.us-10",
       "011.us-11",
       "011.us-12"
+    ],
+    "tests/Feature/HighTicket/SupportEmailTest.php": [
+      "011.us-11"
     ],
     "tests/Feature/HighTicket/ZoomMeetingTest.php": [
       "011.us-12"

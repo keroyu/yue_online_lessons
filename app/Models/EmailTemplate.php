@@ -17,7 +17,28 @@ class EmailTemplate extends Model
 
     public function renderSubject(array $vars): string
     {
+        $vars = $this->withGlobals($vars);
+
         return str_replace(array_keys($vars), array_values($vars), $this->subject);
+    }
+
+    /**
+     * Variables every template gets for free (011 FR-057).
+     *
+     * Injected here rather than at each call site because there are six of them
+     * and a forgotten one shows up as a literal `{{support_email}}` in somebody's
+     * inbox. A caller-supplied value still wins — nothing here should be able to
+     * override what the sender explicitly passed.
+     *
+     * @param array<string, string> $vars
+     * @return array<string, string>
+     */
+    private function withGlobals(array $vars): array
+    {
+        return array_merge([
+            '{{support_email}}' => SiteSetting::supportEmail(),
+            '{{app_url}}'       => rtrim((string) config('app.url'), '/'),
+        ], $vars);
     }
 
     /**
@@ -52,6 +73,8 @@ class EmailTemplate extends Model
 
     private function substitute(array $vars): string
     {
+        $vars = $this->withGlobals($vars);
+
         return str_replace(array_keys($vars), array_values($vars), (string) $this->body_md);
     }
 

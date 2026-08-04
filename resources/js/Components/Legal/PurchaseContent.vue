@@ -1,4 +1,10 @@
 <script setup>
+import { computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
+
+// Shared from HandleInertiaRequests — this component is rendered inside the
+// footer's legal modal, so there is no page controller to prop it in from.
+const supportEmail = computed(() => usePage().props.supportEmail)
 </script>
 
 <template>
@@ -74,7 +80,7 @@
       如有任何問題，歡迎透過以下方式聯繫我們：
     </p>
     <ul class="list-disc pl-5 text-gray-600 space-y-2 mb-4">
-      <li>客服信箱：themustbig+learn@gmail.com</li>
+      <li>客服信箱：{{ supportEmail }}</li>
       <li>服務時間：週一至週五 10:00-18:00</li>
     </ul>
 

@@ -49,17 +49,12 @@ class BookingWizardTest extends TestCase
         return $course->fresh();
     }
 
-    private function templates(bool $verify = true, bool $confirmation = true): void
+    /**
+     * Only the confirmation template is DB-driven now: the verify mail became a
+     * hardcoded Mailable (FR-058), so there is nothing to seed for stage one.
+     */
+    private function templates(bool $confirmation = true): void
     {
-        if ($verify) {
-            EmailTemplate::create([
-                'name'       => '預約待確認',
-                'event_type' => 'high_ticket_booking_verify',
-                'subject'    => '請確認你的 {{course_name}} 預約',
-                'body_md'    => 'Hi {{user_name}}，請點 {{confirm_url}}，時段 {{slot_time}}，期限 {{expires_at}}',
-            ]);
-        }
-
         if ($confirmation) {
             EmailTemplate::create([
                 'name'       => '預約確認',
@@ -183,20 +178,24 @@ class BookingWizardTest extends TestCase
         ]))->assertOk();
     }
 
-    public function test_missing_verify_template_blocks_the_whole_application(): void
+    /**
+     * FR-058: the application used to die with 「預約待確認信模板不存在」 when the
+     * row was missing — which is what a production DB looks like, since seeders
+     * do not run on deploy. Stage one no longer touches email_templates at all.
+     */
+    public function test_an_application_needs_no_email_template_row(): void
     {
         Mail::fake();
-        $this->templates(verify: false);
+        EmailTemplate::query()->delete();
         $start = $this->makeSlots();
         $course = $this->makeHighTicketCourse();
 
         $this->postJson("/course/{$course->id}/book", $this->payload([
             'slot_starts_at' => $start->toIso8601String(),
-        ]))->assertStatus(422);
+        ]))->assertOk()->assertJson(['success' => true, 'mail_sent' => true]);
 
-        $this->assertSame(0, HighTicketLead::count());
-        // Nothing may be held when the application never happened.
-        $this->assertSame(0, ConsultationSlot::whereNotNull('lead_id')->count());
+        $this->assertSame(1, HighTicketLead::count());
+        Mail::assertSent(\App\Mail\BookingVerifyMail::class);
     }
 
     public function test_taken_slot_returns_409(): void
@@ -306,9 +305,9 @@ class BookingWizardTest extends TestCase
             $this->payload(['slot_starts_at' => $start->toIso8601String()])
         );
 
-        // Only the verify mail so far (FR-033).
-        Mail::assertSent(\App\Mail\TemplatedMail::class, 1);
-        Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '請確認'));
+        // Only the verify mail so far (FR-033), and it is not a template mail.
+        Mail::assertNotSent(\App\Mail\TemplatedMail::class);
+        Mail::assertSent(\App\Mail\BookingVerifyMail::class, 1);
     }
 
     public function test_confirming_twice_is_idempotent(): void

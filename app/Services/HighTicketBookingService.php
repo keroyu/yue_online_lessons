@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\SlotUnavailableException;
+use App\Mail\BookingVerifyMail;
 use App\Mail\TemplatedMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
@@ -53,12 +54,6 @@ class HighTicketBookingService
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
 
-        $template = EmailTemplate::forEvent('high_ticket_booking_verify')->first();
-
-        if (!$template) {
-            return ['success' => false, 'message' => '預約待確認信模板不存在，請聯絡管理員'];
-        }
-
         $code = $data['code'] ?? null;
         $minutes = $this->slots->minutesFor($code);
         $startsAt = Carbon::parse($data['slot_starts_at'])->utc();
@@ -73,7 +68,7 @@ class HighTicketBookingService
             return $lead;
         });
 
-        $mailSent = $this->sendVerifyMail($lead, $course, $template, $startsAt, $minutes, $expiresAt);
+        $mailSent = $this->sendVerifyMail($lead, $course, $startsAt, $minutes, $expiresAt);
 
         // Nobody can click a link they never received, so holding the slot would
         // only lock out people whose mail does arrive (D34).
@@ -554,30 +549,30 @@ class HighTicketBookingService
         return rtrim((string) config('app.url'), '/') . '/course/' . ($course->slug ?: $course->id);
     }
 
+    /**
+     * Stage-one mail. Hardcoded rather than template-driven (FR-058): it exists
+     * to carry the confirm link, and a missing template row used to fail the
+     * whole application with a 422.
+     */
     private function sendVerifyMail(
         HighTicketLead $lead,
         Course $course,
-        EmailTemplate $template,
         Carbon $startsAt,
         int $minutes,
         Carbon $expiresAt
     ): bool {
-        $vars = [
-            '{{user_name}}'   => $lead->name,
-            '{{user_email}}'  => $lead->email,
-            '{{course_name}}' => $course->name,
-            '{{confirm_url}}' => url("/booking/confirm/{$lead->confirm_token}"),
-            '{{slot_time}}'   => $this->slots->label($startsAt) . "（{$minutes} 分鐘）",
-            '{{expires_at}}'  => $expiresAt->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'),
-        ];
-
         try {
             Mail::to($lead->email)
                 ->cc($this->notifyCc())
-                ->send(new TemplatedMail(
-                    $template->renderSubject($vars),
-                    $template->renderBody($vars),
-                    $template->renderText($vars),
+                ->send(new BookingVerifyMail(
+                    $lead->name,
+                    $course->name,
+                    $this->slots->label($startsAt),
+                    $minutes,
+                    url("/booking/confirm/{$lead->confirm_token}"),
+                    // Carries the date: an application at 23:45 expires tomorrow,
+                    // and 「今天 00:45」 would be a lie.
+                    $expiresAt->timezone(ConsultationSlotService::DISPLAY_TZ)->format('n/j H:i'),
                 ));
 
             return true;

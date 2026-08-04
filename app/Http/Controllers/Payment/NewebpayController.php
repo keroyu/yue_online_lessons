@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Payment;
 
+use App\Models\SiteSetting;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\CheckoutService;
@@ -109,14 +110,14 @@ class NewebpayController extends Controller
 
         if (!$this->newebpayService->verifyTradeSha($tradeSha, $tradeInfo)) {
             Log::warning('NewebPay Return: TradeSha verification failed');
-            return redirect('/cart')->with('payment_failed', '付款驗證失敗，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
+            return redirect('/cart')->with('payment_failed', '付款驗證失敗，請再試一次；若仍遇到問題請聯絡客服 ' . SiteSetting::supportEmail());
         }
 
         $params = $this->newebpayService->decryptTradeInfo($tradeInfo);
 
         if (empty($params)) {
             Log::warning('NewebPay Return: decryptTradeInfo returned empty');
-            return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
+            return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 ' . SiteSetting::supportEmail());
         }
 
         // RespondType=JSON 的回應業務欄位在 Result 子物件；Status 在頂層
@@ -150,7 +151,7 @@ class NewebpayController extends Controller
             return redirect('/payment/success?order=' . $merchantOrderNo);
         }
 
-        return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 themustbig+learn@gmail.com');
+        return redirect('/cart')->with('payment_failed', '付款未完成，請再試一次；若仍遇到問題請聯絡客服 ' . SiteSetting::supportEmail());
     }
 
     /**

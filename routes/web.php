@@ -307,8 +307,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     // Email templates
     Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
-    // Must precede the {template} route — 'notify-cc' is a literal, not a model key.
+    // Must precede the {template} route — these are literals, not model keys.
     Route::put('/email-templates/notify-cc', [EmailTemplateController::class, 'updateNotifyCc'])->name('email-templates.notify-cc');
+    Route::put('/email-templates/support-email', [EmailTemplateController::class, 'updateSupportEmail'])->name('email-templates.support-email');
     Route::get('/email-templates/{template}/edit', [EmailTemplateController::class, 'edit'])->name('email-templates.edit');
     Route::put('/email-templates/{template}', [EmailTemplateController::class, 'update'])->name('email-templates.update');
 
