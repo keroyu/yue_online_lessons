@@ -13,6 +13,7 @@ use App\Services\HighTicketBookingService;
 use App\Services\HighTicketLeadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Tests\Support\BooksHighTicket;
 use Tests\TestCase;
 
 /**
@@ -26,7 +27,7 @@ use Tests\TestCase;
  */
 class FunnelStopTest extends TestCase
 {
-    use RefreshDatabase;
+    use BooksHighTicket, RefreshDatabase;
 
     private function makeCourse(array $overrides = []): Course
     {
@@ -122,13 +123,11 @@ class FunnelStopTest extends TestCase
         $user = User::create(['email' => 'booker@example.com', 'role' => 'member']);
         $sub  = $this->subscribe($drip, $user);
 
-        $result = app(HighTicketBookingService::class)->book($target, [
-            'name'  => 'Booker',
-            'email' => 'booker@example.com',
-            'phone' => '0912345678',
-        ]);
+        // The sequence stops when the booking is confirmed, not when the form
+        // is submitted (011 D35).
+        $result = $this->applyAndConfirm($target);
 
-        $this->assertTrue($result['success']);
+        $this->assertSame('confirmed', $result['state']);
         $this->assertSame('booked', $sub->fresh()->status);
         $this->assertNotNull($sub->fresh()->status_changed_at);
     }
@@ -142,13 +141,9 @@ class FunnelStopTest extends TestCase
         $target = $this->makeHighTicketCourse();
         $this->link($drip, $target);
 
-        $result = app(HighTicketBookingService::class)->book($target, [
-            'name'  => 'Stranger',
-            'email' => 'nobody@example.com',
-            'phone' => '0900000000',
-        ]);
+        $result = $this->applyAndConfirm($target, ['name' => 'Stranger', 'email' => 'nobody@example.com']);
 
-        $this->assertTrue($result['success']);
+        $this->assertSame('confirmed', $result['state']);
         $this->assertDatabaseHas('high_ticket_leads', ['email' => 'nobody@example.com']);
     }
 

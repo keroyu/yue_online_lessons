@@ -2,13 +2,18 @@
 
 namespace App\Services;
 
+use App\Exceptions\SlotUnavailableException;
+use App\Jobs\CreateZoomMeetingJob;
 use App\Mail\TemplatedMail;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class HighTicketBookingService
 {
@@ -25,107 +30,322 @@ class HighTicketBookingService
 
     public const NOTIFY_CC_SETTING_KEY = 'high_ticket_lead_notify_cc';
 
-    public function book(Course $course, array $data): array
+    /** How long a slot stays reserved while we wait for the emailed click. */
+    public const HOLD_MINUTES = 60;
+
+    public function __construct(protected ConsultationSlotService $slots) {}
+
+    /**
+     * Stage one of a booking (011 US9–US11 / FR-033).
+     *
+     * Submitting the wizard does NOT make a booking: it records the application,
+     * holds the chosen slot for an hour and emails a confirmation link. The drip
+     * stop and the CAPI Lead event deliberately do not fire here — an
+     * unverified email is not yet a lead (D35).
+     *
+     * @throws SlotUnavailableException when somebody took the slot first
+     * @return array{success: bool, message?: string, mail_sent?: bool, hold_expires_at?: string}
+     */
+    public function apply(Course $course, array $data): array
     {
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
 
-        $template = EmailTemplate::forEvent('high_ticket_booking_confirmation')->first();
+        $template = EmailTemplate::forEvent('high_ticket_booking_verify')->first();
 
         if (!$template) {
-            return ['success' => false, 'message' => '預約確認信模板不存在，請聯絡管理員'];
+            return ['success' => false, 'message' => '預約待確認信模板不存在，請聯絡管理員'];
         }
 
-        // The contact details are the point of the booking, so they land in the
-        // DB before anything that can hang or throw (mail, drip, CAPI dispatch).
-        $this->recordLead($course, $data);
+        $code = $data['code'] ?? null;
+        $minutes = $this->slots->minutesFor($code);
+        $startsAt = Carbon::parse($data['slot_starts_at'])->utc();
+        $expiresAt = now()->addMinutes(self::HOLD_MINUTES);
 
-        $vars = [
-            '{{user_name}}' => $data['name'],
-            '{{user_email}}' => $data['email'],
-            '{{course_name}}' => $course->name,
+        // The lead and the hold are one fact: a lead that thinks it booked a slot
+        // it does not hold is worse than no lead at all (FR-032).
+        $lead = DB::transaction(function () use ($course, $data, $code, $minutes, $startsAt, $expiresAt) {
+            $lead = $this->recordLead($course, $data, $code, $expiresAt);
+            $this->slots->reserve($lead, $startsAt, $minutes, $expiresAt);
+
+            return $lead;
+        });
+
+        $mailSent = $this->sendVerifyMail($lead, $course, $template, $startsAt, $minutes, $expiresAt);
+
+        // Nobody can click a link they never received, so holding the slot would
+        // only lock out people whose mail does arrive (D34).
+        if (!$mailSent) {
+            $this->slots->release($lead);
+        }
+
+        return [
+            'success'         => true,
+            'mail_sent'       => $mailSent,
+            'hold_expires_at' => $expiresAt->toIso8601String(),
+            'slot_label'      => $this->slots->label($startsAt),
+            'minutes'         => $minutes,
         ];
-
-        $subject = $template->renderSubject($vars);
-
-        // A failed send must not fail the booking — the lead is already saved —
-        // but the caller has to know, so the page can stop telling the visitor
-        // to go check an inbox that has nothing in it.
-        $mailSent = true;
-
-        try {
-            Mail::to($data['email'])
-                ->cc($this->notifyCc())
-                ->send(new TemplatedMail(
-                    $subject,
-                    $template->renderBody($vars),
-                    $template->renderText($vars),
-                ));
-        } catch (\Exception $e) {
-            $mailSent = false;
-
-            Log::error('High ticket booking email failed', [
-                'email' => $data['email'],
-                'course_id' => $course->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // Booking is the goal for drip funnels that point at this course (010 US13):
-        // stop the sequence. Best-effort — a drip failure must not fail the booking.
-        try {
-            app(DripService::class)->checkAndBook($data['email'], $course);
-        } catch (\Exception $e) {
-            Log::error('High ticket booking: drip stop failed', [
-                'email' => $data['email'],
-                'course_id' => $course->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // High-ticket booking is the Lead conversion for ad optimization (000 US7).
-        $meta = app(MetaConversionsService::class);
-        $meta->send('Lead', array_merge($meta->userDataFromRequest(request()), [
-            'em' => $meta->hashEmail($data['email']),
-        ]), [
-            'content_ids'  => [$course->id],
-            'content_type' => 'product',
-            'content_name' => $course->name,
-        ]);
-
-        return ['success' => true, 'mail_sent' => $mailSent];
     }
 
     /**
-     * Re-booking the same course with the same email is the same person, not a
-     * second lead — refresh the existing row so the follow-up history stays in
-     * one place. A lead that was closed (cold / moved to the drip sequence) or
-     * silent (no_response) is live again — re-booking IS the response;
-     * contacted and converted keep whatever the admin set.
+     * No slots are open yet, but the application is still worth having (011 US10).
+     *
+     * Records the lead exactly as an application would, minus everything that
+     * needs a slot: no hold, no token, no verify mail. The admin picks it up
+     * with 「通知新時段」(US4) once availability exists.
+     *
+     * Guarded server-side: if slots ARE available this is refused, otherwise it
+     * becomes a way to skip the picker entirely.
+     *
+     * @return array{success: bool, message?: string, waitlisted?: bool}
      */
-    private function recordLead(Course $course, array $data): HighTicketLead
+    public function waitlist(Course $course, array $data): array
     {
+        if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
+            return ['success' => false, 'message' => '此課程不接受預約'];
+        }
+
+        if ($this->slots->availableStarts(ConsultationSlotService::DEFAULT_MINUTES) !== []) {
+            return ['success' => false, 'message' => '目前有可預約的時段，請直接選擇時段完成申請'];
+        }
+
+        $lead = $this->recordLead($course, $data, $data['code'] ?? null, now());
+
+        // Nothing to confirm, so that token would only be a dead link. The
+        // resume token takes its place: 「通知新時段」 mails it back as a link
+        // that reopens the wizard straight at the slot picker (FR-042). An
+        // existing one is kept so links already sent out keep working.
+        $lead->update([
+            'confirm_token'      => null,
+            'confirm_expires_at' => null,
+            'resume_token'       => $lead->resume_token ?: Str::random(64),
+        ]);
+
+        return ['success' => true, 'waitlisted' => true];
+    }
+
+    /**
+     * Stage two: the emailed link was clicked (011 US11).
+     *
+     * Only now does the booking exist — the slot becomes permanent, the real
+     * confirmation email goes out, the drip sequence stops and Meta hears about
+     * the lead.
+     *
+     * @return array{state: string, lead?: HighTicketLead, course?: Course, slot_label?: string, minutes?: int}
+     */
+    public function confirm(string $token): array
+    {
+        $lead = HighTicketLead::where('confirm_token', $token)->first();
+
+        if (!$lead) {
+            return ['state' => 'invalid'];
+        }
+
+        $course = Course::find($lead->course_id);
+        $slot = $lead->slots()->first();
+        $context = [
+            'lead'       => $lead,
+            'course'     => $course,
+            'slot_label' => $slot ? $this->slots->label($slot->starts_at) : null,
+        ];
+
+        if ($lead->confirmed_at !== null) {
+            return array_merge(['state' => 'already'], $context);
+        }
+
+        if ($lead->confirm_expires_at === null || $lead->confirm_expires_at->isPast()) {
+            return array_merge(['state' => 'expired'], $context);
+        }
+
+        DB::transaction(function () use ($lead) {
+            $lead->update(['confirmed_at' => now()]);
+            $this->slots->confirm($lead);
+        });
+
+        // External effects stay outside the transaction and never block the
+        // confirmation that already happened (比照 FR-016).
+        $this->afterConfirmation($lead, $course, $slot?->starts_at);
+
+        return array_merge(['state' => 'confirmed'], $context);
+    }
+
+    /**
+     * Everything that follows a confirmed booking. Each step is best-effort:
+     * the visitor has already done their part.
+     */
+    private function afterConfirmation(HighTicketLead $lead, ?Course $course, ?Carbon $startsAt): void
+    {
+        if (!$course) {
+            return;
+        }
+
+        $zoom = app(ZoomMeetingService::class);
+
+        if ($zoom->isEnabled() && $startsAt) {
+            // The confirmation mail is sent by the job, so the meeting link is
+            // in the first (and only) mail the applicant gets (D38).
+            CreateZoomMeetingJob::dispatch($lead->id);
+        } else {
+            $this->sendConfirmationMail($lead, $course);
+        }
+
+        try {
+            app(DripService::class)->checkAndBook($lead->email, $course);
+        } catch (\Exception $e) {
+            Log::error('High ticket booking: drip stop failed', [
+                'email' => $lead->email,
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // A confirmed booking is the Lead conversion for ad optimization (000 US7).
+        try {
+            $meta = app(MetaConversionsService::class);
+            $meta->send('Lead', array_merge($meta->userDataFromRequest(request()), [
+                'em' => $meta->hashEmail($lead->email),
+            ]), [
+                'content_ids'  => [$course->id],
+                'content_type' => 'product',
+                'content_name' => $course->name,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('High ticket booking: CAPI lead failed', [
+                'email' => $lead->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * The real "客製服務預約確認" mail. Called either directly (no Zoom) or from
+     * CreateZoomMeetingJob once the meeting exists (FR-038).
+     */
+    public function sendConfirmationMail(HighTicketLead $lead, Course $course, ?string $zoomUrl = null, array $extraCc = []): bool
+    {
+        $template = EmailTemplate::forEvent('high_ticket_booking_confirmation')->first();
+
+        if (!$template) {
+            Log::warning('High ticket booking: confirmation template missing', ['lead_id' => $lead->id]);
+
+            return false;
+        }
+
+        $slot = $lead->slots()->first();
+
+        $vars = [
+            '{{user_name}}'       => $lead->name,
+            '{{user_email}}'      => $lead->email,
+            '{{course_name}}'     => $course->name,
+            '{{slot_time}}'       => $slot ? $this->slots->label($slot->starts_at) : '',
+            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{zoom_join_url}}'   => $zoomUrl ?? ($lead->zoom_join_url ?? ''),
+        ];
+
+        try {
+            Mail::to($lead->email)
+                ->cc(array_values(array_unique(array_merge($this->notifyCc(), $extraCc))))
+                ->send(new TemplatedMail(
+                    $template->renderSubject($vars),
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                ));
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('High ticket booking confirmation email failed', [
+                'lead_id' => $lead->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function sendVerifyMail(
+        HighTicketLead $lead,
+        Course $course,
+        EmailTemplate $template,
+        Carbon $startsAt,
+        int $minutes,
+        Carbon $expiresAt
+    ): bool {
+        $vars = [
+            '{{user_name}}'   => $lead->name,
+            '{{user_email}}'  => $lead->email,
+            '{{course_name}}' => $course->name,
+            '{{confirm_url}}' => url("/booking/confirm/{$lead->confirm_token}"),
+            '{{slot_time}}'   => $this->slots->label($startsAt) . "（{$minutes} 分鐘）",
+            '{{expires_at}}'  => $expiresAt->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'),
+        ];
+
+        try {
+            Mail::to($lead->email)
+                ->cc($this->notifyCc())
+                ->send(new TemplatedMail(
+                    $template->renderSubject($vars),
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                ));
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('High ticket booking verify email failed', [
+                'email' => $lead->email,
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Re-applying for the same course with the same email is the same person,
+     * not a second lead — refresh the existing row so the follow-up history
+     * stays in one place (D17). A lead that was closed (cold / moved to the drip
+     * sequence) or silent (no_response) is live again — re-applying IS the
+     * response; contacted and converted keep whatever the admin set.
+     *
+     * A fresh token is minted every time, which invalidates any link from a
+     * previous attempt — otherwise an abandoned application could confirm a
+     * slot the applicant no longer holds.
+     */
+    private function recordLead(Course $course, array $data, ?string $code, Carbon $expiresAt): HighTicketLead
+    {
+        $application = [
+            'name'                    => $data['name'],
+            'phone'                   => $data['phone'] ?? null,
+            'occupation'              => $data['occupation'] ?? null,
+            'bottleneck'              => $data['bottleneck'] ?? null,
+            'expertise'               => $data['expertise'] ?? null,
+            'social_url'              => $data['social_url'] ?? null,
+            'commitments_accepted_at' => now(),
+            'booking_code'            => $this->slots->codeIsValid($code) ? $code : null,
+            'confirm_token'           => Str::random(64),
+            'confirm_expires_at'      => $expiresAt,
+            'confirmed_at'            => null,
+            'booked_at'               => now(),
+        ];
+
         $lead = HighTicketLead::where('email', $data['email'])
             ->where('course_id', $course->id)
             ->latest('id')
             ->first();
 
         if (!$lead) {
-            return HighTicketLead::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
+            return HighTicketLead::create(array_merge($application, [
+                'email'     => $data['email'],
                 'course_id' => $course->id,
-                'status' => 'pending',
-                'booked_at' => now(),
-            ]);
+                'status'    => 'pending',
+            ]));
         }
 
-        $lead->update([
-            'name' => $data['name'],
-            'booked_at' => now(),
+        $lead->update(array_merge($application, [
             'status' => in_array($lead->status, ['closed', 'no_response'], true) ? 'pending' : $lead->status,
-        ]);
+        ]));
 
         return $lead;
     }
@@ -133,7 +353,7 @@ class HighTicketBookingService
     /**
      * @return array<int, string>
      */
-    private function notifyCc(): array
+    public function notifyCc(): array
     {
         $configured = self::parseRecipients((string) SiteSetting::get(self::NOTIFY_CC_SETTING_KEY, ''));
 

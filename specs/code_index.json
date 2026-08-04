@@ -16,8 +16,16 @@
       "012.us-1",
       "012.us-7"
     ],
+    "app/Console/Commands/ReleaseExpiredBookingHolds.php": [
+      "011.us-10",
+      "011.us-11"
+    ],
     "app/Console/Commands/UpdateCourseStatus.php": [
       "004.us-5"
+    ],
+    "app/Exceptions/SlotUnavailableException.php": [
+      "011.us-10",
+      "011.us-11"
     ],
     "app/Http/Controllers/Admin/AnalyticsController.php": [
       "002.us-10"
@@ -29,6 +37,9 @@
     "app/Http/Controllers/Admin/ChapterController.php": [
       "004.us-3",
       "006.us-5"
+    ],
+    "app/Http/Controllers/Admin/ConsultationSlotController.php": [
+      "011.us-10"
     ],
     "app/Http/Controllers/Admin/CouponChainController.php": [
       "006.us-5"
@@ -57,6 +68,8 @@
       "009.us-7"
     ],
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
+      "011.us-10",
+      "011.us-12",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -113,7 +126,8 @@
       "000.us-7",
       "007.us-4",
       "007.us-5",
-      "007.us-7"
+      "007.us-7",
+      "011.us-12"
     ],
     "app/Http/Controllers/Admin/ShortLinkController.php": [
       "000.us-8"
@@ -140,6 +154,9 @@
     ],
     "app/Http/Controllers/BlogFeedController.php": [
       "012.us-2"
+    ],
+    "app/Http/Controllers/BookingConfirmController.php": [
+      "011.us-11"
     ],
     "app/Http/Controllers/CartController.php": [
       "005.us-1",
@@ -168,7 +185,9 @@
       "002.us-8",
       "006.us-5",
       "006.us-6",
-      "011.us-1"
+      "011.us-1",
+      "011.us-10",
+      "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
       "010.us-1",
@@ -181,7 +200,9 @@
     ],
     "app/Http/Controllers/HighTicketBookingController.php": [
       "011.us-1",
-      "011.us-2"
+      "011.us-10",
+      "011.us-2",
+      "011.us-9"
     ],
     "app/Http/Controllers/HomeController.php": [
       "002.us-1",
@@ -300,6 +321,9 @@
     "app/Http/Requests/Admin/StoreChapterRequest.php": [
       "004.us-3"
     ],
+    "app/Http/Requests/Admin/StoreConsultationSlotsRequest.php": [
+      "011.us-10"
+    ],
     "app/Http/Requests/Admin/StoreCouponChainRequest.php": [
       "006.us-5"
     ],
@@ -354,7 +378,8 @@
       "002.us-9"
     ],
     "app/Http/Requests/Admin/UpdateMemberRequest.php": [
-      "008.us-2"
+      "008.us-2",
+      "011.us-9"
     ],
     "app/Http/Requests/Admin/UpdatePostRequest.php": [
       "012.us-1"
@@ -372,7 +397,12 @@
       "001.us-1"
     ],
     "app/Http/Requests/CheckoutRequest.php": [
-      "005.us-3"
+      "005.us-3",
+      "011.us-9"
+    ],
+    "app/Http/Requests/HighTicketBookingRequest.php": [
+      "011.us-11",
+      "011.us-9"
     ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
       "003.us-5"
@@ -381,7 +411,8 @@
       "001.us-3"
     ],
     "app/Http/Requests/Member/UpdateProfileRequest.php": [
-      "001.us-2"
+      "001.us-2",
+      "011.us-9"
     ],
     "app/Http/Requests/RedeemCourseRequest.php": [
       "007.us-1"
@@ -395,7 +426,11 @@
     "app/Http/Requests/ValidateReferralRequest.php": [
       "007.us-2"
     ],
+    "app/Jobs/CreateZoomMeetingJob.php": [
+      "011.us-12"
+    ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
+      "011.us-10",
       "011.us-4",
       "011.us-7"
     ],
@@ -415,7 +450,8 @@
     ],
     "app/Jobs/SubscribeDripLeadJob.php": [
       "010.us-4",
-      "011.us-5"
+      "011.us-5",
+      "011.us-9"
     ],
     "app/Mail/BatchEmailMail.php": [
       "008.us-5",
@@ -471,6 +507,9 @@
       "003.us-5",
       "003.us-6"
     ],
+    "app/Models/ConsultationSlot.php": [
+      "011.us-10"
+    ],
     "app/Models/CouponChain.php": [
       "006.us-5"
     ],
@@ -511,8 +550,11 @@
       "011.us-7"
     ],
     "app/Models/HighTicketLead.php": [
+      "011.us-11",
+      "011.us-12",
       "011.us-2",
-      "011.us-3"
+      "011.us-3",
+      "011.us-9"
     ],
     "app/Models/HomepageFeaturedCourse.php": [
       "002.us-6"
@@ -619,6 +661,10 @@
     "app/Services/CloudflareStreamService.php": [
       "003.us-9"
     ],
+    "app/Services/ConsultationSlotService.php": [
+      "011.us-10",
+      "011.us-11"
+    ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
     ],
@@ -650,14 +696,19 @@
       "000.us-7",
       "010.us-13",
       "011.us-1",
+      "011.us-10",
+      "011.us-11",
+      "011.us-12",
       "011.us-2",
       "011.us-6",
-      "011.us-7"
+      "011.us-7",
+      "011.us-9"
     ],
     "app/Services/HighTicketLeadService.php": [
       "010.us-13",
       "011.us-4",
-      "011.us-5"
+      "011.us-5",
+      "011.us-9"
     ],
     "app/Services/MetaConversionsService.php": [
       "000.us-7"
@@ -728,6 +779,9 @@
     "app/Services/VideoEmbedService.php": [
       "003.us-2",
       "003.us-9"
+    ],
+    "app/Services/ZoomMeetingService.php": [
+      "011.us-12"
     ],
     "bootstrap/app.php": [
       "000.us-6",
@@ -916,7 +970,24 @@
     "database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php": [
       "002.us-13"
     ],
+    "database/migrations/2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php": [
+      "011.us-9"
+    ],
+    "database/migrations/2026_08_05_000002_create_consultation_slots_table.php": [
+      "011.us-10"
+    ],
+    "database/migrations/2026_08_05_000003_widen_phone_columns_to_30.php": [
+      "011.us-9"
+    ],
+    "database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php": [
+      "011.us-10"
+    ],
+    "database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php": [
+      "011.us-10"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
+      "011.us-10",
+      "011.us-11",
       "011.us-6"
     ],
     "database/seeders/ShortLinkSeeder.php": [
@@ -951,7 +1022,8 @@
       "004.us-4"
     ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
-      "011.us-8"
+      "011.us-8",
+      "011.us-9"
     ],
     "resources/js/Components/Admin/Leads/SubscriberListTab.vue": [
       "010.us-11",
@@ -1028,6 +1100,10 @@
     ],
     "resources/js/Components/Course/FreeSuccessBlock.vue": [
       "002.us-11"
+    ],
+    "resources/js/Components/Course/HighTicketBookingWizard.vue": [
+      "011.us-10",
+      "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
       "002.us-2"
@@ -1120,7 +1196,8 @@
       "000.us-2",
       "000.us-6",
       "000.us-8",
-      "002.us-10"
+      "002.us-10",
+      "011.us-10"
     ],
     "resources/js/Pages/Admin/Analytics/Index.vue": [
       "002.us-10",
@@ -1131,6 +1208,9 @@
     ],
     "resources/js/Pages/Admin/Broadcasts/Show.vue": [
       "012.us-6"
+    ],
+    "resources/js/Pages/Admin/ConsultationSlots/Index.vue": [
+      "011.us-10"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -1223,7 +1303,8 @@
       "012.us-8"
     ],
     "resources/js/Pages/Admin/Settings/Payment.vue": [
-      "000.us-7"
+      "000.us-7",
+      "011.us-12"
     ],
     "resources/js/Pages/Admin/Settings/Points.vue": [
       "007.us-4",
@@ -1257,6 +1338,9 @@
     "resources/js/Pages/Blog/Tag.vue": [
       "012.us-2"
     ],
+    "resources/js/Pages/Booking/Confirm.vue": [
+      "011.us-11"
+    ],
     "resources/js/Pages/Cart/Index.vue": [
       "005.us-2",
       "006.us-1"
@@ -1276,7 +1360,8 @@
       "010.us-13",
       "010.us-2",
       "011.us-1",
-      "011.us-2"
+      "011.us-2",
+      "011.us-9"
     ],
     "resources/js/Pages/Drip/Unsubscribe.vue": [
       "010.us-6"
@@ -1373,6 +1458,8 @@
     "routes/console.php": [
       "004.us-5",
       "010.us-3",
+      "011.us-10",
+      "011.us-11",
       "012.us-7"
     ],
     "routes/web.php": [
@@ -1383,6 +1470,8 @@
       "002.us-9",
       "006.us-1",
       "011.us-1",
+      "011.us-10",
+      "011.us-11",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1422,6 +1511,10 @@
       "011.us-1",
       "011.us-2"
     ],
+    "tests/Feature/HighTicket/BookingWizardTest.php": [
+      "011.us-10",
+      "011.us-9"
+    ],
     "tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php": [
       "011.us-7"
     ],
@@ -1430,6 +1523,14 @@
     ],
     "tests/Feature/HighTicket/LeadsTabsTest.php": [
       "011.us-8"
+    ],
+    "tests/Feature/HighTicket/SlotHoldTest.php": [
+      "011.us-10",
+      "011.us-11",
+      "011.us-12"
+    ],
+    "tests/Feature/HighTicket/ZoomMeetingTest.php": [
+      "011.us-12"
     ],
     "tests/Feature/Member/UserSocialLinkTest.php": [
       "001.us-3"
@@ -1463,6 +1564,10 @@
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
       "002.us-10",
       "002.us-13"
+    ],
+    "tests/Support/BooksHighTicket.php": [
+      "011.us-11",
+      "011.us-9"
     ]
   }
 }

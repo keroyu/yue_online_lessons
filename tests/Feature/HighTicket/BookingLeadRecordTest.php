@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\HighTicketBookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Tests\Support\BooksHighTicket;
 use Tests\TestCase;
 
 /**
@@ -19,7 +20,7 @@ use Tests\TestCase;
  */
 class BookingLeadRecordTest extends TestCase
 {
-    use RefreshDatabase;
+    use BooksHighTicket, RefreshDatabase;
 
     /** @see BookingMailFailureTest — sqlite's CHECK predates the 'high_ticket' type. */
     private function makeHighTicketCourse(): Course
@@ -59,10 +60,8 @@ class BookingLeadRecordTest extends TestCase
         Mail::fake();
         $this->bookingTemplate();
         $course = $this->makeHighTicketCourse();
-        $service = app(HighTicketBookingService::class);
-
-        $service->book($course, ['name' => 'Booker', 'email' => 'booker@example.com']);
-        $service->book($course, ['name' => 'Booker 改名', 'email' => 'booker@example.com']);
+        $this->applyForBooking($course);
+        $this->applyForBooking($course, ['name' => 'Booker 改名']);
 
         $leads = HighTicketLead::where('email', 'booker@example.com')->get();
         $this->assertCount(1, $leads, '同一人重複預約同一課程不該產生第二筆 lead');
@@ -73,10 +72,8 @@ class BookingLeadRecordTest extends TestCase
     {
         Mail::fake();
         $this->bookingTemplate();
-        $service = app(HighTicketBookingService::class);
-
-        $service->book($this->makeHighTicketCourse(), ['name' => 'Booker', 'email' => 'booker@example.com']);
-        $service->book($this->makeHighTicketCourse(), ['name' => 'Booker', 'email' => 'booker@example.com']);
+        $this->applyForBooking($this->makeHighTicketCourse());
+        $this->applyForBooking($this->makeHighTicketCourse());
 
         $this->assertCount(2, HighTicketLead::where('email', 'booker@example.com')->get());
     }
@@ -85,18 +82,16 @@ class BookingLeadRecordTest extends TestCase
     {
         Mail::fake();
         $this->bookingTemplate();
-        $service = app(HighTicketBookingService::class);
-
         $closedCourse = $this->makeHighTicketCourse();
-        $service->book($closedCourse, ['name' => 'Cold', 'email' => 'cold@example.com']);
+        $this->applyForBooking($closedCourse, ['name' => 'Cold', 'email' => 'cold@example.com']);
         HighTicketLead::where('email', 'cold@example.com')->update(['status' => 'closed']);
-        $service->book($closedCourse, ['name' => 'Cold', 'email' => 'cold@example.com']);
+        $this->applyForBooking($closedCourse, ['name' => 'Cold', 'email' => 'cold@example.com']);
         $this->assertSame('pending', HighTicketLead::where('email', 'cold@example.com')->first()->status);
 
         $wonCourse = $this->makeHighTicketCourse();
-        $service->book($wonCourse, ['name' => 'Won', 'email' => 'won@example.com']);
+        $this->applyForBooking($wonCourse, ['name' => 'Won', 'email' => 'won@example.com']);
         HighTicketLead::where('email', 'won@example.com')->update(['status' => 'converted']);
-        $service->book($wonCourse, ['name' => 'Won', 'email' => 'won@example.com']);
+        $this->applyForBooking($wonCourse, ['name' => 'Won', 'email' => 'won@example.com']);
         $this->assertSame('converted', HighTicketLead::where('email', 'won@example.com')->first()->status);
     }
 
@@ -105,10 +100,7 @@ class BookingLeadRecordTest extends TestCase
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('smtp is down'));
         $this->bookingTemplate();
 
-        app(HighTicketBookingService::class)->book(
-            $this->makeHighTicketCourse(),
-            ['name' => 'Booker', 'email' => 'booker@example.com']
-        );
+        $this->applyForBooking($this->makeHighTicketCourse());
 
         $this->assertDatabaseHas('high_ticket_leads', ['email' => 'booker@example.com', 'status' => 'pending']);
     }
@@ -119,10 +111,7 @@ class BookingLeadRecordTest extends TestCase
         $this->bookingTemplate();
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'sales@example.com, boss@example.com');
 
-        app(HighTicketBookingService::class)->book(
-            $this->makeHighTicketCourse(),
-            ['name' => 'Booker', 'email' => 'booker@example.com']
-        );
+        $this->applyForBooking($this->makeHighTicketCourse());
 
         Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             return $mail->hasCc('sales@example.com')
@@ -137,10 +126,7 @@ class BookingLeadRecordTest extends TestCase
         $this->bookingTemplate();
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, '');
 
-        app(HighTicketBookingService::class)->book(
-            $this->makeHighTicketCourse(),
-            ['name' => 'Booker', 'email' => 'booker@example.com']
-        );
+        $this->applyForBooking($this->makeHighTicketCourse());
 
         Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
     }

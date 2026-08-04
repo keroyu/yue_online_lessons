@@ -31,7 +31,7 @@ class UpdateMemberRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($this->route('member')),
             ],
             'real_name' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'nickname' => ['sometimes', 'nullable', 'string', 'max:100'],
             'birth_date' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
         ];
@@ -48,7 +48,7 @@ class UpdateMemberRequest extends FormRequest
             'email.max' => 'Email 不能超過 255 字',
             'email.unique' => '此 Email 已被使用',
             'real_name.max' => '姓名不能超過 100 字',
-            'phone.max' => '電話不能超過 20 字',
+            'phone.max' => '電話不能超過 30 字',
             'nickname' => '暱稱不能超過 100 字',
             'birth_date.date' => '生日格式不正確',
             'birth_date.before_or_equal' => '生日不能是未來日期',

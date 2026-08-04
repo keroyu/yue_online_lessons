@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
+use App\Services\ZoomMeetingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,6 +40,16 @@ class SettingsController extends Controller
                 'access_token_preview' => $this->maskSecret(SiteSetting::get('meta_capi_access_token', '')),
                 'test_event_code'      => SiteSetting::get('meta_capi_test_event_code', ''),
             ],
+            // Zoom Server-to-Server OAuth (011 US12 / D41). account_id and
+            // client_id are identifiers, not secrets — masking them would only
+            // make them harder to check against the Zoom app page.
+            'zoom' => [
+                'account_id'            => SiteSetting::get(ZoomMeetingService::ACCOUNT_ID_KEY, ''),
+                'client_id'             => SiteSetting::get(ZoomMeetingService::CLIENT_ID_KEY, ''),
+                'client_secret'         => '',
+                'client_secret_preview' => $this->maskSecret(SiteSetting::get(ZoomMeetingService::CLIENT_SECRET_KEY, '')),
+                'enabled'               => app(ZoomMeetingService::class)->isEnabled(),
+            ],
         ]);
     }
 
@@ -56,16 +67,19 @@ class SettingsController extends Controller
             'meta_pixel_id'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9]*$/'],
             'meta_capi_access_token'    => ['nullable', 'string', 'max:500'],
             'meta_capi_test_event_code' => ['nullable', 'string', 'max:50'],
+            'zoom_account_id'    => ['nullable', 'string', 'max:100'],
+            'zoom_client_id'     => ['nullable', 'string', 'max:100'],
+            'zoom_client_secret' => ['nullable', 'string', 'max:200'],
         ]);
 
-        $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env'];
+        $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env', 'zoom_account_id', 'zoom_client_id'];
         foreach ($plainFields as $key) {
             if ($request->has($key)) {
                 SiteSetting::set($key, $request->input($key, ''));
             }
         }
 
-        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token'];
+        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token', 'zoom_client_secret'];
         foreach ($secretFields as $key) {
             // ConvertEmptyStringsToNull turns '' into null; both mean "keep the old secret"
             $value = (string) $request->input($key, '');

@@ -9,6 +9,7 @@ import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
 import FreeSuccessBlock from '@/Components/Course/FreeSuccessBlock.vue'
 import SalesPromoBlock from '@/Components/Course/SalesPromoBlock.vue'
+import HighTicketBookingWizard from '@/Components/Course/HighTicketBookingWizard.vue'
 import { useCart } from '@/composables/useCart'
 
 const page = usePage()
@@ -69,6 +70,11 @@ const props = defineProps({
   },
   userAvailablePoints: {
     type: Number,
+    default: null,
+  },
+  // Previous application answers, for a logged-in visitor re-applying (011 US9).
+  bookingDraft: {
+    type: Object,
     default: null,
   },
 })
@@ -480,37 +486,8 @@ const isFunnelLanding = computed(() =>
   (isHighTicket.value && highTicketHidePrice.value) || props.isDrip
 )
 
-// High ticket booking form
-const bookingName = ref(page.props.auth?.user?.real_name || '')
-const bookingEmail = ref(page.props.auth?.user?.email || '')
-const bookingSubmitting = ref(false)
-const bookingSuccess = ref(false)
-// Confirmation mail can fail after the booking itself succeeded — never send the
-// visitor to an inbox with nothing in it (011 FR-013).
-const bookingMailSent = ref(true)
-const bookingErrors = ref({})
-
-const submitBooking = async () => {
-  bookingErrors.value = {}
-  bookingSubmitting.value = true
-  try {
-    const { data } = await window.axios.post(`/course/${props.course.id}/book`, {
-      name: bookingName.value,
-      email: bookingEmail.value,
-    })
-    bookingMailSent.value = data?.mail_sent !== false
-    bookingSuccess.value = true
-  } catch (e) {
-    const errors = e.response?.data?.errors
-    if (errors) {
-      bookingErrors.value = errors
-    } else {
-      bookingErrors.value = { booking: e.response?.data?.message || '預約失敗，請稍後再試。' }
-    }
-  } finally {
-    bookingSubmitting.value = false
-  }
-}
+// The booking flow lives in HighTicketBookingWizard.vue (011 D29) — it owns its
+// own state, so the sales page only mounts it.
 </script>
 
 <template>
@@ -922,26 +899,29 @@ const submitBooking = async () => {
           </div>
         </div>
 
+        <!-- ── High-ticket application wizard (011 US9–US11) ── -->
+        <div v-else-if="isHighTicket && highTicketHidePrice" class="space-y-5">
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-3">
+              <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-sm font-bold text-amber-800">預約須知</span>
+            </div>
+            <p class="text-sm text-amber-900 leading-relaxed">
+              此為客製服務，需先完成申請與 Email 確認才算預約成功。
+            </p>
+            <p class="mt-2 text-sm font-semibold text-amber-900 leading-relaxed">
+              送出申請後請立即收取 Email 並於 1 小時內點擊確認連結，逾時保留的時段會自動釋出。
+            </p>
+          </div>
+
+          <HighTicketBookingWizard :course="course" :draft="props.bookingDraft" />
+        </div>
+
         <!-- ── Normal purchase UI ── -->
         <div v-else class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-          <!-- Left: High Ticket Info callout -->
-          <div v-if="isHighTicket && highTicketHidePrice" class="flex-1">
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <div class="flex items-center gap-2 mb-3">
-                <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="text-sm font-bold text-amber-800">預約須知</span>
-              </div>
-              <p class="text-sm text-amber-900 leading-relaxed">
-                此為客製服務，請預約 1v1 面談了解。
-              </p>
-              <p class="mt-2 text-sm font-semibold text-amber-900 leading-relaxed">
-                預約後，請立即收取 Email 並按照指示完成後續任務，直到收到確認信，才是正式完成預約。
-              </p>
-            </div>
-          </div>
-          <div v-else class="py-1">
+          <div class="py-1">
             <PriceDisplay
               :price="course.price"
               :original-price="course.original_price"
@@ -949,68 +929,8 @@ const submitBooking = async () => {
             />
           </div>
 
-          <!-- Right: High Ticket booking form (replaces Consent & Purchase Button) -->
-          <div v-if="isHighTicket && highTicketHidePrice" class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm w-full sm:w-80 shrink-0">
-            <!-- Success state -->
-            <div v-if="bookingSuccess" class="text-center py-2">
-              <div class="mx-auto w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <template v-if="bookingMailSent">
-                <p class="text-sm font-semibold text-gray-900 mb-1">預約申請已送出！</p>
-                <p class="text-sm text-gray-600">通知信已寄出，請立即前往收件匣查收並按照信中指示完成後續步驟。</p>
-              </template>
-              <template v-else>
-                <p class="text-sm font-semibold text-gray-900 mb-1">預約已收到！</p>
-                <p class="text-sm text-gray-600">但確認信寄送失敗，我們會盡快主動與你聯絡。</p>
-              </template>
-            </div>
-            <!-- Form state -->
-            <template v-else>
-              <h3 class="text-base font-semibold text-gray-900 mb-4">預約 1v1 面談</h3>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-xs font-medium text-gray-600 mb-1">姓名 <span class="text-red-500">*</span></label>
-                  <input
-                    v-model="bookingName"
-                    type="text"
-                    placeholder="請輸入姓名"
-                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                    :class="{ 'border-red-300': bookingErrors.name }"
-                  />
-                  <p v-if="bookingErrors.name" class="mt-1 text-sm text-red-600">{{ bookingErrors.name[0] ?? bookingErrors.name }}</p>
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
-                  <input
-                    v-model="bookingEmail"
-                    type="email"
-                    placeholder="your@email.com"
-                    class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                    :class="{ 'border-red-300': bookingErrors.email }"
-                  />
-                  <p v-if="bookingErrors.email" class="mt-1 text-sm text-red-600">{{ bookingErrors.email[0] ?? bookingErrors.email }}</p>
-                </div>
-                <p v-if="bookingErrors.booking" class="text-sm text-red-600">{{ bookingErrors.booking }}</p>
-                <button
-                  @click="submitBooking"
-                  :disabled="bookingSubmitting || !bookingName || !bookingEmail"
-                  class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg v-if="bookingSubmitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  {{ bookingSubmitting ? '送出中...' : '送出預約' }}
-                </button>
-              </div>
-            </template>
-          </div>
-
           <!-- Cart / Purchase Buttons -->
-          <div v-else class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
+          <div class="flex flex-col gap-3 sm:items-end w-full sm:w-auto">
             <div v-if="isPreviewMode" class="text-sm text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
               草稿課程，僅供預覽
             </div>

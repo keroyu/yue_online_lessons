@@ -98,7 +98,85 @@ class CourseController extends Controller
             'hasPreviewLessons' => $hasPreviewLessons,
             'userSubscription' => $userSubscription,
             'canSubscribe' => $canSubscribe,
+            'bookingDraft' => $this->bookingDraft($request, $course),
         ]);
+    }
+
+    /**
+     * Pre-fill the application wizard for someone re-applying (011 US9/FR-042).
+     *
+     * Two ways in, and the difference matters:
+     *
+     * - `?resume=` — the token from a 「通知新時段」 mail. Holding 64 random
+     *   characters is itself the proof of identity, so this works without a
+     *   login (waitlisted applicants usually are not members) and returns the
+     *   name and email too, plus `resume` so the wizard opens at the picker.
+     * - Otherwise, the logged-in owner of the lead. Looking this up by a typed
+     *   email would turn the sales page into an "has this address applied?"
+     *   oracle, which is not worth saving somebody a retype.
+     */
+    private function bookingDraft(Request $request, Course $course): ?array
+    {
+        if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
+            return null;
+        }
+
+        $token = $request->query('resume');
+
+        if (is_string($token) && $token !== '') {
+            $lead = \App\Models\HighTicketLead::where('resume_token', $token)
+                ->where('course_id', $course->id)
+                ->first();
+
+            if ($lead) {
+                return array_merge($this->draftAnswers($lead), [
+                    'name'  => $lead->name,
+                    'email' => $lead->email,
+                    // Skipping ahead to the picker only makes sense if the
+                    // steps being skipped are actually answered. A lead from
+                    // before the questionnaire existed still gets their name
+                    // and email filled in, just from step 1.
+                    'resume' => $this->questionnaireComplete($lead),
+                ]);
+            }
+        }
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        $lead = \App\Models\HighTicketLead::where('email', $user->email)
+            ->where('course_id', $course->id)
+            ->latest('id')
+            ->first();
+
+        return $lead ? $this->draftAnswers($lead) : null;
+    }
+
+    /** Every field the wizard's step 1 marks required (`social_url` is optional). */
+    private function questionnaireComplete(\App\Models\HighTicketLead $lead): bool
+    {
+        foreach (['phone', 'occupation', 'bottleneck', 'expertise'] as $field) {
+            if (blank($lead->{$field})) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return array<string, ?string> */
+    private function draftAnswers(\App\Models\HighTicketLead $lead): array
+    {
+        return [
+            'phone'      => $lead->phone,
+            'occupation' => $lead->occupation,
+            'bottleneck' => $lead->bottleneck,
+            'expertise'  => $lead->expertise,
+            'social_url' => $lead->social_url,
+        ];
     }
 
     /**

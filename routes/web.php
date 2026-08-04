@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\ConsultationSlotController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageFeaturedCourseController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Admin\CouponChainController;
 use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
+use App\Http\Controllers\BookingConfirmController;
 use App\Http\Controllers\HighTicketBookingController;
 use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
@@ -57,6 +59,18 @@ Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.
 Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('course.book');
+// Same application, but nothing to book yet — kept for 「通知新時段」(011 US10).
+Route::post('/course/{course}/waitlist', [HighTicketBookingController::class, 'waitlist'])
+    ->middleware('throttle:5,1')
+    ->name('course.waitlist');
+// Slot picker in the booking wizard — refetched whenever the bonus code changes,
+// so it is throttled more loosely than the submit itself (011 US10).
+Route::get('/course/{course}/booking-slots', [HighTicketBookingController::class, 'slots'])
+    ->middleware('throttle:30,1')
+    ->name('course.booking-slots');
+// Emailed confirmation link — public by design, the token is the credential (011 FR-034).
+Route::get('/booking/confirm/{token}', [BookingConfirmController::class, 'show'])
+    ->name('booking.confirm');
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::post('/courses/{course}/redeem', [RedemptionController::class, 'store'])
     ->middleware('auth')
@@ -193,6 +207,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('coupon-chains', CouponChainController::class)->except(['show']);
         Route::get('/coupon-chains/{coupon_chain}', [CouponChainController::class, 'show'])->name('coupon-chains.show');
         Route::patch('/coupon-chains/{coupon_chain}/toggle', [CouponChainController::class, 'toggle'])->name('coupon-chains.toggle');
+
+        // Consultation availability (011 US10) — same staff audience as the leads list
+        Route::get('/consultation-slots', [ConsultationSlotController::class, 'index'])->name('consultation-slots.index');
+        Route::post('/consultation-slots', [ConsultationSlotController::class, 'store'])->name('consultation-slots.store');
+        Route::delete('/consultation-slots/{consultationSlot}', [ConsultationSlotController::class, 'destroy'])->name('consultation-slots.destroy');
 
         // High-ticket leads
         Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');

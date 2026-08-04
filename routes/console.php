@@ -29,3 +29,7 @@ Schedule::command('points:mature')->dailyAt('00:30');
 
 // Reconcile users.points cache against the ledger; logs any drift (SC-002).
 Schedule::command('points:reconcile')->dailyAt('01:00');
+
+// Tidy up consultation slot holds nobody confirmed. Availability already ignores
+// expired holds, so this is housekeeping, not correctness (011 FR-035).
+Schedule::command('booking:release-holds')->everyTenMinutes();

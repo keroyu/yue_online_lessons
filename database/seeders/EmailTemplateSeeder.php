@@ -11,10 +11,16 @@ class EmailTemplateSeeder extends Seeder
     {
         $templates = [
             [
+                'name' => '客製服務預約待確認',
+                'event_type' => 'high_ticket_booking_verify',
+                'subject' => '【請於 1 小時內確認】{{course_name}} 預約時段保留中',
+                'body_md' => "您好 {{user_name}}，\n\n我們已收到您的「{{course_name}}」1v1 諮詢申請，時段正**暫時保留**中：\n\n- 時段：{{slot_time}}\n- 保留到：今天 {{expires_at}}\n\n請點擊下方連結完成確認，時段才會正式為您保留：\n\n{{confirm_url}}\n\n**超過 1 小時未確認，時段會自動釋出給其他人。**\n\n若這不是您本人申請的，忽略這封信即可。\n\n經營者時間銀行",
+            ],
+            [
                 'name' => '客製服務預約確認',
                 'event_type' => 'high_ticket_booking_confirmation',
-                'subject' => '【預約確認】{{course_name}} — 感謝您的預約',
-                'body_md' => "您好 {{user_name}}，\n\n感謝您預約「{{course_name}}」的 1v1 面談服務。\n\n我們已收到您的預約申請，將盡快與您聯繫確認面談時間。\n\n預約資訊：\n- 姓名：{{user_name}}\n- Email：{{user_email}}\n- 課程：{{course_name}}\n\n若有任何問題，請直接回覆此信。\n\n經營者時間銀行",
+                'subject' => '【預約完成】{{course_name}} — {{slot_time}}',
+                'body_md' => "您好 {{user_name}}，\n\n您的「{{course_name}}」1v1 諮詢已完成預約。\n\n預約資訊：\n- 時段：{{slot_time}}\n- 長度：{{consult_minutes}} 分鐘\n- Email：{{user_email}}\n\n會議連結：\n{{zoom_join_url}}\n\n請在諮詢時間前把我們寄給您的資料看完，我們才有時間談真正重要的事。\n\n若需要改期，請直接回覆此信；**無故不出席將永久列入黑名單。**\n\n經營者時間銀行",
             ],
             [
                 'name' => '課程贈禮通知',
@@ -32,7 +38,7 @@ class EmailTemplateSeeder extends Seeder
                 'name' => '客製服務新時段通知',
                 'event_type' => 'high_ticket_slot_available',
                 'subject' => '【新時段釋出】{{course_name}} 預約面談',
-                'body_md' => "Hi {{user_name}}，\n\n感謝您之前預約 {{course_name}}。\n\n我們剛釋出了新的面談時段，歡迎重新預約！\n\n如有任何問題，歡迎回覆此信聯繫。",
+                'body_md' => "Hi {{user_name}}，\n\n感謝您之前申請 {{course_name}}。\n\n我們剛釋出了新的面談時段，您可以直接從下方連結選定時間，先前填寫的資料都還在，不需要重填：\n\n{{booking_url}}\n\n時段為先到先選，選定後請記得收信完成確認。\n\n如有任何問題，歡迎回覆此信聯繫。",
             ],
             [
                 'name' => '顧問成交開通通知',

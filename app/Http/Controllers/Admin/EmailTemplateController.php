@@ -15,10 +15,25 @@ use Inertia\Response;
 class EmailTemplateController extends Controller
 {
     private array $availableVariables = [
+        'high_ticket_booking_verify' => [
+            ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{confirm_url}}', 'label' => '確認連結（必放，否則對方無法完成預約）'],
+            ['key' => '{{slot_time}}', 'label' => '所選時段（含長度）'],
+            ['key' => '{{expires_at}}', 'label' => '保留到期時間（時:分）'],
+        ],
         'high_ticket_booking_confirmation' => [
             ['key' => '{{user_name}}', 'label' => '訪客姓名'],
             ['key' => '{{user_email}}', 'label' => '訪客 Email'],
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{slot_time}}', 'label' => '諮詢時段'],
+            ['key' => '{{consult_minutes}}', 'label' => '諮詢長度（分鐘）'],
+            ['key' => '{{zoom_join_url}}', 'label' => 'Zoom 會議連結（未設定 Zoom 時為空）'],
+        ],
+        'high_ticket_slot_available' => [
+            ['key' => '{{user_name}}', 'label' => '候補者暱稱'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{booking_url}}', 'label' => '回站選時段連結（候補者可直接跳到選時段，不必重填問卷）'],
         ],
         'course_gifted' => [
             ['key' => '{{course_name}}', 'label' => '課程名稱'],

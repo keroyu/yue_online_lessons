@@ -134,6 +134,49 @@ const applyFilter = (status) => {
   })
 }
 
+// Application questionnaire detail rows (011 US9). Leads created by the old
+// one-step form have none of these fields, so the row says so instead of
+// rendering a grid of dashes.
+const openDetailIds = ref([])
+
+const toggleDetail = (id) => {
+  const idx = openDetailIds.value.indexOf(id)
+  if (idx === -1) {
+    openDetailIds.value.push(id)
+  } else {
+    openDetailIds.value.splice(idx, 1)
+  }
+}
+
+const hasApplication = (lead) =>
+  Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
+
+const applicationRows = (lead) => {
+  const rows = [
+    { label: '手機電話', value: lead.phone || '—' },
+    { label: '職業和從事時長', value: lead.occupation || '—' },
+    { label: '事業瓶頸', value: lead.bottleneck || '—' },
+    { label: '知識或能力專長', value: lead.expertise || '—' },
+  ]
+
+  if (lead.social_url) {
+    rows.push({ label: '經營社群網址', value: lead.social_url, href: lead.social_url })
+  }
+  if (lead.booking_code) {
+    rows.push({ label: '預約優惠碼', value: lead.booking_code })
+  }
+  if (lead.confirmed_at) {
+    rows.push({ label: 'Email 確認時間', value: formatDateTime(lead.confirmed_at) })
+  } else {
+    rows.push({ label: 'Email 確認', value: '尚未確認' })
+  }
+  if (lead.zoom_join_url) {
+    rows.push({ label: 'Zoom 會議', value: lead.zoom_join_url, href: lead.zoom_join_url })
+  }
+
+  return rows
+}
+
 // Selection
 const selectedIds = ref([])
 
@@ -571,7 +614,8 @@ const copySelectedEmails = async () => {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 bg-white">
-          <tr v-for="lead in leads.data" :key="lead.id" class="hover:bg-gray-50">
+          <template v-for="lead in leads.data" :key="lead.id">
+          <tr class="hover:bg-gray-50">
             <td class="py-4 pl-4 pr-3">
               <input
                 type="checkbox"
@@ -580,7 +624,23 @@ const copySelectedEmails = async () => {
                 class="rounded border-gray-300 text-brand-teal"
               />
             </td>
-            <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">{{ lead.name }}</td>
+            <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 cursor-pointer hover:text-brand-teal transition"
+                :title="hasApplication(lead) ? '展開申請內容' : '這筆沒有申請問卷（舊資料）'"
+                @click="toggleDetail(lead.id)"
+              >
+                <svg
+                  class="h-3.5 w-3.5 text-gray-400 transition-transform"
+                  :class="{ 'rotate-90': openDetailIds.includes(lead.id) }"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+                {{ lead.name }}
+              </button>
+            </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
               <div class="flex items-center gap-2">
                 <span>{{ lead.email }}</span>
@@ -656,6 +716,27 @@ const copySelectedEmails = async () => {
               {{ formatDateTime(lead.booked_at) }}
             </td>
           </tr>
+
+          <!-- Application questionnaire (011 US9) — rows from the old one-step
+               form simply have nothing to show. -->
+          <tr v-if="openDetailIds.includes(lead.id)" class="bg-gray-50">
+            <td colspan="8" class="px-6 py-4">
+              <div v-if="hasApplication(lead)" class="grid gap-3 sm:grid-cols-2 text-sm">
+                <div v-for="row in applicationRows(lead)" :key="row.label">
+                  <p class="text-xs font-medium text-gray-500">{{ row.label }}</p>
+                  <p v-if="row.href" class="mt-0.5">
+                    <a :href="row.href" target="_blank" rel="noopener" class="text-brand-teal underline cursor-pointer hover:opacity-70 break-all">
+                      {{ row.value }}
+                    </a>
+                  </p>
+                  <p v-else class="mt-0.5 text-gray-800 whitespace-pre-wrap break-words">{{ row.value }}</p>
+                </div>
+              </div>
+              <p v-else class="text-sm text-gray-400">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
+            </td>
+          </tr>
+          </template>
+
           <tr v-if="leads.data?.length === 0">
             <td colspan="8" class="px-6 py-12 text-center text-gray-500">
               {{ filters.status ? '沒有符合條件的 Leads' : '尚無預約記錄' }}

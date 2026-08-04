@@ -129,9 +129,17 @@ class HighTicketLeadService
         }
 
         $user = DB::transaction(function () use ($lead, $courseId, $amount) {
+            // The application questionnaire is the only place we ever asked for
+            // a phone number, so a brand-new member account inherits it (011
+            // US9). firstOrCreate means an existing member keeps whatever they
+            // already have — converting a lead must not rewrite member data.
             $user = User::firstOrCreate(
                 ['email' => $lead->email],
-                ['nickname' => $lead->name, 'password' => Str::password(16)]
+                [
+                    'nickname' => $lead->name,
+                    'phone'    => $lead->phone,
+                    'password' => Str::password(16),
+                ]
             );
 
             Purchase::updateOrCreate(

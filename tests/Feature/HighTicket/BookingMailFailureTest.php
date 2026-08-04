@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\HighTicketBookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Tests\Support\BooksHighTicket;
 use Tests\TestCase;
 
 /**
@@ -20,7 +21,7 @@ use Tests\TestCase;
  */
 class BookingMailFailureTest extends TestCase
 {
-    use RefreshDatabase;
+    use BooksHighTicket, RefreshDatabase;
 
     /**
      * sqlite's CHECK on the type enum predates 'high_ticket' (that ALTER is
@@ -58,17 +59,13 @@ class BookingMailFailureTest extends TestCase
         ]);
     }
 
-    private function bookingData(): array
-    {
-        return ['name' => 'Booker', 'email' => 'booker@example.com', 'phone' => '0912345678'];
-    }
 
     public function test_successful_send_reports_mail_sent_true(): void
     {
         Mail::fake();
         $this->bookingTemplate();
 
-        $result = app(HighTicketBookingService::class)->book($this->makeHighTicketCourse(), $this->bookingData());
+        $result = $this->applyForBooking($this->makeHighTicketCourse());
 
         $this->assertTrue($result['success']);
         $this->assertTrue($result['mail_sent']);
@@ -79,7 +76,7 @@ class BookingMailFailureTest extends TestCase
         Mail::fake();
         $this->bookingTemplate();
 
-        app(HighTicketBookingService::class)->book($this->makeHighTicketCourse(), $this->bookingData());
+        $this->applyForBooking($this->makeHighTicketCourse());
 
         Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             // The customer-service address is not a lead recipient
@@ -94,7 +91,7 @@ class BookingMailFailureTest extends TestCase
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('smtp is down'));
         $this->bookingTemplate();
 
-        $result = app(HighTicketBookingService::class)->book($this->makeHighTicketCourse(), $this->bookingData());
+        $result = $this->applyForBooking($this->makeHighTicketCourse());
 
         $this->assertTrue($result['success'], '寄信失敗不該讓預約失敗');
         $this->assertFalse($result['mail_sent']);
@@ -104,7 +101,11 @@ class BookingMailFailureTest extends TestCase
         ]);
     }
 
-    public function test_failed_send_still_stops_the_drip_sequence(): void
+    /**
+     * The drip stop moved to confirmation (D35), so a failed verify mail leaves
+     * the sequence running — the applicant never proved the address is theirs.
+     */
+    public function test_failed_send_leaves_the_drip_sequence_running(): void
     {
         Mail::shouldReceive('to')->andThrow(new \RuntimeException('smtp is down'));
         $this->bookingTemplate();
@@ -127,8 +128,8 @@ class BookingMailFailureTest extends TestCase
             'status'        => 'active',
         ]);
 
-        app(HighTicketBookingService::class)->book($target, $this->bookingData());
+        $this->applyForBooking($target);
 
-        $this->assertSame('booked', $sub->fresh()->status);
+        $this->assertSame('active', $sub->fresh()->status);
     }
 }

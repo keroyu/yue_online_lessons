@@ -26,6 +26,7 @@ const saveNotifyCc = () => {
 }
 
 const eventTypeLabels = {
+  high_ticket_booking_verify: '客製服務預約待確認',
   high_ticket_booking_confirmation: '客製服務預約確認',
   course_gifted: '課程贈禮通知',
   lesson_added: '課程新增小節通知',

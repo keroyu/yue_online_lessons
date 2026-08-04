@@ -10,6 +10,7 @@ const props = defineProps({
   portaly: { type: Object, required: true },
   meta_pixel_id: { type: String, default: '' },
   meta_capi: { type: Object, default: () => ({ access_token: '', access_token_preview: '', test_event_code: '' }) },
+  zoom: { type: Object, default: () => ({ account_id: '', client_id: '', client_secret_preview: '', enabled: false }) },
 })
 
 const form = useForm({
@@ -24,7 +25,14 @@ const form = useForm({
   meta_pixel_id: props.meta_pixel_id,
   meta_capi_access_token: '',
   meta_capi_test_event_code: props.meta_capi.test_event_code,
+  zoom_account_id: props.zoom.account_id,
+  zoom_client_id: props.zoom.client_id,
+  zoom_client_secret: '',
 })
+
+// Written out rather than inlined: a literal {{…}} inside a template
+// interpolation closes the interpolation early.
+const zoomUrlVariable = '{' + '{zoom_join_url}' + '}'
 
 const submit = () => {
   form.post('/admin/settings/payment')
@@ -130,6 +138,45 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           <input type="text" v-model="form.meta_capi_test_event_code" :class="inputClasses" placeholder="TEST12345" />
           <p class="mt-1 text-xs text-gray-500">填入後伺服器端事件會出現在事件管理工具的「測試事件」頁籤；驗證完請清空，否則事件不會進正式數據</p>
           <p v-if="form.errors.meta_capi_test_event_code" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_test_event_code }}</p>
+        </div>
+      </div>
+
+      <!-- Zoom（客製服務諮詢會議自動建立） -->
+      <div :class="sectionClasses">
+        <div class="flex items-center justify-between border-b pb-2">
+          <h2 class="text-base font-semibold text-gray-800">Zoom 會議</h2>
+          <span
+            class="text-xs px-2 py-0.5 rounded-full"
+            :class="zoom.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+          >
+            {{ zoom.enabled ? '已啟用' : '未啟用' }}
+          </span>
+        </div>
+
+        <p class="text-xs text-gray-500">
+          預約完成 Email 確認後，系統自動建立該時段的 Zoom 會議，並把連結放進「客製服務預約確認」信的
+          <code class="text-gray-600">{{ zoomUrlVariable }}</code> 變數。
+          三個欄位任一留空即停用，預約流程照常運作、確認信不含會議連結。
+          憑證請在 Zoom App Marketplace 建立 <strong>Server-to-Server OAuth</strong> App 後取得。
+        </p>
+
+        <div>
+          <label :class="labelClasses">Account ID</label>
+          <input type="text" v-model="form.zoom_account_id" :class="inputClasses" placeholder="尚未設定" />
+          <p v-if="form.errors.zoom_account_id" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_account_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">Client ID</label>
+          <input type="text" v-model="form.zoom_client_id" :class="inputClasses" placeholder="尚未設定" />
+          <p v-if="form.errors.zoom_client_id" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_client_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">Client Secret</label>
+          <input type="password" v-model="form.zoom_client_secret" :class="inputClasses" :placeholder="zoom.client_secret_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">留空 = 不變更</p>
+          <p v-if="form.errors.zoom_client_secret" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_client_secret }}</p>
         </div>
       </div>
 

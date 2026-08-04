@@ -35,9 +35,11 @@ class SubscribeDripLeadJob implements ShouldQueue
             return;
         }
 
+        // Carry the questionnaire's phone onto a new member account (011 US9);
+        // an existing member keeps their own value.
         $user = User::firstOrCreate(
             ['email' => $lead->email],
-            ['nickname' => $lead->name]
+            ['nickname' => $lead->name, 'phone' => $lead->phone]
         );
 
         $course = Course::find($this->dripCourseId);

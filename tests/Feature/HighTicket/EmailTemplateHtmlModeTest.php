@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\HighTicketBookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Tests\Support\BooksHighTicket;
 use Tests\TestCase;
 
 /**
@@ -17,7 +18,7 @@ use Tests\TestCase;
  */
 class EmailTemplateHtmlModeTest extends TestCase
 {
-    use RefreshDatabase;
+    use BooksHighTicket, RefreshDatabase;
 
     private function template(string $bodyType, string $body): EmailTemplate
     {
@@ -142,10 +143,7 @@ class EmailTemplateHtmlModeTest extends TestCase
         Mail::fake();
         $this->template('html', '<div style="color:#ff1f1f">請看完影片</div>');
 
-        app(HighTicketBookingService::class)->book(
-            $this->makeHighTicketCourse(),
-            ['name' => 'Booker', 'email' => 'booker@example.com']
-        );
+        $this->applyAndConfirm($this->makeHighTicketCourse());
 
         Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             return $mail->htmlBody === '<div style="color:#ff1f1f">請看完影片</div>'

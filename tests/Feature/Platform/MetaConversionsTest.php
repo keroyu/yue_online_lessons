@@ -12,11 +12,12 @@ use App\Services\CheckoutService;
 use App\Services\MetaConversionsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\BooksHighTicket;
 use Tests\TestCase;
 
 class MetaConversionsTest extends TestCase
 {
-    use RefreshDatabase;
+    use BooksHighTicket, RefreshDatabase;
 
     private function enableCapi(): void
     {
@@ -193,12 +194,10 @@ class MetaConversionsTest extends TestCase
         $course = $this->makeCourse(['high_ticket_hide_price' => true]);
         $course->type = 'high_ticket';
 
-        $result = app(\App\Services\HighTicketBookingService::class)->book($course, [
-            'name'  => '高價仔',
-            'email' => 'ht@example.com',
-        ]);
+        // Lead fires on confirmation — an unverified email is not a lead (011 D35).
+        $result = $this->applyAndConfirm($course, ['name' => '高價仔', 'email' => 'ht@example.com']);
 
-        $this->assertTrue($result['success']);
+        $this->assertSame('confirmed', $result['state']);
         Queue::assertPushed(SendMetaConversionJob::class, fn (SendMetaConversionJob $job) =>
             $job->payload['event_name'] === 'Lead'
             && $job->payload['custom_data']['content_ids'] === [$course->id]);

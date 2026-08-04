@@ -3,6 +3,28 @@ id: 011-high-ticket
 status: building
 owner_files:
   - app/Http/Controllers/HighTicketBookingController.php
+  - app/Http/Controllers/BookingConfirmController.php
+  - app/Exceptions/SlotUnavailableException.php
+  - app/Services/ZoomMeetingService.php
+  - app/Jobs/CreateZoomMeetingJob.php
+  - app/Http/Controllers/Admin/ConsultationSlotController.php
+  - app/Http/Requests/HighTicketBookingRequest.php
+  - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
+  - app/Models/ConsultationSlot.php
+  - app/Services/ConsultationSlotService.php
+  - app/Console/Commands/ReleaseExpiredBookingHolds.php
+  - resources/js/Components/Course/HighTicketBookingWizard.vue
+  - resources/js/Pages/Booking/Confirm.vue
+  - resources/js/Pages/Admin/ConsultationSlots/Index.vue
+  - database/migrations/2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_05_000002_create_consultation_slots_table.php
+  - database/migrations/2026_08_05_000003_widen_phone_columns_to_30.php
+  - database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php
+  - tests/Feature/HighTicket/BookingWizardTest.php
+  - tests/Feature/HighTicket/SlotHoldTest.php
+  - tests/Feature/HighTicket/ZoomMeetingTest.php
+  - tests/Support/BooksHighTicket.php
   - app/Http/Controllers/Admin/HighTicketLeadController.php
   - app/Http/Controllers/Admin/EmailTemplateController.php
   - app/Http/Requests/Admin/EmailTemplateRequest.php
@@ -36,7 +58,10 @@ touchpoints:
     why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft
+  - file: resources/js/Layouts/AdminLayout.vue
+    owner: 000-platform-core
+    why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
   - file: database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
     owner: 004-course-admin
     why: courses.type enum 擴充 high_ticket + high_ticket_hide_price 欄位；課程表單的類別/開關 UI 歸課程管理模組
@@ -66,10 +91,19 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條
+  - file: routes/console.php
+    owner: 000-platform-core
+    why: US11 的 `booking:release-holds` 每 10 分鐘排程（逾時暫留的清理，非正確性來源，見 D33）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
-    why: 唯讀取用 —— 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），沿用 000 的全站設定機制，未新增欄位
+    why: 唯讀取用 —— 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），US10/US12 另加 `high_ticket_booking_bonus_codes` 與三組 `zoom_*` 憑證，沿用 000 的全站設定機制，未新增欄位
+  - file: app/Http/Controllers/Admin/SettingsController.php
+    owner: 000-platform-core
+    why: US12 在「API 設定」頁（`showPayment` / `updatePayment`）加一組 Zoom 憑證欄位，沿用該頁既有的 `maskSecret()` 與「留白即維持原值」的 secret 處理（D41），不新增頁面與路由
+  - file: resources/js/Pages/Admin/Settings/Payment.vue
+    owner: 000-platform-core
+    why: US12 新增「Zoom 會議」設定卡（account_id / client_id 明文、client_secret 遮罩），版面比照同頁既有的金流與 Meta CAPI 卡片
 ---
 
 # High Ticket（高價課預約：隱藏價格銷售頁 + Leads 後台 + Email 模板系統）
@@ -158,11 +192,11 @@ touchpoints:
 不依賴工程師即可修改主旨與內容。
 
 **驗收**：
-- [ ] 列表顯示 5 個模板，event_type 以中文標籤呈現：客製服務預約確認、課程贈禮通知、課程新增小節通知、客製服務新時段通知、顧問成交開通通知
+- [x] 列表顯示 6 個模板，event_type 以中文標籤呈現：客製服務預約待確認、客製服務預約確認、課程贈禮通知、課程新增小節通知、客製服務新時段通知、顧問成交開通通知（US11 起新增第一項）
 - [x] 編輯頁顯示模板名稱、觸發事件（唯讀）、主旨、body_md 內容編輯區；「插入變數」按鈕列依 event_type 顯示可用變數，點擊插入 textarea 游標位置
 - [x] 編輯 / 預覽模式切換：預覽以 `marked` + `breaks: true` 渲染，單行換行與寄出效果一致（**此條在 FR-021 之前為假** — 預覽會換行、寄出不會，管理員得按兩次 Enter 才有效果）
 - [x] 儲存驗證 name ≤ 100、subject ≤ 255、body_md 必填（中文錯誤訊息），成功後導回列表並 flash「模板已更新」
-- [ ] `EmailTemplateSeeder` 以 event_type 為 key `updateOrCreate` seed 5 個預設模板，可重複執行不覆蓋主鍵
+- [x] `EmailTemplateSeeder` 以 event_type 為 key `updateOrCreate` seed 6 個預設模板，可重複執行不覆蓋主鍵
 - [x] `course_gifted` / `lesson_added` 事件由對應 Mailable 建構時讀取模板，模板不存在時 fallback 至寫死內容；high_ticket 預約相關兩事件無 fallback（缺模板直接擋下操作）；`lead_converted` 缺模板不擋操作但也不 fallback — 不寄信並回報 `mail_sent: false`（見 D15）
 - [x] 列表頁上方有「預約通知收件者（CC）」設定卡：單一文字框（逗號分隔多筆）+ 儲存按鈕，`PUT /admin/email-templates/notify-cc` 寫入 `site_settings`；每筆須為合法 Email 格式否則 inline 顯示「「xxx」不是有效的 Email 格式」；留空即 fallback 至預設值（placeholder 與說明文字均顯示該預設）
 
@@ -199,6 +233,85 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 系統中沒有任何 drip 課程時，訂閱者名單 tab 顯示空狀態說明，不報錯
 - [x] 銷售顧問（`is_sales_consultant`）兩個 tab 都看得到、都能操作（見 D27）
 - [x] 課程編輯頁工具列的「訂閱者」按鈕移除，`GET /admin/courses/{course}/subscribers` 路由與 `CourseController@subscribers` 一併刪除；名單的唯一入口是側欄「Leads 名單」（選單名稱不變）
+
+### User Story 9 - 預約申請多步驟表單 (Priority: P1)
+
+現在的預約門檻是「填姓名 + Email 按送出」，30 秒就能完成，導致名單裡塞滿隨手留資料、
+面談當天不出現、或根本沒有經營意圖的人 —— 顧問的時間被稀釋在篩選上，而不是成交上。
+把預約改成**四個步驟的申請流程**，用問卷與承諾清單把「隨手看看」的人自然擋在門外：
+願意花五分鐘寫完瓶頸與專長、逐條勾選承諾的人，才是值得排進行事曆的人。
+
+**驗收**：
+- [x] Step 1：填 Email + 暱稱後按「開始申請」，**同頁下方即時展開**簡易問卷（不換頁、不打 API、不捲走）；問卷欄位為手機電話\*、職業和從事時長\*、事業瓶頸\*、知識或能力的專長\*、經營社群網址（選填），`*` 欄位以紅色星號標示且未填不得前進
+- [x] Step 2：問卷按「下一步」後顯示承諾條件清單（五條，文案見 FR-026），五個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
+- [x] Step 4：選完時段後顯示**申請資料覆核區**，逐欄列出 Step 1–3 的所有輸入值（含所選時段與諮詢長度），每欄可點「修改」跳回該步驟且保留已填內容
+- [x] 覆核區下方 MUST 顯示不出席警語：「若確定預約卻無故不出席，我們將永久黑名單。」以警示樣式（amber/red 底）呈現，不可摺疊、不可略過
+- [x] 「送出申請」為單一 `POST /course/{course}/book`（axios，沿用 D1 非同步）；送出後 inline 顯示待確認提示（US11），全程不換頁
+- [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
+- [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
+- [x] 已登入者自動帶入 real_name / email（行為與現況相同）；重新申請時若該 email 已有 lead，問卷欄位預填既有值省得重打
+- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為五條全 true，任一不符回 422 並 inline 顯示於對應欄位
+- [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約優惠碼、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
+- [x] 問卷填的手機號碼在 lead 轉為會員帳號時一併寫入 `users.phone`：兩個轉換點（`HighTicketLeadService::convertLead()` 開通、`SubscribeDripLeadJob` 加序列信）皆以 `firstOrCreate` 的建立屬性帶入 —— **既有會員維持原值不覆寫**（見 D43）
+- [x] RWD：手機上每個步驟單欄排列、承諾清單與覆核區不橫向溢出
+
+### User Story 10 - 顧問時段管理與預約選位 (Priority: P1)
+
+預約流程走到最後只丟一封信說「我們會跟你聯絡」，實際排程仍要來回喬時間。
+讓管理員在後台先把自己的空閒時段放上來（15 分鐘為 1 單位），申請人在流程第 3 步直接選定，
+預設一場 30 分鐘；持有預約專屬優惠碼者可延長為 45 分鐘。
+
+**驗收**：
+- [x] 後台 `/admin/consultation-slots`（staff 群組，顧問可用）：依日期分組列出所有時段單位，每格顯示時間、狀態（可預約 / 暫留中 / 已預約）與佔用者姓名 Email（連往 Leads 名單）
+- [x] 「新增時段」表單：選日期 + 起訖時間 → 一次產生該區間所有 15 分鐘單位；已存在的單位跳過不重複建立，回報「已新增 N 個、略過 M 個」
+- [x] 刪除只允許**未被佔用**的單位（`lead_id` 為 null 或暫留已逾時）；已確認佔用的單位刪除回 422，要求先在 Leads 處理該筆預約
+- [x] 前台 Step 3 呼叫 `GET /course/{course}/booking-slots?code=`，只回傳「**該起始單位起連續 N 個單位皆可用**」的起始時間（N = 諮詢長度 ÷ 15）；跨日與跨不連續區間的組合 MUST NOT 出現
+- [x] 預設諮詢長度 30 分鐘（2 單位）。時段區塊上方有「預約優惠碼（選填）」輸入框，填入命中 `site_settings.high_ticket_booking_bonus_codes` 的碼後即時重查時段，長度變 45 分鐘（3 單位）並顯示「已套用，諮詢延長為 45 分鐘」
+- [x] 優惠碼比對忽略大小寫與前後空白；無效碼**不擋流程**，顯示「此優惠碼無效，將以 30 分鐘進行」後照常可選時段（見 D31）
+- [x] 時段以「日期分組 + 時間按鈕」呈現，只列出今天之後、尚有可用組合的日期；完全沒有可預約時段時顯示空狀態「目前沒有開放的時段」並提供「通知我有新時段」的既有預約行為（仍建 lead、狀態 pending，等管理員用 US4 通知）
+- [x] 候補的 lead 產生永久 `resume_token`；US4 的「新時段通知」信帶 `{{booking_url}}` 深連結，點入即以**已填資料**開在第 3 步（選時段），承諾自動視為已接受，不必重填問卷（見 FR-042 / D44）
+- [x] 送出申請時後端 MUST 重新驗證所選時段仍可用（前端清單可能已過期）；被搶走回 409「該時段剛被預約，請重新選擇」，前端自動重查時段清單
+- [x] 顯示時間一律以**台北時間**呈現與比對；伺服器為 UTC，轉換規則見 D32
+- [x] 後台時段頁與前台時段選擇皆為 RWD；所有時段按鈕 `cursor-pointer` + 選中狀態明確（實心底色 + ring）
+
+### User Story 11 - Email 二次確認與時段暫留 (Priority: P1)
+
+送出申請不等於預約成立 —— 沒驗證過的 Email 佔著顧問的行事曆，等於把爽約成本前置到系統裡。
+送出後時段先**暫留 1 小時**並寄出待確認信，申請人點信中連結回站完成確認，時段才正式保留；
+逾時未確認自動釋出，讓下一個人選得到。
+
+**驗收**：
+- [x] 送出申請成功後：lead 落地（含問卷欄位與 `commitments_accepted_at`）、產生 `confirm_token`、`confirm_expires_at = now + 1 小時`，所選的 N 個時段單位寫入 `lead_id` 與 `held_until`（= `confirm_expires_at`），三者在**同一個 `DB::transaction()`** 內完成
+- [x] 同步寄出 `high_ticket_booking_verify`（新模板「客製服務預約待確認」）；此信含確認連結、所選時段、到期時間
+- [x] 前台送出成功後顯示：「預約時段已暫時保留。請於 **1 小時內**收取 Email 並點擊確認連結完成預約。」附倒數與所選時段；MUST NOT 宣稱預約已完成
+- [x] `high_ticket_booking_verify` 模板不存在時整個申請 422 擋下、不建 lead、不佔時段（比照 FR-003 對預約確認信的既有取捨）
+- [x] 待確認信寄送失敗（模板存在但寄不出去）：lead **保留**、時段**立即釋出**、回應 `mail_sent: false`，前台顯示「申請已收到，但確認信寄送失敗，我們會主動與你聯絡安排時段」（見 D34）
+- [x] `GET /booking/confirm/{token}` 為公開路由（無需登入）；確認成功後：`confirmed_at = now`、該 lead 的時段單位 `held_until` 清為 null（正式佔用），並顯示提醒頁「確認已完成預約，相關資料已寄出，建議在諮詢時間以前看完」
+- [x] **確認成功才寄出**既有的 `high_ticket_booking_confirmation`「客製服務預約確認」信（送出當下不寄）；同時才觸發 drip `checkAndBook()` 與 Meta CAPI `Lead` 事件（見 D35）
+- [x] token 已確認過再點一次為**冪等**：不重複寄信、不報錯，顯示同一張「已完成確認」頁
+- [x] token 逾時（`confirm_expires_at < now`）：顯示「確認連結已逾時，保留的時段已釋出」+ 回課程頁重新預約的連結；lead 保留於名單（status 維持 pending，管理員仍可跟進）
+- [x] token 不存在或格式不符：顯示「連結無效」頁，MUST NOT 洩漏任何 lead 資訊
+- [x] 逾時的暫留單位對**其他人的查詢**立即視同可用（lazy 判定，不等排程；見 D33）；`booking:release-holds` 排程每 10 分鐘把逾時單位清乾淨僅為資料整齊
+- [x] 同一 lead 重新送出申請時，先釋放它先前持有的所有單位再佔新的，不會一人卡住兩組時段
+- [x] 測試：並發搶同一時段只有一人成功、逾時後單位可被他人選走、確認冪等、確認前不寄確認信 / 不送 CAPI
+
+### User Story 12 - 確認後自動建立 Zoom 會議 (Priority: P2)
+
+時段確定保留之後，會議連結仍要人工開、人工貼進信裡 —— 這是整條流程最後一段還沒自動化的環節，
+而且是最容易漏掉的一段（漏了就等於對方到了時間沒地方去）。
+確認完成後直接呼叫 Zoom API 建立該時段的會議，把 `join_url` 寫進「客製服務預約確認」信一起寄出。
+
+**驗收**：
+- [x] Zoom 憑證走 **Server-to-Server OAuth**，三個值（`account_id` / `client_id` / `client_secret`）由管理員在後台「API 設定」頁（`/admin/settings/payment`）填寫，存 `site_settings`，沿用該頁既有的遮罩式密鑰處理：`client_secret` 為 secret 欄位（顯示 `maskSecret()` 預覽、留白即維持原值、填了才覆寫），`account_id` / `client_id` 為一般欄位可直接顯示（見 D41）
+- [x] `ZoomMeetingService::createMeeting()`：以 `account_credentials` 換 access token（快取 55 分鐘，Zoom token 效期 1 小時）→ `POST /v2/users/me/meetings` 帶 `start_time`（該時段 UTC）、`duration`（30 或 45）、`timezone: Asia/Taipei`、`topic`（課程名 + 申請人暱稱）；回傳 `meeting_id` 與 `join_url`
+- [x] 確認流程改為：`confirmed_at` 落地 → 派送 `CreateZoomMeetingJob` → **Job 內建好會議、寫回 lead、才寄出**「客製服務預約確認」信；確認當下不寄（見 D38）
+- [x] 確認頁文案不變（「確認已完成預約，相關資料已寄出」），信件抵達有數秒延遲屬正常
+- [x] `high_ticket_booking_confirmation` 模板新增變數 `{{zoom_join_url}}`；模板可自由決定要不要放
+- [x] Job `tries=3`、`backoff=[30, 120, 300]`；三次皆失敗時 MUST 仍寄出確認信，`{{zoom_join_url}}` 替換為「（會議連結將另行寄出）」，同時 log error 並 CC 通知 `high_ticket_lead_notify_cc` 收件者 —— 對方一定要收到「預約成立」，只是連結晚到（見 D39）
+- [x] **未設定 Zoom 憑證時整條路徑跳過**：不派 Job、確認當下直接寄信、`{{zoom_join_url}}` 替換為空字串，行為完全等同 US11。本機與測試環境不需要任何 Zoom 設定即可跑完整流程（見 D40）
+- [x] 45 分鐘場（優惠碼延長）可正常建立 —— Zoom 帳號為付費方案，無免費方案的 40 分鐘上限；此為**營運前提**，程式不檢查方案、不因長度分支
+- [x] `zoom_meeting_id` 與 `zoom_join_url` 落庫於 lead；後台 Leads 名單展開該筆時顯示會議連結（可點開）
+- [x] 測試：憑證未設定時走同步寄信路徑、Job 成功時信中含連結、Job 三次失敗後仍寄出且帶 fallback 文案（皆以 fake HTTP client，不打真實 API）
 
 ## Requirements
 
@@ -244,6 +357,66 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - **FR-023**: 訂閱者 tab 的課程來源 MUST 為 `Course::drip()` scope（`course_type = 'drip'`），與「加入序列信」下拉同一份清單。`sub_course` 傳入的 id 若不存在或非 drip 課程，fallback 至第一門 drip 課程（`ordered()` 首筆）；MUST NOT 直接以傳入 id 查訂閱者，避免非 drip 課程的資料經由網址參數外洩
 
 - **FR-024**: 兩個 tab 的篩選參數各用各的命名：預約名單沿用 `status` / `search` / `course_id`（既有網址不得失效），訂閱者名單用 `sub_course` / `sub_status`。**MUST NOT 共用 `status`** —— 兩邊的狀態 enum 完全不同（pending/contacted/no_response/converted/closed vs active/booked/converted/completed/unsubscribed），共用會讓切 tab 後帶著一個對方不認得的值。`page` 可共用（一次只渲染一個列表）
+
+- **FR-026**: 承諾條件清單的五條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
+  1. 我已經有想經營的社群主題、專業方向或初步想法。
+  2. 我正在認真評估透過社群發展收入，而不只是隨意了解。
+  3. 我願意固定投入時間學習、製作內容並持續執行。
+  4. 我願意接受務實建議，調整原本的想法與做法。
+  5. 如果確認方向適合，我願意採取下一步，而不是只停留在想像階段。
+
+  五條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 5 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，五條全真才寫入，存了也只會是五個 true（見 D30）
+
+- **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL（`url` 規則）。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）
+
+- **FR-028**: 時段的最小單位為 **15 分鐘**，一列 `consultation_slots` = 一個單位，`starts_at` 為 unique。一次預約佔用 **N 個時間上連續**的單位（N = 諮詢分鐘 ÷ 15）；連續的定義是 `starts_at` 每隔恰好 15 分鐘皆存在對應列且皆可用，缺一不可 —— 中間少一格就不是可選的起始時間
+
+- **FR-029**: 單位的可用性 MUST 由 `lead_id` 與 `held_until` 推導，不另設 status 欄位（見 D33）：
+  | lead_id | held_until | 意義 |
+  |---------|-----------|------|
+  | null | — | 可預約 |
+  | 有值 | `> now()` | 暫留中（他人不可選） |
+  | 有值 | null | 已確認佔用 |
+  | 有值 | `<= now()` | 暫留逾時，**視同可預約** |
+
+  所有查詢可用時段的地方 MUST 帶上第四列的條件，不得只判斷 `lead_id IS NULL`
+
+- **FR-030**: 諮詢長度預設 **30 分鐘**（2 單位）；命中預約優惠碼者為 **45 分鐘**（3 單位）。兩個數字為 service 常數（`DEFAULT_MINUTES = 30`、`BONUS_MINUTES = 15`），不做成後台設定 —— 目前只有一種諮詢型態，設定項會比它服務的需求更貴
+
+- **FR-031**: 預約優惠碼存於 `site_settings.high_ticket_booking_bonus_codes`（逗號 / 分號 / 空白分隔多組），解析沿用 `HighTicketBookingService::parseRecipients()` 的同一套切分規則。比對 MUST 忽略大小寫與前後空白。無效碼 MUST NOT 擋下流程（見 D31）。命中的碼原值寫入 `high_ticket_leads.booking_code` 供後台辨識來源
+
+- **FR-032**: 送出申請的寫入（lead upsert → 釋放該 lead 舊單位 → 佔用新單位）MUST 包在單一 `DB::transaction()`，且撈取目標單位時 MUST `lockForUpdate()`。並發搶同一時段時只有一方成立，另一方回 **409**「該時段剛被預約，請重新選擇」。寄信、drip、CAPI 一律留在 transaction 外（沿用 FR-016 的既有原則）
+
+- **FR-033**: 預約成立分兩段，**確認前不算數**：
+  - 送出申請 → 建 lead + 暫留時段 + 寄 `high_ticket_booking_verify`
+  - 點確認連結 → `confirmed_at` 落地 + 時段轉正式 + 寄 `high_ticket_booking_confirmation` + drip `checkAndBook()` + Meta CAPI `Lead`
+
+  `high_ticket_booking_confirmation`、drip 停信與 CAPI 事件 MUST NOT 在送出當下觸發（行為變更，見 D35）
+
+- **FR-034**: `confirm_token` MUST 為 `Str::random(64)` 等級的不可預測字串並建 unique index；查詢一律以 token 為唯一入口，路由公開（無 auth）。token 三種失效情境的回應 MUST 可區分：**已確認**（冪等成功頁）、**逾時**（引導重新預約）、**不存在**（連結無效，不洩漏任何 lead 資訊）
+
+- **FR-036**: Zoom 憑證存於 `site_settings`：`zoom_account_id` / `zoom_client_id` / `zoom_client_secret`，由後台「API 設定」頁維護。`zoom_client_secret` MUST 比照該頁既有 secret 欄位處理 —— 讀取時只回 `maskSecret()` 預覽、提交空字串代表「維持原值」，MUST NOT 把明文密鑰回傳給前端
+
+- **FR-037**: `ZoomMeetingService` MUST 在三個憑證**任一為空**時回報「未啟用」，呼叫端據此跳過整條 Zoom 路徑（FR-039）。access token 以 `account_credentials` grant 取得並快取 **55 分鐘**（Zoom 效期 1 小時，留 5 分鐘餘裕）；快取鍵須包含 `client_id`，換憑證後不得沿用舊 token
+
+- **FR-038**: 確認信的寄送時機依 Zoom 是否啟用分岔，但**兩條路徑都必須寄到**：
+  | 情境 | 行為 |
+  |------|------|
+  | Zoom 未啟用 | 確認當下同步寄信，`{{zoom_join_url}}` → 空字串 |
+  | Zoom 啟用、建會議成功 | Job 內建好會議、寫回 lead、才寄信，`{{zoom_join_url}}` → `join_url` |
+  | Zoom 啟用、三次重試皆失敗 | Job 最終仍寄信，`{{zoom_join_url}}` → 「（會議連結將另行寄出）」，log error + CC 內部收件者 |
+
+  MUST NOT 出現「確認成功但對方收不到任何信」的組合
+
+- **FR-039**: Zoom 為**選配**：未設定憑證時系統行為 MUST 完全等同 US11（含測試）。測試 MUST 以 fake HTTP client 驗證，不得打真實 Zoom API
+
+- **FR-042**: 候補（無時段可選）的 lead MUST 取得一組永久有效的 `resume_token`；寄送「新時段通知」時若該 lead 尚無 token（FR-042 之前的舊資料，或走完整流程而非候補的 lead）MUST 當場補發，使**任何被通知的 lead 都有可用的深連結**。信 MUST 提供 `{{booking_url}}` = `/course/{slug}?resume={token}`。持該 token 造訪銷售頁 MUST 回傳完整 draft（含姓名 / Email / 問卷答覆）且**不要求登入**；問卷四個必填欄位齊全時 `resume: true`，精靈直接開在第 3 步並視五條承諾為已接受，否則 `resume: false` 由第 1 步開始（否則會把人丟在後面的步驟、前面卻是空的）。token MUST 與課程綁定（跨課程無效）；重複送出候補申請 MUST 沿用同一 token，使既發出的信不失效
+
+- **FR-041**: 問卷的手機號碼 MUST 在 lead 轉為會員帳號時寫入 `users.phone`，且 MUST NOT 覆寫既有會員的值（以 `firstOrCreate` 的建立屬性帶入，非 `update`）。所有電話欄位 MUST 為 `varchar(30)`：`users.phone`、`orders.buyer_phone`、`high_ticket_leads.phone` 三者與 Form Request 的 `max:30` 一致
+
+- **FR-040**: 本次 MUST NOT 實作改期 / 取消同步。管理員在後台改動 lead 狀態或刪除時段時，**已建立的 Zoom 會議不會自動取消** —— 這是明確的已知限制（見 D42），需人工到 Zoom 後台處理
+
+- **FR-035**: 逾時釋出的正確性來源 MUST 是查詢時的 lazy 判定（FR-029 第四列），排程 `booking:release-holds` 只做資料整理。排程停擺時系統行為 MUST 完全正確 —— 使用者選得到逾時釋出的時段，只是後台會看到殘留的 `lead_id`
 
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
@@ -296,9 +469,82 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **D23**: 成交通知信**重用 `TemplatedMail`**（即原 `HighTicketBookingMail`，本次一併更名），推翻 T010 原本「新增 `LeadConvertedMail`」的規劃。原規劃寫於 US7 之前 —— 當時該 Mailable 還會自己 `new CommonMarkConverter()`、自己查預約模板，硬塞第三個事件進去確實會髒；US7（FR-019）把它掏空成只收 `subject / htmlBody / textBody` 的搬運工之後，它已同時服務預約確認與新時段通知兩個事件，再開一個 `content()` 一字不差的類別，正是 FR-019 這次要消滅的重複。更名而非沿用舊名，是因為「HighTicketBooking」已經名不副實，日後第四、第五個模板事件接上來時不會有人敢用它。代價：模板查詢與「缺模板不擋開通」（D15）的判斷落在 service 而非 Mailable 建構子 —— 這反而更對，那是成交流程的決策，不是一封信的決策。連帶取捨：`CourseGiftedMail` / `LessonAddedNotification` **不併入** `TemplatedMail`，它們有「缺模板時 fallback 到寫死 blade」的分支（系統自動流程不能因為模板被刪就中斷），與本類別「呼叫端先查好才進來」的前提不同，強行合併會把 fallback 邏輯塞回 Mailable
 
+- **D29**: 四步驟流程抽成 `Components/Course/HighTicketBookingWizard.vue`，不塞進 `Course/Show.vue`。Show.vue 已超過 1000 行且 owner 是 002；這段流程有四個步驟的 state、問卷、承諾勾選、時段查詢與覆核區，直接內嵌會再加 300+ 行到一個別的模組擁有的檔案裡。抽成元件後 owner 乾淨落在 011，Show.vue 的 touchpoint 縮小到「掛一行元件」，日後改預約流程不必動到 002 的檔案
+
+- **D30**: 承諾勾選只存一個 `commitments_accepted_at` 時間戳，不存五個布林或 JSON。因為 FR-026 規定五條全勾才能前進 —— 存下來的必然是五個 true，逐條存等於用五個欄位記錄一個常數。時間戳保留了唯一有資訊量的部分（何時同意），日後條款改版要追溯「同意的是哪一版」再加 `commitments_version` 即可，不為假想需求先攤開結構
+
+- **D31**: 無效的預約優惠碼**不擋流程**，只降級為 30 分鐘並提示。這個碼是加值不是門票 —— 打錯字就被擋在流程外，等於用一個選填欄位製造流失，而流失的是已經填完問卷與承諾清單的高意願申請人。相對地「碼無效卻靜默當成有效」會讓顧問行事曆被多佔 15 分鐘，所以必須明說「將以 30 分鐘進行」，不能沉默
+
+- **D32**: 時段的 `starts_at` 以 **UTC 落庫**（Laravel 慣例），顯示與選擇一律轉 **Asia/Taipei**。伺服器是 UTC（見 000 reference），若讓管理員輸入的「下午 2:00」直接當 UTC 存，後台看到的與信件寫的會差 8 小時 —— 這類錯誤在跨日時段上最致命（台北的隔天上午在 UTC 是當天下午）。轉換收在 `ConsultationSlotService`，controller 與前端只處理已轉好的值；前端顯示格式固定 `M/D（週X）HH:mm`
+
+- **D33**: 時段狀態用 `lead_id` + `held_until` 兩欄推導，不加 `status` enum（FR-029）。理由是單一真相：有了 status 欄就會出現「status=booked 但 lead_id 為 null」這種自相矛盾的列，而它只能靠人工修。連帶決定逾時釋出走 **lazy 判定為主、排程為輔**（FR-035）—— 若正確性依賴排程，排程掛掉的那段時間所有逾時時段都選不到，而使用者完全看不出原因；lazy 判定讓系統在排程停擺時依然正確，排程退化成純粹的資料整理
+
+- **D34**: 待確認信寄送失敗時「**留 lead、放時段**」。這是 D11「名單比信重要」與「時段是稀缺資源」兩個原則的交集：聯絡方式已經拿到，沒有理由丟掉；但那個人**永遠無法完成確認**（信根本沒到），時段留著就是白鎖一小時，還會讓其他真的收得到信的人選不到。前台文案改為「我們會主動與你聯絡安排時段」，把排程責任誠實地轉回人工 —— 比照 FR-013，不對未寄出的信宣稱已寄出
+
+- **D35**: drip 停信與 Meta CAPI `Lead` 事件從「送出當下」移到「確認之後」（行為變更，推翻 US2 的既有順序）。理由是這兩件事都以「這是一條真實線索」為前提：CAPI 的 Lead 事件會餵給 Meta 做廣告優化，用未驗證的 Email 餵它等於教演算法去找「會隨手填表但不會確認」的人；drip 停信同理 —— 序列信是培養機制，人還沒確認就停掉，等於在最需要推力的時候撤掉推力。代價是若對方不確認，CAPI 就少一個事件，但那個事件本來就是雜訊
+
+- **D36**: 舊的一步式表單**整組移除、不留課程層開關**（使用者決策）。留開關要維護兩套前端與兩條後端路徑，而目前隱藏價格的高價課只有少數幾門、成交入口本來就是人工（D13），沒有「某幾門課要低門檻」的實際需求。若日後真的需要，加開關比維護一套沒人走的舊路徑便宜
+
+- **D37**: 「永久黑名單」只做**警示文案**，不做系統實作（使用者決策）。爽約與否是線下事實，系統無從自動判定；真要擋人，現有的 `closed` 狀態加上管理員記憶已足夠應付目前的量。文案本身才是它的作用 —— 它要嚇阻的是「隨便按送出」的人，而那個效果在覆核頁顯示的當下就已經達成，不需要後端配合
+
+- **D38**: 確認信改由 `CreateZoomMeetingJob` 在建好會議後才寄，而不是確認當下先寄、連結後補。因為這封信的用途就是「告訴對方什麼時間、去哪裡」—— 少了連結就得再補寄一封，而補寄信的開信率遠低於第一封，且兩封信講同一件事最容易讓人以為預約重複了。代價是信件抵達比確認頁晚幾秒，這對使用者不可見（確認頁本來就寫「相關資料已寄出」，沒有承諾秒到）
+
+- **D39**: Zoom 建立失敗三次後**照常寄出確認信**（帶 fallback 文案），而不是靜默重試到天荒地老或讓確認流程失敗。原則與 D11 / D34 同一條：已經成立的事實不能因為周邊服務失敗而被推翻 —— 對方已完成 Email 驗證、時段已正式保留，這是既成事實。同時 CC 內部收件者，是因為這種情況一定要有人去手動開會議並補連結，只寫 log 沒人會看
+
+- **D40**: Zoom 設為**選配而非必要**（FR-039）。理由有二：本機開發與 CI 不該需要真實的第三方憑證才能跑完預約流程（否則測試會變成打真實 API 或整段被跳過）；以及萬一憑證過期或 Zoom 出事，系統要能退回 US11 的人工排程模式繼續收預約，而不是整條預約線停擺。判斷條件放在 service（`isEnabled()`），呼叫端只問一句，不各自檢查三個設定
+
+- **D41**: Zoom 憑證放**後台「API 設定」頁**而非 `.env`（使用者決策）。該頁已經是 PayUni / 藍新 / Portaly / Meta CAPI token 的所在，語意一致（都是第三方服務憑證），業主換 Zoom app 時不必找工程師。沿用該頁既有的 `maskSecret()` + 「留白即維持原值」模式，不另發明一套 —— 那套模式已經在四組憑證上運作，再寫一份就是 FR-019 那類重複的起點。`client_secret` 走 secret 欄位，`account_id` / `client_id` 不遮罩（它們不是密鑰，遮了反而不好核對）
+
+- **D42**: 本次**不做改期 / 取消同步**（FR-040）。改期是一條完整的支線 —— 要有對外的改期連結、時段釋放與重佔、Zoom `PATCH`/`DELETE`、以及改期後重寄哪封信的決策，跟本次「把門檻拉高」的目標無關。目前量體下，改期是顧問私訊喬時間的事，人工到 Zoom 後台改一分鐘的事情不值得先寫進系統。明確記為已知限制，比做半套（例如只刪時段不動 Zoom）好 —— 半套會讓管理員以為系統處理過了
+
+- **D44**: 候補回訪走**獨立的 `resume_token`**，不重用 `confirm_token`（FR-042）。兩者的生命週期相反：`confirm_token` 一小時到期、用過即廢，是「這個 Email 是真的」的一次性證明；`resume_token` 可能要撐好幾週（顧問什麼時候開時段沒人知道），是「這份申請是你的」的持續憑證。把兩種語意壓在同一欄，早晚會有人為了讓其中一邊過期而弄壞另一邊。
+  身分驗證只靠持有 token，**不要求登入** —— 候補者絕大多數不是會員，要求登入等於把這條路關掉；64 字元隨機值的猜中機率與確認連結同級，信任模型一致。token 與 `course_id` 綁定比對，避免一組 token 打開任何課程的既有申請。
+  承諾清單**自動視為已接受**（使用者決策）：`commitments_accepted_at` 已經落在 lead 上，等待期間再要求重勾，讀起來像是在懷疑已經收到的答覆；畫面仍停留在可回頭修改的狀態，不是把步驟藏起來。
+  另外補一支資料 migration（`2026_08_05_000005`）把 `{{booking_url}}` **附加**到正式站既有的「新時段通知」模板 —— seeder 用 `updateOrCreate`，在正式站重跑會把業主改過的文案整段蓋掉；不補這一支，功能上線即形同虛設（信照寄，但沒有連結）
+
+- **D43**: 手機號碼在**轉換時**帶進會員資料，而不是在 Email 確認時回填（使用者決策）。預約流程不建 User，lead 要成為會員只有「開通商品」與「加入序列信」兩個時機，在那裡帶過去等於順手，不需要額外的寫入路徑。選 `firstOrCreate` 的建立屬性而非 `update`，是因為「預約一次就改掉既有會員的電話」是使用者沒要求的副作用 —— 會員自己在帳號設定填的值，權威性高於他在預約表單隨手填的。代價是既有會員的空 `phone` 不會被補上，這是可接受的：那筆資料仍在 lead 上看得到。連帶把三個電話欄位一律加寬到 `varchar(30)`，順手修掉一個既有的截斷風險 —— `FreePurchaseController` 早就收 `max:30`，但 `users.phone` 只有 20
+
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
 
 ## Schema
+
+- **US9–US11 schema 變更（兩支 migration）**：
+
+  `2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php` — `high_ticket_leads` 增欄，**全部 nullable**（既有列沒有這些值，不得設 NOT NULL）：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `phone` | varchar(30) | 手機電話（US9 必填，欄位仍 nullable 供舊資料） |
+  | `occupation` | varchar(255) | 職業和從事時長 |
+  | `bottleneck` | text | 事業瓶頸 |
+  | `expertise` | text | 知識或能力的專長 |
+  | `social_url` | varchar(500) | 經營社群網址（選填） |
+  | `commitments_accepted_at` | timestamp | 五條承諾全數勾選的時間（D30） |
+  | `booking_code` | varchar(50) | 命中的預約優惠碼原值（FR-031） |
+  | `confirm_token` | char(64) unique | Email 確認 token（FR-034） |
+  | `confirm_expires_at` | timestamp | 確認期限 = 送出 + 1 小時，同時是時段暫留期限 |
+  | `confirmed_at` | timestamp | 完成確認的時間；null = 尚未確認 |
+  | `zoom_meeting_id` | varchar(50) | US12：Zoom 會議 id，未啟用或失敗時為 null |
+  | `zoom_join_url` | varchar(500) | US12：會議連結，寫進確認信並顯示於後台 |
+
+  `2026_08_05_000002_create_consultation_slots_table.php` — 新表 `consultation_slots`，**一列 = 一個 15 分鐘單位**：
+
+  | 欄位 | 型別 | 說明 |
+  |------|------|------|
+  | `id` | bigint | |
+  | `starts_at` | datetime **unique** | 單位起始時刻（UTC，D32）；unique 保證同一時刻不會有兩列 |
+  | `lead_id` | unsignedBigInteger nullable, index | 佔用者；無外鍵約束（比照 D7 對 course_id 的既有作法） |
+  | `held_until` | timestamp nullable | 暫留到期；null 且 lead_id 有值 = 已確認佔用 |
+  | timestamps | | |
+
+  **不變量**：狀態不存欄位，一律由 `lead_id` + `held_until` 推導（FR-029 / D33）；一次預約佔用 N 個 `starts_at` 相隔恰 15 分鐘的連續列（FR-028）
+
+- `site_settings.high_ticket_booking_bonus_codes` — 預約專屬優惠碼，逗號分隔字串；命中者諮詢延長 15 分鐘（FR-031）。未設定即所有碼皆無效，流程照走 30 分鐘
+- `email_templates` 新增第 6 筆 `high_ticket_booking_verify`（「客製服務預約待確認」），變數 `{{user_name}}`、`{{course_name}}`、`{{confirm_url}}`、`{{slot_time}}`、`{{expires_at}}`；既有 `high_ticket_booking_confirmation` 的可用變數擴充 `{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}`
+- `high_ticket_leads.resume_token` — char(64) unique nullable（`2026_08_05_000004`）；候補回訪的永久憑證，與一小時到期的 `confirm_token` 是兩種東西（D44）。只有走候補路徑的 lead 會有值
+- `email_templates` 的 `high_ticket_slot_available` — 2026-08-05 由 `2026_08_05_000005` **附加**（非覆寫）`{{booking_url}}` 段落；已含該變數者跳過。正式站的模板內容可能已被業主編輯過，seeder 的 `updateOrCreate` 不能用來做這件事
+- `users.phone` / `orders.buyer_phone` — 2026-08-05 由 varchar(20) 加寬為 **varchar(30)**（`2026_08_05_000003`），與 `high_ticket_leads.phone` 及所有 Form Request 的 `max:30` 對齊；加寬無損，舊值必然放得下
+- `site_settings.zoom_account_id` / `zoom_client_id` / `zoom_client_secret` — Zoom Server-to-Server OAuth 憑證（FR-036），由後台「API 設定」頁維護；任一為空即 Zoom 未啟用（FR-037/FR-039）
 
 - **本次 schema 變更**：`2026_08_03_000001_add_body_type_to_email_templates_table.php` — `string('body_type', 10)->default('markdown')->after('subject')`。用 string 不用 enum（比照 004 `change_content_category_to_string_on_courses` 的既有作法）；有 default，既有 4 筆自動落在 markdown，正式站不需資料處理
 - **US8（名單管理頁合併）無 schema 變更** —— 純後台資訊架構調整，讀的是既有 `high_ticket_leads` 與 `drip_subscriptions` / `drip_email_events`
@@ -388,7 +634,7 @@ Phase D — 驗證
 - [x] T038 新增測試：html 模式原樣輸出（不被包 `<p>`、inline style 保留）、markdown 模式仍轉 HTML（回歸）、**markdown 單次換行渲染成 `<br>` 且空行仍分段（FR-021）**、`{{var}}` 在 html 屬性內照樣替換、預約信 `htmlBody` 為原始 HTML、`renderText()` 兩種模式輸出、後台 PUT 接受 html 並拒絕非法 `body_type` in `tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php`
 - [x] T039 `php artisan test` 全綠（基準 238 passed；`BookingMailFailureTest` / `BookingLeadRecordTest` / `LeadConvertTest` 在 Mailable 簽章變更後必須維持通過；010 的 `DripMailDeliverabilityTest` / `ClaimWordingTest` 在 converter 換掉後必須維持通過）＋ `npx vite build` exit 0
 - [x] T039a `/sync` 對帳：008 與 010 的 spec 進度日誌各補一行換行修正（touchpoint 變更需回寫 owner 模組）
-- [ ] T040 實寄驗證：後台切 HTML 模式貼入模板 → tinker 觸發 `book()` 寄到自己信箱 → 「顯示原始郵件」確認 `Content-Type: multipart/alternative` 且兩段內容皆正確
+- [ ] T040 實寄驗證：後台切 HTML 模式貼入模板 → tinker 觸發 `apply()` 寄到自己信箱 → 「顯示原始郵件」確認 `Content-Type: multipart/alternative` 且兩段內容皆正確
 
 ### 名單管理頁合併：預約名單 + 訂閱者名單 tab（US8）
 
@@ -410,8 +656,74 @@ Phase C — 驗證
 - [x] T051 `php artisan test` 全綠（基準 249 passed；010 既有 drip 測試不得退化）＋ `npx vite build` exit 0；兩個 tab 的實際操作由使用者以瀏覽器確認
 - [x] T052 `/sync` 對帳：010 的 owner_files 以 `Components/Admin/Leads/SubscriberListTab.vue` 取代 `Pages/Admin/Courses/Subscribers.vue`、US11 條款改指新位置並補 `subscriberPageData()`；004 移除 `subscribers()` 相關 touchpoint 敘述；000 US6 補一句顧問可見訂閱者資料（D27）
 
+### 預約門檻提升：申請問卷 + 時段預約 + Email 二次確認 + Zoom（US9–US12）
+
+Phase A — Schema 與模型（先落地，其餘全部相依）
+- [x] T053 migration：`high_ticket_leads` 加 10 欄（phone / occupation / bottleneck / expertise / social_url / commitments_accepted_at / booking_code / confirm_token unique / confirm_expires_at / confirmed_at）+ US12 的 zoom_meeting_id / zoom_join_url，全部 nullable in `database/migrations/2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php`
+- [x] T054 [P] migration：建 `consultation_slots`（starts_at datetime unique、lead_id nullable index、held_until nullable、timestamps）in `database/migrations/2026_08_05_000002_create_consultation_slots_table.php`
+- [x] T055 `$fillable` 與 `casts` 補新欄位（四個 timestamp 轉 datetime）；加 `slots()` hasMany 關聯 in `app/Models/HighTicketLead.php`
+- [x] T056 [P] 新模型：`lead()` belongsTo、`scopeAvailable()`（`lead_id IS NULL OR held_until <= now()`，FR-029 的唯一實作點）、`scopeUpcoming()` in `app/Models/ConsultationSlot.php`
+
+Phase B — 時段服務與後台（相依 Phase A）
+- [x] T057 新服務：`DEFAULT_MINUTES=30` / `BONUS_MINUTES=15` 常數；`generate(CarbonInterface $from, CarbonInterface $to): array{created,skipped}`（15 分鐘切分、已存在跳過）、`minutesFor(?string $code): int`（比對 `high_ticket_booking_bonus_codes`，忽略大小寫與空白，切分沿用 `HighTicketBookingService::parseRecipients()`）、`availableStarts(int $minutes): array`（只回連續 N 單位皆可用的起始時刻，依 FR-028）、`reserve(HighTicketLead $lead, CarbonInterface $startsAt, int $minutes, CarbonInterface $holdUntil)`（`lockForUpdate` + 先釋放該 lead 舊單位，衝突拋 `SlotUnavailableException`）、`release(HighTicketLead $lead)`、`confirm(HighTicketLead $lead)`（`held_until` 清 null）。台北時區轉換收在此（D32）in `app/Services/ConsultationSlotService.php`
+- [x] T058 [P] 後台 controller：`index()` 依日期分組列出單位與佔用者（eager load lead 避免 N+1）、`store()` 呼叫 `generate()` 並 flash「已新增 N 個、略過 M 個」、`destroy()` 僅允許刪未佔用單位（否則 422）in `app/Http/Controllers/Admin/ConsultationSlotController.php`
+- [x] T059 [P] Form Request：`date` 必填且不得早於今天、`start_time` / `end_time` 為 `H:i` 且須落在 15 分鐘刻度、`end_time` 須晚於 `start_time`，中文錯誤訊息 in `app/Http/Requests/Admin/StoreConsultationSlotsRequest.php`
+- [x] T060 後台頁：依日期分組的時段格狀檢視（可預約 / 暫留中 / 已預約三色）、新增表單、刪除確認；佔用者姓名連往 `/admin/high-ticket-leads?search={email}`；RWD + 所有可點元素 `cursor-pointer` in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T061 [P] 路由：staff 群組內加 `/admin/consultation-slots` 的 index / store / destroy（touchpoint，owner 000-platform-core）in `routes/web.php`
+
+Phase C — 申請送出與確認流程（相依 Phase B）
+- [x] T062 Form Request：FR-027 的全部欄位規則 + `commitments` 須為長度 5 且全 true 的陣列 + `slot_starts_at` 必填且為合法時刻 + `code` 選填，中文錯誤訊息 in `app/Http/Requests/HighTicketBookingRequest.php`
+- [x] T063 `book()` 改寫為兩段式的第一段：改名 `apply()` —— 檢查 `high_ticket_booking_verify` 模板（缺則 422）→ `DB::transaction`（`recordLead()` 寫入問卷欄位 + `commitments_accepted_at` + `confirm_token` + `confirm_expires_at` → `ConsultationSlotService::reserve()`）→ transaction 外寄待確認信 → 寄失敗則 `release()` 並回 `mail_sent: false`（D34）。**移除**此處的 `checkAndBook()` 與 Meta CAPI 呼叫（改到確認階段，D35）in `app/Services/HighTicketBookingService.php`
+- [x] T064 新增 `confirm(string $token): array` —— 依 token 查 lead，分四種結果（有效 / 已確認冪等 / 逾時 / 不存在）；有效時 `DB::transaction`（`confirmed_at` + `ConsultationSlotService::confirm()`），transaction 外依 Zoom 是否啟用分岔寄信（FR-038）、`checkAndBook()`、Meta CAPI in `app/Services/HighTicketBookingService.php`
+- [x] T065 [P] `store()` 改用 `HighTicketBookingRequest`，回應加 `hold_expires_at`；新增 `slots()` 回 `{minutes, code_applied, slots[]}` in `app/Http/Controllers/HighTicketBookingController.php`
+- [x] T066 [P] 新 controller：`show(string $token)` 回 Inertia `Booking/Confirm` 頁，props 帶 `state`（confirmed / already / expired / invalid）與課程名、時段 in `app/Http/Controllers/BookingConfirmController.php`
+- [x] T067 [P] 確認結果頁：四種 state 各一段文案，confirmed 顯示「確認已完成預約，相關資料已寄出，建議在諮詢時間以前看完」，expired 附回課程頁連結 in `resources/js/Pages/Booking/Confirm.vue`
+- [x] T068 [P] 路由：`GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開）（touchpoint，owner 000-platform-core）in `routes/web.php`
+
+Phase D — 前台四步驟精靈（相依 Phase C）
+- [x] T069 新元件：四步驟 state 機（資料 → 承諾 → 時段 → 覆核）、進度指示、問卷欄位、FR-026 的五條承諾、優惠碼輸入與時段查詢、覆核區與不出席警語、送出與待確認提示（含 1 小時倒數）；422 / 409 分別處理（409 自動重查時段）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T070 移除既有的一步式預約表單與其 script 區塊（`bookingName` / `bookingEmail` / `submitBooking` 等），改掛 `<HighTicketBookingWizard :course="course" />`；`bookingSuccess` 相關分支一併清掉（touchpoint，owner 002-storefront）in `resources/js/Pages/Course/Show.vue`
+- [x] T071 [P] Leads 名單每列可展開顯示問卷答覆與 Zoom 連結；舊資料欄位為 null 時顯示「—」in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase E — Email 模板與排程（可與 Phase D 平行）
+- [x] T072 [P] seeder 加第 6 筆 `high_ticket_booking_verify`（name「客製服務預約待確認」），文案須含確認連結、所選時段與「1 小時內」期限 in `database/seeders/EmailTemplateSeeder.php`
+- [x] T073 [P] `$availableVariables` 加 `high_ticket_booking_verify` 五個變數，`high_ticket_booking_confirmation` 補 `{{slot_time}}` / `{{consult_minutes}}` / `{{zoom_join_url}}` in `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T074 [P] `eventTypeLabels` 加 `high_ticket_booking_verify: '客製服務預約待確認'` in `resources/js/Pages/Admin/EmailTemplates/Index.vue`
+- [x] T075 [P] 新 command `booking:release-holds`：把 `held_until <= now()` 的單位 `lead_id` / `held_until` 清空；註解須寫明這只是資料整理，正確性來自 lazy 判定（FR-035）in `app/Console/Commands/ReleaseExpiredBookingHolds.php`
+- [x] T076 [P] 排程 `booking:release-holds` 每 10 分鐘（touchpoint，owner 000-platform-core）in `routes/console.php`
+
+Phase F — Zoom 串接（US12，相依 Phase C）
+- [x] T077 新服務：`isEnabled()`（三個設定皆非空）、`token()`（`account_credentials` grant + Basic auth，`Cache::remember` 55 分鐘、鍵含 client_id）、`createMeeting(CarbonInterface $startsAt, int $minutes, string $topic): array{meeting_id, join_url}`；全程 `Http::` facade 以利 fake in `app/Services/ZoomMeetingService.php`
+- [x] T078 [P] 新 Job：`tries=3`、`backoff=[30,120,300]`；建會議 → 寫回 lead 的 `zoom_meeting_id` / `zoom_join_url` → 寄確認信；`failed()` 中仍寄出確認信（`{{zoom_join_url}}` → 「（會議連結將另行寄出）」）並 CC 內部收件者 + log error（FR-038）in `app/Jobs/CreateZoomMeetingJob.php`
+- [x] T079 [P] 「API 設定」頁後端加三個 Zoom 欄位：`zoom_account_id` / `zoom_client_id` 為一般欄位，`zoom_client_secret` 併入既有 `$secretFields` 陣列（留白即維持原值）（touchpoint，owner 000-platform-core）in `app/Http/Controllers/Admin/SettingsController.php`
+- [x] T080 [P] 「API 設定」頁加「Zoom 會議」設定卡，版面比照既有金流 / Meta CAPI 卡（touchpoint，owner 000-platform-core）in `resources/js/Pages/Admin/Settings/Payment.vue`
+
+Phase G — 驗證
+- [x] T081 新增測試：四步驟送出建立 lead 與暫留時段、缺 verify 模板回 422 且不建 lead、承諾未全勾回 422、必填欄位驗證、待確認信寄失敗時 lead 留存但時段釋出 in `tests/Feature/HighTicket/BookingWizardTest.php`
+- [x] T082 [P] 新增測試：並發搶同一時段只有一人成功（409）、逾時後單位可被他人選走、確認冪等不重複寄信、確認前不寄 confirmation 信 / 不送 CAPI、優惠碼命中變 3 單位、連續單位不足的起始時刻不出現在清單、Zoom 未設定時同步寄信、Zoom 成功時信中含連結、Zoom 三次失敗仍寄出 fallback 文案（`Http::fake`）in `tests/Feature/HighTicket/SlotHoldTest.php`
+- [x] T083a 補 US10 驗收「沒有可預約時段」的候補路徑：`waitlist()` + `POST /course/{course}/waitlist`（伺服器端擋「其實有時段」的情況），精靈空狀態改為可送出 in `app/Services/HighTicketBookingService.php`
+- [x] T083b 補 US9 驗收「重新申請預填既有問卷」：改由 `CourseController@show` 傳 `bookingDraft` prop，**只給已登入且為該 lead 本人**（避免以 email 探測是否申請過）in `app/Http/Controllers/CourseController.php`
+- [x] T083c 新增 Zoom 測試檔（US12 全部驗收，`Http::fake`）in `tests/Feature/HighTicket/ZoomMeetingTest.php`
+- [x] T083d 手機號碼帶進會員資料（FR-041 / D43）：`users.phone` 與 `orders.buyer_phone` 加寬為 varchar(30)、兩個 lead→member 轉換點帶入 `phone`、`UpdateProfileRequest` / `UpdateMemberRequest` / `CheckoutRequest` 的 `max:20` 一併改 30
+- [x] T083 `php artisan test` 全綠（基準 271 passed；既有 `BookingMailFailureTest` / `BookingLeadRecordTest` 在 `book()` → `apply()` 改名與流程兩段化後必須同步改寫並通過）＋ `npm run build` exit 0
+- [ ] T084 使用者以瀏覽器實測：四步驟流程、優惠碼延長、時段搶位、Email 確認連結、逾時釋出、Zoom 會議實際建立且連結可用
+
+Phase H — 候補回訪連結（US10 追加，FR-042 / D44）
+- [x] T085 migration：`high_ticket_leads` 加 `resume_token` char(64) unique nullable in `database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php`
+- [x] T086 `waitlist()` 產生 `resume_token`（既有值沿用，使已寄出的連結不失效）；`$fillable` 補欄位 in `app/Services/HighTicketBookingService.php`
+- [x] T087 [P] 通知信加 `{{booking_url}}` = `/course/{slug}?resume={token}`；無 token 的 lead 在寄送當下補發（lazy，不做全表 backfill）in `app/Jobs/NotifyHighTicketSlotJob.php`
+- [x] T088 [P] `$availableVariables` 補 `high_ticket_slot_available` 三個變數 in `app/Http/Controllers/Admin/EmailTemplateController.php`；seeder 內文改寫 in `database/seeders/EmailTemplateSeeder.php`；資料 migration 附加至正式站既有模板 in `database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php`
+- [x] T089 `bookingDraft()` 改吃 `?resume=`：token 命中且課程相符即回完整 draft（含姓名 / Email / `resume: true`），不要求登入；既有的「登入者本人」路徑保留 in `app/Http/Controllers/CourseController.php`
+- [x] T090 [P] 精靈依 `draft.resume` 開在第 3 步、承諾預設全勾、掛載即查時段，並顯示「歡迎回來」提示條 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T091 新增 8 個測試：候補產 token、重複候補沿用同一 token、通知信含深連結、無 token 者寄送時補發、未登入持 token 可預填、問卷不全者退回第 1 步、錯誤 token 不預填、跨課程 token 無效 in `tests/Feature/HighTicket/BookingWizardTest.php`
+
 ## 進度日誌
 
+- 2026-08-05: 候補回訪連結（FR-042 / D44）— 沒有時段時仍收申請，但「通知新時段」信只帶 `{{user_name}}`／`{{course_name}}`，**連個入口都沒有**（`$availableVariables` 甚至沒有這個 event_type 的條目）；候補者自己回課程頁也是從第 1 步重來，因為問卷預填只給「已登入且 email 相符」的人，而候補者多半不是會員。新增永久 `resume_token`（與一小時到期的 `confirm_token` 分開，D44），信中 `{{booking_url}}` 深連結直接把精靈開在第 3 步、承諾自動視為已接受。身分只憑持有 token，不要求登入；token 與 course 綁定，重複候補沿用同一組使舊信不失效。token 改為**寄送當下補發**（不做全表 backfill），所以 FR-042 之前就在名單上的舊 lead 一樣拿得到深連結；問卷不齊全者仍由第 1 步開始，避免把人丟在後面的步驟而前面是空的。另補一支資料 migration 把變數**附加**到正式站既有模板（seeder 的 `updateOrCreate` 會蓋掉業主改過的文案）。新增 8 個測試，全套 321 passed（1677 assertions）、`npm run build` 綠。
+- 2026-08-05: 問卷手機號碼接上會員資料（FR-041 / D43）— 原本號碼只留在 `high_ticket_leads.phone`，lead 被開通或加序列信而變成會員時不會帶過去，會員的 `phone` 永遠是空的。改為在兩個轉換點以 `firstOrCreate` 的建立屬性帶入（既有會員不覆寫，帳號設定填的值權威性較高）。連帶把 `users.phone` 與 `orders.buyer_phone` 從 varchar(20) 加寬到 30，與 lead 表及 Form Request 對齊 —— 順手修掉既有的截斷風險：`FreePurchaseController` 早就收 `max:30`。新增 4 個測試，全套 313 passed。
+- 2026-08-05: US9–US12 完成（T053–T084）— 預約由「姓名 + Email 一步送出」改為四步驟申請 + Email 二次確認 + Zoom。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，可用性由 `lead_id` + `held_until` 推導、不設 status 欄，D33）與 lead 的 12 個申請/確認欄位。送出申請在單一 transaction 內寫 lead 並以 `lockForUpdate` 佔用連續 N 個單位（撞車回 409），寄「預約待確認」信；點信中 token 才 `confirmed_at` 落地、時段轉正、寄原本的確認信、停 drip、送 CAPI（D35 行為變更，既有 5 支測試同步改寫）。逾時釋出走查詢時 lazy 判定，`booking:release-holds` 每 10 分鐘只做資料整理。Zoom 走 Server-to-Server OAuth、憑證放後台「API 設定」頁，確認信改由 `CreateZoomMeetingJob` 帶著 join_url 寄出（D38）；未設定憑證整條跳過（D40），三次失敗仍寄出 fallback 文案並 CC 內部（D39）。前台流程抽成 `HighTicketBookingWizard.vue`，舊表單整組移除（D29/D36）。**規劃外補了兩項驗收缺口**：沒有可預約時段時的候補申請路徑（`POST /course/{course}/waitlist`，伺服器端擋「其實有時段」），以及重新申請的問卷預填 —— 後者改由 `CourseController` 傳 prop 而非開查詢端點，因為以 email 查既有 lead 會變成「這個信箱申請過嗎」的探測器。新增 BookingWizardTest（20）、SlotHoldTest（12）、ZoomMeetingTest（6），全套 309 passed（1607 assertions）、`npm run build` 綠。T084 瀏覽器實測與真實 Zoom 建會議待業主確認。
+
+- 2026-08-05: [draft] 規劃 US9–US12 預約門檻提升 — 一步式表單（姓名 + Email）改為四步驟申請：問卷（手機／職業與從事時長／事業瓶頸／專長／社群連結）→ 五條承諾清單全勾 → 選定顧問時段（15 分鐘為單位，預設 30 分鐘，預約優惠碼 +15 分鐘）→ 資料覆核與不出席警語。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，狀態由 `lead_id` + `held_until` 推導，D33）與 lead 的問卷／確認欄位。送出後時段暫留 1 小時並寄「預約待確認」信，點信中連結完成確認才正式保留、才寄原本的「客製服務預約確認」信、才觸發 drip 停信與 Meta CAPI（D35）；逾時釋出以查詢時 lazy 判定為正確性來源、排程只做清理（D33/FR-035）。確認後串 Zoom Server-to-Server OAuth 自動建會議，`{{zoom_join_url}}` 寫進確認信，憑證放後台「API 設定」頁（D41），未設定即整條跳過、行為等同無 Zoom（D40）。舊表單整組移除不留開關（D36）；黑名單只做警示文案不做系統實作（D37）；改期／取消同步明確不做（D42/FR-040）。status: draft 待審核。
 - 2026-08-04: US8 完成（T041–T052）— `/admin/high-ticket-leads` 合併為兩個 tab：預約名單（原樣搬入 `Components/Admin/Leads/BookingListTab.vue`，行為零變化）與訂閱者名單（新 `SubscriberListTab.vue`，課程改頁內下拉、只列 drip 課）。tab 走 `?tab=` server-side 分派、只組裝該 tab 資料（D24）；訂閱者資料組裝下沉為 `DripService::subscriberPageData()`，`CourseController@subscribers`、`GET /admin/courses/{course}/subscribers`、`Pages/Admin/Courses/Subscribers.vue` 與課程編輯頁「訂閱者」按鈕四者一併移除（FR-025）。訂閱者資料改對銷售顧問開放（D27）。新增 LeadsTabsTest（10 tests），全套 269 passed（1422 assertions）、`npx vite build` 綠。實際 tab 操作待業主以瀏覽器確認。
 - 2026-08-04: 開通功能補強完成（T010–T020）— 後台開通自 D13 起是唯一成交入口，補齊三項比照金流路徑的保證：（1）**覆寫守門**（FR-015/D14）：既有 Purchase 非 `lead_conversion` 且非 `refunded` 時回 409 並附原類型與金額，帶 `force=true` 才放行；守門為 transaction 外的唯讀查詢，被擋下時連 user 都不建。（2）**交易一致性**（FR-016）：user / purchase / lead 三步寫入包 `DB::transaction()`，drip 停信與通知信移到外面各自 try/catch。（3）**成交通知信**（FR-017）：新增第 5 個模板 `lead_converted`（引導以 Email 驗證碼登入），不 CC 任何內部信箱，缺模板或寄送失敗只回 `mail_sent: false` 不擋成交（D15）。Mailable 決策推翻 T010：`HighTicketBookingMail` 更名 `TemplatedMail` 並重用，不另開類別（D23）。前端開通 modal 加既有購買警告卡 + 覆寫確認勾選（D16，比對 `index()` 新傳的 `purchasesByEmail`）。LeadConvertTest 5 → 14 tests，全套 259 passed、`npx vite build` 綠、seeder 後後台可見 5 個模板。
 - 2026-08-03: US7 完成（T028a–T039a）— Email 模板加 `body_type`（markdown / html），HTML 模式原樣寄出、編輯頁加格式切換鈕與 sandbox iframe 預覽；渲染收斂到 `EmailTemplate::renderBody()` / `renderText()`，四個呼叫端不再各自 `new CommonMarkConverter()`，`HighTicketBookingMail` 改收已渲染的 HTML + 純文字；四封模板信改 `multipart/alternative` 補純文字段（FR-020，解 MIME_HTML_ONLY）。另修長期存在的換行 bug：新增 `EmailMarkdownService::toHtml()` 設 `soft_break`，單次 Enter 即真換行，同步套用 008 `BatchEmailMail` 與 010 `SendDripEmailJob`（FR-021 / D21 / D22）。查驗本機既有內容：4 個模板中 3 個、16 篇 drip 小節中 3 篇會多出換行，全部是作者手動斷行卻被吃掉的位置，屬修正。新增 EmailTemplateHtmlModeTest（12 tests），全套 249 passed（1249 assertions）、`npx vite build` 綠。T040 實寄驗證待業主操作。
