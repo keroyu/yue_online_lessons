@@ -138,11 +138,32 @@ function commit() {
   })
 }
 
-function inDrag(dIndex, rIndex) {
+/** First and last selected row, in drawing order regardless of drag direction. */
+const dragBounds = computed(() => {
   const d = drag.value
-  if (!d || d.dIndex !== dIndex) return false
-  return rIndex >= Math.min(d.from, d.to) && rIndex <= Math.max(d.from, d.to)
+  if (!d) return null
+  return { from: Math.min(d.from, d.to), to: Math.max(d.from, d.to) }
+})
+
+function inDrag(dIndex, rIndex) {
+  const b = dragBounds.value
+  return !!b && drag.value.dIndex === dIndex && rIndex >= b.from && rIndex <= b.to
 }
+
+const dragLabel = computed(() => {
+  const b = dragBounds.value
+  if (!b) return { range: '', action: '', minutes: 0 }
+
+  const units = b.to - b.from + 1
+  const day = visibleDays.value[drag.value.dIndex]
+
+  return {
+    create: drag.value.mode === 'create',
+    text: `${day.label}（週${day.weekday}）${props.range.rows[b.from]} – ${props.range.rows[b.to + 1] ?? props.range.end}`,
+    action: drag.value.mode === 'create' ? '釋出時段' : '收回時段',
+    minutes: units * 15,
+  }
+})
 
 // ---- styling ---------------------------------------------------------------
 
@@ -164,9 +185,13 @@ function leadUrl(email) {
   return `/admin/high-ticket-leads?search=${encodeURIComponent(email)}`
 }
 
-/** Only label the hour, so the gutter does not turn into a wall of numbers. */
+/** Hours are the anchor; half hours get a fainter rule and a fainter label. */
 function isHour(label) {
   return label.endsWith(':00')
+}
+
+function isHalf(label) {
+  return label.endsWith(':30')
 }
 </script>
 
@@ -195,6 +220,23 @@ function isHour(label) {
       </button>
     </div>
 
+    <!-- Readout of the gesture in progress. Kept out of the grid: inside it,
+         a one-cell selection is 20px tall and the text has nowhere to go. -->
+    <div class="h-8 mb-1 flex items-center">
+      <div
+        v-if="drag"
+        class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium"
+        :class="dragLabel.create
+          ? 'bg-teal-50 border-teal-300 text-teal-800'
+          : 'bg-rose-50 border-rose-300 text-rose-800'"
+      >
+        <span class="font-bold">{{ dragLabel.action }}</span>
+        <span class="tabular-nums">{{ dragLabel.text }}</span>
+        <span class="opacity-70">{{ dragLabel.minutes }} 分鐘</span>
+      </div>
+      <p v-else class="text-xs text-gray-400">在格線上按住並拖曳以選取時段範圍。</p>
+    </div>
+
     <div class="overflow-x-auto">
       <div
         class="grid min-w-full select-none"
@@ -216,33 +258,56 @@ function isHour(label) {
           </p>
         </div>
 
-        <!-- Time gutter. touch-action stays default here so the page can still
-             be scrolled on a phone, where every cell swallows the gesture. -->
-        <div class="border-r border-gray-200">
-          <div
-            v-for="label in range.rows"
-            :key="`t-${label}`"
-            class="h-5 -mt-2 pr-2 text-right text-[10px] leading-none text-gray-400 tabular-nums"
-          >
-            <span v-if="isHour(label)">{{ label }}</span>
+        <!-- Time gutter. Same row track as the day columns, and each label is
+             lifted onto its gridline with a transform rather than a negative
+             margin — a negative margin on every row would compress the whole
+             column and the labels would drift further out of step the further
+             down you look. py-2 leaves room for the half-row overhang at both
+             ends. touch-action stays default here so the page can still be
+             scrolled on a phone, where every cell swallows the gesture. -->
+        <div
+          class="relative grid border-r border-gray-200 py-2"
+          :style="{ gridTemplateRows: `repeat(${range.rows.length}, 1.25rem)` }"
+        >
+          <div v-for="label in range.rows" :key="`t-${label}`" class="relative">
+            <span
+              v-if="isHour(label) || isHalf(label)"
+              class="absolute right-2 top-0 -translate-y-1/2 leading-none tabular-nums"
+              :class="isHour(label)
+                ? 'text-[11px] font-semibold text-gray-600'
+                : 'text-[10px] text-gray-300'"
+            >
+              {{ label }}
+            </span>
           </div>
+          <!-- Closes the grid: without it the last labelled hour is 21:00 and
+               the four rows below it look like they run past the end. -->
+          <span class="absolute right-2 bottom-2 translate-y-1/2 text-[11px] font-semibold leading-none text-gray-600 tabular-nums">
+            {{ range.end }}
+          </span>
         </div>
 
         <!-- One grid per day: cells underneath, booking blocks on top -->
         <div
           v-for="(day, dIndex) in visibleDays"
           :key="day.date"
-          class="relative grid border-l border-gray-200"
+          class="relative grid border-l border-gray-200 py-2"
           :style="{ gridTemplateRows: `repeat(${range.rows.length}, 1.25rem)` }"
         >
+          <!-- border-t, not border-b: the line belongs to the boundary the
+               label names. On the bottom edge every hour rule would sit 15
+               minutes below its own number. -->
           <div
             v-for="(label, rIndex) in range.rows"
             :key="`${day.date}-${label}`"
-            class="border-b transition-colors touch-none"
+            class="border-t transition-colors touch-none"
             :class="[
               CELL_CLASS[cellState(dIndex, rIndex)],
-              isHour(label) ? 'border-gray-200' : 'border-gray-100',
-              inDrag(dIndex, rIndex) ? 'ring-2 ring-inset ring-brand-teal/60 bg-brand-teal/20' : '',
+              isHour(label) ? 'border-gray-300' : (isHalf(label) ? 'border-gray-200' : 'border-gray-100'),
+              rIndex === range.rows.length - 1 ? 'border-b border-b-gray-300' : '',
+              inDrag(dIndex, rIndex)
+                ? (drag.mode === 'create' ? '!bg-teal-400/60' : '!bg-rose-400/60')
+                : '',
             ]"
             :style="{ gridRow: `${rIndex + 1} / span 1` }"
             :data-day="dIndex"

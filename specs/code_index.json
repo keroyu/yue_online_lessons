@@ -362,6 +362,10 @@
     "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php": [
       "008.us-9"
     ],
+    "app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php": [
+      "011.us-10",
+      "011.us-13"
+    ],
     "app/Http/Requests/Admin/UpdateCouponChainRequest.php": [
       "006.us-5"
     ],
@@ -1526,6 +1530,7 @@
       "011.us-9"
     ],
     "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
+      "011.us-10",
       "011.us-13"
     ],
     "tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php": [

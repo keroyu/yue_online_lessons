@@ -460,55 +460,75 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
       <!-- ── Step 3: slot picker ── -->
       <div v-show="step === 3" class="mt-6 space-y-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">預約優惠碼<span class="text-gray-400">（選填）</span></label>
-          <div class="flex gap-2">
-            <input v-model="form.code" type="text" placeholder="有的話填這裡" :class="inputClass" @keyup.enter="fetchSlots" />
-            <button type="button" class="px-4 rounded-lg text-sm border border-gray-200 text-gray-600 cursor-pointer hover:bg-gray-50 transition shrink-0" @click="fetchSlots">套用</button>
-          </div>
-          <p v-if="codeApplied" class="mt-1 text-sm text-green-700">已套用，諮詢延長為 {{ slotMinutes }} 分鐘。</p>
-          <p v-else-if="codeChecked" class="mt-1 text-sm text-amber-700">此優惠碼無效，將以 30 分鐘進行。</p>
-        </div>
-
         <p v-if="errors.slot" class="text-sm text-red-600">{{ errors.slot }}</p>
 
-        <div v-if="slotsLoading" class="py-8 text-center text-sm text-gray-400">載入時段中…</div>
-
-        <div v-else-if="!hasSlots" class="rounded-lg bg-gray-50 border border-gray-200 p-5 text-center">
-          <p class="text-sm text-gray-600">目前沒有開放的時段。</p>
-          <p class="mt-1 text-xs text-gray-500">送出申請後，新時段釋出時我們會主動以 Email 通知你。</p>
-          <button
-            type="button"
-            :disabled="submitting"
-            class="mt-4 w-full px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="submitWaitlist"
-          >
-            {{ submitting ? '送出中…' : '送出申請並等候通知' }}
-          </button>
-        </div>
-
-        <div v-else class="space-y-4 max-h-80 overflow-y-auto pr-1">
-          <p class="text-xs text-gray-500">一場 {{ slotMinutes }} 分鐘，請選擇開始時間。</p>
-          <div v-for="group in slotGroups" :key="group.date">
-            <p class="text-xs font-semibold text-gray-700 mb-2">{{ group.date }}</p>
-            <div class="flex flex-wrap gap-2">
+        <!-- Code beside the picker, not above it: stacked, it read as one more
+             optional field to scroll past, and the 15 extra minutes it buys is
+             the whole reason somebody was given one. -->
+        <div class="grid gap-4 sm:grid-cols-[minmax(0,14rem)_1fr] sm:items-start">
+          <div class="rounded-xl border-2 border-dashed border-brand-gold/70 bg-brand-gold/10 p-3">
+            <p class="text-sm font-bold text-brand-navy">預約優惠碼</p>
+            <p class="mt-0.5 text-xs text-gray-600">填入可將諮詢延長為 45 分鐘</p>
+            <div class="mt-2 flex gap-2">
+              <input
+                v-model="form.code"
+                type="text"
+                placeholder="選填"
+                class="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase tabular-nums focus:border-brand-teal focus:ring-brand-teal"
+                @keyup.enter="fetchSlots"
+              />
               <button
-                v-for="t in group.times"
-                :key="t.value"
                 type="button"
-                class="px-3 py-2 rounded-lg text-sm border tabular-nums cursor-pointer transition"
-                :class="form.slot_starts_at === t.value
-                  ? 'bg-brand-teal text-white border-brand-teal ring-2 ring-brand-teal/30'
-                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'"
-                @click="form.slot_starts_at = t.value"
+                class="shrink-0 px-3 py-2 rounded-lg text-sm font-semibold bg-brand-navy text-white cursor-pointer hover:opacity-90 transition"
+                @click="fetchSlots"
               >
-                {{ t.label }}
+                套用
               </button>
             </div>
+            <p v-if="codeApplied" class="mt-2 text-xs font-semibold text-green-700">已套用，諮詢延長為 {{ slotMinutes }} 分鐘。</p>
+            <p v-else-if="codeChecked" class="mt-2 text-xs text-amber-700">此優惠碼無效，將以 30 分鐘進行。</p>
+          </div>
+
+          <div>
+            <div v-if="slotsLoading" class="py-8 text-center text-sm text-gray-400">載入時段中…</div>
+
+            <div v-else-if="!hasSlots" class="rounded-lg bg-gray-50 border border-gray-200 p-5 text-center">
+              <p class="text-sm text-gray-600">目前沒有開放的時段。</p>
+              <p class="mt-1 text-xs text-gray-500">送出申請後，新時段釋出時我們會主動以 Email 通知你。</p>
+              <button
+                type="button"
+                :disabled="submitting"
+                class="mt-4 w-full px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="submitWaitlist"
+              >
+                {{ submitting ? '送出中…' : '送出申請並等候通知' }}
+              </button>
+            </div>
+
+            <div v-else class="space-y-4 max-h-80 overflow-y-auto pr-1">
+              <p class="text-xs text-gray-500">一場 {{ slotMinutes }} 分鐘，請選擇開始時間。</p>
+              <div v-for="group in slotGroups" :key="group.date">
+                <p class="text-xs font-semibold text-gray-700 mb-2">{{ group.date }}</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="t in group.times"
+                    :key="t.value"
+                    type="button"
+                    class="px-3 py-2 rounded-lg text-sm border tabular-nums cursor-pointer transition"
+                    :class="form.slot_starts_at === t.value
+                      ? 'bg-brand-teal text-white border-brand-teal ring-2 ring-brand-teal/30'
+                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'"
+                    @click="form.slot_starts_at = t.value"
+                  >
+                    {{ t.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p v-if="errors.slot_starts_at" class="mt-2 text-sm text-red-600">{{ firstError('slot_starts_at') }}</p>
           </div>
         </div>
-
-        <p v-if="errors.slot_starts_at" class="text-sm text-red-600">{{ firstError('slot_starts_at') }}</p>
 
         <div class="flex gap-3">
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(2)">上一步</button>

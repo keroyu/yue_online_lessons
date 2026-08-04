@@ -287,6 +287,59 @@ class ConsultationSlotAdminTest extends TestCase
         $this->assertSame(0, ConsultationSlot::count());
     }
 
+    // ── 預約優惠碼設定 ──────────────────────────────────────────────────
+
+    public function test_the_bonus_codes_setting_is_saved_and_normalised(): void
+    {
+        $this->actingAs($this->admin())
+            ->put('/admin/consultation-slots/settings', ['bonus_codes' => ' vip2026 ;GOLD,  早鳥 '])
+            ->assertRedirect();
+
+        // Stored as one canonical comma-separated string so the field reads back
+        // the way the next admin would have typed it.
+        $this->assertSame(
+            'vip2026, GOLD, 早鳥',
+            \App\Models\SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY)
+        );
+    }
+
+    public function test_a_saved_code_actually_extends_the_consultation(): void
+    {
+        $this->actingAs($this->admin())
+            ->put('/admin/consultation-slots/settings', ['bonus_codes' => 'VIP2026']);
+
+        $this->assertSame(45, $this->slots()->minutesFor('  vip2026 '));
+        $this->assertSame(30, $this->slots()->minutesFor('NOPE'));
+    }
+
+    public function test_clearing_the_setting_disables_every_code(): void
+    {
+        \App\Models\SiteSetting::set(ConsultationSlotService::BONUS_CODES_KEY, 'VIP2026');
+
+        $this->actingAs($this->admin())
+            ->put('/admin/consultation-slots/settings', ['bonus_codes' => '']);
+
+        $this->assertSame(30, $this->slots()->minutesFor('VIP2026'));
+    }
+
+    public function test_the_settings_endpoint_rejects_a_guest(): void
+    {
+        $this->put('/admin/consultation-slots/settings', ['bonus_codes' => 'HACK'])
+            ->assertRedirect('/login');
+
+        $this->assertSame('', (string) \App\Models\SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''));
+    }
+
+    public function test_the_page_exposes_the_current_codes(): void
+    {
+        \App\Models\SiteSetting::set(ConsultationSlotService::BONUS_CODES_KEY, 'VIP2026, GOLD');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/consultation-slots')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('bonusCodes', 'VIP2026, GOLD'));
+    }
+
     public function test_the_week_endpoint_renders_the_grid(): void
     {
         $this->makeSlot('2026-08-05 10:00');

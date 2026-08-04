@@ -18,6 +18,7 @@ owner_files:
   - resources/js/Pages/Admin/ConsultationSlots/Index.vue
   - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
   - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
+  - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
   - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
   - database/migrations/2026_08_05_000001_add_application_fields_to_high_ticket_leads_table.php
   - database/migrations/2026_08_05_000002_create_consultation_slots_table.php
@@ -394,7 +395,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
   五條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 5 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，五條全真才寫入，存了也只會是五個 true（見 D30）
 
-- **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL（`url` 規則）。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）
+- **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）
 
 - **FR-028**: 時段的最小單位為 **15 分鐘**，一列 `consultation_slots` = 一個單位，`starts_at` 為 unique。一次預約佔用 **N 個時間上連續**的單位（N = 諮詢分鐘 ÷ 15）；連續的定義是 `starts_at` 每隔恰好 15 分鐘皆存在對應列且皆可用，缺一不可 —— 中間少一格就不是可選的起始時間
 
@@ -410,7 +411,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 - **FR-030**: 諮詢長度預設 **30 分鐘**（2 單位）；命中預約優惠碼者為 **45 分鐘**（3 單位）。兩個數字為 service 常數（`DEFAULT_MINUTES = 30`、`BONUS_MINUTES = 15`），不做成後台設定 —— 目前只有一種諮詢型態，設定項會比它服務的需求更貴
 
-- **FR-031**: 預約優惠碼存於 `site_settings.high_ticket_booking_bonus_codes`（逗號 / 分號 / 空白分隔多組），解析沿用 `HighTicketBookingService::parseRecipients()` 的同一套切分規則。比對 MUST 忽略大小寫與前後空白。無效碼 MUST NOT 擋下流程（見 D31）。命中的碼原值寫入 `high_ticket_leads.booking_code` 供後台辨識來源
+- **FR-031**: 預約優惠碼存於 `site_settings.high_ticket_booking_bonus_codes`（逗號 / 分號 / 空白分隔多組），解析沿用 `HighTicketBookingService::parseRecipients()` 的同一套切分規則。比對 MUST 忽略大小寫與前後空白。無效碼 MUST NOT 擋下流程（見 D31）。命中的碼原值寫入 `high_ticket_leads.booking_code` 供後台辨識來源。此設定 MUST 可由「諮詢時段」頁的欄位維護（`PUT /admin/consultation-slots/settings`，staff 群組），儲存時正規化為逗號分隔字串；留空即所有碼皆無效
 
 - **FR-032**: 送出申請的寫入（lead upsert → 釋放該 lead 舊單位 → 佔用新單位）MUST 包在單一 `DB::transaction()`，且撈取目標單位時 MUST `lockForUpdate()`。並發搶同一時段時只有一方成立，另一方回 **409**「該時段剛被預約，請重新選擇」。寄信、drip、CAPI 一律留在 transaction 外（沿用 FR-016 的既有原則）
 
@@ -779,10 +780,14 @@ Phase C — 驗證
 - [x] T099 新增測試：`weekView()` 的週邊界與台北時區換算、範圍外既有時段撐開 `range`、同 lead 連續單位併為一個 booking、不連續者不併、`?week=` 不合法時退回本週 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
 - [x] T100 [P] 新增測試：批次收回只刪未佔用者並正確回報 released / skipped、區間內已確認的單位收不掉、批次端點需 staff 權限 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
 - [x] T101 `php artisan test` 全綠（基準 323 passed）＋ `npm run build` exit 0
+- [x] T103 補 FR-031 的後台介面缺口：優惠碼原本只存在 `site_settings`，沒有任何填寫畫面（只能 tinker）。「諮詢時段」頁加設定欄位 + `updateSettings()` + `PUT /admin/consultation-slots/settings` + Form Request，儲存時以 `parseRecipients()` 正規化；新增 5 個測試 in `app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php`
 - [ ] T102 使用者以瀏覽器實測：桌機拖曳釋出 / 拖曳收回 / 拖過已預約格、手機單日檢視的觸控拖曳、週切換、Zoom 連結可點
 
 ## 進度日誌
 
+- 2026-08-05: 社群網址改為 scheme 限定（FR-027）— 原本的 `url` 規則擋得掉沒有 scheme 的 `instagram.com/someone`，但 `ftp://`、`javascript:alert(1)`、`data:text/html,...` 全部放行，而這個值會直接成為後台 Leads 名單裡的 `href`。改為 `url:http,https`，錯誤訊息改寫成「須為完整網址，並以 http:// 或 https:// 開頭」。新增 4 個測試（無 scheme 擋下、三種非 http scheme 擋下、http/https 皆放行、留空仍可）。
+- 2026-08-05: 補 FR-031 的後台介面缺口（T103）— 預約優惠碼從 US10 起就只存在 `site_settings.high_ticket_booking_bonus_codes`，程式讀得到、但**後台從來沒有填它的畫面**，只能 tinker 或直接改 DB。US10 的驗收條款只寫「填入命中 `site_settings...` 的碼」，沒有要求介面，所以測試全綠也照樣漏掉 —— 驗收寫的是資料在哪，不是人怎麼設定它。「諮詢時段」頁加設定欄位（諮詢長度是它改變的東西，放這裡比放「API 設定」語意連貫，比照 `high_ticket_lead_notify_cc` 放在 Email 模板頁的既有作法），儲存時以 `parseRecipients()` 正規化為逗號分隔字串。新增 5 個測試，全套 345 passed。
+- 2026-08-05: 前台第 3 步版面調整 — 優惠碼由時段清單上方的整寬欄位改為左右兩欄（`sm:grid-cols-[minmax(0,14rem)_1fr]`，手機堆疊），金色虛線卡片 + 「填入可將諮詢延長為 45 分鐘」說明。原本只標「（選填）」，看不出填了有什麼好處，那才是它被略過的原因。後台週曆同步修三處版面 bug：頁面缺水平留白（AdminLayout 只給 `py-6`）、時間標籤用 `-mt-2` 導致整欄被負 margin 壓縮（56 格差約 450px，看起來像格子超出 22:00）、格線畫在 `border-b` 使整點線落在自己標籤的下一格。拖曳讀數由格內文字框改為格線上方浮條 —— 格內版本在單格選取時只有 20px 高卻要放兩行字，文字擠爛且蓋住游標。
 - 2026-08-05: US13 完成（T092–T101）— 後台諮詢時段從「日期 + 起訖時間」表單改為週曆格線。`weekView()` 在後端把該週資料組成前端能直接畫的形狀：以**台北日期**分桶（23:30 台北是同日 15:30 UTC，用原始 UTC 分桶會落到錯的欄、跨午夜甚至錯的週）、同 lead 連續單位併為一個 booking 區塊（D46）、顯示範圍 08:00–22:00 會被範圍外的既有時段自動撐開（D47）。新增 `releaseRange()` 與 `DELETE /admin/consultation-slots` 批次收回，只刪未佔用者、佔用者計入 skipped 而非中止整段（FR-045）；路由置於單筆 `{slot}` 之前避免被 model binding 吃掉。前端 `WeekGrid.vue` 以 Pointer Events 單一路徑處理滑鼠與觸控，**拖曳命中改用 `elementFromPoint()`** —— 原本掛 `pointerenter` 在手機上會靜默失效（觸控指標被起始元素捕獲，經過的格不觸發 enter），只選得到一格。舊表單與日期分組清單整組移除，controller 的 `state()` 私有方法一併清掉。新增 ConsultationSlotAdminTest（17 tests），全套 340 passed（1761 assertions）、`npm run build` exit 0。T102 瀏覽器實測待業主確認，尤其手機觸控拖曳與捲動的取捨（見 D45 末段）。
 - 2026-08-05: 規劃 US13 諮詢時段週曆化（已審核，status: building） — 現行「日期 + 起訖時間」表單改為週曆格線（1 格 = 15 分鐘）拖曳操作。**拖曳起點決定意圖**（空白格起手 = 釋出、已釋出格起手 = 收回、已佔用格不可起手，D45），避免「新增能一次拖、收回要點十六次 ✕」的不對稱。預約區塊在**後端聚合**（同 lead 連續單位併為一塊），前端不重寫一次連續性判斷（D46）。顯示範圍固定 08:00–22:00 但會被範圍外的既有時段自動撐開，不做成可設定（D47）。四狀態配色 + 圖例，已確認的區塊直接顯示暱稱與 Zoom 連結；手機改單日檢視。無 schema 變更 —— 新增的只有一個批次收回端點 `DELETE /admin/consultation-slots` 與一種呈現方式。明確不做複製上週 / 週期性班表（D48）。status: draft 待審核。
 - 2026-08-05: 候補回訪連結（FR-042 / D44）— 沒有時段時仍收申請，但「通知新時段」信只帶 `{{user_name}}`／`{{course_name}}`，**連個入口都沒有**（`$availableVariables` 甚至沒有這個 event_type 的條目）；候補者自己回課程頁也是從第 1 步重來，因為問卷預填只給「已登入且 email 相符」的人，而候補者多半不是會員。新增永久 `resume_token`（與一小時到期的 `confirm_token` 分開，D44），信中 `{{booking_url}}` 深連結直接把精靈開在第 3 步、承諾自動視為已接受。身分只憑持有 token，不要求登入；token 與 course 綁定，重複候補沿用同一組使舊信不失效。token 改為**寄送當下補發**（不做全表 backfill），所以 FR-042 之前就在名單上的舊 lead 一樣拿得到深連結；問卷不齊全者仍由第 1 步開始，避免把人丟在後面的步驟而前面是空的。另補一支資料 migration 把變數**附加**到正式站既有模板（seeder 的 `updateOrCreate` 會蓋掉業主改過的文案）。draft 一併帶回當初命中的 `booking_code` —— 少帶這一欄，等於把對方已取得的 45 分鐘悄悄縮回 30。新增 10 個測試，全套 323 passed（1702 assertions）、`npm run build` 綠。

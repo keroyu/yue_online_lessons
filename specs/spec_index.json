@@ -2808,7 +2808,10 @@
         "resume_token",
         "回訪連結",
         "booking_url",
-        "新時段通知"
+        "新時段通知",
+        "優惠碼設定",
+        "bonus codes",
+        "site_settings"
       ],
       "code_files": [
         "app/Models/ConsultationSlot.php",
@@ -2832,7 +2835,9 @@
         "database/seeders/EmailTemplateSeeder.php",
         "database/migrations/2026_08_05_000004_add_resume_token_to_high_ticket_leads_table.php",
         "database/migrations/2026_08_05_000005_add_booking_url_to_slot_available_template.php",
-        "tests/Feature/HighTicket/BookingWizardTest.php"
+        "tests/Feature/HighTicket/BookingWizardTest.php",
+        "app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
       ],
       "status": "implemented"
     },
@@ -2942,7 +2947,8 @@
         "resources/js/Pages/Admin/ConsultationSlots/Index.vue",
         "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
         "routes/web.php",
-        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php",
+        "app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php"
       ],
       "status": "implemented"
     },

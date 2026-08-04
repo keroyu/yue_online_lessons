@@ -28,7 +28,9 @@ class HighTicketBookingRequest extends FormRequest
             'occupation'     => ['required', 'string', 'max:255'],
             'bottleneck'     => ['required', 'string', 'max:2000'],
             'expertise'      => ['required', 'string', 'max:2000'],
-            'social_url'     => ['nullable', 'url', 'max:500'],
+            // Scheme-restricted: the bare `url` rule accepts ftp:, javascript:
+            // and data:, and this string ends up as an href in the admin panel.
+            'social_url'     => ['nullable', 'url:http,https', 'max:500'],
             'commitments'    => ['required', 'array', 'size:5'],
             // Optional on the waitlist route, where there is nothing to pick.
             'slot_starts_at' => [$this->routeIs('course.waitlist') ? 'nullable' : 'required', 'date'],
@@ -46,7 +48,8 @@ class HighTicketBookingRequest extends FormRequest
             'occupation.required'     => '請填寫職業和從事時長',
             'bottleneck.required'     => '請填寫目前的事業瓶頸',
             'expertise.required'      => '請填寫你的知識或能力專長',
-            'social_url.url'          => '社群網址格式不正確（請含 https://）',
+            'social_url.url'          => '社群網址須為完整網址，並以 http:// 或 https:// 開頭',
+            'social_url.max'          => '社群網址不能超過 500 個字',
             'commitments.required'    => '請確認全部的預約前提條件',
             'commitments.size'        => '請確認全部的預約前提條件',
             'slot_starts_at.required' => '請選擇諮詢時段',

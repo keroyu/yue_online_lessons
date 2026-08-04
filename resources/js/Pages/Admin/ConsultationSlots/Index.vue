@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { router, useForm, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import WeekGrid from '@/Components/Admin/ConsultationSlots/WeekGrid.vue'
 
@@ -10,7 +10,14 @@ const props = defineProps({
   week: { type: Object, required: true },
   range: { type: Object, required: true },
   days: { type: Array, default: () => [] },
+  bonusCodes: { type: String, default: '' },
 })
+
+const settings = useForm({ bonus_codes: props.bonusCodes })
+
+function saveSettings() {
+  settings.put('/admin/consultation-slots/settings', { preserveScroll: true })
+}
 
 const page = usePage()
 const flash = computed(() => page.props.flash?.success)
@@ -39,7 +46,7 @@ const LEGEND = [
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-bold text-gray-900">諮詢時段</h1>
@@ -95,6 +102,32 @@ const LEGEND = [
     <div class="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
       <WeekGrid :range="props.range" :days="props.days" @create="create" @release="release" />
     </div>
+
+    <form class="bg-white rounded-xl border border-gray-200 p-4 space-y-2" @submit.prevent="saveSettings">
+      <div>
+        <label class="block text-sm font-semibold text-gray-800">預約優惠碼</label>
+        <p class="mt-0.5 text-xs text-gray-500">
+          填寫這些碼的申請人，諮詢會從 30 分鐘延長為 45 分鐘（多佔 1 格）。多組請以逗號分隔；比對忽略大小寫與前後空白。留空即所有碼皆無效，一律 30 分鐘。
+        </p>
+      </div>
+      <div class="flex gap-2 flex-wrap sm:flex-nowrap">
+        <input
+          v-model="settings.bonus_codes"
+          type="text"
+          placeholder="例：VIP2026, GOLD, 早鳥"
+          class="w-full min-w-0 rounded-lg border-gray-300 text-sm focus:border-brand-teal focus:ring-brand-teal"
+          :class="{ 'border-red-300': settings.errors.bonus_codes }"
+        >
+        <button
+          type="submit"
+          :disabled="settings.processing"
+          class="shrink-0 px-4 py-2 rounded-lg bg-brand-teal text-white text-sm font-medium cursor-pointer hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ settings.processing ? '儲存中…' : '儲存' }}
+        </button>
+      </div>
+      <p v-if="settings.errors.bonus_codes" class="text-sm text-red-600">{{ settings.errors.bonus_codes }}</p>
+    </form>
 
     <p class="text-xs text-gray-400">
       一場諮詢預設佔 2 格（30 分鐘），使用預約優惠碼者佔 3 格（45 分鐘）。已被預約的時段要先到

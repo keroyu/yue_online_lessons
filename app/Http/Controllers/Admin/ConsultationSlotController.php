@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DestroyConsultationSlotsRequest;
 use App\Http\Requests\Admin\StoreConsultationSlotsRequest;
+use App\Http\Requests\Admin\UpdateConsultationSettingsRequest;
 use App\Models\ConsultationSlot;
+use App\Models\SiteSetting;
 use App\Services\ConsultationSlotService;
+use App\Services\HighTicketBookingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -26,8 +29,28 @@ class ConsultationSlotController extends Controller
     {
         return Inertia::render(
             'Admin/ConsultationSlots/Index',
-            $this->slots->weekView($request->query('week'))
+            array_merge($this->slots->weekView($request->query('week')), [
+                'bonusCodes' => (string) SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''),
+            ])
         );
+    }
+
+    /**
+     * The codes that buy an extra 15 minutes (FR-031). They live on this page
+     * because consultation length is what they change, not because they are
+     * site config in general.
+     */
+    public function updateSettings(UpdateConsultationSettingsRequest $request): RedirectResponse
+    {
+        // Normalised on the way in so the field reads back the way the next
+        // admin would have typed it, whatever separator they used.
+        $codes = HighTicketBookingService::parseRecipients((string) $request->input('bonus_codes', ''));
+
+        SiteSetting::set(ConsultationSlotService::BONUS_CODES_KEY, implode(', ', $codes));
+
+        return back()->with('success', $codes === []
+            ? '已清空預約優惠碼，所有諮詢一律 30 分鐘'
+            : '預約優惠碼已更新（共 ' . count($codes) . ' 組）');
     }
 
     public function store(StoreConsultationSlotsRequest $request): RedirectResponse

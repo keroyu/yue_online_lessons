@@ -211,6 +211,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // Consultation availability (011 US10) — same staff audience as the leads list
         Route::get('/consultation-slots', [ConsultationSlotController::class, 'index'])->name('consultation-slots.index');
         Route::post('/consultation-slots', [ConsultationSlotController::class, 'store'])->name('consultation-slots.store');
+        Route::put('/consultation-slots/settings', [ConsultationSlotController::class, 'updateSettings'])->name('consultation-slots.settings');
         // Before the {consultationSlot} route, or the model binding swallows it.
         Route::delete('/consultation-slots', [ConsultationSlotController::class, 'destroyRange'])->name('consultation-slots.destroy-range');
         Route::delete('/consultation-slots/{consultationSlot}', [ConsultationSlotController::class, 'destroy'])->name('consultation-slots.destroy');

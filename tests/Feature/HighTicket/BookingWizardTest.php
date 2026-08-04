@@ -562,6 +562,65 @@ class BookingWizardTest extends TestCase
         $this->assertSame('0912345678', User::where('email', 'applicant@example.com')->first()->phone);
     }
 
+    // ── 社群網址格式（FR-027） ─────────────────────────────────────────────
+
+    /**
+     * A bare "instagram.com/someone" renders as a relative link and 404s on our
+     * own domain, so the scheme is not cosmetic.
+     */
+    public function test_a_social_url_without_a_scheme_is_rejected(): void
+    {
+        Mail::fake();
+        $this->templates();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/waitlist", $this->payload(['social_url' => 'instagram.com/someone']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('social_url');
+
+        $this->assertSame(0, HighTicketLead::count());
+    }
+
+    public function test_a_non_http_scheme_is_rejected(): void
+    {
+        Mail::fake();
+        $this->templates();
+        $course = $this->makeHighTicketCourse();
+
+        foreach (['ftp://example.com', 'javascript:alert(1)', 'data:text/html,hi'] as $bad) {
+            $this->postJson("/course/{$course->id}/waitlist", $this->payload(['social_url' => $bad]))
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('social_url');
+        }
+
+        $this->assertSame(0, HighTicketLead::count());
+    }
+
+    public function test_http_and_https_are_both_accepted(): void
+    {
+        Mail::fake();
+        $this->templates();
+        $course = $this->makeHighTicketCourse();
+
+        foreach (['http://example.com/me', 'https://instagram.com/someone'] as $good) {
+            $this->postJson("/course/{$course->id}/waitlist", $this->payload([
+                'email'      => uniqid() . '@example.com',
+                'social_url' => $good,
+            ]))->assertOk();
+        }
+    }
+
+    /** It stays optional — the questionnaire marks it 如有. */
+    public function test_an_empty_social_url_is_still_fine(): void
+    {
+        Mail::fake();
+        $this->templates();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/waitlist", $this->payload(['social_url' => null]))
+            ->assertOk();
+    }
+
     // ── 候補回訪連結（FR-042） ─────────────────────────────────────────────
 
     public function test_a_waitlisted_application_gets_a_resume_token(): void

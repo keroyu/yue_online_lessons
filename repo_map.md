@@ -525,6 +525,7 @@ main_files:
 - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
 - app/Http/Requests/Admin/EmailTemplateRequest.php
 - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
+- app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/CheckoutRequest.php
 - app/Http/Requests/HighTicketBookingRequest.php

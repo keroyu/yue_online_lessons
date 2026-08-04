@@ -157,8 +157,30 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           預約完成 Email 確認後，系統自動建立該時段的 Zoom 會議，並把連結放進「客製服務預約確認」信的
           <code class="text-gray-600">{{ zoomUrlVariable }}</code> 變數。
           三個欄位任一留空即停用，預約流程照常運作、確認信不含會議連結。
-          憑證請在 Zoom App Marketplace 建立 <strong>Server-to-Server OAuth</strong> App 後取得。
         </p>
+
+        <div class="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600">
+          <p class="font-semibold text-gray-700">憑證怎麼拿</p>
+          <ol class="mt-1.5 space-y-1 list-decimal list-inside">
+            <li>
+              前往
+              <a
+                href="https://marketplace.zoom.us"
+                target="_blank"
+                rel="noopener"
+                class="text-brand-teal underline cursor-pointer hover:opacity-70"
+              >marketplace.zoom.us</a>
+            </li>
+            <li>Develop → Build App → <strong>Server-to-Server OAuth</strong> → Create</li>
+            <li>建立後在 App Credentials 分頁複製 Account ID / Client ID / Client Secret 貼到下方</li>
+            <li>
+              Scopes 分頁勾選「建立會議」的權限
+              （<code class="text-gray-700">meeting:write:admin</code>，新版介面可能顯示為
+              <code class="text-gray-700">meeting:write:meeting:admin</code>），否則系統無法建立會議
+            </li>
+          </ol>
+          <p class="mt-2 text-gray-500">須為付費方案：免費方案有 40 分鐘上限，45 分鐘場（使用預約優惠碼）會被截斷。</p>
+        </div>
 
         <div>
           <label :class="labelClasses">Account ID</label>
