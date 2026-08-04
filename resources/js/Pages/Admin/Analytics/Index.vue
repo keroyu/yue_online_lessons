@@ -36,6 +36,7 @@ const sourceLabels = {
   instagram: 'Instagram',
   threads: 'Threads',
   facebook: 'Facebook',
+  meta: 'Meta（FB/IG 未分）',
   line: 'LINE',
   twitter: 'X / Twitter',
   linkedin: 'LinkedIn',
@@ -48,6 +49,8 @@ const sourceLabels = {
   vimeo: 'Vimeo',
   newsletter: '電子報',
   direct: '直接造訪',
+  // utm_medium declared paid but nothing identified the platform.
+  unknown: '未知平台',
 }
 
 const sourceLabel = (source) => {
@@ -248,6 +251,8 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
     <p class="text-xs text-gray-400 leading-relaxed">
       計數為趨勢參考（爬蟲過濾、同工作階段去重）；金額對帳請以「交易紀錄」為準。管道歸類依最後觸點來源。<br>
       管道歸類自 2026-08 起納入 referrer 網域（沒帶 UTM 的 IG／Threads 流量會歸到「社群」），先前資料未重算，跨這個時間點比較管道數字會有落差；「未分類（舊資料）」即該次改版前寫入的列。<br>
+      2026-08-04 起 <code class="text-gray-500">fbclid</code> 不再視為付費訊號（Meta 對每一次從 FB／IG 點出的外連結都會附加，含自然貼文與簡介連結），歷史的「付費廣告 › Facebook」已一併併入「社群 › Meta（FB/IG 未分）」；跨這個時間點比較「付費廣告」的數字同樣會有落差。<br>
+      付費流量請在廣告網址參數填 <code class="text-gray-500">utm_medium=paid_social</code> 才算得準——付費只認 <code class="text-gray-500">utm_medium</code> 與 Google／TikTok 的廣告 click id，程式不從 <code class="text-gray-500">fbclid</code> 猜。<br>
       IG／FB 的 App 內建瀏覽器常不送 referrer，那部分流量會落在「直接造訪」——要精準追蹤，貼文連結請帶 <code class="text-gray-500">?utm_source=instagram</code>。
     </p>
   </div>

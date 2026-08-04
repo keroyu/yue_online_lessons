@@ -47,6 +47,7 @@ owner_files:
   - database/migrations/2026_07_12_000003_create_post_cta_clicks_table.php
   - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
   - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
+  - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
   - resources/js/Pages/Admin/Analytics/Index.vue
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
@@ -298,17 +299,17 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 本故事補上 source 維度，並把 referrer 網域納入管道歸類，讓每個管道都能展開看到來源明細。
 
 **驗收**：
-- [ ] `course_daily_stats` 新增 `source` varchar(100) default `''`，unique key 由 (course_id, date, channel) 擴為 (course_id, date, channel, source)
-- [ ] `TrafficSourceService` 新增 `PLATFORM_MAP` 為 channel 與 source 的**共同**真相，並提供 `resolveSource(?array): array{channel, source}`；`classifyChannel()` 簽名與值域不變（改為委派 `resolveSource()['channel']`）
-- [ ] 判斷順序：click id → `paid`（`fbclid`→facebook、`gclid`→google、`ttclid`→tiktok）→ `utm_source` 比對 PLATFORM_MAP → `referrer_domain` 正規化（剝 `l.` / `lm.` / `m.` 前綴，`www.` 已在 `extractFromRequest()` 剝除）後比對 → 比不到但有 utm/referrer → `referral` + 原值 → 皆無 → `direct` / `direct`
-- [ ] 管道歸類納入 referrer 網域：無 UTM 的 IG / Threads / Facebook 自然流量由「其他來源」改歸「社群」，`google.com*` 自然搜尋改歸「搜尋引擎」；**舊資料不重算**，規則生效日前後的管道數字會有落差
-- [ ] 四個計數入口（`recordView` / `recordAddToCart` / `recordCheckout` / `recordPurchase`）改為解析一次拿到 channel + source 一起寫入，不各跑一次 regex；`bump()` 尾端加 `string $source = ''`（保住既有呼叫端）
-- [ ] `channelReport()` 單一 query `groupBy('channel','source')`，回傳前在 PHP 組成巢狀 `sources[]`（依 views desc）；管道層數字 = 子列加總
-- [ ] 「各管道成效」表格：管道列可展開／收合子列（`sources.length > 1` 才顯示箭頭並可點；子列縮排 + 淺底），可點列須 `cursor-pointer` + `hover:bg-*`（非 button 元素，見專案規則）
-- [ ] 來源顯示走 label 對照（Instagram / Threads / Facebook / LINE / X / Google / Bing / YouTube / TikTok / 電子報 / 直接造訪）；對照表沒有的 key 直接顯示原值（即 referrer 網域，本身就是資訊）；`source=''` 顯示為「未分類（舊資料）」
-- [ ] `Traffic.vue` 的前端 `classifyChannel()` 同步納入 `referrer_domain`（收斂 D7/D16 預告的前後端漂移），避免同一筆訂單在兩個後台頁被歸到不同管道
-- [ ] 頁尾註腳補上：管道歸類自 2026-08 起納入 referrer、先前資料未重算；IG/FB App 內建瀏覽器常不送 referrer，該類流量會落在「直接造訪」，精準追蹤仍建議貼文連結帶 `?utm_source=instagram`
-- [ ] 測試：`resolveSource()` 各判斷分支、UTM 優先於 referrer、`recordView` 帶 IG referrer 落出 social/instagram 列、`channelReport()` 巢狀正確且子列加總 = 管道層、既有 `classifyChannel` 斷言續過
+- [x] `course_daily_stats` 新增 `source` varchar(100) default `''`，unique key 由 (course_id, date, channel) 擴為 (course_id, date, channel, source)
+- [x] `TrafficSourceService` 新增 `PLATFORM_MAP` 為 channel 與 source 的**共同**真相，並提供 `resolveSource(?array): array{channel, source}`；`classifyChannel()` 簽名與值域不變（改為委派 `resolveSource()['channel']`）
+- [x] 判斷順序（2026-08-04 修正，見 FR-024 / D34）：`utm_medium` 宣告付費 → `paid` → 廣告專屬 click id（`gclid`→google、`ttclid`→tiktok）→ `paid` → `utm_source` 比對 PLATFORM_MAP → `referrer_domain` 正規化（剝 `l.` / `lm.` / `m.` 前綴，`www.` 已在 `extractFromRequest()` 剝除）後比對 → 只剩 `fbclid` → `social` / `meta` → 比不到但有 utm/referrer → `referral` + 原值 → 皆無 → `direct` / `direct`。**`fbclid` 不再代表付費**
+- [x] 管道歸類納入 referrer 網域：無 UTM 的 IG / Threads / Facebook 自然流量由「其他來源」改歸「社群」，`google.com*` 自然搜尋改歸「搜尋引擎」；**舊資料不重算**，規則生效日前後的管道數字會有落差
+- [x] 四個計數入口（`recordView` / `recordAddToCart` / `recordCheckout` / `recordPurchase`）改為解析一次拿到 channel + source 一起寫入，不各跑一次 regex；`bump()` 尾端加 `string $source = ''`（保住既有呼叫端）
+- [x] `channelReport()` 單一 query `groupBy('channel','source')`，回傳前在 PHP 組成巢狀 `sources[]`（依 views desc）；管道層數字 = 子列加總
+- [x] 「各管道成效」表格：管道列可展開／收合子列（`sources.length > 1` 才顯示箭頭並可點；子列縮排 + 淺底），可點列須 `cursor-pointer` + `hover:bg-*`（非 button 元素，見專案規則）
+- [x] 來源顯示走 label 對照（Instagram / Threads / Facebook / LINE / X / Google / Bing / YouTube / TikTok / 電子報 / 直接造訪）；對照表沒有的 key 直接顯示原值（即 referrer 網域，本身就是資訊）；`source=''` 顯示為「未分類（舊資料）」
+- [x] `Traffic.vue` 的前端 `classifyChannel()` 同步納入 `referrer_domain`（收斂 D7/D16 預告的前後端漂移），避免同一筆訂單在兩個後台頁被歸到不同管道；2026-08-04 起連判斷順序一起鏡射 `resolveSource()`（`utm_medium` 付費 → `gclid`/`ttclid` → utm → host → 單獨 `fbclid` 歸社群），付費 pattern 與後端 `PAID_MEDIUM_PATTERN` 同字面
+- [x] 頁尾註腳補上：管道歸類自 2026-08 起納入 referrer、先前資料未重算；IG/FB App 內建瀏覽器常不送 referrer，該類流量會落在「直接造訪」，精準追蹤仍建議貼文連結帶 `?utm_source=instagram`
+- [x] 測試：`resolveSource()` 各判斷分支、UTM 優先於 referrer、`recordView` 帶 IG referrer 落出 social/instagram 列、`channelReport()` 巢狀正確且子列加總 = 管道層、既有 `classifyChannel` 斷言續過
 
 ## Requirements
 
@@ -337,6 +338,9 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-023**: 比對不到平台時 source MUST 存正規化後的 referrer 網域或 `utm_source` 原值（截斷 100 字），不得一律塞 `other` — 網域本身即為可行動的資訊；同時該筆 channel 為 `referral`。
 
 - **FR-021**: 銷售頁有兩種版型 — 一般商品頁與**漏斗落地頁**。落地頁版型 MUST 套用在「drip 連鎖課程」與「隱藏價格的高價課」兩種課型（`isFunnelLanding = (is_high_ticket && high_ticket_hide_price) || is_drip`），隱藏商品規格（堂數、時長、課程類型、講師、觀看限制）與次要動線（免費試閱、頂部價格與主 CTA），只留敘事與下方的領取／預約表單。影片下方的第 3 區整塊 MUST 不渲染 — 規格拿掉後它只剩一個空盒配一顆與下方表單重複的按鈕；相對地懸浮面板 CTA 在落地頁 MUST 一律保留（含已購買者），否則頁面會完全沒有可點的成交入口。此為全站唯一定義，011 引用之
+
+- **FR-024**: `fbclid` MUST NOT 被當成付費流量的判準。Meta 會在**所有**從 Facebook / Instagram 點出的外連結附加 `fbclid` —— 自然貼文、限動、私訊、簡介連結皆然；它指出的是「來自哪個網路」，不是「花了錢」。付費只由兩種訊號認定：(1) `utm_medium` 明示（`cpc` / `ppc` / `paid` / `paid_social` / `ads` / `display` / `banner` / `retargeting`），(2) 廣告專屬 click id（`gclid` 為 Google Ads 自動標記、`ttclid` 為 TikTok 廣告點擊）。單獨的 `fbclid` 歸 `social`，來源在 referrer 與 utm 都無法分辨 FB/IG 時記為 `meta`（「來自 Meta、分不出版面」），**不猜**。
+- **FR-025**: 明示的 UTM MUST 勝過網路自行附加的 click id —— 判斷順序把 `utm_medium` / `utm_source` 排在 click id 之前。否則管理員替連結加 `?utm_source=instagram` 也會被 Meta 事後附加的 `fbclid` 蓋掉，等於失去自行修正歸因的手段
 
 ## 設計決策
 
@@ -376,6 +380,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D31**: channel 與 source 由同一張 `PLATFORM_MAP` 推導，`classifyChannel()` 保留原簽名改為委派 — 兩份規則必然漂移（D16 早已預告要收斂），本次一併把 `Traffic.vue` 的前端鏡像對齊。D7「歸類放前端才好調規則、免部署後端」的理由在彙總表上線後已不成立：彙總表的 channel 是寫入當下算死的，前端改規則救不回歷史資料，規則本來就只能有一份且在後端。
 - **D32**: 舊資料 `source` 留空、不 backfill；管道歸類規則改變後舊資料也不重算 — 原始 referrer 從未逐筆落庫（D13 只存彙總），無從還原。UI 直接標「未分類（舊資料）」比猜一個歸類誠實，頁尾註明規則生效日供跨期間比較時判讀。
 - **D33**: 細分以「管道列展開子列」呈現，不另開一張來源表 — 管道數與子列數都小，同一張表才看得出「Instagram 佔社群多少」的佔比關係；否決獨立表格（同樣的數字要在兩處對照著看）。細分範圍涵蓋所有管道而非只有社群：搜尋拆 Google/Bing、影音拆 YouTube/TikTok、其他來源直接列 referrer 網域，實作成本與只做社群幾乎相同。
+
+- **D34**: `fbclid` 從「付費訊號」降級為「網路訊號」（2026-08-04，推翻 US13 原本「a click id always means paid traffic」的前提）—— 那句註解對 `gclid` 成立、對 `fbclid` 不成立，而且因為 click id 排在判斷順序第一位，IG 簡介連結的自然流量會 100% 被歸成「付費廣告 > Facebook」：一條規則同時錯了 channel 與 source 兩個維度，且管理員連加 UTM 都救不回來。改採「付費只能被宣告、不能被推測」：`utm_medium` 是唯一可靠的付費意圖，廣告專屬的 `gclid` / `ttclid` 保留推測資格。代價是**沒設 UTM 的 Meta 廣告會被歸到自然社群** —— 這無法從 `fbclid` 本身分辨，正確作法是在廣告的網址參數填 `utm_medium=paid_social`，不是讓程式猜。新增 `meta` 平台當「分不出 FB/IG」的誠實桶子，而不是沿用 `facebook` 這個會誤導的名字
 
 ## Schema
 
@@ -478,6 +484,7 @@ Phase D — 驗證
 
 ## 進度日誌
 
+- 2026-08-04: 修正管道歸類把 Instagram 自然流量誤判為付費廣告的 bug（FR-024 / FR-025 / D34）— `fbclid` 不再視為付費訊號（Meta 對所有 FB/IG 外連點擊都會附加，含簡介連結），付費改由 `utm_medium` 或 `gclid` / `ttclid` 認定；判斷順序改為 UTM 優先於 click id，讓加標記能修正歸因；新增 `meta` 來源當 FB/IG 無法分辨時的桶子。`Admin/CourseController@traffic` 的第三份重複規則改呼叫 `resolveSource()`（read-time，歷史訂單自動更正）。歷史日彙總以 `2026_08_04_000001` migration 把 `paid/facebook` 併入 `social/meta`（該組合在舊規則下只可能由 fbclid 產生，不是猜測；原始 fbclid/referrer 未存於日表，故無法還原 IG/FB 細分）。`Traffic.vue` 的前端 `classifyChannel()` 一併鏡射新的判斷順序（原本 `gclid||fbclid||ttclid → 付費廣告` 那行與後端相反，同一筆 IG 自然流量會在「行銷分析」歸社群、在「課程流量」歸付費廣告）；行銷分析頁尾補上這次規則變更與「付費請填 `utm_medium=paid_social`」的說明，`sourceLabels` 補 `unknown`（`utm_medium` 宣告付費但認不出平台時的回傳值）。新增 2 個測試，全套 271 passed。
 - 2026-08-02: US13 完成 — 行銷分析「各管道成效」可展開到來源層。`course_daily_stats` 加 `source` 維度（唯一鍵擴四欄；migration 須**先**建新索引再刪舊的，否則撞 course_id 外鍵的前導欄索引限制 errno 150）；`TrafficSourceService::PLATFORM_MAP` + `resolveSource()` 成為 channel 與 source 的唯一真相，referrer host 以「網域標籤 == 平台 slug」比對（google.com.tw / m.youtube.com / l.instagram.com 免列舉 ccTLD），短網址另走 `HOST_ALIASES`；沒帶 UTM 的 IG/Threads/FB 自然流量由「其他來源」改歸「社群」；`channelReport()` 單一 query 巢狀輸出 sources[]；Traffic.vue 的前端歸類抽 `CHANNEL_RULES` 對齊 server（含 utm 比不到時 fallback 比 host 這個原本漂掉的分支）。新增 8 個測試，全套 231 passed、npm build 綠。
 - 2026-08-02: [draft] 規劃 US13 管道成效來源細分 — `course_daily_stats` 加 `source` 維度（unique key 擴為四欄）、`PLATFORM_MAP` 統一推導 channel+source（D31）、referrer 網域納入管道歸類（無 UTM 的 IG/Threads/FB 自然流量改歸社群）、各管道成效表改為可展開子列（D33）；舊資料不 backfill、不重算（D32）。
 - 2026-08-02: 連結來源追蹤產生的網址改用 slug（根因在 `Course` 只覆寫 `resolveRouteBinding` 沒覆寫 `getRouteKey`，見 004 D15；同時修正 OG url、領取後導向、教室 sales_url 等所有由模型產生的課程連結）；Traffic 與 Gallery 兩頁麵包屑的課程名補上連往編輯頁的連結。新增 CourseUrlSlugTest（3 tests），全套 218 passed。

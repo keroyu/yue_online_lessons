@@ -555,7 +555,12 @@
         "自然流量",
         "organic",
         "展開子列",
-        "drill down"
+        "drill down",
+        "fbclid",
+        "付費誤判",
+        "meta",
+        "utm_medium",
+        "歸因"
       ],
       "code_files": [
         "database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php",
@@ -564,7 +569,9 @@
         "app/Services/SiteAnalyticsService.php",
         "resources/js/Pages/Admin/Analytics/Index.vue",
         "resources/js/Pages/Admin/Courses/Traffic.vue",
-        "tests/Feature/Storefront/SiteAnalyticsTest.php"
+        "tests/Feature/Storefront/SiteAnalyticsTest.php",
+        "database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php",
+        "app/Http/Controllers/Admin/CourseController.php"
       ],
       "status": "implemented"
     },

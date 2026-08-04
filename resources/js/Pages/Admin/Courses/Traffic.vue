@@ -46,8 +46,18 @@ const CHANNEL_RULES = [
   { label: '影音', utm: /youtube|tiktok|vimeo/, host: /(^|\.)(youtube|tiktok|vimeo)\.|^youtu\.be$/ },
 ]
 
+// Same paid pattern as TrafficSourceService::PAID_MEDIUM_PATTERN.
+const PAID_MEDIUM = /^(cpc|ppc|paid|paid[_-]?social|ads?|display|banner|retargeting)$/
+
+// Mirrors TrafficSourceService::resolveSource() (002 FR-024): paid is declared
+// by the advertiser, never inferred from a bare fbclid — Meta appends that to
+// every outbound FB/IG click, organic bio links included.
 function classifyChannel(row) {
-  if (row.gclid || row.fbclid || row.ttclid) return '付費廣告'
+  const medium = (row.utm_medium || '').toLowerCase().trim()
+  if (PAID_MEDIUM.test(medium)) return '付費廣告'
+
+  // gclid / ttclid are only ever emitted by an ad click, so they still imply paid.
+  if (row.gclid || row.ttclid) return '付費廣告'
 
   const src = (row.utm_source || '').toLowerCase()
   const host = (row.referrer_domain || '').toLowerCase()
@@ -58,6 +68,9 @@ function classifyChannel(row) {
   for (const rule of CHANNEL_RULES) {
     if (host && rule.host?.test(host)) return rule.label
   }
+
+  // Meta told us the network but not the surface, and nothing else did either.
+  if (row.fbclid) return '社群'
 
   if (src || host) return '其他'
   return '(直接造訪)'

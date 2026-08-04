@@ -30,6 +30,10 @@ class TrafficSourceService
         'instagram'  => ['social', '/instagram|^ig$/'],
         'threads'    => ['social', '/threads/'],
         'facebook'   => ['social', '/facebook|^fb$/'],
+        // Meta without a surface: a bare fbclid tells us the click came from
+        // Facebook or Instagram but not which one. Kept as its own bucket so the
+        // report never guesses (FR-024).
+        'meta'       => ['social', '/^meta$/'],
         'line'       => ['social', '/^line$/'],
         'twitter'    => ['social', '/twitter|^x$/'],
         'linkedin'   => ['social', '/linkedin/'],
@@ -53,12 +57,20 @@ class TrafficSourceService
         'lnkd.in'  => 'linkedin',
     ];
 
-    /** Click id → [channel, source]; a click id always means paid traffic. */
-    private const CLICK_ID_SOURCES = [
-        'fbclid' => 'facebook',
+    /**
+     * Click ids that are only ever emitted by an ad click, so they do imply paid.
+     *
+     * fbclid is deliberately NOT here (FR-024): Meta appends it to every
+     * outbound click from Facebook and Instagram — organic posts, Stories, DMs
+     * and profile bio links included. It identifies the network, not the spend.
+     */
+    private const PAID_CLICK_IDS = [
         'gclid'  => 'google',
         'ttclid' => 'tiktok',
     ];
+
+    /** utm_medium values that state paid intent — the only reliable paid signal. */
+    private const PAID_MEDIUM_PATTERN = '/^(cpc|ppc|paid|paid[_-]?social|ads?|display|banner|retargeting)$/';
 
     /** Host prefixes that carry no meaning of their own (mobile / link shims). */
     private const HOST_NOISE_PREFIX = '/^(www|l|lm|m)\./';
@@ -157,9 +169,12 @@ class TrafficSourceService
      * Resolve a traffic source into its channel + platform (002 US13, D31).
      * Both dimensions come from PLATFORM_MAP so they can never drift apart.
      *
-     * Order: click id → utm_source → referrer host. An unmatched but present
-     * source keeps its raw value rather than collapsing to "other" (FR-023) —
-     * the host itself is what makes the referral row actionable.
+     * Order (002 FR-024): explicit paid medium → ad-only click id → utm_source
+     * → referrer host → bare fbclid → raw value. Anything the advertiser states
+     * outranks anything a network bolted onto the URL, so tagging a link is
+     * always enough to correct the attribution. An unmatched but present source
+     * keeps its raw value rather than collapsing to "other" (FR-023) — the host
+     * itself is what makes the referral row actionable.
      *
      * @param array<string, mixed>|null $source
      * @return array{channel: string, source: string}
@@ -170,24 +185,28 @@ class TrafficSourceService
             return ['channel' => 'direct', 'source' => 'direct'];
         }
 
-        foreach (self::CLICK_ID_SOURCES as $key => $platform) {
-            if (!empty($source[$key])) {
-                return ['channel' => 'paid', 'source' => $platform];
-            }
-        }
-
-        $utm = strtolower(trim((string) ($source['utm_source'] ?? '')));
-        if ($utm !== '') {
-            foreach (self::PLATFORM_MAP as $slug => [$channel, $pattern]) {
-                if (preg_match($pattern, $utm)) {
-                    return ['channel' => $channel, 'source' => $slug];
-                }
-            }
-        }
-
+        $utm  = strtolower(trim((string) ($source['utm_source'] ?? '')));
         $host = $this->normalizeHost((string) ($source['referrer_domain'] ?? ''));
-        if ($host !== '' && ($slug = $this->matchHost($host)) !== null) {
-            return ['channel' => self::PLATFORM_MAP[$slug][0], 'source' => $slug];
+        $platform = $this->matchPlatform($utm) ?? ($host !== '' ? $this->matchHost($host) : null);
+
+        // Paid is declared, never inferred from a click id alone.
+        if ($this->isPaidMedium($source)) {
+            return ['channel' => 'paid', 'source' => $platform ?? $this->clickIdPlatform($source) ?? 'unknown'];
+        }
+
+        foreach (self::PAID_CLICK_IDS as $key => $adPlatform) {
+            if (!empty($source[$key])) {
+                return ['channel' => 'paid', 'source' => $adPlatform];
+            }
+        }
+
+        if ($platform !== null) {
+            return ['channel' => self::PLATFORM_MAP[$platform][0], 'source' => $platform];
+        }
+
+        // Meta told us the network but not the surface, and nothing else did either.
+        if (!empty($source['fbclid'])) {
+            return ['channel' => 'social', 'source' => 'meta'];
         }
 
         foreach ([$utm, $host] as $raw) {
@@ -197,6 +216,42 @@ class TrafficSourceService
         }
 
         return ['channel' => 'direct', 'source' => 'direct'];
+    }
+
+    /** @param array<string, mixed> $source */
+    private function isPaidMedium(array $source): bool
+    {
+        $medium = strtolower(trim((string) ($source['utm_medium'] ?? '')));
+
+        return $medium !== '' && preg_match(self::PAID_MEDIUM_PATTERN, $medium) === 1;
+    }
+
+    /** Platform implied by whichever click id is present, for paid rows. */
+    private function clickIdPlatform(array $source): ?string
+    {
+        foreach (self::PAID_CLICK_IDS as $key => $platform) {
+            if (!empty($source[$key])) {
+                return $platform;
+            }
+        }
+
+        return !empty($source['fbclid']) ? 'meta' : null;
+    }
+
+    /** @return string|null platform slug matched from a utm_source value */
+    private function matchPlatform(string $utm): ?string
+    {
+        if ($utm === '') {
+            return null;
+        }
+
+        foreach (self::PLATFORM_MAP as $slug => [$channel, $pattern]) {
+            if (preg_match($pattern, $utm)) {
+                return $slug;
+            }
+        }
+
+        return null;
     }
 
     /**

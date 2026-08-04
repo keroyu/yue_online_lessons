@@ -11,6 +11,7 @@ use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Services\CouponChainService;
 use App\Services\DripService;
+use App\Services\TrafficSourceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class CourseController extends Controller
     public function __construct(
         protected DripService $dripService,
         protected CouponChainService $couponChainService,
+        protected TrafficSourceService $trafficSource,
     ) {}
     /**
      * Display a listing of courses.
@@ -396,7 +398,15 @@ class CourseController extends Controller
             ->map(function ($row) {
                 $hasClickId = $row->gclid || $row->fbclid || $row->ttclid;
                 if ($hasClickId) {
-                    $displaySource = $row->utm_source ?: ($row->gclid ? 'google' : ($row->fbclid ? 'facebook' : 'tiktok'));
+                    // fbclid rides on organic Meta clicks too, so the platform is
+                    // resolved by the shared rule instead of being assumed to be
+                    // Facebook (002 FR-024).
+                    $displaySource = $row->utm_source ?: $this->trafficSource->resolveSource([
+                        'gclid'           => $row->gclid,
+                        'fbclid'          => $row->fbclid,
+                        'ttclid'          => $row->ttclid,
+                        'referrer_domain' => $row->referrer_domain,
+                    ])['source'];
                 } elseif ($row->utm_source) {
                     $displaySource = $row->utm_source;
                 } elseif ($row->referrer_domain) {

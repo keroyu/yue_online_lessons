@@ -143,6 +143,7 @@ main_files:
 - database/migrations/2026_07_12_000004_add_first_touch_to_orders_table.php
 - database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php
 - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
+- database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
 - resources/css/app.css
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/BlogArticles.vue

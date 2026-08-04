@@ -90,7 +90,11 @@ class SiteAnalyticsTest extends TestCase
     {
         $s = app(TrafficSourceService::class);
 
-        $this->assertSame('paid', $s->classifyChannel(['fbclid' => 'x']));
+        // fbclid is appended to EVERY outbound Meta click (organic posts, bio
+        // links, DMs) — it means "came from Meta", never "came from an ad".
+        $this->assertSame('social', $s->classifyChannel(['fbclid' => 'x']));
+        $this->assertSame('paid', $s->classifyChannel(['gclid' => 'x']));
+        $this->assertSame('paid', $s->classifyChannel(['utm_medium' => 'cpc']));
         $this->assertSame('social', $s->classifyChannel(['utm_source' => 'Instagram']));
         $this->assertSame('search', $s->classifyChannel(['utm_source' => 'google']));
         $this->assertSame('email', $s->classifyChannel(['utm_source' => 'newsletter']));
@@ -133,13 +137,67 @@ class SiteAnalyticsTest extends TestCase
     {
         $s = app(TrafficSourceService::class);
 
-        $this->assertSame(['channel' => 'paid', 'source' => 'facebook'], $s->resolveSource(['fbclid' => 'x']));
+        // Bare fbclid: we know it is Meta but not which surface — say so.
+        $this->assertSame(['channel' => 'social', 'source' => 'meta'], $s->resolveSource(['fbclid' => 'x']));
         $this->assertSame(['channel' => 'paid', 'source' => 'google'], $s->resolveSource(['gclid' => 'x']));
         $this->assertSame(['channel' => 'paid', 'source' => 'tiktok'], $s->resolveSource(['ttclid' => 'x']));
         $this->assertSame(['channel' => 'social', 'source' => 'threads'], $s->resolveSource(['utm_source' => 'Threads']));
         $this->assertSame(['channel' => 'email', 'source' => 'newsletter'], $s->resolveSource(['utm_source' => 'edm']));
         $this->assertSame(['channel' => 'direct', 'source' => 'direct'], $s->resolveSource(null));
         $this->assertSame(['channel' => 'direct', 'source' => 'direct'], $s->resolveSource([]));
+    }
+
+    /**
+     * 002 FR-024 — fbclid must not imply paid traffic.
+     *
+     * Meta appends fbclid to every outbound click from Facebook and Instagram,
+     * including organic bio links. Treating it as an ad signal buried all
+     * organic IG traffic under 付費廣告 > Facebook.
+     */
+    public function test_fbclid_is_not_a_paid_signal(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        // The reported bug: IG bio click, Meta appends fbclid, referrer is the
+        // Instagram link shim. Must land in social/instagram, not paid/facebook.
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'instagram'],
+            $s->resolveSource(['fbclid' => 'x', 'referrer_domain' => 'l.instagram.com'])
+        );
+
+        // Same click without a referrer (in-app browser strips it).
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'meta'],
+            $s->resolveSource(['fbclid' => 'x'])
+        );
+
+        // An explicit tag must beat the click id Meta bolted on afterwards —
+        // otherwise the admin cannot correct the attribution by tagging links.
+        $this->assertSame(
+            ['channel' => 'social', 'source' => 'instagram'],
+            $s->resolveSource(['fbclid' => 'x', 'utm_source' => 'instagram'])
+        );
+
+        // Genuine ad traffic is identified by the medium the advertiser sets.
+        $this->assertSame(
+            ['channel' => 'paid', 'source' => 'instagram'],
+            $s->resolveSource(['fbclid' => 'x', 'utm_source' => 'instagram', 'utm_medium' => 'paid_social'])
+        );
+        $this->assertSame(
+            ['channel' => 'paid', 'source' => 'meta'],
+            $s->resolveSource(['fbclid' => 'x', 'utm_medium' => 'cpc'])
+        );
+    }
+
+    /** gclid / ttclid are only ever emitted by ad clicks, so they stay paid. */
+    public function test_google_and_tiktok_click_ids_remain_paid(): void
+    {
+        $s = app(TrafficSourceService::class);
+
+        $this->assertSame(['channel' => 'paid', 'source' => 'google'], $s->resolveSource(['gclid' => 'x']));
+        $this->assertSame(['channel' => 'paid', 'source' => 'tiktok'], $s->resolveSource(['ttclid' => 'x']));
+        // Organic Google search keeps its own channel.
+        $this->assertSame(['channel' => 'search', 'source' => 'google'], $s->resolveSource(['referrer_domain' => 'google.com']));
     }
 
     public function test_resolve_source_keeps_raw_value_when_platform_is_unknown(): void
