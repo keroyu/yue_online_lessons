@@ -45,7 +45,7 @@ const form = reactive({
   bottleneck: props.draft?.bottleneck || '',
   expertise: props.draft?.expertise || '',
   social_url: props.draft?.social_url || '',
-  code: '',
+  code: props.draft?.code || '',
   slot_starts_at: '',
 })
 

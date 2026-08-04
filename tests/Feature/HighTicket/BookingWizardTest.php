@@ -682,6 +682,38 @@ class BookingWizardTest extends TestCase
                 ->where('bookingDraft.phone', '0912345678'));
     }
 
+    /** Dropping the code would quietly shorten a 45-minute consultation. */
+    public function test_a_resume_token_brings_back_the_bonus_code(): void
+    {
+        Mail::fake();
+        $this->templates();
+        \App\Models\SiteSetting::set(ConsultationSlotService::BONUS_CODES_KEY, 'VIP2026');
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/waitlist", $this->payload(['code' => 'VIP2026']))->assertOk();
+        $lead = HighTicketLead::first();
+        $this->assertSame('VIP2026', $lead->booking_code);
+
+        $this->get("/course/{$course->slug}?resume={$lead->resume_token}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('bookingDraft.code', 'VIP2026'));
+    }
+
+    /** An invalid code was never stored, so there is nothing to resurrect. */
+    public function test_an_invalid_code_is_not_carried_back(): void
+    {
+        Mail::fake();
+        $this->templates();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/waitlist", $this->payload(['code' => 'NOPE']))->assertOk();
+        $lead = HighTicketLead::first();
+
+        $this->get("/course/{$course->slug}?resume={$lead->resume_token}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('bookingDraft.code', null));
+    }
+
     public function test_a_wrong_resume_token_prefills_nothing(): void
     {
         Mail::fake();

@@ -176,6 +176,10 @@ class CourseController extends Controller
             'bottleneck' => $lead->bottleneck,
             'expertise'  => $lead->expertise,
             'social_url' => $lead->social_url,
+            // Only ever stored when it was valid, so restoring it cannot
+            // resurrect a dead code — and dropping it would quietly shorten a
+            // 45-minute consultation the applicant already qualified for.
+            'code'       => $lead->booking_code,
         ];
     }
 
