@@ -178,6 +178,12 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
               （<code class="text-gray-700">meeting:write:admin</code>，新版介面可能顯示為
               <code class="text-gray-700">meeting:write:meeting:admin</code>），否則系統無法建立會議
             </li>
+            <li>
+              <strong>最後到 Activation 分頁按「Activate your app」</strong> —— 新建的 app 預設是停用的，
+              沒啟用會拿不到 token（Zoom 回
+              <code class="text-gray-700">The app has been disabled by the developer</code>）。
+              按鈕若是灰的，代表上一步的 Scopes 還沒勾齊
+            </li>
           </ol>
           <p class="mt-2 text-gray-500">須為付費方案：免費方案有 40 分鐘上限，45 分鐘場（使用預約優惠碼）會被截斷。</p>
         </div>

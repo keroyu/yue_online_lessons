@@ -108,6 +108,30 @@ class ZoomMeetingTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    /**
+     * A bare status code sent a real diagnosis down the drain once: Zoom's 400
+     * body said 「The app has been disabled by the developer」 while the log only
+     * showed "400", which reads like bad credentials.
+     */
+    public function test_a_token_failure_logs_the_reason_zoom_gave(): void
+    {
+        $this->configureZoom();
+        Http::fake([
+            'zoom.us/oauth/token' => Http::response(
+                ['reason' => 'The app has been disabled by the developer', 'error' => 'invalid_client'],
+                400
+            ),
+        ]);
+
+        try {
+            app(ZoomMeetingService::class)->token();
+            $this->fail('應該要丟出例外');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('400', $e->getMessage());
+            $this->assertStringContainsString('disabled by the developer', $e->getMessage());
+        }
+    }
+
     public function test_confirming_creates_the_meeting_and_mails_the_link(): void
     {
         Mail::fake();

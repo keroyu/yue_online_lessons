@@ -186,10 +186,18 @@ function isSelected(booking) {
   return selected.value?.booking.lead_id === booking.lead_id
 }
 
-/** Blocks are placed by grid-row so a 30-minute booking is one box, not two. */
+/**
+ * Blocks are placed by grid-row so a 30-minute booking is one box, not two.
+ *
+ * gridColumn is explicit and must stay that way: the cell for the same row
+ * already sits in column 1, and an auto-placed item whose slot is taken does
+ * not overlap — it makes an implicit column 2 and renders there, which puts the
+ * block outside the day entirely. Pinning both to column 1 is what lets the
+ * block (z-10) sit on top of the cells, which is the whole design.
+ */
 function blockStyle(booking) {
   const from = props.range.rows.indexOf(booking.start)
-  return { gridRow: `${from + 1} / span ${booking.units}` }
+  return { gridRow: `${from + 1} / span ${booking.units}`, gridColumn: '1' }
 }
 
 // ---- drag ------------------------------------------------------------------
@@ -346,31 +354,37 @@ function isHalf(label) {
       </button>
     </div>
 
-    <!-- Readout of the gesture in progress. Kept out of the grid: inside it,
-         a one-cell selection is 20px tall and the text has nowhere to go. -->
-    <div class="min-h-8 mb-1 flex items-center">
-      <div
-        v-if="drag"
-        class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium"
-        :class="dragLabel.create
-          ? 'bg-teal-50 border-teal-300 text-teal-800'
-          : 'bg-rose-50 border-rose-300 text-rose-800'"
-      >
-        <span class="font-bold">{{ dragLabel.action }}</span>
-        <span class="tabular-nums">{{ dragLabel.text }}</span>
-        <span class="opacity-70">{{ dragLabel.minutes }} 分鐘</span>
+    <!-- Left: what the current gesture will do. Right: the selected booking.
+         Split rather than one slot so the action panel sits at the top-right of
+         the grid, where the eye already is after clicking a block. -->
+    <div class="min-h-8 mb-1 flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div
+          v-if="drag"
+          class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium"
+          :class="dragLabel.create
+            ? 'bg-teal-50 border-teal-300 text-teal-800'
+            : 'bg-rose-50 border-rose-300 text-rose-800'"
+        >
+          <span class="font-bold">{{ dragLabel.action }}</span>
+          <span class="tabular-nums">{{ dragLabel.text }}</span>
+          <span class="opacity-70">{{ dragLabel.minutes }} 分鐘</span>
+        </div>
+
+        <p v-else class="text-xs text-gray-400">
+          在格線上按住並拖曳以選取時段範圍；點一筆預約可改期或取消。
+        </p>
       </div>
 
       <!-- Picking a new time. The buttons live here rather than inside the
-           block: a 30-minute booking is 40px tall and already holds three
-           lines. -->
+           block: a 30-minute booking is 28px tall and holds one line. -->
       <div
-        v-else-if="rescheduling"
+        v-if="rescheduling"
         class="flex flex-wrap items-center gap-2 rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-1.5 text-xs"
       >
         <span class="font-bold text-brand-teal">改期中</span>
         <span class="text-gray-700">
-          點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔），可選的格子已標示
+          點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔）
         </span>
         <button
           type="button"
@@ -381,15 +395,35 @@ function isHalf(label) {
         </button>
       </div>
 
+      <!-- Carries everything the block gave up when it shrank to one line. -->
       <div
         v-else-if="selected"
-        class="flex flex-wrap items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs"
+        class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs"
       >
         <span class="font-semibold text-indigo-900">{{ selected.booking.name }}</span>
         <span class="tabular-nums text-indigo-800">
           {{ selectedDayLabel }} {{ selected.booking.start }}–{{ selected.booking.end }}
         </span>
         <span class="text-indigo-700 opacity-80">{{ STATE_LABEL[selected.booking.state] }}</span>
+        <a
+          v-if="selected.booking.email"
+          :href="leadUrl(selected.booking.email)"
+          class="text-indigo-700 underline cursor-pointer hover:opacity-70"
+        >
+          名單
+        </a>
+        <a
+          v-if="selected.booking.zoom_join_url"
+          :href="selected.booking.zoom_join_url"
+          target="_blank"
+          rel="noopener"
+          class="font-medium text-indigo-700 underline cursor-pointer hover:opacity-70"
+        >
+          Zoom
+        </a>
+        <span v-if="selected.booking.held_until" class="text-amber-700">
+          保留至 {{ selected.booking.held_until }}
+        </span>
         <button
           type="button"
           :disabled="selected.booking.state !== 'booked'"
@@ -407,7 +441,7 @@ function isHalf(label) {
           取消預約
         </button>
         <span v-if="selected.booking.state !== 'booked'" class="text-gray-500">
-          暫留中的申請尚未確認，逾時會自動釋出
+          尚未確認，逾時會自動釋出
         </span>
         <button
           type="button"
@@ -417,27 +451,23 @@ function isHalf(label) {
           關閉
         </button>
       </div>
-
-      <p v-else class="text-xs text-gray-400">
-        在格線上按住並拖曳以選取時段範圍；點一筆預約可改期或取消。
-      </p>
     </div>
 
     <div class="overflow-x-auto">
       <div
-        class="grid min-w-full select-none"
-        :style="{ gridTemplateColumns: `3.5rem repeat(${visibleDays.length}, minmax(5.5rem, 1fr))` }"
+        class="grid w-fit mx-auto select-none border border-gray-200"
+        :style="{ gridTemplateColumns: `2.75rem repeat(${visibleDays.length}, ${isNarrow ? '1fr' : '6.5rem'})` }"
       >
         <!-- Header row -->
-        <div class="sticky top-0 z-20 bg-white border-b border-gray-200" />
+        <div class="sticky top-0 z-20 bg-gray-50 border-b border-gray-200" />
         <div
           v-for="day in visibleDays"
           :key="`h-${day.date}`"
-          class="sticky top-0 z-20 bg-white border-b border-l border-gray-200 px-2 py-2 text-center"
+          class="sticky top-0 z-20 bg-gray-50 border-b border-l border-gray-200 px-1 py-1 text-center"
         >
-          <p class="text-xs text-gray-400">週{{ day.weekday }}</p>
+          <p class="text-[10px] leading-none text-gray-400">週{{ day.weekday }}</p>
           <p
-            class="text-sm font-semibold"
+            class="mt-0.5 text-xs font-semibold leading-none"
             :class="day.is_today ? 'text-brand-teal' : (day.is_past ? 'text-gray-300' : 'text-gray-900')"
           >
             {{ day.label }}
@@ -452,23 +482,23 @@ function isHalf(label) {
              ends. touch-action stays default here so the page can still be
              scrolled on a phone, where every cell swallows the gesture. -->
         <div
-          class="relative grid border-r border-gray-200 py-2"
-          :style="{ gridTemplateRows: `repeat(${range.rows.length}, 1.25rem)` }"
+          class="relative grid grid-cols-1 py-2"
+          :style="{ gridTemplateRows: `repeat(${range.rows.length}, 0.875rem)` }"
         >
           <div v-for="label in range.rows" :key="`t-${label}`" class="relative">
             <span
               v-if="isHour(label) || isHalf(label)"
-              class="absolute right-2 top-0 -translate-y-1/2 leading-none tabular-nums"
+              class="absolute right-1.5 top-0 -translate-y-1/2 leading-none tabular-nums"
               :class="isHour(label)
-                ? 'text-[11px] font-semibold text-gray-600'
-                : 'text-[10px] text-gray-300'"
+                ? 'text-[10px] font-semibold text-gray-600'
+                : 'text-[9px] text-gray-300'"
             >
               {{ label }}
             </span>
           </div>
           <!-- Closes the grid: without it the last labelled hour is 21:00 and
                the four rows below it look like they run past the end. -->
-          <span class="absolute right-2 bottom-2 translate-y-1/2 text-[11px] font-semibold leading-none text-gray-600 tabular-nums">
+          <span class="absolute right-1.5 bottom-2 translate-y-1/2 text-[10px] font-semibold leading-none text-gray-600 tabular-nums">
             {{ range.end }}
           </span>
         </div>
@@ -477,8 +507,8 @@ function isHalf(label) {
         <div
           v-for="(day, dIndex) in visibleDays"
           :key="day.date"
-          class="relative grid border-l border-gray-200 py-2"
-          :style="{ gridTemplateRows: `repeat(${range.rows.length}, 1.25rem)` }"
+          class="relative grid grid-cols-1 border-l border-gray-200 py-2"
+          :style="{ gridTemplateRows: `repeat(${range.rows.length}, 0.875rem)` }"
         >
           <!-- border-t, not border-b: the line belongs to the boundary the
                label names. On the bottom edge every hour rule would sit 15
@@ -494,12 +524,11 @@ function isHalf(label) {
                   : 'bg-gray-100 cursor-not-allowed')
                 : CELL_CLASS[cellState(dIndex, rIndex)],
               isHour(label) ? 'border-gray-300' : (isHalf(label) ? 'border-gray-200' : 'border-gray-100'),
-              rIndex === range.rows.length - 1 ? 'border-b border-b-gray-300' : '',
               inDrag(dIndex, rIndex)
                 ? (drag.mode === 'create' ? '!bg-teal-400/60' : '!bg-rose-400/60')
                 : '',
             ]"
-            :style="{ gridRow: `${rIndex + 1} / span 1` }"
+            :style="{ gridRow: `${rIndex + 1} / span 1`, gridColumn: '1' }"
             :data-day="dIndex"
             :data-row="rIndex"
             @pointerdown.prevent="startDrag(dIndex, rIndex)"
@@ -510,10 +539,10 @@ function isHalf(label) {
           <div
             v-for="booking in day.bookings"
             :key="`${day.date}-${booking.start}-${booking.lead_id}`"
-            class="z-10 m-px rounded border px-1.5 py-1 overflow-hidden text-[11px] leading-tight cursor-pointer transition"
+            class="z-10 m-px flex min-w-0 items-center overflow-hidden rounded border px-1 text-[10px] leading-none cursor-pointer transition"
             :class="[
               BLOCK_CLASS[booking.state],
-              isSelected(booking) ? 'ring-2 ring-offset-1 ring-brand-teal' : 'hover:brightness-95',
+              isSelected(booking) ? 'ring-2 ring-brand-teal' : 'hover:brightness-95',
               rescheduling && !isSelected(booking) ? 'opacity-40' : '',
               // Blocks sit above the cells, so while picking they would swallow
               // the click on any row they cover — including the booking's own,
@@ -521,31 +550,14 @@ function isHalf(label) {
               rescheduling ? 'pointer-events-none' : '',
             ]"
             :style="blockStyle(booking)"
+            :title="`${booking.start}–${booking.end} ${booking.name}（${STATE_LABEL[booking.state]}）`"
             @click="selectBooking(dIndex, booking)"
           >
-            <p class="font-semibold tabular-nums">{{ booking.start }}–{{ booking.end }}</p>
-            <a
-              v-if="booking.email"
-              :href="leadUrl(booking.email)"
-              class="block truncate underline cursor-pointer hover:opacity-70"
-              @click.stop
-            >
-              {{ booking.name }}
-            </a>
-            <p v-if="booking.state === 'held'" class="truncate opacity-80">
-              保留至 {{ booking.held_until }}
-            </p>
-            <a
-              v-if="booking.zoom_join_url"
-              :href="booking.zoom_join_url"
-              target="_blank"
-              rel="noopener"
-              class="block truncate font-medium underline cursor-pointer hover:opacity-70"
-              @click.stop
-            >
-              Zoom
-            </a>
-            <p v-else class="truncate opacity-70">{{ STATE_LABEL[booking.state] }}</p>
+            <!-- Name only. A 30-minute block is 28px tall, so anything more
+                 clips; the time is already implied by where the block sits and
+                 how tall it is, and everything else lives in the panel you get
+                 by clicking. -->
+            <span class="truncate font-semibold">{{ booking.name }}</span>
           </div>
         </div>
       </div>

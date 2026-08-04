@@ -57,62 +57,66 @@ const eventTypeLabels = {
         </div>
       </div>
 
-      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5 mb-6">
-        <h2 class="text-sm font-semibold text-gray-900">預約通知收件者（CC）</h2>
-        <p class="mt-1 text-sm text-gray-500">
-          高價課預約確認信會同時副本給這些信箱。多筆用逗號分隔，留空則使用預設值
-          <span class="font-mono text-gray-600">{{ notifyCcDefault }}</span>。
-        </p>
-        <div class="mt-3 flex flex-col sm:flex-row gap-3">
-          <input
-            v-model="notifyCcForm.notify_cc"
-            type="text"
-            :placeholder="notifyCcDefault"
-            class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-            :class="{ 'border-red-300': notifyCcForm.errors.notify_cc }"
-            @keyup.enter="saveNotifyCc"
-          />
-          <button
-            type="button"
-            :disabled="notifyCcForm.processing"
-            class="shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-teal hover:bg-brand-navy transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="saveNotifyCc"
-          >
-            {{ notifyCcForm.processing ? '儲存中...' : '儲存' }}
-          </button>
+      <!-- Two related-but-distinct routing settings. Side by side from lg up:
+           full width each was a 1200px row holding one short email address. -->
+      <div class="grid gap-6 lg:grid-cols-2 mb-6">
+        <div class="flex flex-col bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5">
+          <h2 class="text-sm font-semibold text-gray-900">預約通知收件者（CC）</h2>
+          <p class="mt-1 text-sm text-gray-500">
+            高價課預約確認信會同時副本給這些信箱。多筆用逗號分隔，留空則使用預設值
+            <span class="font-mono text-gray-600">{{ notifyCcDefault }}</span>。
+          </p>
+          <div class="mt-auto flex flex-col sm:flex-row gap-3 pt-3">
+            <input
+              v-model="notifyCcForm.notify_cc"
+              type="text"
+              :placeholder="notifyCcDefault"
+              class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              :class="{ 'border-red-300': notifyCcForm.errors.notify_cc }"
+              @keyup.enter="saveNotifyCc"
+            />
+            <button
+              type="button"
+              :disabled="notifyCcForm.processing"
+              class="shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-teal hover:bg-brand-navy transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="saveNotifyCc"
+            >
+              {{ notifyCcForm.processing ? '儲存中...' : '儲存' }}
+            </button>
+          </div>
+          <p v-if="notifyCcForm.errors.notify_cc" class="mt-2 text-sm text-red-600">{{ notifyCcForm.errors.notify_cc }}</p>
         </div>
-        <p v-if="notifyCcForm.errors.notify_cc" class="mt-2 text-sm text-red-600">{{ notifyCcForm.errors.notify_cc }}</p>
-      </div>
 
-      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5 mb-6">
-        <h2 class="text-sm font-semibold text-gray-900">客服信箱</h2>
-        <p class="mt-1 text-sm text-gray-500">
-          系統信件與模板中請訪客聯絡的對外信箱。可在下方任何模板插入
-          <code class="font-mono text-gray-600">&#123;&#123;support_email&#125;&#125;</code>
-          變數，改這裡就會一起更新。留空則使用預設值
-          <span class="font-mono text-gray-600">{{ supportEmailDefault }}</span>。
-          <br>
-          <span class="text-gray-400">這與上方的「預約通知收件者」是不同角色：那是誰接手這條 lead，這是訪客有問題時寫給誰。</span>
-        </p>
-        <div class="mt-3 flex flex-col sm:flex-row gap-3">
-          <input
-            v-model="supportEmailForm.support_email"
-            type="email"
-            :placeholder="supportEmailDefault"
-            class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-            :class="{ 'border-red-300': supportEmailForm.errors.support_email }"
-            @keyup.enter="saveSupportEmail"
-          />
-          <button
-            type="button"
-            :disabled="supportEmailForm.processing"
-            class="shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-teal hover:bg-brand-navy transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="saveSupportEmail"
-          >
-            {{ supportEmailForm.processing ? '儲存中...' : '儲存' }}
-          </button>
+        <div class="flex flex-col bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5">
+          <h2 class="text-sm font-semibold text-gray-900">客服信箱</h2>
+          <p class="mt-1 text-sm text-gray-500">
+            系統信件與模板中請訪客聯絡的對外信箱。可在下方任何模板插入
+            <code class="font-mono text-gray-600">&#123;&#123;support_email&#125;&#125;</code>
+            變數，改這裡就會一起更新。留空則使用預設值
+            <span class="font-mono text-gray-600">{{ supportEmailDefault }}</span>。
+            <br>
+            <span class="text-gray-400">這與「預約通知收件者」是不同角色：那是誰接手這條 lead，這是訪客有問題時寫給誰。</span>
+          </p>
+          <div class="mt-auto flex flex-col sm:flex-row gap-3 pt-3">
+            <input
+              v-model="supportEmailForm.support_email"
+              type="email"
+              :placeholder="supportEmailDefault"
+              class="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              :class="{ 'border-red-300': supportEmailForm.errors.support_email }"
+              @keyup.enter="saveSupportEmail"
+            />
+            <button
+              type="button"
+              :disabled="supportEmailForm.processing"
+              class="shrink-0 px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand-teal hover:bg-brand-navy transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="saveSupportEmail"
+            >
+              {{ supportEmailForm.processing ? '儲存中...' : '儲存' }}
+            </button>
+          </div>
+          <p v-if="supportEmailForm.errors.support_email" class="mt-2 text-sm text-red-600">{{ supportEmailForm.errors.support_email }}</p>
         </div>
-        <p v-if="supportEmailForm.errors.support_email" class="mt-2 text-sm text-red-600">{{ supportEmailForm.errors.support_email }}</p>
       </div>
 
       <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">

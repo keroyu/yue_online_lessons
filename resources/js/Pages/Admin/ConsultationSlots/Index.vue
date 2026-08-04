@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import WeekGrid from '@/Components/Admin/ConsultationSlots/WeekGrid.vue'
@@ -22,6 +22,30 @@ function saveSettings() {
 const page = usePage()
 const flash = computed(() => page.props.flash?.success)
 const errors = computed(() => Object.values(page.props.errors ?? {}))
+
+// Toast rather than a banner in the flow: every drag produces one, and a block
+// appearing above the grid pushed the whole calendar down — so the cell you
+// were aiming at next had moved by the time the response came back.
+const toast = ref(null)
+let toastTimer = null
+
+function showToast(text, tone) {
+  clearTimeout(toastTimer)
+  toast.value = { text, tone }
+  toastTimer = setTimeout(() => { toast.value = null }, 4000)
+}
+
+function syncToast() {
+  if (errors.value.length > 0) {
+    showToast(errors.value[0], 'error')
+  } else if (flash.value) {
+    showToast(flash.value, 'success')
+  }
+}
+
+onMounted(syncToast)
+watch([flash, errors], syncToast)
+onUnmounted(() => clearTimeout(toastTimer))
 
 const VISIT = { preserveScroll: true, preserveState: false }
 
@@ -54,7 +78,28 @@ const LEGEND = [
 </script>
 
 <template>
+  <!-- Outside the spaced container on purpose: as a child of `space-y-4` it
+       would count as the first element and shift everything below it down by
+       one gap the moment it appeared — the very jump it exists to prevent. -->
+  <Transition
+    enter-active-class="transition duration-150 ease-out"
+    enter-from-class="translate-y-2 opacity-0"
+    leave-active-class="transition duration-150 ease-in"
+    leave-to-class="translate-y-2 opacity-0"
+  >
+    <div
+      v-if="toast"
+      class="fixed bottom-6 right-6 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg"
+      :class="toast.tone === 'error'
+        ? 'bg-red-50 border-red-200 text-red-800'
+        : 'bg-green-50 border-green-200 text-green-800'"
+    >
+      {{ toast.text }}
+    </div>
+  </Transition>
+
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-xl font-bold text-gray-900">諮詢時段</h1>
@@ -88,14 +133,6 @@ const LEGEND = [
           下一週 →
         </button>
       </div>
-    </div>
-
-    <div v-if="flash" class="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
-      {{ flash }}
-    </div>
-
-    <div v-for="message in errors" :key="message" class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-      {{ message }}
     </div>
 
     <div class="flex items-center justify-between gap-4 flex-wrap">

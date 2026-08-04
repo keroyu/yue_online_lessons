@@ -139,7 +139,14 @@ class ZoomMeetingService
                     ]);
 
                 if (!$response->successful()) {
-                    throw new \RuntimeException('Zoom token request failed: ' . $response->status());
+                    // The body is the whole diagnosis and it used to be dropped:
+                    // a bare "400" looks like bad credentials, while Zoom is
+                    // actually saying things like 「The app has been disabled by
+                    // the developer」 or naming a missing scope. Zoom does not
+                    // echo credentials in these bodies.
+                    throw new \RuntimeException(
+                        'Zoom token request failed: ' . $response->status() . ' ' . $response->body()
+                    );
                 }
 
                 return (string) $response->json('access_token');
