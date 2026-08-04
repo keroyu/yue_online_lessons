@@ -30,3 +30,7 @@ Homestead.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+# Local agent tooling (AGENTS.md mirrors CLAUDE.md for other agent CLIs)
+/AGENTS.md
+/.agents
