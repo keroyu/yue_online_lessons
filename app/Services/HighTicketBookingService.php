@@ -100,8 +100,9 @@ class HighTicketBookingService
     /**
      * Re-booking the same course with the same email is the same person, not a
      * second lead — refresh the existing row so the follow-up history stays in
-     * one place. A lead that was closed (cold / moved to the drip sequence) is
-     * live again; contacted and converted keep whatever the admin set.
+     * one place. A lead that was closed (cold / moved to the drip sequence) or
+     * silent (no_response) is live again — re-booking IS the response;
+     * contacted and converted keep whatever the admin set.
      */
     private function recordLead(Course $course, array $data): HighTicketLead
     {
@@ -123,7 +124,7 @@ class HighTicketBookingService
         $lead->update([
             'name' => $data['name'],
             'booked_at' => now(),
-            'status' => $lead->status === 'closed' ? 'pending' : $lead->status,
+            'status' => in_array($lead->status, ['closed', 'no_response'], true) ? 'pending' : $lead->status,
         ]);
 
         return $lead;

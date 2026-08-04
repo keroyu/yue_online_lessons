@@ -42,7 +42,8 @@ const props = defineProps({
 // Status config — single source of truth for every status affordance on this
 // page: the square switcher in each row AND the filter pills above the table,
 // so one colour always means one status.
-// Letters: P=Pending 待聯繫 / C=Contacted 已聯繫 / D=Deal 已成交 / X=Closed 已關閉
+// Letters: P=Pending 待聯繫 / C=Contacted 已聯繫 / N=No response 未回應
+//          / D=Deal 已成交 / X=Closed 已關閉
 // (class strings are written out in full so Tailwind's scanner keeps them)
 const statusButtons = [
   {
@@ -62,6 +63,15 @@ const statusButtons = [
     idle: 'bg-blue-50 text-blue-700 hover:bg-blue-200',
     tabActive: 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600',
     tabIdle: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
+  },
+  {
+    value: 'no_response',
+    letter: 'N',
+    label: '未回應',
+    active: 'bg-orange-500 text-white ring-orange-500',
+    idle: 'bg-orange-50 text-orange-700 hover:bg-orange-200',
+    tabActive: 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600',
+    tabIdle: 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100',
   },
   {
     value: 'converted',
@@ -162,7 +172,7 @@ const canNotifySlot = computed(() =>
 
 const canSubscribeDrip = computed(() =>
   selectedIds.value.length > 0 &&
-  selectedLeads.value.every(l => ['pending', 'closed'].includes(l.status))
+  selectedLeads.value.every(l => ['pending', 'no_response', 'closed'].includes(l.status))
 )
 
 // Inline status update
@@ -554,7 +564,7 @@ const copySelectedEmails = async () => {
             <th class="hidden md:table-cell w-[173px] px-4 py-3 text-left">課程</th>
             <th class="whitespace-nowrap px-4 py-3 text-left">
               狀態
-              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待 / C聯 / D成 / X關</span>
+              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待 / C聯 / N未回 / D成 / X關</span>
             </th>
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>

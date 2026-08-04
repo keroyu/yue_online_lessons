@@ -54,7 +54,7 @@ class HighTicketLeadService
     public function subscribeDrip(array $leadIds, int $dripCourseId): array
     {
         $leads = HighTicketLead::whereIn('id', $leadIds)
-            ->whereIn('status', ['pending', 'closed'])
+            ->whereIn('status', ['pending', 'no_response', 'closed'])
             ->get();
 
         $dispatched = 0;

@@ -159,7 +159,7 @@ class HighTicketLeadController extends Controller
     public function updateStatus(Request $request, HighTicketLead $lead): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,contacted,converted,closed'],
+            'status' => ['required', 'in:pending,contacted,no_response,converted,closed'],
         ]);
 
         $lead->update($validated);
