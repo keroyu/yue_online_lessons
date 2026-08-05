@@ -189,8 +189,11 @@ class ConsultantAssignmentTest extends TestCase
 
     // ----------------------------------------------------------- CC rules
 
-    /** FR-062: the confirmation is the only mail that copies anybody. */
-    public function test_the_confirmation_ccs_support_and_the_consultant(): void
+    /**
+     * FR-062: the confirmation copies the consultant and nobody else — the
+     * support list was a second copy of the same news.
+     */
+    public function test_the_confirmation_ccs_only_the_consultant(): void
     {
         $consultant = $this->consultant(['email' => 'consultant@example.com']);
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'ops@example.com');
@@ -210,10 +213,12 @@ class ConsultantAssignmentTest extends TestCase
 
             $cc = collect($mail->cc)->pluck('address');
 
-            return $cc->contains('ops@example.com') && $cc->contains('consultant@example.com');
+            return $cc->contains('consultant@example.com')
+                && !$cc->contains('ops@example.com');
         });
     }
 
+    /** The support list survives only here: an unassigned booking must still land somewhere. */
     public function test_an_unassigned_booking_still_ccs_support(): void
     {
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'ops@example.com');

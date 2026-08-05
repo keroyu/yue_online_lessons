@@ -729,9 +729,15 @@ class HighTicketBookingService
     }
 
     /**
-     * Who is copied on the one mail that still has a CC (FR-062): the support
-     * list plus whoever owns this booking. An unassigned booking still reaches
-     * support — no consultant does not mean nobody needs to know.
+     * Who is copied on the one mail that still has a CC (FR-062).
+     *
+     * The consultant alone: they own the booking, and the support list was a
+     * second copy of the same news for whoever also happens to be that person.
+     *
+     * The support list survives only as a fallback for an unassigned booking —
+     * without it a booking on a slot nobody claimed would reach no inbox at
+     * all, and "nobody was told" is the failure mode this whole module keeps
+     * having to design against.
      *
      * @param array<int, string> $extraCc
      * @return array<int, string>
@@ -742,11 +748,9 @@ class HighTicketBookingService
             ? \App\Models\User::whereKey($lead->consultant_id)->value('email')
             : null;
 
-        return array_values(array_unique(array_filter(array_merge(
-            $this->notifyCc(),
-            $extraCc,
-            $consultant ? [$consultant] : [],
-        ))));
+        $recipients = $consultant ? [$consultant] : $this->notifyCc();
+
+        return array_values(array_unique(array_filter(array_merge($recipients, $extraCc))));
     }
 
     /**

@@ -63,7 +63,9 @@ const eventTypeLabels = {
         <div class="flex flex-col bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg p-4 sm:p-5">
           <h2 class="text-sm font-semibold text-gray-900">預約通知收件者（CC）</h2>
           <p class="mt-1 text-sm text-gray-500">
-            高價課預約確認信會同時副本給這些信箱。多筆用逗號分隔，留空則使用預設值
+            預約確認信原則上只副本給<strong>該時段的負責顧問</strong>；這份清單只在
+            <strong>該筆預約沒有指派顧問</strong>時作為後備，避免沒有任何人收到通知。
+            多筆用逗號分隔，留空則使用預設值
             <span class="font-mono text-gray-600">{{ notifyCcDefault }}</span>。
           </p>
           <div class="mt-auto flex flex-col sm:flex-row gap-3 pt-3">
