@@ -7,6 +7,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Zoom Server-to-Server OAuth (011 US12).
@@ -46,13 +47,20 @@ class ZoomMeetingService
     /**
      * Create a scheduled meeting for a confirmed booking.
      *
+     * `$hostEmail` puts the meeting on that consultant's Zoom account, which
+     * requires them to hold a seat on the same account (011 FR-063 / D60).
+     * Until seats are bought that lookup 404s, which is an expected transitional
+     * state, not a failure — we fall back to the app owner and log a warning.
+     *
      * @return array{meeting_id: string, join_url: string}
      * @throws \RuntimeException when Zoom rejects the request
      */
-    public function createMeeting(CarbonInterface $startsAt, int $minutes, string $topic): array
+    public function createMeeting(CarbonInterface $startsAt, int $minutes, string $topic, ?string $hostEmail = null): array
     {
+        $host = $hostEmail !== null && trim($hostEmail) !== '' ? trim($hostEmail) : 'me';
+
         $response = $this->client()
-            ->post(self::API_BASE . '/users/me/meetings', [
+            ->post(self::API_BASE . '/users/' . $host . '/meetings', [
                 'topic'      => $topic,
                 'type'       => 2, // scheduled
                 'start_time' => Carbon::instance($startsAt)->utc()->format('Y-m-d\TH:i:s\Z'),
@@ -63,6 +71,17 @@ class ZoomMeetingService
                     'waiting_room'     => false,
                 ],
             ]);
+
+        // 404 means Zoom has no such user — the consultant has no seat yet.
+        // warning, not error: during the transition this is the normal state,
+        // and error-level noise would bury a real Zoom outage.
+        if ($response->status() === 404 && $host !== 'me') {
+            Log::warning('Zoom: host has no seat on this account, falling back to the owner', [
+                'host' => $host,
+            ]);
+
+            return $this->createMeeting($startsAt, $minutes, $topic);
+        }
 
         if (!$response->successful()) {
             throw new \RuntimeException('Zoom meeting create failed: ' . $response->status() . ' ' . $response->body());

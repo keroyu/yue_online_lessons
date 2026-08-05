@@ -5,9 +5,13 @@ const props = defineProps({
   // { start, end, rows: ['08:00', '08:15', …] }
   range: { type: Object, required: true },
   days: { type: Array, required: true },
+  consultants: { type: Array, default: () => [] },
+  canPickConsultant: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['create', 'release', 'reschedule', 'cancel'])
+const emit = defineEmits(['create', 'release', 'reschedule', 'cancel', 'assign'])
+
+const consultantLabel = (c) => c?.nickname || c?.email || `#${c?.id}`
 
 // ---- responsive: one column on phones (011 US13) ---------------------------
 
@@ -424,6 +428,20 @@ function isHalf(label) {
         <span v-if="selected.booking.held_until" class="text-amber-700">
           保留至 {{ selected.booking.held_until }}
         </span>
+        <label v-if="canPickConsultant" class="flex items-center gap-1 text-indigo-800">
+          顧問
+          <select
+            :value="selected.booking.consultant_id ?? ''"
+            class="rounded border-indigo-300 py-0 text-xs cursor-pointer focus:border-brand-teal focus:ring-brand-teal"
+            @change="emit('assign', { lead_id: selected.booking.lead_id, consultant_id: $event.target.value || null })"
+          >
+            <option value="">未指派</option>
+            <option v-for="c in consultants" :key="c.id" :value="c.id">{{ consultantLabel(c) }}</option>
+          </select>
+        </label>
+        <span v-else-if="selected.booking.consultant" class="text-indigo-800">
+          顧問：{{ selected.booking.consultant }}
+        </span>
         <button
           type="button"
           :disabled="selected.booking.state !== 'booked'"
@@ -529,6 +547,7 @@ function isHalf(label) {
                 : '',
             ]"
             :style="{ gridRow: `${rIndex + 1} / span 1`, gridColumn: '1' }"
+            :title="visibleDays[dIndex].owners?.[label] ? `${label} · ${visibleDays[dIndex].owners[label]}` : ''"
             :data-day="dIndex"
             :data-row="rIndex"
             @pointerdown.prevent="startDrag(dIndex, rIndex)"

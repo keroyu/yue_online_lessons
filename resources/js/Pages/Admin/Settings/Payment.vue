@@ -186,6 +186,12 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
             </li>
           </ol>
           <p class="mt-2 text-gray-500">須為付費方案：免費方案有 40 分鐘上限，45 分鐘場（使用預約優惠碼）會被截斷。</p>
+          <p class="mt-2 text-gray-500">
+            <strong class="text-gray-700">關於顧問主持會議</strong>：時段指派給銷售顧問後，系統會嘗試把會議建在該顧問的
+            Zoom 帳號下，前提是<strong>他在你的 Zoom 帳號底下有自己的席次</strong>（Zoom 按席次計費）。
+            還沒有席次時會自動改建在擁有者帳號下，預約流程不受影響 ——
+            但顧問不會是主持人，不能錄影、結束會議或管理等候室。
+          </p>
         </div>
 
         <div>

@@ -111,10 +111,12 @@ class BookingLeadRecordTest extends TestCase
         $this->bookingTemplate();
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'sales@example.com, boss@example.com');
 
-        $this->applyForBooking($this->makeHighTicketCourse());
+        // The confirmation is the only mail that copies anybody (FR-062).
+        $this->applyAndConfirm($this->makeHighTicketCourse());
 
-        Mail::assertSent(\App\Mail\BookingVerifyMail::class, function ($mail) {
-            return $mail->hasCc('sales@example.com')
+        Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
+            return str_contains($mail->emailSubject, '預約確認')
+                && $mail->hasCc('sales@example.com')
                 && $mail->hasCc('boss@example.com')
                 && !$mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]);
         });
@@ -126,9 +128,10 @@ class BookingLeadRecordTest extends TestCase
         $this->bookingTemplate();
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, '');
 
-        $this->applyForBooking($this->makeHighTicketCourse());
+        $this->applyAndConfirm($this->makeHighTicketCourse());
 
-        Mail::assertSent(\App\Mail\BookingVerifyMail::class, fn ($mail) => $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
+        Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '預約確認')
+            && $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
     }
 
     public function test_admin_can_save_the_cc_list_and_bad_emails_are_rejected(): void

@@ -77,7 +77,7 @@ class ConsultationSlotService
      *
      * @return array{created: int, skipped: int}
      */
-    public function generate(CarbonInterface $from, CarbonInterface $to): array
+    public function generate(CarbonInterface $from, CarbonInterface $to, ?int $consultantId = null): array
     {
         $cursor = Carbon::instance($from)->utc();
         $end = Carbon::instance($to)->utc();
@@ -89,9 +89,15 @@ class ConsultationSlotService
             $exists = ConsultationSlot::where('starts_at', $cursor)->exists();
 
             if ($exists) {
+                // Skipped rather than reassigned: the unit already belongs to
+                // somebody, and dragging over it must not quietly take it (D57 —
+                // one shared calendar means one owner per unit).
                 $skipped++;
             } else {
-                ConsultationSlot::create(['starts_at' => $cursor->copy()]);
+                ConsultationSlot::create([
+                    'starts_at'     => $cursor->copy(),
+                    'consultant_id' => $consultantId,
+                ]);
                 $created++;
             }
 
@@ -124,7 +130,7 @@ class ConsultationSlotService
         $tz = self::DISPLAY_TZ;
         $monday = $this->parseWeek($week);
 
-        $rows = ConsultationSlot::with('lead:id,name,email,zoom_join_url')
+        $rows = ConsultationSlot::with(['lead:id,name,email,zoom_join_url', 'consultant:id,nickname,email'])
             ->where('starts_at', '>=', $monday->copy()->utc())
             ->where('starts_at', '<', $monday->copy()->addDays(7)->utc())
             ->orderBy('starts_at')
@@ -136,6 +142,7 @@ class ConsultationSlotService
         // Monday, the wrong week (D32).
         $free = [];
         $busy = [];
+        $owners = [];
         $earliest = self::GRID_START_MINUTE;
         $latest = self::GRID_END_MINUTE;
 
@@ -149,6 +156,10 @@ class ConsultationSlotService
 
             if ($row->isAvailable()) {
                 $free[$date][] = $local->format('H:i');
+                // Ownership of an open slot is tooltip-only in v1 (D57): with
+                // one consultant a visual lane is noise, with several it would
+                // need lanes rather than a colour.
+                $owners[$date][$local->format('H:i')] = $row->consultant?->nickname ?: $row->consultant?->email;
             } else {
                 $busy[$date][] = ['row' => $row, 'local' => $local];
             }
@@ -168,6 +179,7 @@ class ConsultationSlotService
                 'is_today' => $day->isSameDay($today),
                 'is_past'  => $day->lt($today),
                 'free'     => $free[$date] ?? [],
+                'owners'   => $owners[$date] ?? [],
                 'bookings' => $this->mergeBookings($busy[$date] ?? []),
             ];
         }
@@ -220,6 +232,7 @@ class ConsultationSlotService
                 $current = [
                     'lead_id'    => $row->lead_id,
                     'lead'       => $row->lead,
+                    'consultant' => $row->consultant,
                     'start'      => $local->copy(),
                     'units'      => 0,
                     'held_until' => $row->held_until,
@@ -254,6 +267,8 @@ class ConsultationSlotService
             'name'          => $b['lead']?->name,
             'email'         => $b['lead']?->email,
             'zoom_join_url' => $b['lead']?->zoom_join_url,
+            'consultant_id' => $b['consultant']?->id,
+            'consultant'    => $b['consultant']?->nickname ?: $b['consultant']?->email,
             'held_until'    => $held?->copy()->timezone(self::DISPLAY_TZ)->format('H:i'),
         ];
     }
@@ -439,6 +454,17 @@ class ConsultationSlotService
             'held_until' => null,
             'updated_at' => now(),
         ]);
+
+        // Snapshot, not a live lookup (FR-061 / D58): the slot can be reassigned
+        // later, and cancelling hands it back to the pool where somebody else
+        // may claim it — either would rewrite who handled a settled booking.
+        $consultantId = ConsultationSlot::where('lead_id', $lead->id)
+            ->orderBy('starts_at')
+            ->value('consultant_id');
+
+        if ($consultantId !== null) {
+            $lead->update(['consultant_id' => $consultantId]);
+        }
     }
 
     /**

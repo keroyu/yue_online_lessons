@@ -13,6 +13,7 @@ class HighTicketLead extends Model
         'name',
         'email',
         'course_id',
+        'consultant_id',
         'status',
         'notified_count',
         'last_notified_at',
@@ -51,6 +52,17 @@ class HighTicketLead extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * The consultant who owns this booking (011 US15 / FR-061).
+     *
+     * Snapshotted at confirmation rather than read through the slot: the slot
+     * can be reassigned, and a cancellation hands it back to the pool (D58).
+     */
+    public function consultant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'consultant_id');
     }
 
     /** Slots this lead holds — 2 rows for a 30-minute consultation, 3 for 45. */

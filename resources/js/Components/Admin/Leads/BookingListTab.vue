@@ -642,6 +642,7 @@ const copySelectedEmails = async () => {
             </th>
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
+            <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">負責顧問</th>
             <th class="hidden lg:table-cell px-4 py-3 text-left">預約時間</th>
           </tr>
         </thead>
@@ -754,6 +755,10 @@ const copySelectedEmails = async () => {
               </template>
               <span v-else class="text-gray-400">—</span>
             </td>
+            <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
+              <span v-if="lead.consultant">{{ lead.consultant.nickname || lead.consultant.email }}</span>
+              <span v-else class="text-gray-400">—</span>
+            </td>
             <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-500">
               {{ formatDateTime(lead.booked_at) }}
             </td>
@@ -762,7 +767,7 @@ const copySelectedEmails = async () => {
           <!-- Application questionnaire (011 US9) — rows from the old one-step
                form simply have nothing to show. -->
           <tr v-if="openDetailIds.includes(lead.id)" class="bg-gray-50">
-            <td colspan="8" class="px-6 py-4">
+            <td colspan="9" class="px-6 py-4">
               <div v-if="hasApplication(lead)" class="grid gap-3 sm:grid-cols-2 text-sm">
                 <div v-for="row in applicationRows(lead)" :key="row.label">
                   <p class="text-xs font-medium text-gray-500">{{ row.label }}</p>
@@ -780,7 +785,7 @@ const copySelectedEmails = async () => {
           </template>
 
           <tr v-if="leads.data?.length === 0">
-            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+            <td colspan="9" class="px-6 py-12 text-center text-gray-500">
               {{ filters.status ? '沒有符合條件的 Leads' : '尚無預約記錄' }}
             </td>
           </tr>

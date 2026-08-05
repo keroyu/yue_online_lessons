@@ -64,6 +64,9 @@ owner_files:
   - database/seeders/EmailTemplateSeeder.php
   - tests/Feature/HighTicket/LeadConvertTest.php
   - tests/Feature/HighTicket/LeadSubscribeDripTest.php
+  - database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php
+  - database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php
+  - tests/Feature/HighTicket/ConsultantAssignmentTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
@@ -402,6 +405,29 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [x] 所有新增的可點元素 `cursor-pointer` + hover 回饋；改期／取消為破壞性操作，MUST 二次確認
 - [x] 測試：ics 的 UID / SEQUENCE / UTC 格式 / CRLF / 中文 folding 不斷字 / escape、Zoom 未啟用時仍附件、改期的併發與自我重疊、改期後 `join_url` 不變、取消釋出單位並轉狀態、Zoom 404 視同成功、兩封信的 CC 與附件 method（皆以 fake HTTP client）
 
+### User Story 15 - 諮詢時段指派銷售顧問 (Priority: P2)
+
+顧問要能順手開自己的時段、並且**在自己的信箱裡收到成立的預約**，才可能自己安排行程。
+目前所有預約通知都寄到同一組客服／管理員信箱，顧問要嘛看不到、要嘛得靠人轉寄；
+而時段本身也不知道是誰開的，週曆上只有一片沒有歸屬的空格。
+
+同時把系統信的 CC 收斂到只剩一封：現在待確認、改期、取消都會副本給內部，
+但改期與取消本來就是人與人直接寫信談出來的結果，系統再補一封只是噪音。
+
+**驗收**：
+- [ ] `consultation_slots` 新增 `consultant_id`（nullable）。staff（管理員或銷售顧問）在週曆上拖曳建立時段時，MUST 自動指派為「目前選定的歸屬對象」，預設是自己
+- [ ] 週曆頁 MUST 有「時段歸屬」選擇器：管理員可選任一 staff（管理員 + 銷售顧問），銷售顧問 MUST 只能選自己（欄位鎖定顯示自己的名字）
+- [ ] 管理員 MUST 能變更**既有預約**的顧問：選取預約區塊後在面板上切換，一次請求
+- [ ] 已釋出但未被預約的格子，其歸屬 MUST 至少以 `title` tooltip 可查（v1 不做視覺分軌，見 D57）
+- [ ] 確認預約當下 MUST 把該時段的 `consultant_id` **快照**到 `high_ticket_leads.consultant_id`；此後時段被改派或釋放都不影響已成立的歸屬（見 D58）
+- [ ] Leads 名單的預約 tab MUST 顯示該筆的負責顧問（無指派時顯示「—」）
+- [ ] **CC 規則簡化**：只有「客製服務預約確認」信 CC，收件為 **客服清單 + 該筆的顧問**；「預約待確認」「已改期」「已取消」三封 MUST NOT CC 任何人（見 D59）
+- [ ] 顧問為 null 時，確認信 MUST 仍 CC 客服清單 —— 沒有指派不等於沒有人要知道
+- [ ] `ZoomMeetingService::createMeeting()` MUST 可指定主持人 Email（`POST /v2/users/{email}/meetings`）；未指定、或該 Email 在 Zoom 帳號下不存在（404）時 MUST fallback 回 `me` 並記 log，預約流程不受影響（見 D60）
+- [ ] 顧問沒有 Zoom 席次時系統行為 MUST 完全等同現況 —— 會議建在擁有者帳號下，功能不因此中斷
+- [ ] 所有新增的可點元素 `cursor-pointer` + hover 回饋
+- [ ] 測試：拖曳建立時自動帶入歸屬、顧問只能指派給自己、管理員可改派既有預約、確認時快照到 lead、確認信 CC 客服 + 顧問、無顧問時只 CC 客服、其餘三封信完全無 CC、Zoom 指定主持人成功、主持人 404 時 fallback 回 me
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -539,6 +565,26 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   **與 `high_ticket_lead_notify_cc` 是不同角色**（沿用 FR-014 的區分）：那是「誰接手這條 lead」，這是「訪客有問題寫給誰」；兩者共用同一頁但文案 MUST 說明差別。
   **全站唯一真相**：`app/` 與 `resources/` MUST NOT 出現硬寫的客服地址，唯一例外是 `SiteSetting::DEFAULT_SUPPORT_EMAIL` 常數本身；前台以 Inertia shared prop `supportEmail` 取用（法律條款 modal 掛在 footer，沒有單一 controller 可傳），後端一律 `SiteSetting::supportEmail()`。此條 MUST 由測試掃描原始碼把關 —— 一個只有一半應用程式遵守的設定，比沒有設定更糟
 
+- **FR-060**: `consultation_slots.consultant_id`（nullable、index、無外鍵，比照 `lead_id` 的既有作法）記錄時段歸屬。staff 建立時段時 MUST 帶入請求中的歸屬對象；**銷售顧問 MUST 只能指派給自己**（後端驗證，前端鎖定只是提示）；管理員可指定任一 staff。
+  **明確限制**：`starts_at` 維持**全域 unique**，所以這是**一本共用行事曆**上的歸屬標記，不是每位顧問各一本 —— 同一個 15 分鐘單位全系統只會有一列，兩位顧問無法同時開放同一時刻（見 D57）
+
+- **FR-061**: 確認預約當下 MUST 把時段的 `consultant_id` 快照到 `high_ticket_leads.consultant_id`。快照而非即時查詢的理由：時段可被改派，取消後更會被釋放並可能重新指派給別人，屆時「這筆預約是誰負責的」就再也查不出來（見 D58）
+
+- **FR-062**: 系統信的 CC MUST 收斂為**只有一封**：
+  | 信件 | CC |
+  |------|-----|
+  | 客製服務預約確認（`high_ticket_booking_confirmation`） | 客服清單（FR-014）**＋ 該筆的顧問** |
+  | 預約待確認（`BookingVerifyMail`） | **無** |
+  | 預約已改期 / 已取消 | **無** |
+
+  顧問為 null 時確認信 MUST 仍 CC 客服清單。**這是行為變更**：管理員不再收到每一筆「有人送出申請」的副本，只會收到已確認成立的預約 —— 未確認的申請仍完整存在於 Leads 名單的 `pending`，沒有資料遺失（見 D59）
+
+- **FR-063**: `ZoomMeetingService::createMeeting()` MUST 接受選填的主持人 Email，指定時打 `POST /v2/users/{email}/meetings`。該 Email 在 Zoom 帳號下不存在時 Zoom 回 **404**，此時 MUST fallback 至 `/users/me/meetings` 並記 warning —— 顧問還沒有 Zoom 席次是**預期中的過渡狀態**，不是錯誤，預約流程 MUST NOT 因此中斷（見 D60）
+
+- **FR-059**: 第 4 步的送出 MUST 為**兩段式**（2026-08-05，實測踩到）。第一次按「送出申請」MUST NOT 直接送出，而是顯示醒目的 Email 覆核區塊（大字體印出 `form.email`）並**倒數 10 秒**，倒數期間按鈕停用、顯示剩餘秒數；倒數結束後按鈕改為「Email 正確，確認送出」，第二次按下才真的送出。區塊 MUST 提供「這個 Email 不對，回去修改」直接跳回第 1 步。離開第 4 步或修改 Email MUST 重置整個流程。
+  **送出後的畫面 MUST 逐字印出收件地址**（含候補路徑），並說明地址錯誤的後果。
+  理由：打錯 Email 是**靜默失敗** —— 申請成功、時段被佔住、確認信寄到不存在的地址，申請人不會收到任何東西，也不會知道哪裡出錯，時段就這樣被鎖到逾時。系統這端完全正常（`Mail::send()` 不會丟例外、log 乾淨），所以事後也查不出異狀。唯一能攔下它的時機就是送出前那一眼，而 10 秒的強制停頓正是為了讓那一眼真的發生
+
 - **FR-058**: 「預約待確認」信 MUST NOT 由 `email_templates` 驅動，改為寫死的 `BookingVerifyMail` + Blade（比照 `VerificationCodeMail`）。理由有二：（1）這封信是**機制**不是訊息 —— 它唯一的任務是送出確認連結，沒有業主會想改的措辭；（2）原本模板不存在時 `apply()` 直接回 422「預約待確認信模板不存在，請聯絡管理員」，**而正式站的資料庫正是這個狀態**（seeder 不隨部署執行），等於整條申請路徑在上線後是壞的。
   `apply()` MUST NOT 再檢查任何模板。信件 MUST 為 `multipart/alternative`（比照 FR-020 —— 確認連結進垃圾桶等於預約斷掉）。到期時間 MUST 帶日期（`n/j H:i`）：23:45 送出的申請隔天 00:45 到期，「今天 00:45」是錯的。
   `high_ticket_booking_verify` 這筆模板 MUST 從 seeder、編輯頁變數清單、後台清單標籤一併移除，並以資料 migration 刪除既有列 —— 留著會在後台顯示成一個「可編輯但改了沒用」的模板，比沒有更糟
@@ -575,6 +621,24 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
 ## 設計決策
+
+- **D57**: 顧問歸屬做在**共用行事曆**上，不改成每位顧問各一本（使用者決策）。
+  `consultation_slots.starts_at` 目前是全域 unique，一個 15 分鐘單位全系統只有一列。要讓兩位顧問同時開放同一時刻，得改成 `unique(starts_at, consultant_id)`，而那會連鎖到：公開選時段頁要決定「訪客自己挑顧問還是系統分配」（**商業決定，不是技術決定**）、`availableStarts()` 要跨顧問聚合去重、FR-032 的併發搶位變成 per-consultant、週曆要分軌或加篩選。那是一個完整的 US，動到公開預約流程。
+  目前系統裡有 **0 位銷售顧問**，這整件事是為將來鋪路。先做歸屬標記可以立刻解決「顧問收不到信」與「不知道誰開的時段」，而且完全不擋日後升級 —— 換掉 unique 再處理前台即可。
+  **代價要說清楚**：週曆是一本共用的，兩位顧問靠協調分時段而不是靠系統隔離；A 顧問看得到也收得回 B 顧問釋出的空格。這在只有一位顧問時完全無感，在第二位加入時就會變成問題 —— 那也正是該升級成每人一本行事曆的訊號。
+  同理，**未被預約的空格不做視覺分軌**（只給 tooltip）：一位顧問時那是純噪音，兩位顧問時光靠顏色也不夠用，屆時要的是分軌或篩選，不是把 v1 的配色改複雜
+
+- **D58**: 顧問在 lead 上**存快照**而不是每次從時段查（使用者決策）。時段的歸屬是「這段時間屬於誰」，會被改派；取消預約還會把時段釋放回可預約池，之後可能指派給完全不同的人。若靠即時查詢，一筆三個月前成交的 lead 會顯示現在佔用那個時刻的顧問，甚至查無資料。
+  快照的欄位加在現在是一欄，事後要補只能用猜的 —— 這是少數「先加比較便宜」的欄位
+
+- **D59**: CC 從三封收斂成一封（使用者決策）。改期與取消**本來就是人與人直接寫信談出來的結果**，管理員是那場對話的當事人，系統再補一封只是噪音；待確認信則是「這個 Email 是真的嗎」的一次性驗證，未確認的申請照樣完整躺在 Leads 名單的 `pending`。
+  **失去的東西**：管理員不再即時知道「有人送出申請但還沒確認」。這是可接受的 —— 那個狀態本來就要進名單才處理，而且 US14 之後 `pending` 就是名單的預設篩選。若日後想要即時感知，正確做法是後台的通知中心而不是把 CC 加回來
+
+- **D60**: Zoom 主持人做成**選填 + 404 fallback**，而不是等買了席次再實作。
+  `POST /v2/users/{email}/meetings` 需要該 Email 在同一個 Zoom 帳號下有席次（Zoom 按席次計費）。業主打算之後才買，所以現在指定顧問 Email 一定會 404。
+  兩個選擇：現在不做、日後回頭改；或現在做好 fallback、買了席次當天自動生效。選後者，因為成本只有一個選填參數加一段 404 分支，而前者要等到最需要它的時候才回來動 Zoom 這塊最難測的程式碼。
+  **404 視為預期狀態而非錯誤**（記 warning 不是 error）：顧問還沒有席次是過渡期的正常情況，用 error 會讓 log 充滿假警報，真正的 Zoom 故障反而被淹沒。
+  代價：在買席次之前，「指派顧問」只完成一半 —— 信寄對人了，會議還是建在擁有者帳號下，顧問不是主持人（不能錄影、結束會議、管理等候室）。這點 MUST 寫在後台 API 設定頁的說明裡，否則業主會以為指派完就結束了
 
 - **D56**: 「預約待確認」信改為寫死，客服信箱改為設定值（FR-057 / FR-058，使用者決策）。
   兩件事同一個根：**可設定性要放在會被改的東西上**。待確認信的措辭沒人會想改，卻因為模板缺列而讓整條申請 422；客服信箱是真的會換的東西，卻硬寫在六個地方。原本的設計把這兩者搞反了。
@@ -704,6 +768,22 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
 
 ## Schema
+
+- **US15 schema 變更（兩支 migration）**：
+
+  `2026_08_07_000001_add_consultant_to_consultation_slots_table.php` — `consultation_slots` 增一欄：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `consultant_id` | unsignedBigInteger nullable, index | 這段時間屬於哪位 staff；無外鍵（比照 `lead_id` 的既有作法）。null = 未指派，通知一律回退客服清單（FR-062） |
+
+  `2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php` — `high_ticket_leads` 增一欄：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `consultant_id` | unsignedBigInteger nullable, index | 確認預約當下自時段**快照**（FR-061）；此後時段改派或釋放都不影響 |
+
+  **不變量**：`starts_at` 維持全域 unique —— 這是共用行事曆上的歸屬標記，不是每位顧問各一本（D57）。要支援兩位顧問同時開放同一時刻，需改為 `unique(starts_at, consultant_id)` 並連帶重做公開選時段流程，那是另一個 US
 
 - **US14 schema 變更（三支 migration）**：
 
@@ -984,6 +1064,7 @@ Phase D — 週曆 UI（相依 Phase C）
 Phase E — 驗證
 - [x] T122 `php artisan test` 全綠（基準 349 passed）＋ `npm run build` exit 0
 - [x] T124 `updateStatus` 拿掉 `cancelled`，名單改為唯讀徽章（FR-054）in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T134 第 4 步送出改為兩段式 + 10 秒倒數的 Email 覆核（FR-059）；送出後畫面（含候補）逐字印出收件地址 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T131 「預約待確認」信改為寫死的 `BookingVerifyMail` + Blade（含純文字版），`apply()` 拿掉模板檢查；`high_ticket_booking_verify` 自 seeder／變數清單／後台標籤移除並以 migration 刪除既有列（FR-058）in `app/Mail/BookingVerifyMail.php` + `resources/views/emails/booking-verify*.blade.php` + `database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php`
 - [x] T133 全站掃除硬寫客服地址（FR-057）：藍新／統一金流的付款失敗訊息、付款成功頁、隱私政策、購買須知共 6 處；前台以 Inertia shared prop `supportEmail` 取用（touchpoint，owner 000-platform-core / 002-storefront / 005-checkout）；新增原始碼掃描測試把關 in `app/Http/Middleware/HandleInertiaRequests.php` + `app/Http/Controllers/Payment/*.php` + `resources/js/Components/Legal/*.vue` + `resources/js/Pages/Payment/Success.vue`
 - [x] T132 客服信箱設定：`SiteSetting::SUPPORT_EMAIL_KEY` + `supportEmail()`、Email 模板頁新增欄位與 `PUT /admin/email-templates/support-email`、`{{support_email}}` 與 `{{app_url}}` 注入 `EmailTemplate` 渲染入口並附加於編輯頁變數清單（FR-057）；新增 SupportEmailTest（10 tests）in `app/Models/SiteSetting.php` + `app/Models/EmailTemplate.php` + `app/Http/Controllers/Admin/EmailTemplateController.php` + `resources/js/Pages/Admin/EmailTemplates/Index.vue`
@@ -995,8 +1076,39 @@ Phase E — 驗證
 - [x] T125 狀態顯示名稱改為面談語彙：待面談 / 已面談 / 未出席（FR-055，DB 值不動）；欄頭圖例同步 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [ ] T123 使用者以瀏覽器實測：確認信收到後 `.ics` 在 Gmail / Apple Mail 顯示為可加入的邀請、改期後日曆自動更新為新時間（不是多一筆）、取消後日曆行程消失、Zoom 會議實際被改時間 / 刪除、中文標題在日曆中無亂碼
 
+### 諮詢時段指派銷售顧問（US15）
+
+Phase A — Schema（其餘相依於此）
+- [x] T135 [P] `consultation_slots.consultant_id`（nullable, index）in `database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php`
+- [x] T136 [P] `high_ticket_leads.consultant_id`（nullable, index）+ model fillable / 關聯 `consultant()` in `database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php` + `app/Models/HighTicketLead.php` + `app/Models/ConsultationSlot.php`
+
+Phase B — 歸屬寫入與快照（相依 A）
+- [x] T137 **測試先行**：`generate()` 帶入 `consultant_id`、顧問只能指派給自己（後端擋）、管理員可指定任一 staff、`confirm()` 把時段的 consultant 快照到 lead in `tests/Feature/HighTicket/ConsultantAssignmentTest.php`
+- [x] T138 `generate()` 簽名加 `?int $consultantId`（`reserve()` 不需要 —— 它佔用既有的列，歸屬本來就在列上）；`confirm(HighTicketLead)` 快照 consultant 至 lead（FR-060 / FR-061）in `app/Services/ConsultationSlotService.php`
+- [x] T139 `store()` 接受 `consultant_id`，Form Request 驗證「非管理員只能填自己」；新增 `PUT /admin/consultation-slots/bookings/{lead}/consultant` 改派既有預約 in `app/Http/Controllers/Admin/ConsultationSlotController.php` + `app/Http/Requests/Admin/StoreConsultationSlotsRequest.php`
+- [x] T140 [P] 路由：staff 群組加改派端點（置於 `{consultationSlot}` 之前）（touchpoint，owner 000-platform-core）in `routes/web.php`
+
+Phase C — CC 規則（可與 B 平行）
+- [x] T141 **測試先行**：確認信 CC 客服 + 顧問、無顧問時只 CC 客服、待確認／改期／取消三封完全無 CC（FR-062）in `tests/Feature/HighTicket/ConsultantAssignmentTest.php`
+- [x] T142 `sendConfirmationMail()` 的 CC 加入 lead 的顧問 Email；`sendVerifyMail()` 與 `sendChangeMail()` 移除 `->cc()` in `app/Services/HighTicketBookingService.php`
+
+Phase D — Zoom 主持人（可與 B/C 平行）
+- [x] T143 `createMeeting()` 加選填 `?string $hostEmail`，指定時打 `/users/{email}/meetings`，404 時 fallback `me` 並記 warning（FR-063 / D60）in `app/Services/ZoomMeetingService.php`
+- [x] T144 建會議時帶入 lead 的顧問 Email；API 設定頁補一段說明「顧問需有 Zoom 席次，否則會議仍建在擁有者帳號下」in `app/Services/HighTicketBookingService.php` + `resources/js/Pages/Admin/Settings/Payment.vue`
+
+Phase E — 後台 UI（相依 B）
+- [x] T145 週曆頁加「時段歸屬」選擇器（管理員可選任一 staff、顧問鎖定自己），拖曳建立時帶入；空格 `title` 顯示歸屬 in `resources/js/Pages/Admin/ConsultationSlots/Index.vue` + `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T146 預約區塊的面板顯示顧問，管理員可切換改派 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T147 [P] Leads 名單預約 tab 顯示負責顧問欄（無指派顯示「—」）in `resources/js/Components/Admin/Leads/BookingListTab.vue` + `app/Http/Controllers/Admin/HighTicketLeadController.php`
+
+Phase F — 驗證
+- [x] T148 `php artisan test` 全綠（基準 411 passed）＋ `npm run build` exit 0
+- [ ] T149 使用者以瀏覽器實測：以顧問身分登入建時段、管理員改派、預約後確認信的 CC 收件者、Leads 名單的顧問欄
+
 ## 進度日誌
 
+- 2026-08-05: 規劃 US15 諮詢時段指派銷售顧問（已審核，開始實作） — 顧問要能順手開自己的時段並在自己信箱收到成立的預約，才可能自己安排行程。`consultation_slots` 與 `high_ticket_leads` 各加一個 `consultant_id`，前者是「這段時間屬於誰」、後者是確認當下的**快照**（時段會被改派、取消還會釋放回池子，靠即時查詢會查到錯的人，D58）。**關鍵限制寫進 D57**：`starts_at` 仍是全域 unique，所以這是「一本共用行事曆上的歸屬標記」，不是每位顧問各一本 —— 兩位顧問無法同時開放同一時刻。改成每人一本要連帶決定「訪客自己挑顧問還是系統分配」（商業決定）並重做公開選時段流程，是另一個 US；目前系統有 0 位顧問，先做標記不擋日後升級。CC 規則同時從三封收斂成一封（D59）：改期與取消本來就是人與人寫信談出來的結果，系統再補一封只是噪音；代價是管理員不再即時收到「有人送出申請」，但那筆申請照樣在名單的 pending。Zoom 主持人做成選填 + 404 fallback（D60），業主之後才會買席次，現在指定一定 404 —— 做好 fallback 等於買了席次當天自動生效，且 404 記 warning 不記 error，免得過渡期的假警報淹掉真故障。顧問權限隔離（只看自己的時段與 leads）明確不做。
+- 2026-08-05: 第 4 步加 Email 覆核防呆（T134 / FR-059）— 業主實測時把自己的信箱打成 `gosihnra@`（h/i 顛倒），等了一分鐘才發現收不到信。查下來系統一切正常：lead 建了、時段佔了、`Mail::send()` 沒丟例外、log 乾淨 —— 因為信**確實寄出去了**，只是寄到一個不存在的地址。這是最難查的一類失敗：每一層都回報成功，只有收件匣是空的，而申請人不會知道自己打錯，時段就被鎖到 1 小時後逾時。唯一能攔下它的時機是送出前，所以第一次按送出改為顯示大字體的 Email 覆核區塊並強制倒數 10 秒 —— 停頓的目的不是等待，是讓「再看一眼」真的發生。附「這個 Email 不對，回去修改」直接跳回第 1 步；離開步驟或改動 Email 都會重置。送出後的畫面（含候補路徑）也逐字印出收件地址並說明打錯的後果，讓人在還記得自己填了什麼的時候就能發現。
 - 2026-08-05: 「預約待確認」信改為寫死 + 客服信箱改為設定值（T131 / T132 / FR-057 / FR-058 / D56）— 業主實測送出申請時撞到 422「預約待確認信模板不存在，請聯絡管理員」：seeder 不隨部署執行，所以**正式站的資料庫本來就沒有這一列**，等於整條申請路徑上線即是壞的。根本問題是可設定性放錯了東西 —— 這封信是機制不是訊息（唯一任務是送出確認連結，沒人會想改措辭），卻做成可編輯模板且缺列即中斷；反過來客服信箱是真的會換的東西，卻硬寫在六個地方。判斷準則寫進 D56：機制寫死、訊息留模板。改為 `BookingVerifyMail` + Blade（比照既有的 `VerificationCodeMail`），含純文字版（確認連結進垃圾桶等於預約斷掉）；到期時間帶日期，因為 23:45 送出的申請隔天 00:45 到期、「今天」是錯的。`high_ticket_booking_verify` 自 seeder／變數清單／後台標籤移除並以 migration 刪列 —— 留著會顯示成「可編輯但改了沒用」的模板，比沒有更糟。客服信箱新增 `site_settings.support_email` + Email 模板頁欄位，`{{support_email}}` 與 `{{app_url}}` 注入 `EmailTemplate` 的渲染入口而非各呼叫端（六個呼叫端漏一個的症狀是收件人看到字面的 `{{support_email}}`，寄出去才會發現）。全站另掃掉 6 處硬寫地址（金流失敗訊息、付款成功頁、隱私政策、購買須知），前台走 Inertia shared prop —— 法律條款 modal 掛在 footer，每一頁都可能要印，逐頁傳 prop 一定會漏。加了一個掃描原始碼的測試把關，否則下一個人複製貼上就又長回來。新增 SupportEmailTest（13 tests），全套 410 passed（2001 assertions）。
 - 2026-08-05: Zoom 與確認信改為同步、移除兩支 job（T130 / D55 / FR-056）— 起因是覆核 Zoom 串接時發現 `QUEUE_CONNECTION=database`，而 D38 把確認信搬進了 `CreateZoomMeetingJob`：**正式站沒有 queue worker 的話，Zoom 啟用後確認信永遠不會寄出**，而畫面還是顯示「相關資料已寄出」。這是本模組唯一一條「訪客被告知成功、結果卻掛在 worker 上」的路徑，其餘 job 都是管理員觸發、看得到回報。改為同步後最差是頁面多等幾秒或信沒連結（log 有紀錄），兩者都是可發現的。代價是失去 `tries=3` 的重試，改以 HTTP 層 8 秒 timeout + 2 次短重試補一部分 —— Laravel 預設 30 秒 timeout 在同步情境會讓一次 Zoom 中斷把頁面卡住將近一分鐘。改期／取消的 Zoom 同步一併改同步（那兩條的信本來就同步寄，只有 Zoom 掛在 worker 上，等於對方拿到新時間、Zoom 停在舊時間而沒人發現）；`syncZoom()` 回傳三態，controller 只在真的失敗時於 flash 附警告，「本來就沒有會議」不跳警告以免訓練管理員忽略它。原 job 的內部通知信移除 —— 管理員當下就在畫面前。ZoomMeetingTest 改寫為同步版本並新增 `Queue::assertNothingPushed()` 斷言，全套 397 passed。
 - 2026-08-05: 第 4 步覆核區的「修改」由每列一顆改為每區一顆（T129）— 原本 8 顆按鈕裡有 7 顆做同一件事（回第 1 步），視覺上像是每一欄都能單獨編輯，實際上全部通往同一個畫面。改為兩張卡片：「申請資料」（7 列，標題列一顆修改 → 第 1 步）與「諮詢時段」（自成一區，另一顆 → 第 3 步）。沒有併成單一顆，是因為這兩顆去的是不同步驟 —— 真的只留一顆的話，改時段會變成「修改 → 第 1 步 → 下一步 → 下一步」。社群網址格式錯誤時，「申請資料」那顆會轉紅粗體，指向唯一需要處理的地方。

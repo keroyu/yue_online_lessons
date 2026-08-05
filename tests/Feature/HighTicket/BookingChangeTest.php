@@ -235,7 +235,8 @@ class BookingChangeTest extends TestCase
         });
     }
 
-    public function test_reschedule_mail_ccs_the_internal_recipients(): void
+    /** FR-062: change mails copy nobody — the admin was in that conversation. */
+    public function test_reschedule_mail_ccs_nobody(): void
     {
         $course = $this->makeHighTicketCourse();
         $lead = $this->confirmedLead($course);
@@ -247,7 +248,7 @@ class BookingChangeTest extends TestCase
         app(HighTicketBookingService::class)->reschedule($lead, $newStart);
 
         Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail) => $mail->emailSubject === 'HT Course 時段已更新'
-            && collect($mail->cc)->pluck('address')->contains('ops@example.com'));
+            && $mail->cc === []);
     }
 
     /**

@@ -7,12 +7,15 @@ use App\Http\Requests\Admin\DestroyConsultationSlotsRequest;
 use App\Http\Requests\Admin\StoreConsultationSlotsRequest;
 use App\Http\Requests\Admin\UpdateConsultationSettingsRequest;
 use App\Models\ConsultationSlot;
+use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use App\Models\User;
 use App\Services\ConsultationSlotService;
 use App\Services\HighTicketBookingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,10 +30,23 @@ class ConsultationSlotController extends Controller
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
+        // A consultant only ever sees themselves in the picker; the field is
+        // locked in the UI and refused server-side (FR-060).
+        $consultants = $user->isAdmin()
+            ? User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))
+                ->orderBy('nickname')
+                ->get(['id', 'nickname', 'email'])
+            : User::whereKey($user->id)->get(['id', 'nickname', 'email']);
+
         return Inertia::render(
             'Admin/ConsultationSlots/Index',
             array_merge($this->slots->weekView($request->query('week')), [
-                'bonusCodes' => (string) SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''),
+                'bonusCodes'        => (string) SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''),
+                'consultants'       => $consultants,
+                'currentUserId'     => $user->id,
+                'canPickConsultant' => $user->isAdmin(),
             ])
         );
     }
@@ -57,9 +73,41 @@ class ConsultationSlotController extends Controller
     {
         [$from, $to] = $this->range($request);
 
-        $result = $this->slots->generate($from, $to);
+        $result = $this->slots->generate($from, $to, $request->consultantId());
 
         return back()->with('success', "已釋出 {$result['created']} 個時段、略過 {$result['skipped']} 個已存在的時段");
+    }
+
+    /**
+     * Hand a confirmed booking to another consultant (011 US15 / FR-060).
+     *
+     * Writes both places on purpose: the lead carries the settled answer to
+     * "who handled this" (FR-061) and the slot carries "whose time this is",
+     * and after a reassignment those must agree.
+     */
+    public function updateConsultant(Request $request, HighTicketLead $lead): RedirectResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            abort(403, '只有管理員可以改派顧問');
+        }
+
+        $validated = $request->validate([
+            'consultant_id' => ['nullable', 'integer', 'exists:users,id'],
+        ], [
+            'consultant_id.exists' => '找不到指定的顧問',
+        ]);
+
+        $consultantId = $validated['consultant_id'] ?? null;
+
+        DB::transaction(function () use ($lead, $consultantId) {
+            $lead->update(['consultant_id' => $consultantId]);
+            ConsultationSlot::where('lead_id', $lead->id)->update([
+                'consultant_id' => $consultantId,
+                'updated_at'    => now(),
+            ]);
+        });
+
+        return back()->with('success', '已更新該預約的負責顧問');
     }
 
     /**

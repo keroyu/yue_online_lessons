@@ -563,6 +563,8 @@ main_files:
 - database/migrations/2026_08_06_000002_add_cancelled_to_high_ticket_leads_status.php
 - database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php
 - database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php
+- database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php
+- database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -588,6 +590,7 @@ main_files:
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
+- tests/Feature/HighTicket/ConsultantAssignmentTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php

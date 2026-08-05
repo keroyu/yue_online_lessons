@@ -22,6 +22,9 @@ class StoreConsultationSlotsRequest extends FormRequest
             'date'       => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time'   => ['required', 'date_format:H:i', 'after:start_time'],
+            // Optional: an unassigned slot is legal, it just falls back to the
+            // support list for notifications (FR-062).
+            'consultant_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }
 
@@ -35,6 +38,7 @@ class StoreConsultationSlotsRequest extends FormRequest
             'end_time.required'      => '請填寫結束時間',
             'end_time.date_format'   => '結束時間格式須為 HH:MM',
             'end_time.after'         => '結束時間須晚於開始時間',
+            'consultant_id.exists'   => '找不到指定的顧問',
         ];
     }
 
@@ -45,6 +49,15 @@ class StoreConsultationSlotsRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            // A consultant may only open their own time (FR-060). The locked
+            // field in the UI is a courtesy; this is the control.
+            $requested = $this->input('consultant_id');
+            $user = $this->user();
+
+            if ($requested !== null && $user && !$user->isAdmin() && (int) $requested !== $user->id) {
+                $validator->errors()->add('consultant_id', '你只能將時段指派給自己');
+            }
+
             foreach (['start_time', 'end_time'] as $field) {
                 $value = (string) $this->input($field);
 
@@ -57,5 +70,17 @@ class StoreConsultationSlotsRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Who the new slots belong to. Defaults to whoever is creating them — that
+     * is the whole point of the feature: a consultant opens their own calendar
+     * without having to say so every time.
+     */
+    public function consultantId(): ?int
+    {
+        $requested = $this->input('consultant_id');
+
+        return $requested !== null ? (int) $requested : $this->user()?->id;
     }
 }

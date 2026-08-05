@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -201,6 +201,59 @@ function routeFieldErrors(e) {
   return true
 }
 
+// ---- email double-check (011 FR-059) ---------------------------------------
+
+// A mistyped address fails silently: the application succeeds, the slot is
+// held, and the applicant simply never hears anything until the hold expires.
+// So the first press does not submit — it puts the address in front of them
+// and makes them wait ten seconds before the button will fire.
+const emailConfirming = ref(false)
+const emailCountdown = ref(0)
+let emailTimer = null
+
+function stopEmailCountdown() {
+  clearInterval(emailTimer)
+  emailTimer = null
+}
+
+function resetEmailConfirm() {
+  stopEmailCountdown()
+  emailConfirming.value = false
+  emailCountdown.value = 0
+}
+
+// Leaving step 4 — or editing anything — starts the check over.
+watch(step, resetEmailConfirm)
+watch(() => form.email, resetEmailConfirm)
+
+onUnmounted(stopEmailCountdown)
+
+function requestSubmit() {
+  if (socialUrlInvalid.value) return
+
+  if (!emailConfirming.value) {
+    emailConfirming.value = true
+    emailCountdown.value = 10
+    stopEmailCountdown()
+
+    emailTimer = setInterval(() => {
+      emailCountdown.value -= 1
+      if (emailCountdown.value <= 0) stopEmailCountdown()
+    }, 1000)
+
+    return
+  }
+
+  if (emailCountdown.value > 0) return
+
+  submit()
+}
+
+function editEmail() {
+  resetEmailConfirm()
+  step.value = 1
+}
+
 async function submit() {
   errors.value = {}
   submitting.value = true
@@ -338,6 +391,13 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <p class="mt-2 text-sm text-gray-600 leading-relaxed">
           目前沒有開放的時段。新時段釋出時，我們會以 Email 通知你優先預約。
         </p>
+        <p class="mt-4 text-sm text-gray-700">
+          通知會寄到
+          <span class="font-mono font-semibold text-gray-900 break-all">{{ form.email }}</span>
+        </p>
+        <p class="mt-1 text-xs text-gray-500">
+          若這個地址不對，你不會收到通知 —— 請重新提出一次申請，用正確的 Email。
+        </p>
       </template>
 
       <template v-else-if="mailSent">
@@ -358,7 +418,17 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
           </p>
         </div>
 
-        <p class="mt-4 text-xs text-gray-500">
+        <!-- Spelled out so a typo is discoverable here rather than after the
+             hold has quietly expired. -->
+        <p class="mt-4 text-sm text-gray-700">
+          確認信已寄到
+          <span class="font-mono font-semibold text-gray-900 break-all">{{ form.email }}</span>
+        </p>
+        <p class="mt-1 text-xs text-gray-500">
+          若這個地址不對，你不會收到信 —— 請重新提出一次申請，用正確的 Email。
+        </p>
+
+        <p class="mt-3 text-xs text-gray-500">
           沒收到信？請檢查垃圾郵件匣。逾時未確認，時段會自動釋出給其他人。
         </p>
       </template>
@@ -663,19 +733,43 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
         <p v-if="errors.submit" class="text-sm text-red-600">{{ errors.submit }}</p>
 
+        <!-- Appears after the first press. The address is the only thing in it
+             that matters, so it is the only thing set large. -->
+        <div v-if="emailConfirming" class="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-center">
+          <p class="text-sm font-bold text-amber-900">
+            請再次確認 Email 必須填寫正確！否則收不到信
+          </p>
+          <p class="mt-3 break-all font-mono text-lg font-bold text-gray-900">
+            {{ form.email }}
+          </p>
+          <p class="mt-2 text-xs leading-relaxed text-amber-800">
+            確認連結會寄到這個地址，打錯的話你不會收到任何通知，時段也會在 1 小時後自動釋出。
+          </p>
+          <button
+            type="button"
+            class="mt-3 text-xs font-semibold text-brand-teal underline cursor-pointer hover:opacity-70 transition"
+            @click="editEmail"
+          >
+            這個 Email 不對，回去修改
+          </button>
+        </div>
+
         <div class="flex gap-3">
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>
           <button
             type="button"
-            :disabled="submitting || socialUrlInvalid"
+            :disabled="submitting || socialUrlInvalid || emailCountdown > 0"
             class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="submit"
+            @click="requestSubmit"
           >
             <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            {{ submitting ? '送出中…' : '送出申請' }}
+            <template v-if="submitting">送出中…</template>
+            <template v-else-if="emailCountdown > 0">請再看一眼 Email（{{ emailCountdown }}）</template>
+            <template v-else-if="emailConfirming">Email 正確，確認送出</template>
+            <template v-else>送出申請</template>
           </button>
         </div>
       </div>

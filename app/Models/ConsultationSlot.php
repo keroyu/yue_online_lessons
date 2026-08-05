@@ -24,6 +24,7 @@ class ConsultationSlot extends Model
         'starts_at',
         'lead_id',
         'held_until',
+        'consultant_id',
     ];
 
     protected function casts(): array
@@ -54,6 +55,12 @@ class ConsultationSlot extends Model
                     $q2->whereNotNull('held_until')->where('held_until', '<=', now());
                 });
         });
+    }
+
+    /** Who owns this stretch of time (011 US15 / FR-060). Null = unassigned. */
+    public function consultant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'consultant_id');
     }
 
     /** Slots that have not started yet — the only ones worth offering. */

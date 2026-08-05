@@ -11,7 +11,17 @@ const props = defineProps({
   range: { type: Object, required: true },
   days: { type: Array, default: () => [] },
   bonusCodes: { type: String, default: '' },
+  consultants: { type: Array, default: () => [] },
+  currentUserId: { type: Number, default: null },
+  canPickConsultant: { type: Boolean, default: false },
 })
+
+// Who newly dragged slots belong to. Defaults to the person doing the dragging
+// — that is the point of the feature (FR-060); a consultant opens their own
+// calendar without having to say so every time.
+const owner = ref(props.currentUserId)
+
+const consultantLabel = (c) => c?.nickname || c?.email || `#${c?.id}`
 
 const settings = useForm({ bonus_codes: props.bonusCodes })
 
@@ -54,7 +64,11 @@ function goToWeek(week) {
 }
 
 function create(payload) {
-  router.post('/admin/consultation-slots', payload, VISIT)
+  router.post('/admin/consultation-slots', { ...payload, consultant_id: owner.value }, VISIT)
+}
+
+function assignConsultant({ lead_id, consultant_id }) {
+  router.put(`/admin/consultation-slots/bookings/${lead_id}/consultant`, { consultant_id }, VISIT)
 }
 
 function release(payload) {
@@ -109,7 +123,18 @@ const LEGEND = [
         </p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <label class="flex items-center gap-2 text-sm text-gray-600">
+          <span class="whitespace-nowrap">時段歸屬</span>
+          <select
+            v-model="owner"
+            :disabled="!props.canPickConsultant"
+            class="rounded-lg border-gray-300 py-2 text-sm cursor-pointer focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-50"
+          >
+            <option v-for="c in props.consultants" :key="c.id" :value="c.id">{{ consultantLabel(c) }}</option>
+          </select>
+        </label>
+
         <button
           type="button"
           class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 transition"
@@ -149,10 +174,13 @@ const LEGEND = [
       <WeekGrid
         :range="props.range"
         :days="props.days"
+        :consultants="props.consultants"
+        :can-pick-consultant="props.canPickConsultant"
         @create="create"
         @release="release"
         @reschedule="reschedule"
         @cancel="cancelBooking"
+        @assign="assignConsultant"
       />
     </div>
 

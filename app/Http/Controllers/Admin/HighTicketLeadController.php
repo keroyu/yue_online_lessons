@@ -93,7 +93,7 @@ class HighTicketLeadController extends Controller
             ]);
         }
 
-        $leads = HighTicketLead::with('course:id,name')
+        $leads = HighTicketLead::with(['course:id,name', 'consultant:id,nickname,email'])
             ->when($status, fn ($q) => $q->byStatus($status))
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")

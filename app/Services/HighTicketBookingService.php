@@ -234,7 +234,10 @@ class HighTicketBookingService
             $meeting = $zoom->createMeeting(
                 $startsAt,
                 $this->slots->minutesFor($lead->booking_code),
-                "{$course->name} 1v1 諮詢 - {$lead->name}"
+                "{$course->name} 1v1 諮詢 - {$lead->name}",
+                // Falls back to the owner's account when the consultant has no
+                // Zoom seat yet (FR-063).
+                $lead->consultant_id ? \App\Models\User::whereKey($lead->consultant_id)->value('email') : null
             );
 
             $lead->update([
@@ -291,7 +294,7 @@ class HighTicketBookingService
 
         try {
             Mail::to($lead->email)
-                ->cc(array_values(array_unique(array_merge($this->notifyCc(), $extraCc))))
+                ->cc($this->confirmationCc($lead, $extraCc))
                 ->send(new TemplatedMail(
                     $template->renderSubject($vars),
                     $template->renderBody($vars),
@@ -487,8 +490,9 @@ class HighTicketBookingService
         ], $extraVars);
 
         try {
+            // No CC (FR-062): a reschedule or cancellation is the outcome of a
+            // conversation the admin was already part of.
             Mail::to($lead->email)
-                ->cc($this->notifyCc())
                 ->send(new TemplatedMail(
                     $template->renderSubject($vars),
                     $template->renderBody($vars),
@@ -562,8 +566,9 @@ class HighTicketBookingService
         Carbon $expiresAt
     ): bool {
         try {
+            // No CC (FR-062): this is a "is this address real" check, and an
+            // unconfirmed application is already visible in the leads list.
             Mail::to($lead->email)
-                ->cc($this->notifyCc())
                 ->send(new BookingVerifyMail(
                     $lead->name,
                     $course->name,
@@ -636,6 +641,27 @@ class HighTicketBookingService
         ]));
 
         return $lead;
+    }
+
+    /**
+     * Who is copied on the one mail that still has a CC (FR-062): the support
+     * list plus whoever owns this booking. An unassigned booking still reaches
+     * support — no consultant does not mean nobody needs to know.
+     *
+     * @param array<int, string> $extraCc
+     * @return array<int, string>
+     */
+    private function confirmationCc(HighTicketLead $lead, array $extraCc = []): array
+    {
+        $consultant = $lead->consultant_id
+            ? \App\Models\User::whereKey($lead->consultant_id)->value('email')
+            : null;
+
+        return array_values(array_unique(array_filter(array_merge(
+            $this->notifyCc(),
+            $extraCc,
+            $consultant ? [$consultant] : [],
+        ))));
     }
 
     /**

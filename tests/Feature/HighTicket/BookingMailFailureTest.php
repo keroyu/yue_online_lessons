@@ -76,11 +76,13 @@ class BookingMailFailureTest extends TestCase
         Mail::fake();
         $this->bookingTemplate();
 
-        $this->applyForBooking($this->makeHighTicketCourse());
+        // Only the confirmation copies anybody now (FR-062).
+        $this->applyAndConfirm($this->makeHighTicketCourse());
 
-        Mail::assertSent(\App\Mail\BookingVerifyMail::class, function ($mail) {
+        Mail::assertSent(\App\Mail\TemplatedMail::class, function ($mail) {
             // The customer-service address is not a lead recipient
-            return $mail->hasTo('booker@example.com')
+            return str_contains($mail->emailSubject, '預約確認')
+                && $mail->hasTo('booker@example.com')
                 && $mail->hasCc('themustbig+leads@gmail.com')
                 && !$mail->hasCc('themustbig+learn@gmail.com');
         });
