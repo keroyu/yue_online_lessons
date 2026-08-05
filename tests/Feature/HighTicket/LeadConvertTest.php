@@ -162,7 +162,7 @@ class LeadConvertTest extends TestCase
 
     private function seedConversionTemplate(): EmailTemplate
     {
-        return EmailTemplate::create([
+        return EmailTemplate::updateOrCreate(['event_type' => 'lead_converted'], [
             'name'       => '顧問成交開通通知',
             'event_type' => 'lead_converted',
             'subject'    => '【開通完成】{{course_name}}',
@@ -286,6 +286,10 @@ class LeadConvertTest extends TestCase
     public function test_conversion_succeeds_without_the_template(): void
     {
         Mail::fake();
+
+        // 2026_08_08_000003 installs every canonical template, so a missing one
+        // now has to be arranged rather than assumed.
+        EmailTemplate::where('event_type', 'lead_converted')->delete();
 
         $course = $this->makeCourse();
         $lead   = $this->makeLead($course);

@@ -597,10 +597,10 @@ class BookingChangeTest extends TestCase
     }
 
     /**
-     * FR-051: labelling a lead cancelled without releasing the slot, killing the
-     * Zoom meeting and telling them would make the status a lie.
+     * FR-054: with a live booking, labelling it cancelled without releasing the
+     * slot, killing the Zoom meeting and telling them would make the status a lie.
      */
-    public function test_status_endpoint_will_not_set_cancelled_directly(): void
+    public function test_status_endpoint_refuses_cancelled_while_a_booking_is_live(): void
     {
         $course = $this->makeHighTicketCourse();
         $lead = $this->confirmedLead($course);
@@ -611,6 +611,25 @@ class BookingChangeTest extends TestCase
 
         $this->assertSame('pending', $lead->fresh()->status);
         $this->assertSame(2, $lead->slots()->count());
+    }
+
+    /**
+     * But a lead with no booking may be filed as cancelled from the list —
+     * refusing both left the leads carried over from 未回應 (no slot, no
+     * confirmation) with no way back once nudged out of `cancelled`.
+     */
+    public function test_status_endpoint_allows_cancelled_when_there_is_no_booking(): void
+    {
+        $lead = HighTicketLead::create([
+            'name' => 'Legacy', 'email' => 'legacy@example.com', 'course_id' => 1,
+            'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->patchJson("/admin/high-ticket-leads/{$lead->id}/status", ['status' => 'cancelled'])
+            ->assertOk();
+
+        $this->assertSame('cancelled', $lead->fresh()->status);
     }
 
     /** The grid posts Taipei wall-clock, split into date + time. */

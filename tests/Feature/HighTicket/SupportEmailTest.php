@@ -43,7 +43,7 @@ class SupportEmailTest extends TestCase
     {
         SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, 'help@example.com');
 
-        $template = EmailTemplate::create([
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
             'name'       => 'T',
             'event_type' => 'course_gifted',
             'subject'    => '有問題寄 {{support_email}}',
@@ -62,7 +62,7 @@ class SupportEmailTest extends TestCase
     {
         SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, 'help@example.com');
 
-        $template = EmailTemplate::create([
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
             'name'       => 'T',
             'event_type' => 'course_gifted',
             'subject'    => '{{support_email}}',

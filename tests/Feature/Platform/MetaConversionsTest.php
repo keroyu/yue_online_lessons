@@ -183,7 +183,7 @@ class MetaConversionsTest extends TestCase
         Queue::fake();
         $this->enableCapi();
 
-        \App\Models\EmailTemplate::create([
+        \App\Models\EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_booking_confirmation'], [
             'event_type' => 'high_ticket_booking_confirmation',
             'name'       => '預約確認',
             'subject'    => '已收到您的預約 {{course_name}}',

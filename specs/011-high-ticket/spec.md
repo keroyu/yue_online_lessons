@@ -72,6 +72,8 @@ owner_files:
   - tests/Feature/HighTicket/DuplicateBookingTest.php
   - database/migrations/2026_08_08_000002_realign_lead_statuses_to_consultation_vocabulary.php
   - tests/Feature/HighTicket/LeadStatusRealignTest.php
+  - database/migrations/2026_08_08_000003_install_missing_email_templates.php
+  - tests/Feature/HighTicket/EmailTemplateInstallTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
@@ -646,7 +648,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-056**: 預約流程 MUST NOT 依賴 queue worker（2026-08-05，見 D55）。建立 Zoom 會議、寄確認信、改期／取消的 Zoom 同步一律**同步執行**；`ZoomMeetingService` 的每個 HTTP 呼叫 MUST 設 timeout（8 秒）與短重試（2 次、間隔 300ms），避免 Zoom 掛掉時把訪客的請求拖住。測試 MUST 以 `Queue::fake()` + `Queue::assertNothingPushed()` 釘住這件事 —— 沒有 worker 也要能寄出確認信
 
-- **FR-054**: `updateStatus` 端點 MUST NOT 接受 `cancelled`。從名單上一鍵改成「已取消」會貼上標籤卻不釋出時段、不刪 Zoom 會議、不通知對方 —— 那個狀態會是假的。唯一入口是週曆區塊的取消動作（FR-049）；名單上的「已取消」為**唯讀徽章**，可篩選、不可點擊設定
+- **FR-054**: `updateStatus` 端點接受 `cancelled`，但**僅限該 lead 沒有生效中的預約**（`isActiveBooking()` 為 false）。有生效預約時 MUST 回 422 並指向「諮詢時段」頁 —— 從名單一鍵改成「已取消」會貼上標籤卻不釋出時段、不刪 Zoom 會議、不通知對方，那個狀態會是假的；唯一正確入口是週曆區塊的取消動作（FR-049）。
+  **2026-08-05 收窄**：原條款是整個拒絕 `cancelled`，但那個理由只對「握著預約」的 lead 成立。沒有預約的 lead（尤其 FR-055 從舊 `no_response` 轉過來的那批 —— 它們沒有時段也沒有 `confirmed_at`）本來就沒有東西要釋出，全面拒絕反而製造死路：一旦被誤改成其他狀態就再也回不去。名單上該顆按鈕永遠顯示，有生效預約時停用並以 tooltip 說明要去哪裡取消
 
 - **FR-052**: 新增兩個 `email_templates`：
 
@@ -655,6 +658,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   | `high_ticket_booking_rescheduled` | 客製服務預約已改期 | `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{old_slot_time}}`、`{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}` |
   | `high_ticket_booking_cancelled` | 客製服務預約已取消 | `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{slot_time}}`、`{{course_url}}` |
 
+  **所有** canonical 模板 MUST 由 `2026_08_08_000003` 保證存在於正式站：逐一檢查 `event_type`，缺的才 insert，**永遠不 update**（業主編輯過的文案是他的，「修復」時蓋掉會比原本的 bug 更糟）。模板清單的唯一來源是 `EmailTemplateSeeder::templates()`（public static），migration 直接讀它 —— 不可有第二份 body 定義。
   兩者 MUST 同時登記於 `EmailTemplateSeeder` 與**一支資料 migration**（見 D54）。migration MUST 以「先查 `event_type` 是否存在再 insert」實作，**不可用 `insertOrIgnore`** —— `event_type` 只有一般索引、沒有 unique 約束（見 Schema 段），IGNORE 沒有約束可觸發，重跑會直接多一列，而 `forEvent()->first()` 會沉默地取到其中一筆。變數清單 MUST 補進 `EmailTemplateController::$availableVariables`，否則編輯頁沒有插入按鈕、管理員不知道有哪些變數可用（`high_ticket_slot_available` 就漏過一次，見 FR-004 表格）
 
 - **FR-053**: `TemplatedMail` MUST 支援附件，但 MUST 維持它「對信件內容一無所知」的定位：建構子多收一個 `array $attachments`（Laravel `Illuminate\Mail\Mailables\Attachment` 實例陣列），`attachments()` 原樣回傳。MIME type 由**呼叫端**決定 —— `method=REQUEST` 與 `method=CANCEL` 是兩個不同的 content type，Mailable 不該知道差別
@@ -688,6 +692,17 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D59**: CC 從三封收斂成一封（使用者決策）。改期與取消**本來就是人與人直接寫信談出來的結果**，管理員是那場對話的當事人，系統再補一封只是噪音；待確認信則是「這個 Email 是真的嗎」的一次性驗證，未確認的申請照樣完整躺在 Leads 名單的 `pending`。
   **失去的東西**：管理員不再即時知道「有人送出申請但還沒確認」。這是可接受的 —— 那個狀態本來就要進名單才處理，而且 US14 之後 `pending` 就是名單的預設篩選。若日後想要即時感知，正確做法是後台的通知中心而不是把 CC 加回來
+
+- **D64**: 「模板只存在 seeder」是一個**反覆出現的 bug 形狀**，因此改為一次性關掉整類（2026-08-05，第三次踩到之後）。
+  seeder 只在全新安裝時跑，部署只跑 `migrate`。於是每次有人在 seeder 加一個模板，它在開發環境一切正常、在正式站永遠不存在，而症狀每次都不同且都很安靜：
+  | 模板 | 正式站的症狀 |
+  |---|---|
+  | `high_ticket_booking_verify` | 送出申請直接 422 |
+  | `booking_rescheduled` / `_cancelled` | 改期／取消信只在 log 留 warning，什麼都沒寄 |
+  | `high_ticket_slot_available` | 「通知新時段」拒絕派送 |
+
+  前兩次都是補一支專屬 migration；第三次代表這不是巧合而是結構問題。`2026_08_08_000003` 改為檢查**全部** canonical event_type、只補缺的、絕不覆寫，並把模板清單抽成 `EmailTemplateSeeder::templates()` 讓 seeder 與 migration 共用同一份定義。
+  **副作用值得記錄**：這支 migration 在測試 DB 也會跑，於是原本 `EmailTemplate::create()` 的測試會產生重複列（`event_type` 沒有 unique 約束，`forEvent()->first()` 會沉默地取錯），10 個測試因此變紅。全部改為 `updateOrCreate`；而斷言「模板不存在時的行為」的測試改為**明確刪除**該列 —— 那個前提以前靠「測試 DB 本來就是空的」成立，現在必須自己安排
 
 - **D63**: 重複預約的檢查**只發生在送出當下**，不做第 1 步的即時 precheck（2026-08-05，使用者決策）。
   體驗上這是有代價的：申請人會填完整份問卷、選完時段、等完 10 秒的 Email 覆核倒數，才被告知白填了。把檢查提前到第 1 步（Email 與手機都已填妥）能省下那一切。

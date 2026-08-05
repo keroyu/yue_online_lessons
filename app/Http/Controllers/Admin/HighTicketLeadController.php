@@ -163,16 +163,28 @@ class HighTicketLeadController extends Controller
     }
 
     /**
-     * `cancelled` is deliberately absent (US14 / FR-051): setting it here would
-     * label the lead without releasing the slot, deleting the Zoom meeting or
-     * telling the applicant — the state would be a lie. The only way in is the
-     * cancel action below; leaving it is free, since every other value is here.
+     * `cancelled` is accepted here only when there is no live booking to undo
+     * (FR-054, narrowed 2026-08-05).
+     *
+     * The original rule refused it outright, on the grounds that labelling a
+     * lead cancelled without releasing the slot, deleting the Zoom meeting and
+     * telling the applicant makes the status a lie. That holds for a lead that
+     * actually holds a booking — but not for one that never did, and refusing
+     * both left a dead end: leads carried over from the old 未回應 status have
+     * no slot at all, so once nudged out of `cancelled` nothing could put them
+     * back.
      */
     public function updateStatus(Request $request, HighTicketLead $lead): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,contacted,no_response,converted,closed'],
+            'status' => ['required', 'in:pending,contacted,no_response,converted,closed,cancelled'],
         ]);
+
+        if ($validated['status'] === 'cancelled' && $lead->isActiveBooking()) {
+            return response()->json([
+                'error' => '這筆有生效中的預約，請到「諮詢時段」點該區塊取消 —— 那裡才會釋出時段、刪除 Zoom 會議並通知對方',
+            ], 422);
+        }
 
         $lead->update($validated);
 

@@ -22,7 +22,7 @@ class EmailTemplateHtmlModeTest extends TestCase
 
     private function template(string $bodyType, string $body): EmailTemplate
     {
-        return EmailTemplate::create([
+        return EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_booking_confirmation'], [
             'name'       => '預約確認信',
             'event_type' => 'high_ticket_booking_confirmation',
             'subject'    => '{{course_name}} 預約確認',
@@ -72,7 +72,7 @@ class EmailTemplateHtmlModeTest extends TestCase
 
     public function test_body_type_defaults_to_markdown(): void
     {
-        $template = EmailTemplate::create([
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
             'name'       => '舊模板',
             'event_type' => 'course_gifted',
             'subject'    => 's',

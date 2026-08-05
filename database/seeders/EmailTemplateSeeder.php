@@ -9,7 +9,26 @@ class EmailTemplateSeeder extends Seeder
 {
     public function run(): void
     {
-        $templates = [
+        foreach (self::templates() as $template) {
+            EmailTemplate::updateOrCreate(
+                ['event_type' => $template['event_type']],
+                $template
+            );
+        }
+    }
+
+    /**
+     * The canonical set, public so a migration can install any that are missing
+     * without a second copy of the bodies living somewhere else.
+     *
+     * Needed because seeders only ever run on a fresh install: a template added
+     * here reaches production only if something else puts it there.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public static function templates(): array
+    {
+        return [
             [
                 'name' => '客製服務預約確認',
                 'event_type' => 'high_ticket_booking_confirmation',
@@ -53,12 +72,5 @@ class EmailTemplateSeeder extends Seeder
                 'body_md' => "您好 {{user_name}}，\n\n您原訂於 {{slot_time}} 的「{{course_name}}」1v1 諮詢已取消，該場次的會議連結同時失效。\n\n本信附有行事曆取消檔案，開啟後即可從您的日曆移除這筆行程。\n\n若想重新安排時間，歡迎再次預約：\n{{course_url}}\n\n或直接回覆此信與我們聯繫。\n\n經營者時間銀行",
             ],
         ];
-
-        foreach ($templates as $template) {
-            EmailTemplate::updateOrCreate(
-                ['event_type' => $template['event_type']],
-                $template
-            );
-        }
     }
 }

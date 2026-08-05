@@ -56,7 +56,7 @@ class BookingWizardTest extends TestCase
     private function templates(bool $confirmation = true): void
     {
         if ($confirmation) {
-            EmailTemplate::create([
+            EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_booking_confirmation'], [
                 'name'       => '預約確認',
                 'event_type' => 'high_ticket_booking_confirmation',
                 'subject'    => '{{course_name}} 預約確認',
@@ -656,7 +656,7 @@ class BookingWizardTest extends TestCase
         $this->templates();
         $course = $this->makeHighTicketCourse();
 
-        EmailTemplate::create([
+        EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_slot_available'], [
             'name'       => '新時段通知',
             'event_type' => 'high_ticket_slot_available',
             'subject'    => '新時段',
@@ -679,7 +679,7 @@ class BookingWizardTest extends TestCase
         Mail::fake();
         $course = $this->makeHighTicketCourse();
 
-        EmailTemplate::create([
+        EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_slot_available'], [
             'name'       => '新時段通知',
             'event_type' => 'high_ticket_slot_available',
             'subject'    => '新時段',

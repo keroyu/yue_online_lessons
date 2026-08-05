@@ -51,7 +51,7 @@ class BookingMailFailureTest extends TestCase
 
     private function bookingTemplate(): void
     {
-        EmailTemplate::create([
+        EmailTemplate::updateOrCreate(['event_type' => 'high_ticket_booking_confirmation'], [
             'name'       => '預約確認信',
             'event_type' => 'high_ticket_booking_confirmation',
             'subject'    => '{{course_name}} 預約確認',

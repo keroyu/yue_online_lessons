@@ -101,10 +101,11 @@ const statusButtons = [
   },
 ]
 
-// Filterable and colour-coded, but NOT settable from the row: a booking is
-// cancelled by cancelling it on the 諮詢時段 grid, which also frees the slot,
-// kills the Zoom meeting and mails the applicant. A one-click status flip here
-// would set the label and do none of that (FR-051) — the endpoint rejects it.
+// Settable from the row only when there is nothing to undo (FR-054). With a
+// live booking the grid's 取消預約 is the only correct path — it also frees the
+// slot, kills the Zoom meeting and mails the applicant, none of which a status
+// flip does. Without one (the leads carried over from 未回應 have no slot at
+// all) there is nothing to release and refusing would be a dead end.
 const cancelledStatus = {
   value: 'cancelled',
   letter: 'V',
@@ -116,6 +117,8 @@ const cancelledStatus = {
 }
 
 const allStatuses = [...statusButtons, cancelledStatus]
+
+const hasLiveBooking = (lead) => Boolean(lead.confirmed_at) && !lead.cancelled_at
 
 // Filter tabs — status pills inherit the colour coding above; only 全部 is neutral
 const tabs = [
@@ -638,7 +641,7 @@ const copySelectedEmails = async () => {
             <th class="hidden md:table-cell w-[173px] px-4 py-3 text-left">課程</th>
             <th class="whitespace-nowrap px-4 py-3 text-left">
               狀態
-              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待談 / C已談 / N未出席 / D成 / X關</span>
+              <span class="ml-1 font-normal normal-case tracking-normal text-[10px] text-gray-400">P待談 / C已談 / N未出席 / D成 / X關 / V取消</span>
             </th>
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
@@ -706,26 +709,22 @@ const copySelectedEmails = async () => {
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm">
               <div class="flex items-center gap-1">
-                <!-- Read-only: none of the five buttons below can represent it,
-                     and it must not be settable from here (FR-051). -->
-                <span
-                  v-if="lead.status === 'cancelled'"
-                  :title="cancelledStatus.label"
-                  class="h-[25px] w-[25px] flex-shrink-0 rounded text-xs font-bold flex items-center justify-center ring-2 ring-offset-1"
-                  :class="cancelledStatus.active"
-                >
-                  {{ cancelledStatus.letter }}
-                </span>
                 <button
-                  v-for="s in statusButtons"
+                  v-for="s in allStatuses"
                   :key="s.value"
                   type="button"
-                  :disabled="updatingStatus === lead.id"
-                  :title="s.label"
+                  :disabled="updatingStatus === lead.id || (s.value === 'cancelled' && hasLiveBooking(lead))"
+                  :title="s.value === 'cancelled' && hasLiveBooking(lead)
+                    ? '這筆有生效中的預約，請到「諮詢時段」取消，那裡才會釋出時段並通知對方'
+                    : s.label"
                   :aria-pressed="lead.status === s.value"
                   @click="updateStatus(lead, s.value)"
-                  class="h-[25px] w-[25px] flex-shrink-0 rounded text-xs font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-wait"
-                  :class="lead.status === s.value ? `${s.active} ring-2 ring-offset-1` : s.idle"
+                  class="h-[25px] w-[25px] flex-shrink-0 rounded text-xs font-bold transition-colors cursor-pointer disabled:opacity-40"
+                  :class="[
+                    lead.status === s.value ? `${s.active} ring-2 ring-offset-1` : s.idle,
+                    // wait = 正在送出；not-allowed = 這顆對這筆本來就不可設定
+                    updatingStatus === lead.id ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed',
+                  ]"
                 >
                   {{ s.letter }}
                 </button>
