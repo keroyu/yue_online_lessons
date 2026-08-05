@@ -37,6 +37,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // { status: count } over the whole search/course-filtered set, status filter
+  // excluded — see the funnel share on the pills below.
+  statusCounts: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
 // Status config — single source of truth for every status affordance on this
@@ -130,6 +136,34 @@ const tabs = [
   },
   ...allStatuses.map(({ value, label, tabActive, tabIdle }) => ({ value, label, tabActive, tabIdle })),
 ]
+
+// Funnel share on each status pill. The denominator is every lead matching the
+// current search / course filter, so the numbers stay put when the admin clicks
+// into a status instead of collapsing to 100%.
+const leadTotal = computed(() =>
+  Object.values(props.statusCounts).reduce((sum, n) => sum + Number(n || 0), 0)
+)
+
+const statusCount = (value) => Number(props.statusCounts[value] || 0)
+
+// A status holding a handful of leads out of hundreds is still worth seeing —
+// show it as <1% rather than letting it round away to 0%.
+// 全部 carries the absolute count — it is the denominator every percentage
+// next to it is read against, so it has no share of its own to show.
+const tabMetric = (value) => {
+  if (!leadTotal.value) return null
+  if (!value) return `${leadTotal.value} 筆`
+  const pct = Math.round((statusCount(value) / leadTotal.value) * 100)
+  if (pct === 0) return statusCount(value) > 0 ? '<1%' : '0%'
+  return `${pct}%`
+}
+
+const tabTitle = (value) => {
+  if (!leadTotal.value) return ''
+  return value
+    ? `${statusCount(value)} 筆 / 共 ${leadTotal.value} 筆`
+    : `共 ${leadTotal.value} 筆`
+}
 
 // Search & course filter
 const search = ref(props.filters.search || '')
@@ -556,8 +590,10 @@ const copySelectedEmails = async () => {
         :class="filters.status === (tab.value || null) || (!filters.status && !tab.value)
           ? tab.tabActive
           : tab.tabIdle"
+        :title="tabTitle(tab.value)"
       >
         {{ tab.label }}
+        <span v-if="tabMetric(tab.value)" class="ml-1 tabular-nums opacity-80">{{ tabMetric(tab.value) }}</span>
       </button>
     </div>
 

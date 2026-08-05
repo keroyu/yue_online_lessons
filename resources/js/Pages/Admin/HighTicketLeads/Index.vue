@@ -21,6 +21,7 @@ const props = defineProps({
   dripByEmail: { type: Object, default: () => ({}) },
   purchasesByEmail: { type: Object, default: () => ({}) },
   grantableCourses: { type: Array, default: () => [] },
+  statusCounts: { type: Object, default: () => ({}) },
 
   // Subscriber tab
   dripCourseOptions: { type: Array, default: () => [] },
@@ -72,6 +73,7 @@ const switchTab = (value) => {
       :drip-by-email="dripByEmail"
       :purchases-by-email="purchasesByEmail"
       :grantable-courses="grantableCourses"
+      :status-counts="statusCounts"
     />
 
     <SubscriberListTab

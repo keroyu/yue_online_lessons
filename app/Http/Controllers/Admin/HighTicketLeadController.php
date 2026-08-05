@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\DripService;
 use App\Services\HighTicketBookingService;
 use App\Services\HighTicketLeadService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,16 +94,23 @@ class HighTicketLeadController extends Controller
             ]);
         }
 
-        $leads = HighTicketLead::with(['course:id,name', 'consultant:id,nickname,email'])
+        $leads = $this->bookingLeadsQuery($search, $courseId)
+            ->with(['course:id,name', 'consultant:id,nickname,email'])
             ->when($status, fn ($q) => $q->byStatus($status))
-            ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-            }))
-            ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
             ->orderBy('booked_at', 'desc')
             ->paginate(20)
             ->withQueryString();
+
+        // Funnel share behind each status pill (FR-067). Counted over the whole
+        // filtered set rather than the current page, and deliberately without
+        // the status filter — the shares have to keep adding up to 100% after
+        // the admin clicks into one status.
+        $statusCounts = $this->bookingLeadsQuery($search, $courseId)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->map(fn ($total) => (int) $total)
+            ->all();
 
         $highTicketCourses = Course::where('type', 'high_ticket')
             ->select('id', 'name')
@@ -159,7 +167,24 @@ class HighTicketLeadController extends Controller
             'grantableCourses'  => $grantableCourses,
             'dripCourseOptions' => $dripCourses,
             'subscriberData'    => null,
+            // Cast so an empty result still reaches Vue as {} rather than [].
+            'statusCounts'      => (object) $statusCounts,
         ]);
+    }
+
+    /**
+     * The booking tab's search / course filter, shared by the paginated list
+     * and the per-status counts so the two can never disagree about which
+     * leads are in scope.
+     */
+    private function bookingLeadsQuery(?string $search, $courseId): Builder
+    {
+        return HighTicketLead::query()
+            ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            }))
+            ->when($courseId, fn ($q) => $q->where('course_id', $courseId));
     }
 
     /**

@@ -204,6 +204,52 @@ class LeadsTabsTest extends TestCase
             ->assertInertia(fn ($page) => $page->has('subscriberData.subscribers.data', 1));
     }
 
+    /**
+     * 011 US3 — the status pills show each status' share of the funnel, so the
+     * counts behind them must ignore the status filter: clicking 待面談 may not
+     * turn 待面談 into 100%.
+     */
+    public function test_status_counts_ignore_the_status_filter(): void
+    {
+        $course = $this->makeCourse();
+        foreach (['pending', 'pending', 'pending', 'contacted'] as $i => $status) {
+            HighTicketLead::create([
+                'name' => "Lead {$i}", 'email' => "lead{$i}@example.com",
+                'course_id' => $course->id, 'status' => $status, 'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?status=pending')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 3)
+                ->where('statusCounts.pending', 3)
+                ->where('statusCounts.contacted', 1));
+    }
+
+    public function test_status_counts_follow_the_search_and_course_filter(): void
+    {
+        $wanted = $this->makeCourse();
+        $other  = $this->makeCourse();
+
+        HighTicketLead::create([
+            'name' => 'In scope', 'email' => 'in@example.com',
+            'course_id' => $wanted->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+        HighTicketLead::create([
+            'name' => 'Other course', 'email' => 'out@example.com',
+            'course_id' => $other->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get("/admin/high-ticket-leads?course_id={$wanted->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('statusCounts.pending', 1)
+                ->missing('statusCounts.closed'));
+    }
+
     public function test_old_course_subscribers_route_is_gone(): void
     {
         $drip = $this->makeDripCourse();
