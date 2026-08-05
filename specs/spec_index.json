@@ -3065,6 +3065,41 @@
       "status": "partial"
     },
     {
+      "id": "011.us-16",
+      "module": "011-high-ticket",
+      "title": "阻擋重複預約與電話正規化",
+      "summary": "電話寫入前統一正規化（去非數字、886→0）並轉換舊資料；送出申請以 Email 或電話任一命中同課程既有 lead，處於等待面談／已面談／已成交／未出席時回 422 並指名負責顧問 Email；修掉「第二次申請靜默摧毀已確認預約」",
+      "heading": "### User Story 16 - 阻擋重複預約與電話正規化 (Priority: P1)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-16---阻擋重複預約與電話正規化-priority-p1",
+      "keywords": [
+        "重複預約",
+        "duplicate",
+        "去重",
+        "dedup",
+        "電話",
+        "phone",
+        "正規化",
+        "normalise",
+        "PhoneNumber",
+        "422",
+        "blockingLead",
+        "recordLead",
+        "confirmed_at",
+        "靜默摧毀",
+        "第二次諮詢"
+      ],
+      "code_files": [
+        "app/Support/PhoneNumber.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Http/Requests/HighTicketBookingRequest.php",
+        "resources/js/Components/Course/HighTicketBookingWizard.vue",
+        "database/migrations/2026_08_08_000001_index_and_normalise_phones.php",
+        "tests/Feature/HighTicket/DuplicateBookingTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",

@@ -582,7 +582,9 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
       <!-- ── Step 3: slot picker ── -->
       <div v-show="step === 3" class="mt-6 space-y-4">
-        <p v-if="errors.slot" class="text-sm text-red-600">{{ errors.slot }}</p>
+        <div v-if="errors.slot" class="rounded-xl border border-red-300 bg-red-50 p-4">
+          <p class="text-sm leading-relaxed text-red-700 break-words">{{ errors.slot }}</p>
+        </div>
 
         <!-- Code beside the picker, not above it: stacked, it read as one more
              optional field to scroll past, and the 15 extra minutes it buys is
@@ -731,7 +733,13 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
           </p>
         </div>
 
-        <p v-if="errors.submit" class="text-sm text-red-600">{{ errors.submit }}</p>
+        <!-- A block, not a red line: the most useful thing here is an address
+             the applicant has to act on (FR-066), and a one-line error is easy
+             to skim past. -->
+        <div v-if="errors.submit" class="rounded-xl border border-red-300 bg-red-50 p-4">
+          <p class="text-sm font-semibold text-red-800">無法送出</p>
+          <p class="mt-1 text-sm leading-relaxed text-red-700 break-words">{{ errors.submit }}</p>
+        </div>
 
         <!-- Appears after the first press. The address is the only thing in it
              that matters, so it is the only thing set large. -->

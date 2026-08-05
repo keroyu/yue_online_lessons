@@ -275,6 +275,9 @@ class BookingChangeTest extends TestCase
         $first = $this->confirmedLead($course);
         $second = $this->confirmedLead($course, [
             'email'          => 'other@example.com',
+            // A different person needs a different number too — US16 treats a
+            // shared phone as the same applicant and would refuse this booking.
+            'phone'          => '0987654321',
             'slot_starts_at' => $this->freeStartLaterThan($first->slots()->first()->starts_at)->toIso8601String(),
         ]);
 
@@ -582,6 +585,9 @@ class BookingChangeTest extends TestCase
         $first = $this->confirmedLead($course);
         $second = $this->confirmedLead($course, [
             'email'          => 'other@example.com',
+            // A different person needs a different number too — US16 treats a
+            // shared phone as the same applicant and would refuse this booking.
+            'phone'          => '0987654321',
             'slot_starts_at' => $this->freeStartLaterThan($first->slots()->first()->starts_at)->toIso8601String(),
         ]);
 

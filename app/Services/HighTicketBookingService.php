@@ -9,6 +9,7 @@ use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use App\Support\PhoneNumber;
 use Carbon\CarbonInterface;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Support\Carbon;
@@ -52,6 +53,10 @@ class HighTicketBookingService
     {
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
+        }
+
+        if ($blocked = $this->duplicateMessage($course, $data)) {
+            return ['success' => false, 'message' => $blocked];
         }
 
         $code = $data['code'] ?? null;
@@ -101,6 +106,10 @@ class HighTicketBookingService
     {
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
+        }
+
+        if ($blocked = $this->duplicateMessage($course, $data)) {
+            return ['success' => false, 'message' => $blocked];
         }
 
         if ($this->slots->availableStarts(ConsultationSlotService::DEFAULT_MINUTES) !== []) {
@@ -590,6 +599,82 @@ class HighTicketBookingService
 
             return false;
         }
+    }
+
+    /**
+     * Statuses that mean the consultation is settled or already happened
+     * (011 FR-065). `closed` and `cancelled` are absent on purpose — somebody
+     * re-applying after either of those is the re-engagement we want.
+     */
+    private const BLOCKING_STATUSES = ['contacted', 'converted', 'no_response'];
+
+    /**
+     * The refusal message for a repeat application, or null to let it through.
+     *
+     * Matches on email OR normalised phone: the same person with a second inbox
+     * used to walk straight past the `(email, course_id)` check and hold a
+     * second slot.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function duplicateMessage(Course $course, array $data): ?string
+    {
+        $lead = $this->existingLead($course, $data);
+
+        if (!$lead || !$this->isLive($lead)) {
+            return null;
+        }
+
+        $contact = $this->contactEmailFor($lead);
+
+        return "你已經預約過這門課的諮詢。若需要改期，或希望安排第二次面談，請直接聯絡 {$contact}。";
+    }
+
+    /**
+     * Status is read before `confirmed_at` and that order matters: a `closed`
+     * lead almost always carries a confirmation too (you talk first, then it
+     * goes cold), so testing the timestamp first would block every re-engagement.
+     */
+    private function isLive(HighTicketLead $lead): bool
+    {
+        if (in_array($lead->status, ['closed', 'cancelled'], true)) {
+            return false;
+        }
+
+        if (in_array($lead->status, self::BLOCKING_STATUSES, true)) {
+            return true;
+        }
+
+        // pending: a confirmed booking is 等待面談; an unconfirmed one is still
+        // mid-application, where changing your mind about the slot is normal.
+        return $lead->confirmed_at !== null && $lead->cancelled_at === null;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function existingLead(Course $course, array $data): ?HighTicketLead
+    {
+        $phone = PhoneNumber::normalise($data['phone'] ?? null);
+
+        return HighTicketLead::where('course_id', $course->id)
+            ->where(function ($query) use ($data, $phone) {
+                $query->where('email', $data['email']);
+
+                if ($phone !== null) {
+                    $query->orWhere('phone', $phone);
+                }
+            })
+            ->latest('id')
+            ->first();
+    }
+
+    /** Who to write to about this booking: its consultant, else support (FR-066). */
+    private function contactEmailFor(HighTicketLead $lead): string
+    {
+        $consultant = $lead->consultant_id
+            ? \App\Models\User::whereKey($lead->consultant_id)->value('email')
+            : null;
+
+        return $consultant ?: SiteSetting::supportEmail();
     }
 
     /**

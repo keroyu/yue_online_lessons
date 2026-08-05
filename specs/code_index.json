@@ -419,6 +419,7 @@
     ],
     "app/Http/Requests/HighTicketBookingRequest.php": [
       "011.us-11",
+      "011.us-16",
       "011.us-9"
     ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
@@ -729,6 +730,7 @@
       "011.us-12",
       "011.us-14",
       "011.us-15",
+      "011.us-16",
       "011.us-2",
       "011.us-6",
       "011.us-7",
@@ -814,6 +816,9 @@
       "011.us-12",
       "011.us-14",
       "011.us-15"
+    ],
+    "app/Support/PhoneNumber.php": [
+      "011.us-16"
     ],
     "bootstrap/app.php": [
       "000.us-6",
@@ -1035,6 +1040,9 @@
     "database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php": [
       "011.us-15"
     ],
+    "database/migrations/2026_08_08_000001_index_and_normalise_phones.php": [
+      "011.us-16"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1161,6 +1169,7 @@
     ],
     "resources/js/Components/Course/HighTicketBookingWizard.vue": [
       "011.us-10",
+      "011.us-16",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -1600,6 +1609,9 @@
     "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
       "011.us-10",
       "011.us-13"
+    ],
+    "tests/Feature/HighTicket/DuplicateBookingTest.php": [
+      "011.us-16"
     ],
     "tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php": [
       "011.us-7"

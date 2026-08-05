@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\PhoneNumber;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -17,6 +18,20 @@ class HighTicketBookingRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Canonicalise the phone before anything looks at it (FR-064 / D62).
+     *
+     * Here rather than in the service so validation, storage and the duplicate
+     * lookup all see the same string — normalising later would mean validating
+     * one value and comparing another.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone')) {
+            $this->merge(['phone' => PhoneNumber::normalise($this->input('phone'))]);
+        }
     }
 
     public function rules(): array

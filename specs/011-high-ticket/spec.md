@@ -67,6 +67,9 @@ owner_files:
   - database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php
   - database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php
   - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+  - app/Support/PhoneNumber.php
+  - database/migrations/2026_08_08_000001_index_and_normalise_phones.php
+  - tests/Feature/HighTicket/DuplicateBookingTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
@@ -428,6 +431,39 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [ ] 所有新增的可點元素 `cursor-pointer` + hover 回饋
 - [ ] 測試：拖曳建立時自動帶入歸屬、顧問只能指派給自己、管理員可改派既有預約、確認時快照到 lead、確認信 CC 客服 + 顧問、無顧問時只 CC 客服、其餘三封信完全無 CC、Zoom 指定主持人成功、主持人 404 時 fallback 回 me
 
+### User Story 16 - 阻擋重複預約與電話正規化 (Priority: P1)
+
+同一個人可以無限次重複預約同一門課的諮詢，而且**第二次申請會靜默摧毀第一次已確認的預約**：
+`recordLead()` 命中既有列時把 `confirmed_at` 重設為 null、`reserve()` 把原本的時段釋放掉，
+於是一筆已成立的預約變回「暫留中」。對方若沒點新的確認信，一小時後連新時段也釋出 ——
+他從「有一個確認好的預約」變成什麼都沒有，而**雙方都不會收到任何通知**：
+週曆上那格自己消失，`.ics` 也不會發取消，對方行事曆裡還留著已經不存在的行程。
+
+`recordLead()` 的去重（D17）當初是為了「同一個人送三次表單就變三列待處理」而設計的，
+那時還沒有時段、沒有 Email 確認、沒有 `.ics`、沒有 Zoom。這些加上去之後，
+「更新既有列」的語意就從「刷新一筆待辦」變成了「拆掉一個已成立的預約」。
+
+同時電話完全沒有參與比對，換一個 Email 就是新的一筆 lead、佔第二組時段。
+
+**驗收**：
+- [ ] 電話 MUST 在寫入 DB 前正規化：去除所有非數字字元，`+886` / `886` 開頭轉為 `0`（`0912-345-678`、`+886912345678`、`0912 345 678` 一律成為 `0912345678`）。正規化收在 `PhoneNumber::normalise()` 單一入口
+- [ ] `high_ticket_leads.phone` 與 `users.phone` 的既有資料 MUST 由 migration 一併轉換；`orders.buyer_phone` **MUST NOT 動**（交易紀錄是當下的快照，改寫已成立的訂單風險大於效益）
+- [ ] `high_ticket_leads.phone` MUST 建 index —— 它成為去重的查詢鍵
+- [ ] 送出申請與候補申請 MUST 以 **Email 或正規化電話任一命中**、且**同一課程**尋找既有 lead
+- [ ] 命中且處於下列狀態時 MUST 擋下（422），MUST NOT 建立或更新任何資料、MUST NOT 動到既有時段：
+  | 狀態 | 擋 | 理由 |
+  |------|----|------|
+  | `pending` 且已確認（等待面談） | ✅ | 已經有一個成立的預約 |
+  | `contacted`（已面談） | ✅ | 第二次諮詢走顧問 |
+  | `converted`（已成交） | ✅ | 已超過「已面談」 |
+  | `no_response`（未出席） | ✅ | 爽約者要再約須經顧問（使用者決策） |
+  | `pending` 未確認（申請中） | ❌ 放行 | 還在流程中，改選時段是正常操作 |
+  | `closed`（已關閉） | ❌ 放行 | 冷掉後重新申請正是要的再接觸（沿用 D17） |
+  | `cancelled`（已取消） | ❌ 放行 | 取消後重約正是取消的意義（沿用 FR-049） |
+- [ ] 擋下的訊息 MUST 指名該筆的**負責顧問 Email**，無指派時退回客服信箱（FR-057）；文案 MUST 說明「若需要改期或安排第二次面談，請直接聯絡」
+- [ ] 前台 MUST 把這個訊息完整顯示給申請人（不是泛用的「送出失敗」）
+- [ ] 測試：三種電話寫法正規化為同一值、換 Email 同電話被擋、換電話同 Email 被擋、四種擋下狀態各一、三種放行狀態各一、被擋時既有預約與時段**完全未被更動**、訊息含顧問 Email、無顧問時含客服信箱、舊資料 migration 轉換正確
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -579,6 +615,15 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
   顧問為 null 時確認信 MUST 仍 CC 客服清單。**這是行為變更**：管理員不再收到每一筆「有人送出申請」的副本，只會收到已確認成立的預約 —— 未確認的申請仍完整存在於 Leads 名單的 `pending`，沒有資料遺失（見 D59）
 
+- **FR-064**: 電話 MUST 經 `PhoneNumber::normalise()` 正規化後才寫入 DB。規則：去除所有非數字字元；`886` 開頭（含 `+886`）轉為 `0`；空字串回 null。**唯一入口**，`HighTicketBookingRequest::prepareForValidation()` 在驗證前就套用，使驗證、儲存、比對三者看到的都是同一個值。
+  適用 `high_ticket_leads.phone` 與 `users.phone`（兩者本來就相連 —— FR-041 會把 lead 電話寫進會員）。**`orders.buyer_phone` 明確不動**（使用者決策）：那是交易當下的快照，用途是聯絡與收據而非去重鍵，改寫已成立的訂單風險大於效益
+
+- **FR-065**: 送出申請（`apply()`）與候補申請（`waitlist()`）MUST 先檢查重複預約，命中即回 **422 並終止** —— MUST NOT 建立 lead、MUST NOT 更新既有 lead、MUST NOT 動到任何時段。比對條件為**同一課程**下 `email` 或**正規化後的** `phone` 任一命中。
+  擋下的狀態集合：`contacted` / `converted` / `no_response`，加上「`pending` 且 `confirmed_at` 非 null 且 `cancelled_at` 為 null」（＝等待面談）。放行：`closed`、`cancelled`、以及 `pending` 但尚未確認者。
+  **狀態優先於 confirmed_at**：`closed` 的 lead 多半也有 `confirmed_at`（談過才冷掉），但它要放行 —— 判斷順序寫錯會把所有再接觸的人一起擋掉
+
+- **FR-066**: 擋下的訊息 MUST 指名該筆 lead 的**負責顧問 Email**（`consultant_id`，US15），無指派時退回 `SiteSetting::supportEmail()`。前台 MUST 原樣顯示這段訊息 —— 這是唯一告訴申請人「該找誰」的地方，代換成泛用錯誤等於把人擋在門外又不給路
+
 - **FR-063**: `ZoomMeetingService::createMeeting()` MUST 接受選填的主持人 Email，指定時打 `POST /v2/users/{email}/meetings`。該 Email 在 Zoom 帳號下不存在時 Zoom 回 **404**，此時 MUST fallback 至 `/users/me/meetings` 並記 warning —— 顧問還沒有 Zoom 席次是**預期中的過渡狀態**，不是錯誤，預約流程 MUST NOT 因此中斷（見 D60）
 
 - **FR-059**: 第 4 步的送出 MUST 為**兩段式**（2026-08-05，實測踩到）。第一次按「送出申請」MUST NOT 直接送出，而是顯示醒目的 Email 覆核區塊（大字體印出 `form.email`）並**倒數 10 秒**，倒數期間按鈕停用、顯示剩餘秒數；倒數結束後按鈕改為「Email 正確，確認送出」，第二次按下才真的送出。區塊 MUST 提供「這個 Email 不對，回去修改」直接跳回第 1 步。離開第 4 步或修改 Email MUST 重置整個流程。
@@ -633,6 +678,16 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D59**: CC 從三封收斂成一封（使用者決策）。改期與取消**本來就是人與人直接寫信談出來的結果**，管理員是那場對話的當事人，系統再補一封只是噪音；待確認信則是「這個 Email 是真的嗎」的一次性驗證，未確認的申請照樣完整躺在 Leads 名單的 `pending`。
   **失去的東西**：管理員不再即時知道「有人送出申請但還沒確認」。這是可接受的 —— 那個狀態本來就要進名單才處理，而且 US14 之後 `pending` 就是名單的預設篩選。若日後想要即時感知，正確做法是後台的通知中心而不是把 CC 加回來
+
+- **D61**: 重複預約改為**擋下**而不是「當成改期處理」（使用者決策）。
+  技術上可以把第二次申請當成改期（保留 confirmed、不要求重新確認、發 `.ics` 更新、同步 Zoom），但那與 D50 的決定衝突 —— 既然改期／取消一律人工聯絡，那「重新申請」就是繞過那個決定的後門，做得越順手繞得越多。擋下並指名顧問 Email，是把人導回既有的那條路。
+  第二次諮詢的需求真實存在，但**在系統之外手動安排**（使用者決策）：顧問可以直接在週曆上開時段並手動指派，不需要申請人再走一次公開流程。
+  `no_response`（未出席）也擋（使用者決策）：爽約者要再約須經顧問，這讓業主保有「要不要再給一次機會」的決定權。`closed` 與 `cancelled` 放行，因為那兩種狀態下重新申請正是我們想要的再接觸
+
+- **D62**: 電話正規化採**去數字 + 台灣國碼轉換**，不引 libphonenumber。
+  受眾是台灣，需要處理的只有 `0912345678` / `0912-345-678` / `0912 345 678` / `+886912345678` / `886912345678` 這幾種寫法，全部化為 `0912345678`。非台灣號碼會退化成「純數字字串」，仍然是穩定的比對鍵 —— 對去重來說夠用，而 libphonenumber 會帶進一個要跟著更新的號碼規則資料庫。
+  正規化放在 **Form Request 的 `prepareForValidation()`** 而非 service：那是請求進入系統的第一個關卡，之後驗證規則、儲存、去重查詢看到的都是同一個值，不會出現「驗證用原值、比對用正規值」的錯位。
+  舊資料以 migration 一次轉換。**`orders.buyer_phone` 不動**：它不是去重鍵，而改寫已成立的交易紀錄是不對稱的風險 —— 出錯時沒有還原依據
 
 - **D60**: Zoom 主持人做成**選填 + 404 fallback**，而不是等買了席次再實作。
   `POST /v2/users/{email}/meetings` 需要該 Email 在同一個 Zoom 帳號下有席次（Zoom 按席次計費）。業主打算之後才買，所以現在指定顧問 Email 一定會 404。
@@ -768,6 +823,14 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
 
 ## Schema
+
+- **US16 schema 變更（一支 migration）**：
+
+  `2026_08_08_000001_index_and_normalise_phones.php` — `high_ticket_leads.phone` 加 index（它成為去重查詢鍵），並把 `high_ticket_leads.phone` 與 `users.phone` 的既有值就地正規化（FR-064）。`orders.buyer_phone` 不動（D62）
+
+  **只有一支** —— US16 的擋門完全建立在既有欄位（`status` / `confirmed_at` / `cancelled_at` / `phone`）之上，不需要第二支
+
+  **不變量**：電話進 DB 前一律經 `PhoneNumber::normalise()`；DB 裡不應再出現含 `-`、空白或 `+886` 的號碼
 
 - **US15 schema 變更（兩支 migration）**：
 
@@ -1104,6 +1167,25 @@ Phase E — 後台 UI（相依 B）
 Phase F — 驗證
 - [x] T148 `php artisan test` 全綠（基準 411 passed）＋ `npm run build` exit 0
 - [ ] T149 使用者以瀏覽器實測：以顧問身分登入建時段、管理員改派、預約後確認信的 CC 收件者、Leads 名單的顧問欄
+
+### 阻擋重複預約與電話正規化（US16）
+
+Phase A — 正規化（其餘相依於此）
+- [x] T150 **測試先行**：`0912-345-678` / `0912 345 678` / `+886912345678` / `886912345678` 皆正規化為 `0912345678`；空值回 null；非台灣號碼退化為純數字 in `tests/Feature/HighTicket/DuplicateBookingTest.php`
+- [x] T151 新 helper：`normalise(?string): ?string`（FR-064 / D62）in `app/Support/PhoneNumber.php`
+- [x] T152 `prepareForValidation()` 於驗證前正規化 `phone`，使驗證／儲存／比對看到同一值 in `app/Http/Requests/HighTicketBookingRequest.php`
+- [x] T153 [P] migration：`high_ticket_leads.phone` 加 index；以 `chunkById` 就地正規化（只寫真的有變的列） `high_ticket_leads.phone` 與 `users.phone`（`orders.buyer_phone` 不動）in `database/migrations/2026_08_08_000001_index_and_normalise_phones.php`
+
+Phase B — 擋門（相依 A）
+- [x] T154 **測試先行**：四種擋下狀態各一、三種放行狀態各一、換 Email 同電話被擋、換電話同 Email 被擋、**被擋時既有 lead 與時段完全未被更動**、訊息含顧問 Email、無顧問時含客服信箱 in `tests/Feature/HighTicket/DuplicateBookingTest.php`
+- [x] T155 `blockingLead(Course, string $email, ?string $phone): ?HighTicketLead` + `apply()` / `waitlist()` 於最前面呼叫並回 422（FR-065 / FR-066）；狀態判斷必須先於 `confirmed_at`，否則 `closed` 會被一起擋掉 in `app/Services/HighTicketBookingService.php`
+
+Phase C — 前台
+- [x] T156 送出失敗時原樣顯示後端訊息（目前 422 會被吃成泛用文案），並在 Email 覆核區塊之後、第 4 步的錯誤位置呈現 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+
+Phase D — 驗證
+- [x] T157 `php artisan test` 全綠（基準 427 passed）＋ `npm run build` exit 0
+- [ ] T158 使用者以瀏覽器實測：已確認預約者重複申請被擋且訊息指名顧問、換 Email 同電話被擋、取消後可重新預約
 
 ## 進度日誌
 

@@ -551,6 +551,7 @@ main_files:
 - app/Services/HighTicketBookingService.php
 - app/Services/HighTicketLeadService.php
 - app/Services/ZoomMeetingService.php
+- app/Support/PhoneNumber.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
 - database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
@@ -565,6 +566,7 @@ main_files:
 - database/migrations/2026_08_06_000004_drop_booking_verify_email_template.php
 - database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php
 - database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php
+- database/migrations/2026_08_08_000001_index_and_normalise_phones.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -592,6 +594,7 @@ main_files:
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
+- tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php
