@@ -78,6 +78,7 @@ owner_files:
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
   - tests/Feature/HighTicket/LeadsTabsTest.php
+  - tests/Feature/HighTicket/ExpiredApplicationPurgeTest.php
 touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
@@ -334,11 +335,12 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] `GET /booking/confirm/{token}` 為公開路由（無需登入）；確認成功後：`confirmed_at = now`、該 lead 的時段單位 `held_until` 清為 null（正式佔用），並顯示提醒頁「確認已完成預約，相關資料已寄出，建議在諮詢時間以前看完」
 - [x] **確認成功才寄出**既有的 `high_ticket_booking_confirmation`「客製服務預約確認」信（送出當下不寄）；同時才觸發 drip `checkAndBook()` 與 Meta CAPI `Lead` 事件（見 D35）
 - [x] token 已確認過再點一次為**冪等**：不重複寄信、不報錯，顯示同一張「已完成確認」頁
-- [x] token 逾時（`confirm_expires_at < now`）：顯示「確認連結已逾時，保留的時段已釋出」+ 回課程頁重新預約的連結；lead 保留於名單（status 維持 pending，管理員仍可跟進）
+- [x] token 逾時（`confirm_expires_at < now`）且該筆申請尚未被清掃時：顯示「確認連結已逾時，保留的時段已釋出」+ 回課程頁重新預約的連結。**清掃後該 lead 已不存在**（FR-068），同一個連結改落到 `invalid` 分支，文案因此改為「連結已失效 —— 可能已逾時或網址不完整」並同樣導回重新申請
 - [x] token 不存在或格式不符：顯示「連結無效」頁，MUST NOT 洩漏任何 lead 資訊
-- [x] 逾時的暫留單位對**其他人的查詢**立即視同可用（lazy 判定，不等排程；見 D33）；`booking:release-holds` 排程每 10 分鐘把逾時單位清乾淨僅為資料整齊
+- [x] 逾時的暫留單位對**其他人的查詢**立即視同可用（lazy 判定，不等排程；見 D33）；`booking:release-holds` 排程每 10 分鐘把逾時單位清乾淨 —— 就時段而言僅為資料整齊，但**刪除逾時申請只發生在這裡**（FR-068），排程沒跑名單就會一直錯
 - [x] 同一 lead 重新送出申請時，先釋放它先前持有的所有單位再佔新的，不會一人卡住兩組時段
-- [x] 測試：並發搶同一時段只有一人成功、逾時後單位可被他人選走、確認冪等、確認前不寄確認信 / 不送 CAPI
+- [x] 逾時未確認的申請 MUST 從 Leads 名單刪除（FR-068）：時段先釋放再刪 lead，不留孤兒；`confirmed_at` 非空或 `status` 已被管理員改動者一律保留
+- [x] 測試：並發搶同一時段只有一人成功、逾時後單位可被他人選走、確認冪等、確認前不寄確認信 / 不送 CAPI、逾時申請被清掃且已確認 / 已跟進 / 候補者不受影響
 
 ### User Story 12 - 確認後自動建立 Zoom 會議 (Priority: P2)
 
@@ -682,6 +684,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
+- **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者
+
 ## 設計決策
 
 - **D57**: 顧問歸屬做在**共用行事曆**上，不改成每位顧問各一本（使用者決策）。
@@ -854,6 +858,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **D43**: 手機號碼在**轉換時**帶進會員資料，而不是在 Email 確認時回填（使用者決策）。預約流程不建 User，lead 要成為會員只有「開通商品」與「加入序列信」兩個時機，在那裡帶過去等於順手，不需要額外的寫入路徑。選 `firstOrCreate` 的建立屬性而非 `update`，是因為「預約一次就改掉既有會員的電話」是使用者沒要求的副作用 —— 會員自己在帳號設定填的值，權威性高於他在預約表單隨手填的。代價是既有會員的空 `phone` 不會被補上，這是可接受的：那筆資料仍在 lead 上看得到。連帶把三個電話欄位一律加寬到 `varchar(30)`，順手修掉一個既有的截斷風險 —— `FreePurchaseController` 早就收 `max:30`，但 `users.phone` 只有 20
 
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
+
+- **D63**: 逾時申請採**硬刪除**而非標記狀態（2026-08-06，業主指定）—— 名單只該留「真的成立過的預約」與「有人在跟進的對象」，填完問卷卻沒點確認信的人兩者都不是。代價講清楚：問卷答案（`phone` / `occupation` / `bottleneck` / `expertise`）會一併永久消失，而「email 已在訂閱者名單」救不回這些 —— 訂閱者名單只有 email、暱稱與訂閱狀態，且 `apply()` 本來就不建立 drip 訂閱（D35：未驗證的 email 還不算 lead），所以申請人是否在訂閱者名單其實不保證。保留 `status = 'pending'` 這道閘是整條規則的安全帶：管理員一旦動過狀態，掃除就繞開。連帶副作用：清掃後同一個確認連結會從 `expired` 落到 `invalid`，因為 lead 已不存在、無從分辨「逾時」與「網址亂打」，故 `invalid` 文案改為同時涵蓋兩種成因並導回重新申請 —— 原文案「可能是網址不完整，請直接使用信件中的連結」對一個正在使用信件連結的人是錯誤指引
 
 ## Schema
 
@@ -1226,6 +1232,7 @@ US3 補充
 
 ## 進度日誌
 
+- 2026-08-06: 逾時未確認的預約申請改為連同 lead 一起刪除（FR-068 / D63）— 原本只釋放時段、lead 留在名單，導致「填完問卷但沒確認」的人堆積在待面談。改由 `purgeExpiredApplications()` 在釋放時段後刪除，`booking:release-holds` 每 10 分鐘執行；已確認（含事後取消）、管理員動過狀態、候補名單三類一律保留。連帶把確認頁 `invalid` 文案改寫 —— 清掃後同一連結會落到該分支，舊文案要人「直接使用信件中的連結」，但對方正是這麼做的。新增 ExpiredApplicationPurgeTest（8 tests），全套 501 passed。查證後同步修正一項既有 spec 敘述：US11 原寫「lead 保留於名單」，已隨本次改動更新。
 - 2026-08-05: 狀態 tab 加上漏斗佔比（T160 / FR-067）— 名單頁原本要看漏斗形狀得逐個狀態點進去、記下分頁總數再自己心算。百分比直接印在 tab 上，一眼看得出卡在哪一段。兩個決定值得記：（1）分母**不含狀態篩選** —— 若跟著篩選走，點進「待面談」會讓它變成 100%，數字反而騙人；（2）計數走後端 `GROUP BY`，不是拿當頁 20 筆算 —— 前端只看得到一頁，算出來的比例會隨翻頁跳動。搜尋 / 課程篩選則**要**吃進分母（「這門課的漏斗」是合理的問題），因此與列表共用同一個 query builder，避免兩邊條件日後漂移。四捨五入到 0 但實際有資料的顯示 `<1%`，免得剛起步的狀態看起來像沒有。
 - 2026-08-05: 規劃 US15 諮詢時段指派銷售顧問（已審核，開始實作） — 顧問要能順手開自己的時段並在自己信箱收到成立的預約，才可能自己安排行程。`consultation_slots` 與 `high_ticket_leads` 各加一個 `consultant_id`，前者是「這段時間屬於誰」、後者是確認當下的**快照**（時段會被改派、取消還會釋放回池子，靠即時查詢會查到錯的人，D58）。**關鍵限制寫進 D57**：`starts_at` 仍是全域 unique，所以這是「一本共用行事曆上的歸屬標記」，不是每位顧問各一本 —— 兩位顧問無法同時開放同一時刻。改成每人一本要連帶決定「訪客自己挑顧問還是系統分配」（商業決定）並重做公開選時段流程，是另一個 US；目前系統有 0 位顧問，先做標記不擋日後升級。CC 規則同時從三封收斂成一封（D59）：改期與取消本來就是人與人寫信談出來的結果，系統再補一封只是噪音；代價是管理員不再即時收到「有人送出申請」，但那筆申請照樣在名單的 pending。Zoom 主持人做成選填 + 404 fallback（D60），業主之後才會買席次，現在指定一定 404 —— 做好 fallback 等於買了席次當天自動生效，且 404 記 warning 不記 error，免得過渡期的假警報淹掉真故障。顧問權限隔離（只看自己的時段與 leads）明確不做。
 - 2026-08-05: 第 4 步加 Email 覆核防呆（T134 / FR-059）— 業主實測時把自己的信箱打成 `gosihnra@`（h/i 顛倒），等了一分鐘才發現收不到信。查下來系統一切正常：lead 建了、時段佔了、`Mail::send()` 沒丟例外、log 乾淨 —— 因為信**確實寄出去了**，只是寄到一個不存在的地址。這是最難查的一類失敗：每一層都回報成功，只有收件匣是空的，而申請人不會知道自己打錯，時段就被鎖到 1 小時後逾時。唯一能攔下它的時機是送出前，所以第一次按送出改為顯示大字體的 Email 覆核區塊並強制倒數 10 秒 —— 停頓的目的不是等待，是讓「再看一眼」真的發生。附「這個 Email 不對，回去修改」直接跳回第 1 步；離開步驟或改動 Email 都會重置。送出後的畫面（含候補路徑）也逐字印出收件地址並說明打錯的後果，讓人在還記得自己填了什麼的時候就能發現。

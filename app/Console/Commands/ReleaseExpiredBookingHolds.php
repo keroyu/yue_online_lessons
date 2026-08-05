@@ -2,27 +2,27 @@
 
 namespace App\Console\Commands;
 
-use App\Services\ConsultationSlotService;
+use App\Services\HighTicketBookingService;
 use Illuminate\Console\Command;
 
 /**
- * Housekeeping only (011 FR-035 / D33).
+ * Sweep out applications nobody confirmed (011 FR-035 / FR-068 / D33).
  *
- * Availability queries already treat an expired hold as free, so nothing a
- * visitor can see depends on this command running. It exists so the admin slot
- * page does not show stale owners on units nobody actually booked.
+ * Releasing the slot is housekeeping — availability already treats an expired
+ * hold as free, so nothing a visitor sees depends on it. Deleting the lead is
+ * not: the Leads list keeps showing abandoned applications until this runs.
  */
 class ReleaseExpiredBookingHolds extends Command
 {
     protected $signature = 'booking:release-holds';
 
-    protected $description = '清除逾時未確認的預約時段暫留（資料整理，非正確性來源）';
+    protected $description = '釋出逾時未確認的預約時段，並刪除該筆未完成的申請';
 
-    public function handle(ConsultationSlotService $slots): int
+    public function handle(HighTicketBookingService $booking): int
     {
-        $released = $slots->releaseExpired();
+        $purged = $booking->purgeExpiredApplications();
 
-        $this->info("已釋出 {$released} 個逾時暫留時段");
+        $this->info("已釋出逾時暫留時段，並刪除 {$purged} 筆未完成的申請");
 
         return self::SUCCESS;
     }

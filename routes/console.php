@@ -30,6 +30,8 @@ Schedule::command('points:mature')->dailyAt('00:30');
 // Reconcile users.points cache against the ledger; logs any drift (SC-002).
 Schedule::command('points:reconcile')->dailyAt('01:00');
 
-// Tidy up consultation slot holds nobody confirmed. Availability already ignores
-// expired holds, so this is housekeeping, not correctness (011 FR-035).
+// Release slot holds nobody confirmed AND delete the abandoned application
+// (011 FR-035 / FR-068). The slot half is housekeeping — availability already
+// ignores expired holds — but the lead deletion only happens here, so the
+// Leads list stays wrong for as long as this does not run.
 Schedule::command('booking:release-holds')->everyTenMinutes();

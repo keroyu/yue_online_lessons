@@ -32,11 +32,14 @@ const views = {
     title: '確認連結已逾時',
     body: '保留的時段已經釋出。如果仍想預約，請回到課程頁重新申請並在 1 小時內完成確認。',
   },
+  // Covers two causes we can no longer tell apart: a malformed URL, and a link
+  // whose application was swept after its hour ran out (FR-068). Blaming the
+  // URL alone would tell a late clicker to do the thing they just did.
   invalid: {
     icon: '?',
     tone: 'bg-gray-50 border-gray-200 text-gray-700',
-    title: '連結無效',
-    body: '這個確認連結無法辨識，可能是網址不完整。請直接使用信件中的連結。',
+    title: '連結已失效',
+    body: '這個確認連結可能已經逾時（保留的時段會在 1 小時後釋出），或是網址不完整。如果仍想預約，請回到課程頁重新申請。',
   },
 }
 

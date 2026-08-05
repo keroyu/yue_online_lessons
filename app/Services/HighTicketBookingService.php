@@ -91,6 +91,38 @@ class HighTicketBookingService
     }
 
     /**
+     * Drop applications whose confirmation hour ran out (011 FR-068).
+     *
+     * Releasing the slot was never the whole cleanup: the lead row stayed, so
+     * the Leads list filled up with people who filled in the wizard and then
+     * never clicked the emailed link. Those are not bookings and not anybody's
+     * follow-up, so they leave no trace.
+     *
+     * Two guards decide what survives:
+     *  - `confirmed_at` — a booking that was ever confirmed keeps its history,
+     *    including one later cancelled.
+     *  - `status = pending` — the moment an admin moves the lead anywhere else
+     *    they are working it by hand, and a sweeper must not delete that.
+     *
+     * Waitlist entries carry no `confirm_expires_at` at all (they had nothing
+     * to confirm), so they fall outside this entirely.
+     *
+     * Holds are released first: `consultation_slots.lead_id` has no foreign
+     * key, so deleting in the other order would leave units pointing at a row
+     * that no longer exists and the admin calendar would show a phantom owner.
+     */
+    public function purgeExpiredApplications(): int
+    {
+        $this->slots->releaseExpired();
+
+        return HighTicketLead::whereNull('confirmed_at')
+            ->whereNotNull('confirm_expires_at')
+            ->where('confirm_expires_at', '<=', now())
+            ->where('status', 'pending')
+            ->delete();
+    }
+
+    /**
      * No slots are open yet, but the application is still worth having (011 US10).
      *
      * Records the lead exactly as an application would, minus everything that
