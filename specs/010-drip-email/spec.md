@@ -164,7 +164,7 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 訂閱者進入教室只看到「有影片且已解鎖」的 Lesson；純文字 Lesson 只活在 Email、未解鎖 Lesson 完全不露出（無倒數無鎖頭），維持漏斗黑盒子效果。
 
 **驗收**：
-- [x] 解鎖判定一律以 emails_sent 為準（sort_order < emails_sent）；只有 completed 與 unlock_all=true 的舊 converted 全解鎖（US14 修訂）
+- [x] 解鎖判定一律以 emails_sent 為準（位次 < emails_sent，位次見 FR-022）；只有 completed 與 unlock_all=true 的舊 converted 全解鎖（US14 修訂）
 - [x] drip 課程側邊欄過濾：無 video_id 或未解鎖的 Lesson 不出現；admin 預覽豁免（可見全部）
 - [x] 直接以 URL 存取未解鎖 Lesson 被擋（改抓第一個未完成的已解鎖影片 Lesson）
 - [x] 無任何可顯示 Lesson 時顯示空白歡迎狀態（currentLesson=null，非錯誤頁）
@@ -176,7 +176,7 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 
 **驗收**：
 - [x] CourseForm「連鎖 Email 設定」分頁：drip_interval_days、目標課程多選、依現有 Lesson 排序預覽 Day 0/N/2N 發信日
-- [x] 解鎖日全自動：sort_order × drip_interval_days，管理員只調排序與間隔
+- [x] 解鎖日全自動：位次 × drip_interval_days（位次見 FR-022），管理員只調排序與間隔
 - [x] LessonForm（drip 課程）「+ 插入教室連結」在游標處插入 `{{classroom_url}}`；偵測到影片 URL 時顯示琥珀色提醒
 - [x] 信件不含系統固定區塊（課程標題行/影片提醒/教室連結），內容連結全由管理員在 md_content 維護（退訂連結除外）
 - [x] 系統會在 md_content **之前**自動加一行「Hi {暱稱}，」、主旨自動組成「{暱稱}，{小節標題}」（無暱稱時兩者都省略），**之後**自動附退訂連結；LessonForm 的 Markdown 內容欄上方 MUST 在 drip 課程時說明這件事，避免管理員在正文重複寫稱呼
@@ -197,7 +197,7 @@ Lesson 可設定延遲顯示的促銷區塊（promo_delay_seconds + promo_html�
 Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數，過期後影片仍可看但顯示加強促銷區塊（軟性提醒）。獎勵欄：停留滿 config 設定分鐘數後解鎖管理員自訂 reward_html。
 
 **驗收**：
-- [x] 過期時間 = subscribed_at + (sort_order × 間隔天數) 天 + video_access_hours 小時；null 不顯示任何相關 UI
+- [x] 過期時間 = subscribed_at + (位次 × 間隔天數) 天 + video_access_hours 小時；null 不顯示任何相關 UI
 - [x] 過期後影片不鎖定，顯示「免費觀看期已結束…」促銷區塊，附目標課程連結（無目標課程則通用文案）
 - [x] 已達標訂閱者（converted **與 booked**，US13 修訂）豁免全部觀看期/獎勵 UI（後端直接不下發相關 props）
 - [x] 獎勵欄前提：有影片 + 有 video_access_hours + 有 reward_html；達標前顯示「你準時來上課了！真棒」，per-session 計時（離開歸零），達標寫 localStorage 永久保留
@@ -211,7 +211,7 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 **驗收**：
 - [x] pixel 為 signed URL（180 天效期），驗簽失敗仍回 1x1 GIF 不報錯；事件以 (subscription, lesson, event_type) DB unique 去重
 - [x] 訂閱者清單：分頁 20 筆、狀態篩選（active/converted/completed/unsubscribed）、狀態統計卡（2026-08-04 起頁面位置改為 Leads 名單頁的「訂閱者名單」tab，課程以頁內下拉選擇；資料組裝為 `DripService::subscriberPageData()`，見 011 US8）
-- [x] Lesson 統計表：已發送數（emails_sent > sort_order 的訂閱數）、開信數/率、點擊數/率；無 promo_url 或分母 0 顯示「—」
+- [x] Lesson 統計表：已發送數（emails_sent > 位次 的訂閱數，位次見 FR-022）、開信數/率、點擊數/率；無 promo_url 或分母 0 顯示「—」
 - [x] 整體轉換率 = converted / 總訂閱數（分母 0 顯示「—」）
 - [x] 每位訂閱者行顯示「已開 N/M 封」與是否曾點擊促銷按鈕（✓/—）
 
@@ -221,7 +221,7 @@ Lesson 可設定 video_access_hours（null=無限期）；期限內顯示倒數�
 
 **驗收**：
 - [x] 影片寄出成功時，寫入一筆 `drip_email_events` 的 `sent` 事件（created_at = 實際寄出時刻），為該訂閱該 Lesson 的計時錨點
-- [x] 過期時間 = `sent 事件 created_at + video_access_hours 小時`（優先）；查無 sent 事件時 fallback 舊公式（`subscribed_at + sort_order × 間隔天數 天 + video_access_hours 小時`）
+- [x] 過期時間 = `sent 事件 created_at + video_access_hours 小時`（優先）；查無 sent 事件時 fallback 舊公式（`subscribed_at + 位次 × 間隔天數 天 + video_access_hours 小時`）
 - [x] fallback 涵蓋兩種情境：改版前既有訂閱（無回填 sent 事件）、已 dispatch 但 Job 尚未實際寄出的空窗期；兩者行為與改版前一致，無資料遷移
 - [x] sent 事件寫入採 firstOrCreate 冪等，Job 重試（$tries=3）不重複；寫入失敗僅 log 不中斷（與開信/點擊事件同策略）
 - [x] sent 事件在 `Mail::send` 成功**之後**才寫，寄信拋錯（觸發重試）不會留下錨點
@@ -249,7 +249,7 @@ drip 不直接賣高價課，它的目標常常是「完成預約」。因此達
 drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購買）就結束漏斗 — 停信、已解鎖內容保留、後續小節不再公開（語意同退訂）。改版前既有的 converted 訂閱者維持全開，不回收已給出去的內容。
 
 **驗收**：
-- [x] `isLessonUnlocked()` 判定順序：`unlock_all=true` 或 `completed` → 全開；其餘（含 active/booked/converted/unsubscribed）一律 `sort_order < emails_sent`
+- [x] `isLessonUnlocked()` 判定順序：`unlock_all=true` 或 `completed` → 全開；其餘（含 active/booked/converted/unsubscribed）一律 `位次 < emails_sent`
 - [x] migration 新增 `unlock_all` boolean（default false），並將現有 `status='converted'` 的列回填為 true；新產生的轉換一律 false
 - [x] `daysUntilUnlock()` 對停信狀態（booked/converted/unsubscribed）一律回 -1（不會再解鎖）
 - [x] 教室側邊欄過濾、URL 直闖擋下皆沿用 isLessonUnlocked，無需個別改動；達標者進教室只看得到已寄達的 Lesson
@@ -258,7 +258,7 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 
 ## Requirements
 
-- **FR-001**: 解鎖日公式 `sort_order × drip_interval_days`（sort_order 從 0 起）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
+- **FR-001**: 解鎖日公式 `位次 × drip_interval_days`（位次見 FR-022）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
 - **FR-002**: drip_interval_days ≤ 0 時視為全部解鎖（防呆）
 - **FR-003**: 訂閱唯一性：(user_id, course_id) DB unique；unsubscribed 是終態 — 永不能再訂閱同課程
 - **FR-004**: 狀態機：active → booked（預約目標高價課）/ converted（購買目標課程）/ completed（寄完全部）/ unsubscribed（退訂）；booked → converted 可升級（預約後真的成交），其餘轉移不可逆；completed 可因新增 Lesson 回到 active
@@ -274,6 +274,9 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - **FR-014**: 達標即出漏斗 — 停信且解鎖凍結在 `emails_sent`。全開只剩兩種情況：`completed`（已寄完，本來就等於全部）與 `unlock_all=true` 的改版前既有 converted
 - **FR-015**: 停信狀態集合與豁免集合定義為 `DripSubscription` 常數（`STOPS_SENDING = [booked, converted, unsubscribed]`、`FUNNEL_DONE = [booked, converted]`），Job/Service/Controller 一律引用常數，禁止各處硬編字串陣列
 - **FR-016**: 達標停信為「盡力而為」的副作用 — 預約/贈課/開通的主流程不因 drip 停信失敗而中斷，一律 try/catch + log
+
+- **FR-022**: 「第幾封信」一律以 Lesson 在該課程 `orderBy(sort_order)` 序列中的 **0 起算位次**（position）為準，**MUST NOT 拿 `sort_order` 的值當索引**（2026-08-05 修正）。`sort_order` 只是排序鍵：`LessonController` 以 `max + 1` 編號，所以後台建出來的課程是 1、2、3，拖曳重排還可能留下跳號。`processSubscription()` 本來就是按位次取 `$lessons[$i]` 寄信，因此位次才是與「實際寄了哪一封」對得上的定義。適用於解鎖判定、解鎖日、觀看期 fallback 錨點、後台已發送數四處。
+  **這個落差在正式站是 off-by-one**：`sort_order` 從 1 起算的課程，收到第 1 封信的人（`emails_sent=1`）連第 1 課都打不開，第 2 課的已發送數恆為 0（開信率因此顯示「—」）。既有測試全部以 0 起算建 Lesson，所以測不出來 —— 那個慣例後台從來產不出來。位次由 `DripService::lessonPosition()` 單一入口計算並按課程 memoise（教室一頁會逐 Lesson 呼叫）
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -361,8 +364,17 @@ Phase 6 — 驗證
 - [x] T118 新增 FunnelStopTest：預約高價課→active 訂閱轉 booked 且排程不再發信、查無 user 不報錯、booked 後購買升級 converted、新 converted 只看得到已寄達 Lesson、`unlock_all=true` 舊訂閱仍全開、贈課/Lead 開通觸發轉換 in tests/Feature/Drip/FunnelStopTest.php
 - [x] T119 `php artisan test` 全綠 + `npm run build` 通過
 
+## Tasks（修正 sort_order 被當索引）
+
+- [x] T120 `DripService::lessonPosition()`：以課程 `orderBy(sort_order)` 的 0 起算位次取代 `sort_order` 值，按課程 memoise；`isLessonUnlocked` / `daysUntilUnlock` / `getVideoAccessExpiresAt` 三處改用（FR-022）in app/Services/DripService.php
+- [x] T121 `getSubscriberStats()` 已發送數改以位次比較，並把每課一次 COUNT 併成單一 `GROUP BY emails_sent` 分佈 in app/Services/DripService.php
+- [x] T122 新增 LessonPositionTest：Lesson 刻意以 1 起算與跳號建立，釘住解鎖、解鎖日與後台已發送數/開信率 in tests/Feature/Drip/LessonPositionTest.php
+- [x] T123 `VideoAccessAnchorTest` 的 fallback 案例補齊前兩課（原本只建一課卻假設它在位次 2）in tests/Feature/Drip/VideoAccessAnchorTest.php
+- [ ] T124 部署後確認正式站訂閱者名單第二封信的已發送/開信率有數字，且只收到第 1 封的訂閱者打得開第 1 課
+
 ## 進度日誌
 
+- 2026-08-05: 修正 `sort_order` 被當成索引（T120–T123 / FR-022）— 業主回報訂閱者名單第二封信有人開信卻顯示 0 已發送、開信率「—」。查下來不是統計壞掉，是整個模組對「第幾封信」的定義錯了：`emails_sent` 是**信的封數**，程式卻拿它跟 `sort_order` 的**值**比。`LessonController` 以 `max + 1` 編號，所以後台建出來的課程是 1、2、3，而 `processSubscription()` 一直是按位次 `$lessons[$i]` 寄信 —— 兩邊差一格。正式站（`猴子也能懂的 AI Road Map`，480 位訂閱者）的實際後果比回報的更嚴重：**收到第 1 封信的 85 人連第 1 課都打不開，收到第 2 封的 395 人打不開剛寄給他們的第 2 課**（57 人開了那封信卻進不去），統計只是同一個 off-by-one 比較顯眼的那一面。修法是不再把排序鍵當索引：位次由 `lessonPosition()` 從 `orderBy(sort_order)` 的序列算出（按課程 memoise，教室一頁會逐 Lesson 呼叫），解鎖、解鎖日、觀看期 fallback 錨點、後台已發送數四處共用。**這個 bug 活下來是因為既有測試全部以 `sort_order` 0、1、2 建 Lesson** —— 一個後台從來產不出來的慣例，於是測試與程式一起錯得很一致；新的 LessonPositionTest 刻意用 1 起算與跳號（10、20、30）建課。順手把每課一次 COUNT 的 N+1 併成單一 `GROUP BY emails_sent` 分佈。全套 467 passed。
 - 2026-08-04: 訂閱者後台頁搬家（011 US8 touchpoint）— `Pages/Admin/Courses/Subscribers.vue` 改為 `Components/Admin/Leads/SubscriberListTab.vue`，掛在 Leads 名單頁的第二個 tab，課程改頁內下拉（只列 drip 課）。資料組裝從 `CourseController@subscribers` 下沉為 `DripService::subscriberPageData()`（該 action 與 `/admin/courses/{course}/subscribers` 路由已刪）。顯示內容與統計邏輯不變。
 - 2026-08-03: 序列信的 `md_content` 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，小節內容手動斷行在信裡會黏成一段。現在單次換行即 `<br>`，空一行仍是新段落；`stripStylesForEmail()` 與寄送流程不動。查驗現有 16 篇有 md_content 的小節，3 篇（id 20、46 各多 7 / 2 個換行；id 14 無變化）會多出換行，皆為作者原本就手動斷行的位置。
 - 2026-08-02: 序列信被 Gmail 丟進垃圾郵件 — 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。

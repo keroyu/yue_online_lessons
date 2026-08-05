@@ -60,6 +60,10 @@ class VideoAccessAnchorTest extends TestCase
     public function test_expiry_falls_back_to_theoretical_unlock_when_no_sent_event(): void
     {
         $course = $this->makeDripCourse(intervalDays: 3);
+        // The two ahead of it are what make the third lesson the third: the
+        // anchor counts positions in the running order, not sort_order values.
+        $this->makeLesson($course, sortOrder: 0, accessHours: 48);
+        $this->makeLesson($course, sortOrder: 1, accessHours: 48);
         $lesson = $this->makeLesson($course, sortOrder: 2, accessHours: 48);
         $user = User::create(['email' => 'a@example.com', 'role' => 'member']);
         $sub = $this->makeSubscription($course, $user, Carbon::parse('2026-01-01 00:00:00'));

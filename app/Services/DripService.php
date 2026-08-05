@@ -16,6 +16,35 @@ use Illuminate\Support\Facades\Log;
 
 class DripService
 {
+    /** course_id => [lesson_id => 0-based position], memoised per request. */
+    private array $lessonPositions = [];
+
+    /**
+     * Where a lesson sits in its course's running order, counting from 0.
+     *
+     * The drip counts emails — "have we sent the n-th lesson yet" — and until
+     * 2026-08-05 it read `sort_order` as that count. `sort_order` is only a
+     * sort key: `LessonController` numbers new lessons `max + 1`, so a course
+     * built through the admin runs 1, 2, 3, and reordering can leave gaps.
+     * Every drip calculation was therefore one lesson behind on live data
+     * (subscribers could not open the lesson they had just been emailed).
+     *
+     * `processSubscription()` always picked lessons by position, so position is
+     * the definition that matches what actually went out.
+     */
+    private function lessonPosition(Lesson $lesson): int
+    {
+        $positions = $this->lessonPositions[$lesson->course_id] ??= Lesson::where('course_id', $lesson->course_id)
+            ->orderBy('sort_order')
+            ->pluck('id')
+            ->flip()
+            ->all();
+
+        // A lesson that is not in its own course cannot happen; treating the
+        // unknown as "past the end" keeps it locked rather than opening it.
+        return $positions[$lesson->id] ?? count($positions);
+    }
+
     /**
      * Subscribe a user to a drip course.
      *
@@ -107,7 +136,7 @@ class DripService
             return true;
         }
 
-        return $lesson->sort_order < $subscription->emails_sent;
+        return $this->lessonPosition($lesson) < $subscription->emails_sent;
     }
 
     /**
@@ -126,7 +155,7 @@ class DripService
         }
 
         $interval = $subscription->course->drip_interval_days;
-        $unlockDay = $lesson->sort_order * $interval;
+        $unlockDay = $this->lessonPosition($lesson) * $interval;
         $daysSince = (int) $subscription->subscribed_at->diffInDays(now());
 
         return max(0, $unlockDay - $daysSince);
@@ -223,7 +252,7 @@ class DripService
         }
 
         $anchor = $sentAt ?? $subscription->subscribed_at->copy()
-            ->addDays($lesson->sort_order * $subscription->course->drip_interval_days);
+            ->addDays($this->lessonPosition($lesson) * $subscription->course->drip_interval_days);
 
         return $anchor->copy()->addHours($hours);
     }
@@ -320,11 +349,20 @@ class DripService
             ->get()
             ->keyBy('lesson_id');
 
-        $lessonStats = $lessons->map(function (Lesson $lesson) use ($eventStats, $course) {
-            // sent_count = subscriptions where emails_sent > sort_order (i.e., this lesson was sent)
-            $sentCount = DripSubscription::where('course_id', $course->id)
-                ->where('emails_sent', '>', $lesson->sort_order)
-                ->count();
+        // How many subscribers sit at each point of the sequence, in one query —
+        // the per-lesson figures below are running totals of this.
+        $sentDistribution = DripSubscription::where('course_id', $course->id)
+            ->selectRaw('emails_sent, count(*) as total')
+            ->groupBy('emails_sent')
+            ->pluck('total', 'emails_sent');
+
+        $lessonStats = $lessons->values()->map(function (Lesson $lesson, int $position) use ($eventStats, $sentDistribution) {
+            // Sent to everyone whose cursor is past this position — the cursor
+            // counts emails, so it is compared against the position in the
+            // running order, never against sort_order (see lessonPosition()).
+            $sentCount = (int) $sentDistribution
+                ->filter(fn ($total, $emailsSent) => (int) $emailsSent > $position)
+                ->sum();
 
             $stats = $eventStats->get($lesson->id);
             $openCount = (int) ($stats?->open_count ?? 0);
