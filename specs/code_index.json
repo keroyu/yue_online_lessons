@@ -197,6 +197,7 @@
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
       "010.us-1",
+      "010.us-15",
       "010.us-2",
       "010.us-6"
     ],
@@ -435,6 +436,9 @@
     ],
     "app/Http/Requests/RedeemCourseRequest.php": [
       "007.us-1"
+    ],
+    "app/Http/Requests/StoreDripClaimRequest.php": [
+      "010.us-15"
     ],
     "app/Http/Requests/StoreDripSubscriptionRequest.php": [
       "010.us-1"
@@ -1170,12 +1174,14 @@
       "003.us-9"
     ],
     "resources/js/Components/Course/DripSubscribeForm.vue": [
-      "010.us-1"
+      "010.us-1",
+      "010.us-15"
     ],
     "resources/js/Components/Course/FreeSuccessBlock.vue": [
       "002.us-11"
     ],
     "resources/js/Components/Course/HighTicketBookingWizard.vue": [
+      "010.us-15",
       "011.us-10",
       "011.us-16",
       "011.us-9"
@@ -1192,6 +1198,9 @@
     "resources/js/Components/CourseCard.vue": [
       "002.us-1",
       "004.us-2"
+    ],
+    "resources/js/Components/EmailReviewNotice.vue": [
+      "010.us-15"
     ],
     "resources/js/Components/FeaturedCourses.vue": [
       "002.us-6"
@@ -1491,6 +1500,9 @@
       "002.us-10",
       "005.us-1"
     ],
+    "resources/js/composables/useEmailReview.js": [
+      "010.us-15"
+    ],
     "resources/js/composables/useNotifications.js": [
       "003.us-8"
     ],
@@ -1558,6 +1570,7 @@
       "001.us-3",
       "002.us-9",
       "006.us-1",
+      "010.us-15",
       "011.us-1",
       "011.us-10",
       "011.us-11",
@@ -1592,6 +1605,9 @@
     "tests/Feature/Drip/FunnelStopTest.php": [
       "010.us-13",
       "010.us-14"
+    ],
+    "tests/Feature/Drip/GuestClaimTest.php": [
+      "010.us-15"
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"

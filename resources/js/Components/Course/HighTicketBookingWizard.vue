@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
+import { useEmailReview } from '@/composables/useEmailReview'
 
 const props = defineProps({
   course: { type: Object, required: true },
@@ -206,45 +208,22 @@ function routeFieldErrors(e) {
 // A mistyped address fails silently: the application succeeds, the slot is
 // held, and the applicant simply never hears anything until the hold expires.
 // So the first press does not submit — it puts the address in front of them
-// and makes them wait ten seconds before the button will fire.
-const emailConfirming = ref(false)
-const emailCountdown = ref(0)
-let emailTimer = null
-
-function stopEmailCountdown() {
-  clearInterval(emailTimer)
-  emailTimer = null
-}
-
-function resetEmailConfirm() {
-  stopEmailCountdown()
-  emailConfirming.value = false
-  emailCountdown.value = 0
-}
+// and makes them wait before the button will fire. Shared with the drip claim
+// form so both guards stay the same strength (010 D18).
+const {
+  confirming: emailConfirming,
+  countdown: emailCountdown,
+  start: startEmailReview,
+  reset: resetEmailConfirm,
+} = useEmailReview()
 
 // Leaving step 4 — or editing anything — starts the check over.
 watch(step, resetEmailConfirm)
 watch(() => form.email, resetEmailConfirm)
 
-onUnmounted(stopEmailCountdown)
-
 function requestSubmit() {
   if (socialUrlInvalid.value) return
-
-  if (!emailConfirming.value) {
-    emailConfirming.value = true
-    emailCountdown.value = 10
-    stopEmailCountdown()
-
-    emailTimer = setInterval(() => {
-      emailCountdown.value -= 1
-      if (emailCountdown.value <= 0) stopEmailCountdown()
-    }, 1000)
-
-    return
-  }
-
-  if (emailCountdown.value > 0) return
+  if (!startEmailReview()) return
 
   submit()
 }
@@ -743,24 +722,9 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
         <!-- Appears after the first press. The address is the only thing in it
              that matters, so it is the only thing set large. -->
-        <div v-if="emailConfirming" class="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-center">
-          <p class="text-sm font-bold text-amber-900">
-            請再次確認 Email 必須填寫正確！否則收不到信
-          </p>
-          <p class="mt-3 break-all font-mono text-lg font-bold text-gray-900">
-            {{ form.email }}
-          </p>
-          <p class="mt-2 text-xs leading-relaxed text-amber-800">
-            確認連結會寄到這個地址，打錯的話你不會收到任何通知，時段也會在 1 小時後自動釋出。
-          </p>
-          <button
-            type="button"
-            class="mt-3 text-xs font-semibold text-brand-teal underline cursor-pointer hover:opacity-70 transition"
-            @click="editEmail"
-          >
-            這個 Email 不對，回去修改
-          </button>
-        </div>
+        <EmailReviewNotice v-if="emailConfirming" :email="form.email" @edit="editEmail">
+          確認連結會寄到這個地址，打錯的話你不會收到任何通知，時段也會在 1 小時後自動釋出。
+        </EmailReviewNotice>
 
         <div class="flex gap-3">
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>

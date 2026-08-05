@@ -467,6 +467,7 @@ main_files:
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Middleware/HandleInertiaRequests.php
+- app/Http/Requests/StoreDripClaimRequest.php
 - app/Http/Requests/StoreDripSubscriptionRequest.php
 - app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
@@ -497,14 +498,19 @@ main_files:
 - resources/js/Components/Classroom/LessonPromoBlock.vue
 - resources/js/Components/Classroom/VideoAccessNotice.vue
 - resources/js/Components/Course/DripSubscribeForm.vue
+- resources/js/Components/Course/HighTicketBookingWizard.vue
+- resources/js/Components/EmailReviewNotice.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
+- resources/js/composables/useEmailReview.js
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
+- routes/web.php
 - tests/Feature/Drip/ClaimWordingTest.php
 - tests/Feature/Drip/DripMailDeliverabilityTest.php
 - tests/Feature/Drip/FunnelStopTest.php
+- tests/Feature/Drip/GuestClaimTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 
 related_specs:

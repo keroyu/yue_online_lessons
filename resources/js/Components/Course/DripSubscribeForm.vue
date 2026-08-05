@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
+import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
+import { useEmailReview } from '@/composables/useEmailReview'
 
 const props = defineProps({
   courseId: {
@@ -16,9 +18,8 @@ const props = defineProps({
 const page = usePage()
 
 const email = ref('')
-const code = ref('')
-const nickname = ref(page.props.flash?.drip_nickname || '')
-const step = ref('email') // 'email' or 'code'
+const nickname = ref('')
+const website = ref('') // honeypot
 const processing = ref(false)
 const errors = ref({})
 
@@ -27,17 +28,23 @@ const errors = ref({})
 const claimedEmail = computed(() => page.props.flash?.drip_already_claimed || '')
 const alreadyClaimed = computed(() => !!claimedEmail.value)
 
-// Check flash data for step progression
-const flashEmail = computed(() => page.props.flash?.drip_email)
-const flashCourseId = computed(() => page.props.flash?.drip_course_id)
+// Two-stage submit (US15). The claim no longer sends a verification code, so a
+// mistyped address means the ebook goes nowhere and nobody is ever told —
+// this pause is the only place left that can catch it.
+const { confirming, countdown, start: startReview, reset: resetReview } = useEmailReview()
 
-// If we have flash data, we're on step 2
-if (flashEmail?.value && flashCourseId?.value == props.courseId) {
-  step.value = 'code'
-  email.value = flashEmail.value
-}
+watch(email, resetReview)
 
-const sendCode = () => {
+const submitLabel = computed(() => {
+  if (processing.value) return '送出中…'
+  if (countdown.value > 0) return `請再看一眼 Email（${countdown.value}）`
+  if (confirming.value) return 'Email 正確，確認領取'
+  return '免費領取'
+})
+
+const requestSubmit = () => {
+  if (!startReview()) return
+
   processing.value = true
   errors.value = {}
 
@@ -45,40 +52,17 @@ const sendCode = () => {
     course_id: props.courseId,
     email: email.value,
     nickname: nickname.value,
+    website: website.value,
   }, {
     preserveScroll: true,
-    onSuccess: () => {
-      step.value = 'code'
+    onFinish: () => {
       processing.value = false
+      resetReview()
     },
     onError: (errs) => {
       errors.value = errs
-      processing.value = false
     },
   })
-}
-
-const verifyCode = () => {
-  processing.value = true
-  errors.value = {}
-
-  router.post('/drip/verify', {
-    course_id: props.courseId,
-    email: email.value,
-    code: code.value,
-    nickname: nickname.value,
-  }, {
-    onError: (errs) => {
-      errors.value = errs
-      processing.value = false
-    },
-  })
-}
-
-const goBack = () => {
-  step.value = 'email'
-  code.value = ''
-  errors.value = {}
 }
 </script>
 
@@ -112,8 +96,7 @@ const goBack = () => {
       </div>
     </div>
 
-    <!-- Step 1: Enter email -->
-    <form v-if="step === 'email'" @submit.prevent="sendCode" class="space-y-4">
+    <form @submit.prevent="requestSubmit" class="space-y-4">
       <div>
         <label for="drip-email" class="block text-sm font-medium text-gray-700 mb-1">
           Email
@@ -147,54 +130,20 @@ const goBack = () => {
         <p v-if="errors.nickname" class="mt-1 text-sm text-red-600">{{ errors.nickname }}</p>
       </div>
 
-      <button
-        type="submit"
-        :disabled="processing || !email || !nickname"
-        class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {{ processing ? '發送中...' : '取得驗證碼' }}
-      </button>
-    </form>
+      <!-- honeypot: visually hidden -->
+      <input v-model="website" type="text" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
 
-    <!-- Step 2: Enter verification code -->
-    <form v-else @submit.prevent="verifyCode" class="space-y-4">
-      <p class="text-sm text-gray-600">
-        驗證碼已發送至 <span class="font-medium text-gray-900">{{ email }}</span>
-      </p>
-      <p class="text-xs text-gray-400 mt-1">來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件</p>
-
-      <div>
-        <label for="drip-code" class="block text-sm font-medium text-gray-700 mb-1">
-          驗證碼
-        </label>
-        <input
-          id="drip-code"
-          v-model="code"
-          type="text"
-          inputmode="numeric"
-          placeholder="請輸入 6 位驗證碼"
-          maxlength="6"
-          required
-          class="block w-full rounded-lg border-gray-300 px-4 py-3 text-base text-center tracking-widest font-mono shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-          :class="{ 'border-red-300': errors.code }"
-        />
-        <p v-if="errors.code" class="mt-1 text-sm text-red-600">{{ errors.code }}</p>
-      </div>
+      <EmailReviewNotice v-if="confirming" :email="email" @edit="resetReview">
+        電子書會寄到這個地址，打錯的話你不會收到任何通知。
+        來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件與「促銷」「廣告」分頁。
+      </EmailReviewNotice>
 
       <button
         type="submit"
-        :disabled="processing || !code"
+        :disabled="processing || !email || !nickname || countdown > 0"
         class="w-full px-6 py-3 bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {{ processing ? '驗證中...' : '確認驗證碼' }}
-      </button>
-
-      <button
-        type="button"
-        @click="goBack"
-        class="w-full text-sm text-gray-500 hover:text-gray-700"
-      >
-        使用其他 Email
+        {{ submitLabel }}
       </button>
     </form>
   </div>

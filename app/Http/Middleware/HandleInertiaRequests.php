@@ -58,10 +58,9 @@ class HandleInertiaRequests extends Middleware
                 'success'        => fn () => $request->session()->get('success'),
                 'error'          => fn () => $request->session()->get('error'),
                 'payment_failed' => fn () => $request->session()->get('payment_failed'),
-                'drip_email'      => fn () => $request->session()->get('drip_email'),
-                'drip_course_id'  => fn () => $request->session()->get('drip_course_id'),
+                // drip_email / drip_course_id / drip_nickname carried state between
+                // the claim's two steps; 010 US15 made it one step, so they are gone.
                 'drip_subscribed' => fn () => $request->session()->get('drip_subscribed'),
-                'drip_nickname'   => fn () => $request->session()->get('drip_nickname'),
                 'drip_already_claimed' => fn () => $request->session()->get('drip_already_claimed'),
                 'newsletter_code_sent' => fn () => $request->session()->get('newsletter_code_sent'),
                 'newsletter_email'     => fn () => $request->session()->get('newsletter_email'),

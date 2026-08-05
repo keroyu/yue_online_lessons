@@ -5,6 +5,7 @@ owner_files:
   - app/Http/Controllers/DripSubscriptionController.php
   - app/Http/Controllers/DripTrackingController.php
   - app/Http/Requests/StoreDripSubscriptionRequest.php
+  - app/Http/Requests/StoreDripClaimRequest.php
   - app/Models/DripSubscription.php
   - app/Models/DripEmailEvent.php
   - app/Models/DripConversionTarget.php
@@ -32,7 +33,20 @@ owner_files:
   - tests/Feature/Drip/FunnelStopTest.php
   - tests/Feature/Drip/ClaimWordingTest.php
   - tests/Feature/Drip/DripMailDeliverabilityTest.php
+  - tests/Feature/Drip/GuestClaimTest.php
 touchpoints:
+  - file: resources/js/composables/useEmailReview.js
+    owner: 011-high-ticket
+    why: US15 — 10 秒 Email 覆核的狀態機，正典為 011 FR-059；本模組領取表單共用（D18）
+  - file: resources/js/Components/EmailReviewNotice.vue
+    owner: 011-high-ticket
+    why: US15 — 覆核區塊 UI，後果說明以 slot 傳入；本模組領取表單共用（D18）
+  - file: resources/js/Components/Course/HighTicketBookingWizard.vue
+    owner: 011-high-ticket
+    why: US15 — 內嵌的 10 秒覆核邏輯抽出為共用 composable/元件後改為引用，行為不變
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: US15 — /drip/subscribe 加 throttle:10,1；/drip/verify 路由刪除
   - file: app/Jobs/SendDripEmailJob.php
     owner: 002-storefront
     why: 2026-08-05 起寄信前以 EmailLinkTagger 戳 UTM（002 US14）；本模組另提供 DripService::lessonNumber() 供 utm_content 取「第幾封信」
@@ -102,10 +116,10 @@ touchpoints:
 訪客在課程詳情頁輸入 Email + 必填暱稱（Step 1），收驗證碼後確認（Step 2）；系統自動建立會員（或登入既有帳號並覆蓋暱稱）、建立訂閱、立即發送第一封歡迎信。
 
 **驗收**：
-- [x] Step 1 驗證 email + nickname（required, max:50, regex `/\p{L}/u` 防純空格/符號），發送驗證碼並 flash 帶暱稱至 Step 2
-- [x] Step 2 驗證碼正確 → 新 Email 建立 member 帳號（email_verified_at 即時）、既有帳號一律以輸入值覆蓋 nickname，登入並建立訂閱
+- [x] ~~Step 1 驗證 email + nickname（required, max:50, regex `/\p{L}/u` 防純空格/符號），發送驗證碼並 flash 帶暱稱至 Step 2~~ **（US15 取代：驗證碼整條移除，欄位驗證規則不變）**
+- [x] ~~Step 2 驗證碼正確 → 新 Email 建立 member 帳號（email_verified_at 即時）、既有帳號一律以輸入值覆蓋 nickname，登入並建立訂閱~~ **（US15 取代：不再登入、不再覆寫既有暱稱、`email_verified_at` 不再即時給值）**
 - [x] 已停止接收者再次領取 → 「您已停止接收此商品的信件，無法再次領取」；已領取過 → 「此 Email 已經領取過了，內容已寄到這個信箱」，並以 flash `drip_already_claimed`（值為該 Email）讓表單顯示醒目提示框：內容寄到哪個信箱、找不到請查促銷/廣告分頁與垃圾郵件、想再領一份就換別的 Email。**不得**引導去登入或宣稱可在網站上觀看 —— 交付物在信箱裡，登入看不到
-- [x] 驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」；送出鈕文案為「確認驗證碼」（非「確認訂閱」— 這一步只是驗證信箱）
+- [x] ~~驗證碼畫面顯示寄件者提示「來信者為『經營者時間銀行』，找不到時請檢查垃圾郵件」；送出鈕文案為「確認驗證碼」（非「確認訂閱」— 這一步只是驗證信箱）~~ **（US15 取代：該畫面不存在了；寄件者提示移到覆核區塊）**
 - [x] 訂閱成功通知顯示於頁面頂部主圖下方（flash `drip_subscribed`）
 - [x] 銷售頁的訂閱徽章對讀者說「已領取」（active 狀態）且不附「前往教室」連結 — 銷售頁語境是免費贈品的交付，教室動線留給會員中心與留客區塊；後台的訂閱者/名單頁仍用「訂閱中」（營運語彙，見 002 US11 進度日誌）
 
@@ -259,6 +273,34 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - [x] `ClassroomController::formatLessonFull()` 的 `$isConverted` 擴為「已達標」判定（booked/converted 皆豁免觀看期倒數與 reward props）
 - [x] `Classroom.vue` 的 VideoAccessNotice `v-if` 條件同步改為排除全部已達標狀態
 
+### User Story 15 - 免登入領取與 Email 覆核防呆 (Priority: P1)
+
+領取免費電子書要先收驗證碼、回站貼六位數才拿得到。8/2 開跑後的實測是
+**520 人完成領取、另有 65 個 Email 索取了驗證碼卻從沒建立過帳號**（其中 16 人重複索取，
+是想拿卻拿不到、不是改變心意），驗證這一步流失約 11%；
+同期正好是序列信被 Gmail 丟進垃圾郵件的日子，驗證碼信與序列信同網域同信譽。
+
+真正的代價不在那幾秒，而在**這道關卡把「送達問題」放大成「整條漏斗歸零」**：
+信進垃圾桶時，有驗證碼 = 帳號沒建、名單沒留、那個人徹底消失；沒有驗證碼 = 至少留下名單，之後還找得到人。
+
+而那道驗證碼**其實是登入**（`Auth::login($user, true)`，與 `LoginController` 同一行）。
+本故事把「領取」與「登入」拆開：領取不再建立 session，驗證碼因此沒有保護對象，整條移除；
+打錯字改由高價課那套 10 秒 Email 覆核（FR-059）承接。
+
+**驗收**：
+- [x] `/drip/subscribe` 改為**單次提交**即完成：建立/取得 user → 建立訂閱 → 寄出第一封信；`/drip/verify` 路由與 controller method 整組移除
+- [x] 領取 MUST NOT 呼叫 `Auth::login()`，MUST NOT 寫 `last_login_at` / `last_login_ip`；訪客領完仍是訪客（FR-023）
+- [x] 新 Email 建立的帳號 `email_verified_at` 為 **null**（沒驗證就不能宣稱已驗證）；既有帳號的 `nickname` **不覆寫**，僅在原本為空時填入（FR-025）
+- [x] 送出鈕兩段式：第一次按顯示 Email 覆核區塊（大字體印出所輸入的 Email）並倒數 10 秒，倒數期間停用並顯示剩餘秒數；倒數結束後文案改為「Email 正確，確認領取」，第二次按才送出。區塊附「這個 Email 不對，回去修改」可直接改回欄位；修改 Email 或關閉表單 MUST 重置整個流程（FR-024）
+- [x] 覆核區塊的後果說明寫這門課的實情：電子書寄到這個地址，打錯不會有任何通知；並保留寄件者提示「來信者為『經營者時間銀行』，找不到請檢查垃圾郵件與促銷分頁」
+- [x] 10 秒覆核抽成共用元件與 composable，`HighTicketBookingWizard` 改用之，兩處行為與秒數由同一份程式碼決定（D18）
+- [x] `/drip/subscribe` 加 `throttle:10,1`，Form Request 加 `website` 蜜罐欄位（`nullable|prohibited`，錯誤訊息「領取失敗」），前端補視覺隱藏的蜜罐 input —— 比照電子報既有作法（FR-026）
+- [x] 既有的「已領取過 / 已停止接收」兩條訊息與 `drip_already_claimed` flash 行為完全不變
+- [x] 領取成功後仍以 flash `drip_subscribed` 顯示成功區塊；**回訪的訪客會再看到領取表單**（沒有 session 可判斷），再次送出即落入既有的「已領取過」提示，該提示已指名信箱與垃圾郵件（D19）
+- [x] US2 的會員一鍵領取（已登入）不加覆核區塊 —— 那個 Email 是帳號本身，沒有可打錯的餘地
+- [x] 電子報訂閱（012）的驗證碼流程**不在本故事範圍**：它沒有交付物可當作驗證，且同樣會 `Auth::login()`，要拆是另一個決定
+- [x] 測試：領取後 `Auth::check()` 為 false、`email_verified_at` 為 null、既有會員暱稱不被覆寫、蜜罐命中即擋、throttle 生效、第一封信仍寄出、既有 ClaimWordingTest 全數續過
+
 ## Requirements
 
 - **FR-001**: 解鎖日公式 `位次 × drip_interval_days`（位次見 FR-022）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
@@ -281,11 +323,19 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - **FR-022**: 「第幾封信」一律以 Lesson 在該課程 `orderBy(sort_order)` 序列中的 **0 起算位次**（position）為準，**MUST NOT 拿 `sort_order` 的值當索引**（2026-08-05 修正）。`sort_order` 只是排序鍵：`LessonController` 以 `max + 1` 編號，所以後台建出來的課程是 1、2、3，拖曳重排還可能留下跳號。`processSubscription()` 本來就是按位次取 `$lessons[$i]` 寄信，因此位次才是與「實際寄了哪一封」對得上的定義。適用於解鎖判定、解鎖日、觀看期 fallback 錨點、後台已發送數四處。
   **這個落差在正式站是 off-by-one**：`sort_order` 從 1 起算的課程，收到第 1 封信的人（`emails_sent=1`）連第 1 課都打不開，第 2 課的已發送數恆為 0（開信率因此顯示「—」）。既有測試全部以 0 起算建 Lesson，所以測不出來 —— 那個慣例後台從來產不出來。位次由 `DripService::lessonPosition()` 單一入口計算並按課程 memoise（教室一頁會逐 Lesson 呼叫）
 
+- **FR-023**: 免費領取 MUST NOT 建立登入 session（US15）。領取表單是**取得交付物**的入口，不是登入入口；`Auth::login()` 留在 `/login`。理由是安全而非體驗：領取只驗證了「有人打了這個 Email」，不是「這個 Email 是他的」，據此登入等於任何人打你的信箱就能進你的帳號（訂單、積分、已購課程、個人設定）。同理 MUST NOT 更新 `last_login_at` / `last_login_ip` —— 沒有人登入。
+
+- **FR-024**: 送出 MUST 為兩段式，比照 011 FR-059：第一次按顯示 Email 覆核區塊（大字體印出所輸入地址）並強制倒數 **10 秒**，第二次按才真的送出；修改 Email MUST 重置。停頓的目的不是等待，是讓「再看一眼」真的發生 —— 打錯 Email 是**靜默失敗**，系統每一層都回報成功，只有收件匣是空的。秒數與行為由共用元件決定，兩處不得各自調整（D18）。
+
+- **FR-025**: 領取建立的帳號 `email_verified_at` MUST 為 null —— 沒有驗證就不得宣稱已驗證；該欄位全站沒有任何 gate 依賴它（無 `verified` middleware），寫成 `now()` 只會讓資料說謊。既有帳號的 `nickname` MUST NOT 被領取表單覆寫，僅在原值為空時填入 —— 未經身分驗證的表單改得動既有會員的顯示名稱，是 US15 拆掉登入後才浮現的破口。
+
+- **FR-026**: 沒有驗證碼之後，`/drip/subscribe` 等於「輸入任意信箱就寄一封信出去」，MUST 補上 `throttle:10,1` 與 `website` 蜜罐欄位（比照 012 電子報既有作法）。這不只防機器人，也防有人拿它對第三方信箱灌信 —— 灌出去的每一封都掛在你的寄件信譽上。
+
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
 ## 設計決策
 
-- **D1**: 訂閱者統一為 users 會員 — 不另建 Email 名單表；訪客訂閱即建帳號並登入，後台會員/批次發信/贈課功能無縫共用
+- **D1**: 訂閱者統一為 users 會員 — 不另建 Email 名單表；訪客訂閱即建帳號（~~並登入~~，US15 起不再登入），後台會員/批次發信/贈課功能無縫共用
 - **D2**: 進度用 emails_sent 單欄位，不建發信記錄表 — 排程比較差額補發；解鎖與發信天然同步，代價是無 per-封發送履歷
 - **D3**: Email 不追蹤點擊，點擊追蹤移到教室 promo_url 按鈕 — 教室必登入可用 auth session 識別，免 signed URL；開信率＋課程進度已足夠評估信件本身
 - **D4**: promo_html 與 promo_url 職責分離 — 自訂 HTML 無法安全解析連結故不追蹤；promo_url 由系統產生單一可追蹤按鈕，兩者同在 LessonPromoBlock、同受延遲計時
@@ -303,6 +353,15 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - **D15**: booked → converted 允許升級（`checkAndConvert` 受理 active + booked）— 先預約後成交是最正常的漏斗路徑，卡在 booked 會讓成交數統計失真。反向（converted → booked）不允許
 - **D16**: 停信/豁免的狀態集合收斂成 model 常數 — 這次改動要同時碰 Job、Service、Controller 三處的狀態判斷，硬編字串陣列是下次漏改的溫床
 
+- **D17**: 驗證碼可以整條拿掉，是因為它保護的東西被移走了，不是因為它沒用（US15）。原本那道 OTP 同時做三件事：證明信箱歸屬、擋打錯字、以及**登入**。登入拆掉之後，第一件事沒有保護對象（沒有 session 可以被冒領），第二件事由 10 秒覆核接手，剩下的只有成本。**先拆登入、再拆驗證，順序不能倒過來** —— 只拿掉驗證碼而保留 `Auth::login()`，等於任何人打你的 Email 就能進你的帳號。
+  代價誠實記錄：（1）名單品質從 confirmed opt-in 降為 single opt-in，投訴率與蜜罐風險上升，而寄件信譽本來就已經是這個模組的痛點（2026-08-02 被 Gmail 丟垃圾郵件）；（2）任何人都能拿別人的信箱去領取，對方會收到一封沒要求的信 —— 救濟是信中既有的一鍵退訂，這是電子報產業的通行取捨（見 D20）。**若日後投訴率惡化，正確的回頭路是恢復 double opt-in（寄確認連結），不是恢復「驗證即登入」。**
+
+- **D18**: 10 秒覆核抽成共用元件，且**歸 011 所有**（`owner_files`），010 以 touchpoint 使用。理由是那條規則的正典在 011 FR-059，秒數與文案語氣屬於同一個決定；若各留一份，日後把 10 秒調成 15 秒只會改到一邊，而「兩個表單的防呆強度不一樣」是沒有人會發現的漂移。切法：`useEmailReview()` composable 管狀態機（confirming / countdown / start / reset），`EmailReviewNotice.vue` 管那塊琥珀色區塊，**後果說明以 slot 傳入** —— 高價課要講「時段 1 小時後釋出」，領取要講「電子書寄不到」，共用的是機制不是文案。
+
+- **D19**: 回訪的訪客會再看到領取表單，接受（US15）。沒有 session 就無從得知這台瀏覽器領過沒有，而既有的「已領取過」提示已經是好的落點：它指名信箱、提醒查垃圾郵件與促銷分頁、並告訴他換個 Email 可以再領。刻意**不**用 cookie 記住領取狀態 —— 為了一個提示而長期存訪客識別，代價高於收益，何況跨裝置本來就記不住。
+
+- **D20**: 既有會員被陌生人代領時，不擋、不驗證，只確保**不造成破壞**（US15）。可以做的傷害僅止於「收到一封沒要求的免費電子書」，信裡有一鍵退訂；為此加一道驗證等於讓所有正常使用者付出成本去防一個低傷害情境。但**寫入面必須守住**：`nickname` 不覆寫（FR-025）、不建立 session（FR-023）、不動任何既有欄位 —— 未經驗證的表單可以「新增一筆訂閱」，不可以「改既有帳號」。
+
 ## Schema
 
 - `drip_subscriptions` — 訂閱記錄；(user_id, course_id) unique；emails_sent 恆等於已 dispatch 的信數（也是解鎖游標）；unsubscribe_token 為 UUID、建立時自動產生
@@ -313,6 +372,28 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - 本模組新增 migration `2026_07_20_000001_add_sent_to_drip_email_events_event_type.php` — 將 event_type enum 由 `['opened','clicked']` 擴為 `['opened','clicked','sent']`（僅擴值，不動既有資料；down 還原為兩值前需先確保無 sent 列）
 - `courses` 增欄（本模組 migration）— `course_type`（standard/drip，預設 standard）、`drip_interval_days`（nullable）
 - `lessons` 增欄（本模組 migration，promo 欄位適用所有課程類型）— `promo_delay_seconds`（null=停用/0=立即）、`promo_html`、`promo_url`（varchar 500，教室追蹤按鈕）、`reward_html`（drip 限定）、`video_access_hours`（null=無限期）
+
+- **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
+
+## Tasks（US15 — 免登入領取與 Email 覆核防呆）
+
+Phase A — 共用元件抽取（011 owner，先做，兩邊都相依）
+- [x] T125 抽出 `useEmailReview()` composable：`confirming` / `countdown` / `start()` / `reset()` / `stop()`，秒數為參數（預設 10），`onUnmounted` 自動清 timer in resources/js/composables/useEmailReview.js〔touchpoint 011〕
+- [x] T126 抽出 `EmailReviewNotice.vue`：琥珀色區塊 + 大字體 Email + 「這個 Email 不對，回去修改」按鈕（emit `edit`），後果說明以 default slot 傳入 in resources/js/Components/EmailReviewNotice.vue〔touchpoint 011〕
+- [x] T127 `HighTicketBookingWizard` 改用上述兩者，刪掉內嵌的 `emailConfirming` / `emailCountdown` / `emailTimer` / `resetEmailConfirm`；行為與文案不得改變（既有 BookingWizardTest 須續過）in resources/js/Components/Course/HighTicketBookingWizard.vue〔touchpoint 011〕
+
+Phase B — 後端（可與 Phase A 並行）
+- [x] T128 **測試先行**：領取後 `Auth::check()` 為 false、新帳號 `email_verified_at` 為 null、既有會員 nickname 不被覆寫（原有值保留、原為空才填）、蜜罐命中回錯誤且不建訂閱、第一封信仍寄出 in tests/Feature/Drip/GuestClaimTest.php
+- [x] T129 新增 `StoreDripClaimRequest`：course_id / email / nickname（規則沿用 US1）＋ `website` 蜜罐（`nullable|prohibited`，訊息「領取失敗」）in app/Http/Requests/StoreDripClaimRequest.php
+- [x] T130 `subscribe()` 改為單次完成：查/建 user（`email_verified_at` 不給值、nickname 僅空值時填）→ `DripService::subscribe()` → flash `drip_subscribed`；移除 `Auth::login()` 與 `last_login_*` 寫入；`verify()` method 整組刪除；`VerificationCodeService` / `VerificationCodeMail` 的 import 一併移除（FR-023 / FR-025）in app/Http/Controllers/DripSubscriptionController.php
+- [x] T131 `/drip/subscribe` 加 `throttle:10,1`；刪除 `/drip/verify` 路由（FR-026）in routes/web.php〔touchpoint 000〕
+
+Phase C — 前台（相依 A + B）
+- [x] T132 `DripSubscribeForm` 改為單一表單：移除 step/code 狀態機與 `drip_email`/`drip_course_id`/`drip_nickname` flash 流程；接上 `useEmailReview` + `EmailReviewNotice`（後果文案：電子書寄到這個地址、打錯不會有任何通知、寄件者為「經營者時間銀行」、找不到請查垃圾郵件與促銷分頁）；補視覺隱藏的 `website` 蜜罐 input；送出鈕三段文案（領取／請再看一眼 Email（N）／Email 正確，確認領取）in resources/js/Components/Course/DripSubscribeForm.vue
+
+Phase D — 驗證
+- [x] T133 `php artisan test` 全綠（基準 486 passed，既有 ClaimWordingTest 須零修改續過）＋ `npm run build` exit 0
+- [ ] T134 使用者實測：以未登入瀏覽器領取一次 —— 確認倒數 10 秒、確認送出後仍是未登入狀態、第一封信有收到、回訪再送出會看到「已領取過」提示
 
 ## Tasks（US12 — 觀看期改以實際發信時間起算）
 
@@ -377,6 +458,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-05: US15 完成 — 免費領取移除驗證碼與自動登入。拆的順序是關鍵：先拿掉 `Auth::login()`，驗證碼才失去保護對象。實作時浮現一個規劃時就預期、但只有真的拆了才會出事的破口 —— 原本 `$user->update(['nickname' => ...])` 一律覆寫，沒了驗證碼等於陌生人能改既有會員的顯示名稱，現在只在原值為空時填入，並有測試釘住。新帳號 `email_verified_at` 留 null（沒驗證就不宣稱已驗證，全站無 `verified` gate 依賴它），既有列不回填。10 秒覆核抽成 `useEmailReview()` + `EmailReviewNotice.vue`，後果說明走 slot（高價課講時段釋出、領取講電子書寄不到），`HighTicketBookingWizard` 改為引用，既有 BookingWizardTest 38 passed 行為不變。順手清掉 `HandleInertiaRequests` 裡的 `drip_email` / `drip_course_id` / `drip_nickname` 三個 flash key —— 兩步驟流程沒了，它們是孤兒。新增 GuestClaimTest（7 tests），既有 ClaimWordingTest **零修改**續過，全套 493 passed、npm build 綠。
 - 2026-08-05: 修正 `sort_order` 被當成索引（T120–T123 / FR-022）— 業主回報訂閱者名單第二封信有人開信卻顯示 0 已發送、開信率「—」。查下來不是統計壞掉，是整個模組對「第幾封信」的定義錯了：`emails_sent` 是**信的封數**，程式卻拿它跟 `sort_order` 的**值**比。`LessonController` 以 `max + 1` 編號，所以後台建出來的課程是 1、2、3，而 `processSubscription()` 一直是按位次 `$lessons[$i]` 寄信 —— 兩邊差一格。正式站（`猴子也能懂的 AI Road Map`，480 位訂閱者）的實際後果比回報的更嚴重：**收到第 1 封信的 85 人連第 1 課都打不開，收到第 2 封的 395 人打不開剛寄給他們的第 2 課**（57 人開了那封信卻進不去），統計只是同一個 off-by-one 比較顯眼的那一面。修法是不再把排序鍵當索引：位次由 `lessonPosition()` 從 `orderBy(sort_order)` 的序列算出（按課程 memoise，教室一頁會逐 Lesson 呼叫），解鎖、解鎖日、觀看期 fallback 錨點、後台已發送數四處共用。**這個 bug 活下來是因為既有測試全部以 `sort_order` 0、1、2 建 Lesson** —— 一個後台從來產不出來的慣例，於是測試與程式一起錯得很一致；新的 LessonPositionTest 刻意用 1 起算與跳號（10、20、30）建課。順手把每課一次 COUNT 的 N+1 併成單一 `GROUP BY emails_sent` 分佈。全套 467 passed。
 - 2026-08-04: 訂閱者後台頁搬家（011 US8 touchpoint）— `Pages/Admin/Courses/Subscribers.vue` 改為 `Components/Admin/Leads/SubscriberListTab.vue`，掛在 Leads 名單頁的第二個 tab，課程改頁內下拉（只列 drip 課）。資料組裝從 `CourseController@subscribers` 下沉為 `DripService::subscriberPageData()`（該 action 與 `/admin/courses/{course}/subscribers` 路由已刪）。顯示內容與統計邏輯不變。
 - 2026-08-03: 序列信的 `md_content` 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，小節內容手動斷行在信裡會黏成一段。現在單次換行即 `<br>`，空一行仍是新段落；`stripStylesForEmail()` 與寄送流程不動。查驗現有 16 篇有 md_content 的小節，3 篇（id 20、46 各多 7 / 2 個換行；id 14 無變化）會多出換行，皆為作者原本就手動斷行的位置。

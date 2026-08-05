@@ -136,8 +136,10 @@ Route::post('/payment/newebpay/return', [NewebpayController::class, 'return'])
 
 // Drip subscription routes (public)
 Route::prefix('drip')->name('drip.')->group(function () {
-    Route::post('/subscribe', [DripSubscriptionController::class, 'subscribe'])->name('subscribe');
-    Route::post('/verify', [DripSubscriptionController::class, 'verify'])->name('verify');
+    // No verification code any more (010 US15): the throttle and the honeypot
+    // in StoreDripClaimRequest are what keep this from being an open mailer.
+    Route::post('/subscribe', [DripSubscriptionController::class, 'subscribe'])
+        ->middleware('throttle:10,1')->name('subscribe');
     Route::get('/unsubscribe/{token}', [DripSubscriptionController::class, 'showUnsubscribe'])->name('unsubscribe.show');
     Route::post('/unsubscribe/{token}', [DripSubscriptionController::class, 'unsubscribe'])->name('unsubscribe');
 });
