@@ -70,6 +70,8 @@ owner_files:
   - app/Support/PhoneNumber.php
   - database/migrations/2026_08_08_000001_index_and_normalise_phones.php
   - tests/Feature/HighTicket/DuplicateBookingTest.php
+  - database/migrations/2026_08_08_000002_realign_lead_statuses_to_consultation_vocabulary.php
+  - tests/Feature/HighTicket/LeadStatusRealignTest.php
   - tests/Feature/HighTicket/BookingMailFailureTest.php
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
@@ -594,7 +596,14 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   | `closed` | 已關閉 | 談過但冷掉 |
   | `cancelled` | 已取消 | 預約被取消（FR-051），唯讀（FR-054） |
 
-  **MUST NOT 改動 DB 值**：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
+  **既有資料 MUST 一次性重新歸類**（2026-08-05 追加，業主指出）：顯示名稱換了意思、儲存值沒換，所以**部署前寫入的每一列都帶著舊語意**。放著不管等於把「我傳過訊息給他」悄悄升格成「面談發生了」，並把「單純沒回我」的人標記成爽約者 —— 而 US16 正是用那個狀態擋住他再次預約。
+  | 舊值（舊意思） | 改為 | 理由 |
+  |---|---|---|
+  | `contacted`（已聯繫） | `pending`（待面談） | 聯絡過但面談還沒發生 |
+  | `no_response`（未回應） | `cancelled`（已取消） | 從來沒談成，而且該讓他們能重新預約 |
+
+  `pending` / `converted` / `closed` 值與意思都不變。`cancelled_at` 刻意留 null —— 不知道他們是什麼時候冷掉的，捏造一個時間戳比缺一個更糟；而且所有歷史 lead 都早於 `confirmed_at` 與 `consultation_slots`，沒有任何一筆握著預約，不會出現「說已取消卻還佔著時段」的矛盾。migration 不可逆（轉換後的 `pending` 與原生的 `pending` 無從分辨），但可重複執行。
+  **MUST NOT 改動 DB 值**（指的是欄位語彙本身）：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
 
 - **FR-057**: 對外客服信箱 MUST 收在 `site_settings.support_email`，由「Email 模板管理」頁維護；未設定或留空時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。取值一律走 `SiteSetting::supportEmail()`。
   **`{{support_email}}` 與 `{{app_url}}` MUST 對所有模板自動可用**：注入點在 `EmailTemplate::renderSubject()` / `substitute()`，不是各呼叫端 —— 呼叫端有六個，漏一個的症狀是收件人信箱裡出現字面的 `{{support_email}}`。呼叫端明確傳入的值 MUST 覆蓋全域值。編輯頁的變數清單以 `GLOBAL_VARIABLES` 附加於每個 event_type 之後。
@@ -679,6 +688,11 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D59**: CC 從三封收斂成一封（使用者決策）。改期與取消**本來就是人與人直接寫信談出來的結果**，管理員是那場對話的當事人，系統再補一封只是噪音；待確認信則是「這個 Email 是真的嗎」的一次性驗證，未確認的申請照樣完整躺在 Leads 名單的 `pending`。
   **失去的東西**：管理員不再即時知道「有人送出申請但還沒確認」。這是可接受的 —— 那個狀態本來就要進名單才處理，而且 US14 之後 `pending` 就是名單的預設篩選。若日後想要即時感知，正確做法是後台的通知中心而不是把 CC 加回來
+
+- **D63**: 重複預約的檢查**只發生在送出當下**，不做第 1 步的即時 precheck（2026-08-05，使用者決策）。
+  體驗上這是有代價的：申請人會填完整份問卷、選完時段、等完 10 秒的 Email 覆核倒數，才被告知白填了。把檢查提前到第 1 步（Email 與手機都已填妥）能省下那一切。
+  不做的理由是**隱私**：那需要一個「輸入 Email／手機 → 回答有沒有預約過」的端點，正是 US9 當初刻意避開的探測器。US9 避開的那個更敏感（會回傳對方的完整問卷答案），這個只回布林值，而且同樣的資訊透過 `POST /course/{course}/book` 的 422 本來就問得到 —— 但業主判斷「知道某人跟你約過諮詢」這件事本身就不該變得更容易問，寧可承擔體驗成本。
+  這個取捨若日後要翻案，正確做法是加端點時同步收緊 `/book` 的 throttle，讓兩條路徑的可探測性一致 —— 只加 precheck 而不動 `/book`，是把門鎖上卻留著窗。
 
 - **D61**: 重複預約改為**擋下**而不是「當成改期處理」（使用者決策）。
   技術上可以把第二次申請當成改期（保留 confirmed、不要求重新確認、發 `.ics` 更新、同步 Zoom），但那與 D50 的決定衝突 —— 既然改期／取消一律人工聯絡，那「重新申請」就是繞過那個決定的後門，做得越順手繞得越多。擋下並指名顧問 Email，是把人導回既有的那條路。
@@ -1185,6 +1199,7 @@ Phase C — 前台
 - [x] T156 送出失敗時原樣顯示後端訊息（目前 422 會被吃成泛用文案），並在 Email 覆核區塊之後、第 4 步的錯誤位置呈現 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 
 Phase D — 驗證
+- [x] T159 既有 lead 狀態一次性重新歸類：`contacted`→`pending`、`no_response`→`cancelled`（FR-055）；不可逆但可重跑，附 5 個測試 in `database/migrations/2026_08_08_000002_realign_lead_statuses_to_consultation_vocabulary.php` + `tests/Feature/HighTicket/LeadStatusRealignTest.php`
 - [x] T157 `php artisan test` 全綠（基準 427 passed）＋ `npm run build` exit 0
 - [ ] T158 使用者以瀏覽器實測：已確認預約者重複申請被擋且訊息指名顧問、換 Email 同電話被擋、取消後可重新預約
 
