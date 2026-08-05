@@ -7,6 +7,8 @@ use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Services\DripService;
+use App\Services\EmailLinkTagger;
 use App\Services\EmailMarkdownService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -68,11 +70,22 @@ class SendDripEmailJob implements ShouldQueue
         $classroomUrl = config('app.url') . "/member/classroom/{$course->id}?lesson_id={$lesson->id}";
         $unsubscribeUrl = config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}";
 
+        // Source attribution for every first-party link in this letter (002
+        // US14). Stamped here rather than stored, so existing lessons are
+        // covered and the rules can change without rewriting any content.
+        $tagger = app(EmailLinkTagger::class);
+        $utm = [
+            'utm_source'   => 'drip',
+            'utm_medium'   => 'email',
+            'utm_campaign' => $course->slug ?: (string) $course->id,
+            'utm_content'  => 'lesson-' . app(DripService::class)->lessonNumber($lesson),
+        ];
+
         $hasVideo = (bool) $lesson->has_video;
-        $rawMd = str_replace('{{classroom_url}}', $classroomUrl, $lesson->md_content ?: '');
+        $rawMd = str_replace('{{classroom_url}}', $tagger->tagUrl($classroomUrl, $utm), $lesson->md_content ?: '');
         // Single Enter is a real line break here too (011 FR-021).
         $htmlContent = $rawMd
-            ? $this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd))
+            ? $tagger->tagHtml($this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd)), $utm)
             : '';
 
         // Generate open-tracking pixel URL (signed, 180-day expiry)

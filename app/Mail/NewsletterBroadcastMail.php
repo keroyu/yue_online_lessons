@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Broadcast;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\EmailLinkTagger;
 use App\Services\VideoEmbedService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -28,7 +29,14 @@ class NewsletterBroadcastMail extends Mailable
         public User $user,
         public Post $post,
     ) {
-        $this->postUrl = url("/blog/{$post->slug}");
+        // Stamped once here so the HTML and plain-text bodies — which both link
+        // to the post — carry the same attribution (002 US14).
+        $this->postUrl = app(EmailLinkTagger::class)->tagUrl(url("/blog/{$post->slug}"), [
+            'utm_source'   => 'newsletter',
+            'utm_medium'   => 'email',
+            'utm_campaign' => "broadcast-{$broadcast->id}",
+            'utm_content'  => $post->slug,
+        ]);
         $this->unsubscribeUrl = url('/newsletter/unsubscribe/' . $user->newsletter_unsubscribe_token);
         $this->openPixelUrl = URL::temporarySignedRoute(
             'newsletter.track.open',

@@ -44,6 +44,9 @@ class TrafficSourceService
         'youtube'    => ['video',  '/youtube/'],
         'tiktok'     => ['video',  '/tiktok/'],
         'vimeo'      => ['video',  '/vimeo/'],
+        // Our own two mailing paths, stamped by EmailLinkTagger (US14). Kept as
+        // separate sources so the email channel says which letter did the work.
+        'drip'       => ['email',  '/^drip$/'],
         'newsletter' => ['email',  '/email|newsletter|edm|mailchimp|resend/'],
     ];
 

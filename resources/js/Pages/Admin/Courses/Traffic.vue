@@ -42,7 +42,9 @@ const CHANNEL_RULES = [
     host: /(^|\.)(instagram|threads|facebook|twitter|linkedin|line)\.|^(fb\.me|fb\.com|x\.com|t\.co|lnkd\.in)$/,
   },
   { label: '搜尋引擎', utm: /google|bing|yahoo|duckduckgo/, host: /(^|\.)(google|bing|yahoo|duckduckgo)\./ },
-  { label: '電子報', utm: /email|newsletter|edm|mailchimp|resend/, host: null },
+  // `^drip$` mirrors PLATFORM_MAP's own entry (US14) — our two mailing paths
+  // are separate sources but one channel.
+  { label: '電子郵件', utm: /^drip$|email|newsletter|edm|mailchimp|resend/, host: null },
   { label: '影音', utm: /youtube|tiktok|vimeo/, host: /(^|\.)(youtube|tiktok|vimeo)\.|^youtu\.be$/ },
 ]
 

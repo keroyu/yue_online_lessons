@@ -24,7 +24,9 @@ const channelLabels = {
   paid: '付費廣告',
   social: '社群',
   search: '搜尋引擎',
-  email: '電子報',
+  // Holds both of our mailing paths (US14), so the channel is named for the
+  // medium and the sources below name the letter.
+  email: '電子郵件',
   video: '影音',
   referral: '其他來源',
   direct: '直接造訪',
@@ -47,6 +49,7 @@ const sourceLabels = {
   youtube: 'YouTube',
   tiktok: 'TikTok',
   vimeo: 'Vimeo',
+  drip: '連鎖信',
   newsletter: '電子報',
   direct: '直接造訪',
   // utm_medium declared paid but nothing identified the platform.
@@ -253,7 +256,8 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
       管道歸類自 2026-08 起納入 referrer 網域（沒帶 UTM 的 IG／Threads 流量會歸到「社群」），先前資料未重算，跨這個時間點比較管道數字會有落差；「未分類（舊資料）」即該次改版前寫入的列。<br>
       2026-08-04 起 <code class="text-gray-500">fbclid</code> 不再視為付費訊號（Meta 對每一次從 FB／IG 點出的外連結都會附加，含自然貼文與簡介連結），歷史的「付費廣告 › Facebook」已一併併入「社群 › Meta（FB/IG 未分）」；跨這個時間點比較「付費廣告」的數字同樣會有落差。<br>
       付費流量請在廣告網址參數填 <code class="text-gray-500">utm_medium=paid_social</code> 才算得準——付費只認 <code class="text-gray-500">utm_medium</code> 與 Google／TikTok 的廣告 click id，程式不從 <code class="text-gray-500">fbclid</code> 猜。<br>
-      IG／FB 的 App 內建瀏覽器常不送 referrer，那部分流量會落在「直接造訪」——要精準追蹤，貼文連結請帶 <code class="text-gray-500">?utm_source=instagram</code>。
+      IG／FB 的 App 內建瀏覽器常不送 referrer，那部分流量會落在「直接造訪」——要精準追蹤，貼文連結請帶 <code class="text-gray-500">?utm_source=instagram</code>。<br>
+      2026-08-05 起，連鎖信與電子報寄出時會自動替信中的本站連結加上來源參數，「電子郵件」管道因此可展開為「連鎖信 ／ 電子報」；此日之前寄出的信沒有參數，那些點擊仍記在「直接造訪」。
     </p>
   </div>
 </template>

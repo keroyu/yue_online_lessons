@@ -46,6 +46,15 @@ class DripService
     }
 
     /**
+     * Which letter of the sequence this lesson is, counting from 1 — the number
+     * a human means by "the second email" (002 US14 stamps it as utm_content).
+     */
+    public function lessonNumber(Lesson $lesson): int
+    {
+        return $this->lessonPosition($lesson) + 1;
+    }
+
+    /**
      * Subscribe a user to a drip course.
      *
      * @return array{success: bool, error?: string, subscription?: DripSubscription}

@@ -33,6 +33,9 @@ owner_files:
   - tests/Feature/Drip/ClaimWordingTest.php
   - tests/Feature/Drip/DripMailDeliverabilityTest.php
 touchpoints:
+  - file: app/Jobs/SendDripEmailJob.php
+    owner: 002-storefront
+    why: 2026-08-05 起寄信前以 EmailLinkTagger 戳 UTM（002 US14）；本模組另提供 DripService::lessonNumber() 供 utm_content 取「第幾封信」
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
     why: 「連鎖 Email 設定」分頁 — course_type、drip_interval_days、目標課程選擇、發信排程預覽

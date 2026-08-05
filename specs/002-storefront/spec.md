@@ -34,6 +34,7 @@ owner_files:
   - resources/js/Pages/Admin/Courses/Traffic.vue
   - app/Http/Middleware/TrackTrafficSource.php
   - app/Services/TrafficSourceService.php
+  - app/Services/EmailLinkTagger.php
   - app/Services/SiteAnalyticsService.php
   - app/Http/Controllers/TrackController.php
   - app/Http/Controllers/Admin/AnalyticsController.php
@@ -51,6 +52,7 @@ owner_files:
   - resources/js/Pages/Admin/Analytics/Index.vue
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
+  - tests/Feature/Storefront/EmailLinkTaggerTest.php
   - tests/Feature/Storefront/SalesPromoCouponChainTest.php
   - tests/Feature/Storefront/CourseUrlSlugTest.php
 touchpoints:
@@ -108,6 +110,15 @@ touchpoints:
   - file: app/Http/Requests/Admin/UpdateCourseRequest.php
     owner: 004-course-admin
     why: US11/US12 — 同 StoreCourseRequest
+  - file: app/Jobs/SendDripEmailJob.php
+    owner: 010-drip-email
+    why: US14 — 寄出連鎖信前以 EmailLinkTagger 戳章（`{{classroom_url}}` 替換值 + md_content 轉出的 HTML），utm_source=drip、utm_content=lesson-{位次+1}
+  - file: app/Mail/NewsletterBroadcastMail.php
+    owner: 012-newsletter
+    why: US14 — 建構子的 $postUrl 改為戳章後的網址（HTML 與純文字版同時生效），utm_source=newsletter、utm_campaign=broadcast-{id}
+  - file: resources/js/Components/Admin/LessonForm.vue
+    owner: 004-course-admin
+    why: US14 — 說明區塊補一行：連鎖信寄出時自動替站內連結加來源參數，已自行標記 utm_source 者不覆寫
 ---
 
 # Storefront（門市前台）
@@ -311,6 +322,27 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 頁尾註腳補上：管道歸類自 2026-08 起納入 referrer、先前資料未重算；IG/FB App 內建瀏覽器常不送 referrer，該類流量會落在「直接造訪」，精準追蹤仍建議貼文連結帶 `?utm_source=instagram`
 - [x] 測試：`resolveSource()` 各判斷分支、UTM 優先於 referrer、`recordView` 帶 IG referrer 落出 social/instagram 列、`channelReport()` 巢狀正確且子列加總 = 管道層、既有 `classifyChannel` 斷言續過
 
+### User Story 14 - 信件連結自動戳章與 email 管道成效 (Priority: P2)
+
+連鎖信與電子報是目前唯二會主動把讀者推回網站的管道，卻是唯二沒有來源標記的：
+信裡的連結一律裸連，讀者點進來被歸成「直接造訪」，
+於是「寄一封信能帶回多少瀏覽、多少加購、多少成交」這層轉換率完全量不到 —— 
+而這正是判斷序列信該寫幾封、隔幾天寄的唯一依據。
+本故事在**寄信當下**自動替信件內文的站內連結補上 UTM，讓既有的漏斗與管道報表直接吃得到。
+
+不在後台插入連結時包裝，是因為那條路徑補不齊既有信件、也擋不住直接貼 Markdown 連結的寫法（見 D35）。
+
+**驗收**：
+- [x] 新增 `EmailLinkTagger`：`tagHtml(string $html, array $utm): string` 掃過 HTML 片段的每個 `href` 戳章、`tagUrl(string $url, array $utm): string` 戳單一網址（信件模板裡寫死的 CTA 用）
+- [x] 只戳**站內**連結：相對路徑，或 host 去 `www.` 後等於 `config('app.url')` 的 host；外站網址、`mailto:` / `tel:` / `javascript:` / `data:` / 純 `#錨點` 一律原樣返回
+- [x] **既有 UTM 不覆寫**：網址已帶非空 `utm_source` 即整條放過（管理員手動標記代表刻意指定分類，見 FR-026）；其餘既有 query 參數（`?coupon=` 等）與 `#fragment` MUST 保留，UTM 接在既有 query 之後、fragment 之前
+- [x] 連鎖信（`SendDripEmailJob`）戳 `utm_source=drip` / `utm_medium=email` / `utm_campaign={課程 slug}` / `utm_content=lesson-{位次+1}`（第幾封信，位次見 010 FR-022）；`{{classroom_url}}` 的替換值與 `md_content` 轉出的 HTML 皆戳
+- [x] 電子報（`NewsletterBroadcastMail`）戳 `utm_source=newsletter` / `utm_medium=email` / `utm_campaign=broadcast-{id}` / `utm_content={post slug}`；`$postUrl` 在建構子戳一次，HTML 與純文字版本同時生效。退訂連結與追蹤 pixel 不戳
+- [x] `PLATFORM_MAP` 新增 `drip => [email, /^drip$/]`，使「各管道成效」的**電子郵件**管道可展開成「連鎖信 / 電子報」兩列；`Analytics/Index.vue` 的 `sourceLabels` 補 `drip: '連鎖信'`，`Traffic.vue` 的前端 `CHANNEL_RULES` 同步補上（避免 D34 那次的前後端漂移重演）
+- [x] `/go/post/{post}/course/{course}` 不再無條件蓋上 `utm_source=blog`：既有來源已屬 **email 管道**時保留不覆寫（FR-027），其餘情況行為不變；`post_cta_clicks` 的點擊計數在兩種情況下都照記
+- [x] 高價課的 `email_templates` 系統信**不在本故事範圍**（交易型信件，連結多是 Zoom / 教室 / 客服，不是導購動線）
+- [x] 測試：站內/外站/相對路徑/mailto 的戳與不戳、既有 UTM 放過、既有 query 與 fragment 保留、`&amp;` 實體編碼往返不壞、連鎖信與電子報的實際寄出內容含預期參數、`utm_source=drip` 解析為 email/drip、`/go` 在 email 來源下不覆寫且仍計數
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -341,6 +373,12 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **FR-024**: `fbclid` MUST NOT 被當成付費流量的判準。Meta 會在**所有**從 Facebook / Instagram 點出的外連結附加 `fbclid` —— 自然貼文、限動、私訊、簡介連結皆然；它指出的是「來自哪個網路」，不是「花了錢」。付費只由兩種訊號認定：(1) `utm_medium` 明示（`cpc` / `ppc` / `paid` / `paid_social` / `ads` / `display` / `banner` / `retargeting`），(2) 廣告專屬 click id（`gclid` 為 Google Ads 自動標記、`ttclid` 為 TikTok 廣告點擊）。單獨的 `fbclid` 歸 `social`，來源在 referrer 與 utm 都無法分辨 FB/IG 時記為 `meta`（「來自 Meta、分不出版面」），**不猜**。
 - **FR-025**: 明示的 UTM MUST 勝過網路自行附加的 click id —— 判斷順序把 `utm_medium` / `utm_source` 排在 click id 之前。否則管理員替連結加 `?utm_source=instagram` 也會被 Meta 事後附加的 `fbclid` 蓋掉，等於失去自行修正歸因的手段
+
+- **FR-026**: 信件連結戳章 MUST 是「補寫」而非「改寫」—— 網址已帶非空 `utm_source` 時整條放過。理由與 FR-025 同源：管理員手動標記是**修正歸因的手段**，自動戳章若蓋掉它，就等於把唯一的人工修正管道也關掉。既有的其他 query 參數與 fragment 同樣 MUST 原封保留，戳章只允許新增 UTM 鍵。
+
+- **FR-027**: `/go/post/{post}/course/{course}` MUST NOT 覆寫已屬 **email 管道**的來源（以 `TrafficSourceService::currentSource()` 解析後的 channel 判定）。原本無條件蓋 `utm_source=blog` 會把「信 → 文章 → 商品」整條鏈的成交全記到部落格頭上，email 管道的成交數恆為 0 —— 而信是那條鏈真正的起點，文章只是中繼站。非 email 來源維持既有行為（社群 → 文章 → 商品，文章 CTA 確實是臨門一腳）。兩種情況下 `post_cta_clicks` 都 MUST 照記，部落格的引流成效由該表獨立衡量，不受本條影響。
+
+- **FR-028**: 戳章 MUST 發生在寄信當下（`SendDripEmailJob` / `NewsletterBroadcastMail`），MUST NOT 落庫 —— `md_content` 與 `posts.body_md` 存的永遠是乾淨網址。理由：戳章規則會演進（新增管道、改 utm 命名），落庫等於把當下的規則凍進資料，改規則要 migration 重寫所有內文；且同一篇文章在站上與信裡的網址會分岔。
 
 ## 設計決策
 
@@ -383,8 +421,18 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **D34**: `fbclid` 從「付費訊號」降級為「網路訊號」（2026-08-04，推翻 US13 原本「a click id always means paid traffic」的前提）—— 那句註解對 `gclid` 成立、對 `fbclid` 不成立，而且因為 click id 排在判斷順序第一位，IG 簡介連結的自然流量會 100% 被歸成「付費廣告 > Facebook」：一條規則同時錯了 channel 與 source 兩個維度，且管理員連加 UTM 都救不回來。改採「付費只能被宣告、不能被推測」：`utm_medium` 是唯一可靠的付費意圖，廣告專屬的 `gclid` / `ttclid` 保留推測資格。代價是**沒設 UTM 的 Meta 廣告會被歸到自然社群** —— 這無法從 `fbclid` 本身分辨，正確作法是在廣告的網址參數填 `utm_medium=paid_social`，不是讓程式猜。新增 `meta` 平台當「分不出 FB/IG」的誠實桶子，而不是沿用 `facebook` 這個會誤導的名字
 
+- **D35**: 戳章做在**寄信時**而非後台插入連結時（US14）—— 使用者原本的想法是在 `LessonForm` 加一顆「插入已戳章的連結」按鈕。那條路徑有三個補不上的洞：既有信件（正式站 3 封連鎖信 + 每一篇電子報）要逐封重編輯才會生效；管理員直接手打 `[文字](網址)` 的 Markdown 完全繞過按鈕；而戳章規則日後演進時，落庫的舊網址不會跟著更新。寄信時戳則是一個攔截點覆蓋所有信、所有寫法、且永遠套用當下規則。代價是後台編輯器裡看到的網址與讀者收到的不同，這一點寫在 `LessonForm` 的說明區塊告知。
+
+- **D36**: 服務放在 002 而非 010／012 —— 戳章的產出（`utm_source` 該填什麼值才會被歸成 email）與 `TrafficSourceService::PLATFORM_MAP` 是**同一套詞彙的兩端**，拆到寄信模組會讓「新增一個 utm_source」變成要同時改兩個模組、且沒有任何機制保證兩邊一致（D34 那次前後端漂移就是這個形狀）。`EmailLinkTagger` 因此與 `TrafficSourceService` 同屬 002，連鎖信與電子報以 touchpoint 呼叫。
+
+- **D37**: `/go` 只對 email 管道讓路，不是全面停止覆寫（FR-027）—— 全面不覆寫也是一種選擇，但那會改動一批既有報表數字：社群 → 文章 → 商品這條路徑上，文章 CTA 本來就是臨門一腳，把成交記給部落格是對的。真正被切斷的只有「信 → 文章 → 商品」，因為信與文章都是自家動線，文章在這裡是中繼站不是來源。範圍收在 email 一個管道，既解決問題也不動到既有數字的解讀。
+
+- **D38**: HTML 以 `href` 屬性的正規表示式改寫，不引入 DOM parser —— 信件內文是 CommonMark 產出的小片段（同一支 Job 裡的 `stripStylesForEmail()` 已經是同樣的作法），引入 DOMDocument 要處理編碼宣告與片段包裹，收益不成比例。代價是手寫的畸形 HTML 可能漏戳；因為漏戳的後果只是該連結退回「直接造訪」（不會壞信、不會壞連結），這個失敗模式可以接受。屬性值 MUST 先 `html_entity_decode` 再解析、組回後重新 escape，否則 CommonMark 產生的 `&amp;` 會在往返中變成 `&amp;amp;`。
+
 ## Schema
 
+- **US14 無 migration、無新資料表** —— 戳章只改寄出的網址字串，後續統計完全復用既有的 `course_daily_stats`（channel `email` + source `drip`／`newsletter`）與 `orders` 的 UTM 欄位。
+- `utm_campaign` / `utm_content` 的粒度（哪一封信、哪一篇文章）**不進 `course_daily_stats`**（該表只有 channel + source 兩維）—— 它們寫進 `orders.utm_campaign` / `utm_content` 與 `first_touch` JSON，在「課程流量」頁與 Traffic CSV 逐筆看得到。「第 2 封信帶進多少成交」因此是訂單層的問題，不是管道報表的一列；要把它做成報表需要再加一個維度，屬另一個故事。
 - `courses.free_success_md`（US11 新欄，本模組 migration）— nullable text；領取成功後顯示的自訂 Markdown（位置在課程描述之下），空值即維持既有預設成功卡片。
 - `courses.promo_html` / `courses.promo_delay_seconds`（US12 新欄，與 US11 同一支 migration）— 銷售頁延遲促銷區塊內容與等待秒數；`promo_delay_seconds` null=停用整塊、0=立即顯示。與 `lessons` 的同名欄位語意平行但互不相干（一個在銷售頁、一個在教室）。
 - `social_links` — 首頁 SNS 連結；`platform` 限六平台枚舉字串（僅決定 icon，可重複）、`sort_order` 建立時 max+1，無啟用欄位（存在即顯示，整區顯隱由 `sns_section_enabled` 控制）。
@@ -482,8 +530,32 @@ Phase D — 驗證
 - [x] T042 Feature 測試（8 個新測試）：`resolveSource()` 分支（`l.instagram.com`→social/instagram、`threads.net`→social/threads、`m.facebook.com`→social/facebook、`utm_source=Threads`→social/threads、`google.com.tw`→search/google、`blog.example.com`→referral/blog.example.com、`fbclid`→paid/facebook、null→direct/direct）、UTM 優先於 referrer、`recordView` 帶 IG referrer 落列、`channelReport()` 巢狀與加總、既有 `classifyChannel` 斷言續過 in tests/Feature/Storefront/SiteAnalyticsTest.php
 - [x] T043 驗證：`php artisan migrate` DONE、`php artisan test` **231 passed (1214 assertions)**、`npm run build` exit 0。瀏覽器目視（展開互動、手機橫向捲動）留給使用者確認 — `/dev` 不自動開瀏覽器
 
+### US14 - 信件連結自動戳章與 email 管道成效
+
+Phase A — 戳章服務（無相依）
+- [x] T044 新增 `EmailLinkTagger`：`tagUrl()`（單一網址）與 `tagHtml()`（掃 `href` 屬性，正規表示式 + callback）；站內判定、既有 UTM 放過、query／fragment 保留、實體編碼往返（FR-026 / D38）in app/Services/EmailLinkTagger.php
+- [x] T045 **測試先行**：站內／外站／相對路徑／`mailto:`／`#錨點` 的戳與不戳、已帶 `utm_source` 整條放過、`?coupon=X` 與 `#section` 保留、`&amp;` 往返不變 in tests/Feature/Storefront/EmailLinkTaggerTest.php
+
+Phase B — 寄信路徑接線（相依 Phase A）
+- [x] T046 [P] `{{classroom_url}}` 替換值改為戳章後的網址；`md_content` 轉出的 HTML 過 `tagHtml()`（在 `stripStylesForEmail()` 之後）；utm = drip / email / 課程 slug / `lesson-{位次+1}` in app/Jobs/SendDripEmailJob.php〔touchpoint 010〕
+- [x] T047 [P] 建構子的 `$postUrl` 改為戳章後的網址（HTML 與純文字版同時生效）；utm = newsletter / email / `broadcast-{id}` / post slug in app/Mail/NewsletterBroadcastMail.php〔touchpoint 012〕
+- [x] T048 [P] 後台小節編輯的說明區塊補一行：連鎖信寄出時會自動替站內連結加上來源參數，已自行標記 `utm_source` 的連結不會被覆寫 in resources/js/Components/Admin/LessonForm.vue〔touchpoint 004〕
+
+Phase C — 歸類與報表（相依 Phase A，可與 Phase B 並行）
+- [x] T049 `PLATFORM_MAP` 新增 `'drip' => ['email', '/^drip$/']` in app/Services/TrafficSourceService.php
+- [x] T050 `goPostCourse()`：`currentSource()` 解析後 channel 為 `email` 時不附加 blog UTM（直接 302 到課程頁），其餘不變；`recordCtaClick()` 兩種情況都先呼叫（FR-027）in app/Http/Controllers/TrackController.php
+- [x] T051 [P] `sourceLabels` 補 `drip: '連鎖信'`；頁尾註腳補一行說明信件連結自 2026-08 起自動戳章、先前寄出的信不受影響 in resources/js/Pages/Admin/Analytics/Index.vue
+- [x] T052 [P] 前端 `CHANNEL_RULES` 補 `drip` → 電子郵件，與 `PLATFORM_MAP` 對齊（D34 的前後端漂移不再重演）in resources/js/Pages/Admin/Courses/Traffic.vue
+
+Phase D — 驗證（相依 B + C）
+- [x] T053 連鎖信與電子報的實際寄出內容斷言（`Mail::fake()` 取出 HTML，比對連結含四個 utm 鍵、退訂連結未被戳）；`utm_source=drip` 經 `resolveSource()` 解析為 `email`/`drip`；`/go` 在 email 來源下不覆寫且 `post_cta_clicks` 仍 +1 in tests/Feature/Storefront/EmailLinkTaggerTest.php + tests/Feature/Storefront/SiteAnalyticsTest.php
+- [x] T054 `php artisan test` 全綠（基準 467 passed）＋ `npm run build` exit 0
+- [ ] T055 使用者實測：寄一封測試連鎖信，點信中連結進站後於「行銷分析 > 各管道成效」確認電子郵件管道展開後出現「連鎖信」一列
+
 ## 進度日誌
 
+- 2026-08-05: US14 完成 — 連鎖信與電子報寄出時自動替站內連結戳 UTM。`EmailLinkTagger` 兩個入口（`tagUrl` 單一網址、`tagHtml` 掃 `href`），站內判定收在一處：相對路徑或 host 去 `www.` 等於 `app.url`，其餘（外站、`mailto:`／`tel:`／`javascript:`／`data:`／純錨點）原樣返回；已帶 `utm_source` 的整條放過（FR-026）。屬性值先 `html_entity_decode` 再解析、組回時只 escape 一次 —— CommonMark 產出的 `&amp;` 若走兩次就會變成 `&amp;amp;`，這條有測試釘住。連鎖信的 `utm_content` 取自 `DripService::lessonNumber()`（新增的公開方法，位次+1）而非 `sort_order`，正式站的課程 sort_order 從 1 起算，用值會錯一格（010 FR-022 同一個坑）。`PLATFORM_MAP` 加 `drip`，管道 label 由「電子報」改為「電子郵件」（該管道現在裝兩種信，來源層才是「連鎖信／電子報」），`Traffic.vue` 的 `CHANNEL_RULES` 同步。`/go` 改為既有來源屬 email 時不覆寫（FR-027）。**過程中查到一個測試寫法的坑**：`tf_*` 在 `encryptCookies(except:)` 名單內不解密，而測試的 `withCookie()` 會加密後送出，controller 讀到的是密文 —— 新測試改用 `withUnencryptedCookie()`。新增 19 個測試（EmailLinkTaggerTest 17 + SiteAnalyticsTest 2），全套 486 passed、npm build 綠。
+- 2026-08-05: [draft] 規劃 US14 信件連結自動戳章 — 連鎖信與電子報是唯二會把讀者推回網站、卻唯二沒有來源標記的管道，點進來全被歸成「直接造訪」，於是「一封信帶回多少瀏覽／加購／成交」量不到。戳章做在**寄信當下**而非後台插入連結時（D35）：一個攔截點覆蓋所有信、所有寫法（含直接手打 Markdown 連結），既有信件不必重編輯，且規則日後演進時舊信自動跟上；代價是編輯器看到的網址與讀者收到的不同，以說明文字告知。服務放 002 而非寄信模組（D36），因為「utm_source 該填什麼才會被歸成 email」與 `PLATFORM_MAP` 是同一套詞彙的兩端，拆開等於製造下一次前後端漂移。順帶修一條把數字弄假的鏈路（FR-027 / D37）：`/go/post/{post}/course/{course}` 原本無條件蓋 `utm_source=blog`，「信 → 文章 → 商品」的成交會全記給部落格、email 管道恆為 0；改為既有來源屬 email 時讓路，範圍收在一個管道以免動到既有報表的解讀，部落格的引流成效仍由 `post_cta_clicks` 獨立衡量。已確認的取捨：既有 UTM 不覆寫（FR-026，與 FR-025「人工標記是修正歸因的手段」同源）、戳章不落庫（FR-028）、高價課系統信不納入（交易型信件）、每封信的粒度只到訂單層而非管道報表（Schema 段）。
 - 2026-08-04: 修正管道歸類把 Instagram 自然流量誤判為付費廣告的 bug（FR-024 / FR-025 / D34）— `fbclid` 不再視為付費訊號（Meta 對所有 FB/IG 外連點擊都會附加，含簡介連結），付費改由 `utm_medium` 或 `gclid` / `ttclid` 認定；判斷順序改為 UTM 優先於 click id，讓加標記能修正歸因；新增 `meta` 來源當 FB/IG 無法分辨時的桶子。`Admin/CourseController@traffic` 的第三份重複規則改呼叫 `resolveSource()`（read-time，歷史訂單自動更正）。歷史日彙總以 `2026_08_04_000001` migration 把 `paid/facebook` 併入 `social/meta`（該組合在舊規則下只可能由 fbclid 產生，不是猜測；原始 fbclid/referrer 未存於日表，故無法還原 IG/FB 細分）。`Traffic.vue` 的前端 `classifyChannel()` 一併鏡射新的判斷順序（原本 `gclid||fbclid||ttclid → 付費廣告` 那行與後端相反，同一筆 IG 自然流量會在「行銷分析」歸社群、在「課程流量」歸付費廣告）；行銷分析頁尾補上這次規則變更與「付費請填 `utm_medium=paid_social`」的說明，`sourceLabels` 補 `unknown`（`utm_medium` 宣告付費但認不出平台時的回傳值）。新增 2 個測試，全套 271 passed。
 - 2026-08-02: US13 完成 — 行銷分析「各管道成效」可展開到來源層。`course_daily_stats` 加 `source` 維度（唯一鍵擴四欄；migration 須**先**建新索引再刪舊的，否則撞 course_id 外鍵的前導欄索引限制 errno 150）；`TrafficSourceService::PLATFORM_MAP` + `resolveSource()` 成為 channel 與 source 的唯一真相，referrer host 以「網域標籤 == 平台 slug」比對（google.com.tw / m.youtube.com / l.instagram.com 免列舉 ccTLD），短網址另走 `HOST_ALIASES`；沒帶 UTM 的 IG/Threads/FB 自然流量由「其他來源」改歸「社群」；`channelReport()` 單一 query 巢狀輸出 sources[]；Traffic.vue 的前端歸類抽 `CHANNEL_RULES` 對齊 server（含 utm 比不到時 fallback 比 host 這個原本漂掉的分支）。新增 8 個測試，全套 231 passed、npm build 綠。
 - 2026-08-02: [draft] 規劃 US13 管道成效來源細分 — `course_daily_stats` 加 `source` 維度（unique key 擴為四欄）、`PLATFORM_MAP` 統一推導 channel+source（D31）、referrer 網域納入管道歸類（無 UTM 的 IG/Threads/FB 自然流量改歸社群）、各管道成效表改為可展開子列（D33）；舊資料不 backfill、不重算（D32）。

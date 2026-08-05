@@ -124,6 +124,8 @@ main_files:
 - app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
+- app/Jobs/SendDripEmailJob.php
+- app/Mail/NewsletterBroadcastMail.php
 - app/Models/Course.php
 - app/Models/CourseDailyStat.php
 - app/Models/HomepageFeaturedCourse.php
@@ -132,6 +134,7 @@ main_files:
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
 - app/Services/CheckoutService.php
+- app/Services/EmailLinkTagger.php
 - app/Services/SidebarService.php
 - app/Services/SiteAnalyticsService.php
 - app/Services/TrafficSourceService.php
@@ -146,6 +149,7 @@ main_files:
 - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
 - resources/css/app.css
 - resources/js/Components/Admin/CourseForm.vue
+- resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Course/FreeSuccessBlock.vue
 - resources/js/Components/Course/PriceDisplay.vue
@@ -165,6 +169,7 @@ main_files:
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
+- tests/Feature/Storefront/EmailLinkTaggerTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php

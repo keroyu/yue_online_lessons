@@ -98,6 +98,9 @@ class SiteAnalyticsTest extends TestCase
         $this->assertSame('social', $s->classifyChannel(['utm_source' => 'Instagram']));
         $this->assertSame('search', $s->classifyChannel(['utm_source' => 'google']));
         $this->assertSame('email', $s->classifyChannel(['utm_source' => 'newsletter']));
+        // US14: the drip stamps its own source so the email channel can be
+        // split into 連鎖信 / 電子報 instead of one undifferentiated bucket.
+        $this->assertSame('email', $s->classifyChannel(['utm_source' => 'drip']));
         $this->assertSame('video', $s->classifyChannel(['utm_source' => 'youtube']));
         $this->assertSame('referral', $s->classifyChannel(['referrer_domain' => 'blog.example.com']));
         $this->assertSame('direct', $s->classifyChannel(null));
@@ -342,6 +345,45 @@ class SiteAnalyticsTest extends TestCase
         $this->get("/go/post/{$post->id}/course/{$course->id}");
         $this->assertSame(2, $click->fresh()->clicks);
         $this->assertSame(1, PostCtaClick::count());
+    }
+
+    /**
+     * US14 / FR-027 — a reader who arrived from one of our letters keeps that
+     * attribution through the post's CTA.
+     *
+     * The blog is a waypoint on the 信 → 文章 → 商品 path, not its source;
+     * overwriting here would credit every such sale to the blog and leave the
+     * email channel reading zero — the one number the stamping exists to show.
+     */
+    public function test_go_redirect_keeps_an_email_source_but_still_counts(): void
+    {
+        $post = $this->makePost();
+        $course = $this->makeCourse();
+
+        $response = $this->withUnencryptedCookie(
+            TrafficSourceService::COOKIE_LAST,
+            json_encode(['utm_source' => 'drip', 'utm_medium' => 'email']),
+        )->get("/go/post/{$post->id}/course/{$course->id}");
+
+        $target = $response->headers->get('Location');
+        $this->assertStringNotContainsString('utm_source=blog', $target);
+
+        // The blog's own pull is measured by this counter, so it loses nothing.
+        $this->assertSame(1, PostCtaClick::where('post_id', $post->id)->value('clicks'));
+    }
+
+    public function test_go_redirect_still_overwrites_a_non_email_source(): void
+    {
+        $post = $this->makePost();
+        $course = $this->makeCourse();
+
+        $response = $this->withUnencryptedCookie(
+            TrafficSourceService::COOKIE_LAST,
+            json_encode(['utm_source' => 'instagram']),
+        )->get("/go/post/{$post->id}/course/{$course->id}");
+
+        // Social → post → course: the post's CTA really is the proximate cause.
+        $this->assertStringContainsString('utm_source=blog', $response->headers->get('Location'));
     }
 
     // --- funnel report ---

@@ -70,6 +70,9 @@ owner_files:
   - tests/Feature/Newsletter/OgImageTest.php
   - tests/Feature/Newsletter/PostServiceTest.php
 touchpoints:
+  - file: app/Mail/NewsletterBroadcastMail.php
+    owner: 002-storefront
+    why: 2026-08-05 起 $postUrl 於建構子以 EmailLinkTagger 戳 UTM（002 US14），HTML 與純文字版同時生效
   - file: bootstrap/app.php
     owner: 000-platform-core
     why: `newsletter/unsubscribe/*` 的 CSRF 豁免（RFC 8058 一鍵退訂的 POST 無 session，否則 419）

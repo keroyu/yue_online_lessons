@@ -303,6 +303,16 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   內容<span class="font-medium text-gray-800">後面</span>自動附上退訂連結。
                   所以這裡直接從正文寫起就好，不用再寫稱呼與問候。
                 </p>
+                <!-- Links are stamped at send time (002 US14), so what is stored
+                     here and what the reader receives differ — say so. -->
+                <p
+                  v-if="courseType === 'drip'"
+                  class="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600"
+                >
+                  寄出時會自動替<span class="font-medium text-gray-800">本站連結</span>加上來源參數，
+                  之後可在「行銷分析 → 各管道成效」看到這封信帶回多少瀏覽與成交。
+                  外站連結不會被動到；你自己已經標了 <code class="rounded bg-gray-200 px-1">utm_source</code> 的連結也會原樣保留。
+                </p>
                 <textarea
                   id="md_content"
                   ref="mdContentRef"

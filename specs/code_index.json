@@ -283,7 +283,8 @@
       "012.us-2"
     ],
     "app/Http/Controllers/TrackController.php": [
-      "002.us-10"
+      "002.us-10",
+      "002.us-14"
     ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "005.us-6"
@@ -453,6 +454,7 @@
       "012.us-5"
     ],
     "app/Jobs/SendDripEmailJob.php": [
+      "002.us-14",
       "010.us-11",
       "010.us-12",
       "010.us-13",
@@ -490,6 +492,7 @@
       "011.us-7"
     ],
     "app/Mail/NewsletterBroadcastMail.php": [
+      "002.us-14",
       "012.us-5"
     ],
     "app/Mail/NewsletterWelcomeMail.php": [
@@ -718,6 +721,9 @@
       "011.us-5",
       "011.us-8"
     ],
+    "app/Services/EmailLinkTagger.php": [
+      "002.us-14"
+    ],
     "app/Services/EmailMarkdownService.php": [
       "011.us-7"
     ],
@@ -797,7 +803,8 @@
     ],
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
-      "002.us-13"
+      "002.us-13",
+      "002.us-14"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -1098,6 +1105,7 @@
       "011.us-8"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
+      "002.us-14",
       "003.us-9",
       "004.us-3",
       "004.us-6",
@@ -1268,7 +1276,8 @@
     ],
     "resources/js/Pages/Admin/Analytics/Index.vue": [
       "002.us-10",
-      "002.us-13"
+      "002.us-13",
+      "002.us-14"
     ],
     "resources/js/Pages/Admin/Broadcasts/Index.vue": [
       "012.us-5"
@@ -1326,6 +1335,7 @@
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-13",
+      "002.us-14",
       "002.us-8"
     ],
     "resources/js/Pages/Admin/Dashboard.vue": [
@@ -1656,6 +1666,9 @@
     ],
     "tests/Feature/Storefront/CourseUrlSlugTest.php": [
       "002.us-8"
+    ],
+    "tests/Feature/Storefront/EmailLinkTaggerTest.php": [
+      "002.us-14"
     ],
     "tests/Feature/Storefront/FreeSuccessBlockTest.php": [
       "002.us-11",
