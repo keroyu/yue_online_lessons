@@ -7,6 +7,7 @@ import PriceDisplay from '@/Components/Course/PriceDisplay.vue'
 import RedeemButton from '@/Components/Course/RedeemButton.vue'
 import LegalPolicyModal from '@/Components/Legal/LegalPolicyModal.vue'
 import DripSubscribeForm from '@/Components/Course/DripSubscribeForm.vue'
+import ClaimConsentNotice from '@/Components/Course/ClaimConsentNotice.vue'
 import FreeSuccessBlock from '@/Components/Course/FreeSuccessBlock.vue'
 import SalesPromoBlock from '@/Components/Course/SalesPromoBlock.vue'
 import HighTicketBookingWizard from '@/Components/Course/HighTicketBookingWizard.vue'
@@ -842,6 +843,8 @@ const isFunnelLanding = computed(() =>
           >
             {{ subscribing ? '領取中...' : (Number(course.price) > 0 ? '立即購買' : '免費領取') }}
           </button>
+
+          <ClaimConsentNotice class="mt-4" />
         </div>
 
         <!-- Can subscribe: guest -->

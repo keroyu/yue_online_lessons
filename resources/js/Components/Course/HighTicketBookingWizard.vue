@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
-import { useEmailReview } from '@/composables/useEmailReview'
+import { useDelayedConfirm } from '@/composables/useDelayedConfirm'
 
 const props = defineProps({
   course: { type: Object, required: true },
@@ -215,7 +215,7 @@ const {
   countdown: emailCountdown,
   start: startEmailReview,
   reset: resetEmailConfirm,
-} = useEmailReview()
+} = useDelayedConfirm()
 
 // Leaving step 4 — or editing anything — starts the check over.
 watch(step, resetEmailConfirm)

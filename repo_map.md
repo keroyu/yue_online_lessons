@@ -519,13 +519,14 @@ main_files:
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
 - resources/js/Components/Classroom/VideoAccessNotice.vue
+- resources/js/Components/Course/ClaimConsentNotice.vue
 - resources/js/Components/Course/DripSubscribeForm.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/EmailReviewNotice.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
-- resources/js/composables/useEmailReview.js
+- resources/js/composables/useDelayedConfirm.js
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
 - routes/web.php

@@ -3,13 +3,17 @@
 namespace Tests\Feature\Drip;
 
 use App\Mail\DripLessonMail;
+use App\Models\Course;
+use App\Models\DripSubscription;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
  * 010 US6 — the sequence mail must carry a machine-readable unsubscribe.
  * Without it the only signal is the wording in the body, and Gmail started
- * spam-foldering the mail once that wording stopped saying「退訂」.
+ * dropping the mail into the Promotions tab once that wording stopped
+ * saying「退訂」.
  */
 class DripMailDeliverabilityTest extends TestCase
 {
@@ -59,5 +63,49 @@ class DripMailDeliverabilityTest extends TestCase
 
         $this->assertContains('drip/unsubscribe/*', $except);
         $this->assertContains('newsletter/unsubscribe/*', $except);
+    }
+
+    /**
+     * 010 US16 / FR-028 — the confirm page now asks twice with a 5s wait, but
+     * that guard lives in Vue only. A mail client posting straight here has no
+     * page to press twice, so a single POST must still take effect. Guards
+     * against anyone later "completing" the two-stage flow server-side.
+     */
+    public function test_a_single_post_still_stops_the_emails(): void
+    {
+        $course = Course::create([
+            'name'               => '免費電子書',
+            'slug'               => 'free-ebook',
+            'tagline'            => 'tag',
+            'description'        => 'desc',
+            'price'              => 0,
+            'instructor_name'    => 'Tester',
+            'type'               => 'ebook',
+            'status'             => 'selling',
+            'course_type'        => 'drip',
+            'drip_interval_days' => 3,
+            'is_published'       => true,
+            'is_visible'         => true,
+            'payment_gateway'    => 'payuni',
+        ]);
+
+        $subscription = DripSubscription::create([
+            'user_id'       => User::factory()->create()->id,
+            'course_id'     => $course->id,
+            'subscribed_at' => now(),
+            'emails_sent'   => 1,
+            'status'        => 'active',
+        ]);
+
+        $this->post("/drip/unsubscribe/{$subscription->unsubscribe_token}")
+            ->assertRedirect();
+
+        $this->assertSame('unsubscribed', $subscription->fresh()->status);
+
+        // Repeating it (mail clients retry) must stay harmless.
+        $this->post("/drip/unsubscribe/{$subscription->unsubscribe_token}")
+            ->assertRedirect();
+
+        $this->assertSame('unsubscribed', $subscription->fresh()->status);
     }
 }

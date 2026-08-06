@@ -20,7 +20,7 @@ owner_files:
   - app/Services/ConsultationSlotService.php
   - app/Console/Commands/ReleaseExpiredBookingHolds.php
   - resources/js/Components/Course/HighTicketBookingWizard.vue
-  - resources/js/composables/useEmailReview.js
+  - resources/js/composables/useDelayedConfirm.js
   - resources/js/Components/EmailReviewNotice.vue
   - resources/js/Pages/Booking/Confirm.vue
   - resources/js/Pages/Admin/ConsultationSlots/Index.vue
@@ -1240,6 +1240,8 @@ US9 補充
 - [x] T163 補測試：booking leads 帶出 `slots`（eager load 生效）、`dripByEmail` 帶出 `subscribed_at` in `tests/Feature/HighTicket/LeadsTabsTest.php`
 
 ## 進度日誌
+
+- 2026-08-07: 本模組擁有的 `useEmailReview.js` 更名為 `useDelayedConfirm.js`（010 US16 / D22）—— 那支 composable 做的一直是「兩段式確認＋倒數」，010 的第三個用途（停止接收確認，5 秒）連 Email 都沒有。函式同步改名，API 與 `HighTicketBookingWizard` 的行為、秒數（10）完全不變；`EmailReviewNotice.vue` 維持原名，它確實只服務 Email 覆核那塊 UI。FR-059 的規則不受影響。
 
 - 2026-08-06: Leads 展開列改版（T161–T163）— 「預約優惠碼」對後台沒有辨識價值（顧問只需要知道約在什麼時候），換成已預約時段（`slots` 首尾單位換算起訖）；另加「序列信起始時間」讓顧問一眼看出這個人被加溫多久，取該 email 名下所有序列信訂閱中最早的 `subscribed_at`、算日曆天差（不比時分，避免數字隨查看時刻抖動）。兩個值都跟著既有「有值才顯示」慣例，候補中無時段、從未加過序列信的 lead 不顯示對應列。新增 2 個測試（先紅後綠：拿掉 eager load / `subscribed_at` 欄位重跑確認會壞），全套 503 passed、`npm run build` 綠。
 - 2026-08-05: /sync 對帳補登 —— `useEmailReview.js` 與 `EmailReviewNotice.vue`（US15 的 10 秒 Email 覆核，正典 FR-059）此前無任何模組宣告擁有，010 卻已在 touchpoints 指名 owner 為本模組。依該聲明補進 owner_files，全 repo 的 .php/.vue/.js 至此皆有唯一 owner。

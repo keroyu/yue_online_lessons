@@ -2,7 +2,8 @@
 import { ref, computed, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
-import { useEmailReview } from '@/composables/useEmailReview'
+import ClaimConsentNotice from '@/Components/Course/ClaimConsentNotice.vue'
+import { useDelayedConfirm } from '@/composables/useDelayedConfirm'
 
 const props = defineProps({
   courseId: {
@@ -31,7 +32,7 @@ const alreadyClaimed = computed(() => !!claimedEmail.value)
 // Two-stage submit (US15). The claim no longer sends a verification code, so a
 // mistyped address means the ebook goes nowhere and nobody is ever told —
 // this pause is the only place left that can catch it.
-const { confirming, countdown, start: startReview, reset: resetReview } = useEmailReview()
+const { confirming, countdown, start: startReview, reset: resetReview } = useDelayedConfirm()
 
 watch(email, resetReview)
 
@@ -145,6 +146,8 @@ const requestSubmit = () => {
       >
         {{ submitLabel }}
       </button>
+
+      <ClaimConsentNotice />
     </form>
   </div>
 </template>

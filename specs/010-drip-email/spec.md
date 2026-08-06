@@ -16,6 +16,7 @@ owner_files:
   - config/drip.php
   - resources/views/emails/drip-lesson.blade.php
   - resources/js/Components/Course/DripSubscribeForm.vue
+  - resources/js/Components/Course/ClaimConsentNotice.vue
   - resources/js/Pages/Drip/Unsubscribe.vue
   - resources/js/Components/Admin/Leads/SubscriberListTab.vue
   - database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
@@ -35,9 +36,9 @@ owner_files:
   - tests/Feature/Drip/DripMailDeliverabilityTest.php
   - tests/Feature/Drip/GuestClaimTest.php
 touchpoints:
-  - file: resources/js/composables/useEmailReview.js
+  - file: resources/js/composables/useDelayedConfirm.js
     owner: 011-high-ticket
-    why: US15 — 10 秒 Email 覆核的狀態機，正典為 011 FR-059；本模組領取表單共用（D18）
+    why: 10 秒 Email 覆核的狀態機，正典為 011 FR-059；本模組領取表單共用（US15、D18）。US16 由 useEmailReview.js 更名為此（同一個狀態機，第三個用途不是 Email 覆核而是停止接收的二次確認，D22），並以 5 秒供停止接收確認頁使用
   - file: resources/js/Components/EmailReviewNotice.vue
     owner: 011-high-ticket
     why: US15 — 覆核區塊 UI，後果說明以 slot 傳入；本模組領取表單共用（D18）
@@ -91,7 +92,7 @@ touchpoints:
     why: VideoAccessNotice 的顯示條件需排除已達標（booked/converted）訂閱者
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
-    why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區
+    why: 課程詳情頁嵌入 DripSubscribeForm（訪客）與會員一鍵訂閱區塊（暱稱欄 + 訂閱按鈕）；頁首與右側懸浮面板的「免費領取」CTA 導向此訂閱區。US16 起會員一鍵領取區塊也掛 ClaimConsentNotice
   - file: bootstrap/app.php
     owner: 000-platform-core
     why: `drip/unsubscribe/*` 的 CSRF 豁免（RFC 8058 一鍵退訂的 POST 無 session）
@@ -278,10 +279,10 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 領取免費電子書要先收驗證碼、回站貼六位數才拿得到。8/2 開跑後的實測是
 **520 人完成領取、另有 65 個 Email 索取了驗證碼卻從沒建立過帳號**（其中 16 人重複索取，
 是想拿卻拿不到、不是改變心意），驗證這一步流失約 11%；
-同期正好是序列信被 Gmail 丟進垃圾郵件的日子，驗證碼信與序列信同網域同信譽。
+同期正好是序列信偶發被 Gmail 分到促銷分頁的日子，驗證碼信與序列信同網域同信譽。
 
 真正的代價不在那幾秒，而在**這道關卡把「送達問題」放大成「整條漏斗歸零」**：
-信進垃圾桶時，有驗證碼 = 帳號沒建、名單沒留、那個人徹底消失；沒有驗證碼 = 至少留下名單，之後還找得到人。
+信沒被看見時，有驗證碼 = 帳號沒建、名單沒留、那個人徹底消失；沒有驗證碼 = 至少留下名單，之後還找得到人。
 
 而那道驗證碼**其實是登入**（`Auth::login($user, true)`，與 `LoginController` 同一行）。
 本故事把「領取」與「登入」拆開：領取不再建立 session，驗證碼因此沒有保護對象，整條移除；
@@ -300,6 +301,35 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - [x] US2 的會員一鍵領取（已登入）不加覆核區塊 —— 那個 Email 是帳號本身，沒有可打錯的餘地
 - [x] 電子報訂閱（012）的驗證碼流程**不在本故事範圍**：它沒有交付物可當作驗證，且同樣會 `Auth::login()`，要拆是另一個決定
 - [x] 測試：領取後 `Auth::check()` 為 false、`email_verified_at` 為 null、既有會員暱稱不被覆寫、蜜罐命中即擋、throttle 生效、第一封信仍寄出、既有 ClaimWordingTest 全數續過
+
+### User Story 16 - 領取同意告知與停止接收前的挽留 (Priority: P2)
+
+US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒有一個畫面說明「你正在同意什麼」。
+補上一段同意告知，把交換條件講清楚：這份免費資源不是無條件的贈品，
+它換的是「願意持續收信」這件事。
+
+另一頭是停止接收。現行確認頁只講**功能後果**（不再收到信、無法再次領取），
+沒講**權益後果**（限定免費資源、活動、諮詢申請可能就此關門）。
+很多人按下去只是想少收幾封信，並不知道自己退掉的是整個資格 —— 
+所以確認頁改成先把後果講完，再要求二次確認，中間強制停 5 秒。
+
+停 5 秒不是為了讓人放棄，是為了讓「讀完那段話」真的發生：
+一段沒有人讀的說明，跟沒寫是一樣的。想走的人 5 秒後照樣走得掉。
+
+**驗收**：
+- [x] 兩個領取入口（訪客 `DripSubscribeForm`、已登入會員一鍵領取區塊）送出鈕**下方**顯示同一段同意告知，文字由共用元件 `ClaimConsentNotice.vue` 提供 —— 法律文字兩份會漂移（FR-027）
+- [x] 同意告知文案（依 FR-017 改寫，不出現「訂閱／退訂」）：
+      「領取即代表同意接收免費資源及後續相關內容。您可以隨時停止接收；停止後我們將不再寄送信件，同時失去限定免費資源與服務的申請資格。」
+- [x] 告知為**被動揭露**，不加 checkbox：送出即同意，不新增必勾欄位（D24）
+- [x] `/drip/unsubscribe/{token}` 確認頁載入時即顯示挽留說明，取代現行的紅色警告框，語氣由警告改為說明（琥珀色）：
+      「本免費商品與後續免費資源，是提供給願意持續接收我們內容的人。若您選擇停止接收，我們會立即停止寄送信件；同時，您的領取資格也會終止，未來部分限定免費資源、活動及諮詢申請可能不再開放。付費產品與既有客戶權益不受影響。」
+- [x] 確認鈕為兩段式：第一次按進入 **5 秒**倒數（停用、顯示剩餘秒數），倒數結束後文案改為確認語氣，第二次按才真的送出 POST（FR-028）
+- [x] 「取消／返回首頁」在全程可用，兩段式期間不得移除 —— 挽留不等於卡住出口
+- [x] 已是 `unsubscribed` 的重複進入維持原樣（顯示「已停止接收」），不顯示挽留、不顯示確認鈕
+- [x] 5 秒與二次確認**只活在網頁確認頁**：`POST /drip/unsubscribe/{token}` 端點行為完全不變，郵件用戶端的 RFC 8058 一鍵退訂 MUST 維持單次 POST 即生效（FR-028、D21）
+- [x] 兩段式狀態機沿用 US15 抽出的共用 composable（改名 `useDelayedConfirm`，秒數為參數），不另寫一份倒數（D22）
+- [x] 「失去申請資格」本次**只做文案宣告，不實作跨商品封鎖**；措辭用「可能不再開放」保留營運彈性（D23）
+- [x] 測試：`POST /drip/unsubscribe/{token}` 單次請求即 status=unsubscribed（守住一鍵退訂不被日後加上伺服器端二段式）
 
 ## Requirements
 
@@ -331,6 +361,10 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 
 - **FR-026**: 沒有驗證碼之後，`/drip/subscribe` 等於「輸入任意信箱就寄一封信出去」，MUST 補上 `throttle:10,1` 與 `website` 蜜罐欄位（比照 012 電子報既有作法）。這不只防機器人，也防有人拿它對第三方信箱灌信 —— 灌出去的每一封都掛在你的寄件信譽上。
 
+- **FR-027**: 領取入口 MUST 在送出鈕下方揭露同意告知（US16），且文字 MUST 來自單一共用元件 `ClaimConsentNotice.vue`，兩個入口（訪客表單、會員一鍵領取）不得各自維護。理由不是省行數：這是**權益條款**，兩份文字漂移之後「哪一份才是使用者當初同意的」無法回答。告知為被動揭露（送出即同意），MUST NOT 新增必勾 checkbox。
+
+- **FR-028**: 停止接收確認頁 MUST 為兩段式（第一次按 → 強制 **5 秒** → 第二次按才送出），但這道關卡 MUST 只存在於 Vue 確認頁。`POST /drip/unsubscribe/{token}` 端點 MUST 維持單次請求即生效 —— 該路徑同時是 RFC 8058 `List-Unsubscribe-Post: One-Click` 的目標，郵件用戶端直接 POST、沒有頁面可以按第二次；在端點加關卡等於一鍵退訂失效，而 `List-Unsubscribe` 正是 2026-08-02 那次「Gmail 偶發分到促銷分頁」的解方（US6）。**寄件信譽優先於挽留。**
+
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
 ## 設計決策
@@ -354,13 +388,21 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - **D16**: 停信/豁免的狀態集合收斂成 model 常數 — 這次改動要同時碰 Job、Service、Controller 三處的狀態判斷，硬編字串陣列是下次漏改的溫床
 
 - **D17**: 驗證碼可以整條拿掉，是因為它保護的東西被移走了，不是因為它沒用（US15）。原本那道 OTP 同時做三件事：證明信箱歸屬、擋打錯字、以及**登入**。登入拆掉之後，第一件事沒有保護對象（沒有 session 可以被冒領），第二件事由 10 秒覆核接手，剩下的只有成本。**先拆登入、再拆驗證，順序不能倒過來** —— 只拿掉驗證碼而保留 `Auth::login()`，等於任何人打你的 Email 就能進你的帳號。
-  代價誠實記錄：（1）名單品質從 confirmed opt-in 降為 single opt-in，投訴率與蜜罐風險上升，而寄件信譽本來就已經是這個模組的痛點（2026-08-02 被 Gmail 丟垃圾郵件）；（2）任何人都能拿別人的信箱去領取，對方會收到一封沒要求的信 —— 救濟是信中既有的一鍵退訂，這是電子報產業的通行取捨（見 D20）。**若日後投訴率惡化，正確的回頭路是恢復 double opt-in（寄確認連結），不是恢復「驗證即登入」。**
+  代價誠實記錄：（1）名單品質從 confirmed opt-in 降為 single opt-in，投訴率與蜜罐風險上升，而寄件信譽本來就已經是這個模組的痛點（2026-08-02 偶發被 Gmail 分到促銷分頁）；（2）任何人都能拿別人的信箱去領取，對方會收到一封沒要求的信 —— 救濟是信中既有的一鍵退訂，這是電子報產業的通行取捨（見 D20）。**若日後投訴率惡化，正確的回頭路是恢復 double opt-in（寄確認連結），不是恢復「驗證即登入」。**
 
 - **D18**: 10 秒覆核抽成共用元件，且**歸 011 所有**（`owner_files`），010 以 touchpoint 使用。理由是那條規則的正典在 011 FR-059，秒數與文案語氣屬於同一個決定；若各留一份，日後把 10 秒調成 15 秒只會改到一邊，而「兩個表單的防呆強度不一樣」是沒有人會發現的漂移。切法：`useEmailReview()` composable 管狀態機（confirming / countdown / start / reset），`EmailReviewNotice.vue` 管那塊琥珀色區塊，**後果說明以 slot 傳入** —— 高價課要講「時段 1 小時後釋出」，領取要講「電子書寄不到」，共用的是機制不是文案。
 
 - **D19**: 回訪的訪客會再看到領取表單，接受（US15）。沒有 session 就無從得知這台瀏覽器領過沒有，而既有的「已領取過」提示已經是好的落點：它指名信箱、提醒查垃圾郵件與促銷分頁、並告訴他換個 Email 可以再領。刻意**不**用 cookie 記住領取狀態 —— 為了一個提示而長期存訪客識別，代價高於收益，何況跨裝置本來就記不住。
 
 - **D20**: 既有會員被陌生人代領時，不擋、不驗證，只確保**不造成破壞**（US15）。可以做的傷害僅止於「收到一封沒要求的免費電子書」，信裡有一鍵退訂；為此加一道驗證等於讓所有正常使用者付出成本去防一個低傷害情境。但**寫入面必須守住**：`nickname` 不覆寫（FR-025）、不建立 session（FR-023）、不動任何既有欄位 —— 未經驗證的表單可以「新增一筆訂閱」，不可以「改既有帳號」。
+
+- **D21**: 挽留與 5 秒二次確認只加在**網頁確認頁**，端點一律不動（US16）。這是 FR-028 的取捨紀錄：能被挽留的人是點了信裡連結、走回站上的人；用郵件用戶端「一鍵退訂」的人本來就不會經過任何頁面，硬要攔他只有一個做法 —— 拿掉 `List-Unsubscribe-Post`，而那正是 8/2 把序列信從 Gmail 促銷分頁拉回主收件匣的東西。**退訂摩擦換來的名單，遠不如送達率值錢**：退不掉的人下一步是按「檢舉垃圾郵件」，那一筆記在網域信譽上，全部收件人一起付 —— 而目前的問題還只是偶發被分到促銷分頁，真被檢舉才是不可逆的那種掉法。
+
+- **D22**: 二次確認沿用 US15 的共用狀態機，並把 `useEmailReview` 改名為 `useDelayedConfirm`（US16）。那 40 行做的事從來就不是「檢查 Email」，是「兩段式確認＋倒數」；第三個用途（停止接收）連 Email 都沒有，名字再不改就開始說謊。改名成本是 3 個 import（`DripSubscribeForm`、`HighTicketBookingWizard`、`Drip/Unsubscribe`），API 與行為零變更；`EmailReviewNotice.vue` **不改名**，它確實只服務 Email 覆核那塊 UI。秒數本來就是參數（覆核 10 秒、挽留 5 秒），D18 的「兩處強度不得漂移」限縮為「Email 覆核那兩處」。ownership 維持 011（D18 原因不變）；日後若出現與 011 完全無關的第四個用途，再考慮移交 000。
+
+- **D23**: 「失去限定免費資源與服務的申請資格」只寫進文案，**不實作跨商品封鎖**（US16）。目前程式唯一硬性執行的是 FR-003（同一門課停止接收後不能再領），其餘一律人工判斷。否決同步實作的理由有三：（1）要先定義封鎖是全站性還是分商品，這是營運政策不是工程決定；（2）誤按停止接收的人需要解鎖後門，等於再開一套後台功能；（3）在**讀取面**設關卡與 D20「寫入面守住、讀取面不設關卡」的既有取向相反。因此措辭用「**可能**不再開放」而非「將不再開放」—— 說得保留一點，才不會有一天被自己的文案綁住。
+
+- **D24**: 同意告知不加必勾 checkbox（US16）。這是免費領取不是契約簽署，多一個必勾等於在剛拆掉驗證碼、專程降低摩擦的表單上，親手加回一道摩擦。被動揭露（送出即同意，文字就在按鈕下方）在電子報產業是通行作法，也符合本模組 single opt-in 的既定定位（D17）。
 
 ## Schema
 
@@ -374,6 +416,30 @@ drip 的定位是促銷漏斗、不是公益教育：達成目標（預約或購
 - `lessons` 增欄（本模組 migration，promo 欄位適用所有課程類型）— `promo_delay_seconds`（null=停用/0=立即）、`promo_html`、`promo_url`（varchar 500，教室追蹤按鈕）、`reward_html`（drip 限定）、`video_access_hours`（null=無限期）
 
 - **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
+
+- **US16 無 migration、無 schema 變更、無後端變更** —— 全部是前台文案與互動：新增一個共用文案元件、改寫停止接收確認頁、重新命名一支 composable。`DripSubscriptionController::unsubscribe()` 與路由**一行都不動**（FR-028）。
+
+## Tasks（US16 — 領取同意告知與停止接收前的挽留）
+
+Phase 1 — 共用元件改名（先做，後面兩 phase 都相依）
+- [x] T135 `useEmailReview.js` 更名為 `useDelayedConfirm.js`，函式改名 `useDelayedConfirm(seconds = 10)`，API（`confirming`/`countdown`/`start()`/`reset()`/`stop()`）與行為零變更；檔頭註解改寫為「兩段式確認 + 倒數」的通用描述，並保留「Email 覆核正典為 011 FR-059」的指路 in resources/js/composables/useDelayedConfirm.js〔touchpoint 011〕
+- [x] T136 [P] `HighTicketBookingWizard` 更新 import 與呼叫名稱，秒數維持 10，行為不得改變（BookingWizardTest 須零修改續過）in resources/js/Components/Course/HighTicketBookingWizard.vue〔touchpoint 011〕
+- [x] T137 [P] `DripSubscribeForm` 更新 import 與呼叫名稱，秒數維持 10 in resources/js/Components/Course/DripSubscribeForm.vue
+
+Phase 2 — 同意告知（可與 Phase 3 並行）
+- [x] T138 新增 `ClaimConsentNotice.vue`：單一段落、`text-xs text-gray-500 leading-relaxed`、無 props、文案硬編於元件內（FR-027 的單一來源）in resources/js/Components/Course/ClaimConsentNotice.vue
+- [x] T139 `DripSubscribeForm` 於送出鈕**下方**掛 `ClaimConsentNotice` in resources/js/Components/Course/DripSubscribeForm.vue
+- [x] T140 `Course/Show.vue` 會員一鍵領取區塊（`canSubscribe && auth.user` 那張卡）於領取鈕下方掛同一個元件 in resources/js/Pages/Course/Show.vue〔touchpoint 002〕
+
+Phase 3 — 停止接收挽留與二次確認
+- [x] T141 `Drip/Unsubscribe.vue` 以挽留說明取代紅色警告框：改為琥珀色（`bg-amber-50 border-amber-200 text-amber-900`）、內容為 US16 驗收所列文案；頁首圖示與標題語氣同步由「警告」調為「說明」in resources/js/Pages/Drip/Unsubscribe.vue
+- [x] T142 `Drip/Unsubscribe.vue` 接上 `useDelayedConfirm(5)`：`confirmUnsubscribe` 改為先 `start()`，回傳 false 即 return；按鈕四段文案（確定停止接收／請再想一下（N）／我確定，停止接收／處理中…），倒數期間 `:disabled`；「取消」連結全程保留 in resources/js/Pages/Drip/Unsubscribe.vue
+- [x] T143 `subscription.status === 'unsubscribed'` 分支不受影響（不顯示挽留與確認鈕），視覺維持現狀 in resources/js/Pages/Drip/Unsubscribe.vue
+
+Phase 4 — 驗證
+- [x] T144 新增測試：`POST /drip/unsubscribe/{token}` 單次請求即 status=unsubscribed、重複 POST 不報錯（守住 FR-028 的端點不變性）in tests/Feature/Drip/DripMailDeliverabilityTest.php
+- [x] T145 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T146 使用者實測：領取頁看得到同意告知（訪客與登入兩種）、信中停止接收連結進站看得到挽留、按第一次會倒數 5 秒、第二次才真的停止；郵件用戶端的一鍵退訂（若 Gmail 顯示）仍一次生效
 
 ## Tasks（US15 — 免登入領取與 Email 覆核防呆）
 
@@ -458,11 +524,13 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-07: US16 — 領取表單（訪客＋會員一鍵）補同意告知（共用 ClaimConsentNotice）；停止接收確認頁改為挽留說明＋5 秒二段式確認，端點維持一鍵退訂單次生效（新增回歸測試）；useEmailReview 更名 useDelayedConfirm。順帶更正 8/2 事件記錄：是 Gmail 促銷分頁（偶發），非垃圾郵件匣。522 passed、npm build 綠。
+
 - 2026-08-05: US15 完成 — 免費領取移除驗證碼與自動登入。拆的順序是關鍵：先拿掉 `Auth::login()`，驗證碼才失去保護對象。實作時浮現一個規劃時就預期、但只有真的拆了才會出事的破口 —— 原本 `$user->update(['nickname' => ...])` 一律覆寫，沒了驗證碼等於陌生人能改既有會員的顯示名稱，現在只在原值為空時填入，並有測試釘住。新帳號 `email_verified_at` 留 null（沒驗證就不宣稱已驗證，全站無 `verified` gate 依賴它），既有列不回填。10 秒覆核抽成 `useEmailReview()` + `EmailReviewNotice.vue`，後果說明走 slot（高價課講時段釋出、領取講電子書寄不到），`HighTicketBookingWizard` 改為引用，既有 BookingWizardTest 38 passed 行為不變。順手清掉 `HandleInertiaRequests` 裡的 `drip_email` / `drip_course_id` / `drip_nickname` 三個 flash key —— 兩步驟流程沒了，它們是孤兒。新增 GuestClaimTest（7 tests），既有 ClaimWordingTest **零修改**續過，全套 493 passed、npm build 綠。
 - 2026-08-05: 修正 `sort_order` 被當成索引（T120–T123 / FR-022）— 業主回報訂閱者名單第二封信有人開信卻顯示 0 已發送、開信率「—」。查下來不是統計壞掉，是整個模組對「第幾封信」的定義錯了：`emails_sent` 是**信的封數**，程式卻拿它跟 `sort_order` 的**值**比。`LessonController` 以 `max + 1` 編號，所以後台建出來的課程是 1、2、3，而 `processSubscription()` 一直是按位次 `$lessons[$i]` 寄信 —— 兩邊差一格。正式站（`猴子也能懂的 AI Road Map`，480 位訂閱者）的實際後果比回報的更嚴重：**收到第 1 封信的 85 人連第 1 課都打不開，收到第 2 封的 395 人打不開剛寄給他們的第 2 課**（57 人開了那封信卻進不去），統計只是同一個 off-by-one 比較顯眼的那一面。修法是不再把排序鍵當索引：位次由 `lessonPosition()` 從 `orderBy(sort_order)` 的序列算出（按課程 memoise，教室一頁會逐 Lesson 呼叫），解鎖、解鎖日、觀看期 fallback 錨點、後台已發送數四處共用。**這個 bug 活下來是因為既有測試全部以 `sort_order` 0、1、2 建 Lesson** —— 一個後台從來產不出來的慣例，於是測試與程式一起錯得很一致；新的 LessonPositionTest 刻意用 1 起算與跳號（10、20、30）建課。順手把每課一次 COUNT 的 N+1 併成單一 `GROUP BY emails_sent` 分佈。全套 467 passed。
 - 2026-08-04: 訂閱者後台頁搬家（011 US8 touchpoint）— `Pages/Admin/Courses/Subscribers.vue` 改為 `Components/Admin/Leads/SubscriberListTab.vue`，掛在 Leads 名單頁的第二個 tab，課程改頁內下拉（只列 drip 課）。資料組裝從 `CourseController@subscribers` 下沉為 `DripService::subscriberPageData()`（該 action 與 `/admin/courses/{course}/subscribers` 路由已刪）。顯示內容與統計邏輯不變。
 - 2026-08-03: 序列信的 `md_content` 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，小節內容手動斷行在信裡會黏成一段。現在單次換行即 `<br>`，空一行仍是新段落；`stripStylesForEmail()` 與寄送流程不動。查驗現有 16 篇有 md_content 的小節，3 篇（id 20、46 各多 7 / 2 個換行；id 14 無變化）會多出換行，皆為作者原本就手動斷行的位置。
-- 2026-08-02: 序列信被 Gmail 丟進垃圾郵件 — 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。
+- 2026-08-02: 序列信偶發被 Gmail 分到「促銷」分頁（非垃圾郵件匣，2026-08-06 更正記錄）— 查證 DKIM/SPF/DMARC 皆正常，缺的是 `List-Unsubscribe` 標頭（電子報有、連鎖信從來沒有），加上當天把內文唯一的「退訂」字樣改掉，等於兩個訊號都沒了。補標頭 + `List-Unsubscribe-Post: One-Click` + CSRF 豁免（順帶修好電子報宣告卻會 419 的一鍵退訂），內文停止接收行改為空兩行＋分隔線＋12px 淺灰並附英文 Unsubscribe。新增 DripMailDeliverabilityTest（3 tests）。
 - 2026-08-02: 修正已領取者的提示 — 原本引導「登入後即可繼續觀看」是錯的（交付走 Email，站上看不到），改為醒目提示框：指名信箱、垃圾郵件提醒、換別的 Email 再領；flash `drip_already_claimed` 由布林改為帶該 Email。215→218 全綠。
 - 2026-08-02: 前台免費商品語彙統一 — 訂閱→領取、課程→商品、退訂→停止接收信件（涵蓋領取表單、銷售頁成功卡與徽章、教室空狀態、停止接收頁、序列信內文、DripService／ClassroomController 訊息）；「此 Email 已訂閱此課程」改為指向信箱的提示並新增 flash `drip_already_claimed`（HandleInertiaRequests 白名單同步）。新增 ClaimWordingTest（3 tests），全套 215 passed、npm build 綠。
 - 2026-08-02: 訪客訂閱表單 Step 2 按鈕文案改「確認驗證碼」；銷售頁訂閱徽章 active 改「已領取」並移除「前往教室」連結（檔案為 002 owner，本模組僅記語彙決定）。

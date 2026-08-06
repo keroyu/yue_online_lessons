@@ -1215,15 +1215,20 @@
       "003.us-2",
       "003.us-9"
     ],
+    "resources/js/Components/Course/ClaimConsentNotice.vue": [
+      "010.us-16"
+    ],
     "resources/js/Components/Course/DripSubscribeForm.vue": [
       "010.us-1",
-      "010.us-15"
+      "010.us-15",
+      "010.us-16"
     ],
     "resources/js/Components/Course/FreeSuccessBlock.vue": [
       "002.us-11"
     ],
     "resources/js/Components/Course/HighTicketBookingWizard.vue": [
       "010.us-15",
+      "010.us-16",
       "011.us-10",
       "011.us-16",
       "011.us-9"
@@ -1492,12 +1497,14 @@
       "007.us-1",
       "010.us-1",
       "010.us-13",
+      "010.us-16",
       "010.us-2",
       "011.us-1",
       "011.us-2",
       "011.us-9"
     ],
     "resources/js/Pages/Drip/Unsubscribe.vue": [
+      "010.us-16",
       "010.us-6"
     ],
     "resources/js/Pages/Home.vue": [
@@ -1542,8 +1549,9 @@
       "002.us-10",
       "005.us-1"
     ],
-    "resources/js/composables/useEmailReview.js": [
-      "010.us-15"
+    "resources/js/composables/useDelayedConfirm.js": [
+      "010.us-15",
+      "010.us-16"
     ],
     "resources/js/composables/useNotifications.js": [
       "003.us-8"
@@ -1643,6 +1651,7 @@
       "010.us-1"
     ],
     "tests/Feature/Drip/DripMailDeliverabilityTest.php": [
+      "010.us-16",
       "010.us-6"
     ],
     "tests/Feature/Drip/FunnelStopTest.php": [
