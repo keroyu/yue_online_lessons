@@ -63,7 +63,7 @@ trait BooksHighTicket
             'bottleneck'     => '收入不穩',
             'expertise'      => '品牌設計',
             'social_url'     => null,
-            'commitments'    => [true, true, true, true, true],
+            'commitments'    => [true, true, true],
             'slot_starts_at' => $this->nextFreeStart()->toIso8601String(),
         ], $overrides);
     }

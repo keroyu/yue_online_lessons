@@ -46,7 +46,7 @@ class HighTicketBookingRequest extends FormRequest
             // Scheme-restricted: the bare `url` rule accepts ftp:, javascript:
             // and data:, and this string ends up as an href in the admin panel.
             'social_url'     => ['nullable', 'url:http,https', 'max:500'],
-            'commitments'    => ['required', 'array', 'size:5'],
+            'commitments'    => ['required', 'array', 'size:3'],
             // Optional on the waitlist route, where there is nothing to pick.
             'slot_starts_at' => [$this->routeIs('course.waitlist') ? 'nullable' : 'required', 'date'],
             'code'           => ['nullable', 'string', 'max:50'],

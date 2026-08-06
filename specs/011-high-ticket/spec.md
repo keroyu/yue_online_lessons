@@ -291,14 +291,14 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 **驗收**：
 - [x] Step 1：填 Email + 暱稱後按「開始申請」，**同頁下方即時展開**簡易問卷（不換頁、不打 API、不捲走）；問卷欄位為手機電話\*、職業和從事時長\*、事業瓶頸\*、知識或能力的專長\*、經營社群網址（選填），`*` 欄位以紅色星號標示且未填不得前進
-- [x] Step 2：問卷按「下一步」後顯示承諾條件清單（五條，文案見 FR-026），五個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
+- [x] Step 2：問卷按「下一步」後顯示承諾條件清單（三條，文案見 FR-026），三個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
 - [x] Step 4：選完時段後顯示**申請資料覆核區**，逐欄列出 Step 1–3 的所有輸入值（含所選時段與諮詢長度），每欄可點「修改」跳回該步驟且保留已填內容
 - [x] 覆核區下方 MUST 顯示不出席警語：「若確定預約卻無故不出席，我們將永久黑名單。」以警示樣式（amber/red 底）呈現，不可摺疊、不可略過
 - [x] 「送出申請」為單一 `POST /course/{course}/book`（axios，沿用 D1 非同步）；送出後 inline 顯示待確認提示（US11），全程不換頁
 - [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
 - [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
 - [x] 已登入者自動帶入 real_name / email（行為與現況相同）；重新申請時若該 email 已有 lead，問卷欄位預填既有值省得重打
-- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為五條全 true，任一不符回 422 並 inline 顯示於對應欄位
+- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為三條全 true，任一不符回 422 並 inline 顯示於對應欄位
 - [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約時段、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
 - [x] 展開列不再顯示「預約優惠碼」（原值仍存在 `booking_code`，只是後台不需要看它）；改顯示該筆已預約的時段，格式如「2026/8/8 14:00-15:45」，起訖時間由該 lead 名下 `consultation_slots`（依 `starts_at` 排序）取首尾單位換算 —— 起始單位的 `starts_at`，結束時間為末位單位 `starts_at + 15 分鐘`；lead 尚未選定時段（候補中）則不顯示此列
 - [x] 展開列「Email 確認時間」之後新增「序列信起始時間」，格式如「2026/8/3 17:03（經過 3 天）」，用於追蹤該 email 被序列信加溫多久：取該 email 名下**所有**序列信訂閱（`dripByEmail`，不限課程、不限狀態）中 `subscribed_at` **最早**的一筆；天數為**日曆天差**（比較年月日，不比時分，避免數字隨查看時刻跳動）；該 email 完全沒有任何序列信訂閱時不顯示此列。**天數的比較終點**：該筆預約已確認（有 `confirmed_at`）時，比較終點固定為 `confirmed_at`——「序列信起始 → 確認預約」是已發生的歷史事實，天數算出來後不應再變動；尚未確認時終點才是「今天」，隨查看當下累加（2026-08-07 修正，原本一律比較到今天，導致已轉換的 lead 天數還在持續增加，見下方進度日誌）
@@ -523,14 +523,12 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-024**: 兩個 tab 的篩選參數各用各的命名：預約名單沿用 `status` / `search` / `course_id`（既有網址不得失效），訂閱者名單用 `sub_course` / `sub_status`。**MUST NOT 共用 `status`** —— 兩邊的狀態 enum 完全不同（pending/contacted/no_response/converted/closed vs active/booked/converted/completed/unsubscribed），共用會讓切 tab 後帶著一個對方不認得的值。`page` 可共用（一次只渲染一個列表）
 
-- **FR-026**: 承諾條件清單的五條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
-  1. 我已經有想經營的社群主題、專業方向或初步想法。
-  2. 我正在認真評估透過社群發展收入，而不只是隨意了解。
-  3. 我願意固定投入時間學習、製作內容並持續執行。
-  4. 我願意接受務實建議，調整原本的想法與做法。
-  5. 如果確認方向適合，我願意採取下一步，而不是只停留在想像階段。
+- **FR-026**: 承諾條件清單的三條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
+  1. 我已有初步想法，願意投入時間學習並持續執行，而不是隨意了解。
+  2. 我願意接受務實建議，調整原本的想法與做法。
+  3. 如果確認方向適合，我願意採取下一步，而不是只停留在想像階段。
 
-  五條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 5 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，五條全真才寫入，存了也只會是五個 true（見 D30）
+  三條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 3 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，三條全真才寫入，存了也只會是三個 true（見 D30）
 
 - **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）。
   **前端 MUST 同步擋下**（2026-08-05 追加）：`social_url` 格式錯誤時 MUST NOT 讓使用者離開第 1 步，且第 4 步覆核區 MUST 把該列標紅、附修正提示並停用送出鈕 —— 只靠後端 422 的話，使用者要按完「送出申請」才被丟回第 1 步，而覆核畫面在那之前完全看不出哪裡有問題。判定用 `new URL()` 而非 regex（瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與危險的 `javascript:`）；空字串一律略過（選填）。
@@ -678,7 +676,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-043**: 後台諮詢時段 MUST 以週曆格線操作（1 格 = 15 分鐘），拖曳選取範圍後一次送出；`GET /admin/consultation-slots?week=YYYY-MM-DD` 回傳該週資料，`week` 缺省或不合法時取本週。回傳的預約 MUST 由後端**聚合為區塊**（同一 lead 的連續單位合併，附起訖時間、暱稱、Email、狀態、`zoom_join_url`、`held_until`），前端不得自行拼接（見 D46）
 
-- **FR-042**: 候補（無時段可選）的 lead MUST 取得一組永久有效的 `resume_token`；寄送「新時段通知」時若該 lead 尚無 token（FR-042 之前的舊資料，或走完整流程而非候補的 lead）MUST 當場補發，使**任何被通知的 lead 都有可用的深連結**。信 MUST 提供 `{{booking_url}}` = `/course/{slug}?resume={token}`。持該 token 造訪銷售頁 MUST 回傳完整 draft（姓名 / Email / 問卷五欄 / 已命中的 `booking_code`）且**不要求登入**；`booking_code` 只在當初驗證通過時才存在，帶回不會讓失效碼復活，漏帶則會把對方已取得的 45 分鐘悄悄縮回 30；問卷四個必填欄位齊全時 `resume: true`，精靈直接開在第 3 步並視五條承諾為已接受，否則 `resume: false` 由第 1 步開始（否則會把人丟在後面的步驟、前面卻是空的）。token MUST 與課程綁定（跨課程無效）；重複送出候補申請 MUST 沿用同一 token，使既發出的信不失效
+- **FR-042**: 候補（無時段可選）的 lead MUST 取得一組永久有效的 `resume_token`；寄送「新時段通知」時若該 lead 尚無 token（FR-042 之前的舊資料，或走完整流程而非候補的 lead）MUST 當場補發，使**任何被通知的 lead 都有可用的深連結**。信 MUST 提供 `{{booking_url}}` = `/course/{slug}?resume={token}`。持該 token 造訪銷售頁 MUST 回傳完整 draft（姓名 / Email / 問卷五欄 / 已命中的 `booking_code`）且**不要求登入**；`booking_code` 只在當初驗證通過時才存在，帶回不會讓失效碼復活，漏帶則會把對方已取得的 45 分鐘悄悄縮回 30；問卷四個必填欄位齊全時 `resume: true`，精靈直接開在第 3 步並視承諾清單為已接受，否則 `resume: false` 由第 1 步開始（否則會把人丟在後面的步驟、前面卻是空的）。token MUST 與課程綁定（跨課程無效）；重複送出候補申請 MUST 沿用同一 token，使既發出的信不失效
 
 - **FR-041**: 問卷的手機號碼 MUST 在 lead 轉為會員帳號時寫入 `users.phone`，且 MUST NOT 覆寫既有會員的值（以 `firstOrCreate` 的建立屬性帶入，非 `update`）。所有電話欄位 MUST 為 `varchar(30)`：`users.phone`、`orders.buyer_phone`、`high_ticket_leads.phone` 三者與 Form Request 的 `max:30` 一致
 
@@ -817,7 +815,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D29**: 四步驟流程抽成 `Components/Course/HighTicketBookingWizard.vue`，不塞進 `Course/Show.vue`。Show.vue 已超過 1000 行且 owner 是 002；這段流程有四個步驟的 state、問卷、承諾勾選、時段查詢與覆核區，直接內嵌會再加 300+ 行到一個別的模組擁有的檔案裡。抽成元件後 owner 乾淨落在 011，Show.vue 的 touchpoint 縮小到「掛一行元件」，日後改預約流程不必動到 002 的檔案
 
-- **D30**: 承諾勾選只存一個 `commitments_accepted_at` 時間戳，不存五個布林或 JSON。因為 FR-026 規定五條全勾才能前進 —— 存下來的必然是五個 true，逐條存等於用五個欄位記錄一個常數。時間戳保留了唯一有資訊量的部分（何時同意），日後條款改版要追溯「同意的是哪一版」再加 `commitments_version` 即可，不為假想需求先攤開結構
+- **D30**: 承諾勾選只存一個 `commitments_accepted_at` 時間戳，不存逐條布林或 JSON。因為 FR-026 規定全勾才能前進 —— 存下來的必然全是 true，逐條存等於用多個欄位記錄一個常數。時間戳保留了唯一有資訊量的部分（何時同意），日後條款改版要追溯「同意的是哪一版」再加 `commitments_version` 即可，不為假想需求先攤開結構
 
 - **D31**: 無效的預約優惠碼**不擋流程**，只降級為 30 分鐘並提示。這個碼是加值不是門票 —— 打錯字就被擋在流程外，等於用一個選填欄位製造流失，而流失的是已經填完問卷與承諾清單的高意願申請人。相對地「碼無效卻靜默當成有效」會讓顧問行事曆被多佔 15 分鐘，所以必須明說「將以 30 分鐘進行」，不能沉默
 
@@ -918,7 +916,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   | `bottleneck` | text | 事業瓶頸 |
   | `expertise` | text | 知識或能力的專長 |
   | `social_url` | varchar(500) | 經營社群網址（選填） |
-  | `commitments_accepted_at` | timestamp | 五條承諾全數勾選的時間（D30） |
+  | `commitments_accepted_at` | timestamp | 承諾清單全數勾選的時間（D30） |
   | `booking_code` | varchar(50) | 命中的預約優惠碼原值（FR-031） |
   | `confirm_token` | char(64) unique | Email 確認 token（FR-034） |
   | `confirm_expires_at` | timestamp | 確認期限 = 送出 + 1 小時，同時是時段暫留期限 |
@@ -1241,6 +1239,8 @@ US9 補充
 - [x] T163 補測試：booking leads 帶出 `slots`（eager load 生效）、`dripByEmail` 帶出 `subscribed_at` in `tests/Feature/HighTicket/LeadsTabsTest.php`
 
 ## 進度日誌
+
+- 2026-08-07: 承諾清單由五條縮為三條（FR-026）— 刪掉「已有想經營的主題/方向」與「認真評估發展收入」，第三條改寫為「我已有初步想法，願意投入時間學習並持續執行，而不是隨意了解。」把兩者的意思併進來。`HighTicketBookingRequest` 的 `commitments` 由 `size:5` 改 `size:3`（前端 disabled 只是禮貌，控制在後端），測試 fixture 同步。全套 522 passed、`npm run build` 綠。
 
 - 2026-08-07: 修正「序列信起始時間」的天數計算（T164）——業主回報這個天數理應是「序列信起始到確認預約」的固定間隔，但原本（T162）一律拿「今天」當比較終點，導致已確認/已轉換的 lead 天數還在隨查看日期持續增加。改成：有 `confirmed_at` 就固定比較到那個時間點，尚未確認才 fallback 比較到今天。純前端計算修正，無需碰後端或資料庫。
 - 2026-08-07: 本模組擁有的 `useEmailReview.js` 更名為 `useDelayedConfirm.js`（010 US16 / D22）—— 那支 composable 做的一直是「兩段式確認＋倒數」，010 的第三個用途（停止接收確認，5 秒）連 Email 都沒有。函式同步改名，API 與 `HighTicketBookingWizard` 的行為、秒數（10）完全不變；`EmailReviewNotice.vue` 維持原名，它確實只服務 Email 覆核那塊 UI。FR-059 的規則不受影響。
