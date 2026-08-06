@@ -1,6 +1,7 @@
 {
   "files": {
     ".env.example": [
+      "000.us-9",
       "003.us-9"
     ],
     "app/Console/Commands/CleanDormantSubscribers.php": [
@@ -77,6 +78,7 @@
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
+      "000.us-9",
       "011.us-14",
       "011.us-15",
       "011.us-3",
@@ -450,6 +452,7 @@
       "007.us-2"
     ],
     "app/Jobs/NotifyHighTicketSlotJob.php": [
+      "000.us-9",
       "011.us-10",
       "011.us-4",
       "011.us-7"
@@ -474,7 +477,14 @@
       "011.us-5",
       "011.us-9"
     ],
+    "app/Listeners/BlockSuppressedRecipients.php": [
+      "000.us-9"
+    ],
+    "app/Listeners/RecordEmailSuppression.php": [
+      "000.us-9"
+    ],
     "app/Mail/BatchEmailMail.php": [
+      "000.us-9",
       "008.us-5",
       "011.us-4",
       "011.us-7"
@@ -487,6 +497,7 @@
       "011.us-7"
     ],
     "app/Mail/DripLessonMail.php": [
+      "000.us-9",
       "010.us-3",
       "010.us-6"
     ],
@@ -496,10 +507,12 @@
       "011.us-7"
     ],
     "app/Mail/NewsletterBroadcastMail.php": [
+      "000.us-9",
       "002.us-14",
       "012.us-5"
     ],
     "app/Mail/NewsletterWelcomeMail.php": [
+      "000.us-9",
       "012.us-4"
     ],
     "app/Mail/TemplatedMail.php": [
@@ -570,6 +583,9 @@
       "010.us-13",
       "010.us-14",
       "010.us-6"
+    ],
+    "app/Models/EmailSuppression.php": [
+      "000.us-9"
     ],
     "app/Models/EmailTemplate.php": [
       "011.us-11",
@@ -661,7 +677,8 @@
       "004.us-1"
     ],
     "app/Providers/AppServiceProvider.php": [
-      "000.us-2"
+      "000.us-2",
+      "000.us-9"
     ],
     "app/Services/AssignmentService.php": [
       "003.us-7"
@@ -711,6 +728,7 @@
       "006.us-5"
     ],
     "app/Services/DripService.php": [
+      "000.us-9",
       "010.us-1",
       "010.us-10",
       "010.us-11",
@@ -730,6 +748,9 @@
     ],
     "app/Services/EmailMarkdownService.php": [
       "011.us-7"
+    ],
+    "app/Services/EmailSuppressionService.php": [
+      "000.us-9"
     ],
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
@@ -1054,6 +1075,9 @@
     "database/migrations/2026_08_08_000001_index_and_normalise_phones.php": [
       "011.us-16"
     ],
+    "database/migrations/2026_08_09_000001_create_email_suppressions_table.php": [
+      "000.us-9"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1097,12 +1121,14 @@
       "004.us-4"
     ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
+      "000.us-9",
       "011.us-14",
       "011.us-15",
       "011.us-8",
       "011.us-9"
     ],
     "resources/js/Components/Admin/Leads/SubscriberListTab.vue": [
+      "000.us-9",
       "010.us-11",
       "010.us-12",
       "010.us-13",
@@ -1676,6 +1702,9 @@
     ],
     "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
+    ],
+    "tests/Feature/Platform/EmailSuppressionTest.php": [
+      "000.us-9"
     ],
     "tests/Feature/Platform/ShortLinkTest.php": [
       "000.us-8"

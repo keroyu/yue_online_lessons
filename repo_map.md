@@ -12,6 +12,8 @@ purpose: 全站基礎設施 — 前台/後台 Layout 與導航、admin 權限 mi
 specs: specs/000-platform-core/
 
 main_files:
+- .env.example
+- app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/Admin/ShortLinkController.php
 - app/Http/Controllers/Auth/LoginController.php
@@ -24,12 +26,22 @@ main_files:
 - app/Http/Middleware/StaffMiddleware.php
 - app/Http/Requests/Admin/StoreShortLinkRequest.php
 - app/Http/Requests/Admin/UpdateShortLinkRequest.php
+- app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/SendMetaConversionJob.php
+- app/Listeners/BlockSuppressedRecipients.php
+- app/Listeners/RecordEmailSuppression.php
+- app/Mail/BatchEmailMail.php
+- app/Mail/DripLessonMail.php
+- app/Mail/NewsletterBroadcastMail.php
+- app/Mail/NewsletterWelcomeMail.php
+- app/Models/EmailSuppression.php
 - app/Models/Order.php
 - app/Models/ShortLink.php
 - app/Models/SiteSetting.php
 - app/Providers/AppServiceProvider.php
 - app/Services/CheckoutService.php
+- app/Services/DripService.php
+- app/Services/EmailSuppressionService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/MetaConversionsService.php
 - app/Services/NewsletterService.php
@@ -40,7 +52,10 @@ main_files:
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
 - database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
 - database/migrations/2026_07_31_000001_create_short_links_table.php
+- database/migrations/2026_08_09_000001_create_email_suppressions_table.php
 - database/seeders/ShortLinkSeeder.php
+- resources/js/Components/Admin/Leads/BookingListTab.vue
+- resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Layout/AppLayout.vue
 - resources/js/Components/Layout/Footer.vue
 - resources/js/Components/Layout/Navigation.vue
@@ -55,6 +70,7 @@ main_files:
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
 - routes/web.php
+- tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/ShortLinkTest.php
 
 related_specs:
