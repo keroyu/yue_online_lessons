@@ -50,6 +50,7 @@ owner_files:
   - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
   - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
   - resources/js/Pages/Admin/Analytics/Index.vue
+  - resources/js/Components/Admin/Analytics/TrafficTab.vue
   - tests/Feature/CheckoutTrafficSourceTest.php
   - tests/Feature/Storefront/SiteAnalyticsTest.php
   - tests/Feature/Storefront/EmailLinkTaggerTest.php
@@ -119,6 +120,12 @@ touchpoints:
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
     why: US14 — 說明區塊補一行：連鎖信寄出時自動替站內連結加來源參數，已自行標記 utm_source 者不覆寫
+  - file: app/Models/ShortLink.php
+    owner: 000-platform-core
+    why: US15 短網址分頁的列表資料來源（ShortLink::adminListing()）
+  - file: resources/js/Components/Admin/Analytics/ShortLinkTab.vue
+    owner: 000-platform-core
+    why: US15 由行銷分析頁的 shell 依 ?tab= 渲染，元件本身仍歸短網址功能
 ---
 
 # Storefront（門市前台）
@@ -343,6 +350,19 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 高價課的 `email_templates` 系統信**不在本故事範圍**（交易型信件，連結多是 Zoom / 教室 / 客服，不是導購動線）
 - [x] 測試：站內/外站/相對路徑/mailto 的戳與不戳、既有 UTM 放過、既有 query 與 fragment 保留、`&amp;` 實體編碼往返不壞、連鎖信與電子報的實際寄出內容含預期參數、`utm_source=drip` 解析為 email/drip、`/go` 在 email 來源下不覆寫且仍計數
 
+### User Story 15 - 行銷分析頁合併短網址管理 (Priority: P3)
+
+短網址原本是側欄獨立入口，但它是一個用點擊數衡量成效的行銷工具 —— 跟漏斗回答的是同一類問題。
+併成 `/admin/analytics` 的分頁，側欄少一個入口，兩份行銷數據在同一頁。
+
+**驗收**：
+- [x] `/admin/analytics` 分頁為「流量與轉換」（預設）與「短網址」，由 `?tab=` 決定，比照 011 US8 的做法：**只組裝該分頁的資料**（漏斗報表是數個彙總查詢，不該為了改一條短網址而跑）
+- [x] 分頁切換走 `router.get` 帶 `preserveScroll`，網址可分享、可重載
+- [x] 舊路徑 `GET /admin/short-links` 302 轉址到 `/admin/analytics?tab=short-links`（不刪除：該路徑進過側欄與書籤，404 讀起來像功能被移除）
+- [x] 寫入端點 `POST/PUT/DELETE /admin/short-links` 位置與行為皆不變，`redirect()->back()` 自然回到分頁
+- [x] 側欄移除「短網址」入口；「Leads 名單」「諮詢時段」移到「行銷分析」之前，「Email 模板」移到「API 設定」之前
+- [x] 兩個分頁本體抽成 `TrafficTab.vue`（本模組）與 `ShortLinkTab.vue`（000），頁面標題與分頁列留在 shell
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -378,6 +398,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **FR-027**: `/go/post/{post}/course/{course}` MUST NOT 覆寫已屬 **email 管道**的來源（以 `TrafficSourceService::currentSource()` 解析後的 channel 判定）。原本無條件蓋 `utm_source=blog` 會把「信 → 文章 → 商品」整條鏈的成交全記到部落格頭上，email 管道的成交數恆為 0 —— 而信是那條鏈真正的起點，文章只是中繼站。非 email 來源維持既有行為（社群 → 文章 → 商品，文章 CTA 確實是臨門一腳）。兩種情況下 `post_cta_clicks` 都 MUST 照記，部落格的引流成效由該表獨立衡量，不受本條影響。
 
+- **FR-029**: `/admin/analytics` MUST 只組裝 `?tab=` 指定分頁的資料 —— 進短網址分頁時不得執行漏斗與管道彙總查詢，反之亦然（比照 011 D24）
 - **FR-028**: 戳章 MUST 發生在寄信當下（`SendDripEmailJob` / `NewsletterBroadcastMail`），MUST NOT 落庫 —— `md_content` 與 `posts.body_md` 存的永遠是乾淨網址。理由：戳章規則會演進（新增管道、改 utm 命名），落庫等於把當下的規則凍進資料，改規則要 migration 重寫所有內文；且同一篇文章在站上與信裡的網址會分岔。
 
 ## 設計決策
@@ -429,6 +450,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **D38**: HTML 以 `href` 屬性的正規表示式改寫，不引入 DOM parser —— 信件內文是 CommonMark 產出的小片段（同一支 Job 裡的 `stripStylesForEmail()` 已經是同樣的作法），引入 DOMDocument 要處理編碼宣告與片段包裹，收益不成比例。代價是手寫的畸形 HTML 可能漏戳；因為漏戳的後果只是該連結退回「直接造訪」（不會壞信、不會壞連結），這個失敗模式可以接受。屬性值 MUST 先 `html_entity_decode` 再解析、組回後重新 escape，否則 CommonMark 產生的 `&amp;` 會在往返中變成 `&amp;amp;`。
 
+- **D39**: 短網址併成行銷分析的分頁、而非在側欄改排序 —— 兩者都是「這個行銷動作帶來多少點擊」，分開兩個入口只是因為它們先後被做出來，不是因為使用時會分開想。短網址的**擁有權仍留在 000**（表、寫入端點、元件），002 只提供承載它的頁面與 `?tab=` 分派；否則會變成把別人的功能整組搬進自己模組。
+- **D40**: 舊路徑保留為 302 轉址而非刪除 —— 這個網址進過側欄也可能進過書籤與交接文件，回 404 會被讀成「功能被拿掉了」，而轉址的成本只有一個方法。
 ## Schema
 
 - **US14 無 migration、無新資料表** —— 戳章只改寄出的網址字串，後續統計完全復用既有的 `course_daily_stats`（channel `email` + source `drip`／`newsletter`）與 `orders` 的 UTM 欄位。
@@ -553,6 +576,8 @@ Phase D — 驗證（相依 B + C）
 - [ ] T055 使用者實測：寄一封測試連鎖信，點信中連結進站後於「行銷分析 > 各管道成效」確認電子郵件管道展開後出現「連鎖信」一列
 
 ## 進度日誌
+
+- 2026-08-06: 短網址管理併入行銷分析頁成為分頁（US15）。兩者都在回答「這個行銷動作帶來多少點擊」，分成兩個側欄入口只是因為它們先後被做出來。實作重點：`?tab=` 決定並**只組裝該分頁的資料**（FR-029），進短網址分頁不跑漏斗彙總；短網址的擁有權仍留在 000（表、寫入端點、`ShortLinkTab.vue`），002 只提供承載的頁面與分派，否則等於把別人的功能整組搬進自己模組（D39）；舊路徑 `/admin/short-links` 保留為 302 轉址而非刪除，它進過側欄也可能進過書籤（D40）。兩個分頁本體抽成 `TrafficTab.vue` / `ShortLinkTab.vue`，標題與分頁列留在 shell。側欄一併重排（見 000 日誌）。ShortLinkTest 補 3 個測試（轉址、分頁載入、流量分頁不載短網址），全套 521 passed、vite build 綠。
 
 - 2026-08-05: US14 完成 — 連鎖信與電子報寄出時自動替站內連結戳 UTM。`EmailLinkTagger` 兩個入口（`tagUrl` 單一網址、`tagHtml` 掃 `href`），站內判定收在一處：相對路徑或 host 去 `www.` 等於 `app.url`，其餘（外站、`mailto:`／`tel:`／`javascript:`／`data:`／純錨點）原樣返回；已帶 `utm_source` 的整條放過（FR-026）。屬性值先 `html_entity_decode` 再解析、組回時只 escape 一次 —— CommonMark 產出的 `&amp;` 若走兩次就會變成 `&amp;amp;`，這條有測試釘住。連鎖信的 `utm_content` 取自 `DripService::lessonNumber()`（新增的公開方法，位次+1）而非 `sort_order`，正式站的課程 sort_order 從 1 起算，用值會錯一格（010 FR-022 同一個坑）。`PLATFORM_MAP` 加 `drip`，管道 label 由「電子報」改為「電子郵件」（該管道現在裝兩種信，來源層才是「連鎖信／電子報」），`Traffic.vue` 的 `CHANNEL_RULES` 同步。`/go` 改為既有來源屬 email 時不覆寫（FR-027）。**過程中查到一個測試寫法的坑**：`tf_*` 在 `encryptCookies(except:)` 名單內不解密，而測試的 `withCookie()` 會加密後送出，controller 讀到的是密文 —— 新測試改用 `withUnencryptedCookie()`。新增 19 個測試（EmailLinkTaggerTest 17 + SiteAnalyticsTest 2），全套 486 passed、npm build 綠。
 - 2026-08-05: [draft] 規劃 US14 信件連結自動戳章 — 連鎖信與電子報是唯二會把讀者推回網站、卻唯二沒有來源標記的管道，點進來全被歸成「直接造訪」，於是「一封信帶回多少瀏覽／加購／成交」量不到。戳章做在**寄信當下**而非後台插入連結時（D35）：一個攔截點覆蓋所有信、所有寫法（含直接手打 Markdown 連結），既有信件不必重編輯，且規則日後演進時舊信自動跟上；代價是編輯器看到的網址與讀者收到的不同，以說明文字告知。服務放 002 而非寄信模組（D36），因為「utm_source 該填什麼才會被歸成 email」與 `PLATFORM_MAP` 是同一套詞彙的兩端，拆開等於製造下一次前後端漂移。順帶修一條把數字弄假的鏈路（FR-027 / D37）：`/go/post/{post}/course/{course}` 原本無條件蓋 `utm_source=blog`，「信 → 文章 → 商品」的成交會全記給部落格、email 管道恆為 0；改為既有來源屬 email 時讓路，範圍收在一個管道以免動到既有報表的解讀，部落格的引流成效仍由 `post_cta_clicks` 獨立衡量。已確認的取捨：既有 UTM 不覆寫（FR-026，與 FR-025「人工標記是修正歸因的手段」同源）、戳章不落庫（FR-028）、高價課系統信不納入（交易型信件）、每封信的粒度只到訂單層而非管道報表（Schema 段）。

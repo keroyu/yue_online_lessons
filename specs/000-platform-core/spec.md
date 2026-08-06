@@ -19,7 +19,7 @@ owner_files:
   - app/Models/ShortLink.php
   - database/migrations/2026_07_31_000001_create_short_links_table.php
   - database/seeders/ShortLinkSeeder.php
-  - resources/js/Pages/Admin/ShortLinks/Index.vue
+  - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
   - tests/Feature/Platform/ShortLinkTest.php
   - app/Http/Middleware/AdminMiddleware.php
   - app/Http/Middleware/StaffMiddleware.php
@@ -98,6 +98,9 @@ touchpoints:
   - file: resources/js/Pages/Admin/Settings/Payment.vue
     owner: 005-checkout
     why: US9 在既有 API 設定頁新增 resend_webhook_secret 遮罩欄位
+  - file: app/Http/Controllers/Admin/AnalyticsController.php
+    owner: 002-storefront
+    why: US8 短網址列表資料改由該 controller 依 ?tab=short-links 提供（畫面併入行銷分析頁，見 002 US15）
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
     why: 課程頁以 view()->share('og', ...) 提供 app.blade.php 的 OG meta 資料
@@ -247,7 +250,7 @@ touchpoints:
 換人接手或換連結時只改後台一個欄位，不動 code、不重新部署。
 
 **驗收**：
-- [ ] 後台 `/admin/short-links` 單頁管理：列表 + inline 新增/編輯/刪除，欄位為 slug、目標網址、備註名稱、啟用開關
+- [ ] 後台管理畫面為 `/admin/analytics?tab=short-links`（**2026-08-06 起併入行銷分析頁成為分頁**，見 002 US15；舊路徑 `GET /admin/short-links` 保留為轉址）：列表 + inline 新增/編輯/刪除，欄位為 slug、目標網址、備註名稱、啟用開關。寫入端點 `POST/PUT/DELETE /admin/short-links` 位置不變
 - [ ] 前台 `GET /{slug}` 命中啟用中的短網址 → 302 轉外部網址（`redirect()->away()`），回應帶 `Cache-Control: no-store`
 - [ ] 停用中或不存在的 slug → 404（不洩漏「曾經存在」）
 - [ ] slug 大小寫不敏感：一律小寫正規化後儲存與比對，`/1V1` 與 `/1v1` 同一筆
@@ -392,7 +395,7 @@ Phase 2 — 後台：
 - [x] T022 [P] `StoreShortLinkRequest` / `UpdateShortLinkRequest`：slug regex `^[a-z0-9_-]{1,64}$`、unique(ignore self)、保留字 rule、`target_url` url + `active_url` 不驗（外部連結可能擋機器人）、僅 http/https、中文錯誤訊息 in `app/Http/Requests/Admin/StoreShortLinkRequest.php`, `app/Http/Requests/Admin/UpdateShortLinkRequest.php`
 - [x] T023 `Admin\ShortLinkController`：index（列表 + `app.url` 供前端組完整網址）/ store / update / destroy，redirect back with flash in `app/Http/Controllers/Admin/ShortLinkController.php`
 - [x] T024 admin 路由（`admin` 內層群組，非 staff）`/admin/short-links` resource 四條 in `routes/web.php`
-- [x] T025 [P] `Admin/ShortLinks/Index.vue`：表格（短網址/目標/備註/點擊/最後點擊/啟用 toggle/編輯/刪除）+ 頂部新增列 + 複製按鈕（`navigator.clipboard`，含 fallback）+ RWD（窄螢幕改卡片）in `resources/js/Pages/Admin/ShortLinks/Index.vue`
+- [x] T025 [P] `Admin/ShortLinks/Index.vue`：表格（短網址/目標/備註/點擊/最後點擊/啟用 toggle/編輯/刪除）+ 頂部新增列 + 複製按鈕（`navigator.clipboard`，含 fallback）+ RWD（窄螢幕改卡片）in `resources/js/Pages/Admin/ShortLinks/Index.vue`（2026-08-06 已搬為 `resources/js/Components/Admin/Analytics/ShortLinkTab.vue`，見 002 US15）
 - [x] T026 [P] AdminLayout 側欄加「短網址」入口（放在「API 設定」上方）in `resources/js/Layouts/AdminLayout.vue`
 
 Phase 3 — 前台轉址與驗證：
@@ -430,6 +433,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-08-06: 短網址管理畫面併入行銷分析頁成為分頁（正典在 002 US15），本模組這側的變動：`ShortLinks/Index.vue` 搬成 `Components/Admin/Analytics/ShortLinkTab.vue`、列表組裝上移為 `ShortLink::adminListing()`（畫面歸 002 的頁面管，資料形狀留在擁有這張表的模組，兩邊才不會各自漂移）、`ShortLinkController::index` 改為轉址而非刪除（這個路徑進過側欄也進過書籤，404 讀起來像「功能被拿掉了」）。側欄同時重排：移除短網址、Leads 名單與諮詢時段移到行銷分析之前、Email 模板移到 API 設定之前 —— 依接站時的實際使用頻率排，而非依功能加入的先後。US8 驗收條款已就地更新為新路徑。
 - 2026-08-06: API 設定頁的 Resend 區塊補完整設定說明，並把說明框改成可收合元件。查 Resend 官方文件時發現一條沒人會自己想到的依賴：驗證網域要加的那筆 `MX` 記錄，正是收件方回報退信與投訴的通道 —— 少了它 US9 的 webhook 永遠不會被觸發，而且封鎖名單只會安靜地保持空的，不會有任何錯誤。補成 FR-026。說明同時涵蓋三項仍在 `.env` 的設定（`RESEND_API_KEY` 只顯示一次、`MAIL_FROM_ADDRESS` 必須落在已驗證網域否則全站寄不出信、`MAIL_FROM_NAME`），因為量販給客戶時這些是對方自己要設的。四個說明框（Resend ×3、Zoom ×1）抽成 `HintBox.vue`：字級 `text-xs` → `text-sm`、預設收合 —— 這些是接站當天讀一次就不再看的內容，攤開只會把真正要填的欄位擠到摺線以下。觸發用 `<button type="button">`，框在 `<form>` 裡，不寫死 type 每點一次展開就送出整張表單。`npm run build` 綠、EmailSuppression/ShortLink 32 tests passed；未在瀏覽器實測（後台需 Email 驗證碼登入）。
 - 2026-08-06: /dev 完成 US9 退信與投訴自動標記 — `email_suppressions` 表 + `EmailSuppression`（小寫正規化、`reasonFor`/`reasonsFor` 單筆與批次查詢）、`EmailSuppressionService`（`record` 冪等升級、`blocks` 依 marketing 判斷）、`RecordEmailSuppression` 監聽 Resend `EmailBounced`/`EmailComplained`（只認 `Permanent`）、`BlockSuppressedRecipients` 監聽 `MessageSending` 單一攔截點（讀 `X-Mail-Class` 後移除該 header）、四支行銷 Mailable + `NotifyHighTicketSlotJob`（`withSymfonyMessage` 動態加 header，因 `TemplatedMail` 同時服務交易信）掛 marketing 標記、`DripService::processSubscription` 跳過已封鎖訂閱、leads/訂閱者名單顯示封鎖標記、API 設定頁加 `resend_webhook_secret` 遮罩欄位。**實作時修正 D27 的掛載點**：原規劃在 `AppServiceProvider::boot()` 依 `request()->is()` 判斷路徑，測試時發現 boot() 每個 process（測試裡是每個 test case）只跑一次、抓到的是啟動當下的 request 而非之後每次模擬的 HTTP 呼叫，導致 secret 永遠餵不進去；改監聽 `RouteMatched` 事件判斷路由名稱，行為正確且可用真實 HTTP 測試驗證，細節記在 D27。EmailSuppressionTest 16 tests，全套 519 passed、vite build 綠。T001（Error.vue exception handler）仍是既有 backlog，本次未動。
 - 2026-08-06: [draft] 規劃 US 9 退信與投訴自動標記 — 接 Resend webhook（用套件內建 controller + 驗簽，只寫 listener）、`email_suppressions` 表、`MessageSending` 單一攔截點、行銷信掛 `X-Mail-Class` header 區分交易/行銷（D21~D28）。**定位修正**：Resend 自己的 suppression list 已自動處理硬退信與投訴、跨全網域跳過寄送，故本故事的價值是「本站的可見性與名單品質」，不是保護寄件信譽或省額度。審核時 D27 依「系統將量販給客戶」改版：webhook secret 從 env 改存 site_settings 後台遮罩欄位（設定要能由非工程師自助完成），並記下 `RESEND_API_KEY` 同樣該搬但風險等級不同、另開 US。

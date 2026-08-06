@@ -371,8 +371,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 | Short link catch-all — MUST STAY LAST (000 US8, FR-014)
 |--------------------------------------------------------------------------
 | Matches any single unclaimed segment (e.g. /1v1) and redirects to the
-| target managed in /admin/short-links. Laravel matches routes in
-| registration order, so every route above still wins.
+| target managed in /admin/analytics?tab=short-links. Laravel matches routes
+| in registration order, so every route above still wins.
 |
 | ⚠️ 新增任何路由都要加在這一行「之前」，否則會被這條吃掉。
 */

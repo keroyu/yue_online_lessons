@@ -31,6 +31,29 @@ class ShortLink extends Model
         );
     }
 
+    /**
+     * Rows shaped for the admin list (002 US15 短網址分頁).
+     *
+     * Lives on the model rather than in the controller because the screen moved
+     * into 行銷分析 (owned by 002) while this table is still ours — keeping the
+     * shape here means the two modules cannot drift on what a row looks like.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    public static function adminListing(): \Illuminate\Support\Collection
+    {
+        return static::orderByDesc('created_at')->get()->map(fn (self $link) => [
+            'id'              => $link->id,
+            'slug'            => $link->slug,
+            'target_url'      => $link->target_url,
+            'name'            => $link->name,
+            'is_active'       => $link->is_active,
+            'clicks'          => $link->clicks,
+            // Stored in UTC (app timezone); the admin reads Taipei time
+            'last_clicked_at' => $link->last_clicked_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
+        ]);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

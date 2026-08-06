@@ -7,28 +7,17 @@ use App\Http\Requests\Admin\StoreShortLinkRequest;
 use App\Http\Requests\Admin\UpdateShortLinkRequest;
 use App\Models\ShortLink;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class ShortLinkController extends Controller
 {
-    public function index(): Response
+    /**
+     * 管理畫面 moved into 行銷分析 as a tab (002 US15). Kept as a redirect
+     * rather than deleted: this path has been handed out in the sidebar and in
+     * bookmarks, and a 404 would read as "the feature is gone".
+     */
+    public function index(): RedirectResponse
     {
-        $links = ShortLink::orderByDesc('created_at')->get()->map(fn (ShortLink $link) => [
-            'id'              => $link->id,
-            'slug'            => $link->slug,
-            'target_url'      => $link->target_url,
-            'name'            => $link->name,
-            'is_active'       => $link->is_active,
-            'clicks'          => $link->clicks,
-            // Stored in UTC (app timezone); the admin reads Taipei time
-            'last_clicked_at' => $link->last_clicked_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
-        ]);
-
-        return Inertia::render('Admin/ShortLinks/Index', [
-            'links'   => $links,
-            'baseUrl' => rtrim(config('app.url'), '/'),
-        ]);
+        return redirect('/admin/analytics?tab=short-links');
     }
 
     public function store(StoreShortLinkRequest $request): RedirectResponse

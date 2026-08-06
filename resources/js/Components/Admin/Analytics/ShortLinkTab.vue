@@ -1,9 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
-import AdminLayout from '@/Layouts/AdminLayout.vue'
-
-defineOptions({ layout: AdminLayout })
 
 const props = defineProps({
   links: {
@@ -101,15 +98,12 @@ const totalClicks = computed(() => props.links.reduce((sum, l) => sum + l.clicks
 </script>
 
 <template>
-  <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+  <div>
     <div class="sm:flex sm:items-center sm:justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">短網址</h1>
-        <p class="mt-1 text-sm text-gray-500">
-          用自己的網址轉到外部連結（預約表單、會議室…）。以後換連結只要改這裡，對外公布的網址不用動。
-        </p>
-      </div>
-      <p v-if="links.length" class="mt-2 sm:mt-0 text-sm text-gray-500">
+      <p class="text-sm text-gray-500">
+        用自己的網址轉到外部連結（預約表單、會議室…）。以後換連結只要改這裡，對外公布的網址不用動。
+      </p>
+      <p v-if="links.length" class="mt-2 sm:mt-0 shrink-0 sm:ml-4 text-sm text-gray-500">
         共 {{ links.length }} 組 · 累計 {{ totalClicks }} 次點擊
       </p>
     </div>

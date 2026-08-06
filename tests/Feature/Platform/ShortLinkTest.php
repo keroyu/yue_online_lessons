@@ -83,7 +83,34 @@ class ShortLinkTest extends TestCase
     {
         $this->makeLink();
 
-        $this->actingAs($this->admin())->get('/admin/short-links')->assertOk();
+        $this->actingAs($this->admin())
+            ->get('/admin/analytics?tab=short-links')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Analytics/Index')
+                ->where('tab', 'short-links')
+                ->has('links', 1));
+    }
+
+    public function test_old_short_links_url_redirects_into_the_analytics_tab(): void
+    {
+        // The path was in the sidebar and in bookmarks; a 404 would read as
+        // "the feature is gone" rather than "it moved".
+        $this->actingAs($this->admin())
+            ->get('/admin/short-links')
+            ->assertRedirect('/admin/analytics?tab=short-links');
+    }
+
+    public function test_traffic_tab_does_not_load_short_links(): void
+    {
+        $this->makeLink();
+
+        $this->actingAs($this->admin())
+            ->get('/admin/analytics')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', 'traffic')
+                ->missing('links'));
     }
 
     public function test_last_click_time_is_shown_in_taipei_time(): void
@@ -92,7 +119,7 @@ class ShortLinkTest extends TestCase
         $link = $this->makeLink(['last_clicked_at' => '2026-08-02 01:30:00']);
 
         $this->actingAs($this->admin())
-            ->get('/admin/short-links')
+            ->get('/admin/analytics?tab=short-links')
             ->assertInertia(fn ($page) => $page
                 ->where('links.0.last_clicked_at', '2026-08-02 09:30'));
 

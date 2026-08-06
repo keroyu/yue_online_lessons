@@ -257,10 +257,11 @@
         "app/Http/Requests/Admin/UpdateShortLinkRequest.php",
         "database/migrations/2026_07_31_000001_create_short_links_table.php",
         "database/seeders/ShortLinkSeeder.php",
-        "resources/js/Pages/Admin/ShortLinks/Index.vue",
         "resources/js/Layouts/AdminLayout.vue",
         "routes/web.php",
-        "tests/Feature/Platform/ShortLinkTest.php"
+        "tests/Feature/Platform/ShortLinkTest.php",
+        "resources/js/Components/Admin/Analytics/ShortLinkTab.vue",
+        "app/Http/Controllers/Admin/AnalyticsController.php"
       ],
       "status": "implemented"
     },
@@ -675,6 +676,41 @@
         "resources/js/Pages/Admin/Courses/Traffic.vue",
         "resources/js/Components/Admin/LessonForm.vue",
         "tests/Feature/Storefront/EmailLinkTaggerTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "002.us-15",
+      "module": "002-storefront",
+      "title": "行銷分析頁合併短網址管理",
+      "summary": "短網址管理從側欄獨立入口併入 /admin/analytics 成為 ?tab=short-links 分頁，只組裝該分頁資料；舊路徑 302 轉址保留；兩分頁抽成 TrafficTab/ShortLinkTab，短網址擁有權仍留 000；側欄同時重排並移除短網址入口",
+      "heading": "### User Story 15 - 行銷分析頁合併短網址管理 (Priority: P3)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-15---行銷分析頁合併短網址管理-priority-p3",
+      "keywords": [
+        "short link",
+        "短網址",
+        "tab",
+        "分頁",
+        "行銷分析",
+        "analytics",
+        "側欄",
+        "sidebar",
+        "navigation",
+        "導覽排序",
+        "redirect",
+        "轉址"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/AnalyticsController.php",
+        "resources/js/Pages/Admin/Analytics/Index.vue",
+        "resources/js/Components/Admin/Analytics/TrafficTab.vue",
+        "resources/js/Components/Admin/Analytics/ShortLinkTab.vue",
+        "app/Http/Controllers/Admin/ShortLinkController.php",
+        "app/Models/ShortLink.php",
+        "resources/js/Layouts/AdminLayout.vue",
+        "routes/web.php",
+        "tests/Feature/Platform/ShortLinkTest.php"
       ],
       "status": "implemented"
     },

@@ -12,6 +12,7 @@ purpose: 全站基礎設施 — 前台/後台 Layout 與導航、admin 權限 mi
 specs: specs/000-platform-core/
 
 main_files:
+- app/Http/Controllers/Admin/AnalyticsController.php
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/Admin/ShortLinkController.php
@@ -53,6 +54,7 @@ main_files:
 - database/migrations/2026_07_31_000001_create_short_links_table.php
 - database/migrations/2026_08_09_000001_create_email_suppressions_table.php
 - database/seeders/ShortLinkSeeder.php
+- resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/HintBox.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
@@ -65,7 +67,6 @@ main_files:
 - resources/js/Components/Legal/TermsContent.vue
 - resources/js/Layouts/AdminLayout.vue
 - resources/js/Pages/Admin/Settings/Payment.vue
-- resources/js/Pages/Admin/ShortLinks/Index.vue
 - resources/js/app.js
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
@@ -126,6 +127,7 @@ main_files:
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/HomepageFeaturedCourseController.php
 - app/Http/Controllers/Admin/HomepageSettingController.php
+- app/Http/Controllers/Admin/ShortLinkController.php
 - app/Http/Controllers/Admin/SocialLinkController.php
 - app/Http/Controllers/BlogController.php
 - app/Http/Controllers/CheckoutController.php
@@ -147,6 +149,7 @@ main_files:
 - app/Models/HomepageFeaturedCourse.php
 - app/Models/Order.php
 - app/Models/PostCtaClick.php
+- app/Models/ShortLink.php
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
 - app/Services/CheckoutService.php
@@ -164,6 +167,8 @@ main_files:
 - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
 - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
 - resources/css/app.css
+- resources/js/Components/Admin/Analytics/ShortLinkTab.vue
+- resources/js/Components/Admin/Analytics/TrafficTab.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/BlogArticles.vue
@@ -184,6 +189,7 @@ main_files:
 - resources/js/composables/useCart.js
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
+- tests/Feature/Platform/ShortLinkTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/EmailLinkTaggerTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
