@@ -274,17 +274,38 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
               >marketplace.zoom.us</a>
             </li>
             <li>Develop → Build App → <strong>Server-to-Server OAuth</strong> → Create</li>
-            <li>建立後在 App Credentials 分頁複製 Account ID / Client ID / Client Secret 貼到下方</li>
             <li>
-              Scopes 分頁勾選「建立會議」的權限
-              （<code class="text-gray-700">meeting:write:admin</code>，新版介面可能顯示為
-              <code class="text-gray-700">meeting:write:meeting:admin</code>），否則系統無法建立會議
+              <strong>Scopes 分頁要勾滿下面三項</strong>，只勾第一項的話「建立會議」會成功，
+              但之後在週曆上改期或取消預約會失敗：
+              <ul class="mt-1 space-y-1 list-disc list-inside pl-3">
+                <li>
+                  <code class="text-gray-700">meeting:write:meeting:admin</code>
+                  —— 預約確認後建立會議
+                </li>
+                <li>
+                  <code class="text-gray-700">meeting:update:meeting:admin</code>
+                  —— 後台改期時同步更新 Zoom 時間（沿用原連結，對方日曆上的連結不會失效）
+                </li>
+                <li>
+                  <code class="text-gray-700">meeting:delete:meeting:admin</code>
+                  —— 後台取消預約時一併撤掉會議
+                </li>
+              </ul>
+              <p class="mt-1 text-gray-500">
+                舊版介面（classic scopes）只會看到一個
+                <code class="text-gray-700">meeting:write:admin</code>，勾它即可，它本身就涵蓋這三種操作。
+                本站不需要任何讀取類權限，不用多勾。
+              </p>
             </li>
             <li>
               <strong>最後到 Activation 分頁按「Activate your app」</strong> —— 新建的 app 預設是停用的，
               沒啟用會拿不到 token（Zoom 回
               <code class="text-gray-700">The app has been disabled by the developer</code>）。
               按鈕若是灰的，代表上一步的 Scopes 還沒勾齊
+            </li>
+            <li>
+              以上都完成後，回到 App Credentials 分頁複製
+              Account ID / Client ID / Client Secret 貼到下方欄位
             </li>
           </ol>
           <p class="mt-2 text-gray-500">須為付費方案：免費方案有 40 分鐘上限，45 分鐘場（使用預約優惠碼）會被截斷。</p>
