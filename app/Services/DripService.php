@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\DripConversionTarget;
 use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
+use App\Models\EmailSuppression;
 use App\Models\Lesson;
 use App\Models\User;
 use Carbon\Carbon;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Log;
 
 class DripService
 {
+    public function __construct(private EmailSuppressionService $suppressions) {}
+
     /** course_id => [lesson_id => 0-based position], memoised per request. */
     private array $lessonPositions = [];
 
@@ -450,10 +453,14 @@ class DripService
         // Per-subscriber event metrics (open count + has_clicked)
         $eventCounts = $this->getSubscriberEventCounts($subscribers->pluck('id'));
 
-        $subscribers->getCollection()->transform(function ($sub) use ($eventCounts) {
+        // Suppression status (000 US9) — one bulk lookup instead of per-row queries.
+        $suppressions = EmailSuppression::reasonsFor($subscribers->pluck('user.email'));
+
+        $subscribers->getCollection()->transform(function ($sub) use ($eventCounts, $suppressions) {
             $events = $eventCounts->get($sub->id);
             $sub->opened_count = (int) ($events?->opened_count ?? 0);
             $sub->has_clicked = (bool) ($events?->has_clicked ?? false);
+            $sub->suppression_reason = $sub->user ? ($suppressions->get(mb_strtolower($sub->user->email)) ?? null) : null;
 
             return $sub;
         });
@@ -507,6 +514,14 @@ class DripService
      */
     public function processSubscription(DripSubscription $subscription): int
     {
+        // Suppressed subscribers must not advance their cursor either — only
+        // skipping the send here would leave emails_sent behind while the
+        // MessageSending listener silently drops every dispatched job, which
+        // both wastes queue work and never lets the cursor catch up (FR-025).
+        if ($this->suppressions->blocks($subscription->user->email, true)) {
+            return 0;
+        }
+
         $shouldHaveSent = $this->getUnlockedLessonCount($subscription);
         $alreadySent = $subscription->emails_sent;
 

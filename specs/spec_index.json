@@ -316,7 +316,7 @@
         "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
         "tests/Feature/Platform/EmailSuppressionTest.php"
       ],
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "001.us-1",

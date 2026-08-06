@@ -46,6 +46,7 @@ class DripLessonMail extends Mailable
         return new Headers(text: [
             'List-Unsubscribe' => '<' . $this->unsubscribeUrl . '>',
             'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+            'X-Mail-Class' => 'marketing',
         ]);
     }
 

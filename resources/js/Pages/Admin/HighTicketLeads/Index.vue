@@ -20,6 +20,7 @@ const props = defineProps({
   notifyTemplate: { type: Object, default: null },
   dripByEmail: { type: Object, default: () => ({}) },
   purchasesByEmail: { type: Object, default: () => ({}) },
+  suppressionsByEmail: { type: Object, default: () => ({}) },
   grantableCourses: { type: Array, default: () => [] },
   statusCounts: { type: Object, default: () => ({}) },
 
@@ -72,6 +73,7 @@ const switchTab = (value) => {
       :notify-template="notifyTemplate"
       :drip-by-email="dripByEmail"
       :purchases-by-email="purchasesByEmail"
+      :suppressions-by-email="suppressionsByEmail"
       :grantable-courses="grantableCourses"
       :status-counts="statusCounts"
     />

@@ -89,6 +89,12 @@ const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('zh-TW')
 }
+
+const suppressionLabel = (reason) => {
+  if (reason === 'bounce') return '已退信'
+  if (reason === 'complaint') return '已投訴'
+  return null
+}
 </script>
 
 <template>
@@ -233,7 +239,15 @@ const formatDateTime = (dateString) => {
           <tbody class="divide-y divide-gray-100 bg-white">
             <tr v-for="sub in subscribers.data" :key="sub.id">
               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
-                {{ sub.user?.email || '-' }}
+                <div class="flex items-center gap-2">
+                  <span>{{ sub.user?.email || '-' }}</span>
+                  <span
+                    v-if="suppressionLabel(sub.suppression_reason)"
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700"
+                  >
+                    {{ suppressionLabel(sub.suppression_reason) }}
+                  </span>
+                </div>
               </td>
               <td class="hidden sm:table-cell whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                 {{ sub.user?.nickname || '-' }}

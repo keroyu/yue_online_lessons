@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use App\Services\EmailMarkdownService;
 use Illuminate\Queue\SerializesModels;
 
@@ -28,6 +29,13 @@ class BatchEmailMail extends Mailable
         return new Envelope(
             subject: $this->emailSubject,
         );
+    }
+
+    public function headers(): Headers
+    {
+        return new Headers(text: [
+            'X-Mail-Class' => 'marketing',
+        ]);
     }
 
     public function content(): Content

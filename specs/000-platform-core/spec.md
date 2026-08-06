@@ -91,6 +91,9 @@ touchpoints:
   - file: resources/js/Components/Admin/Leads/BookingListTab.vue
     owner: 011-high-ticket
     why: US9 leads 名單顯示「已退信 / 已投訴」標記
+  - file: resources/js/Pages/Admin/HighTicketLeads/Index.vue
+    owner: 011-high-ticket
+    why: US9 把 suppressionsByEmail 從頁面 props 轉傳給 BookingListTab
   - file: resources/js/Pages/Admin/Settings/Payment.vue
     owner: 005-checkout
     why: US9 在既有 API 設定頁新增 resend_webhook_secret 遮罩欄位
@@ -258,16 +261,16 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 目的**不是**保護寄件信譽 — Resend 自己的 suppression list 已經自動處理硬退信與投訴、跨全網域跳過寄送。本故事要解決的是「本站資料庫完全不知道誰退信了」：死地址繼續佔著 active 名單、汙染開信率與轉換率分母，顧問也看不出哪個聯絡方式是死的。
 
 **驗收**：
-- [ ] 收到 `email.bounced` 且 `data.bounce.type === 'Permanent'` → 該 email 進封鎖名單，reason=bounce
-- [ ] 收到 `email.complained` → 該 email 進封鎖名單，reason=complaint
-- [ ] `Transient` / `Undetermined` 退信只寫 log，不封鎖
-- [ ] 同一 email 重複事件不重複建列（Svix 會重送）；已是 complaint 的收到 bounce 升級為 bounce，反向不降級
-- [ ] 被封鎖的 email：行銷信（序列信 / 電子報 / 批次信 / 新時段通知）一律不寄；交易信（驗證碼 / 預約確認 / 贈課 / 新小節通知）僅在 reason=bounce 時不寄，complaint 照寄
-- [ ] 每一次攔截都寫 log（email + reason + mailable class），不得靜默失敗
-- [ ] drip 序列在派工前就跳過已封鎖的訂閱：`emails_sent` 不推進、不派 job
-- [ ] 後台 leads 名單與 drip 訂閱者名單，對已封鎖的 email 顯示「已退信」/「已投訴」標記
-- [ ] webhook secret 在後台 API 設定頁以遮罩欄位設定（留空不覆蓋，比照金流／CAPI／Zoom）
-- [ ] secret 未設定時套件不掛驗簽 middleware、端點形同無認證 — 後台該欄位需標示此風險，且驗簽失敗回 403
+- [x] 收到 `email.bounced` 且 `data.bounce.type === 'Permanent'` → 該 email 進封鎖名單，reason=bounce
+- [x] 收到 `email.complained` → 該 email 進封鎖名單，reason=complaint
+- [x] `Transient` / `Undetermined` 退信只寫 log，不封鎖
+- [x] 同一 email 重複事件不重複建列（Svix 會重送）；已是 complaint 的收到 bounce 升級為 bounce，反向不降級
+- [x] 被封鎖的 email：行銷信（序列信 / 電子報 / 批次信 / 新時段通知）一律不寄；交易信（驗證碼 / 預約確認 / 贈課 / 新小節通知）僅在 reason=bounce 時不寄，complaint 照寄
+- [x] 每一次攔截都寫 log（email + reason + mailable class），不得靜默失敗
+- [x] drip 序列在派工前就跳過已封鎖的訂閱：`emails_sent` 不推進、不派 job
+- [x] 後台 leads 名單與 drip 訂閱者名單，對已封鎖的 email 顯示「已退信」/「已投訴」標記
+- [x] webhook secret 在後台 API 設定頁以遮罩欄位設定（留空不覆蓋，比照金流／CAPI／Zoom）
+- [x] secret 未設定時套件不掛驗簽 middleware、端點形同無認證 — 後台該欄位需標示此風險，且驗簽失敗回 403
 
 ## Requirements
 
@@ -326,7 +329,7 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - **D25**: 不新增 `drip_subscriptions` / `users` 的狀態值，封鎖狀態只存在 `email_suppressions` — 維持最小範圍，不動 010/012 的 enum、統計與篩選程式碼；「退信者不計入開信率分母」列為未來工作
 - **D26**: 不做後台管理頁、不做手動解除封鎖 — 誤判時在 Resend 後台移除 + 刪本站一列即可（一次性維運），現在的量體不值得一個 CRUD 畫面
 - **D27**: `resend_webhook_secret` 存 `site_settings` 並在既有 API 設定頁以遮罩欄位管理（沿用 D3/D13 pattern），不走 env — **本系統要量販給客戶**，每個站台各自一組 Resend 憑證，設定必須能由非工程師自助完成，這正是 D3 當初立的理由。代價是明文落 DB（同 D3 的既有取捨）；此 secret 外洩的最大危害僅止於「偽造退信事件、把任意 email 加進封鎖名單」，不能寄信也讀不到任何資料，敏感度低於同表已存的金流金鑰與 CAPI token。
-  **實作限制**：`SiteSetting::get()` 無快取，覆寫 `config('resend.webhook.secret')` MUST 只發生在 webhook 那條路徑上，不得放進每個 request 都跑的 boot 流程（否則全站每次請求多一次 DB query）。
+  **實作限制**：`SiteSetting::get()` 無快取，覆寫 `config('resend.webhook.secret')` MUST 只發生在 webhook 那條路徑上，不得放進每個 request 都跑的 boot 流程（否則全站每次請求多一次 DB query）。**掛載點是 `RouteMatched` 事件、不是 `AppServiceProvider::boot()` 本體**：套件的 `WebhookController` 建構子讀 `config('resend.webhook.secret')` 決定要不要掛驗簽 middleware，而建構子是路由比對後、middleware 組裝前才執行；`boot()` 本身每個 process 只跑一次（測試環境甚至整個 test case 只跑一次），無從得知「這次 request 是不是打中 webhook」。改監聽 `RouteMatched` 判斷 `$route->getName() === 'resend.webhook'` 才查 DB，同時滿足「只在 webhook 路徑查」與「per-request 都能正確生效」兩個條件，也讓這段邏輯可以直接用真實 HTTP 測試驗證（不必 mock）。
   **未來工作**：`RESEND_API_KEY` 仍在 env，量販時客戶無法自助設定自己的 Resend 帳號。搬它會動到 mail transport 的憑證來源、風險與本故事不同級（設錯＝整站寄不出信），另開 US 處理。
 - **D28**: 交易信只被 bounce 擋、不被 complaint 擋 — 地址不存在時連驗證碼都送不到（寄了純浪費），但「嫌行銷信煩而按檢舉」的人仍然需要收到自己主動觸發的驗證碼與預約確認信
 
@@ -399,32 +402,33 @@ Phase 3 — 前台轉址與驗證：
 US 9（退信與投訴自動標記）：
 
 Phase 1 — 資料層：
-- [ ] T031 migration 建 `email_suppressions`（email unique / reason enum / detail / suppressed_at）in `database/migrations/2026_08_09_000001_create_email_suppressions_table.php`
-- [ ] T032 `EmailSuppression` model：fillable、email 小寫正規化 mutator、`suppressed_at` datetime cast、static `reasonFor(string $email): ?string` in `app/Models/EmailSuppression.php`
-- [ ] T033 `EmailSuppressionService`：`record(string $email, string $reason, ?string $detail): void`（冪等 upsert，bounce 可升級、complaint 不降級）、`blocks(string $email, bool $isMarketing): bool`（bounce 全擋、complaint 只擋行銷）in `app/Services/EmailSuppressionService.php`
+- [x] T031 migration 建 `email_suppressions`（email unique / reason enum / detail / suppressed_at）in `database/migrations/2026_08_09_000001_create_email_suppressions_table.php`
+- [x] T032 `EmailSuppression` model：fillable、email 小寫正規化 mutator、`suppressed_at` datetime cast、static `reasonFor(string $email): ?string` in `app/Models/EmailSuppression.php`
+- [x] T033 `EmailSuppressionService`：`record(string $email, string $reason, ?string $detail): void`（冪等 upsert，bounce 可升級、complaint 不降級）、`blocks(string $email, bool $isMarketing): bool`（bounce 全擋、complaint 只擋行銷）in `app/Services/EmailSuppressionService.php`
 
 Phase 2 — 接收 webhook：
-- [ ] T034 `RecordEmailSuppression` listener 監聽 `Resend\Laravel\Events\EmailBounced` / `EmailComplained`：解析 payload 的 `data.to[]`、`data.bounce.type` / `subType` / `message`，只在 `Permanent` 時封鎖，其餘寫 log in `app/Listeners/RecordEmailSuppression.php`
-- [ ] T035 於 `AppServiceProvider::boot()` 註冊 listener in `app/Providers/AppServiceProvider.php`
-- [ ] T036 API 設定頁新增 `resend_webhook_secret`：加入 SettingsController 既有的 `$secretFields`（留空不覆蓋）、`maskSecret()` preview、validation，前端欄位旁標註「未設定＝端點無認證」in `app/Http/Controllers/Admin/SettingsController.php`, `resources/js/Pages/Admin/Settings/Payment.vue`（005）
-- [ ] T037 把 site_settings 的 secret 餵進 `config('resend.webhook.secret')`，**只在 webhook 路徑上執行**（`SiteSetting::get()` 無快取，放進每 request 的 boot 會讓全站多一次 DB query）in `app/Providers/AppServiceProvider.php`
+- [x] T034 `RecordEmailSuppression` listener 監聽 `Resend\Laravel\Events\EmailBounced` / `EmailComplained`：解析 payload 的 `data.to[]`、`data.bounce.type` / `subType` / `message`，只在 `Permanent` 時封鎖，其餘寫 log in `app/Listeners/RecordEmailSuppression.php`
+- [x] T035 於 `AppServiceProvider::boot()` 註冊 listener in `app/Providers/AppServiceProvider.php`
+- [x] T036 API 設定頁新增 `resend_webhook_secret`：加入 SettingsController 既有的 `$secretFields`（留空不覆蓋）、`maskSecret()` preview、validation，前端欄位旁標註「未設定＝端點無認證」in `app/Http/Controllers/Admin/SettingsController.php`, `resources/js/Pages/Admin/Settings/Payment.vue`（005）
+- [x] T037 把 site_settings 的 secret 餵進 `config('resend.webhook.secret')`，**只在 webhook 路徑上執行**（`SiteSetting::get()` 無快取，放進每 request 的 boot 會讓全站多一次 DB query）in `app/Providers/AppServiceProvider.php`
 
 Phase 3 — 攔截寄送：
-- [ ] T038 `BlockSuppressedRecipients` listener 監聽 `Illuminate\Mail\Events\MessageSending`：讀 `X-Mail-Class` 判定行銷/交易 → 查封鎖 → 命中則寫 log 並 `return false` 取消 → 未命中則移除該 header in `app/Listeners/BlockSuppressedRecipients.php`
-- [ ] T039 於 `AppServiceProvider::boot()` 註冊 listener in `app/Providers/AppServiceProvider.php`
-- [ ] T040 [P] 四支行銷 Mailable 於 `headers()` 掛 `X-Mail-Class: marketing` in `app/Mail/DripLessonMail.php`（010）, `app/Mail/NewsletterBroadcastMail.php`（012）, `app/Mail/NewsletterWelcomeMail.php`（012）, `app/Mail/BatchEmailMail.php`（008）
-- [ ] T041 [P] `NotifyHighTicketSlotJob` 寄出的 `TemplatedMail` 掛 marketing header（同 class 的預約確認 / 改期 / 取消信**不掛**）in `app/Jobs/NotifyHighTicketSlotJob.php`（011）
-- [ ] T042 `DripService::processSubscription` 開頭跳過已封鎖 email 的訂閱（不推進 `emails_sent`、不派 job）in `app/Services/DripService.php`（010）
+- [x] T038 `BlockSuppressedRecipients` listener 監聽 `Illuminate\Mail\Events\MessageSending`：讀 `X-Mail-Class` 判定行銷/交易 → 查封鎖 → 命中則寫 log 並 `return false` 取消 → 未命中則移除該 header in `app/Listeners/BlockSuppressedRecipients.php`
+- [x] T039 於 `AppServiceProvider::boot()` 註冊 listener in `app/Providers/AppServiceProvider.php`
+- [x] T040 [P] 四支行銷 Mailable 於 `headers()` 掛 `X-Mail-Class: marketing` in `app/Mail/DripLessonMail.php`（010）, `app/Mail/NewsletterBroadcastMail.php`（012）, `app/Mail/NewsletterWelcomeMail.php`（012）, `app/Mail/BatchEmailMail.php`（008）
+- [x] T041 [P] `NotifyHighTicketSlotJob` 寄出的 `TemplatedMail` 掛 marketing header（同 class 的預約確認 / 改期 / 取消信**不掛**）in `app/Jobs/NotifyHighTicketSlotJob.php`（011）
+- [x] T042 `DripService::processSubscription` 開頭跳過已封鎖 email 的訂閱（不推進 `emails_sent`、不派 job）in `app/Services/DripService.php`（010）
 
 Phase 4 — 後台可見性：
-- [ ] T043 [P] leads 名單查詢帶出每列封鎖狀態並於前端顯示「已退信 / 已投訴」標記 in `app/Http/Controllers/Admin/HighTicketLeadController.php`（011）, `resources/js/Components/Admin/Leads/BookingListTab.vue`（011）
-- [ ] T044 [P] drip 訂閱者名單同上 in `app/Services/DripService.php`（010）, `resources/js/Components/Admin/Leads/SubscriberListTab.vue`（010）
+- [x] T043 [P] leads 名單查詢帶出每列封鎖狀態並於前端顯示「已退信 / 已投訴」標記 in `app/Http/Controllers/Admin/HighTicketLeadController.php`（011）, `resources/js/Components/Admin/Leads/BookingListTab.vue`（011）
+- [x] T044 [P] drip 訂閱者名單同上 in `app/Services/DripService.php`（010）, `resources/js/Components/Admin/Leads/SubscriberListTab.vue`（010）
 
 Phase 5 — 驗證：
-- [ ] T045 Feature 測試：Permanent bounce 建列 / Transient 不建列 / complaint 建列 / 重複事件冪等 / complaint→bounce 升級且不反向 / 行銷信被擋 / 交易信在 complaint 下照寄、在 bounce 下被擋 / drip 跳過已封鎖訂閱 / secret 已設時驗簽失敗回 403 / secret 未設時不掛驗簽（回歸提醒）in `tests/Feature/Platform/EmailSuppressionTest.php`
+- [x] T045 Feature 測試：Permanent bounce 建列 / Transient 不建列 / complaint 建列 / 重複事件冪等 / complaint→bounce 升級且不反向 / 行銷信被擋 / 交易信在 complaint 下照寄、在 bounce 下被擋 / drip 跳過已封鎖訂閱 / secret 已設時驗簽失敗回 403 / secret 未設時不掛驗簽（回歸提醒）in `tests/Feature/Platform/EmailSuppressionTest.php`
 
 ## 進度日誌
 
+- 2026-08-06: /dev 完成 US9 退信與投訴自動標記 — `email_suppressions` 表 + `EmailSuppression`（小寫正規化、`reasonFor`/`reasonsFor` 單筆與批次查詢）、`EmailSuppressionService`（`record` 冪等升級、`blocks` 依 marketing 判斷）、`RecordEmailSuppression` 監聽 Resend `EmailBounced`/`EmailComplained`（只認 `Permanent`）、`BlockSuppressedRecipients` 監聽 `MessageSending` 單一攔截點（讀 `X-Mail-Class` 後移除該 header）、四支行銷 Mailable + `NotifyHighTicketSlotJob`（`withSymfonyMessage` 動態加 header，因 `TemplatedMail` 同時服務交易信）掛 marketing 標記、`DripService::processSubscription` 跳過已封鎖訂閱、leads/訂閱者名單顯示封鎖標記、API 設定頁加 `resend_webhook_secret` 遮罩欄位。**實作時修正 D27 的掛載點**：原規劃在 `AppServiceProvider::boot()` 依 `request()->is()` 判斷路徑，測試時發現 boot() 每個 process（測試裡是每個 test case）只跑一次、抓到的是啟動當下的 request 而非之後每次模擬的 HTTP 呼叫，導致 secret 永遠餵不進去；改監聽 `RouteMatched` 事件判斷路由名稱，行為正確且可用真實 HTTP 測試驗證，細節記在 D27。EmailSuppressionTest 16 tests，全套 519 passed、vite build 綠。T001（Error.vue exception handler）仍是既有 backlog，本次未動。
 - 2026-08-06: [draft] 規劃 US 9 退信與投訴自動標記 — 接 Resend webhook（用套件內建 controller + 驗簽，只寫 listener）、`email_suppressions` 表、`MessageSending` 單一攔截點、行銷信掛 `X-Mail-Class` header 區分交易/行銷（D21~D28）。**定位修正**：Resend 自己的 suppression list 已自動處理硬退信與投訴、跨全網域跳過寄送，故本故事的價值是「本站的可見性與名單品質」，不是保護寄件信譽或省額度。審核時 D27 依「系統將量販給客戶」改版：webhook secret 從 env 改存 site_settings 後台遮罩欄位（設定要能由非工程師自助完成），並記下 `RESEND_API_KEY` 同樣該搬但風險等級不同、另開 US。
 - 2026-08-04: Leads 名單頁併入 drip 訂閱者名單 tab（011 US8），銷售顧問的可視範圍隨之含訂閱者行為資料；路由與 middleware 未動，`/admin/courses/{course}/subscribers` 路由移除。
 - 2026-08-02: 短網址「最後點擊」改以 `Asia/Taipei` 顯示（原本直接 format 吐 UTC，少 8 小時；DB 仍存 UTC）；`bootstrap/app.php` 新增兩條退訂路徑的 CSRF 豁免供 RFC 8058 一鍵退訂使用。ShortLinkTest 加時區斷言。

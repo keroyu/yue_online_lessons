@@ -8,6 +8,7 @@ const props = defineProps({
   payuni: { type: Object, required: true },
   newebpay: { type: Object, required: true },
   portaly: { type: Object, required: true },
+  resend: { type: Object, default: () => ({ webhook_secret: '', webhook_secret_preview: '' }) },
   meta_pixel_id: { type: String, default: '' },
   meta_capi: { type: Object, default: () => ({ access_token: '', access_token_preview: '', test_event_code: '' }) },
   zoom: { type: Object, default: () => ({ account_id: '', client_id: '', client_secret_preview: '', enabled: false }) },
@@ -22,6 +23,7 @@ const form = useForm({
   newebpay_hash_iv: '',
   newebpay_env: props.newebpay.env,
   portaly_webhook_key: '',
+  resend_webhook_secret: '',
   meta_pixel_id: props.meta_pixel_id,
   meta_capi_access_token: '',
   meta_capi_test_event_code: props.meta_capi.test_event_code,
@@ -112,6 +114,19 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           <input type="password" v-model="form.portaly_webhook_key" :class="inputClasses" :placeholder="portaly.webhook_key_preview || '尚未設定'" autocomplete="new-password" />
           <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰</p>
           <p v-if="form.errors.portaly_webhook_key" class="mt-1 text-sm text-red-600">{{ form.errors.portaly_webhook_key }}</p>
+        </div>
+      </div>
+
+      <!-- Resend -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Resend（退信與投訴通知）</h2>
+
+        <div>
+          <label :class="labelClasses">Webhook 簽署金鑰</label>
+          <input type="password" v-model="form.resend_webhook_secret" :class="inputClasses" :placeholder="resend.webhook_secret_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰。於 Resend 後台 Webhooks 頁面建立端點（URL 為 <code class="text-gray-600">/resend/webhook</code>）後取得</p>
+          <p class="mt-1 text-xs text-red-600 font-medium">⚠️ 未設定時此端點形同無認證，任何人都能偽造退信/投訴事件；請盡快設定</p>
+          <p v-if="form.errors.resend_webhook_secret" class="mt-1 text-sm text-red-600">{{ form.errors.resend_webhook_secret }}</p>
         </div>
       </div>
 

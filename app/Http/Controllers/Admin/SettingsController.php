@@ -34,6 +34,10 @@ class SettingsController extends Controller
                 'webhook_key'         => '',
                 'webhook_key_preview' => $this->maskSecret(SiteSetting::get('portaly_webhook_key', '')),
             ],
+            'resend' => [
+                'webhook_secret'         => '',
+                'webhook_secret_preview' => $this->maskSecret(SiteSetting::get('resend_webhook_secret', '')),
+            ],
             'meta_pixel_id' => SiteSetting::get('meta_pixel_id', ''),
             'meta_capi' => [
                 'access_token'         => '',
@@ -64,6 +68,7 @@ class SettingsController extends Controller
             'newebpay_hash_iv'     => ['nullable', 'string', 'max:200'],
             'newebpay_env'         => ['nullable', 'string', 'in:sandbox,production'],
             'portaly_webhook_key'  => ['nullable', 'string', 'max:200'],
+            'resend_webhook_secret' => ['nullable', 'string', 'max:200'],
             'meta_pixel_id'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9]*$/'],
             'meta_capi_access_token'    => ['nullable', 'string', 'max:500'],
             'meta_capi_test_event_code' => ['nullable', 'string', 'max:50'],
@@ -79,7 +84,7 @@ class SettingsController extends Controller
             }
         }
 
-        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token', 'zoom_client_secret'];
+        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token', 'resend_webhook_secret', 'zoom_client_secret'];
         foreach ($secretFields as $key) {
             // ConvertEmptyStringsToNull turns '' into null; both mean "keep the old secret"
             $value = (string) $request->input($key, '');

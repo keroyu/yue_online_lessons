@@ -33,6 +33,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  suppressionsByEmail: {
+    type: Object,
+    default: () => ({}),
+  },
   grantableCourses: {
     type: Array,
     default: () => [],
@@ -550,6 +554,14 @@ const formatDateTime = (str) => {
   return new Date(str).toLocaleString('zh-TW')
 }
 
+// Suppression badge (000 US9) — bounce/complaint facts recorded from Resend webhooks.
+const suppressionLabel = (email) => {
+  const reason = props.suppressionsByEmail[email]
+  if (reason === 'bounce') return '已退信'
+  if (reason === 'complaint') return '已投訴'
+  return null
+}
+
 // Quick-copy for lead emails; briefly flags which lead id was copied.
 const copiedEmailId = ref(null)
 const copyEmail = async (lead) => {
@@ -757,6 +769,13 @@ const copySelectedEmails = async () => {
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
               <div class="flex items-center gap-2">
                 <span>{{ lead.email }}</span>
+                <span
+                  v-if="suppressionLabel(lead.email)"
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700"
+                  :title="suppressionLabel(lead.email) === '已退信' ? '此 email 已被標記為永久退信，行銷與交易信皆不寄' : '此 email 已標記為投訴，行銷信不寄'"
+                >
+                  {{ suppressionLabel(lead.email) }}
+                </span>
                 <button
                   type="button"
                   class="text-gray-400 hover:text-brand-teal cursor-pointer"

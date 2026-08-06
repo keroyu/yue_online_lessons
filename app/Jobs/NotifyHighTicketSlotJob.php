@@ -49,11 +49,18 @@ class NotifyHighTicketSlotJob implements ShouldQueue
         $subject = $template->renderSubject($vars);
 
         try {
-            Mail::to($lead->email)->send(new TemplatedMail(
+            // Marketing header only for this instance — TemplatedMail is also
+            // used for booking confirm/reschedule/cancel, which are transactional
+            // and must not be tagged (D24).
+            $mail = (new TemplatedMail(
                 $subject,
                 $template->renderBody($vars),
                 $template->renderText($vars),
-            ));
+            ))->withSymfonyMessage(function ($message) {
+                $message->getHeaders()->addTextHeader('X-Mail-Class', 'marketing');
+            });
+
+            Mail::to($lead->email)->send($mail);
 
             $lead->increment('notified_count');
             $lead->update(['last_notified_at' => now()]);

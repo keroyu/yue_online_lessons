@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RescheduleBookingRequest;
 use App\Mail\BatchEmailMail;
 use App\Models\Course;
+use App\Models\EmailSuppression;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\User;
@@ -122,6 +123,7 @@ class HighTicketLeadController extends Controller
             ?->toArray();
 
         $emails = $leads->pluck('email')->filter()->unique()->values();
+        $suppressionsByEmail = EmailSuppression::reasonsFor($emails);
         $dripByEmail = User::whereIn('email', $emails)
             ->with(['dripSubscriptions' => fn ($q) => $q->with('course:id,name')])
             ->get(['id', 'email'])
@@ -165,6 +167,7 @@ class HighTicketLeadController extends Controller
             'notifyTemplate'    => $notifyTemplate,
             'dripByEmail'       => $dripByEmail,
             'purchasesByEmail'  => $purchasesByEmail,
+            'suppressionsByEmail' => $suppressionsByEmail,
             'grantableCourses'  => $grantableCourses,
             'dripCourseOptions' => $dripCourses,
             'subscriberData'    => null,
