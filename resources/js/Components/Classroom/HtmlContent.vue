@@ -12,7 +12,10 @@ const props = defineProps({
 // marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
 // Do NOT add DOMPurify or any sanitizer here — admin content is trusted and
 // iframes (YouTube / Vimeo) must be preserved.
-const rendered = computed(() => marked(props.content || ''))
+// `breaks: true` so one Enter in the lesson editor is one line break here, the
+// same as the drip mail built from this md_content (011 FR-021). Without it the
+// two disagreed: the letter broke the line, the classroom joined it.
+const rendered = computed(() => marked(props.content || '', { breaks: true }))
 </script>
 
 <template>

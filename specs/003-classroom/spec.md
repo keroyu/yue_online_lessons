@@ -107,6 +107,7 @@ touchpoints:
 - [x] 支援 Vimeo / YouTube 嵌入自動播放；Vimeo 加 `texttrack=zh-TW` 自動顯示繁中字幕；YouTube 切換小節用 `loadVideoById()`（不重建 player，避免卡住）
 - [x] 影片自然播放完畢：目前小節立即標記完成（樂觀更新 + 即時 POST，跳過節流計時器）並自動切至扁平順序（章節內小節 → 獨立小節）的下一小節；最後一小節不跳轉
 - [x] 無影片小節顯示 Markdown 內文（`HtmlContent`，含響應式 iframe 與表格樣式）
+- [x] 內文中單獨一次換行即在畫面上換行（不需空行），空行仍為新段落；與同一份 `md_content` 寄出的連鎖信呈現一致
 - [x] 側欄可收合：桌機漢堡鈕 + 右緣細長 toggle tab（width slide 動畫）、手機 translate slide + 遮罩
 - [x] drip 課程：未解鎖小節不出現在側欄、直接帶 `?lesson_id` 也會被擋；限時觀看到期顯示 `VideoAccessNotice`、promo 區塊 `LessonPromoBlock`（細節歸 010-drip-email）
 - [x] 課程無任何小節時顯示「課程內容準備中」；頁面回應帶 `Cache-Control: no-store`
@@ -220,6 +221,7 @@ touchpoints:
 - **FR-011**: 影片連結解析由 `VideoEmbedService` 統一處理（Vimeo / YouTube / Cloudflare Stream URL → platform + video_id + embed_url），格式錯誤回 null
 - **FR-012**: Cloudflare Stream 播放 token 一律由後端 `CloudflareStreamService` 於教室 render 時產生（RS256 JWT，TTL 預設 12 小時、config 可調）；token 不寫入 DB、不出現在後台表單，僅存 UID
 - **FR-013**: 簽名憑證（key id + private key PEM）存 `.env`，經 `config/services.php` 讀取；未設定時 degrade 為未簽名 embed URL（開發模式），不阻擋頁面
+- **FR-014**: 教室小節內文以 `marked(content, { breaks: true })` 渲染 — 單一 `\n` 產生 `<br>`、空行為新段落；raw HTML（iframe 嵌入）維持 marked v17 預設原樣通過，不 sanitize
 
 ## 設計決策
 
@@ -235,6 +237,9 @@ touchpoints:
 - **D10**: `lessons.video_platform` 由 enum('vimeo','youtube') 改 string(20) — 前例 `change_content_category_to_string_on_courses`；未來加來源不再動 schema。migration 由本模組擁有（前例：010 擁有 courses 表的 drip 欄位 migration）
 - **D11**: `Lesson::embed_url` attribute 對 cloudflare 維持回 null，簽名 URL 在 `ClassroomController` 兩處 lesson formatter 注入（`CloudflareStreamService::signedEmbedUrl()`）— token 有 TTL 屬 request-time 資料，不塞進 Model 靜態 attribute；Model 不 resolve service
 - **D12**: `CloudflareStreamService` 介面：`signedEmbedUrl(string $uid): ?string`（內含 JWT 組裝：header `{alg: RS256, kid}` + payload `{sub: uid, kid, exp: now+TTL}`，openssl_sign 後 base64url 拼接）；`VideoEmbedService::parse` 的 cloudflare `embed_url` 回未簽名 iframe URL（維持回傳 shape 一致，教室端不使用它）
+- **D13**: `HtmlContent` 補 `breaks: true`，讓教室與 Email 對同一份 `md_content` 給出相同換行語意。原本教室走 CommonMark 預設（單行併段），Email 端已於 011 FR-021 改成 hard break，兩邊分歧：作者在小節編輯器打一次 Enter，信裡有換行、教室裡沒有。站內其餘 Markdown 呈現（`AssignmentSection`、`CommentThread`、`Admin/Homework`、`EmailTemplates/Edit`）本來就帶 `breaks: true`，`HtmlContent` 是唯一漏網的。
+  - 影響範圍：所有課程的小節內文。既有內容多半以連按兩次 Enter（`\n\n`）寫成，那是段落、不受影響；真正改變的只有目前被併行的單行，而那些正是作者本來就想換行的地方。
+  - 不改 `Pages/Course/Show.vue` 的 `renderedDescription`（銷售頁長文案，段落語意是刻意的）與 `PostForm`/部落格（`PostService` 已明文保留 CommonMark 段落語意）。
 
 ## Schema
 
@@ -271,8 +276,15 @@ touchpoints:
 - [x] T009 Feature 測試：parse 各格式、JWT exp/kid claim、StoreLessonRequest 驗證 in `tests/Feature/Classroom/CloudflareStreamTest.php`
 - [x] T010 跑 `python3 tools/build_spec_index.py` 對帳索引
 
+**Phase E — 教室內文換行與 Email 對齊（FR-014 / D13）**
+
+- [x] T011 `rendered` computed 改 `marked(props.content || '', { breaks: true })` in `resources/js/Components/Classroom/HtmlContent.vue`
+- [x] T012 以 lesson 80 內文比對 marked 前後輸出（改前無 `<br>`、改後有，iframe 仍原樣通過），`npm run build` exit 0
+- [x] T013 跑 `python3 tools/build_spec_index.py` 對帳索引
+
 ## 進度日誌
 
+- 2026-08-07: 教室小節內文補 `breaks: true`（FR-014 / D13）— 同一份 `md_content` 在信裡會換行、在教室卻被併成一行，原因是 `HtmlContent` 是站內唯一沒帶 breaks 的 marked 呼叫。查證時確認 Email 端（`EmailMarkdownService` soft_break）自 8/4 起就是對的，正式站實跑 pipeline 有 `<br />`，問題只在教室。522 passed、npm build exit 0。
 - 2026-07-22: `VideoEmbedService::parse()` YouTube regex 加 `shorts/`、`live/` 路徑格式（012-newsletter 文章 shorts 網址未轉 embed 的修正；小節影片上架同步受益）。PostServiceTest 補案例，全 repo 168 passed。
 - 2026-07-15: 實作 US9 Cloudflare Stream 影音來源完成（T001–T010）— migration enum→string、CloudflareStreamService（本地 RS256 JWT 簽名）、parse 四格式、表單/驗證/播放器三端接通；全套測試 156 passed、npm build 過。附帶修正：VideoPlayer 的 Vimeo message listener 改為無條件註冊（跨平台切換小節後 Vimeo ended 事件原本會失效）
 - 2026-07-15: 規劃 US9 Cloudflare Stream 影音來源（貼 URL/UID 上架 + Signed URL 播放保護），status: draft 待審
