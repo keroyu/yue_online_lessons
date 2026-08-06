@@ -1,8 +1,9 @@
 ---
 id: 000-platform-core
-status: building
+status: done
 owner_files:
   - app/Http/Controllers/Controller.php
+  - resources/js/Components/Admin/HintBox.vue
   - app/Models/EmailSuppression.php
   - app/Services/EmailSuppressionService.php
   - app/Listeners/RecordEmailSuppression.php
@@ -299,6 +300,7 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - **FR-023**: 行銷信 MUST 由寄信端掛 `X-Mail-Class: marketing` header；listener 對沒掛 header 的一律視為交易信（安全側：寧可多寄一封確認信，不可漏寄）。該 header 在判斷後 MUST 從實際寄出的信件移除
 - **FR-024**: 每次攔截 MUST 寫 log（email、reason、mailable class）— 沒有 log 的攔截等於查不出原因的靜默失敗
 - **FR-025**: drip 序列 MUST 在 `processSubscription` 就跳過已封鎖的訂閱，不推進 `emails_sent`、不派 job — 只靠 MessageSending 攔會讓游標空轉、開信率分母持續被汙染
+- **FR-026**: US9 收得到事件的**前提**是寄件網域在 Resend 完成驗證、且 DNS 有那筆 `MX` 記錄 — 該 MX 正是收件方回報退信與投訴的通道，少了它 webhook 永遠不會被觸發，封鎖名單恆為空而且不會有任何錯誤訊息。此前提不在程式碼裡，只能靠後台 API 設定頁的說明傳達（見 US9 的設定說明），部署新站台時 MUST 一併檢查
 
 ## 設計決策
 
@@ -428,6 +430,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-08-06: API 設定頁的 Resend 區塊補完整設定說明，並把說明框改成可收合元件。查 Resend 官方文件時發現一條沒人會自己想到的依賴：驗證網域要加的那筆 `MX` 記錄，正是收件方回報退信與投訴的通道 —— 少了它 US9 的 webhook 永遠不會被觸發，而且封鎖名單只會安靜地保持空的，不會有任何錯誤。補成 FR-026。說明同時涵蓋三項仍在 `.env` 的設定（`RESEND_API_KEY` 只顯示一次、`MAIL_FROM_ADDRESS` 必須落在已驗證網域否則全站寄不出信、`MAIL_FROM_NAME`），因為量販給客戶時這些是對方自己要設的。四個說明框（Resend ×3、Zoom ×1）抽成 `HintBox.vue`：字級 `text-xs` → `text-sm`、預設收合 —— 這些是接站當天讀一次就不再看的內容，攤開只會把真正要填的欄位擠到摺線以下。觸發用 `<button type="button">`，框在 `<form>` 裡，不寫死 type 每點一次展開就送出整張表單。`npm run build` 綠、EmailSuppression/ShortLink 32 tests passed；未在瀏覽器實測（後台需 Email 驗證碼登入）。
 - 2026-08-06: /dev 完成 US9 退信與投訴自動標記 — `email_suppressions` 表 + `EmailSuppression`（小寫正規化、`reasonFor`/`reasonsFor` 單筆與批次查詢）、`EmailSuppressionService`（`record` 冪等升級、`blocks` 依 marketing 判斷）、`RecordEmailSuppression` 監聽 Resend `EmailBounced`/`EmailComplained`（只認 `Permanent`）、`BlockSuppressedRecipients` 監聽 `MessageSending` 單一攔截點（讀 `X-Mail-Class` 後移除該 header）、四支行銷 Mailable + `NotifyHighTicketSlotJob`（`withSymfonyMessage` 動態加 header，因 `TemplatedMail` 同時服務交易信）掛 marketing 標記、`DripService::processSubscription` 跳過已封鎖訂閱、leads/訂閱者名單顯示封鎖標記、API 設定頁加 `resend_webhook_secret` 遮罩欄位。**實作時修正 D27 的掛載點**：原規劃在 `AppServiceProvider::boot()` 依 `request()->is()` 判斷路徑，測試時發現 boot() 每個 process（測試裡是每個 test case）只跑一次、抓到的是啟動當下的 request 而非之後每次模擬的 HTTP 呼叫，導致 secret 永遠餵不進去；改監聽 `RouteMatched` 事件判斷路由名稱，行為正確且可用真實 HTTP 測試驗證，細節記在 D27。EmailSuppressionTest 16 tests，全套 519 passed、vite build 綠。T001（Error.vue exception handler）仍是既有 backlog，本次未動。
 - 2026-08-06: [draft] 規劃 US 9 退信與投訴自動標記 — 接 Resend webhook（用套件內建 controller + 驗簽，只寫 listener）、`email_suppressions` 表、`MessageSending` 單一攔截點、行銷信掛 `X-Mail-Class` header 區分交易/行銷（D21~D28）。**定位修正**：Resend 自己的 suppression list 已自動處理硬退信與投訴、跨全網域跳過寄送，故本故事的價值是「本站的可見性與名單品質」，不是保護寄件信譽或省額度。審核時 D27 依「系統將量販給客戶」改版：webhook secret 從 env 改存 site_settings 後台遮罩欄位（設定要能由非工程師自助完成），並記下 `RESEND_API_KEY` 同樣該搬但風險等級不同、另開 US。
 - 2026-08-04: Leads 名單頁併入 drip 訂閱者名單 tab（011 US8），銷售顧問的可視範圍隨之含訂閱者行為資料；路由與 middleware 未動，`/admin/courses/{course}/subscribers` 路由移除。

@@ -1,6 +1,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import HintBox from '@/Components/Admin/HintBox.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -35,6 +36,10 @@ const form = useForm({
 // Written out rather than inlined: a literal {{…}} inside a template
 // interpolation closes the interpolation early.
 const zoomUrlVariable = '{' + '{zoom_join_url}' + '}'
+
+// Read off the browser rather than passed from the server: this is only ever
+// shown as copy-paste help, and it is always the host the admin is looking at.
+const webhookUrl = `${window.location.origin}/resend/webhook`
 
 const submit = () => {
   form.post('/admin/settings/payment')
@@ -117,15 +122,98 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
         </div>
       </div>
 
-      <!-- Resend -->
+      <!-- Resend（全站寄信） -->
       <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Resend（退信與投訴通知）</h2>
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Resend（寄信服務）</h2>
+
+        <p class="text-xs text-gray-500">
+          全站每一封信都經由 Resend 寄出 —— 登入驗證碼、預約確認、連鎖序列信、電子報、後台批次信。
+          <strong class="text-gray-700">寄信設定沒弄好，會員連登入都收不到驗證碼</strong>，等於整站停擺，
+          所以請照下面的順序一次做完再上線。
+        </p>
+
+        <HintBox title="一、先驗證寄件網域（沒驗證就完全不能寄信）">
+          <ol class="space-y-1 list-decimal list-inside">
+            <li>
+              註冊
+              <a
+                href="https://resend.com"
+                target="_blank"
+                rel="noopener"
+                class="text-brand-teal underline cursor-pointer hover:opacity-70"
+              >resend.com</a>
+              後進入 Domains → Add Domain，填入你要用來寄信的網域
+            </li>
+            <li>
+              照畫面給的值，到網域的 DNS 服務商新增三筆記錄：
+              <code class="text-gray-700">TXT</code>（SPF，宣告誰有權代你寄信）、
+              <code class="text-gray-700">TXT</code>（DKIM，signature 用的公鑰）、
+              <code class="text-gray-700">MX</code>
+            </li>
+            <li>
+              <strong>MX 那筆不要省。</strong>它是收件方把「退信」與「垃圾信投訴」回報給你的通道 ——
+              少了它，下方的 Webhook 收不到任何事件，後台名單也就永遠看不出誰的信箱已經死了
+            </li>
+            <li>
+              等狀態變成 <code class="text-gray-700">verified</code> 才算完成。Resend 會持續偵測
+              <strong>最多 72 小時</strong>，逾時轉為 <code class="text-gray-700">failed</code>，
+              得修好 DNS 再重新驗證一次
+            </li>
+          </ol>
+          <p class="mt-2 text-gray-500">DMARC 是選用的，但建議一併設定，對進收件匣（而非垃圾郵件匣）有幫助。</p>
+        </HintBox>
+
+        <HintBox title="二、以下三項設在伺服器的 .env，改動需工程師重新部署">
+          <dl class="space-y-2">
+            <div>
+              <dt><code class="text-gray-700 font-semibold">RESEND_API_KEY</code></dt>
+              <dd class="mt-0.5">
+                Resend 後台 → API Keys → Create API Key，權限選
+                <code class="text-gray-700">Sending access</code>（本站只需要寄信；要更保險可再綁定剛才那個網域）。
+                <strong>金鑰只會顯示這一次</strong>，關掉視窗就再也看不到，沒存下來只能刪掉重建。
+              </dd>
+            </div>
+            <div>
+              <dt><code class="text-gray-700 font-semibold">MAIL_FROM_ADDRESS</code></dt>
+              <dd class="mt-0.5">
+                收件人看到的寄件位址，例如 <code class="text-gray-700">noreply@你的網域</code>。
+                <strong>必須是上一步已驗證網域底下的位址</strong> —— 填了沒驗證過的網域，Resend 會拒收，
+                全站一封信都寄不出去。
+              </dd>
+            </div>
+            <div>
+              <dt><code class="text-gray-700 font-semibold">MAIL_FROM_NAME</code></dt>
+              <dd class="mt-0.5">收件人在信件列表看到的寄件人顯示名稱，通常就是你的品牌名。</dd>
+            </div>
+          </dl>
+        </HintBox>
+
+        <HintBox title="三、最後建立 Webhook（下方欄位就是這一步的產物）">
+          <ol class="space-y-1 list-decimal list-inside">
+            <li>Resend 後台 → Webhooks → Add Webhook</li>
+            <li>
+              Endpoint URL 填
+              <code class="text-gray-700 break-all">{{ webhookUrl }}</code>
+            </li>
+            <li>
+              事件勾選 <code class="text-gray-700">email.bounced</code> 與
+              <code class="text-gray-700">email.complained</code> 兩項即可
+            </li>
+            <li>建立後點進該 Webhook 詳情頁，複製 Signing Secret（<code class="text-gray-700">whsec_</code> 開頭）貼到下方欄位</li>
+          </ol>
+          <p class="mt-2 text-gray-500">
+            <strong class="text-gray-700">這一步在做什麼</strong>：硬退信（信箱不存在）與垃圾信投訴發生時，
+            Resend 會通知本站，系統把該 email 記進封鎖名單，後台的名單頁就會標示「已退信／已投訴」，
+            序列信也不再寄給他。Resend 自己本來就會跳過這些地址，所以這一步不影響寄件信譽，
+            純粹是讓你在後台看得見、並且不再把死名單算進開信率。
+          </p>
+        </HintBox>
 
         <div>
           <label :class="labelClasses">Webhook 簽署金鑰</label>
           <input type="password" v-model="form.resend_webhook_secret" :class="inputClasses" :placeholder="resend.webhook_secret_preview || '尚未設定'" autocomplete="new-password" />
-          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰。於 Resend 後台 Webhooks 頁面建立端點（URL 為 <code class="text-gray-600">/resend/webhook</code>）後取得</p>
-          <p class="mt-1 text-xs text-red-600 font-medium">⚠️ 未設定時此端點形同無認證，任何人都能偽造退信/投訴事件；請盡快設定</p>
+          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰</p>
+          <p class="mt-1 text-xs text-red-600 font-medium">⚠️ 未設定時此端點形同無認證，任何人都能偽造退信/投訴事件把任意 email 加進封鎖名單；請盡快設定</p>
           <p v-if="form.errors.resend_webhook_secret" class="mt-1 text-sm text-red-600">{{ form.errors.resend_webhook_secret }}</p>
         </div>
       </div>
@@ -174,9 +262,8 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           三個欄位任一留空即停用，預約流程照常運作、確認信不含會議連結。
         </p>
 
-        <div class="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600">
-          <p class="font-semibold text-gray-700">憑證怎麼拿</p>
-          <ol class="mt-1.5 space-y-1 list-decimal list-inside">
+        <HintBox title="憑證怎麼拿">
+          <ol class="space-y-1 list-decimal list-inside">
             <li>
               前往
               <a
@@ -207,7 +294,7 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
             還沒有席次時會自動改建在擁有者帳號下，預約流程不受影響 ——
             但顧問不會是主持人，不能錄影、結束會議或管理等候室。
           </p>
-        </div>
+        </HintBox>
 
         <div>
           <label :class="labelClasses">Account ID</label>

@@ -53,6 +53,7 @@ main_files:
 - database/migrations/2026_07_31_000001_create_short_links_table.php
 - database/migrations/2026_08_09_000001_create_email_suppressions_table.php
 - database/seeders/ShortLinkSeeder.php
+- resources/js/Components/Admin/HintBox.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Layout/AppLayout.vue

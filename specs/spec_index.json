@@ -293,7 +293,12 @@
         "resend_webhook_secret",
         "site_settings",
         "量販",
-        "後台設定"
+        "後台設定",
+        "MX",
+        "網域驗證",
+        "domain verification",
+        "設定說明",
+        "HintBox"
       ],
       "code_files": [
         "app/Models/EmailSuppression.php",
@@ -314,7 +319,8 @@
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
         "resources/js/Components/Admin/Leads/BookingListTab.vue",
         "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
-        "tests/Feature/Platform/EmailSuppressionTest.php"
+        "tests/Feature/Platform/EmailSuppressionTest.php",
+        "resources/js/Components/Admin/HintBox.vue"
       ],
       "status": "implemented"
     },
