@@ -12,7 +12,6 @@ purpose: 全站基礎設施 — 前台/後台 Layout 與導航、admin 權限 mi
 specs: specs/000-platform-core/
 
 main_files:
-- .env.example
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/Admin/ShortLinkController.php

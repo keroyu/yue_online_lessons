@@ -1,7 +1,6 @@
 {
   "files": {
     ".env.example": [
-      "000.us-9",
       "003.us-9"
     ],
     "app/Console/Commands/CleanDormantSubscribers.php": [
@@ -84,7 +83,8 @@
       "011.us-3",
       "011.us-4",
       "011.us-5",
-      "011.us-8"
+      "011.us-8",
+      "011.us-9"
     ],
     "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php": [
       "002.us-6"
@@ -132,6 +132,7 @@
     "app/Http/Controllers/Admin/SettingsController.php": [
       "000.us-5",
       "000.us-7",
+      "000.us-9",
       "007.us-4",
       "007.us-5",
       "007.us-7",
@@ -651,6 +652,7 @@
     ],
     "app/Models/SiteSetting.php": [
       "000.us-5",
+      "000.us-9",
       "007.us-4",
       "011.us-11",
       "011.us-2"
@@ -1421,6 +1423,7 @@
     ],
     "resources/js/Pages/Admin/Settings/Payment.vue": [
       "000.us-7",
+      "000.us-9",
       "011.us-12",
       "011.us-15"
     ],
@@ -1675,7 +1678,8 @@
       "011.us-5"
     ],
     "tests/Feature/HighTicket/LeadsTabsTest.php": [
-      "011.us-8"
+      "011.us-8",
+      "011.us-9"
     ],
     "tests/Feature/HighTicket/SlotHoldTest.php": [
       "011.us-10",

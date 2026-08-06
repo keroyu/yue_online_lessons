@@ -268,7 +268,7 @@
       "id": "000.us-9",
       "module": "000-platform-core",
       "title": "退信與投訴自動標記",
-      "summary": "接 Resend webhook 記錄硬退信（僅 Permanent）與垃圾信投訴到 email_suppressions；MessageSending 單一攔截點依 X-Mail-Class header 區分行銷/交易信，bounce 全擋、complaint 只擋行銷；drip 派工前跳過，後台 leads 與訂閱者名單顯示標記",
+      "summary": "接 Resend webhook 記錄硬退信（僅 Permanent）與垃圾信投訴到 email_suppressions；secret 存 site_settings 後台遮罩欄位（量販需非工程師自助設定）；MessageSending 單一攔截點依 X-Mail-Class header 區分行銷/交易信，bounce 全擋、complaint 只擋行銷；drip 派工前跳過，後台 leads 與訂閱者名單顯示標記",
       "heading": "### User Story 9 - 退信與投訴自動標記 (Priority: P2)",
       "file": "specs/000-platform-core/spec.md",
       "anchor": "user-story-9---退信與投訴自動標記-priority-p2",
@@ -289,7 +289,11 @@
         "svix",
         "X-Mail-Class",
         "行銷信",
-        "交易信"
+        "交易信",
+        "resend_webhook_secret",
+        "site_settings",
+        "量販",
+        "後台設定"
       ],
       "code_files": [
         "app/Models/EmailSuppression.php",
@@ -297,6 +301,9 @@
         "app/Listeners/RecordEmailSuppression.php",
         "app/Listeners/BlockSuppressedRecipients.php",
         "app/Providers/AppServiceProvider.php",
+        "app/Models/SiteSetting.php",
+        "resources/js/Pages/Admin/Settings/Payment.vue",
+        "app/Http/Controllers/Admin/SettingsController.php",
         "database/migrations/2026_08_09_000001_create_email_suppressions_table.php",
         "app/Services/DripService.php",
         "app/Mail/DripLessonMail.php",
@@ -307,7 +314,6 @@
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
         "resources/js/Components/Admin/Leads/BookingListTab.vue",
         "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
-        ".env.example",
         "tests/Feature/Platform/EmailSuppressionTest.php"
       ],
       "status": "planned"
@@ -3542,7 +3548,9 @@
         "database/migrations/2026_08_05_000003_widen_phone_columns_to_30.php",
         "app/Http/Requests/Member/UpdateProfileRequest.php",
         "app/Http/Requests/Admin/UpdateMemberRequest.php",
-        "app/Http/Requests/CheckoutRequest.php"
+        "app/Http/Requests/CheckoutRequest.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "tests/Feature/HighTicket/LeadsTabsTest.php"
       ],
       "status": "implemented"
     },
