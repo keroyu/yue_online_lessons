@@ -55,73 +55,6 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
     <h1 class="text-xl font-bold text-gray-900">API 設定</h1>
 
     <form @submit.prevent="submit" class="space-y-6">
-      <!-- PayUni -->
-      <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">統一金流（PayUni）</h2>
-
-        <div>
-          <label :class="labelClasses">商店代號（MerchantID）</label>
-          <input type="text" v-model="form.payuni_merchant_id" :class="inputClasses" placeholder="M00001" />
-          <p v-if="form.errors.payuni_merchant_id" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_merchant_id }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">HashKey</label>
-          <input type="password" v-model="form.payuni_hash_key" :class="inputClasses" :placeholder="payuni.hash_key_preview || '尚未設定'" autocomplete="new-password" />
-          <p v-if="form.errors.payuni_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_key }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">HashIV</label>
-          <input type="password" v-model="form.payuni_hash_iv" :class="inputClasses" :placeholder="payuni.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
-          <p v-if="form.errors.payuni_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_iv }}</p>
-        </div>
-      </div>
-
-      <!-- NewebPay -->
-      <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">藍新金流（NewebPay）</h2>
-
-        <div>
-          <label :class="labelClasses">商店代號（MerchantID）</label>
-          <input type="text" v-model="form.newebpay_merchant_id" :class="inputClasses" placeholder="MS1234567890" />
-          <p v-if="form.errors.newebpay_merchant_id" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_merchant_id }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">HashKey</label>
-          <input type="password" v-model="form.newebpay_hash_key" :class="inputClasses" :placeholder="newebpay.hash_key_preview || '尚未設定'" autocomplete="new-password" />
-          <p v-if="form.errors.newebpay_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_key }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">HashIV</label>
-          <input type="password" v-model="form.newebpay_hash_iv" :class="inputClasses" :placeholder="newebpay.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
-          <p v-if="form.errors.newebpay_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_iv }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">環境</label>
-          <select v-model="form.newebpay_env" :class="inputClasses">
-            <option value="sandbox">Sandbox（測試）</option>
-            <option value="production">Production（正式）</option>
-          </select>
-          <p v-if="form.errors.newebpay_env" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_env }}</p>
-        </div>
-      </div>
-
-      <!-- Portaly -->
-      <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Portaly（Webhook）</h2>
-
-        <div>
-          <label :class="labelClasses">Webhook 金鑰</label>
-          <input type="password" v-model="form.portaly_webhook_key" :class="inputClasses" :placeholder="portaly.webhook_key_preview || '尚未設定'" autocomplete="new-password" />
-          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰</p>
-          <p v-if="form.errors.portaly_webhook_key" class="mt-1 text-sm text-red-600">{{ form.errors.portaly_webhook_key }}</p>
-        </div>
-      </div>
-
       <!-- Resend（全站寄信） -->
       <div :class="sectionClasses">
         <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Resend（寄信服務）</h2>
@@ -218,32 +151,6 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
         </div>
       </div>
 
-      <!-- Meta Pixel -->
-      <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Meta Pixel</h2>
-
-        <div>
-          <label :class="labelClasses">Pixel ID</label>
-          <input type="text" v-model="form.meta_pixel_id" :class="inputClasses" placeholder="1287511383482442" />
-          <p class="mt-1 text-xs text-gray-500">留空表示停用 Meta Pixel（頁面不輸出任何 fbq 代碼）</p>
-          <p v-if="form.errors.meta_pixel_id" class="mt-1 text-sm text-red-600">{{ form.errors.meta_pixel_id }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">Conversions API Access Token</label>
-          <input type="password" v-model="form.meta_capi_access_token" :class="inputClasses" :placeholder="meta_capi.access_token_preview || '尚未設定'" autocomplete="new-password" />
-          <p class="mt-1 text-xs text-gray-500">在 Meta 事件管理工具 → 設定 → Conversions API 產生；留空 = 不變更。未設定時僅瀏覽器 Pixel 追蹤、不送伺服器端事件</p>
-          <p v-if="form.errors.meta_capi_access_token" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_access_token }}</p>
-        </div>
-
-        <div>
-          <label :class="labelClasses">測試事件代碼（test_event_code）</label>
-          <input type="text" v-model="form.meta_capi_test_event_code" :class="inputClasses" placeholder="TEST12345" />
-          <p class="mt-1 text-xs text-gray-500">填入後伺服器端事件會出現在事件管理工具的「測試事件」頁籤；驗證完請清空，否則事件不會進正式數據</p>
-          <p v-if="form.errors.meta_capi_test_event_code" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_test_event_code }}</p>
-        </div>
-      </div>
-
       <!-- Zoom（客製服務諮詢會議自動建立） -->
       <div :class="sectionClasses">
         <div class="flex items-center justify-between border-b pb-2">
@@ -334,6 +241,99 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           <input type="password" v-model="form.zoom_client_secret" :class="inputClasses" :placeholder="zoom.client_secret_preview || '尚未設定'" autocomplete="new-password" />
           <p class="mt-1 text-xs text-gray-500">留空 = 不變更</p>
           <p v-if="form.errors.zoom_client_secret" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_client_secret }}</p>
+        </div>
+      </div>
+
+      <!-- PayUni -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">統一金流（PayUni）</h2>
+
+        <div>
+          <label :class="labelClasses">商店代號（MerchantID）</label>
+          <input type="text" v-model="form.payuni_merchant_id" :class="inputClasses" placeholder="M00001" />
+          <p v-if="form.errors.payuni_merchant_id" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_merchant_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">HashKey</label>
+          <input type="password" v-model="form.payuni_hash_key" :class="inputClasses" :placeholder="payuni.hash_key_preview || '尚未設定'" autocomplete="new-password" />
+          <p v-if="form.errors.payuni_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_key }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">HashIV</label>
+          <input type="password" v-model="form.payuni_hash_iv" :class="inputClasses" :placeholder="payuni.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
+          <p v-if="form.errors.payuni_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.payuni_hash_iv }}</p>
+        </div>
+      </div>
+
+      <!-- NewebPay -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">藍新金流（NewebPay）</h2>
+
+        <div>
+          <label :class="labelClasses">商店代號（MerchantID）</label>
+          <input type="text" v-model="form.newebpay_merchant_id" :class="inputClasses" placeholder="MS1234567890" />
+          <p v-if="form.errors.newebpay_merchant_id" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_merchant_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">HashKey</label>
+          <input type="password" v-model="form.newebpay_hash_key" :class="inputClasses" :placeholder="newebpay.hash_key_preview || '尚未設定'" autocomplete="new-password" />
+          <p v-if="form.errors.newebpay_hash_key" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_key }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">HashIV</label>
+          <input type="password" v-model="form.newebpay_hash_iv" :class="inputClasses" :placeholder="newebpay.hash_iv_preview || '尚未設定'" autocomplete="new-password" />
+          <p v-if="form.errors.newebpay_hash_iv" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_hash_iv }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">環境</label>
+          <select v-model="form.newebpay_env" :class="inputClasses">
+            <option value="sandbox">Sandbox（測試）</option>
+            <option value="production">Production（正式）</option>
+          </select>
+          <p v-if="form.errors.newebpay_env" class="mt-1 text-sm text-red-600">{{ form.errors.newebpay_env }}</p>
+        </div>
+      </div>
+
+      <!-- Portaly -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Portaly（Webhook）</h2>
+
+        <div>
+          <label :class="labelClasses">Webhook 金鑰</label>
+          <input type="password" v-model="form.portaly_webhook_key" :class="inputClasses" :placeholder="portaly.webhook_key_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">留空表示保留現有金鑰</p>
+          <p v-if="form.errors.portaly_webhook_key" class="mt-1 text-sm text-red-600">{{ form.errors.portaly_webhook_key }}</p>
+        </div>
+      </div>
+
+      <!-- Meta Pixel -->
+      <div :class="sectionClasses">
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Meta Pixel</h2>
+
+        <div>
+          <label :class="labelClasses">Pixel ID</label>
+          <input type="text" v-model="form.meta_pixel_id" :class="inputClasses" placeholder="1287511383482442" />
+          <p class="mt-1 text-xs text-gray-500">留空表示停用 Meta Pixel（頁面不輸出任何 fbq 代碼）</p>
+          <p v-if="form.errors.meta_pixel_id" class="mt-1 text-sm text-red-600">{{ form.errors.meta_pixel_id }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">Conversions API Access Token</label>
+          <input type="password" v-model="form.meta_capi_access_token" :class="inputClasses" :placeholder="meta_capi.access_token_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">在 Meta 事件管理工具 → 設定 → Conversions API 產生；留空 = 不變更。未設定時僅瀏覽器 Pixel 追蹤、不送伺服器端事件</p>
+          <p v-if="form.errors.meta_capi_access_token" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_access_token }}</p>
+        </div>
+
+        <div>
+          <label :class="labelClasses">測試事件代碼（test_event_code）</label>
+          <input type="text" v-model="form.meta_capi_test_event_code" :class="inputClasses" placeholder="TEST12345" />
+          <p class="mt-1 text-xs text-gray-500">填入後伺服器端事件會出現在事件管理工具的「測試事件」頁籤；驗證完請清空，否則事件不會進正式數據</p>
+          <p v-if="form.errors.meta_capi_test_event_code" class="mt-1 text-sm text-red-600">{{ form.errors.meta_capi_test_event_code }}</p>
         </div>
       </div>
 
