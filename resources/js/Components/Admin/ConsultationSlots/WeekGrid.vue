@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   // { start, end, rows: ['08:00', '08:15', …] }
@@ -22,6 +22,9 @@ let media = null
 function syncNarrow(e) {
   isNarrow.value = e.matches
   if (isNarrow.value) dayIndex.value = Math.max(0, props.days.findIndex(d => d.is_today))
+  // The narrow/wide switch swaps which DOM node (if any) the selection panel
+  // is anchored to (D66) — closing it is simpler than chasing the new node.
+  clearSelection()
 }
 
 onMounted(() => {
@@ -29,6 +32,8 @@ onMounted(() => {
   syncNarrow(media)
   media.addEventListener('change', syncNarrow)
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('scroll', updatePanelPos, true)
+  window.addEventListener('resize', updatePanelPos)
 })
 
 onUnmounted(() => {
@@ -37,6 +42,8 @@ onUnmounted(() => {
   window.removeEventListener('pointermove', onMove)
   window.removeEventListener('pointerup', commit)
   window.removeEventListener('pointercancel', commit)
+  window.removeEventListener('scroll', updatePanelPos, true)
+  window.removeEventListener('resize', updatePanelPos)
 })
 
 const visibleDays = computed(() =>
@@ -80,7 +87,7 @@ function cellState(dIndex, rIndex) {
 const selected = ref(null)
 const rescheduling = ref(false)
 
-function selectBooking(dIndex, booking) {
+function selectBooking(dIndex, booking, event) {
   if (selected.value?.booking.lead_id === booking.lead_id && !rescheduling.value) {
     clearSelection()
     return
@@ -88,16 +95,65 @@ function selectBooking(dIndex, booking) {
 
   selected.value = { dIndex, booking }
   rescheduling.value = false
+  if (event?.currentTarget) anchorEl = event.currentTarget
+  nextTick(updatePanelPos)
 }
 
 function clearSelection() {
   selected.value = null
   rescheduling.value = false
+  anchorEl = null
 }
 
 function startReschedule() {
-  if (selected.value) rescheduling.value = true
+  if (!selected.value) return
+  rescheduling.value = true
+  // The banner is a different width/height than the selected-booking panel
+  // it replaces, so the anchor point needs recomputing once it has painted.
+  nextTick(updatePanelPos)
 }
+
+// ---- floating action panel (011 US14 / D66) ---------------------------
+//
+// The panel is wider than a 15-minute cell and has to spill over neighbour
+// columns, so it cannot live in the block's normal document flow — and the
+// calendar sits inside an overflow-x-auto wrapper, which (per the CSS spec)
+// clips the *other* axis too once one axis is non-visible. `position: fixed`
+// escapes that entirely; `anchorEl.getBoundingClientRect()` is re-read on
+// every scroll/resize while a panel is open (see the window listeners in
+// onMounted/onUnmounted) so it keeps tracking the block as the page moves.
+let anchorEl = null
+const panelRef = ref(null)
+const panelPos = ref({ left: 0, top: 0, flip: false })
+
+function updatePanelPos() {
+  if (!anchorEl || !(selected.value || rescheduling.value)) return
+
+  const rect = anchorEl.getBoundingClientRect()
+  const panelWidth = panelRef.value?.offsetWidth ?? 280
+  const half = panelWidth / 2
+  const margin = 8
+
+  const left = Math.min(
+    Math.max(rect.left + rect.width / 2, half + margin),
+    window.innerWidth - half - margin
+  )
+  // Not enough headroom above the block for the panel to sit above it
+  // without running off the top of the viewport — flip below instead.
+  const flip = rect.top < 80
+
+  panelPos.value = {
+    left,
+    top: flip ? rect.bottom + margin : rect.top - margin,
+    flip,
+  }
+}
+
+const panelStyle = computed(() => ({
+  left: `${panelPos.value.left}px`,
+  top: `${panelPos.value.top}px`,
+  transform: `translate(-50%, ${panelPos.value.flip ? '0' : '-100%'})`,
+}))
 
 function onKeydown(e) {
   if (e.key === 'Escape') clearSelection()
@@ -358,10 +414,9 @@ function isHalf(label) {
       </button>
     </div>
 
-    <!-- Left: what the current gesture will do. Right: the selected booking.
-         Split rather than one slot so the action panel sits at the top-right of
-         the grid, where the eye already is after clicking a block. -->
-    <div class="min-h-8 mb-1 flex flex-wrap items-start justify-between gap-2">
+    <!-- What the current drag gesture will do. The selected-booking panel used
+         to live here too; it now floats above the block itself (D66). -->
+    <div class="min-h-8 mb-1">
       <div class="min-w-0">
         <div
           v-if="drag"
@@ -379,97 +434,117 @@ function isHalf(label) {
           在格線上按住並拖曳以選取時段範圍；點一筆預約可改期或取消。
         </p>
       </div>
-
-      <!-- Picking a new time. The buttons live here rather than inside the
-           block: a 30-minute booking is 28px tall and holds one line. -->
-      <div
-        v-if="rescheduling"
-        class="flex flex-wrap items-center gap-2 rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-1.5 text-xs"
-      >
-        <span class="font-bold text-brand-teal">改期中</span>
-        <span class="text-gray-700">
-          點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔）
-        </span>
-        <button
-          type="button"
-          class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
-          @click="clearSelection"
-        >
-          取消改期（Esc）
-        </button>
-      </div>
-
-      <!-- Carries everything the block gave up when it shrank to one line. -->
-      <div
-        v-else-if="selected"
-        class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs"
-      >
-        <span class="font-semibold text-indigo-900">{{ selected.booking.name }}</span>
-        <span class="tabular-nums text-indigo-800">
-          {{ selectedDayLabel }} {{ selected.booking.start }}–{{ selected.booking.end }}
-        </span>
-        <span class="text-indigo-700 opacity-80">{{ STATE_LABEL[selected.booking.state] }}</span>
-        <a
-          v-if="selected.booking.email"
-          :href="leadUrl(selected.booking.email)"
-          class="text-indigo-700 underline cursor-pointer hover:opacity-70"
-        >
-          名單
-        </a>
-        <a
-          v-if="selected.booking.zoom_join_url"
-          :href="selected.booking.zoom_join_url"
-          target="_blank"
-          rel="noopener"
-          class="font-medium text-indigo-700 underline cursor-pointer hover:opacity-70"
-        >
-          Zoom
-        </a>
-        <span v-if="selected.booking.held_until" class="text-amber-700">
-          保留至 {{ selected.booking.held_until }}
-        </span>
-        <label v-if="canPickConsultant" class="flex items-center gap-1 text-indigo-800">
-          顧問
-          <select
-            :value="selected.booking.consultant_id ?? ''"
-            class="rounded border-indigo-300 py-0 text-xs cursor-pointer focus:border-brand-teal focus:ring-brand-teal"
-            @change="emit('assign', { lead_id: selected.booking.lead_id, consultant_id: $event.target.value || null })"
-          >
-            <option value="">未指派</option>
-            <option v-for="c in consultants" :key="c.id" :value="c.id">{{ consultantLabel(c) }}</option>
-          </select>
-        </label>
-        <span v-else-if="selected.booking.consultant" class="text-indigo-800">
-          顧問：{{ selected.booking.consultant }}
-        </span>
-        <button
-          type="button"
-          :disabled="selected.booking.state !== 'booked'"
-          class="rounded bg-brand-teal px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-teal-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          @click="startReschedule"
-        >
-          改期
-        </button>
-        <button
-          type="button"
-          :disabled="selected.booking.state !== 'booked'"
-          class="rounded bg-rose-600 px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-rose-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          @click="confirmCancel"
-        >
-          取消預約
-        </button>
-        <span v-if="selected.booking.state !== 'booked'" class="text-gray-500">
-          尚未確認，逾時會自動釋出
-        </span>
-        <button
-          type="button"
-          class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
-          @click="clearSelection"
-        >
-          關閉
-        </button>
-      </div>
     </div>
+
+    <!-- Floating above the selected block (D66): position: fixed, tracked via
+         getBoundingClientRect() on scroll/resize so it stays pinned to the
+         block instead of scrolling out of view with the rest of the page. -->
+    <Teleport to="body">
+      <div
+        v-if="rescheduling || selected"
+        ref="panelRef"
+        class="fixed z-40"
+        :style="panelStyle"
+      >
+        <!-- Picking a new time. The buttons live here rather than inside the
+             block: a 30-minute booking is 28px tall and holds one line. -->
+        <div
+          v-if="rescheduling"
+          class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-1.5 text-xs shadow-lg"
+        >
+          <span class="font-bold text-brand-teal">改期中</span>
+          <span class="text-gray-700">
+            點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔）
+          </span>
+          <button
+            type="button"
+            class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
+            @click="clearSelection"
+          >
+            取消改期（Esc）
+          </button>
+        </div>
+
+        <!-- Carries everything the block gave up when it shrank to one line. -->
+        <div
+          v-else-if="selected"
+          class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs shadow-lg"
+        >
+          <span class="font-semibold text-indigo-900">{{ selected.booking.name }}</span>
+          <span class="tabular-nums text-indigo-800">
+            {{ selectedDayLabel }} {{ selected.booking.start }}–{{ selected.booking.end }}
+          </span>
+          <span class="text-indigo-700 opacity-80">{{ STATE_LABEL[selected.booking.state] }}</span>
+          <a
+            v-if="selected.booking.email"
+            :href="leadUrl(selected.booking.email)"
+            class="text-indigo-700 underline cursor-pointer hover:opacity-70"
+          >
+            名單
+          </a>
+          <a
+            v-if="selected.booking.zoom_join_url"
+            :href="selected.booking.zoom_join_url"
+            target="_blank"
+            rel="noopener"
+            class="font-medium text-indigo-700 underline cursor-pointer hover:opacity-70"
+          >
+            Zoom
+          </a>
+          <span v-if="selected.booking.held_until" class="text-amber-700">
+            保留至 {{ selected.booking.held_until }}
+          </span>
+          <label v-if="canPickConsultant" class="flex items-center gap-1 text-indigo-800">
+            顧問
+            <select
+              :value="selected.booking.consultant_id ?? ''"
+              class="rounded border-indigo-300 py-0 text-xs cursor-pointer focus:border-brand-teal focus:ring-brand-teal"
+              @change="emit('assign', { lead_id: selected.booking.lead_id, consultant_id: $event.target.value || null })"
+            >
+              <option value="">未指派</option>
+              <option v-for="c in consultants" :key="c.id" :value="c.id">{{ consultantLabel(c) }}</option>
+            </select>
+          </label>
+          <span v-else-if="selected.booking.consultant" class="text-indigo-800">
+            顧問：{{ selected.booking.consultant }}
+          </span>
+          <span v-if="selected.booking.state !== 'booked'" class="text-gray-500">
+            尚未確認，逾時會自動釋出
+          </span>
+
+          <!-- One flex item rather than three loose buttons: with the outer
+               row wrapping button-by-button, "改期" could land on line 1 and
+               "取消預約" / "關閉" on line 2, splitting a set of actions that
+               belong together. Grouped, they wrap onto the next line as a
+               single unit instead of breaking mid-group. -->
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              :disabled="selected.booking.state !== 'booked'"
+              class="rounded bg-brand-teal px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-teal-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="startReschedule"
+            >
+              改期
+            </button>
+            <button
+              type="button"
+              :disabled="selected.booking.state !== 'booked'"
+              class="rounded bg-rose-600 px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-rose-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="confirmCancel"
+            >
+              取消預約
+            </button>
+            <button
+              type="button"
+              class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
+              @click="clearSelection"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <div class="overflow-x-auto">
       <div
@@ -570,7 +645,7 @@ function isHalf(label) {
             ]"
             :style="blockStyle(booking)"
             :title="`${booking.start}–${booking.end} ${booking.name}（${STATE_LABEL[booking.state]}）`"
-            @click="selectBooking(dIndex, booking)"
+            @click="selectBooking(dIndex, booking, $event)"
           >
             <!-- Name only. A 30-minute block is 28px tall, so anything more
                  clips; the time is already implied by where the block sits and

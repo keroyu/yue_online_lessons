@@ -386,6 +386,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 暫留中的區塊額外顯示保留到期時間（`held_until`），讓管理員看得出這格隨時可能被釋出
 - [x] 手機（`< sm`）改為**單日檢視**：`< 日期 >` 切換 + 單欄格線，拖曳（觸控）行為與桌機一致
 - [x] 原有的「日期 + 起訖時間」表單與依日期分組的方塊清單移除；所有可點元素 `cursor-pointer` + hover 回饋
+- [x] 圖例旁顯示**全站累計**（不分週）的三個真實狀態數量：可預約、暫留中、已預約；「未釋出」不接數字（見 D65）
 - [x] 測試：週資料組裝（跨週邊界、台北時區）、範圍外既有時段會撐開格線、批次收回只刪未佔用者、佔用中的單位收不掉、同 lead 連續單位合併為一個區塊
 
 ### User Story 14 - 行事曆邀請與預約異動 (Priority: P1)
@@ -414,6 +415,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [x] 兩封異動信 MUST CC `high_ticket_lead_notify_cc`（沿用 FR-014）
 - [x] Zoom 的更新／刪除 MUST 走 Job（`tries=3`），失敗只 log 並 CC 內部收件者，**MUST NOT 讓已成立的異動失敗** —— 時段與信件是事實，Zoom 是副作用（沿用 FR-016 原則）
 - [x] 改期與取消的入口在**週曆的預約區塊**（US13）：區塊上兩顆按鈕。「改期」進入改期模式 —— 格線只讓能容納該長度的起始格可點，點選後跳確認（顯示舊時間 → 新時間）；「取消」跳確認 modal。改期模式可用 Esc 或再點一次按鈕退出（見 D53）
+- [x] 該面板 MUST **懸浮在被選取的區塊正上方**並隨頁面捲動跟著移動，不再固定於行程表右上角（原本捲到下方時面板已離開可視範圍，見 D66）；水平置中並貼齊視窗邊界內、上方空間不足時自動翻到區塊下方
 - [x] `cancelled` 為 status enum 第六值，Leads 名單篩選多一顆 tab；取消後的 lead **重新申請 MUST 自動轉回 `pending`**（沿用 `recordLead()` 對 closed / no_response 的既有處理）
 - [x] 申請人端 MUST NOT 有任何自助改期／取消入口（使用者決策，見 D50）：信中不放管理連結，異動一律經由聯絡管理員
 - [x] 所有新增的可點元素 `cursor-pointer` + hover 回饋；改期／取消為破壞性操作，MUST 二次確認
@@ -712,6 +714,17 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
   前兩次都是補一支專屬 migration；第三次代表這不是巧合而是結構問題。`2026_08_08_000003` 改為檢查**全部** canonical event_type、只補缺的、絕不覆寫，並把模板清單抽成 `EmailTemplateSeeder::templates()` 讓 seeder 與 migration 共用同一份定義。
   **副作用值得記錄**：這支 migration 在測試 DB 也會跑，於是原本 `EmailTemplate::create()` 的測試會產生重複列（`event_type` 沒有 unique 約束，`forEvent()->first()` 會沉默地取錯），10 個測試因此變紅。全部改為 `updateOrCreate`；而斷言「模板不存在時的行為」的測試改為**明確刪除**該列 —— 那個前提以前靠「測試 DB 本來就是空的」成立，現在必須自己安排
+
+- **D65**: 圖例旁的數量統計是**全站累計**，不是「這週格線裡有幾個」（使用者決策，2026-08-07）。三個真實狀態的口徑各不相同，刻意分開處理：
+  可預約／暫留中只算 `starts_at` 未過去的列（沿用既有 `scopeUpcoming`）—— 昨天沒被訂走的空格已經不可能被訂走，算進「可預約」是誤導；已過期的暫留同理，邏輯上早該被 `booking:release-holds` 釋出。
+  已預約則**不分過去未來，全部算** —— 這格代表「總共成交幾場諮詢」，過去已完成的諮詢也是成交，排除掉反而失真。
+  「未釋出」明確**不接數字**：它代表「還沒開放的時段」，時間軸往未來是無限的，沒有天然分母。硬要給一個數字勢必得先框一個時間窗口（例如未來 4 週），而那個窗口長度本身沒有業務意義、純粹是為了湊一個分母，之後只會有人問「為什麼是 4 週不是 8 週」。圖例保留這一格純視覺用途（灰格 = 還沒開放），不接統計。
+
+- **D66**: 預約區塊的操作面板改用 **`position: fixed` + `getBoundingClientRect()`** 追蹤區塊位置，取代原本待在行程表右上角固定格的作法（使用者回報，2026-08-07）。
+  面板內容（姓名、時間、狀態、名單／Zoom 連結、改期／取消按鈕）遠比一個 15 分鐘格（28px 高、104px 寬）寬，勢必要疊到相鄰欄位甚至相鄰日期的格子上方 —— 這代表面板不能是區塊的一般文件流子元素，得用絕對定位「浮」出來。
+  兩個候選：(a) 面板當區塊的絕對定位子元素，靠 CSS Grid 版位讓它跟著區塊走；(b) 面板用 `position: fixed`，點擊當下量出區塊的 `getBoundingClientRect()`，之後用 `scroll`/`resize` 監聽器即時重算。選 (b)：整個行事曆包在 `overflow-x-auto` 的橫向捲動容器裡，而 CSS 規則是只要一軸設了非 `visible` 的 overflow，另一軸會一併變成有效的裁切邊界（`overflow-x: auto` 會讓 `overflow-y` 的算出值也變 `auto`）—— 面板往上浮出區塊頂端時，垂直方向也會被同一個容器裁掉，(a) 的方式在區塊排在較前面幾列時會整個消失不見。`position: fixed` 直接跳出所有裁切邊界，沒有這個問題。
+  代價：需要監聽器（`window.addEventListener('scroll', ..., true)` 用 capture 才抓得到內層容器自己的捲動、加 `resize`），面板打開期間掛上、`clearSelection()` 與 `onUnmounted` 一併卸載，否則會是外洩的監聽器。手機（`< sm`）切換單日檢視時直接 `clearSelection()`（呼叫既有的 `syncNarrow`）—— 版面切換當下錨點元素可能已經被 Vue 換掉，與其追蹤哪個 DOM 節點還存在，不如把面板收起來，使用者重新點一次的成本很低
+  水平置中並用面板實際量到的寬度（`offsetWidth`）夾在 `[8px, innerWidth - 8px]` 之間，避免貼齊視窗邊緣時被切掉；垂直預設在區塊上方，量到區塊距視窗頂端不足一個面板高度時（約 80px 判斷）自動翻到區塊下方 —— 這與原生 tooltip 的碰撞處理是同一套邏輯
 
 - **D63**: 重複預約的檢查**只發生在送出當下**，不做第 1 步的即時 precheck（2026-08-05，使用者決策）。
   體驗上這是有代價的：申請人會填完整份問卷、選完時段、等完 10 秒的 Email 覆核倒數，才被告知白填了。把檢查提前到第 1 步（Email 與手機都已填妥）能省下那一切。
@@ -1238,8 +1251,25 @@ US9 補充
 - [x] T164 修正 T162 的天數終點：改比較到 `lead.confirmed_at`（已確認時），未確認才 fallback 比較到今天 —— 原本恆比較到今天，已確認的 lead 天數會隨查看日期持續增加，不是固定值 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [x] T163 補測試：booking leads 帶出 `slots`（eager load 生效）、`dripByEmail` 帶出 `subscribed_at` in `tests/Feature/HighTicket/LeadsTabsTest.php`
 
+US13 補充
+- [x] T165 `ConsultationSlotService::statusCounts(): array` 回傳 `['available' => int, 'held' => int, 'booked' => int]`（D65）：available 用 `scopeAvailable()->upcoming()`；held 用 `whereNotNull('held_until')->where('held_until', '>', now())->upcoming()`；booked 用 `whereNotNull('lead_id')->whereNull('held_until')`（不加 upcoming）in `app/Services/ConsultationSlotService.php`
+- [x] T166 [P] `index()` 把 `statusCounts()` 併入 Inertia props in `app/Http/Controllers/Admin/ConsultationSlotController.php`
+- [x] T167 [P] `LEGEND` 三個真實狀態旁顯示對應數量，「未釋出」維持純視覺不接數字 in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T168 測試：可預約排除過去未被訂走的列、暫留排除過去的過期保留、已預約含過去已完成的列 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+
+US14 補充
+- [x] T169 `selectBooking()` 收 `$event`，記錄 `event.currentTarget` 為 `anchorEl`；新增 `panelPos`（`{ left, top, flip }`）與 `updatePanelPos()`：以 `anchorEl.getBoundingClientRect()` + 面板自身 `offsetWidth` 算水平置中並夾在 `[8, innerWidth - 8]`；上方空間 < 80px 時 `flip = true`（改貼區塊下方）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T170 選取／改期面板改為 `<Teleport to="body">` + `position: fixed`（`left`/`top` 綁 `panelPos`，`transform: translate(-50%, ...)` 依 `flip` 切換方向）；面板打開期間（`onMounted`）掛 `scroll`（`capture: true`）與 `resize` 監聽器即時重算，`onUnmounted` 一併移除；`updatePanelPos()` 內部以 `selected`/`rescheduling` 皆為空時提早返回，不需另外在 `clearSelection()` 卸載監聽器（監聽器本身常駐、只是空轉）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`（實作時追加 `Teleport` 到 `<body>`：面板疊在整個行事曆之上，`z-40` 若留在元件內仍可能被頁面上其他 stacking context 蓋住，teleport 到 body 讓它必定在最上層，且與 `position: fixed` 的視窗定位互不衝突）
+- [x] T171 `syncNarrow()`（單日／週檢視切換）額外呼叫 `clearSelection()`（D66：版面切換後錨點元素可能已被置換，收起面板比追蹤舊節點簡單）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T172 使用者以瀏覽器實測：選取遠離頁面頂端的預約區塊、捲動頁面時面板跟著移動、視窗邊緣與最上排區塊時的夾擠／翻轉是否符合預期、手機單日檢視切換時面板正確收起
+- [x] T173 面板改期／取消預約／關閉三顆按鈕包成同一個 `flex items-center gap-2` 子容器（不再各自獨立參與外層 `flex-wrap`），外層空間不足時整組一起換行，不會斷在「改期」與「取消預約」中間（使用者回報）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T174 面板換行後右側留白（使用者回報）：兩個面板外層容器由 `flex` 改 `inline-flex`——`position: fixed` 的外層 `panelRef` 本身是 auto 寬，內層若是 `flex`（block-level）會反過來撐滿外層算出的寬度，兩個 auto 寬互相依賴時瀏覽器的 shrink-to-fit 計算會用「未換行前」的最大內容寬，換行後兩行實際內容都比容器窄，右側留白。`inline-flex` 讓內層自己以 shrink-to-fit（依照換行後的實際版面）量寬，外層再照內層量到的寬度收邊 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+
 ## 進度日誌
 
+- 2026-08-07: 修正懸浮面板換行後的留白（T174）— 業主回報按鈕換到第二行後，面板右側留下一大塊詭異的空白。根因是 `position: fixed` 的外層容器是 auto 寬，內層 `flex` 容器是 block-level 元素會撐滿外層，兩個「auto 寬互相依賴」的框在瀏覽器算 shrink-to-fit 時是用換行前（單行）的最大內容寬去定外層寬度，換行後兩行實際內容都比這個寬度窄，就留白在右邊。內層改 `inline-flex` 後自己先以換行後的實際版面量寬，外層才不會抓錯數字。純樣式調整，`npm run build` 綠、全套 523 passed。
+- 2026-08-07: 修正懸浮面板的按鈕換行（T173）— 業主回報「改期／取消預約」剛好斷行在中間，很怪異。外層是 `flex-wrap`，三顆按鈕各自是獨立的 flex item，換行時是逐顆換而非整組換。包成一個不換行的子容器後，三顆按鈕永遠一起出現在同一行，空間不足時整組一起掉到下一行。純樣式調整，`npm run build` 綠、全套 523 passed（不涉及邏輯，未新增測試）。
+- 2026-08-07: 諮詢時段頁兩項體驗修正（T165–T171 / D65 / D66）。(1) 圖例旁補上三個真實狀態的**全站累計**數量：`ConsultationSlotService::statusCounts()` 用三條獨立 count 查詢，可預約／暫留中只算未來（`scopeUpcoming`），已預約不分過去未來全部算（=總共成交幾場）；「未釋出」代表未來無限時間、沒有天然分母，刻意不接數字。(2) 選取預約區塊跳出的改期／取消面板，原本固定在行程表右上角，頁面捲到下方就看不到——改為 `position: fixed` + `getBoundingClientRect()` 追蹤區塊、`<Teleport to="body">` 確保疊在最上層，開啟期間掛 `scroll`（capture）/`resize` 監聽器即時重算；水平置中並夾在視窗邊界內，上方空間不足自動翻到區塊下方。選 `position: fixed` 而非把面板做成區塊的絕對定位子元素，是因為行事曆包在 `overflow-x-auto` 容器裡，CSS 規則會讓垂直方向也一併被裁切，面板往上浮在較前面幾列會直接消失。手機單日／週檢視切換時面板直接收起（版面切換後錨點 DOM 節點可能已被置換）。全套 523 passed、`npm run build` 綠。T172 業主瀏覽器實測通過。
 - 2026-08-07: 承諾清單由五條縮為三條（FR-026）— 刪掉「已有想經營的主題/方向」與「認真評估發展收入」，第三條改寫為「我已有初步想法，願意投入時間學習並持續執行，而不是隨意了解。」把兩者的意思併進來。`HighTicketBookingRequest` 的 `commitments` 由 `size:5` 改 `size:3`（前端 disabled 只是禮貌，控制在後端），測試 fixture 同步。全套 522 passed、`npm run build` 綠。
 
 - 2026-08-07: 修正「序列信起始時間」的天數計算（T164）——業主回報這個天數理應是「序列信起始到確認預約」的固定間隔，但原本（T162）一律拿「今天」當比較終點，導致已確認/已轉換的 lead 天數還在隨查看日期持續增加。改成：有 `confirmed_at` 就固定比較到那個時間點，尚未確認才 fallback 比較到今天。純前端計算修正，無需碰後端或資料庫。

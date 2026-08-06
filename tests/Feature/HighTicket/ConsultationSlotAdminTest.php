@@ -202,6 +202,30 @@ class ConsultationSlotAdminTest extends TestCase
         $this->assertSame('https://zoom.us/j/123', $bookings[0]['zoom_join_url']);
     }
 
+    // ── 狀態統計（T168 / D65） ──────────────────────────────────────────
+
+    public function test_status_counts_use_different_time_windows_per_state(): void
+    {
+        $lead = $this->makeLead();
+        $tz = ConsultationSlotService::DISPLAY_TZ;
+        $future = fn (string $time) => Carbon::now($tz)->addDay()->setTimeFromTimeString($time)->format('Y-m-d H:i');
+        $past = fn (string $time) => Carbon::now($tz)->subDay()->setTimeFromTimeString($time)->format('Y-m-d H:i');
+
+        $this->makeSlot($future('10:00'));                                // 未來、空 → available
+        $this->makeSlot($past('10:00'));                                  // 過去、空 → 不算 available
+        $this->makeSlot($future('11:00'), $lead, now()->addHour());       // 未來、暫留中 → held
+        $this->makeSlot($past('11:00'), $lead, now()->addHour());         // 過去（理論上不該存在）→ 不算 held
+        $this->makeSlot($future('12:00'), $lead, now()->subHour());       // 未來但保留已過期 → 算 available，不算 held
+        $this->makeSlot($future('13:00'), $lead);                         // 未來、已確認 → booked
+        $this->makeSlot($past('13:00'), $lead);                           // 過去、已完成的諮詢 → 仍算 booked
+
+        $counts = $this->slots()->statusCounts();
+
+        $this->assertSame(2, $counts['available']);
+        $this->assertSame(1, $counts['held']);
+        $this->assertSame(2, $counts['booked']);
+    }
+
     // ── 批次收回（T100） ────────────────────────────────────────────────
 
     public function test_release_range_deletes_only_unoccupied_units(): void

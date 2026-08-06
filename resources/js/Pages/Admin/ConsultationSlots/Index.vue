@@ -14,6 +14,7 @@ const props = defineProps({
   consultants: { type: Array, default: () => [] },
   currentUserId: { type: Number, default: null },
   canPickConsultant: { type: Boolean, default: false },
+  statusCounts: { type: Object, default: () => ({}) },
 })
 
 // Who newly dragged slots belong to. Defaults to the person doing the dragging
@@ -83,12 +84,15 @@ function cancelBooking({ lead_id }) {
   router.delete(`/admin/high-ticket-leads/${lead_id}/booking`, VISIT)
 }
 
-const LEGEND = [
-  { label: '未釋出', class: 'bg-white border-gray-300' },
-  { label: '可預約', class: 'bg-teal-100 border-teal-300' },
-  { label: '暫留中', class: 'bg-amber-100 border-amber-300' },
-  { label: '已預約', class: 'bg-indigo-100 border-indigo-300' },
-]
+// Counts are site-wide, not scoped to the displayed week (011 US13 / D65).
+// "未釋出" has no natural denominator (the future is unbounded) so it stays
+// a colour-only legend entry.
+const LEGEND = computed(() => [
+  { label: '未釋出', class: 'bg-white border-gray-300', count: null },
+  { label: '可預約', class: 'bg-teal-100 border-teal-300', count: props.statusCounts.available },
+  { label: '暫留中', class: 'bg-amber-100 border-amber-300', count: props.statusCounts.held },
+  { label: '已預約', class: 'bg-indigo-100 border-indigo-300', count: props.statusCounts.booked },
+])
 </script>
 
 <template>
@@ -165,7 +169,7 @@ const LEGEND = [
       <div class="flex items-center gap-3 flex-wrap">
         <span v-for="item in LEGEND" :key="item.label" class="flex items-center gap-1.5 text-xs text-gray-600">
           <span class="w-3 h-3 rounded-sm border" :class="item.class" />
-          {{ item.label }}
+          {{ item.label }}<span v-if="item.count !== null" class="tabular-nums">（{{ item.count }}）</span>
         </span>
       </div>
     </div>

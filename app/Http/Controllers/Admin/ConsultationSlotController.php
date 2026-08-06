@@ -47,6 +47,7 @@ class ConsultationSlotController extends Controller
                 'consultants'       => $consultants,
                 'currentUserId'     => $user->id,
                 'canPickConsultant' => $user->isAdmin(),
+                'statusCounts'      => $this->slots->statusCounts(),
             ])
         );
     }

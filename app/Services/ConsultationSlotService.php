@@ -211,6 +211,27 @@ class ConsultationSlotService
      *
      * @param  array<int, array{row: ConsultationSlot, local: Carbon}>  $items
      */
+    /**
+     * Site-wide totals for the legend (011 US13 / D65), not scoped to the
+     * displayed week. Each real state uses a different time window:
+     * available/held only count units that have not started yet, booked
+     * counts everything (it means "consultations actually held"). "Not yet
+     * released" has no count — see D65 for why.
+     */
+    public function statusCounts(): array
+    {
+        return [
+            'available' => ConsultationSlot::available()->upcoming()->count(),
+            'held'      => ConsultationSlot::whereNotNull('held_until')
+                ->where('held_until', '>', now())
+                ->upcoming()
+                ->count(),
+            'booked'    => ConsultationSlot::whereNotNull('lead_id')
+                ->whereNull('held_until')
+                ->count(),
+        ];
+    }
+
     private function mergeBookings(array $items): array
     {
         $blocks = [];
