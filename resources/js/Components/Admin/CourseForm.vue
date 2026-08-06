@@ -740,7 +740,7 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
         <!-- Target Courses -->
         <div data-field="target_course_ids">
           <label :class="labelClasses">目標商品（行銷漏斗）</label>
-          <p :class="helpTextClasses" class="!mt-1 mb-3">訂閱者購買以下任一商品後，連鎖 Email 將自動標記為已轉換，停止發信並解鎖全部內容。</p>
+          <p :class="helpTextClasses" class="!mt-1 mb-3">訂閱者購買/預約以下任一商品後，連鎖 Email 將自動標記為已轉換，停止發信並解鎖全部內容。</p>
           <div v-if="availableCourses.length > 0" class="space-y-2">
             <label
               v-for="ac in availableCourses"
