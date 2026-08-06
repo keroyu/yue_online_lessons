@@ -95,7 +95,7 @@ class HighTicketLeadController extends Controller
         }
 
         $leads = $this->bookingLeadsQuery($search, $courseId)
-            ->with(['course:id,name', 'consultant:id,nickname,email'])
+            ->with(['course:id,name', 'consultant:id,nickname,email', 'slots:id,lead_id,starts_at'])
             ->when($status, fn ($q) => $q->byStatus($status))
             ->orderBy('booked_at', 'desc')
             ->paginate(20)
@@ -127,8 +127,9 @@ class HighTicketLeadController extends Controller
             ->get(['id', 'email'])
             ->keyBy('email')
             ->map(fn ($u) => $u->dripSubscriptions->map(fn ($s) => [
-                'course_name' => $s->course->name ?? '?',
-                'status'      => $s->status,
+                'course_name'   => $s->course->name ?? '?',
+                'status'        => $s->status,
+                'subscribed_at' => $s->subscribed_at,
             ])->values());
 
         // Feeds the convert modal's "already owns this" warning (D16) — same

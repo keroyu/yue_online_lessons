@@ -212,6 +212,42 @@ const toggleDetail = (id) => {
 const hasApplication = (lead) =>
   Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
 
+const pad2 = (n) => String(n).padStart(2, '0')
+
+// Consultation slots are 15-minute units (ConsultationSlot::UNIT_MINUTES);
+// a booking is however many consecutive units the lead holds (`lead.slots`,
+// eager-loaded ordered by starts_at), so the display range is just the first
+// unit's start to the last unit's start + 15 minutes.
+const formatSlotRange = (lead) => {
+  if (!lead.slots?.length) return null
+  const starts = lead.slots.map(s => new Date(s.starts_at))
+  const start = starts[0]
+  const end = new Date(starts[starts.length - 1].getTime() + 15 * 60 * 1000)
+  const time = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  return `${start.getFullYear()}/${start.getMonth() + 1}/${start.getDate()} ${time(start)}-${time(end)}`
+}
+
+// Earliest drip subscription across every course this email has ever joined —
+// answers "how long has this person been warmed", not "which course now".
+const firstDripSubscribedAt = (lead) => {
+  const subs = props.dripByEmail[lead.email]
+  if (!subs?.length) return null
+  return subs.reduce((earliest, s) => (
+    !earliest || new Date(s.subscribed_at) < new Date(earliest) ? s.subscribed_at : earliest
+  ), null)
+}
+
+// Calendar-day difference (not full 24h), so the number does not flicker
+// depending on what time of day the admin happens to look.
+const formatDripStart = (dateStr) => {
+  const d = new Date(dateStr)
+  const dateLabel = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+  const timeLabel = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate())
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000)
+  return `${dateLabel} ${timeLabel}（經過 ${days} 天）`
+}
+
 const applicationRows = (lead) => {
   const rows = [
     { label: '手機電話', value: lead.phone || '—' },
@@ -223,13 +259,18 @@ const applicationRows = (lead) => {
   if (lead.social_url) {
     rows.push({ label: '經營社群網址', value: lead.social_url, href: lead.social_url })
   }
-  if (lead.booking_code) {
-    rows.push({ label: '預約優惠碼', value: lead.booking_code })
+  const slotRange = formatSlotRange(lead)
+  if (slotRange) {
+    rows.push({ label: '預約時段', value: slotRange })
   }
   if (lead.confirmed_at) {
     rows.push({ label: 'Email 確認時間', value: formatDateTime(lead.confirmed_at) })
   } else {
     rows.push({ label: 'Email 確認', value: '尚未確認' })
+  }
+  const dripStart = firstDripSubscribedAt(lead)
+  if (dripStart) {
+    rows.push({ label: '序列信起始時間', value: formatDripStart(dripStart) })
   }
   if (lead.zoom_join_url) {
     rows.push({ label: 'Zoom 會議', value: lead.zoom_join_url, href: lead.zoom_join_url })

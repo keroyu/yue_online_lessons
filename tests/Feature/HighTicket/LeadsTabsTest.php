@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\HighTicket;
 
+use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\DripSubscription;
 use App\Models\HighTicketLead;
@@ -257,5 +258,47 @@ class LeadsTabsTest extends TestCase
         $this->actingAs($this->admin())
             ->get("/admin/courses/{$drip->id}/subscribers")
             ->assertNotFound();
+    }
+
+    /**
+     * 011 US9 補充 (T161) — the leads list's expandable questionnaire row shows
+     * the booked slot range instead of the bonus code, which means the lead's
+     * consultation_slots units must actually be eager-loaded onto the prop.
+     */
+    public function test_booking_leads_include_their_consultation_slots(): void
+    {
+        $course = $this->makeCourse();
+        $lead = HighTicketLead::create([
+            'name' => 'Booked', 'email' => 'booked@example.com',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+        $start = now()->addDay()->startOfHour();
+        ConsultationSlot::create(['starts_at' => $start, 'lead_id' => $lead->id]);
+        ConsultationSlot::create(['starts_at' => $start->copy()->addMinutes(15), 'lead_id' => $lead->id]);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('leads.data.0.slots', 2));
+    }
+
+    /**
+     * 011 US9 補充 (T162) — "序列信起始時間" needs subscribed_at on dripByEmail,
+     * which previously only shipped course_name/status.
+     */
+    public function test_booking_tab_drip_by_email_includes_subscribed_at(): void
+    {
+        $course = $this->makeCourse();
+        HighTicketLead::create([
+            'name' => 'Warmed', 'email' => 'warmed@test',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+        $drip = $this->makeDripCourse();
+        $this->subscribe($drip, 'warmed@test');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('dripByEmail.warmed@test.0.subscribed_at'));
     }
 }
