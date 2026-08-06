@@ -20,6 +20,8 @@ owner_files:
   - app/Services/ConsultationSlotService.php
   - app/Console/Commands/ReleaseExpiredBookingHolds.php
   - resources/js/Components/Course/HighTicketBookingWizard.vue
+  - resources/js/composables/useEmailReview.js
+  - resources/js/Components/EmailReviewNotice.vue
   - resources/js/Pages/Booking/Confirm.vue
   - resources/js/Pages/Admin/ConsultationSlots/Index.vue
   - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
@@ -297,7 +299,8 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
 - [x] 已登入者自動帶入 real_name / email（行為與現況相同）；重新申請時若該 email 已有 lead，問卷欄位預填既有值省得重打
 - [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為五條全 true，任一不符回 422 並 inline 顯示於對應欄位
-- [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約優惠碼、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
+- [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約時段、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
+- [ ] 展開列不再顯示「預約優惠碼」（原值仍存在 `booking_code`，只是後台不需要看它）；改顯示該筆已預約的時段，格式如「2026/8/8 14:00-15:45」，起訖時間由該 lead 名下 `consultation_slots`（依 `starts_at` 排序）取首尾單位換算 —— 起始單位的 `starts_at`，結束時間為末位單位 `starts_at + 15 分鐘`；lead 尚未選定時段（候補中）則不顯示此列
 - [x] 問卷填的手機號碼在 lead 轉為會員帳號時一併寫入 `users.phone`：兩個轉換點（`HighTicketLeadService::convertLead()` 開通、`SubscribeDripLeadJob` 加序列信）皆以 `firstOrCreate` 的建立屬性帶入 —— **既有會員維持原值不覆寫**（見 D43）
 - [x] RWD：手機上每個步驟單欄排列、承諾清單與覆核區不橫向溢出
 
@@ -1230,8 +1233,12 @@ Phase D — 驗證
 US3 補充
 - [x] T160 狀態 tab 顯示漏斗佔比（FR-067）：後端 `GROUP BY status` 聚合（與列表共用同一組搜尋 / 課程篩選、不含狀態篩選），前端算百分比並以 `title` 附實際筆數 in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Pages/Admin/HighTicketLeads/Index.vue` + `resources/js/Components/Admin/Leads/BookingListTab.vue` + `tests/Feature/HighTicket/LeadsTabsTest.php`
 
+US9 補充
+- [ ] T161 Leads 名單展開列拿掉「預約優惠碼」，改顯示已預約時段（取該 lead `slots` 首尾單位換算的起訖時間，格式「2026/8/8 14:00-15:45」；候補中無時段則不顯示此列）in `app/Http/Controllers/Admin/HighTicketLeadController.php`（`index()` 的 booking leads 查詢補 eager load `slots:id,lead_id,starts_at`）+ `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
 ## 進度日誌
 
+- 2026-08-05: /sync 對帳補登 —— `useEmailReview.js` 與 `EmailReviewNotice.vue`（US15 的 10 秒 Email 覆核，正典 FR-059）此前無任何模組宣告擁有，010 卻已在 touchpoints 指名 owner 為本模組。依該聲明補進 owner_files，全 repo 的 .php/.vue/.js 至此皆有唯一 owner。
 - 2026-08-06: 逾時未確認的預約申請改為連同 lead 一起刪除（FR-068 / D63）— 原本只釋放時段、lead 留在名單，導致「填完問卷但沒確認」的人堆積在待面談。改由 `purgeExpiredApplications()` 在釋放時段後刪除，`booking:release-holds` 每 10 分鐘執行；已確認（含事後取消）、管理員動過狀態、候補名單三類一律保留。連帶把確認頁 `invalid` 文案改寫 —— 清掃後同一連結會落到該分支，舊文案要人「直接使用信件中的連結」，但對方正是這麼做的。新增 ExpiredApplicationPurgeTest（8 tests），全套 501 passed。查證後同步修正一項既有 spec 敘述：US11 原寫「lead 保留於名單」，已隨本次改動更新。
 - 2026-08-05: 狀態 tab 加上漏斗佔比（T160 / FR-067）— 名單頁原本要看漏斗形狀得逐個狀態點進去、記下分頁總數再自己心算。百分比直接印在 tab 上，一眼看得出卡在哪一段。兩個決定值得記：（1）分母**不含狀態篩選** —— 若跟著篩選走，點進「待面談」會讓它變成 100%，數字反而騙人；（2）計數走後端 `GROUP BY`，不是拿當頁 20 筆算 —— 前端只看得到一頁，算出來的比例會隨翻頁跳動。搜尋 / 課程篩選則**要**吃進分母（「這門課的漏斗」是合理的問題），因此與列表共用同一個 query builder，避免兩邊條件日後漂移。四捨五入到 0 但實際有資料的顯示 `<1%`，免得剛起步的狀態看起來像沒有。
 - 2026-08-05: 規劃 US15 諮詢時段指派銷售顧問（已審核，開始實作） — 顧問要能順手開自己的時段並在自己信箱收到成立的預約，才可能自己安排行程。`consultation_slots` 與 `high_ticket_leads` 各加一個 `consultant_id`，前者是「這段時間屬於誰」、後者是確認當下的**快照**（時段會被改派、取消還會釋放回池子，靠即時查詢會查到錯的人，D58）。**關鍵限制寫進 D57**：`starts_at` 仍是全域 unique，所以這是「一本共用行事曆上的歸屬標記」，不是每位顧問各一本 —— 兩位顧問無法同時開放同一時刻。改成每人一本要連帶決定「訪客自己挑顧問還是系統分配」（商業決定）並重做公開選時段流程，是另一個 US；目前系統有 0 位顧問，先做標記不擋日後升級。CC 規則同時從三封收斂成一封（D59）：改期與取消本來就是人與人寫信談出來的結果，系統再補一封只是噪音；代價是管理員不再即時收到「有人送出申請」，但那筆申請照樣在名單的 pending。Zoom 主持人做成選填 + 404 fallback（D60），業主之後才會買席次，現在指定一定 404 —— 做好 fallback 等於買了席次當天自動生效，且 404 記 warning 不記 error，免得過渡期的假警報淹掉真故障。顧問權限隔離（只看自己的時段與 leads）明確不做。
