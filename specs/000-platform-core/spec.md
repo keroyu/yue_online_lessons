@@ -1,6 +1,6 @@
 ---
 id: 000-platform-core
-status: draft
+status: building
 owner_files:
   - app/Http/Controllers/Controller.php
   - app/Models/EmailSuppression.php
