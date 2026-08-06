@@ -243,12 +243,20 @@ const firstDripSubscribedAt = (lead) => {
 
 // Calendar-day difference (not full 24h), so the number does not flicker
 // depending on what time of day the admin happens to look.
-const formatDripStart = (dateStr) => {
+//
+// Counts to the booking's own confirmation time once it has one — the days
+// from "started receiving the sequence" to "confirmed this booking" is a
+// fixed fact about that conversion and should read the same forever, not
+// keep climbing every day the admin happens to reopen the row. Before
+// confirmation there is no such fixed endpoint yet, so it falls back to
+// counting up to today.
+const formatDripStart = (dateStr, confirmedAtStr) => {
   const d = new Date(dateStr)
   const dateLabel = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
   const timeLabel = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
   const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate())
-  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000)
+  const reference = confirmedAtStr ? new Date(confirmedAtStr) : new Date()
+  const days = Math.round((startOfDay(reference) - startOfDay(d)) / 86400000)
   return `${dateLabel} ${timeLabel}（經過 ${days} 天）`
 }
 
@@ -274,7 +282,7 @@ const applicationRows = (lead) => {
   }
   const dripStart = firstDripSubscribedAt(lead)
   if (dripStart) {
-    rows.push({ label: '序列信起始時間', value: formatDripStart(dripStart) })
+    rows.push({ label: '序列信起始時間', value: formatDripStart(dripStart, lead.confirmed_at) })
   }
   if (lead.zoom_join_url) {
     rows.push({ label: 'Zoom 會議', value: lead.zoom_join_url, href: lead.zoom_join_url })

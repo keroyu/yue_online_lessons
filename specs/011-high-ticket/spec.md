@@ -301,7 +301,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為五條全 true，任一不符回 422 並 inline 顯示於對應欄位
 - [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約時段、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
 - [x] 展開列不再顯示「預約優惠碼」（原值仍存在 `booking_code`，只是後台不需要看它）；改顯示該筆已預約的時段，格式如「2026/8/8 14:00-15:45」，起訖時間由該 lead 名下 `consultation_slots`（依 `starts_at` 排序）取首尾單位換算 —— 起始單位的 `starts_at`，結束時間為末位單位 `starts_at + 15 分鐘`；lead 尚未選定時段（候補中）則不顯示此列
-- [x] 展開列「Email 確認時間」之後新增「序列信起始時間」，格式如「2026/8/3 17:03（經過 3 天）」，用於追蹤該 email 被序列信加溫多久：取該 email 名下**所有**序列信訂閱（`dripByEmail`，不限課程、不限狀態）中 `subscribed_at` **最早**的一筆；天數為**日曆天差**（比較年月日，不比時分，避免數字隨查看時刻跳動）；該 email 完全沒有任何序列信訂閱時不顯示此列
+- [x] 展開列「Email 確認時間」之後新增「序列信起始時間」，格式如「2026/8/3 17:03（經過 3 天）」，用於追蹤該 email 被序列信加溫多久：取該 email 名下**所有**序列信訂閱（`dripByEmail`，不限課程、不限狀態）中 `subscribed_at` **最早**的一筆；天數為**日曆天差**（比較年月日，不比時分，避免數字隨查看時刻跳動）；該 email 完全沒有任何序列信訂閱時不顯示此列。**天數的比較終點**：該筆預約已確認（有 `confirmed_at`）時，比較終點固定為 `confirmed_at`——「序列信起始 → 確認預約」是已發生的歷史事實，天數算出來後不應再變動；尚未確認時終點才是「今天」，隨查看當下累加（2026-08-07 修正，原本一律比較到今天，導致已轉換的 lead 天數還在持續增加，見下方進度日誌）
 - [x] 問卷填的手機號碼在 lead 轉為會員帳號時一併寫入 `users.phone`：兩個轉換點（`HighTicketLeadService::convertLead()` 開通、`SubscribeDripLeadJob` 加序列信）皆以 `firstOrCreate` 的建立屬性帶入 —— **既有會員維持原值不覆寫**（見 D43）
 - [x] RWD：手機上每個步驟單欄排列、承諾清單與覆核區不橫向溢出
 
@@ -1237,10 +1237,12 @@ US3 補充
 US9 補充
 - [x] T161 Leads 名單展開列拿掉「預約優惠碼」，改顯示已預約時段（取該 lead `slots` 首尾單位換算的起訖時間，格式「2026/8/8 14:00-15:45」；候補中無時段則不顯示此列）in `app/Http/Controllers/Admin/HighTicketLeadController.php`（`index()` 的 booking leads 查詢補 eager load `slots:id,lead_id,starts_at`）+ `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [x] T162 展開列「Email 確認時間」後新增「序列信起始時間」：`dripByEmail` 的 map 補回 `subscribed_at`（目前只吐 `course_name` / `status`）；前端取該 email 名下所有訂閱中最早的 `subscribed_at`，以日曆天差算「經過 N 天」並與時間一併顯示；無任何序列信訂閱則不顯示此列 in `app/Http/Controllers/Admin/HighTicketLeadController.php` + `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T164 修正 T162 的天數終點：改比較到 `lead.confirmed_at`（已確認時），未確認才 fallback 比較到今天 —— 原本恆比較到今天，已確認的 lead 天數會隨查看日期持續增加，不是固定值 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [x] T163 補測試：booking leads 帶出 `slots`（eager load 生效）、`dripByEmail` 帶出 `subscribed_at` in `tests/Feature/HighTicket/LeadsTabsTest.php`
 
 ## 進度日誌
 
+- 2026-08-07: 修正「序列信起始時間」的天數計算（T164）——業主回報這個天數理應是「序列信起始到確認預約」的固定間隔，但原本（T162）一律拿「今天」當比較終點，導致已確認/已轉換的 lead 天數還在隨查看日期持續增加。改成：有 `confirmed_at` 就固定比較到那個時間點，尚未確認才 fallback 比較到今天。純前端計算修正，無需碰後端或資料庫。
 - 2026-08-07: 本模組擁有的 `useEmailReview.js` 更名為 `useDelayedConfirm.js`（010 US16 / D22）—— 那支 composable 做的一直是「兩段式確認＋倒數」，010 的第三個用途（停止接收確認，5 秒）連 Email 都沒有。函式同步改名，API 與 `HighTicketBookingWizard` 的行為、秒數（10）完全不變；`EmailReviewNotice.vue` 維持原名，它確實只服務 Email 覆核那塊 UI。FR-059 的規則不受影響。
 
 - 2026-08-06: Leads 展開列改版（T161–T163）— 「預約優惠碼」對後台沒有辨識價值（顧問只需要知道約在什麼時候），換成已預約時段（`slots` 首尾單位換算起訖）；另加「序列信起始時間」讓顧問一眼看出這個人被加溫多久，取該 email 名下所有序列信訂閱中最早的 `subscribed_at`、算日曆天差（不比時分，避免數字隨查看時刻抖動）。兩個值都跟著既有「有值才顯示」慣例，候補中無時段、從未加過序列信的 lead 不顯示對應列。新增 2 個測試（先紅後綠：拿掉 eager load / `subscribed_at` 欄位重跑確認會壞），全套 503 passed、`npm run build` 綠。
