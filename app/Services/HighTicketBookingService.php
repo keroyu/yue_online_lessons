@@ -275,7 +275,7 @@ class HighTicketBookingService
             $meeting = $zoom->createMeeting(
                 $startsAt,
                 $this->slots->minutesFor($lead->booking_code),
-                "{$course->name} 1v1 諮詢 - {$lead->name}",
+                "{$lead->name} 諮詢",
                 // Falls back to the owner's account when the consultant has no
                 // Zoom seat yet (FR-063).
                 $lead->consultant_id ? \App\Models\User::whereKey($lead->consultant_id)->value('email') : null

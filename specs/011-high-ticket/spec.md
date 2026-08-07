@@ -354,7 +354,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 
 **驗收**：
 - [x] Zoom 憑證走 **Server-to-Server OAuth**，三個值（`account_id` / `client_id` / `client_secret`）由管理員在後台「API 設定」頁（`/admin/settings/payment`）填寫，存 `site_settings`，沿用該頁既有的遮罩式密鑰處理：`client_secret` 為 secret 欄位（顯示 `maskSecret()` 預覽、留白即維持原值、填了才覆寫），`account_id` / `client_id` 為一般欄位可直接顯示（見 D41）
-- [x] `ZoomMeetingService::createMeeting()`：以 `account_credentials` 換 access token（快取 55 分鐘，Zoom token 效期 1 小時）→ `POST /v2/users/me/meetings` 帶 `start_time`（該時段 UTC）、`duration`（30 或 45）、`timezone: Asia/Taipei`、`topic`（課程名 + 申請人暱稱）；回傳 `meeting_id` 與 `join_url`
+- [x] `ZoomMeetingService::createMeeting()`：以 `account_credentials` 換 access token（快取 55 分鐘，Zoom token 效期 1 小時）→ `POST /v2/users/me/meetings` 帶 `start_time`（該時段 UTC）、`duration`（30 或 45）、`timezone: Asia/Taipei`、`topic`（`{申請人姓名} 諮詢`，2026-08-07 簡化，原為「課程名 + 1v1 諮詢 + 申請人姓名」，過長）；回傳 `meeting_id` 與 `join_url`
 - [x] 確認流程改為：`confirmed_at` 落地 → **同步建好會議、寫回 lead、才寄出**「客製服務預約確認」信（原為派送 `CreateZoomMeetingJob`，2026-08-05 改為同步，見 D55）
 - [x] 確認頁文案不變（「確認已完成預約，相關資料已寄出」），信件抵達有數秒延遲屬正常
 - [x] `high_ticket_booking_confirmation` 模板新增變數 `{{zoom_join_url}}`；模板可自由決定要不要放
@@ -1264,9 +1264,11 @@ US14 補充
 - [x] T172 使用者以瀏覽器實測：選取遠離頁面頂端的預約區塊、捲動頁面時面板跟著移動、視窗邊緣與最上排區塊時的夾擠／翻轉是否符合預期、手機單日檢視切換時面板正確收起
 - [x] T173 面板改期／取消預約／關閉三顆按鈕包成同一個 `flex items-center gap-2` 子容器（不再各自獨立參與外層 `flex-wrap`），外層空間不足時整組一起換行，不會斷在「改期」與「取消預約」中間（使用者回報）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
 - [x] T174 面板換行後右側留白（使用者回報）：兩個面板外層容器由 `flex` 改 `inline-flex`——`position: fixed` 的外層 `panelRef` 本身是 auto 寬，內層若是 `flex`（block-level）會反過來撐滿外層算出的寬度，兩個 auto 寬互相依賴時瀏覽器的 shrink-to-fit 計算會用「未換行前」的最大內容寬，換行後兩行實際內容都比容器窄，右側留白。`inline-flex` 讓內層自己以 shrink-to-fit（依照換行後的實際版面）量寬，外層再照內層量到的寬度收邊 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T175 Zoom 會議 `topic` 由 `"{$course->name} 1v1 諮詢 - {$lead->name}"` 簡化為 `"{$lead->name} 諮詢"`（業主回報名稱太長）in `app/Services/HighTicketBookingService.php`
 
 ## 進度日誌
 
+- 2026-08-07: Zoom 會議 `topic` 簡化（T175）— 業主回報原本「課程名 + 1v1 諮詢 + 申請人姓名」太長，改為「申請人姓名 諮詢」。TDD：先在 `ZoomMeetingTest::test_meeting_request_carries_the_slot_time_and_length` 加 `topic` 斷言確認紅，再改 `HighTicketBookingService::createMeetingAndConfirm()` 一行後綠。全套 523 passed，不涉及前端。
 - 2026-08-07: 修正懸浮面板換行後的留白（T174）— 業主回報按鈕換到第二行後，面板右側留下一大塊詭異的空白。根因是 `position: fixed` 的外層容器是 auto 寬，內層 `flex` 容器是 block-level 元素會撐滿外層，兩個「auto 寬互相依賴」的框在瀏覽器算 shrink-to-fit 時是用換行前（單行）的最大內容寬去定外層寬度，換行後兩行實際內容都比這個寬度窄，就留白在右邊。內層改 `inline-flex` 後自己先以換行後的實際版面量寬，外層才不會抓錯數字。純樣式調整，`npm run build` 綠、全套 523 passed。
 - 2026-08-07: 修正懸浮面板的按鈕換行（T173）— 業主回報「改期／取消預約」剛好斷行在中間，很怪異。外層是 `flex-wrap`，三顆按鈕各自是獨立的 flex item，換行時是逐顆換而非整組換。包成一個不換行的子容器後，三顆按鈕永遠一起出現在同一行，空間不足時整組一起掉到下一行。純樣式調整，`npm run build` 綠、全套 523 passed（不涉及邏輯，未新增測試）。
 - 2026-08-07: 諮詢時段頁兩項體驗修正（T165–T171 / D65 / D66）。(1) 圖例旁補上三個真實狀態的**全站累計**數量：`ConsultationSlotService::statusCounts()` 用三條獨立 count 查詢，可預約／暫留中只算未來（`scopeUpcoming`），已預約不分過去未來全部算（=總共成交幾場）；「未釋出」代表未來無限時間、沒有天然分母，刻意不接數字。(2) 選取預約區塊跳出的改期／取消面板，原本固定在行程表右上角，頁面捲到下方就看不到——改為 `position: fixed` + `getBoundingClientRect()` 追蹤區塊、`<Teleport to="body">` 確保疊在最上層，開啟期間掛 `scroll`（capture）/`resize` 監聽器即時重算；水平置中並夾在視窗邊界內，上方空間不足自動翻到區塊下方。選 `position: fixed` 而非把面板做成區塊的絕對定位子元素，是因為行事曆包在 `overflow-x-auto` 容器裡，CSS 規則會讓垂直方向也一併被裁切，面板往上浮在較前面幾列會直接消失。手機單日／週檢視切換時面板直接收起（版面切換後錨點 DOM 節點可能已被置換）。全套 523 passed、`npm run build` 綠。T172 業主瀏覽器實測通過。

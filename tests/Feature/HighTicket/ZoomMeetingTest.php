@@ -211,7 +211,8 @@ class ZoomMeetingTest extends TestCase
 
             return $request['duration'] === 45
                 && $request['timezone'] === 'Asia/Taipei'
-                && $request['start_time'] === $lead->slots()->first()->starts_at->format('Y-m-d\TH:i:s\Z');
+                && $request['start_time'] === $lead->slots()->first()->starts_at->format('Y-m-d\TH:i:s\Z')
+                && $request['topic'] === "{$lead->name} 諮詢";
         });
     }
 }
