@@ -92,6 +92,33 @@ class SlotHoldTest extends TestCase
         $this->assertCount(2, $this->service()->availableStarts(30));
     }
 
+    /**
+     * FR-069: every quarter-hour from 10:00 to 11:00 has three consecutive
+     * units behind it (10:15's would be 10:15/10:30/10:45), so the old logic
+     * would offer :15 and :45 too. Only :00 and :30 may surface.
+     */
+    public function test_forty_five_minute_starts_are_limited_to_the_hour_or_half_hour(): void
+    {
+        $this->makeSlots('+1 day 10:00', 5);
+
+        $starts = collect($this->service()->availableStarts(45))
+            ->map(fn ($at) => $at->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'))
+            ->all();
+
+        $this->assertSame(['10:00', '10:30'], $starts);
+    }
+
+    public function test_thirty_minute_starts_are_not_restricted_to_the_hour_or_half_hour(): void
+    {
+        $this->makeSlots('+1 day 10:00', 3);
+
+        $starts = collect($this->service()->availableStarts(30))
+            ->map(fn ($at) => $at->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'))
+            ->all();
+
+        $this->assertSame(['10:00', '10:15'], $starts);
+    }
+
     public function test_past_slots_are_never_offered(): void
     {
         $this->makeSlots('-1 day 10:00', 4);

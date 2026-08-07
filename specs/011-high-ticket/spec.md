@@ -319,6 +319,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 前台 Step 3 呼叫 `GET /course/{course}/booking-slots?code=`，只回傳「**該起始單位起連續 N 個單位皆可用**」的起始時間（N = 諮詢長度 ÷ 15）；跨日與跨不連續區間的組合 MUST NOT 出現
 - [x] 預設諮詢長度 30 分鐘（2 單位）。時段區塊上方有「預約優惠碼（選填）」輸入框，填入命中 `site_settings.high_ticket_booking_bonus_codes` 的碼後即時重查時段，長度變 45 分鐘（3 單位）並顯示「已套用，諮詢延長為 45 分鐘」
 - [x] 優惠碼比對忽略大小寫與前後空白；無效碼**不擋流程**，顯示「此優惠碼無效，將以 30 分鐘進行」後照常可選時段（見 D31）
+- [x] 45 分鐘（優惠碼延長）時段的可選起始時間 MUST 只落在整點或半點（`:00`/`:30`，以台北時間判定），`:15`/`:45` 不得出現於清單；30 分鐘預設時段不受此限制，起始時間維持每 15 分鐘一個選項（FR-069）
 - [x] 時段以「日期分組 + 時間按鈕」呈現，只列出今天之後、尚有可用組合的日期；完全沒有可預約時段時顯示空狀態「目前沒有開放的時段」並提供「通知我有新時段」的既有預約行為（仍建 lead、狀態 pending，等管理員用 US4 通知）
 - [x] 候補的 lead 產生永久 `resume_token`；US4 的「新時段通知」信帶 `{{booking_url}}` 深連結，點入即以**已填資料**開在第 3 步（選時段），承諾自動視為已接受，不必重填問卷（見 FR-042 / D44）
 - [x] 送出申請時後端 MUST 重新驗證所選時段仍可用（前端清單可能已過期）；被搶走回 409「該時段剛被預約，請重新選擇」，前端自動重查時段清單
@@ -690,6 +691,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
 - **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者
+
+- **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` 在 `$minutes >= 45`（優惠碼延長）時，MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻；`$minutes` 為預設 30 分鐘時不過濾，維持每 15 分鐘一個起始選項。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依長度篩選分鐘數，兩條規則不互相依賴。業主回報 45 分鐘場若允許 `:15`/`:45` 起訖，跟顧問既有的整點／半點行事曆習慣對不上。
 
 ## 設計決策
 
@@ -1268,9 +1271,12 @@ US14 補充
 - [x] T175 Zoom 會議 `topic` 由 `"{$course->name} 1v1 諮詢 - {$lead->name}"` 簡化為 `"{$lead->name} 諮詢"`（業主回報名稱太長）in `app/Services/HighTicketBookingService.php`
 - [x] T176 第 4 步「送出申請」按鈕正上方加一行小字「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」（`text-xs text-gray-500`）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T177 承諾清單三條文案改寫（FR-026）；三個 `<label>` 包進獨立 `space-y-2` 容器，脫離外層 `space-y-4` 縮小選項間距（業主回報）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T178 `availableStarts()` 依 FR-069 篩選：`$minutes >= 45` 時只保留台北時間分鐘數為 0 或 30 的起始 in `app/Services/ConsultationSlotService.php`
+- [x] T179 新增測試：45 分鐘起始清單不含 `:15`/`:45`、30 分鐘起始清單不受影響、篩選發生在連續性判定之後 in `tests/Feature/HighTicket/SlotHoldTest.php`
 
 ## 進度日誌
 
+- 2026-08-07: 45 分鐘場起始時間限制整點／半點（T178/T179 / FR-069）— 業主回報 45 分鐘（優惠碼延長）場次不該出現 `20:15`/`20:45` 這種起始時間，跟顧問既有整點／半點的行事曆習慣對不上。`availableStarts()` 在既有的「N 個連續單位皆可用」判定之後，多一層依台北時間分鐘數（0/30）過濾，只在 `$minutes >= 45` 時生效；30 分鐘預設場次不受影響。TDD：先寫兩個測試（45 分鐘濾掉 `:15`、30 分鐘不受限）確認前者紅（未過濾時回傳 `10:00/10:15/10:30`），加篩選後綠。全套 526 passed，純後端改動。
 - 2026-08-07: 承諾清單文案改寫＋間距調整（T177 / FR-026）— 三條文案改為「我有明確想改善的問題…」「我願意接受務實建議…」「如果確認方向適合…」；業主回報三個選項之間縫隙太大（因為外層 `space-y-4` 把選項間距、標題到清單的段落間距混在一起），把三個 `<label>` 包進獨立 `space-y-2` 容器脫離外層間距。純文案／樣式，未寫測試。
 - 2026-08-07: 第 4 步送出前加名額說明小字（T176）— 覆核區送出按鈕上方加一行「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」純文案樣式改動，未寫測試（純樣式／文案可略過 TDD）。`npm run build` 綠、全套 523 passed。
 - 2026-08-07: Zoom 會議 `topic` 簡化（T175）— 業主回報原本「課程名 + 1v1 諮詢 + 申請人姓名」太長，改為「申請人姓名 諮詢」。TDD：先在 `ZoomMeetingTest::test_meeting_request_carries_the_slot_time_and_length` 加 `topic` 斷言確認紅，再改 `HighTicketBookingService::createMeetingAndConfirm()` 一行後綠。全套 523 passed，不涉及前端。
