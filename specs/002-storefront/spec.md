@@ -372,7 +372,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-004**: referrer 黑名單 MUST 含自站網域與金流回跳網域（payuni.com.tw、newebpay.com），避免付款回跳覆蓋真實來源。
 - **FR-005**: 課程路由綁定 MUST 先以 slug 再 fallback id 解析（`Course::resolveRouteBinding`），舊 id 連結不失效。
 - **FR-006**: 分類 slug 改名 cascade 以「格位」比對新舊值，僅在同格位 slug 變更時執行，避免誤改。
-- **FR-007**: 銷售頁 Markdown 渲染（marked v17）放行原生 HTML/iframe——內容僅管理員可寫，屬信任輸入。`description`（lead 區塊）與 `description_md`（完整介紹）皆適用，前者額外帶 `breaks: true` 以保留舊有純文字內容的換行。
+- **FR-007**: 銷售頁 Markdown 渲染（marked v17）放行原生 HTML/iframe——內容僅管理員可寫，屬信任輸入。`description`（lead 區塊）與 `description_md`（完整介紹）**皆帶 `breaks: true`**（2026-08-08 修正，見 FR-032）——單一 Enter 即換行、空行仍為新段落，與教室／連鎖信一致。
 - **FR-008**: 橫幅圖存於 `Storage::disk('public')` 的 `hero-banner/` 目錄；替換或刪除時 MUST 一併刪除舊檔，避免孤兒檔案累積。
 - **FR-009**: 精選課程 blurb 上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server 端 max:500）。
 - **FR-010**: UTM 參數捕捉 MUST trim 後截斷長度（UTM 100 字、click id 255 字）再寫入 session，防止超長 query 汙染資料。
@@ -403,6 +403,12 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-030**: `SidebarService::widgets()` 的 `featuredCourses` 項目 MUST 帶 `course_type`，供 `FeaturedCourses.vue` 判斷是否為 drip 商品並切換 CTA 樣式（見 US6）。動態效果 MUST 為 CSS `@keyframes` 的持續輕微縮放／陰影呼吸（比照 `Course/PriceDisplay.vue` 既有的 `animate-pulse-once` 寫法，寫成 scoped style），不使用 Tailwind `animate-pulse`（淡出效果在小按鈕上偏向「壞掉」而非「醒目」）。
 
 - **FR-028**: 戳章 MUST 發生在寄信當下（`SendDripEmailJob` / `NewsletterBroadcastMail`），MUST NOT 落庫 —— `md_content` 與 `posts.body_md` 存的永遠是乾淨網址。理由：戳章規則會演進（新增管道、改 utm 命名），落庫等於把當下的規則凍進資料，改規則要 migration 重寫所有內文；且同一篇文章在站上與信裡的網址會分岔。
+
+- **FR-031**: 兩個文章列表 widget 的排序責任互不重疊（2026-08-08 修正，業主回報「精選」目前只影響到不該影響的那一個）：
+  - `SidebarService::widgets()` 的「近期文章」（`blogArticles`，側欄，首頁與 Blog/Show 共用）MUST 純粹依 `published_at desc` 排序，**MUST NOT** 依 `is_featured` 排序 —— 它的語意是「最新」，加了精選優先就不再是近期
+  - `HomeController::index()` 的「熱門文章」（`popularPosts`，首頁主欄 `HomePostList.vue`）MUST 依 `is_featured desc, view_count desc, published_at desc` 排序 —— 精選文章一律排最前，非精選文章之間才比熱門度；「精選」是編輯判斷、「熱門」是數據結果，精選 MUST 蓋過熱門排序，不是併入熱門度計分
+
+- **FR-032**: `Course/Show.vue` 的 `renderedDescription`（`course.description_md`，課程介紹主文）MUST 以 `marked(content, { breaks: true })` 渲染（2026-08-08 修正，業主回報「必須按兩次 Enter 才換行」是老問題）。此條**推翻** 003-classroom D13 對這個檔案的排除決定——D13 當時把它定性為「銷售頁長文案，段落語意是刻意的」而故意不改；業主的實際使用回饋是單行不換行才是真正的問題，段落語意的假設不成立。至此站內所有面向使用者的 Markdown 呈現（教室 `HtmlContent`、連鎖信 `EmailMarkdownService`、留客區塊 `FreeSuccessBlock`、lead intro、課程介紹）語意一致；唯一保留 CommonMark 段落語意（不帶 `breaks`）的是部落格 `PostService::toHtml`——那是編輯過的長文章，換行語意的判斷留給下一次業主明確反映，不在本次動。
 
 ## 設計決策
 
@@ -583,8 +589,21 @@ Phase D — 驗證（相依 B + C）
 - [x] T056 `widgets()` 的 `featuredCourses` map 補 `course_type`（with 的欄位一併加）in app/Services/SidebarService.php
 - [x] T057 CTA 依 `course.course_type === 'drip'` 切換樣式與文案；drip 版按鈕圓角、`bg-brand-gold`/`hover:bg-brand-gold-dark`、文字「立即領取」、scoped `@keyframes` 呼吸動態；非 drip 維持原樣 in resources/js/Components/FeaturedCourses.vue
 
+## Tasks（近期文章／熱門文章排序責任修正）
+
+- [x] T058 `widgets()` 的 `blogArticles` 查詢移除 `orderByDesc('is_featured')`，只留 `orderByDesc('published_at')`（FR-031）in app/Services/SidebarService.php
+- [x] T059 `index()` 的 `$popularPosts` 查詢加 `orderByDesc('is_featured')` 於現有排序**之前**（FR-031）in app/Http/Controllers/HomeController.php
+- [x] T060 新增測試：近期文章不因 is_featured 提前、熱門文章的精選項目排最前且蓋過 view_count in tests/Feature/Storefront/PostListOrderingTest.php
+
+## Tasks（課程介紹單行換行修正）
+
+- [x] T061 `renderedDescription` computed 改 `marked(props.course.description_md || '', { breaks: true })`（FR-032）in resources/js/Pages/Course/Show.vue
+- [x] T062 `npm run build` exit 0；同步更正 003-classroom D13 對此檔案「不改」的描述，使其不再失真（touchpoint，owner 003-classroom）in specs/003-classroom/spec.md
+
 ## 進度日誌
 
+- 2026-08-08: 課程介紹單行換行修正（T061/T062 / FR-032）— 業主回報課程介紹（`description_md`）必須按兩次 Enter 才會換行，是老問題。查證發現這其實是昨天（8/7）003-classroom D13 修教室內文換行時的一個明確排除項——當時把它定性為「銷售頁長文案，段落語意刻意保留」而故意不改，理由沒有成立：業主的實際回饋就是要單行即換行。`renderedDescription` 的 `marked()` 呼叫補 `{ breaks: true }`，跟站內其餘 Markdown 呈現（教室 `HtmlContent`、連鎖信、留客區塊、lead intro）對齊。同步改寫 003-classroom D13 的文字，使其不再宣稱這個檔案沒被動到。純樣式改動，略過 TDD。`npm run build` 綠、全套 530 passed（不涉及後端，測試數不變）。
+- 2026-08-08: 近期文章／熱門文章排序責任修正（T058–T060 / FR-031）— 業主回報「精選文章」目前只影響到首頁側欄「近期文章」，但那裡的語意應該是純時間序；真正該吃精選優先的是首頁主欄「熱門文章」（`HomePostList.vue`／`HomeController::$popularPosts`），原本完全沒接 `is_featured`。改法：`SidebarService::widgets()` 的 `blogArticles` 拿掉 `orderByDesc('is_featured')` 只留 `published_at desc`；`HomeController::index()` 的 `$popularPosts` 加 `orderByDesc('is_featured')` 排在 `view_count`/`published_at` 之前。TDD：新增 `PostListOrderingTest`（近期文章不因精選提前一顆、熱門文章精選項目蓋過高瀏覽數項目），先紅後綠。全套 530 passed，純後端改動。
 - 2026-08-08: 精選推薦 drip 商品 CTA 改版（T056/T057 / FR-030）— `SidebarService::widgets()` 的 `featuredCourses` 補 `course_type`；`FeaturedCourses.vue` 依此判斷 drip 商品，CTA 換成圓角 `bg-brand-gold` 按鈕、文字「立即領取」、`@keyframes` 輕微縮放＋陰影呼吸的 subtle 動態效果（非 Tailwind `animate-pulse`，那個淡出效果在小按鈕上偏向像壞掉）；非 drip 商品維持原「立即了解」深色按鈕。純樣式／文案／設定檔改動，略過 TDD。`npm run build` 綠、全套 526 passed。
 - 2026-08-06: 短網址管理併入行銷分析頁成為分頁（US15）。兩者都在回答「這個行銷動作帶來多少點擊」，分成兩個側欄入口只是因為它們先後被做出來。實作重點：`?tab=` 決定並**只組裝該分頁的資料**（FR-029），進短網址分頁不跑漏斗彙總；短網址的擁有權仍留在 000（表、寫入端點、`ShortLinkTab.vue`），002 只提供承載的頁面與分派，否則等於把別人的功能整組搬進自己模組（D39）；舊路徑 `/admin/short-links` 保留為 302 轉址而非刪除，它進過側欄也可能進過書籤（D40）。兩個分頁本體抽成 `TrafficTab.vue` / `ShortLinkTab.vue`，標題與分頁列留在 shell。側欄一併重排（見 000 日誌）。ShortLinkTest 補 3 個測試（轉址、分頁載入、流量分頁不載短網址），全套 521 passed、vite build 綠。
 

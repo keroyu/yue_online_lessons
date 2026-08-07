@@ -239,7 +239,7 @@ touchpoints:
 - **D12**: `CloudflareStreamService` 介面：`signedEmbedUrl(string $uid): ?string`（內含 JWT 組裝：header `{alg: RS256, kid}` + payload `{sub: uid, kid, exp: now+TTL}`，openssl_sign 後 base64url 拼接）；`VideoEmbedService::parse` 的 cloudflare `embed_url` 回未簽名 iframe URL（維持回傳 shape 一致，教室端不使用它）
 - **D13**: `HtmlContent` 補 `breaks: true`，讓教室與 Email 對同一份 `md_content` 給出相同換行語意。原本教室走 CommonMark 預設（單行併段），Email 端已於 011 FR-021 改成 hard break，兩邊分歧：作者在小節編輯器打一次 Enter，信裡有換行、教室裡沒有。站內其餘 Markdown 呈現（`AssignmentSection`、`CommentThread`、`Admin/Homework`、`EmailTemplates/Edit`）本來就帶 `breaks: true`，`HtmlContent` 是唯一漏網的。
   - 影響範圍：所有課程的小節內文。既有內容多半以連按兩次 Enter（`\n\n`）寫成，那是段落、不受影響；真正改變的只有目前被併行的單行，而那些正是作者本來就想換行的地方。
-  - 不改 `Pages/Course/Show.vue` 的 `renderedDescription`（銷售頁長文案，段落語意是刻意的）與 `PostForm`/部落格（`PostService` 已明文保留 CommonMark 段落語意）。
+  - 當時不改 `Pages/Course/Show.vue` 的 `renderedDescription`（判斷銷售頁長文案的段落語意是刻意的），但 2026-08-08 業主回報「必須按兩次 Enter 才換行」是老問題，證明該假設不成立——`renderedDescription` 已於 002 FR-032 補上 `breaks: true`，理由與這裡相同。`PostForm`/部落格（`PostService`）維持不動，段落語意未收到相同回饋。
 
 ## Schema
 

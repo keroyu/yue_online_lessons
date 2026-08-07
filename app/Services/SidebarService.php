@@ -41,9 +41,9 @@ class SidebarService
             'intro'     => $settings->get('sns_profile_intro'),
         ] : null;
 
-        // "近期文章" widget: featured first, then latest.
+        // "近期文章" widget: pure chronology — "featured" belongs to the
+        // homepage's "熱門文章" list instead (FR-031).
         $blogArticles = Post::published()
-            ->orderByDesc('is_featured')
             ->orderByDesc('published_at')
             ->take(5)
             ->get(['slug', 'title', 'excerpt', 'cover_image_path', 'published_at'])

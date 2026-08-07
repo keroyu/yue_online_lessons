@@ -428,7 +428,9 @@ const closeLegalModal = () => {
 
 // marked.js v17 passes raw HTML (including <iframe> embeds) through by default.
 // Do NOT add DOMPurify here — admin content is trusted and iframes must be preserved.
-const renderedDescription = computed(() => marked(props.course.description_md || ''))
+// breaks:true (002 FR-032) so a single Enter in the admin editor is one line
+// break here, matching every other Markdown surface on the site.
+const renderedDescription = computed(() => marked(props.course.description_md || '', { breaks: true }))
 
 // The lead intro shares the description_md styling. breaks:true keeps single
 // newlines meaningful for the plain-text descriptions written before Markdown

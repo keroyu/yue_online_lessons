@@ -56,9 +56,11 @@ class HomeController extends Controller
             'banner_url'   => $bannerPath ? Storage::url($bannerPath) : null,
         ];
 
-        // Main-column list block: the 5 most-viewed posts.
+        // Main-column list block: featured posts first (editorial call), then
+        // the most-viewed among the rest (FR-031).
         $popularPosts = Post::published()
             ->with('tags:id,name')
+            ->orderByDesc('is_featured')
             ->orderByDesc('view_count')
             ->orderByDesc('published_at')
             ->take(5)
