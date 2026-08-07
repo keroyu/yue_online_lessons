@@ -294,6 +294,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] Step 2：問卷按「下一步」後顯示承諾條件清單（三條，文案見 FR-026），三個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
 - [x] Step 4：選完時段後顯示**申請資料覆核區**，逐欄列出 Step 1–3 的所有輸入值（含所選時段與諮詢長度），每欄可點「修改」跳回該步驟且保留已填內容
 - [x] 覆核區下方 MUST 顯示不出席警語：「若確定預約卻無故不出席，我們將永久黑名單。」以警示樣式（amber/red 底）呈現，不可摺疊、不可略過
+- [x] 「送出申請」按鈕正上方 MUST 顯示一行說明小字：「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」灰階小字（`text-xs text-gray-500`），不影響送出邏輯，不出現在第 3 步候補送出（「送出申請並等候通知」）
 - [x] 「送出申請」為單一 `POST /course/{course}/book`（axios，沿用 D1 非同步）；送出後 inline 顯示待確認提示（US11），全程不換頁
 - [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
 - [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
@@ -526,11 +527,11 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **FR-024**: 兩個 tab 的篩選參數各用各的命名：預約名單沿用 `status` / `search` / `course_id`（既有網址不得失效），訂閱者名單用 `sub_course` / `sub_status`。**MUST NOT 共用 `status`** —— 兩邊的狀態 enum 完全不同（pending/contacted/no_response/converted/closed vs active/booked/converted/completed/unsubscribed），共用會讓切 tab 後帶著一個對方不認得的值。`page` 可共用（一次只渲染一個列表）
 
 - **FR-026**: 承諾條件清單的三條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
-  1. 我已有初步想法，願意投入時間學習並持續執行，而不是隨意了解。
-  2. 我願意接受務實建議，調整原本的想法與做法。
-  3. 如果確認方向適合，我願意採取下一步，而不是只停留在想像階段。
+  1. 我有明確想改善的問題，有意投入時間學習並持續執行。
+  2. 我願意接受務實建議，也願意調整原本的想法與做法。
+  3. 如果確認方向適合，我願意認真評估並採取下一步行動。
 
-  三條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 3 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，三條全真才寫入，存了也只會是三個 true（見 D30）
+  三條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 3 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，三條全真才寫入，存了也只會是三個 true（見 D30）。三個選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
 
 - **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）。
   **前端 MUST 同步擋下**（2026-08-05 追加）：`social_url` 格式錯誤時 MUST NOT 讓使用者離開第 1 步，且第 4 步覆核區 MUST 把該列標紅、附修正提示並停用送出鈕 —— 只靠後端 422 的話，使用者要按完「送出申請」才被丟回第 1 步，而覆核畫面在那之前完全看不出哪裡有問題。判定用 `new URL()` 而非 regex（瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與危險的 `javascript:`）；空字串一律略過（選填）。
@@ -1265,9 +1266,13 @@ US14 補充
 - [x] T173 面板改期／取消預約／關閉三顆按鈕包成同一個 `flex items-center gap-2` 子容器（不再各自獨立參與外層 `flex-wrap`），外層空間不足時整組一起換行，不會斷在「改期」與「取消預約」中間（使用者回報）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
 - [x] T174 面板換行後右側留白（使用者回報）：兩個面板外層容器由 `flex` 改 `inline-flex`——`position: fixed` 的外層 `panelRef` 本身是 auto 寬，內層若是 `flex`（block-level）會反過來撐滿外層算出的寬度，兩個 auto 寬互相依賴時瀏覽器的 shrink-to-fit 計算會用「未換行前」的最大內容寬，換行後兩行實際內容都比容器窄，右側留白。`inline-flex` 讓內層自己以 shrink-to-fit（依照換行後的實際版面）量寬，外層再照內層量到的寬度收邊 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
 - [x] T175 Zoom 會議 `topic` 由 `"{$course->name} 1v1 諮詢 - {$lead->name}"` 簡化為 `"{$lead->name} 諮詢"`（業主回報名稱太長）in `app/Services/HighTicketBookingService.php`
+- [x] T176 第 4 步「送出申請」按鈕正上方加一行小字「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」（`text-xs text-gray-500`）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T177 承諾清單三條文案改寫（FR-026）；三個 `<label>` 包進獨立 `space-y-2` 容器，脫離外層 `space-y-4` 縮小選項間距（業主回報）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 
 ## 進度日誌
 
+- 2026-08-07: 承諾清單文案改寫＋間距調整（T177 / FR-026）— 三條文案改為「我有明確想改善的問題…」「我願意接受務實建議…」「如果確認方向適合…」；業主回報三個選項之間縫隙太大（因為外層 `space-y-4` 把選項間距、標題到清單的段落間距混在一起），把三個 `<label>` 包進獨立 `space-y-2` 容器脫離外層間距。純文案／樣式，未寫測試。
+- 2026-08-07: 第 4 步送出前加名額說明小字（T176）— 覆核區送出按鈕上方加一行「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」純文案樣式改動，未寫測試（純樣式／文案可略過 TDD）。`npm run build` 綠、全套 523 passed。
 - 2026-08-07: Zoom 會議 `topic` 簡化（T175）— 業主回報原本「課程名 + 1v1 諮詢 + 申請人姓名」太長，改為「申請人姓名 諮詢」。TDD：先在 `ZoomMeetingTest::test_meeting_request_carries_the_slot_time_and_length` 加 `topic` 斷言確認紅，再改 `HighTicketBookingService::createMeetingAndConfirm()` 一行後綠。全套 523 passed，不涉及前端。
 - 2026-08-07: 修正懸浮面板換行後的留白（T174）— 業主回報按鈕換到第二行後，面板右側留下一大塊詭異的空白。根因是 `position: fixed` 的外層容器是 auto 寬，內層 `flex` 容器是 block-level 元素會撐滿外層，兩個「auto 寬互相依賴」的框在瀏覽器算 shrink-to-fit 時是用換行前（單行）的最大內容寬去定外層寬度，換行後兩行實際內容都比這個寬度窄，就留白在右邊。內層改 `inline-flex` 後自己先以換行後的實際版面量寬，外層才不會抓錯數字。純樣式調整，`npm run build` 綠、全套 523 passed。
 - 2026-08-07: 修正懸浮面板的按鈕換行（T173）— 業主回報「改期／取消預約」剛好斷行在中間，很怪異。外層是 `flex-wrap`，三顆按鈕各自是獨立的 flex item，換行時是逐顆換而非整組換。包成一個不換行的子容器後，三顆按鈕永遠一起出現在同一行，空間不足時整組一起掉到下一行。純樣式調整，`npm run build` 綠、全套 523 passed（不涉及邏輯，未新增測試）。

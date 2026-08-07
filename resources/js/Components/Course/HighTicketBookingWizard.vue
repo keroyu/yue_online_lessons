@@ -24,9 +24,9 @@ const STEPS = [
 ]
 
 const COMMITMENTS = [
-  '我已有初步想法，願意投入時間學習並持續執行，而不是隨意了解。',
-  '我願意接受務實建議，調整原本的想法與做法。',
-  '如果確認方向適合，我願意採取下一步，而不是只停留在想像階段。',
+  '我有明確想改善的問題，有意投入時間學習並持續執行。',
+  '我願意接受務實建議，也願意調整原本的想法與做法。',
+  '如果確認方向適合，我願意認真評估並採取下一步行動。',
 ]
 
 // A waitlisted applicant coming back from the slot-available mail already
@@ -531,15 +531,17 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
       <div v-show="step === 2" class="mt-6 space-y-4">
         <p class="text-sm font-semibold text-gray-900">預約前，請先確認：</p>
 
-        <label
-          v-for="(text, i) in COMMITMENTS"
-          :key="i"
-          class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition"
-          :class="commitments[i] ? 'border-brand-teal/40 bg-brand-teal/5' : 'border-gray-200 hover:bg-gray-50'"
-        >
-          <input v-model="commitments[i]" type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand-teal focus:ring-brand-teal cursor-pointer" />
-          <span class="text-sm text-gray-700 leading-relaxed">{{ text }}</span>
-        </label>
+        <div class="space-y-2">
+          <label
+            v-for="(text, i) in COMMITMENTS"
+            :key="i"
+            class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition"
+            :class="commitments[i] ? 'border-brand-teal/40 bg-brand-teal/5' : 'border-gray-200 hover:bg-gray-50'"
+          >
+            <input v-model="commitments[i]" type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand-teal focus:ring-brand-teal cursor-pointer" />
+            <span class="text-sm text-gray-700 leading-relaxed">{{ text }}</span>
+          </label>
+        </div>
 
         <p v-if="errors.commitments" class="text-sm text-red-600">{{ firstError('commitments') }}</p>
         <p v-if="!allCommitted" class="text-xs text-gray-500">請確認全部項目後繼續。</p>
@@ -723,6 +725,8 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <EmailReviewNotice v-if="emailConfirming" :email="form.email" @edit="editEmail">
           確認連結會寄到這個地址，打錯的話你不會收到任何通知，時段也會在 1 小時後自動釋出。
         </EmailReviewNotice>
+
+        <p class="text-xs text-gray-500">1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。</p>
 
         <div class="flex gap-3">
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>
