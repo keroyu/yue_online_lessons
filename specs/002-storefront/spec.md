@@ -216,6 +216,7 @@ touchpoints:
 - [x] 課程被刪除時精選項目 cascade delete；首頁另以 `filter(course !== null)` 防呆；無精選時 widget 整個隱藏
 - [x] 三個 widget 標題統一使用 `SectionHeader`（teal 色塊＋navy 底線視覺）
 - [x] 後台加入用的課程下拉列出全部課程（id 由新到舊），含草稿與隱藏課程
+- [x] 精選項目為 drip（`course_type === 'drip'`）商品時，CTA 按鈕 MUST 換成醒目樣式：圓角、`bg-brand-gold`（沿用站內既有金色 CTA 慣例，見 011 `HighTicketBookingWizard.vue` 送出按鈕）、文字改為「立即領取」、帶 subtle 呼吸動態效果吸引點擊（FR-030）；非 drip 商品維持現有深色「立即了解」按鈕不變
 
 ### User Story 7 - 內容分類後台管理 (Priority: P2)
 
@@ -399,6 +400,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-027**: `/go/post/{post}/course/{course}` MUST NOT 覆寫已屬 **email 管道**的來源（以 `TrafficSourceService::currentSource()` 解析後的 channel 判定）。原本無條件蓋 `utm_source=blog` 會把「信 → 文章 → 商品」整條鏈的成交全記到部落格頭上，email 管道的成交數恆為 0 —— 而信是那條鏈真正的起點，文章只是中繼站。非 email 來源維持既有行為（社群 → 文章 → 商品，文章 CTA 確實是臨門一腳）。兩種情況下 `post_cta_clicks` 都 MUST 照記，部落格的引流成效由該表獨立衡量，不受本條影響。
 
 - **FR-029**: `/admin/analytics` MUST 只組裝 `?tab=` 指定分頁的資料 —— 進短網址分頁時不得執行漏斗與管道彙總查詢，反之亦然（比照 011 D24）
+- **FR-030**: `SidebarService::widgets()` 的 `featuredCourses` 項目 MUST 帶 `course_type`，供 `FeaturedCourses.vue` 判斷是否為 drip 商品並切換 CTA 樣式（見 US6）。動態效果 MUST 為 CSS `@keyframes` 的持續輕微縮放／陰影呼吸（比照 `Course/PriceDisplay.vue` 既有的 `animate-pulse-once` 寫法，寫成 scoped style），不使用 Tailwind `animate-pulse`（淡出效果在小按鈕上偏向「壞掉」而非「醒目」）。
+
 - **FR-028**: 戳章 MUST 發生在寄信當下（`SendDripEmailJob` / `NewsletterBroadcastMail`），MUST NOT 落庫 —— `md_content` 與 `posts.body_md` 存的永遠是乾淨網址。理由：戳章規則會演進（新增管道、改 utm 命名），落庫等於把當下的規則凍進資料，改規則要 migration 重寫所有內文；且同一篇文章在站上與信裡的網址會分岔。
 
 ## 設計決策
@@ -575,8 +578,14 @@ Phase D — 驗證（相依 B + C）
 - [x] T054 `php artisan test` 全綠（基準 467 passed）＋ `npm run build` exit 0
 - [ ] T055 使用者實測：寄一封測試連鎖信，點信中連結進站後於「行銷分析 > 各管道成效」確認電子郵件管道展開後出現「連鎖信」一列
 
+## Tasks（精選推薦 drip 商品 CTA 改版）
+
+- [x] T056 `widgets()` 的 `featuredCourses` map 補 `course_type`（with 的欄位一併加）in app/Services/SidebarService.php
+- [x] T057 CTA 依 `course.course_type === 'drip'` 切換樣式與文案；drip 版按鈕圓角、`bg-brand-gold`/`hover:bg-brand-gold-dark`、文字「立即領取」、scoped `@keyframes` 呼吸動態；非 drip 維持原樣 in resources/js/Components/FeaturedCourses.vue
+
 ## 進度日誌
 
+- 2026-08-08: 精選推薦 drip 商品 CTA 改版（T056/T057 / FR-030）— `SidebarService::widgets()` 的 `featuredCourses` 補 `course_type`；`FeaturedCourses.vue` 依此判斷 drip 商品，CTA 換成圓角 `bg-brand-gold` 按鈕、文字「立即領取」、`@keyframes` 輕微縮放＋陰影呼吸的 subtle 動態效果（非 Tailwind `animate-pulse`，那個淡出效果在小按鈕上偏向像壞掉）；非 drip 商品維持原「立即了解」深色按鈕。純樣式／文案／設定檔改動，略過 TDD。`npm run build` 綠、全套 526 passed。
 - 2026-08-06: 短網址管理併入行銷分析頁成為分頁（US15）。兩者都在回答「這個行銷動作帶來多少點擊」，分成兩個側欄入口只是因為它們先後被做出來。實作重點：`?tab=` 決定並**只組裝該分頁的資料**（FR-029），進短網址分頁不跑漏斗彙總；短網址的擁有權仍留在 000（表、寫入端點、`ShortLinkTab.vue`），002 只提供承載的頁面與分派，否則等於把別人的功能整組搬進自己模組（D39）；舊路徑 `/admin/short-links` 保留為 302 轉址而非刪除，它進過側欄也可能進過書籤（D40）。兩個分頁本體抽成 `TrafficTab.vue` / `ShortLinkTab.vue`，標題與分頁列留在 shell。側欄一併重排（見 000 日誌）。ShortLinkTest 補 3 個測試（轉址、分頁載入、流量分頁不載短網址），全套 521 passed、vite build 綠。
 
 - 2026-08-05: US14 完成 — 連鎖信與電子報寄出時自動替站內連結戳 UTM。`EmailLinkTagger` 兩個入口（`tagUrl` 單一網址、`tagHtml` 掃 `href`），站內判定收在一處：相對路徑或 host 去 `www.` 等於 `app.url`，其餘（外站、`mailto:`／`tel:`／`javascript:`／`data:`／純錨點）原樣返回；已帶 `utm_source` 的整條放過（FR-026）。屬性值先 `html_entity_decode` 再解析、組回時只 escape 一次 —— CommonMark 產出的 `&amp;` 若走兩次就會變成 `&amp;amp;`，這條有測試釘住。連鎖信的 `utm_content` 取自 `DripService::lessonNumber()`（新增的公開方法，位次+1）而非 `sort_order`，正式站的課程 sort_order 從 1 起算，用值會錯一格（010 FR-022 同一個坑）。`PLATFORM_MAP` 加 `drip`，管道 label 由「電子報」改為「電子郵件」（該管道現在裝兩種信，來源層才是「連鎖信／電子報」），`Traffic.vue` 的 `CHANNEL_RULES` 同步。`/go` 改為既有來源屬 email 時不覆寫（FR-027）。**過程中查到一個測試寫法的坑**：`tf_*` 在 `encryptCookies(except:)` 名單內不解密，而測試的 `withCookie()` 會加密後送出，controller 讀到的是密文 —— 新測試改用 `withUnencryptedCookie()`。新增 19 個測試（EmailLinkTaggerTest 17 + SiteAnalyticsTest 2），全套 486 passed、npm build 綠。

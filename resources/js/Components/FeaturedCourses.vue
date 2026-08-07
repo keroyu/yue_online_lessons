@@ -35,8 +35,19 @@ defineProps({
           {{ course.blurb || course.name }}
         </p>
 
-        <!-- CTA to sales page -->
+        <!-- CTA to sales page: drip freebies get an eye-catching gold pill
+             (same visual language as the high-ticket booking CTA) to pull
+             attention toward the free claim; everything else keeps the
+             existing plain navy button. -->
         <Link
+          v-if="course.course_type === 'drip'"
+          :href="course.url"
+          class="cta-pulse mt-2 inline-flex w-full items-center justify-center gap-1 rounded-full bg-brand-gold px-4 py-2 text-sm font-semibold text-brand-navy shadow-sm transition-colors hover:bg-brand-gold-dark"
+        >
+          立即領取
+        </Link>
+        <Link
+          v-else
           :href="course.url"
           class="mt-2 inline-flex w-full items-center justify-center bg-brand-navy px-4 py-2 text-sm font-semibold text-white hover:bg-brand-teal transition-colors"
         >
@@ -46,3 +57,22 @@ defineProps({
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Gentle, continuous breathing effect — draws the eye without looking broken
+   the way Tailwind's opacity-based animate-pulse does on a small button. */
+.cta-pulse {
+  animation: ctaBreathe 2.2s ease-in-out infinite;
+}
+
+@keyframes ctaBreathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(240, 193, 75, 0.45);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 6px rgba(240, 193, 75, 0);
+  }
+}
+</style>

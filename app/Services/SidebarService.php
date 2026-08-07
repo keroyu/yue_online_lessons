@@ -55,14 +55,15 @@ class SidebarService
                 'published_at' => $post->published_at?->toDateString(),
             ])->values()->all();
 
-        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,slug,name,thumbnail')->get()
+        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,slug,name,thumbnail,course_type')->get()
             ->filter(fn ($item) => $item->course !== null)
             ->map(fn ($item) => [
-                'id'        => $item->course->id,
-                'name'      => $item->course->name,
-                'thumbnail' => $item->course->thumbnail_url,
-                'blurb'     => $item->blurb,
-                'url'       => '/course/' . ($item->course->slug ?: $item->course->id),
+                'id'          => $item->course->id,
+                'name'        => $item->course->name,
+                'thumbnail'   => $item->course->thumbnail_url,
+                'blurb'       => $item->blurb,
+                'url'         => '/course/' . ($item->course->slug ?: $item->course->id),
+                'course_type' => $item->course->course_type,
             ])->values()->toArray();
 
         return [
