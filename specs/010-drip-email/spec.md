@@ -132,6 +132,7 @@ touchpoints:
 - [x] POST `/member/drip/subscribe/{course}` 驗證 nickname（規則同 US1）並更新帳號暱稱後建立訂閱
 - [x] 已訂閱者在詳情頁顯示「已訂閱」狀態而非按鈕
 - [x] 暱稱空白時前端按鈕 disabled
+- [x] `DripSubscriptionController::memberSubscribe()` 的 `Request` 型別 MUST 對應 `Illuminate\Http\Request`（FR-029）；正式站 2026-08-07 已有多筆此錯誤（`userId:93`）
 
 ### User Story 3 - 自動序列信排程發送 (Priority: P1)
 
@@ -364,6 +365,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-027**: 領取入口 MUST 在送出鈕下方揭露同意告知（US16），且文字 MUST 來自單一共用元件 `ClaimConsentNotice.vue`，兩個入口（訪客表單、會員一鍵領取）不得各自維護。理由不是省行數：這是**權益條款**，兩份文字漂移之後「哪一份才是使用者當初同意的」無法回答。告知為被動揭露（送出即同意），MUST NOT 新增必勾 checkbox。
 
 - **FR-028**: 停止接收確認頁 MUST 為兩段式（第一次按 → 強制 **5 秒** → 第二次按才送出），但這道關卡 MUST 只存在於 Vue 確認頁。`POST /drip/unsubscribe/{token}` 端點 MUST 維持單次請求即生效 —— 該路徑同時是 RFC 8058 `List-Unsubscribe-Post: One-Click` 的目標，郵件用戶端直接 POST、沒有頁面可以按第二次；在端點加關卡等於一鍵退訂失效，而 `List-Unsubscribe` 正是 2026-08-02 那次「Gmail 偶發分到促銷分頁」的解方（US6）。**寄件信譽優先於挽留。**
+- **FR-029**: `DripSubscriptionController` 內任何裸 `Request` 型別參數 MUST 對應 `use Illuminate\Http\Request;`。該檔案 namespace 為 `App\Http\Controllers`（非子命名空間），少了限定 import 時裸 `Request` 會被解析成不存在的 `App\Http\Controllers\Request`，路由參數綁定丟 `ReflectionException` → 500。`memberSubscribe()` 曾漏掉此 import，導致登入會員一鍵領取全數失敗（正式站 2026-08-07 事件）。
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -522,8 +524,14 @@ Phase 6 — 驗證
 - [x] T123 `VideoAccessAnchorTest` 的 fallback 案例補齊前兩課（原本只建一課卻假設它在位次 2）in tests/Feature/Drip/VideoAccessAnchorTest.php
 - [ ] T124 部署後確認正式站訂閱者名單第二封信的已發送/開信率有數字，且只收到第 1 封的訂閱者打得開第 1 課
 
+## Tasks（修正會員一鍵領取 500 error）
+
+- [x] T147 `memberSubscribe()` 補 `use Illuminate\Http\Request;`（FR-029）in app/Http/Controllers/DripSubscriptionController.php
+- [x] T148 新增回歸測試：已登入會員 POST `/member/drip/subscribe/{course}` 回 302（非 500），訂閱成功建立 in tests/Feature/Drip/MemberSubscribeTest.php
+
 ## 進度日誌
 
+- 2026-08-07: 修正會員一鍵領取 500 error（T147/T148 / FR-029）— `DripSubscriptionController::memberSubscribe()` 的 `Request` 型別缺 `use Illuminate\Http\Request;`，在 `App\Http\Controllers` 命名空間下被解析成不存在的 `App\Http\Controllers\Request`，路由參數綁定丟 `ReflectionException` → 500（正式站 2026-08-07 事件，`userId:93`）。TDD：先寫 `MemberSubscribeTest` 重現同一個錯誤訊息確認紅，補 import 後綠。全套 524 passed，純後端改動不涉及前端。
 - 2026-08-07: US16 — 領取表單（訪客＋會員一鍵）補同意告知（共用 ClaimConsentNotice）；停止接收確認頁改為挽留說明＋5 秒二段式確認，端點維持一鍵退訂單次生效（新增回歸測試）；useEmailReview 更名 useDelayedConfirm。順帶更正 8/2 事件記錄：是 Gmail 促銷分頁（偶發），非垃圾郵件匣。522 passed、npm build 綠。
 
 - 2026-08-05: US15 完成 — 免費領取移除驗證碼與自動登入。拆的順序是關鍵：先拿掉 `Auth::login()`，驗證碼才失去保護對象。實作時浮現一個規劃時就預期、但只有真的拆了才會出事的破口 —— 原本 `$user->update(['nickname' => ...])` 一律覆寫，沒了驗證碼等於陌生人能改既有會員的顯示名稱，現在只在原值為空時填入，並有測試釘住。新帳號 `email_verified_at` 留 null（沒驗證就不宣稱已驗證，全站無 `verified` gate 依賴它），既有列不回填。10 秒覆核抽成 `useEmailReview()` + `EmailReviewNotice.vue`，後果說明走 slot（高價課講時段釋出、領取講電子書寄不到），`HighTicketBookingWizard` 改為引用，既有 BookingWizardTest 38 passed 行為不變。順手清掉 `HandleInertiaRequests` 裡的 `drip_email` / `drip_course_id` / `drip_nickname` 三個 flash key —— 兩步驟流程沒了，它們是孤兒。新增 GuestClaimTest（7 tests），既有 ClaimWordingTest **零修改**續過，全套 493 passed、npm build 綠。
