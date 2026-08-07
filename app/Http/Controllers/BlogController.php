@@ -46,7 +46,7 @@ class BlogController extends Controller
 
         $this->countView($request, $post, $isAdmin);
 
-        $post->load('tags:id,name,slug', 'relatedCourse:id,name,slug,tagline,thumbnail');
+        $post->load('tags:id,name,slug', 'relatedCourse:id,name,slug,tagline,thumbnail,type');
 
         // Curated related posts first (published, in the admin's order), then fill up to 4
         // with same-tag posts.
@@ -95,6 +95,7 @@ class BlogController extends Controller
                     // /go counts the CTA click, then 302s to the course page
                     // with blog UTM appended (002 US10, D17).
                     'url' => url("/go/post/{$post->id}/course/{$post->relatedCourse->id}"),
+                    'is_high_ticket' => $post->relatedCourse->is_high_ticket,
                 ] : null,
             ],
             'related' => $related,

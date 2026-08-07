@@ -167,6 +167,7 @@ touchpoints:
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
 - [ ] SitemapController 納入 published posts（lastmod=updated_at）與有文章的 tag 頁
 - [ ] 綁定引流課程時，文章底部顯示課程 CTA 卡片，連結帶 `utm_source=blog&utm_medium=post&utm_campaign={slug}`（沿用 002.us-8 來源追蹤）
+- [x] 引流課程為高價課（`is_high_ticket`）時，CTA 文字 MUST 為「申請 1v1 諮詢了解詳情 →」；非高價課維持「了解課程 →」（FR-012）
 
 ### User Story 3 - 首頁精選文章與原生分享 (Priority: P1)
 
@@ -253,6 +254,7 @@ touchpoints:
 - **FR-009**: 訂閱採 OTP 兩步驗證（沿用 VerificationCodeService，驗證通過才建帳號）杜絕 subscribe-bombing；開信像素端點免登入走 signed URL。退訂 token 為 UUID、訂閱成立時產生。
 - **FR-010**: Broadcast 發送以每收件者一個 queued Job 進行，逐封夾帶個人化 pixel 與退訂連結；不在單封信合併多人（追蹤與一鍵退訂需要個別 token）。
 - **FR-011**: view_count 為近似計數（每 session 每篇去重、admin/draft/bot 不計），只作內容成效與排序參考，非精確分析；以 `increment()` 原子更新避免併發競態，計數失敗不得影響文章頁回應。
+- **FR-012**: `BlogController::show` 的 `related_course` payload MUST 帶 `is_high_ticket`（`$post->relatedCourse->is_high_ticket`），供 `Blog/Show.vue` 判斷 CTA 文案：高價課顯示「申請 1v1 諮詢了解詳情 →」，其餘課型維持「了解課程 →」。連結本身（`/go/post/...` 帶 UTM）不因課型改變。
 
 ## 設計決策
 
@@ -327,8 +329,14 @@ touchpoints:
 - [x] T032 BlogController::show 對 published 文章 session 去重後原子 `increment('view_count')`（admin/draft/bot 不計）in `app/Http/Controllers/BlogController.php`
 - [x] T033 [P] 後台文章列表顯示/可排序 view_count in `resources/js/Pages/Admin/Posts/Index.vue`（後端 PostController::index 回 view_count + sort=views）
 
+### Phase 7 — 高價課引流 CTA 文案（FR-012）
+- [x] T034 `related_course` payload 補 `is_high_ticket`；連帶修正 `relatedCourse` eager load 的欄位白名單少了 `type`，導致 `is_high_ticket` accessor 永遠讀到 null → false in `app/Http/Controllers/BlogController.php`
+- [x] T035 CTA 依 `post.related_course.is_high_ticket` 切換文案（「申請 1v1 諮詢了解詳情 →」/「了解課程 →」）in `resources/js/Pages/Blog/Show.vue`
+- [x] T036 新增測試：`related_course.is_high_ticket` 對高價課回 true、一般課回 false in `tests/Feature/Newsletter/BlogPublicTest.php`
+
 ## 進度日誌
 
+- 2026-08-08: 高價課引流 CTA 文案（T034–T036 / FR-012）— 業主要求部落格文章底部連往高價課的 CTA 不要用「了解課程」，改「申請 1v1 諮詢了解詳情」。TDD 過程中意外抓到一個既有 bug：`BlogController::show()` 的 `relatedCourse` eager load 欄位白名單（`id,name,slug,tagline,thumbnail`）漏了 `type`，導致 `Course::is_high_ticket` accessor 永遠讀到 null、恆為 false —— 先寫的測試斷言 `is_high_ticket === true` 時，即使已補上 payload 欄位仍紅（值是 false 不是缺欄位），往回查才發現漏選欄位。補上 `type` 後轉綠。全套 527 passed、`npm run build` 綠。
 - 2026-08-02: 電子報宣告的 RFC 8058 一鍵退訂原本是壞的 — `newsletter/unsubscribe/*` 的 POST 未豁免 CSRF，郵件用戶端直接 POST 會吃 419；`bootstrap/app.php` 補上豁免後才真正生效（隨 010 的連鎖信一併處理）。
 - 2026-07-22: 發佈時間時區修正 — 表單以台北時間顯示/輸入（`prepare()` 轉 UTC 入庫、`edit()`/`index()` 轉回台北顯示）、新增文章預填台北當前時間（PostForm `taipeiNow()`）、前台文章日期（Blog/Home）轉台北時區避免跨日誤差。既有手填 published_at 的舊資料晚存 8h 待校正。AdminPostCrudTest backdate 測試同步，全 repo 168 passed。
 - 2026-07-22: 前台文章 YouTube **shorts/live 網址**未自動轉 embed 修正 — `VideoEmbedService::parse()`（003 owned，補 touchpoint）regex 加 `shorts/`、`live/`；連帶 Broadcast 信首圖縮圖也認得 shorts。PostServiceTest 補 shorts 案例。

@@ -70,7 +70,7 @@ defineProps({
         <a
           :href="post.related_course.url"
           class="inline-block mt-2 text-sm font-medium text-brand-teal hover:underline"
-        >了解課程 →</a>
+        >{{ post.related_course.is_high_ticket ? '申請 1v1 諮詢了解詳情 →' : '了解課程 →' }}</a>
       </div>
     </div>
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Newsletter;
 
+use App\Models\Course;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -21,6 +22,17 @@ class BlogPublicTest extends TestCase
             'excerpt' => "excerpt {$slug}",
             'status' => 'published',
             'published_at' => now()->subDay(),
+        ], $attrs));
+    }
+
+    private function makeCourse(array $attrs = []): Course
+    {
+        return Course::create(array_merge([
+            'name' => 'C', 'slug' => 'c-' . uniqid(),
+            'tagline' => 't', 'description' => 'd', 'price' => 1000,
+            'instructor_name' => 'I', 'type' => 'lecture', 'status' => 'selling',
+            'course_type' => 'standard', 'is_published' => true, 'is_visible' => true,
+            'payment_gateway' => 'payuni',
         ], $attrs));
     }
 
@@ -66,6 +78,24 @@ class BlogPublicTest extends TestCase
         $this->actingAs($admin)->get('/blog/adminview')->assertOk();
 
         $this->assertSame(0, $post->fresh()->view_count);
+    }
+
+    /** FR-012: the CTA text switches on the linked course's high-ticket type. */
+    public function test_related_course_payload_flags_high_ticket(): void
+    {
+        $highTicket = $this->makeCourse(['type' => 'high_ticket']);
+        $post = $this->publish('with-high-ticket', ['related_course_id' => $highTicket->id]);
+
+        $this->get("/blog/{$post->slug}")
+            ->assertInertia(fn ($page) => $page->component('Blog/Show')
+                ->where('post.related_course.is_high_ticket', true));
+
+        $standard = $this->makeCourse();
+        $post2 = $this->publish('with-standard', ['related_course_id' => $standard->id]);
+
+        $this->get("/blog/{$post2->slug}")
+            ->assertInertia(fn ($page) => $page->component('Blog/Show')
+                ->where('post.related_course.is_high_ticket', false));
     }
 
     public function test_tag_archive_and_empty_state(): void
