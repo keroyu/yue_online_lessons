@@ -101,7 +101,7 @@ class CalendarInviteService
         array $extraProperties
     ): string {
         $start = Carbon::instance($startsAt)->utc();
-        $summary = "{$course->name} 1v1 諮詢 - {$lead->name}";
+        $summary = "{$lead->name} 諮詢";
 
         $lines = array_merge([
             'BEGIN:VCALENDAR',

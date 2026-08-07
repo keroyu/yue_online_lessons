@@ -585,6 +585,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   - `DTSTART` / `DTEND` / `DTSTAMP` 為 UTC 且以 `Z` 結尾；時段本來就存 UTC（D32），MUST NOT 繞經台北時區再轉回來
   - `SUMMARY` / `DESCRIPTION` / `LOCATION` 的 `\` `;` `,` 與換行 MUST escape（`\\` `\;` `\,` `\n`）
   - MUST 含 `ATTENDEE`（申請人 Email）與 `ORGANIZER` —— 少了 `ATTENDEE`，`METHOD:CANCEL` 在 Outlook 上不會生效
+  - `SUMMARY` MUST 為 `"{申請人姓名} 諮詢"`，與 Zoom 會議 `topic`（見 US12 驗收）同一格式（2026-08-08 修正，原本是 `"{課程名} 1v1 諮詢 - {申請人姓名}"`，Zoom 名稱簡化時漏改這裡，導致加進 Google Calendar 等日曆 app 的行程標題仍是長版）
 
 - **FR-047**: 行事曆行程的身分 MUST 由 `UID` + `SEQUENCE` 構成。`UID` = `high-ticket-lead-{lead_id}@{app_url 的 host}`，**推導而非落庫**（沿用 D33 的「狀態不存欄位」原則，lead id 不變則 UID 不變）；`SEQUENCE` 存於 `high_ticket_leads.calendar_sequence`，每次寄出異動邀請前 +1。同一 `UID` 配遞增 `SEQUENCE`，對方日曆才會**更新既有行程**而不是新增第二筆
 
@@ -1273,9 +1274,11 @@ US14 補充
 - [x] T177 承諾清單三條文案改寫（FR-026）；三個 `<label>` 包進獨立 `space-y-2` 容器，脫離外層 `space-y-4` 縮小選項間距（業主回報）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 - [x] T178 `availableStarts()` 依 FR-069 篩選：`$minutes >= 45` 時只保留台北時間分鐘數為 0 或 30 的起始 in `app/Services/ConsultationSlotService.php`
 - [x] T179 新增測試：45 分鐘起始清單不含 `:15`/`:45`、30 分鐘起始清單不受影響、篩選發生在連續性判定之後 in `tests/Feature/HighTicket/SlotHoldTest.php`
+- [x] T180 `CalendarInviteService::build()` 的 `SUMMARY` 由 `"{$course->name} 1v1 諮詢 - {$lead->name}"` 改為 `"{$lead->name} 諮詢"`，與 T175 的 Zoom `topic` 同步（FR-046）in `app/Services/CalendarInviteService.php`
 
 ## 進度日誌
 
+- 2026-08-08: 修正 .ics SUMMARY 遺漏的名稱簡化（T180 / FR-046）— 8/7 簡化 Zoom 會議 topic（T175）時漏改 `CalendarInviteService::build()` 的 `SUMMARY`，導致確認信附件的 `.ics` 加進 Google Calendar 等日曆 app 後，行程標題仍是長版「{課程名} 1v1 諮詢 - {姓名}」。業主回報後查證：SSH 到正式站直接打 Zoom API 核對最近 8 筆會議的實際 topic，確認 Zoom 端本身在 8/7 15:40 部署後即完全正確；問題單獨出在 `.ics` 的 `SUMMARY` 欄位從未跟著改。TDD：先寫斷言 `SUMMARY:王小明 諮詢` 確認紅（實際是長版），改一行後綠；連帶修正一個因此變得過時的既有測試 `test_folded_chinese_survives_a_round_trip`——它原本斷言 `$course->name` 會出現在 `.ics` 內容中，但這正是本次改動要拿掉的東西，改為只驗證長姓名 folding 後仍完整往返。全套 528 passed，純後端改動。
 - 2026-08-07: 45 分鐘場起始時間限制整點／半點（T178/T179 / FR-069）— 業主回報 45 分鐘（優惠碼延長）場次不該出現 `20:15`/`20:45` 這種起始時間，跟顧問既有整點／半點的行事曆習慣對不上。`availableStarts()` 在既有的「N 個連續單位皆可用」判定之後，多一層依台北時間分鐘數（0/30）過濾，只在 `$minutes >= 45` 時生效；30 分鐘預設場次不受影響。TDD：先寫兩個測試（45 分鐘濾掉 `:15`、30 分鐘不受限）確認前者紅（未過濾時回傳 `10:00/10:15/10:30`），加篩選後綠。全套 526 passed，純後端改動。
 - 2026-08-07: 承諾清單文案改寫＋間距調整（T177 / FR-026）— 三條文案改為「我有明確想改善的問題…」「我願意接受務實建議…」「如果確認方向適合…」；業主回報三個選項之間縫隙太大（因為外層 `space-y-4` 把選項間距、標題到清單的段落間距混在一起），把三個 `<label>` 包進獨立 `space-y-2` 容器脫離外層間距。純文案／樣式，未寫測試。
 - 2026-08-07: 第 4 步送出前加名額說明小字（T176）— 覆核區送出按鈕上方加一行「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」純文案樣式改動，未寫測試（純樣式／文案可略過 TDD）。`npm run build` 綠、全套 523 passed。

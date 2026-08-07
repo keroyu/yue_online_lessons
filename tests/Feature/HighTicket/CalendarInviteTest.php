@@ -93,6 +93,22 @@ class CalendarInviteTest extends TestCase
         $this->assertStringContainsString('END:VCALENDAR', $ics);
     }
 
+    /** FR-046: SUMMARY must match the Zoom meeting topic format (T175/T180). */
+    public function test_summary_is_the_applicants_name_not_the_long_course_title(): void
+    {
+        $course = $this->makeCourse();
+        $lead = $this->makeLead($course);
+
+        $ics = app(CalendarInviteService::class)->invite(
+            $lead,
+            $course,
+            Carbon::parse('2026-09-01 06:00:00', 'UTC'),
+            30
+        );
+
+        $this->assertSame('SUMMARY:王小明 諮詢', $this->property($ics, 'SUMMARY'));
+    }
+
     public function test_times_are_utc_and_span_the_consultation_length(): void
     {
         $course = $this->makeCourse();
@@ -217,8 +233,9 @@ class CalendarInviteTest extends TestCase
         $unfolded = $this->unfold($ics);
 
         $this->assertTrue(mb_check_encoding($unfolded, 'UTF-8'), '展開後不是合法的 UTF-8，folding 切在多位元組字元中間');
+        // SUMMARY is "{name} 諮詢" (FR-046) — the course name is deliberately
+        // not part of the .ics content, so only the applicant's name round-trips.
         $this->assertStringContainsString($longName, $unfolded);
-        $this->assertStringContainsString($course->name, $unfolded);
     }
 
     public function test_special_characters_are_escaped(): void
