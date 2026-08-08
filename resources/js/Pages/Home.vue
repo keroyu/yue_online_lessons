@@ -170,7 +170,7 @@ const filteredCourses = computed(() =>
               </button>
             </div>
 
-            <SectionHeader title="所有課程">
+            <SectionHeader title="所有資源">
               <template v-if="availableTypes.length > 0" #right>
                 <div class="flex items-center gap-1.5">
                   <button

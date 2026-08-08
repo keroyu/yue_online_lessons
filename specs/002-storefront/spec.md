@@ -602,6 +602,7 @@ Phase D — 驗證（相依 B + C）
 
 ## 進度日誌
 
+- 2026-08-08: 首頁課程列表區塊標題「所有課程」改「所有資源」（業主要求）in resources/js/Pages/Home.vue。純文案改動，`npm run build` 綠。
 - 2026-08-08: 課程介紹單行換行修正（T061/T062 / FR-032）— 業主回報課程介紹（`description_md`）必須按兩次 Enter 才會換行，是老問題。查證發現這其實是昨天（8/7）003-classroom D13 修教室內文換行時的一個明確排除項——當時把它定性為「銷售頁長文案，段落語意刻意保留」而故意不改，理由沒有成立：業主的實際回饋就是要單行即換行。`renderedDescription` 的 `marked()` 呼叫補 `{ breaks: true }`，跟站內其餘 Markdown 呈現（教室 `HtmlContent`、連鎖信、留客區塊、lead intro）對齊。同步改寫 003-classroom D13 的文字，使其不再宣稱這個檔案沒被動到。純樣式改動，略過 TDD。`npm run build` 綠、全套 530 passed（不涉及後端，測試數不變）。
 - 2026-08-08: 近期文章／熱門文章排序責任修正（T058–T060 / FR-031）— 業主回報「精選文章」目前只影響到首頁側欄「近期文章」，但那裡的語意應該是純時間序；真正該吃精選優先的是首頁主欄「熱門文章」（`HomePostList.vue`／`HomeController::$popularPosts`），原本完全沒接 `is_featured`。改法：`SidebarService::widgets()` 的 `blogArticles` 拿掉 `orderByDesc('is_featured')` 只留 `published_at desc`；`HomeController::index()` 的 `$popularPosts` 加 `orderByDesc('is_featured')` 排在 `view_count`/`published_at` 之前。TDD：新增 `PostListOrderingTest`（近期文章不因精選提前一顆、熱門文章精選項目蓋過高瀏覽數項目），先紅後綠。全套 530 passed，純後端改動。
 - 2026-08-08: 精選推薦 drip 商品 CTA 改版（T056/T057 / FR-030）— `SidebarService::widgets()` 的 `featuredCourses` 補 `course_type`；`FeaturedCourses.vue` 依此判斷 drip 商品，CTA 換成圓角 `bg-brand-gold` 按鈕、文字「立即領取」、`@keyframes` 輕微縮放＋陰影呼吸的 subtle 動態效果（非 Tailwind `animate-pulse`，那個淡出效果在小按鈕上偏向像壞掉）；非 drip 商品維持原「立即了解」深色按鈕。純樣式／文案／設定檔改動，略過 TDD。`npm run build` 綠、全套 526 passed。
