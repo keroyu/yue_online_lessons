@@ -403,15 +403,13 @@ class ConsultationSlotService
             }
         }
 
-        // FR-069: a 45-minute (bonus code) session may only begin on the hour
-        // or half hour — the consultant's calendar habit is :00/:30, not
-        // quarter marks. The default 30-minute session is unrestricted.
-        if ($minutes >= 45) {
-            $starts = array_values(array_filter(
-                $starts,
-                fn (Carbon $at) => in_array($at->copy()->timezone(self::DISPLAY_TZ)->minute, [0, 30], true)
-            ));
-        }
+        // FR-069: every consultation, regardless of length, may only begin on
+        // the hour or half hour — the consultant's calendar habit is :00/:30,
+        // not quarter marks.
+        $starts = array_values(array_filter(
+            $starts,
+            fn (Carbon $at) => in_array($at->copy()->timezone(self::DISPLAY_TZ)->minute, [0, 30], true)
+        ));
 
         return $starts;
     }

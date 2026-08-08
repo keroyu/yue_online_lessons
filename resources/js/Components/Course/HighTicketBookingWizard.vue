@@ -706,7 +706,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         </p>
 
         <div class="rounded-lg bg-red-50 border border-red-200 p-4">
-          <p class="text-sm font-bold text-red-800">若確定預約卻無故不出席，我們將永久黑名單。</p>
+          <p class="text-sm font-bold text-red-800">若確定預約卻無故不出席，將不可再申請本站免費諮詢名額。</p>
           <p class="mt-1 text-xs text-red-700 leading-relaxed">
             顧問的時間是保留給你的。如果臨時無法出席，請提前回信告知，我們會為你改期。
           </p>

@@ -293,7 +293,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] Step 1：填 Email + 暱稱後按「開始申請」，**同頁下方即時展開**簡易問卷（不換頁、不打 API、不捲走）；問卷欄位為手機電話\*、職業和從事時長\*、事業瓶頸\*、知識或能力的專長\*、經營社群網址（選填），`*` 欄位以紅色星號標示且未填不得前進
 - [x] Step 2：問卷按「下一步」後顯示承諾條件清單（三條，文案見 FR-026），三個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
 - [x] Step 4：選完時段後顯示**申請資料覆核區**，逐欄列出 Step 1–3 的所有輸入值（含所選時段與諮詢長度），每欄可點「修改」跳回該步驟且保留已填內容
-- [x] 覆核區下方 MUST 顯示不出席警語：「若確定預約卻無故不出席，我們將永久黑名單。」以警示樣式（amber/red 底）呈現，不可摺疊、不可略過
+- [x] 覆核區下方 MUST 顯示不出席警語：「若確定預約卻無故不出席，將不可再申請本站免費諮詢名額。」（2026-08-08 改寫，原文案「我們將永久黑名單」）以警示樣式（amber/red 底）呈現，不可摺疊、不可略過
 - [x] 「送出申請」按鈕正上方 MUST 顯示一行說明小字：「1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。」灰階小字（`text-xs text-gray-500`），不影響送出邏輯，不出現在第 3 步候補送出（「送出申請並等候通知」）
 - [x] 「送出申請」為單一 `POST /course/{course}/book`（axios，沿用 D1 非同步）；送出後 inline 顯示待確認提示（US11），全程不換頁
 - [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
@@ -319,7 +319,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 前台 Step 3 呼叫 `GET /course/{course}/booking-slots?code=`，只回傳「**該起始單位起連續 N 個單位皆可用**」的起始時間（N = 諮詢長度 ÷ 15）；跨日與跨不連續區間的組合 MUST NOT 出現
 - [x] 預設諮詢長度 30 分鐘（2 單位）。時段區塊上方有「預約優惠碼（選填）」輸入框，填入命中 `site_settings.high_ticket_booking_bonus_codes` 的碼後即時重查時段，長度變 45 分鐘（3 單位）並顯示「已套用，諮詢延長為 45 分鐘」
 - [x] 優惠碼比對忽略大小寫與前後空白；無效碼**不擋流程**，顯示「此優惠碼無效，將以 30 分鐘進行」後照常可選時段（見 D31）
-- [x] 45 分鐘（優惠碼延長）時段的可選起始時間 MUST 只落在整點或半點（`:00`/`:30`，以台北時間判定），`:15`/`:45` 不得出現於清單；30 分鐘預設時段不受此限制，起始時間維持每 15 分鐘一個選項（FR-069）
+- [x] 諮詢時段的可選起始時間 MUST 一律只落在整點或半點（`:00`/`:30`，以台北時間判定），`:15`/`:45` 不得出現於清單——不分 30 分鐘預設或 45 分鐘（優惠碼延長）場次（FR-069，2026-08-08 擴大範圍：原本只限 45 分鐘場，業主回報 30 分鐘預設場也要一致）
 - [x] 時段以「日期分組 + 時間按鈕」呈現，只列出今天之後、尚有可用組合的日期；完全沒有可預約時段時顯示空狀態「目前沒有開放的時段」並提供「通知我有新時段」的既有預約行為（仍建 lead、狀態 pending，等管理員用 US4 通知）
 - [x] 候補的 lead 產生永久 `resume_token`；US4 的「新時段通知」信帶 `{{booking_url}}` 深連結，點入即以**已填資料**開在第 3 步（選時段），承諾自動視為已接受，不必重填問卷（見 FR-042 / D44）
 - [x] 送出申請時後端 MUST 重新驗證所選時段仍可用（前端清單可能已過期）；被搶走回 409「該時段剛被預約，請重新選擇」，前端自動重查時段清單
@@ -603,7 +603,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   |-------|---------|------|
   | `pending` | 待面談 | 已預約，面談還沒發生 |
   | `contacted` | 已面談 | 面談完成 |
-  | `no_response` | **未出席** | 約了但沒出現（no-show）。與預約表單第 4 步警語「若確定預約卻無故**不出席**，我們將永久黑名單」（FR-025 區塊，`HighTicketBookingWizard.vue`）同一個詞 —— 申請人送出前讀到的就是它 |
+  | `no_response` | **未出席** | 約了但沒出現（no-show）。與預約表單第 4 步警語「若確定預約卻無故**不出席**，將不可再申請本站免費諮詢名額」（US9 驗收，`HighTicketBookingWizard.vue`）同一個詞 —— 申請人送出前讀到的就是它 |
   | `converted` | 已成交 | |
   | `closed` | 已關閉 | 談過但冷掉 |
   | `cancelled` | 已取消 | 預約被取消（FR-051），唯讀（FR-054） |
@@ -693,7 +693,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者
 
-- **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` 在 `$minutes >= 45`（優惠碼延長）時，MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻；`$minutes` 為預設 30 分鐘時不過濾，維持每 15 分鐘一個起始選項。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依長度篩選分鐘數，兩條規則不互相依賴。業主回報 45 分鐘場若允許 `:15`/`:45` 起訖，跟顧問既有的整點／半點行事曆習慣對不上。
+- **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` **不分諮詢長度**，一律 MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻（2026-08-08 擴大範圍，取代原本僅 `$minutes >= 45` 才過濾的版本——業主原意就是所有場次都要對齊整點／半點的顧問行事曆習慣，8/7 的實作把範圍縮小到只有 45 分鐘場是誤判）。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依分鐘數篩選，兩條規則不互相依賴。
 
 ## 設計決策
 
@@ -847,7 +847,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **D36**: 舊的一步式表單**整組移除、不留課程層開關**（使用者決策）。留開關要維護兩套前端與兩條後端路徑，而目前隱藏價格的高價課只有少數幾門、成交入口本來就是人工（D13），沒有「某幾門課要低門檻」的實際需求。若日後真的需要，加開關比維護一套沒人走的舊路徑便宜
 
-- **D37**: 「永久黑名單」只做**警示文案**，不做系統實作（使用者決策）。爽約與否是線下事實，系統無從自動判定；真要擋人，現有的 `closed` 狀態加上管理員記憶已足夠應付目前的量。文案本身才是它的作用 —— 它要嚇阻的是「隨便按送出」的人，而那個效果在覆核頁顯示的當下就已經達成，不需要後端配合
+- **D37**: 不出席警語只做**警示文案**，不做系統實作（使用者決策）。爽約與否是線下事實，系統無從自動判定；真要擋人，現有的 `closed` 狀態加上管理員記憶已足夠應付目前的量。文案本身才是它的作用 —— 它要嚇阻的是「隨便按送出」的人，而那個效果在覆核頁顯示的當下就已經達成，不需要後端配合。文案 2026-08-08 由「將永久黑名單」改為「將不可再申請本站免費諮詢名額」——後者具體點出失去的是什麼（這個站的免費諮詢資格），比籠統的「黑名單」更可信、也更符合實際能落地的後果（D37 的決策本身不變：仍是純警示文案）
 
 - **D38**（部分被 D55 取代：「一封完整的信」保留，但改為同步而非 job）: 確認信改由 `CreateZoomMeetingJob` 在建好會議後才寄，而不是確認當下先寄、連結後補。因為這封信的用途就是「告訴對方什麼時間、去哪裡」—— 少了連結就得再補寄一封，而補寄信的開信率遠低於第一封，且兩封信講同一件事最容易讓人以為預約重複了。代價是信件抵達比確認頁晚幾秒，這對使用者不可見（確認頁本來就寫「相關資料已寄出」，沒有承諾秒到）
 
@@ -1275,9 +1275,13 @@ US14 補充
 - [x] T178 `availableStarts()` 依 FR-069 篩選：`$minutes >= 45` 時只保留台北時間分鐘數為 0 或 30 的起始 in `app/Services/ConsultationSlotService.php`
 - [x] T179 新增測試：45 分鐘起始清單不含 `:15`/`:45`、30 分鐘起始清單不受影響、篩選發生在連續性判定之後 in `tests/Feature/HighTicket/SlotHoldTest.php`
 - [x] T180 `CalendarInviteService::build()` 的 `SUMMARY` 由 `"{$course->name} 1v1 諮詢 - {$lead->name}"` 改為 `"{$lead->name} 諮詢"`，與 T175 的 Zoom `topic` 同步（FR-046）in `app/Services/CalendarInviteService.php`
+- [x] T181 `availableStarts()` 拿掉 `$minutes >= 45` 條件，分鐘數過濾對所有長度一律生效（FR-069 擴大範圍）in `app/Services/ConsultationSlotService.php`
+- [x] T182 更新 `test_thirty_minute_starts_are_not_restricted_to_the_hour_or_half_hour`（更名為 `test_thirty_minute_starts_are_also_limited_to_the_hour_or_half_hour`，反轉斷言）；`test_forty_five_minutes_needs_three_consecutive_units`、`test_available_starts_requires_consecutive_units` 更新為新預期值；`test_rebooking_releases_the_previous_hold`／`test_release_expired_command_clears_stale_holds_only` 的 4 單位 fixture 擴為 7 單位以容納 `$starts[2]` 索引（過濾後只剩 2 個候選會 out-of-range）in `tests/Feature/HighTicket/SlotHoldTest.php`；連帶修正 `BookingWizardTest.php` 兩處撞到同一過濾規則的既有斷言（`test_slots_endpoint_reflects_the_bonus_code`、`test_expired_token_reports_expired_and_the_slot_is_free`）
+- [x] T183 覆核區不出席警語文案改為「若確定預約卻無故不出席，將不可再申請本站免費諮詢名額。」in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 
 ## 進度日誌
 
+- 2026-08-08: 整點/半點限制擴大到 30 分鐘預設場次 + 不出席警語文案改寫（T181–T183 / FR-069）— 業主回報「上次說過的整點/半點限制怎麼還是沒改」，查證後發現 8/7 的實作把範圍誤縮小成只有 45 分鐘（優惠碼延長）場次才過濾，30 分鐘預設場次仍可選到 `:15`/`:45`；業主確認要擴大到所有長度。`availableStarts()` 拿掉 `$minutes >= 45` 條件，過濾對所有長度一律生效。TDD：先改 `SlotHoldTest` 既有測試的預期值反映新規則，確認因舊 code 未改而紅，拿掉條件後轉綠；過程中發現兩個測試（`test_rebooking_releases_the_previous_hold`、`test_release_expired_command_clears_stale_holds_only`）用 `$starts[2]` 索引 4 單位 fixture，過濾後只剩 2 個候選會 index-out-of-range，改用 7 單位 fixture 讓 3 個整點/半點候選都存在。跑全套時另外抓到 `BookingWizardTest.php` 兩個斷言撞到同一規則變更，一併修正。不出席警語同時由「我們將永久黑名單」改為「將不可再申請本站免費諮詢名額」（業主要求文案更具體），同步修正 D37 與後台狀態說明表格裡的舊引用文字。全套 540 passed、`npm run build` 綠。
 - 2026-08-08: 修正 .ics SUMMARY 遺漏的名稱簡化（T180 / FR-046）— 8/7 簡化 Zoom 會議 topic（T175）時漏改 `CalendarInviteService::build()` 的 `SUMMARY`，導致確認信附件的 `.ics` 加進 Google Calendar 等日曆 app 後，行程標題仍是長版「{課程名} 1v1 諮詢 - {姓名}」。業主回報後查證：SSH 到正式站直接打 Zoom API 核對最近 8 筆會議的實際 topic，確認 Zoom 端本身在 8/7 15:40 部署後即完全正確；問題單獨出在 `.ics` 的 `SUMMARY` 欄位從未跟著改。TDD：先寫斷言 `SUMMARY:王小明 諮詢` 確認紅（實際是長版），改一行後綠；連帶修正一個因此變得過時的既有測試 `test_folded_chinese_survives_a_round_trip`——它原本斷言 `$course->name` 會出現在 `.ics` 內容中，但這正是本次改動要拿掉的東西，改為只驗證長姓名 folding 後仍完整往返。全套 528 passed，純後端改動。
 - 2026-08-07: 45 分鐘場起始時間限制整點／半點（T178/T179 / FR-069）— 業主回報 45 分鐘（優惠碼延長）場次不該出現 `20:15`/`20:45` 這種起始時間，跟顧問既有整點／半點的行事曆習慣對不上。`availableStarts()` 在既有的「N 個連續單位皆可用」判定之後，多一層依台北時間分鐘數（0/30）過濾，只在 `$minutes >= 45` 時生效；30 分鐘預設場次不受影響。TDD：先寫兩個測試（45 分鐘濾掉 `:15`、30 分鐘不受限）確認前者紅（未過濾時回傳 `10:00/10:15/10:30`），加篩選後綠。全套 526 passed，純後端改動。
 - 2026-08-07: 承諾清單文案改寫＋間距調整（T177 / FR-026）— 三條文案改為「我有明確想改善的問題…」「我願意接受務實建議…」「如果確認方向適合…」；業主回報三個選項之間縫隙太大（因為外層 `space-y-4` 把選項間距、標題到清單的段落間距混在一起），把三個 `<label>` 包進獨立 `space-y-2` 容器脫離外層間距。純文案／樣式，未寫測試。

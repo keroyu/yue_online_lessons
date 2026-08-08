@@ -79,9 +79,10 @@ class SlotHoldTest extends TestCase
         $starts = $this->service()->availableStarts(30);
 
         // 10:00 and 10:15 each have a following unit; 10:30 and 11:00 do not.
-        $this->assertCount(2, $starts);
+        // Of those two consecutive-safe starts, only 10:00 also survives the
+        // hour/half-hour filter (FR-069) — 10:15 is consecutive but not offered.
+        $this->assertCount(1, $starts);
         $this->assertSame('10:00', $starts[0]->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'));
-        $this->assertSame('10:15', $starts[1]->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'));
     }
 
     public function test_forty_five_minutes_needs_three_consecutive_units(): void
@@ -89,7 +90,9 @@ class SlotHoldTest extends TestCase
         $this->makeSlots('+1 day 10:00', 3);
 
         $this->assertCount(1, $this->service()->availableStarts(45));
-        $this->assertCount(2, $this->service()->availableStarts(30));
+        // Only 10:00 is both consecutive-safe and on the hour/half-hour; 10:15
+        // has a following unit but is filtered out by FR-069.
+        $this->assertCount(1, $this->service()->availableStarts(30));
     }
 
     /**
@@ -108,7 +111,12 @@ class SlotHoldTest extends TestCase
         $this->assertSame(['10:00', '10:30'], $starts);
     }
 
-    public function test_thirty_minute_starts_are_not_restricted_to_the_hour_or_half_hour(): void
+    /**
+     * FR-069 (2026-08-08, expanded scope): the hour/half-hour restriction was
+     * originally 45-minute-only; the default 30-minute session is now held to
+     * the same rule.
+     */
+    public function test_thirty_minute_starts_are_also_limited_to_the_hour_or_half_hour(): void
     {
         $this->makeSlots('+1 day 10:00', 3);
 
@@ -116,7 +124,7 @@ class SlotHoldTest extends TestCase
             ->map(fn ($at) => $at->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'))
             ->all();
 
-        $this->assertSame(['10:00', '10:15'], $starts);
+        $this->assertSame(['10:00'], $starts);
     }
 
     public function test_past_slots_are_never_offered(): void
@@ -187,7 +195,9 @@ class SlotHoldTest extends TestCase
 
     public function test_rebooking_releases_the_previous_hold(): void
     {
-        $this->makeSlots('+1 day 10:00', 4);
+        // 7 units (10:00–11:30) so three hour/half-hour starts survive FR-069's
+        // filter: 10:00, 10:30, 11:00 — enough to index $starts[2].
+        $this->makeSlots('+1 day 10:00', 7);
         $lead = $this->makeLead();
         $starts = $this->service()->availableStarts(30);
 
@@ -197,7 +207,7 @@ class SlotHoldTest extends TestCase
         // One person never holds two ranges at once.
         $this->assertSame(2, $lead->slots()->count());
         $this->assertSame(
-            '10:30',
+            '11:00',
             $lead->slots()->first()->starts_at->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i')
         );
     }
@@ -217,7 +227,8 @@ class SlotHoldTest extends TestCase
 
     public function test_release_expired_command_clears_stale_holds_only(): void
     {
-        $this->makeSlots('+1 day 10:00', 4);
+        // Same 7-unit fixture as above, for the same $starts[2] indexing reason.
+        $this->makeSlots('+1 day 10:00', 7);
         $starts = $this->service()->availableStarts(30);
 
         $stale = $this->makeLead('stale@example.com');

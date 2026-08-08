@@ -259,7 +259,9 @@ class BookingWizardTest extends TestCase
         // Slots come back grouped by day: one day here, so one group.
         $plain = $this->getJson("/course/{$course->id}/booking-slots");
         $plain->assertOk()->assertJsonPath('minutes', 30);
-        $this->assertCount(2, $plain->json('slots.0.times'), '3 個單位可排出 2 個 30 分鐘的起始時間');
+        // FR-069: only :00/:30 starts are offered now, regardless of length —
+        // 10:15 is consecutive-safe but filtered out, leaving just 10:00.
+        $this->assertCount(1, $plain->json('slots.0.times'), '3 個單位僅 10:00 落在整點/半點');
 
         $bonus = $this->getJson("/course/{$course->id}/booking-slots?code=VIP2026");
         $bonus->assertOk()->assertJsonPath('minutes', 45)->assertJsonPath('code_applied', true);
@@ -351,8 +353,10 @@ class BookingWizardTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('state', 'expired'));
 
         $this->assertNull(HighTicketLead::first()->confirmed_at);
-        // Lazy release: available again without any command running.
-        $this->assertCount(3, app(ConsultationSlotService::class)->availableStarts(30), '4 個單位全數釋出 = 3 個起始時間');
+        // Lazy release: available again without any command running. Of the
+        // 3 consecutive-safe starts (10:00/10:15/10:30), FR-069 keeps only
+        // the two on the hour/half-hour.
+        $this->assertCount(2, app(ConsultationSlotService::class)->availableStarts(30), '4 個單位釋出後，2 個起始時間落在整點/半點');
     }
 
     public function test_unknown_token_reports_invalid(): void
