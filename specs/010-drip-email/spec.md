@@ -4,6 +4,7 @@ status: done
 owner_files:
   - app/Http/Controllers/DripSubscriptionController.php
   - app/Http/Controllers/DripTrackingController.php
+  - app/Http/Controllers/Admin/DripLessonPreviewController.php
   - app/Http/Requests/StoreDripSubscriptionRequest.php
   - app/Http/Requests/StoreDripClaimRequest.php
   - app/Models/DripSubscription.php
@@ -19,6 +20,7 @@ owner_files:
   - resources/js/Components/Course/ClaimConsentNotice.vue
   - resources/js/Pages/Drip/Unsubscribe.vue
   - resources/js/Components/Admin/Leads/SubscriberListTab.vue
+  - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
   - database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
   - database/migrations/2026_02_16_000002_create_drip_subscriptions_table.php
   - database/migrations/2026_02_16_000003_create_drip_conversion_targets_table.php
@@ -35,6 +37,7 @@ owner_files:
   - tests/Feature/Drip/ClaimWordingTest.php
   - tests/Feature/Drip/DripMailDeliverabilityTest.php
   - tests/Feature/Drip/GuestClaimTest.php
+  - tests/Feature/Drip/LessonEmailPreviewTest.php
 touchpoints:
   - file: resources/js/composables/useDelayedConfirm.js
     owner: 011-high-ticket
@@ -47,7 +50,7 @@ touchpoints:
     why: US15 — 內嵌的 10 秒覆核邏輯抽出為共用 composable/元件後改為引用，行為不變
   - file: routes/web.php
     owner: 000-platform-core
-    why: US15 — /drip/subscribe 加 throttle:10,1；/drip/verify 路由刪除
+    why: US15 — /drip/subscribe 加 throttle:10,1；/drip/verify 路由刪除。US17 — staff 群組內新增 `GET /admin/drip/lessons/{lesson}/email-preview`（唯讀預覽端點，與宿主的 leads 頁同權限）
   - file: app/Jobs/SendDripEmailJob.php
     owner: 002-storefront
     why: 2026-08-05 起寄信前以 EmailLinkTagger 戳 UTM（002 US14）；本模組另提供 DripService::lessonNumber() 供 utm_content 取「第幾封信」
@@ -332,6 +335,34 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - [x] 「失去申請資格」本次**只做文案宣告，不實作跨商品封鎖**；措辭用「可能不再開放」保留營運彈性（D23）
 - [x] 測試：`POST /drip/unsubscribe/{token}` 單次請求即 status=unsubscribed（守住一鍵退訂不被日後加上伺服器端二段式）
 
+### User Story 17 - 後台預覽 Lesson 信件實際樣貌 (Priority: P3)
+
+後台「訂閱者名單 → Lesson 發信統計」看得到每封信寄了幾封、開了幾成，
+卻看不到**那封信長什麼樣子**。要確認一封信的排版、連結、問候語有沒有錯，
+現行唯一辦法是自己去訂閱一次課程、等信寄到、翻收件匣 —— 而序列信一天只跑一次，
+發現錯字的成本是一天。
+
+在統計表點該列的標題，直接開 modal 看那封信寄出去的樣子。
+
+關鍵是**預覽必須等於寄出**：信件最終的 HTML 不是 `md_content` 本身，
+中間還隔著 Markdown 轉換、strip style/class、UTM 戳章、問候語組裝、blade 版面與頁尾。
+前端拿 `marked` 重繪一份只會給出「像那封信的東西」，而預覽的用途正是抓出那些差異，
+所以一律由後端渲染真正的 `DripLessonMail`（D25）。
+
+**驗收**：
+- [x] 「Lesson 發信統計」表格的「課程」欄標題可點：游標 pointer、hover 有可見回饋（依 Development Rules）
+- [x] 點擊開 modal，內容為該封信的**主旨**與**信件內文**；內文以 `sandbox` iframe（`srcdoc`）呈現，不受後台頁面 CSS 影響、也不執行內文裡的任何 script（比照 011 US7 模板預覽作法）
+- [x] modal 內容由後端渲染真正的 `DripLessonMail`（`->render()`）取得，**不得**在前端用 `marked` 重繪（FR-030）
+- [x] 寄信與預覽共用同一段組裝邏輯 `DripService::buildLessonMail()`；`SendDripEmailJob` 改為呼叫它，實際寄出的信**行為零變更**（FR-031）
+- [x] 預覽中的個人化欄位一律為佔位假資料（D26）：問候語用固定範例名（`小明`）、退訂連結為 `#`、**不放追蹤像素**
+- [x] 預覽為唯讀：MUST NOT 寫入任何 `drip_email_events`、MUST NOT 動到任何真實訂閱者的 token 或統計（FR-032）
+- [x] 內文連結仍帶真實的 UTM 戳章（`utm_source=drip`、`utm_content=lesson-N`）—— 那正是最需要被眼睛檢查的部分
+- [x] `{{classroom_url}}` 佔位符已代換為真實教室連結，與寄出時相同
+- [x] 無 `md_content` 的 Lesson 預覽顯示 blade 的 fallback 文案（「新的內容已經解鎖了，請至網站觀看。」），不報錯
+- [x] 端點權限跟隨宿主頁面（`/admin/high-ticket-leads` 為 **staff**，業務諮詢師看得到訂閱者 tab）；非 drip 課程的 Lesson 回 404（FR-033）
+- [x] 本次**不做**「寄測試信到我的信箱」，只做畫面預覽（D28）
+- [x] 測試：admin 取得 200 且 HTML 含內文與頁尾、不含追蹤像素 `<img`；非 admin 不得存取；非 drip Lesson 404；既有 `DripMailDeliverabilityTest` 零修改續過
+
 ## Requirements
 
 - **FR-001**: 解鎖日公式 `位次 × drip_interval_days`（位次見 FR-022）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
@@ -366,6 +397,12 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **FR-028**: 停止接收確認頁 MUST 為兩段式（第一次按 → 強制 **5 秒** → 第二次按才送出），但這道關卡 MUST 只存在於 Vue 確認頁。`POST /drip/unsubscribe/{token}` 端點 MUST 維持單次請求即生效 —— 該路徑同時是 RFC 8058 `List-Unsubscribe-Post: One-Click` 的目標，郵件用戶端直接 POST、沒有頁面可以按第二次；在端點加關卡等於一鍵退訂失效，而 `List-Unsubscribe` 正是 2026-08-02 那次「Gmail 偶發分到促銷分頁」的解方（US6）。**寄件信譽優先於挽留。**
 - **FR-029**: `DripSubscriptionController` 內任何裸 `Request` 型別參數 MUST 對應 `use Illuminate\Http\Request;`。該檔案 namespace 為 `App\Http\Controllers`（非子命名空間），少了限定 import 時裸 `Request` 會被解析成不存在的 `App\Http\Controllers\Request`，路由參數綁定丟 `ReflectionException` → 500。`memberSubscribe()` 曾漏掉此 import，導致登入會員一鍵領取全數失敗（正式站 2026-08-07 事件）。
+
+- **FR-030**: 後台 Lesson 信件預覽 MUST 由後端渲染真正的 `DripLessonMail`（`Mailable::render()`），MUST NOT 在前端用 `marked` 重繪。信件最終 HTML 經過 Markdown 轉換 → strip style/class → UTM 戳章 → 問候語與主旨組裝 → blade 版面與頁尾，這條鏈只存在後端；前端重繪出來的是「像那封信的東西」，而預覽存在的理由正是抓出兩者的差異
+- **FR-031**: 寄信與預覽 MUST 共用單一組裝函式 `DripService::buildLessonMail(Lesson $lesson, ?DripSubscription $subscription = null, ?User $user = null): DripLessonMail`。`SendDripEmailJob::handle()` 內的內文組裝（含 `resolveGreetingName`、`stripStylesForEmail`）整段移入該函式，Job 只留狀態判斷、寄送、記錄 sent 事件。兩份組裝邏輯是預覽失真的唯一來路，不得存在
+- **FR-032**: 預覽 MUST 為唯讀且無副作用：`$subscription`/`$user` 為 null 時 `openPixelUrl` 為空字串（blade 不輸出像素）、`unsubscribeUrl` 為 `#`、問候語為 `DripService::PREVIEW_GREETING_NAME`。MUST NOT 寫入 `drip_email_events`、MUST NOT 使用真實訂閱者的 `unsubscribe_token`（誤點即真的把人退掉）
+- **FR-033**: 預覽端點 `GET /admin/drip/lessons/{lesson}/email-preview` MUST 與宿主頁面同權限層級 —— 掛 **staff** middleware 群組（不是 admin）。訂閱者名單本身就在 `/admin/high-ticket-leads` 的 staff 群組內，端點若收緊成 admin，業務諮詢師看得到那張統計表卻點不開預覽。且 MUST 對非 drip 課程的 Lesson 回 404 —— 一般課程根本不寄這封信，能預覽只是誤導
+- **FR-034**: 預覽 HTML MUST 以 `sandbox` iframe 的 `srcdoc` 呈現（比照 011 FR 的模板預覽）。兩個理由：後台頁面的 Tailwind 樣式會讓預覽比實際的信好看，以及 `md_content` 允許原生 HTML，未 sandbox 等於讓內容在 admin session 下執行 script
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -406,7 +443,17 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **D24**: 同意告知不加必勾 checkbox（US16）。這是免費領取不是契約簽署，多一個必勾等於在剛拆掉驗證碼、專程降低摩擦的表單上，親手加回一道摩擦。被動揭露（送出即同意，文字就在按鈕下方）在電子報產業是通行作法，也符合本模組 single opt-in 的既定定位（D17）。
 
+- **D25**: 預覽走後端渲染真信，不走前端重繪（US17）。前端方案便宜（統計表已經有 `md_content` 就能 `marked` 一下），但它預覽的是**輸入**不是**輸出** —— 看不到 UTM 有沒有戳上、strip style 有沒有把排版吃掉、問候語與主旨怎麼組、頁尾長怎樣。這些正是會出錯的地方，也是唯一值得為它開一個 modal 的東西。代價是多一個端點與一次網路往返，換「所見即所寄」。
+
+- **D26**: 個人化欄位用佔位假資料，不抓真實訂閱者（US17）。抓「該課程最新一位訂閱者」渲染看似更真實，但那份預覽帶的是**可點的真實退訂 token** —— 管理員在後台檢查排版時誤點一下，就把一位真實訂閱者退掉了，而且沒有任何提示。次要理由：預覽畫面會露出該訂閱者的暱稱（後台其他人也看得到），以及像素若一併渲染會污染開信統計。假名 `小明` 定義為 `DripService::PREVIEW_GREETING_NAME` 常數，避免散落在 controller 與測試裡。
+
+- **D27**: 組裝函式放 `DripService`，不另開 `DripLessonMailBuilder` 類別（US17）。它做的事是「這門 drip 課的這封信長什麼樣」，與 `lessonNumber()`、`isLessonUnlocked()` 同屬一件事的不同切面；為了一個函式新增一層抽象，只是把 drip 的知識拆到兩個檔案。真正的重點在 FR-031（只能有一份），放哪裡是次要的。若日後 Mailable 組裝長到需要獨立測試套件，再抽不遲。
+
+- **D28**: 只做畫面預覽，不做「寄測試信到我的信箱」（US17）。兩者解決的問題不同：畫面預覽答「內容與連結對不對」，測試信答「Gmail 會不會剪字、暗色模式會不會爆」。後者是真問題，但它需要另一條寄送路徑（不寫事件、不推進 `emails_sent`、收件者從 admin 帳號取），而每多一條**繞過正常流程的寄送路徑**，就多一個「以為在測試卻寄給了真人」的破口。先做覆蓋 90% 情境的那個，需要時再加 —— 屆時應該掛在同一個 modal 內、共用同一個 `buildLessonMail()`。
+
 ## Schema
+
+- **US17 無 migration、無 schema 變更** —— 只新增一個唯讀端點與一支前端 modal；`SendDripEmailJob` 的改動為純重構（邏輯搬進 `DripService::buildLessonMail()`），寄出的信 byte-for-byte 不變
 
 - `drip_subscriptions` — 訂閱記錄；(user_id, course_id) unique；emails_sent 恆等於已 dispatch 的信數（也是解鎖游標）；unsubscribe_token 為 UUID、建立時自動產生
 - 本模組新增 migration `2026_07_31_000002_add_booked_to_drip_subscriptions_status.php` — status enum 由 4 值擴為 5 值（加 `booked`）。**須以 `Schema::change()` 且重新指定 `->default('active')`**，否則 MySQL MODIFY 會掉預設值；sqlite 測試 DB 也才會更新 CHECK constraint（比照 `2026_07_20_000001` 的寫法）
@@ -420,6 +467,26 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
 
 - **US16 無 migration、無 schema 變更、無後端變更** —— 全部是前台文案與互動：新增一個共用文案元件、改寫停止接收確認頁、重新命名一支 composable。`DripSubscriptionController::unsubscribe()` 與路由**一行都不動**（FR-028）。
+
+## Tasks（US17 — 後台預覽 Lesson 信件實際樣貌）
+
+Phase 1 — 組裝邏輯抽出（純重構，後面全部相依）
+- [x] T157 `DripService`：新增常數 `PREVIEW_GREETING_NAME = '小明'` 與 `buildLessonMail(Lesson $lesson, ?DripSubscription $subscription = null, ?User $user = null): DripLessonMail`；把 `SendDripEmailJob` 的 classroomUrl / unsubscribeUrl / UTM 陣列 / `{{classroom_url}}` 代換 / `EmailMarkdownService::toHtml` / `EmailLinkTagger` 戳章 / openPixelUrl signed route 整段移入，並把 `resolveGreetingName()`、`stripStylesForEmail()` 一併移為 private 方法；`$subscription === null` → `unsubscribeUrl = '#'` 且 `openPixelUrl = ''`，`$user === null` → 問候語用常數（FR-031、FR-032）in app/Services/DripService.php
+- [x] T158 `SendDripEmailJob::handle()` 改為 `Mail::to($user->email)->send($this->dripService->buildLessonMail($lesson, $subscription, $user))`，刪除已搬走的私有方法；狀態判斷、log、sent 事件記錄一行不動 —— 本任務**不得**改變任何寄出行為 in app/Jobs/SendDripEmailJob.php
+- [x] T159 跑 `php artisan test --filter=Drip` 確認既有 drip 測試零修改續過（重構的驗收標準就是它們不用改）
+
+Phase 2 — 預覽端點
+- [x] T160 新增 `Admin\DripLessonPreviewController`（單一 `__invoke(Lesson $lesson)`）：`abort_unless($lesson->course?->course_type === 'drip', 404)` → `$mail = buildLessonMail($lesson)` → 回 `response()->json(['subject' => $mail->envelope()->subject, 'html' => $mail->render()])`（FR-030、FR-033）in app/Http/Controllers/Admin/DripLessonPreviewController.php
+- [x] T161 staff 群組內註冊 `GET /admin/drip/lessons/{lesson}/email-preview` → `admin.drip.lesson-email-preview`（緊接 high-ticket-leads 路由，與宿主頁面同權限）in routes/web.php〔touchpoint 000〕
+
+Phase 3 — 前端 modal
+- [x] T162 [P] 新增 `LessonEmailPreviewModal.vue`：props `lesson`（含 id/title）與 `open`，開啟時 `fetch` 端點取 JSON；三種狀態（載入中／錯誤／內容），內容區為主旨列 + `<iframe sandbox :srcdoc="html">`（FR-034）；Esc 與背景點擊關閉，關閉後清空內容避免下次開啟閃到上一封 in resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
+- [x] T163 `SubscriberListTab.vue`：「Lesson 發信統計」表格「課程」欄的標題改為可點（`cursor-pointer` + `hover:text-brand-teal hover:underline`，依 Development Rules），點擊設定 `previewLesson` 並開 modal；表格其餘欄位與統計顯示不變 in resources/js/Components/Admin/Leads/SubscriberListTab.vue
+
+Phase 4 — 驗證
+- [x] T164 新增測試 `LessonEmailPreviewTest`：admin 取得 200 且 `html` 含 Lesson 內文、含頁尾「停止接收」、**不含** `openPixelUrl` 的 `<img`、連結含 `utm_source=drip`；`subject` 含問候語 `小明`；非 admin 不得存取；非 drip 課程的 Lesson 回 404；預覽後 `drip_email_events` 筆數不變（FR-032）in tests/Feature/Drip/LessonEmailPreviewTest.php
+- [x] T165 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T166 使用者實測：後台訂閱者名單點統計表標題開得起 modal、內容與實際收到的信一致、換一封信不會殘留上一封、手機寬度下 modal 可讀可捲
 
 ## Tasks（US16 — 領取同意告知與停止接收前的挽留）
 
@@ -530,6 +597,8 @@ Phase 6 — 驗證
 - [x] T148 新增回歸測試：已登入會員 POST `/member/drip/subscribe/{course}` 回 302（非 500），訂閱成功建立 in tests/Feature/Drip/MemberSubscribeTest.php
 
 ## 進度日誌
+
+- 2026-08-08: US17 後台預覽 Lesson 信件 — 寄信組裝抽為 `DripService::buildLessonMail()`（Job 改呼叫，既有 45 個 drip 測試零修改續過），新增 staff 權限的唯讀預覽端點與 `LessonEmailPreviewModal`，統計表標題可點開 sandbox iframe 預覽；預覽用假資料佔位、不寫任何事件
 
 - 2026-08-07: 修正會員一鍵領取 500 error（T147/T148 / FR-029）— `DripSubscriptionController::memberSubscribe()` 的 `Request` 型別缺 `use Illuminate\Http\Request;`，在 `App\Http\Controllers` 命名空間下被解析成不存在的 `App\Http\Controllers\Request`，路由參數綁定丟 `ReflectionException` → 500（正式站 2026-08-07 事件，`userId:93`）。TDD：先寫 `MemberSubscribeTest` 重現同一個錯誤訊息確認紅，補 import 後綠。全套 524 passed，純後端改動不涉及前端。
 - 2026-08-07: US16 — 領取表單（訪客＋會員一鍵）補同意告知（共用 ClaimConsentNotice）；停止接收確認頁改為挽留說明＋5 秒二段式確認，端點維持一鍵退訂單次生效（新增回歸測試）；useEmailReview 更名 useDelayedConfirm。順帶更正 8/2 事件記錄：是 Gmail 促銷分頁（偶發），非垃圾郵件匣。522 passed、npm build 綠。

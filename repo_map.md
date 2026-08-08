@@ -482,6 +482,7 @@ specs: specs/010-drip-email/
 main_files:
 - app/Console/Commands/ProcessDripEmails.php
 - app/Http/Controllers/Admin/CourseController.php
+- app/Http/Controllers/Admin/DripLessonPreviewController.php
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/DripSubscriptionController.php
@@ -515,6 +516,7 @@ main_files:
 - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
 - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
 - resources/js/Components/Admin/CourseForm.vue
+- resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
@@ -534,6 +536,7 @@ main_files:
 - tests/Feature/Drip/DripMailDeliverabilityTest.php
 - tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/GuestClaimTest.php
+- tests/Feature/Drip/LessonEmailPreviewTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 
 related_specs:

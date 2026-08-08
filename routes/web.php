@@ -8,6 +8,7 @@ use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
 use App\Http\Controllers\Member\ClassroomController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DripLessonPreviewController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\ChapterController;
 use App\Http\Controllers\Admin\LessonController;
@@ -229,6 +230,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // The booking is a sub-resource of the lead (US14): PUT moves it, DELETE calls it off.
         Route::put('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'reschedule'])->name('high-ticket-leads.reschedule');
         Route::delete('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'cancelBooking'])->name('high-ticket-leads.cancel-booking');
+
+        // Drip letter preview (010 US17) — read-only, and staff-level because it
+        // opens from the subscriber tab of the leads page above.
+        Route::get('/drip/lessons/{lesson}/email-preview', DripLessonPreviewController::class)->name('drip.lesson-email-preview');
     });
 
     Route::middleware('admin')->group(function () {

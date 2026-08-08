@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendDripEmailJob;
+use App\Mail\DripLessonMail;
 use App\Models\Course;
 use App\Models\DripConversionTarget;
 use App\Models\DripEmailEvent;
@@ -14,10 +15,21 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 
 class DripService
 {
-    public function __construct(private EmailSuppressionService $suppressions) {}
+    /**
+     * Stand-in greeting for the admin preview (US17). A constant rather than a
+     * literal so the controller, the blade and the tests all mean the same
+     * name — and so it is obvious in the preview that nobody real is involved.
+     */
+    public const PREVIEW_GREETING_NAME = '小明';
+
+    public function __construct(
+        private EmailSuppressionService $suppressions,
+        private EmailLinkTagger $linkTagger,
+    ) {}
 
     /** course_id => [lesson_id => 0-based position], memoised per request. */
     private array $lessonPositions = [];
@@ -55,6 +67,99 @@ class DripService
     public function lessonNumber(Lesson $lesson): int
     {
         return $this->lessonPosition($lesson) + 1;
+    }
+
+    /**
+     * Compose the letter for one lesson — the single source of what goes out.
+     *
+     * Both the real send (SendDripEmailJob) and the admin preview (US17) come
+     * through here, deliberately: the delivered HTML is several transforms away
+     * from `md_content` (markdown → strip style/class → UTM stamping → greeting
+     * and subject assembly → blade), and a preview that re-derives any of that
+     * would be previewing something other than the mail (FR-031).
+     *
+     * Preview mode is what you get when the subscriber/user are omitted: no
+     * tracking pixel, a dead unsubscribe link, and a placeholder greeting — a
+     * real token here would let a stray click in the admin unsubscribe a real
+     * person, and a real pixel would count as an open (FR-032).
+     */
+    public function buildLessonMail(Lesson $lesson, ?DripSubscription $subscription = null, ?User $user = null): DripLessonMail
+    {
+        $course = $lesson->course;
+        $classroomUrl = config('app.url') . "/member/classroom/{$course->id}?lesson_id={$lesson->id}";
+
+        // Source attribution for every first-party link in this letter (002
+        // US14). Stamped here rather than stored, so existing lessons are
+        // covered and the rules can change without rewriting any content.
+        $utm = [
+            'utm_source'   => 'drip',
+            'utm_medium'   => 'email',
+            'utm_campaign' => $course->slug ?: (string) $course->id,
+            'utm_content'  => 'lesson-' . $this->lessonNumber($lesson),
+        ];
+
+        $rawMd = str_replace('{{classroom_url}}', $this->linkTagger->tagUrl($classroomUrl, $utm), $lesson->md_content ?: '');
+        // Single Enter is a real line break here too (011 FR-021).
+        $htmlContent = $rawMd
+            ? $this->linkTagger->tagHtml($this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd)), $utm)
+            : '';
+
+        return new DripLessonMail(
+            lessonTitle: $lesson->title,
+            htmlContent: $htmlContent,
+            hasVideo: (bool) $lesson->has_video,
+            classroomUrl: $classroomUrl,
+            unsubscribeUrl: $subscription
+                ? config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}"
+                : '#',
+            courseName: $course->name,
+            // Signed, 180-day expiry. Empty in preview so the blade omits it.
+            openPixelUrl: $subscription
+                ? URL::signedRoute('drip.track.open', [
+                    'sub' => $subscription->id,
+                    'les' => $lesson->id,
+                ], now()->addDays(180))
+                : '',
+            videoAccessHours: $lesson->video_access_hours,
+            greetingName: $user ? $this->resolveGreetingName($user) : self::PREVIEW_GREETING_NAME,
+        );
+    }
+
+    /**
+     * Resolve the greeting name from the user's nickname or real_name.
+     * If exactly 3 Chinese characters, returns the last 2 (e.g., 王小明 → 小明).
+     * Otherwise returns the full name. Returns empty string if no name is set.
+     */
+    private function resolveGreetingName(User $user): string
+    {
+        $name = $user->nickname ?: $user->real_name ?: '';
+        if (!$name) {
+            return '';
+        }
+
+        if (mb_strlen($name) === 3 && preg_match('/^[\x{4e00}-\x{9fff}]+$/u', $name)) {
+            return mb_substr($name, 1);
+        }
+
+        return $name;
+    }
+
+    /**
+     * Strip style/class attributes from HTML for cleaner email delivery.
+     */
+    private function stripStylesForEmail(string $html): string
+    {
+        if (empty($html)) {
+            return '';
+        }
+
+        // Remove style and class attributes
+        $html = preg_replace('/\s*(style|class)="[^"]*"/i', '', $html);
+
+        // Remove <style> blocks
+        $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
+
+        return trim($html);
     }
 
     /**

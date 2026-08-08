@@ -1,6 +1,7 @@
 <script setup>
 import { router } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
+import LessonEmailPreviewModal from './LessonEmailPreviewModal.vue'
 
 const props = defineProps({
   // null when there is no drip course at all — the tab then renders empty state.
@@ -89,6 +90,9 @@ const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('zh-TW')
 }
+
+// Letter preview (US17) — which lesson's mail is on screen, null when closed.
+const previewLesson = ref(null)
 
 const suppressionLabel = (reason) => {
   if (reason === 'bounce') return '已退信'
@@ -181,7 +185,16 @@ const suppressionLabel = (reason) => {
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-for="ls in lessonStats" :key="ls.lesson_id" class="hover:bg-gray-50">
-              <td class="px-4 py-2 text-gray-900">{{ ls.title }}</td>
+              <td class="px-4 py-2 text-gray-900">
+                <button
+                  type="button"
+                  @click="previewLesson = ls"
+                  class="text-left hover:text-brand-teal hover:underline cursor-pointer"
+                  title="預覽這封信"
+                >
+                  {{ ls.title }}
+                </button>
+              </td>
               <td class="px-4 py-2 text-right text-gray-600">{{ ls.sent_count || '—' }}</td>
               <td class="px-4 py-2 text-right text-gray-600 whitespace-nowrap">{{ ls.last_sent_at ? formatDateTime(ls.last_sent_at) : '—' }}</td>
               <td class="px-4 py-2 text-right text-gray-600">{{ ls.open_count }}</td>
@@ -312,5 +325,11 @@ const suppressionLabel = (reason) => {
         </nav>
       </div>
     </template>
+
+    <LessonEmailPreviewModal
+      :show="!!previewLesson"
+      :lesson="previewLesson"
+      @close="previewLesson = null"
+    />
   </div>
 </template>

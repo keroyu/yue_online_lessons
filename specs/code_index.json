@@ -71,6 +71,9 @@
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7"
     ],
+    "app/Http/Controllers/Admin/DripLessonPreviewController.php": [
+      "010.us-17"
+    ],
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
       "011.us-10",
       "011.us-11",
@@ -469,6 +472,7 @@
       "010.us-11",
       "010.us-12",
       "010.us-13",
+      "010.us-17",
       "010.us-3",
       "010.us-8",
       "011.us-7"
@@ -502,6 +506,7 @@
     ],
     "app/Mail/DripLessonMail.php": [
       "000.us-9",
+      "010.us-17",
       "010.us-3",
       "010.us-6"
     ],
@@ -741,6 +746,7 @@
       "010.us-12",
       "010.us-13",
       "010.us-14",
+      "010.us-17",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -1143,11 +1149,15 @@
       "011.us-8",
       "011.us-9"
     ],
+    "resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue": [
+      "010.us-17"
+    ],
     "resources/js/Components/Admin/Leads/SubscriberListTab.vue": [
       "000.us-9",
       "010.us-11",
       "010.us-12",
       "010.us-13",
+      "010.us-17",
       "011.us-8"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
@@ -1577,6 +1587,7 @@
       "008.us-6"
     ],
     "resources/views/emails/drip-lesson.blade.php": [
+      "010.us-17",
       "010.us-3",
       "010.us-6"
     ],
@@ -1622,6 +1633,7 @@
       "002.us-9",
       "006.us-1",
       "010.us-15",
+      "010.us-17",
       "011.us-1",
       "011.us-10",
       "011.us-11",
@@ -1660,6 +1672,9 @@
     ],
     "tests/Feature/Drip/GuestClaimTest.php": [
       "010.us-15"
+    ],
+    "tests/Feature/Drip/LessonEmailPreviewTest.php": [
+      "010.us-17"
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"

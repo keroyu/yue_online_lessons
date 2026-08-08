@@ -2,14 +2,11 @@
 
 namespace App\Jobs;
 
-use App\Mail\DripLessonMail;
 use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
 use App\Models\User;
 use App\Services\DripService;
-use App\Services\EmailLinkTagger;
-use App\Services\EmailMarkdownService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 
 class SendDripEmailJob implements ShouldQueue
 {
@@ -66,51 +62,17 @@ class SendDripEmailJob implements ShouldQueue
             return;
         }
 
-        $course = $lesson->course;
-        $classroomUrl = config('app.url') . "/member/classroom/{$course->id}?lesson_id={$lesson->id}";
-        $unsubscribeUrl = config('app.url') . "/drip/unsubscribe/{$subscription->unsubscribe_token}";
-
-        // Source attribution for every first-party link in this letter (002
-        // US14). Stamped here rather than stored, so existing lessons are
-        // covered and the rules can change without rewriting any content.
-        $tagger = app(EmailLinkTagger::class);
-        $utm = [
-            'utm_source'   => 'drip',
-            'utm_medium'   => 'email',
-            'utm_campaign' => $course->slug ?: (string) $course->id,
-            'utm_content'  => 'lesson-' . app(DripService::class)->lessonNumber($lesson),
-        ];
-
-        $hasVideo = (bool) $lesson->has_video;
-        $rawMd = str_replace('{{classroom_url}}', $tagger->tagUrl($classroomUrl, $utm), $lesson->md_content ?: '');
-        // Single Enter is a real line break here too (011 FR-021).
-        $htmlContent = $rawMd
-            ? $tagger->tagHtml($this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd)), $utm)
-            : '';
-
-        // Generate open-tracking pixel URL (signed, 180-day expiry)
-        $openPixelUrl = URL::signedRoute('drip.track.open', [
-            'sub' => $subscription->id,
-            'les' => $lesson->id,
-        ], now()->addDays(180));
+        // Composition lives in DripService so the admin preview renders the very
+        // same mail (US17, FR-031).
+        $mail = app(DripService::class)->buildLessonMail($lesson, $subscription, $user);
 
         try {
-            Mail::to($user->email)->send(new DripLessonMail(
-                lessonTitle: $lesson->title,
-                htmlContent: $htmlContent,
-                hasVideo: $hasVideo,
-                classroomUrl: $classroomUrl,
-                unsubscribeUrl: $unsubscribeUrl,
-                courseName: $course->name,
-                openPixelUrl: $openPixelUrl,
-                videoAccessHours: $lesson->video_access_hours,
-                greetingName: $this->resolveGreetingName($user),
-            ));
+            Mail::to($user->email)->send($mail);
 
             Log::info('Drip email sent', [
                 'user_id' => $user->id,
                 'lesson_id' => $lesson->id,
-                'course_id' => $course->id,
+                'course_id' => $lesson->course_id,
             ]);
 
             // Record the actual send time as the video free-viewing window anchor.
@@ -139,42 +101,5 @@ class SendDripEmailJob implements ShouldQueue
             ]);
             throw $e;
         }
-    }
-
-    /**
-     * Resolve the greeting name from the user's nickname or real_name.
-     * If exactly 3 Chinese characters, returns the last 2 (e.g., 王小明 → 小明).
-     * Otherwise returns the full name. Returns empty string if no name is set.
-     */
-    private function resolveGreetingName(User $user): string
-    {
-        $name = $user->nickname ?: $user->real_name ?: '';
-        if (!$name) {
-            return '';
-        }
-
-        if (mb_strlen($name) === 3 && preg_match('/^[\x{4e00}-\x{9fff}]+$/u', $name)) {
-            return mb_substr($name, 1);
-        }
-
-        return $name;
-    }
-
-    /**
-     * Strip style/class attributes from HTML for cleaner email delivery.
-     */
-    private function stripStylesForEmail(string $html): string
-    {
-        if (empty($html)) {
-            return '';
-        }
-
-        // Remove style and class attributes
-        $html = preg_replace('/\s*(style|class)="[^"]*"/i', '', $html);
-
-        // Remove <style> blocks
-        $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
-
-        return trim($html);
     }
 }

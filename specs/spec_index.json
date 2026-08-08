@@ -2747,6 +2747,45 @@
       "status": "implemented"
     },
     {
+      "id": "010.us-17",
+      "module": "010-drip-email",
+      "title": "後台預覽 Lesson 信件實際樣貌",
+      "summary": "後台訂閱者名單「Lesson 發信統計」點標題開 modal，以 sandbox iframe 預覽該封序列信；由後端渲染真正的 DripLessonMail（寄信與預覽共用 DripService::buildLessonMail），個人化欄位用假資料佔位、不放追蹤像素",
+      "heading": "### User Story 17 - 後台預覽 Lesson 信件實際樣貌 (Priority: P3)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-17---後台預覽-lesson-信件實際樣貌-priority-p3",
+      "keywords": [
+        "預覽",
+        "preview",
+        "信件預覽",
+        "email preview",
+        "modal",
+        "iframe",
+        "sandbox",
+        "srcdoc",
+        "發信統計",
+        "Lesson",
+        "DripLessonMail",
+        "buildLessonMail",
+        "render",
+        "UTM",
+        "訂閱者名單",
+        "後台"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Jobs/SendDripEmailJob.php",
+        "app/Mail/DripLessonMail.php",
+        "app/Http/Controllers/Admin/DripLessonPreviewController.php",
+        "resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue",
+        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
+        "resources/views/emails/drip-lesson.blade.php",
+        "routes/web.php",
+        "tests/Feature/Drip/LessonEmailPreviewTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "010.us-2",
       "module": "010-drip-email",
       "title": "已登入會員一鍵訂閱",
