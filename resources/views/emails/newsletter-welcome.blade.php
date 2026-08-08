@@ -10,7 +10,7 @@
         <h1 style="font-size:20px;margin:0 0 16px;">訂閱成功，歡迎加入 🎉</h1>
 
         <p style="font-size:15px;line-height:1.7;margin:0 0 16px;">
-            感謝你訂閱《{{ config('app.name', '經營者時間銀行') }}》電子報。<br>
+            感謝你訂閱《{{ \App\Models\SiteSetting::get('hero_title', config('app.name', '經營者時間銀行')) }}》電子報。<br>
             之後我們會不定期寄送實用的 Prompt、免費教學短片與輕量筆記給你。
         </p>
 

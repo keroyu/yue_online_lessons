@@ -69,6 +69,7 @@ owner_files:
   - tests/Feature/Newsletter/AdminScreensTest.php
   - tests/Feature/Newsletter/OgImageTest.php
   - tests/Feature/Newsletter/PostServiceTest.php
+  - tests/Feature/Newsletter/EmailBrandNameTest.php
 touchpoints:
   - file: app/Mail/NewsletterBroadcastMail.php
     owner: 002-storefront
@@ -127,6 +128,9 @@ touchpoints:
   - file: routes/console.php
     owner: 000-platform-core
     why: 排程 posts:publish-scheduled（每分鐘）與 newsletter:clean-dormant（每月 1 號）
+  - file: app/Models/SiteSetting.php
+    owner: 000-platform-core
+    why: 電子報信件頁尾站名改讀 site_settings.hero_title（後台首頁設定「標題」），不再用 config('app.name')（FR-013）
   - file: database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
     owner: 004-course-admin
     why: 既有 bug 修復 — 原生 `ALTER TABLE ... MODIFY` 在 sqlite 測試庫報錯，導致全 repo RefreshDatabase 測試無法執行；加 driver guard（sqlite 跳過）以便驗證本模組
@@ -255,6 +259,7 @@ touchpoints:
 - **FR-010**: Broadcast 發送以每收件者一個 queued Job 進行，逐封夾帶個人化 pixel 與退訂連結；不在單封信合併多人（追蹤與一鍵退訂需要個別 token）。
 - **FR-011**: view_count 為近似計數（每 session 每篇去重、admin/draft/bot 不計），只作內容成效與排序參考，非精確分析；以 `increment()` 原子更新避免併發競態，計數失敗不得影響文章頁回應。
 - **FR-012**: `BlogController::show` 的 `related_course` payload MUST 帶 `is_high_ticket`（`$post->relatedCourse->is_high_ticket`），供 `Blog/Show.vue` 判斷 CTA 文案：高價課顯示「申請 1v1 諮詢了解詳情 →」，其餘課型維持「了解課程 →」。連結本身（`/go/post/...` 帶 UTM）不因課型改變。
+- **FR-013**: 電子報信件（`newsletter-broadcast.blade.php`、`newsletter-broadcast-text.blade.php`、`newsletter-welcome.blade.php`）頁尾提及的站名 MUST 讀 `SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))`，不得直接用 `config('app.name')`（2026-08-08 修正）。`hero_title` 是後台「首頁設定」頁「標題」欄位（002 owned，見 touchpoint），業主已在用它當對外品牌名稱；`APP_NAME` 是系統層級識別字串，兩者一直各自維護，正式站上已經是不同值（`APP_NAME="YUE Lessons"` vs `hero_title="經營者時間銀行"`），電子報頁尾原本讀錯了那一個。`config('app.name')` 字串本身留作 `SiteSetting::get()` 的第二層 fallback，不刪除。
 
 ## 設計決策
 
@@ -334,8 +339,13 @@ touchpoints:
 - [x] T035 CTA 依 `post.related_course.is_high_ticket` 切換文案（「申請 1v1 諮詢了解詳情 →」/「了解課程 →」）in `resources/js/Pages/Blog/Show.vue`
 - [x] T036 新增測試：`related_course.is_high_ticket` 對高價課回 true、一般課回 false in `tests/Feature/Newsletter/BlogPublicTest.php`
 
+### Phase 8 — 電子報頁尾站名來源修正（FR-013）
+- [x] T037 三處 blade 的 `config('app.name', '經營者時間銀行')` 改 `\App\Models\SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))` in `resources/views/emails/newsletter-broadcast.blade.php`、`resources/views/emails/newsletter-broadcast-text.blade.php`、`resources/views/emails/newsletter-welcome.blade.php`
+- [x] T038 新增測試：三封信頁尾出現 `hero_title` 的值而非 `config('app.name')`；`hero_title` 未設定時 fallback 到 `config('app.name')` in `tests/Feature/Newsletter/EmailBrandNameTest.php`
+
 ## 進度日誌
 
+- 2026-08-08: 電子報頁尾站名來源修正（T037/T038 / FR-013）— 業主發現電子報頁尾「你收到這封信是因為訂閱了《YUE Lessons》電子報」用的是 `APP_NAME`（系統層級識別字串），但業主實際在維護、對外代表品牌的是後台「首頁設定」頁的「標題」欄位（`site_settings.hero_title`，正式站值「經營者時間銀行」）——兩者早已不同值，頁尾讀錯了那一個。三處 blade（broadcast HTML/text、welcome）改讀 `SiteSetting::get('hero_title', config('app.name', ...))`，`config('app.name')` 降級為找不到 `hero_title` 時的備援。`SiteSetting.php` 屬 000-platform-core，已在 touchpoints 補一筆。TDD：新增 `EmailBrandNameTest`（3 個測試：broadcast HTML+text 與 welcome 皆出現 `hero_title` 值、未設定時 fallback 到 `config('app.name')`），前兩個先紅後綠。全套 533 passed，純後端／模板改動，不涉及前端。
 - 2026-08-08: 高價課引流 CTA 文案（T034–T036 / FR-012）— 業主要求部落格文章底部連往高價課的 CTA 不要用「了解課程」，改「申請 1v1 諮詢了解詳情」。TDD 過程中意外抓到一個既有 bug：`BlogController::show()` 的 `relatedCourse` eager load 欄位白名單（`id,name,slug,tagline,thumbnail`）漏了 `type`，導致 `Course::is_high_ticket` accessor 永遠讀到 null、恆為 false —— 先寫的測試斷言 `is_high_ticket === true` 時，即使已補上 payload 欄位仍紅（值是 false 不是缺欄位），往回查才發現漏選欄位。補上 `type` 後轉綠。全套 527 passed、`npm run build` 綠。
 - 2026-08-02: 電子報宣告的 RFC 8058 一鍵退訂原本是壞的 — `newsletter/unsubscribe/*` 的 POST 未豁免 CSRF，郵件用戶端直接 POST 會吃 419；`bootstrap/app.php` 補上豁免後才真正生效（隨 010 的連鎖信一併處理）。
 - 2026-07-22: 發佈時間時區修正 — 表單以台北時間顯示/輸入（`prepare()` 轉 UTC 入庫、`edit()`/`index()` 轉回台北顯示）、新增文章預填台北當前時間（PostForm `taipeiNow()`）、前台文章日期（Blog/Home）轉台北時區避免跨日誤差。既有手填 published_at 的舊資料晚存 8h 待校正。AdminPostCrudTest backdate 測試同步，全 repo 168 passed。

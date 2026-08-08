@@ -30,7 +30,7 @@
         </p>
 
         <p style="font-size:13px;color:#9ca3af;line-height:1.7;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:16px;">
-            你收到這封信是因為訂閱了《{{ config('app.name', '經營者時間銀行') }}》電子報。
+            你收到這封信是因為訂閱了《{{ \App\Models\SiteSetting::get('hero_title', config('app.name', '經營者時間銀行')) }}》電子報。
             <a href="{{ $unsubscribeUrl }}" style="color:#6b7280;">按此退訂</a>（退訂後仍保留會員身分）。
         </p>
     </div>
