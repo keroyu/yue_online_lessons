@@ -550,6 +550,7 @@ specs: specs/011-high-ticket/
 
 main_files:
 - app/Console/Commands/ReleaseExpiredBookingHolds.php
+- app/Console/Commands/SendConsultationReminders.php
 - app/Exceptions/SlotUnavailableException.php
 - app/Http/Controllers/Admin/ConsultationSlotController.php
 - app/Http/Controllers/Admin/CourseController.php
@@ -604,6 +605,8 @@ main_files:
 - database/migrations/2026_08_07_000001_add_consultant_to_consultation_slots_table.php
 - database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php
 - database/migrations/2026_08_08_000001_index_and_normalise_phones.php
+- database/migrations/2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php
+- database/migrations/2026_08_09_000003_install_consultation_reminder_template.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
@@ -630,6 +633,7 @@ main_files:
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+- tests/Feature/HighTicket/ConsultationReminderTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php

@@ -2,6 +2,10 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Console/Commands/SendConsultationReminders.php
+  - database/migrations/2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_09_000003_install_consultation_reminder_template.php
+  - tests/Feature/HighTicket/ConsultationReminderTest.php
   - app/Http/Controllers/HighTicketBookingController.php
   - app/Http/Controllers/BookingConfirmController.php
   - app/Exceptions/SlotUnavailableException.php
@@ -141,7 +145,7 @@ touchpoints:
     why: 同上
   - file: routes/console.php
     owner: 000-platform-core
-    why: US11 的 `booking:release-holds` 每 10 分鐘排程（逾時暫留的清理，非正確性來源，見 D33）
+    why: US11 的 `booking:release-holds` 每 10 分鐘排程（逾時暫留的清理，非正確性來源，見 D33）；US19 新增 `booking:send-reminders`，以 `->timezone('Asia/Taipei')->dailyAt('17:00')` 註冊（本檔其餘排程皆為裸 UTC 時刻，這是第一個顯式帶時區的，理由見 D71）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），US10/US12 另加 `high_ticket_booking_bonus_codes` 與三組 `zoom_*` 憑證，沿用 000 的全站設定機制，未新增欄位；2026-08-05 起另在此類別上新增 `SUPPORT_EMAIL_KEY` 常數與 `supportEmail()` helper（FR-057）—— 客服信箱是跨模組都要印的值，放在 SiteSetting 比放在任一功能 service 合理
@@ -530,6 +534,37 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - [ ] 下拉選單有 hover 回饋、清除鈕 `cursor-pointer`
 - [ ] 測試：依顧問 id 篩選只回該顧問的 leads 且 `statusCounts` 同步收斂、`consultant=none` 回未指派的 leads、顧問 + 狀態 + 搜尋三者疊加、`consultantOptions` 含管理員與銷售顧問但不含一般會員、無篩選時的 `statusCounts` 與現況一致
 
+### User Story 19 - 面談前一日提醒信 (Priority: P2)
+
+確認信是在對方**選定時段的當下**寄出的，那可能是兩週前。中間隔著十幾天，
+`.ics`（US14）解決了「時間有沒有進行事曆」，但沒解決「那天早上有沒有想起來」——
+行事曆提醒預設多半只有 10 分鐘，而 1v1 諮詢的 no-show 幾乎都不是故意的。
+
+每天台灣時間下午 5 點，把**隔天**所有已確認的面談各寄一封提醒信給申請人：
+時間、長度、Zoom 連結、以及請準時出席。
+
+範圍刻意只有一封信、只針對申請人：不做多段提醒（前一週 / 前一小時）、
+不改後台 UI、不動時段與 Zoom。這是一條純粹的排程輸出。
+
+**驗收**：
+- [ ] 排程 MUST 為**台灣時間**每日 17:00（`->timezone('Asia/Taipei')->dailyAt('17:00')`），伺服器時區改變時行為不變；命令為 `booking:send-reminders`
+- [ ] 收件範圍為**台北時間翌日整日**（`明天 00:00` ~ `23:59:59`，半開區間 `[明日 00:00, 後日 00:00)` 轉 UTC 後查詢）—— 跨 UTC 換日的兩端（台北 00:15 與 23:45 的面談）都 MUST 命中
+- [ ] 判定的錨點為該 lead 的**最早一個時段**（`slots()` 第一列）：一場 23:45 起跳、單位延伸到隔日 00:15 的面談只算在起始那天，不會被連續兩天各提醒一次
+- [ ] MUST 只寄給**生效中的預約**：`confirmed_at` 非 null、`cancelled_at` 為 null、且時段為已確認佔用（`lead_id` 非 null 且 `held_until` 為 null）；暫留中（送了申請沒點確認信）MUST NOT 收到 —— 那不是一場成立的面談
+- [ ] 漏斗狀態 MUST NOT 參與過濾：`contacted` / `converted` 的 lead 若手上握著明天的預約照樣提醒 —— status 講的是銷售進度，不是「明天要不要出現」
+- [ ] 同一筆預約 MUST 只提醒一次：寄出成功後 `high_ticket_leads.reminder_sent_at` 落地，查詢以 `whereNull` 守門，命令重跑不會二次寄出
+- [ ] 改期（FR-048）MUST 清空 `reminder_sent_at` —— 移到別天的預約要能重新拿到那天的提醒（見 D72）
+- [ ] 使用新模板 `high_ticket_consultation_reminder`（「客製服務面談提醒」），變數 `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}`，並沿用全域變數 `{{support_email}}` / `{{app_url}}`
+- [ ] `{{slot_time}}` MUST 沿用 `ConsultationSlotService::label()`（`8/10（週一）14:00`，台北時間）—— 與確認信、改期信同一種寫法，不另造格式
+- [ ] 模板 MUST 同時登記於 `EmailTemplateSeeder::templates()` 與一支**資料 migration**（沿用 FR-052 的「缺才 insert、永不 update」迴圈），否則正式站永遠不會有這筆
+- [ ] 變數清單 MUST 補進 `EmailTemplateController::$availableVariables`，後台清單 MUST 有中文標籤，否則編輯頁沒有插入按鈕、列表顯示成裸 event_type
+- [ ] 提醒信 MUST NOT CC 任何人（使用者決策，沿用 FR-062 的收斂原則）
+- [ ] 提醒信 MUST NOT 附 `.ics` —— 同 `UID` 同 `SEQUENCE` 的邀請對日曆是 no-op，而為了寄提醒去遞增 `SEQUENCE` 會讓真正的異動（US14）失去意義（見 D73）
+- [ ] 模板不存在時 MUST 記 warning 後正常結束（不寄、不炸、排程不變紅）；單筆寄送失敗 MUST 只記 error 並繼續處理其餘 leads，該筆 `reminder_sent_at` 不落地
+- [ ] 「今天才確認、面談就在明天」MUST NOT 補寄（使用者決策，見 D74）—— 他幾小時前才收過含 `.ics` 的確認信
+- [ ] 命令 MUST 輸出實際寄出筆數（`已寄出 N 封面談提醒`），供 Forge 的排程日誌與人工重跑檢視
+- [ ] 測試：排程註冊為 `0 17 * * *` + `Asia/Taipei`、翌日 00:15 與 23:45 兩端都寄、今天與後天不寄、暫留中與已取消不寄、跨日面談只算起始日、重跑不重寄、改期清空 `reminder_sent_at`、寄出內容含 slot_time 與 zoom 連結、完全無 CC、缺模板時不寄也不丟例外
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -753,8 +788,29 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 
 - **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` **不分諮詢長度**，一律 MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻（2026-08-08 擴大範圍，取代原本僅 `$minutes >= 45` 才過濾的版本——業主原意就是所有場次都要對齊整點／半點的顧問行事曆習慣，8/7 的實作把範圍縮小到只有 45 分鐘場是誤判）。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依分鐘數篩選，兩條規則不互相依賴。
 
+- **FR-076**: 面談提醒排程 MUST 以 `->timezone('Asia/Taipei')->dailyAt('17:00')` 註冊。伺服器跑 UTC，因此裸寫 `dailyAt('17:00')` 會是台北凌晨 1 點、`dailyAt('09:00')` 才是台北 17:00 —— 後者雖然能動，但檔案裡看到的數字與需求裡的數字對不上，任何人（含未來的你）想調整時間都得先在腦中做一次時區換算，而那正是這類設定最常出錯的地方（見 D71）
+- **FR-077**: 收件範圍 MUST 由**台北時間**定義：`$tomorrow = now('Asia/Taipei')->addDay()`，區間為 `[$tomorrow->startOfDay(), $tomorrow->copy()->addDay()->startOfDay())` 轉 UTC 後查詢（半開，避免 `23:59:59` 這種邊界寫法漏掉 `23:59:30` 的可能）。判定錨點為 lead 的最早時段，非「任一時段落在區間內」—— 後者會讓跨午夜的面談在兩天各被撈出一次
+- **FR-078**: 候選 lead MUST 同時滿足：`confirmed_at IS NOT NULL`、`cancelled_at IS NULL`、`reminder_sent_at IS NULL`，且其最早時段 `held_until IS NULL`（已確認佔用，沿用 FR-029 的推導）。`status` MUST NOT 參與過濾。`reminder_sent_at` 只在**寄送成功後**寫入 —— 先寫後寄會在寄信失敗時把人靜靜吃掉
+- **FR-079**: 新增 `email_templates` 一筆：
+
+  | event_type | 名稱 | 可用變數 |
+  |------------|------|---------|
+  | `high_ticket_consultation_reminder` | 客製服務面談提醒 | `{{user_name}}`、`{{user_email}}`、`{{course_name}}`、`{{slot_time}}`、`{{consult_minutes}}`、`{{zoom_join_url}}` |
+
+  MUST 同時登記於 `EmailTemplateSeeder::templates()`、`EmailTemplateController::$availableVariables`、後台列表的中文標籤映射，並由一支資料 migration 沿用 FR-052 的迴圈（讀 seeder、逐筆查 `event_type`、缺才 insert、**永不 update**）安裝到正式站。三處少一處的症狀各不相同且都很安靜：少 seeder 則新環境沒有、少 migration 則正式站沒有、少變數清單則管理員不知道有哪些變數可用
+- **FR-080**: 提醒信 MUST NOT CC、MUST NOT 夾帶 `.ics`（使用者決策 + D73）。它是一封純提醒，不是一次異動通知
+- **FR-081**: 排程 MUST 為「最佳努力」：模板缺失記 warning 後正常結束，單筆寄送失敗記 error 後繼續下一筆，命令 MUST 一律回 `SUCCESS`。理由是這條排程沒有任何下游依賴它 —— 預約、時段、Zoom、`.ics` 都已經是既成事實，讓排程變紅只會在 Forge 上製造一個沒有動作可做的告警。同理，排程整個停擺時 MUST NOT 影響任何其他流程（沿用 FR-035 的立場）
+
 ## 設計決策
 
+- **D71**: 排程寫 `->timezone('Asia/Taipei')->dailyAt('17:00')` 而不是沿用本檔既有的裸 UTC 慣例（`drip:process-emails` 的 `dailyAt('09:00')` 實際就是台北 17:00）。兩種寫法產生完全相同的執行時刻，差別只在讀的人：需求是「台灣下午 5 點」，程式碼就該長成那個樣子。既有那行沒有一併改，是因為它不屬於這個模組，而且改動一條正在跑的排程時間需要它的 owner 決定 —— 但新的這條沒有這個包袱。
+  另一個好處是伺服器時區若哪天變了（搬機、Forge 預設調整），這條排程的行為不會跟著漂走，而裸 UTC 的那些會。
+- **D72**: 一天一封的守門用 `reminder_sent_at` 欄位，而不是「排程每天只跑一次，所以自然不會重複」。後者在正常狀況下成立，但排程重跑（手動 `php artisan booking:send-reminders` 除錯、部署後補跑、Forge 排程重試）是實際會發生的事，而重複的提醒信會直接寄到客戶信箱 —— 這是少數「多寄一次」比「少寄一次」更難看的信。
+  欄位順帶提供一個免費的事實：某筆預約到底有沒有被提醒過，可以直接查，不必翻 log。
+  改期時清空它而不是另外記「提醒的是哪一天」：改期本來就會寄一封帶新時間與新 `.ics` 的信，把提醒狀態重置回原點，語意上就是「這是一場新的約」。代價是**當天 17:00 之後才改期、且新時間仍在明天**的情形不會再收到提醒（下一次排程看的是後天），這個縫隙留著 —— 改期信本身剛送出，時間資訊是最新的。
+- **D73**: 提醒信不附 `.ics`。附一份同 `UID`、同 `SEQUENCE` 的邀請，對方的日曆客戶端會判定為重複而忽略（好一點的）或跳出「這個邀請已存在」（差一點的）；要讓它真的更新就得遞增 `SEQUENCE`，而 `SEQUENCE` 是 US14 用來表達「這場約異動過」的唯一訊號，為了一封提醒去動它，會讓真正的改期在對方日曆上排在一堆假異動後面。
+  行事曆邀請在確認的當下就已經送出去了（FR-046），提醒信的任務是把注意力拉回來，不是再送一次同樣的東西。
+- **D74**: 「今天才確認、面談就在明天」不補寄（使用者決策）。這批人幾小時前才收過確認信，信裡有時間、有 Zoom 連結、有 `.ics`，資訊完全一樣而且更新。為了覆蓋他們去加第二班排程（或把排程改成每小時掃描），換來的是一組新的邊界條件（哪些算補寄、補寄的信要不要跟提醒信長得一樣）與一個不再固定的發信時刻，而需求本來就寫得很清楚：下午 5 點、寄明天的。
 - **D70**: 顧問篩選是**檢視工具，不是權限閘門**（使用者決策）。銷售顧問進頁面預設仍看到全部 leads，不自動帶入自己、也不鎖住選單 —— 這維持 D27 的立場（顧問接手一條 lead 時要看得到對方的完整行為紀錄）。
   「顧問預設只看自己」被否決的理由不只是省事：那會讓同一個畫面對兩種身分講不同的話 —— 管理員看到的百分比是全站漏斗，顧問看到的是自己的漏斗，兩人對著同一個「已成交 3%」討論卻是不同的東西，而畫面上沒有任何地方說明這件事。要做身分預設，該一併做的是把當前分母寫在畫面上，那是另一個範圍。
   「未指派」用 `consultant=none` 這個字串哨兵而不是另開一個 `unassigned=1` 參數：兩個參數表達同一個維度，就會有「同時給了會怎樣」的無意義組合要處理；一個參數一個維度，網址與程式碼都只有一種讀法。
@@ -954,6 +1010,18 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - **D63**: 逾時申請採**硬刪除**而非標記狀態（2026-08-06，業主指定）—— 名單只該留「真的成立過的預約」與「有人在跟進的對象」，填完問卷卻沒點確認信的人兩者都不是。代價講清楚：問卷答案（`phone` / `occupation` / `bottleneck` / `expertise`）會一併永久消失，而「email 已在訂閱者名單」救不回這些 —— 訂閱者名單只有 email、暱稱與訂閱狀態，且 `apply()` 本來就不建立 drip 訂閱（D35：未驗證的 email 還不算 lead），所以申請人是否在訂閱者名單其實不保證。保留 `status = 'pending'` 這道閘是整條規則的安全帶：管理員一旦動過狀態，掃除就繞開。連帶副作用：清掃後同一個確認連結會從 `expired` 落到 `invalid`，因為 lead 已不存在、無從分辨「逾時」與「網址亂打」，故 `invalid` 文案改為同時涵蓋兩種成因並導回重新申請 —— 原文案「可能是網址不完整，請直接使用信件中的連結」對一個正在使用信件連結的人是錯誤指引
 
 ## Schema
+
+- **US19 schema 變更（兩支 migration）**：
+
+  `2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php` — `high_ticket_leads` 增一欄：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `reminder_sent_at` | timestamp nullable | 面談前一日提醒的寄出時間；null = 尚未提醒。改期時清回 null（D72） |
+
+  `2026_08_09_000003_install_consultation_reminder_template.php` — 安裝 `high_ticket_consultation_reminder` 模板。實作**直接沿用 `2026_08_08_000003` 的迴圈**（讀 `EmailTemplateSeeder::templates()`、逐筆查 `event_type`、缺才 insert、永不 update），因此它同時也是後續任何新模板的補漏網；`down()` 為 no-op（無法區分哪些列是它建的）
+
+  **不變量**：`reminder_sent_at` 只由 `booking:send-reminders` 於**寄送成功後**寫入，以及由改期清空 —— 沒有第三個寫入點；欄位不進 Leads 名單 UI（US19 不動任何後台畫面）
 
 - **US16 schema 變更（一支 migration）**：
 
@@ -1389,8 +1457,34 @@ Phase 3 — 驗證
 - [x] T200 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [x] T201 使用者以瀏覽器實測：選顧問後 tab 百分比跟著變、選「未指派」撈得到舊資料、疊加狀態 tab 後篩選不掉、重新整理後篩選還在、清除 ✕ 可用
 
+### 面談前一日提醒信（US19）
+
+Phase 1 — Schema 與模板
+
+- [x] T202 [P] 新增 migration：`high_ticket_leads` 加 `reminder_sent_at`（timestamp nullable，`after('cancelled_at')`）in `database/migrations/2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php`
+- [x] T203 [P] `EmailTemplateSeeder::templates()` 追加 `high_ticket_consultation_reminder`（名稱「客製服務面談提醒」；subject 帶 `{{slot_time}}`；body 含時間 / 長度 / Zoom 連結 / 準時出席提醒 / 需改期請聯絡 `{{support_email}}`）in `database/seeders/EmailTemplateSeeder.php`
+- [x] T204 新增 migration：沿用 `2026_08_08_000003` 的「讀 seeder、缺才 insert、永不 update」迴圈安裝新模板 in `database/migrations/2026_08_09_000003_install_consultation_reminder_template.php`（依賴 T203）
+- [x] T205 [P] `$availableVariables` 追加 `high_ticket_consultation_reminder` 的六個變數與中文 label in `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T206 [P] event_type 中文標籤映射追加「客製服務面談提醒」in `resources/js/Pages/Admin/EmailTemplates/Index.vue`（順手補上同樣缺席的「已改期」「已取消」兩個標籤 —— 它們原本在列表上顯示成裸 event_type）
+
+Phase 2 — 寄送邏輯
+
+- [x] T207 `reminder_sent_at` 加進 `$fillable` 與 `casts()`（`datetime`）in `app/Models/HighTicketLead.php`
+- [x] T208 新增 `sendDayBeforeReminders(): int`：以台北時間算出翌日區間（FR-077）→ 撈該區間內 `lead_id` 非 null、`held_until` 為 null 的 `consultation_slots` → 取 lead 且 `confirmed_at` 非 null / `cancelled_at` 為 null / `reminder_sent_at` 為 null → **以 lead 的最早時段複驗落在區間內**（FR-077）→ 逐筆寄信、成功才 `reminder_sent_at = now()`；回傳實際寄出數 in `app/Services/HighTicketBookingService.php`
+- [x] T209 新增 `sendReminderMail(HighTicketLead $lead, Course $course, CarbonInterface $startsAt): bool`：取 `high_ticket_consultation_reminder` 模板（缺則 log warning 回 false）、組六個變數（`slot_time` 用 `$this->slots->label()`、`consult_minutes` 用 `minutesFor($lead->booking_code)`）、`Mail::to($lead->email)->send(new TemplatedMail(...))` **無 cc、無 attachments**、失敗記 error 回 false in `app/Services/HighTicketBookingService.php`
+- [x] T210 `reschedule()` 在 `increment('calendar_sequence')` 附近清空 `reminder_sent_at`（D72）in `app/Services/HighTicketBookingService.php`
+- [x] T211 新增 `booking:send-reminders` 命令：呼叫 `sendDayBeforeReminders()`、輸出「已寄出 N 封面談提醒」、一律回 `SUCCESS`（FR-081）in `app/Console/Commands/SendConsultationReminders.php`
+- [x] T212 註冊排程 `Schedule::command('booking:send-reminders')->timezone('Asia/Taipei')->dailyAt('17:00')`，並在註解寫明「台灣時間，伺服器為 UTC」in `routes/console.php`
+
+Phase 3 — 驗證
+
+- [x] T213 新增測試：排程註冊為 `0 17 * * *` + `Asia/Taipei`（從 `app(Schedule::class)->events()` 找該命令斷言 expression 與 timezone）、翌日台北 00:15 與 23:45 兩端都寄、今天與後天不寄、暫留中（`held_until` 非 null）與已取消（`cancelled_at`）不寄、`contacted` 狀態照樣寄、跨午夜面談只在起始日寄一次、重跑不重寄、改期後 `reminder_sent_at` 歸 null、信件內容含 `slot_time` 與 zoom 連結、`assertSent` 斷言 cc 為空、缺模板時不寄也不丟例外 in `tests/Feature/HighTicket/ConsultationReminderTest.php`
+- [x] T214 `php artisan test` 全綠（559 passed / 2513 assertions）＋ `npm run build` exit 0
+- [ ] T215 使用者實測：後台 Email 模板頁看得到「客製服務面談提醒」並可編輯 / 預覽；本機以 `php artisan booking:send-reminders` 對一筆翌日的測試預約實跑，確認收件內容與時間文字正確
+
 ## 進度日誌
 
+- 2026-08-10: US19 面談前一日提醒信（T202–T214，僅剩 T215 使用者實測）— 排程 `booking:send-reminders` 以 `->timezone('Asia/Taipei')->dailyAt('17:00')` 註冊（`schedule:list` 顯示 `0 17 * * *`）。查詢窗以台北時間的翌日整日建構再轉 UTC，判定錨點是 lead 的最早一格，跨午夜的面談只算在起始日。`reminder_sent_at` 寄成功才寫、改期時清空。踩到一個純測試面的時區陷阱值得記下來：`Carbon::setTestNow()` 會把**測試時刻的時區**交給之後所有 Carbon 實例，包含 Eloquent 從 datetime 欄位建出來的那些 —— 用 Taipei 時區的 mock 會讓 DB 裡的 UTC 值被標成 +08:00，邊界比較整整差 8 小時而 production 完全正常。mock 改成 `->utc()` 後 12 條測試全綠。順手補上後台 Email 模板列表缺席的「已改期」「已取消」兩個中文標籤（原本顯示裸 event_type）。559 passed、`npm run build` exit 0
 - 2026-08-09: US18 預約名單依顧問篩選（T192–T200）— 顧問條件加進 `bookingLeadsQuery()` 本身而不是各自加在列表與 `statusCounts` 上，是這次唯一有份量的決定：兩個查詢共用一個 builder，狀態 tab 的漏斗百分比就必然跟著篩選走，不會出現「列表 3 筆、tab 卻寫 400 筆」。守門測試也照這個形狀寫 —— 同一條測試同時斷言 `leads.data` 與 `statusCounts`，兩者漂移就紅。`consultant=none` 用字串哨兵而非另開參數（D70）。順手修掉一個既有小 bug：空狀態文案原本只看 `filters.status`，用課程或顧問篩到空集合會謊報「尚無預約記錄」，改為任一篩選有值即顯示「沒有符合條件的 Leads」。權限維持 D27 / D70：顧問不被自動帶入自己，看得到整份名單。547 passed、`npm run build` exit 0
 - 2026-08-09: US17 週曆勾選預約並複製 Email（T184–T190）— `WeekGrid.vue` 加本地勾選 state（`pickedLeadIds` Set，重新賦值而非就地 mutate 才保得住 computed 反應性）、booked/held 區塊內常駐 12px checkbox（`@click.stop` 不觸發改期面板）、格線上方工具列（已選 N 筆／複製 Email／清除），複製走 `navigator.clipboard` 並在失敗時展開唯讀輸入框自動全選當退路。後端零改動，僅在 `ConsultationSlotAdminTest` 補一條守 payload 契約的測試（booked 與 held 區塊必帶 email）。全套 541 passed、`npm run build` 綠
 

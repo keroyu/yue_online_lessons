@@ -33,6 +33,7 @@ class HighTicketLead extends Model
         'zoom_join_url',
         'calendar_sequence',
         'cancelled_at',
+        'reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -45,6 +46,7 @@ class HighTicketLead extends Model
             'confirm_expires_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
             'calendar_sequence' => 'integer',
         ];
     }

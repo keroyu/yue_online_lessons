@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\SlotUnavailableException;
 use App\Mail\BookingVerifyMail;
 use App\Mail\TemplatedMail;
+use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
@@ -355,6 +356,116 @@ class HighTicketBookingService
     }
 
     /**
+     * Email everyone whose consultation is tomorrow (011 US19 / FR-077).
+     *
+     * "Tomorrow" is a Taipei date on a server that runs UTC, so the window is
+     * built in Taipei and converted, never the other way round: Taipei 00:00 is
+     * 16:00 the previous UTC day, and a UTC-shaped window quietly drops both
+     * ends of the day.
+     *
+     * @return int reminders actually sent
+     */
+    public function sendDayBeforeReminders(): int
+    {
+        $tomorrow = Carbon::now(ConsultationSlotService::DISPLAY_TZ)->addDay()->startOfDay();
+        $from = $tomorrow->copy()->utc();
+        $until = $tomorrow->copy()->addDay()->utc();
+
+        $leadIds = ConsultationSlot::query()
+            ->whereBetween('starts_at', [$from, $until->copy()->subSecond()])
+            ->whereNotNull('lead_id')
+            ->whereNull('held_until')
+            ->distinct()
+            ->pluck('lead_id');
+
+        if ($leadIds->isEmpty()) {
+            return 0;
+        }
+
+        $leads = HighTicketLead::query()
+            ->whereIn('id', $leadIds)
+            ->whereNotNull('confirmed_at')
+            ->whereNull('cancelled_at')
+            ->whereNull('reminder_sent_at')
+            ->with('course')
+            ->get();
+
+        $sent = 0;
+
+        foreach ($leads as $lead) {
+            $first = $lead->slots()->first();
+
+            // Anchor on the earliest unit: a consultation that starts tonight
+            // and runs past midnight belongs to today, and yesterday's run
+            // already had its chance at it (FR-077).
+            if (!$first || $first->starts_at < $from || $first->starts_at >= $until) {
+                continue;
+            }
+
+            if (!$lead->course) {
+                Log::warning('High ticket reminder: lead has no course', ['lead_id' => $lead->id]);
+
+                continue;
+            }
+
+            if ($this->sendReminderMail($lead, $lead->course, $first->starts_at)) {
+                // Only after a successful send: writing it first would swallow
+                // the lead whenever the mail server is having a bad minute.
+                $lead->forceFill(['reminder_sent_at' => now()])->save();
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
+     * The reminder itself — no CC and no .ics on purpose (FR-080 / D73).
+     *
+     * A second invite carrying the same UID and SEQUENCE is a no-op to every
+     * calendar client, and bumping SEQUENCE just to be noticed would spend the
+     * signal US14 uses to mean "this booking actually moved".
+     */
+    public function sendReminderMail(HighTicketLead $lead, Course $course, CarbonInterface $startsAt): bool
+    {
+        $template = EmailTemplate::forEvent('high_ticket_consultation_reminder')->first();
+
+        if (!$template) {
+            Log::warning('High ticket reminder: template missing', ['lead_id' => $lead->id]);
+
+            return false;
+        }
+
+        $vars = [
+            '{{user_name}}'       => $lead->name,
+            '{{user_email}}'      => $lead->email,
+            '{{course_name}}'     => $course->name,
+            '{{slot_time}}'       => $this->slots->label($startsAt),
+            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{zoom_join_url}}'   => $lead->zoom_join_url ?? '',
+        ];
+
+        try {
+            Mail::to($lead->email)
+                ->send(new TemplatedMail(
+                    $template->renderSubject($vars),
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                ));
+
+            return true;
+        } catch (\Exception $e) {
+            // One bad address must not cost everybody else their reminder.
+            Log::error('High ticket reminder email failed', [
+                'lead_id' => $lead->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * Move a confirmed booking to another slot (011 US14 / FR-048).
      *
      * Admin-only by design (D50): there is no self-service path, so this is
@@ -386,6 +497,12 @@ class HighTicketBookingService
         $this->slots->reserve($lead, $newStart, $minutes, null);
 
         $lead->increment('calendar_sequence');
+
+        // A booking on another day is owed another reminder (011 D72). Nothing
+        // is lost if the move lands after today's 17:00 run — the reschedule
+        // mail on its way out carries the new time and an updated invite.
+        $lead->forceFill(['reminder_sent_at' => null])->save();
+
         $lead->refresh();
 
         // Outside the slot move, and each independently non-fatal: the schedule

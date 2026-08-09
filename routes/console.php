@@ -35,3 +35,8 @@ Schedule::command('points:reconcile')->dailyAt('01:00');
 // ignores expired holds — but the lead deletion only happens here, so the
 // Leads list stays wrong for as long as this does not run.
 Schedule::command('booking:release-holds')->everyTenMinutes();
+
+// Remind tomorrow's consultations (011 US19 / FR-076). The timezone is spelled
+// out because the server runs UTC: the requirement is "17:00 Taiwan time", and
+// the bare 17:00 above it would mean 01:00 in Taipei.
+Schedule::command('booking:send-reminders')->timezone('Asia/Taipei')->dailyAt('17:00');

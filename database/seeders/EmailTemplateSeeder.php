@@ -66,6 +66,12 @@ class EmailTemplateSeeder extends Seeder
                 'body_md' => "您好 {{user_name}}，\n\n您的「{{course_name}}」1v1 諮詢時段已更新：\n\n- 原時段：{{old_slot_time}}\n- **新時段：{{slot_time}}**\n- 長度：{{consult_minutes}} 分鐘\n\n會議連結不變，原本的連結仍然可用：\n{{zoom_join_url}}\n\n本信附有行事曆檔案，開啟後即可更新您日曆上的行程時間。\n\n若這個時間不方便，或需要取消，請直接回覆此信告訴我們。\n\n經營者時間銀行",
             ],
             [
+                'name' => '客製服務面談提醒',
+                'event_type' => 'high_ticket_consultation_reminder',
+                'subject' => '【明天見】{{course_name}} 1v1 諮詢 — {{slot_time}}',
+                'body_md' => "您好 {{user_name}}，\n\n提醒您，「{{course_name}}」的 1v1 諮詢就在**明天**：\n\n- 時段：{{slot_time}}\n- 長度：{{consult_minutes}} 分鐘\n\n會議連結：\n{{zoom_join_url}}\n\n請準時出席，並提前幾分鐘進入會議室確認網路與麥克風。時段是為您單獨保留的，遲到會直接壓縮我們可以談的時間。\n\n若臨時無法出席，請盡快來信 {{support_email}} 告知，讓我們把時段留給其他人。\n\n明天見。\n\n經營者時間銀行",
+            ],
+            [
                 'name' => '客製服務預約已取消',
                 'event_type' => 'high_ticket_booking_cancelled',
                 'subject' => '【預約已取消】{{course_name}} — {{slot_time}}',

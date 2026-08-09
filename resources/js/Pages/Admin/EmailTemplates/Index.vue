@@ -45,6 +45,9 @@ const eventTypeLabels = {
   lesson_added: '課程新增小節通知',
   high_ticket_slot_available: '客製服務新時段通知',
   lead_converted: '顧問成交開通通知',
+  high_ticket_booking_rescheduled: '客製服務預約已改期',
+  high_ticket_booking_cancelled: '客製服務預約已取消',
+  high_ticket_consultation_reminder: '客製服務面談提醒',
 }
 </script>
 

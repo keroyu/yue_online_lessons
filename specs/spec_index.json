@@ -3422,6 +3422,46 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-19",
+      "module": "011-high-ticket",
+      "title": "面談前一日提醒信",
+      "heading": "### User Story 19 - 面談前一日提醒信 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-19---面談前一日提醒信-priority-p2",
+      "summary": "每日台灣時間 17:00 排程寄出翌日所有已確認面談的提醒信給申請人；新增 high_ticket_consultation_reminder 模板、reminder_sent_at 一天一封守門、改期時重置，不 CC 也不附 ics",
+      "keywords": [
+        "面談提醒",
+        "預約提醒",
+        "reminder",
+        "排程",
+        "schedule",
+        "dailyAt",
+        "Asia/Taipei",
+        "時區",
+        "翌日",
+        "隔天",
+        "booking:send-reminders",
+        "reminder_sent_at",
+        "email 模板",
+        "no-show",
+        "高價課",
+        "high ticket"
+      ],
+      "code_files": [
+        "app/Console/Commands/SendConsultationReminders.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Models/HighTicketLead.php",
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "database/seeders/EmailTemplateSeeder.php",
+        "database/migrations/2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php",
+        "database/migrations/2026_08_09_000003_install_consultation_reminder_template.php",
+        "resources/js/Pages/Admin/EmailTemplates/Index.vue",
+        "routes/console.php",
+        "tests/Feature/HighTicket/ConsultationReminderTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",

@@ -20,6 +20,9 @@
       "011.us-10",
       "011.us-11"
     ],
+    "app/Console/Commands/SendConsultationReminders.php": [
+      "011.us-19"
+    ],
     "app/Console/Commands/UpdateCourseStatus.php": [
       "004.us-5"
     ],
@@ -79,6 +82,7 @@
       "011.us-11",
       "011.us-12",
       "011.us-14",
+      "011.us-19",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -607,6 +611,7 @@
       "011.us-11",
       "011.us-12",
       "011.us-15",
+      "011.us-19",
       "011.us-2",
       "011.us-3",
       "011.us-9"
@@ -776,6 +781,7 @@
       "011.us-14",
       "011.us-15",
       "011.us-16",
+      "011.us-19",
       "011.us-2",
       "011.us-6",
       "011.us-7",
@@ -1092,10 +1098,17 @@
     "database/migrations/2026_08_09_000001_create_email_suppressions_table.php": [
       "000.us-9"
     ],
+    "database/migrations/2026_08_09_000002_add_reminder_sent_at_to_high_ticket_leads_table.php": [
+      "011.us-19"
+    ],
+    "database/migrations/2026_08_09_000003_install_consultation_reminder_template.php": [
+      "011.us-19"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
       "011.us-14",
+      "011.us-19",
       "011.us-6"
     ],
     "database/seeders/ShortLinkSeeder.php": [
@@ -1420,6 +1433,7 @@
     ],
     "resources/js/Pages/Admin/EmailTemplates/Index.vue": [
       "011.us-11",
+      "011.us-19",
       "011.us-6"
     ],
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
@@ -1627,6 +1641,7 @@
       "010.us-3",
       "011.us-10",
       "011.us-11",
+      "011.us-19",
       "012.us-7"
     ],
     "routes/web.php": [
@@ -1703,6 +1718,9 @@
     ],
     "tests/Feature/HighTicket/ConsultantAssignmentTest.php": [
       "011.us-15"
+    ],
+    "tests/Feature/HighTicket/ConsultationReminderTest.php": [
+      "011.us-19"
     ],
     "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
       "011.us-10",
