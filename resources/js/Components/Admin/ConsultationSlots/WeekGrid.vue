@@ -44,6 +44,7 @@ onUnmounted(() => {
   window.removeEventListener('pointercancel', commit)
   window.removeEventListener('scroll', updatePanelPos, true)
   window.removeEventListener('resize', updatePanelPos)
+  clearTimeout(copiedTimer)
 })
 
 const visibleDays = computed(() =>
@@ -375,6 +376,77 @@ const BLOCK_CLASS = {
 
 const STATE_LABEL = { held: '暫留中', booked: '已預約' }
 
+// ---- email picking (011 US17) ----------------------------------------------
+//
+// Everything here is local state over props the grid already has: the block
+// payload carries `email`, so pulling the addresses out is a front-end job and
+// needs no request (D67). Selection resets on a week change because switching
+// weeks is a full Inertia visit — deliberately, so a copy can never include
+// people who are not on screen (D68).
+
+const pickedLeadIds = ref(new Set())
+const copiedCount = ref(0)
+const manualCopyText = ref('')
+const manualCopyInput = ref(null)
+let copiedTimer = null
+
+/** Booked and held blocks in reading order — day, then start time. */
+const pickableBookings = computed(() =>
+  visibleDays.value.flatMap(day =>
+    day.bookings.filter(b => b.email && (b.state === 'booked' || b.state === 'held'))
+  )
+)
+
+const pickedCount = computed(() =>
+  pickableBookings.value.filter(b => pickedLeadIds.value.has(b.lead_id)).length
+)
+
+function isPicked(booking) {
+  return pickedLeadIds.value.has(booking.lead_id)
+}
+
+function togglePick(booking) {
+  // Reassigning the Set keeps the computed reactive — Set mutation alone does not.
+  const next = new Set(pickedLeadIds.value)
+  next.has(booking.lead_id) ? next.delete(booking.lead_id) : next.add(booking.lead_id)
+  pickedLeadIds.value = next
+  manualCopyText.value = ''
+}
+
+function clearPicks() {
+  pickedLeadIds.value = new Set()
+  manualCopyText.value = ''
+}
+
+/** `a@x.com, b@y.com` — the separator a mail client splits recipients on. */
+function pickedEmails() {
+  const seen = new Set()
+  for (const b of pickableBookings.value) {
+    if (pickedLeadIds.value.has(b.lead_id)) seen.add(b.email)
+  }
+  return [...seen].join(', ')
+}
+
+async function copyEmails() {
+  const text = pickedEmails()
+  if (!text) return
+
+  try {
+    // Only available in a secure context: localhost counts, a LAN IP does not —
+    // so this throws exactly when someone tests from a phone on the office
+    // network, and a silent failure there is indistinguishable from a dead
+    // button (FR-072).
+    await navigator.clipboard.writeText(text)
+    manualCopyText.value = ''
+    copiedCount.value = new Set(text.split(', ')).size
+    clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => { copiedCount.value = 0 }, 2000)
+  } catch {
+    manualCopyText.value = text
+    nextTick(() => manualCopyInput.value?.select())
+  }
+}
+
 function leadUrl(email) {
   return `/admin/high-ticket-leads?search=${encodeURIComponent(email)}`
 }
@@ -434,6 +506,42 @@ function isHalf(label) {
           在格線上按住並拖曳以選取時段範圍；點一筆預約可改期或取消。
         </p>
       </div>
+    </div>
+
+    <!-- Pick applicants off the calendar and take their addresses elsewhere
+         (US17). Deliberately does not send anything — batch mail has its own
+         path through the template system (D69). -->
+    <div v-if="pickableBookings.length" class="mb-2 flex flex-wrap items-center gap-2">
+      <span class="text-xs text-gray-500 tabular-nums">已選 {{ pickedCount }} 筆</span>
+      <button
+        type="button"
+        :disabled="pickedCount === 0"
+        class="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 cursor-pointer hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+        @click="copyEmails"
+      >
+        {{ copiedCount ? `已複製 ${copiedCount} 筆` : '複製 Email' }}
+      </button>
+      <button
+        v-if="pickedCount"
+        type="button"
+        class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition"
+        @click="clearPicks"
+      >
+        清除
+      </button>
+    </div>
+
+    <!-- Clipboard refused (not a secure context, or permission denied): hand the
+         string over so the copy is still one keystroke away (FR-072). -->
+    <div v-if="manualCopyText" class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+      <p class="text-xs text-amber-800">無法自動複製，請按 Ctrl/Cmd+C 複製下方地址：</p>
+      <input
+        ref="manualCopyInput"
+        :value="manualCopyText"
+        readonly
+        class="mt-1 block w-full rounded border-amber-300 bg-white px-2 py-1 text-xs text-gray-700"
+        @focus="$event.target.select()"
+      >
     </div>
 
     <!-- Floating above the selected block (D66): position: fixed, tracked via
@@ -647,6 +755,16 @@ function isHalf(label) {
             :title="`${booking.start}–${booking.end} ${booking.name}（${STATE_LABEL[booking.state]}）`"
             @click="selectBooking(dIndex, booking, $event)"
           >
+            <!-- Picking a recipient must not open the panel the rest of the
+                 block opens (US17); the click stops here. -->
+            <input
+              v-if="booking.email"
+              type="checkbox"
+              class="mr-1 h-3 w-3 shrink-0 cursor-pointer accent-teal-600"
+              :checked="isPicked(booking)"
+              :title="`選取 ${booking.name} 的 Email`"
+              @click.stop="togglePick(booking)"
+            >
             <!-- Name only. A 30-minute block is 28px tall, so anything more
                  clips; the time is already implied by where the block sits and
                  how tall it is, and everything else lives in the panel you get

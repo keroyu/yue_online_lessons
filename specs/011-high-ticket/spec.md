@@ -433,18 +433,18 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 但改期與取消本來就是人與人直接寫信談出來的結果，系統再補一封只是噪音。
 
 **驗收**：
-- [ ] `consultation_slots` 新增 `consultant_id`（nullable）。staff（管理員或銷售顧問）在週曆上拖曳建立時段時，MUST 自動指派為「目前選定的歸屬對象」，預設是自己
-- [ ] 週曆頁 MUST 有「時段歸屬」選擇器：管理員可選任一 staff（管理員 + 銷售顧問），銷售顧問 MUST 只能選自己（欄位鎖定顯示自己的名字）
-- [ ] 管理員 MUST 能變更**既有預約**的顧問：選取預約區塊後在面板上切換，一次請求
-- [ ] 已釋出但未被預約的格子，其歸屬 MUST 至少以 `title` tooltip 可查（v1 不做視覺分軌，見 D57）
-- [ ] 確認預約當下 MUST 把該時段的 `consultant_id` **快照**到 `high_ticket_leads.consultant_id`；此後時段被改派或釋放都不影響已成立的歸屬（見 D58）
-- [ ] Leads 名單的預約 tab MUST 顯示該筆的負責顧問（無指派時顯示「—」）
+- [x] `consultation_slots` 新增 `consultant_id`（nullable）。staff（管理員或銷售顧問）在週曆上拖曳建立時段時，MUST 自動指派為「目前選定的歸屬對象」，預設是自己
+- [x] 週曆頁 MUST 有「時段歸屬」選擇器：管理員可選任一 staff（管理員 + 銷售顧問），銷售顧問 MUST 只能選自己（欄位鎖定顯示自己的名字）
+- [x] 管理員 MUST 能變更**既有預約**的顧問：選取預約區塊後在面板上切換，一次請求
+- [x] 已釋出但未被預約的格子，其歸屬 MUST 至少以 `title` tooltip 可查（v1 不做視覺分軌，見 D57）
+- [x] 確認預約當下 MUST 把該時段的 `consultant_id` **快照**到 `high_ticket_leads.consultant_id`；此後時段被改派或釋放都不影響已成立的歸屬（見 D58）
+- [x] Leads 名單的預約 tab MUST 顯示該筆的負責顧問（無指派時顯示「—」）
 - [x] **CC 規則簡化**：只有「客製服務預約確認」信 CC，收件為**該筆的顧問**（未指派時退回客服清單）；「預約待確認」「已改期」「已取消」三封 MUST NOT CC 任何人（見 D59）
 - [x] 確認信 MUST **只** CC 該筆的顧問；顧問為 null 時才退回客服清單 —— 沒有指派不等於沒有人要知道
-- [ ] `ZoomMeetingService::createMeeting()` MUST 可指定主持人 Email（`POST /v2/users/{email}/meetings`）；未指定、或該 Email 在 Zoom 帳號下不存在（404）時 MUST fallback 回 `me` 並記 log，預約流程不受影響（見 D60）
-- [ ] 顧問沒有 Zoom 席次時系統行為 MUST 完全等同現況 —— 會議建在擁有者帳號下，功能不因此中斷
-- [ ] 所有新增的可點元素 `cursor-pointer` + hover 回饋
-- [ ] 測試：拖曳建立時自動帶入歸屬、顧問只能指派給自己、管理員可改派既有預約、確認時快照到 lead、確認信 CC 客服 + 顧問、無顧問時只 CC 客服、其餘三封信完全無 CC、Zoom 指定主持人成功、主持人 404 時 fallback 回 me
+- [x] `ZoomMeetingService::createMeeting()` MUST 可指定主持人 Email（`POST /v2/users/{email}/meetings`）；未指定、或該 Email 在 Zoom 帳號下不存在（404）時 MUST fallback 回 `me` 並記 log，預約流程不受影響（見 D60）
+- [x] 顧問沒有 Zoom 席次時系統行為 MUST 完全等同現況 —— 會議建在擁有者帳號下，功能不因此中斷
+- [x] 所有新增的可點元素 `cursor-pointer` + hover 回饋
+- [x] 測試：拖曳建立時自動帶入歸屬、顧問只能指派給自己、管理員可改派既有預約、確認時快照到 lead、確認信 CC 客服 + 顧問、無顧問時只 CC 客服、其餘三封信完全無 CC、Zoom 指定主持人成功、主持人 404 時 fallback 回 me
 
 ### User Story 16 - 阻擋重複預約與電話正規化 (Priority: P1)
 
@@ -478,6 +478,33 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [ ] 擋下的訊息 MUST 指名該筆的**負責顧問 Email**，無指派時退回客服信箱（FR-057）；文案 MUST 說明「若需要改期或安排第二次面談，請直接聯絡」
 - [ ] 前台 MUST 把這個訊息完整顯示給申請人（不是泛用的「送出失敗」）
 - [ ] 測試：三種電話寫法正規化為同一值、換 Email 同電話被擋、換電話同 Email 被擋、四種擋下狀態各一、三種放行狀態各一、被擋時既有預約與時段**完全未被更動**、訊息含顧問 Email、無顧問時含客服信箱、舊資料 migration 轉換正確
+
+### User Story 17 - 週曆勾選預約並複製 Email (Priority: P3)
+
+要對「這週要面談的人」一起寄封提醒信，現在得離開週曆、去 Leads 名單、
+用日期把人一個一個找出來、逐筆複製 Email —— 而週曆上明明就看得到是哪幾個人。
+
+在預約區塊上加勾選框，選完按上方的「複製 Email」，
+得到一串以半形逗號相隔的地址，直接貼進收件欄位。
+
+這個功能刻意**不寄信**：寄信有既有的批次郵件（US4）與模板系統（US6），
+再開一條寄送路徑只會多一個繞過模板的破口。這裡只解決「名單怎麼拿出來」。
+
+後端不動 —— 區塊 payload 早就帶了 `email`（`ConsultationSlotService::finishBlock()`）。
+
+**驗收**：
+- [ ] 已預約（indigo）與暫留中（amber）的區塊 MUST 在暱稱左側顯示常駐 checkbox；未釋出與可預約的空格沒有（沒有申請人可選）
+- [ ] 點 checkbox **只**切換勾選，MUST NOT 開啟改期／取消面板；點區塊其他地方維持現行行為（開面板）
+- [ ] 格線上方 MUST 有一列工具列：顯示「已選 N 筆」與「複製 Email」按鈕；N = 0 時按鈕 disabled；N > 0 時另有「清除」
+- [ ] 按下複製後寫入剪貼簿的格式為 `a@x.com, b@y.com` —— 半形逗號 + 一個空格，可直接貼進 Gmail／Outlook 收件欄位
+- [ ] 重複的 Email MUST 去重（同一人同週有兩筆預約時只出現一次），順序為畫面上的日期→時間順序
+- [ ] 複製成功顯示提示（沿用頁面既有的 toast 或按鈕即時回饋，文案含實際筆數）；**勾選狀態不清空**，可再複製一次
+- [ ] 剪貼簿 API 不可用或被拒（非 https、瀏覽器擋權限）時 MUST 有可見退路：把整串地址顯示在唯讀輸入框並自動全選，讓使用者手動 Ctrl/Cmd+C，不得只是靜默失敗（FR-072）
+- [ ] 切換週次時勾選清空（走整頁 Inertia visit，`preserveState: false`，狀態自然重置）—— 不做跨週累積（D68）
+- [ ] 手機單日檢視行為一致：checkbox 一樣可點、工具列一樣在格線上方
+- [ ] 改期模式（`rescheduling`）進行中時，區塊維持 `pointer-events-none`，checkbox 一併不可點 —— 該模式下唯一該被點的是目標格
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋
+- [ ] 測試：`weekView()` 的 booked 與 held 區塊皆帶非空 `email`（前端唯一依賴的後端契約，見 D67）
 
 ## Requirements
 
@@ -693,6 +720,11 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者
 
+- **FR-070**: 週曆的 Email 複製 MUST 為**純前端**功能：勾選狀態存在 `WeekGrid.vue` 的本地 state，地址來源為既有 props（`day.bookings[].email`），MUST NOT 新增端點、MUST NOT 新增請求。後端唯一的責任是繼續在 booked／held 區塊吐出 `email`（FR-071）
+- **FR-071**: 可勾選的區塊限 `state ∈ {booked, held}` —— 這兩種才有申請人。暫留中一併納入是刻意的：那是「送了申請但還沒點確認信」的人，正是最需要被催的一批（使用者決策）。空格（未釋出／可預約）沒有 checkbox，不是 disabled 而是根本不渲染
+- **FR-072**: 複製 MUST 走 `navigator.clipboard.writeText()`，且失敗時 MUST 有可見退路（唯讀輸入框 + 自動全選 + 手動複製提示）。理由不是保守：`navigator.clipboard` 只在 secure context 可用，本機 `http://localhost` 算 secure、區網 IP（`http://192.168.x.x`）不算 —— 用手機連內網測試時它會直接丟例外，而沒有退路的失敗長得跟「按了沒反應」一模一樣
+- **FR-073**: 複製格式為 `implode(', ', $emails)`（半形逗號 + 一個空格），MUST 去重且 MUST 依畫面順序（日期 → 起始時間）。分隔符不可改為分號或換行 —— 目的就是貼進 Gmail／Outlook 的收件欄位
+
 - **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` **不分諮詢長度**，一律 MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻（2026-08-08 擴大範圍，取代原本僅 `$minutes >= 45` 才過濾的版本——業主原意就是所有場次都要對齊整點／半點的顧問行事曆習慣，8/7 的實作把範圍縮小到只有 45 分鐘場是誤判）。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依分鐘數篩選，兩條規則不互相依賴。
 
 ## 設計決策
@@ -730,6 +762,16 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   兩個候選：(a) 面板當區塊的絕對定位子元素，靠 CSS Grid 版位讓它跟著區塊走；(b) 面板用 `position: fixed`，點擊當下量出區塊的 `getBoundingClientRect()`，之後用 `scroll`/`resize` 監聽器即時重算。選 (b)：整個行事曆包在 `overflow-x-auto` 的橫向捲動容器裡，而 CSS 規則是只要一軸設了非 `visible` 的 overflow，另一軸會一併變成有效的裁切邊界（`overflow-x: auto` 會讓 `overflow-y` 的算出值也變 `auto`）—— 面板往上浮出區塊頂端時，垂直方向也會被同一個容器裁掉，(a) 的方式在區塊排在較前面幾列時會整個消失不見。`position: fixed` 直接跳出所有裁切邊界，沒有這個問題。
   代價：需要監聽器（`window.addEventListener('scroll', ..., true)` 用 capture 才抓得到內層容器自己的捲動、加 `resize`），面板打開期間掛上、`clearSelection()` 與 `onUnmounted` 一併卸載，否則會是外洩的監聽器。手機（`< sm`）切換單日檢視時直接 `clearSelection()`（呼叫既有的 `syncNarrow`）—— 版面切換當下錨點元素可能已經被 Vue 換掉，與其追蹤哪個 DOM 節點還存在，不如把面板收起來，使用者重新點一次的成本很低
   水平置中並用面板實際量到的寬度（`offsetWidth`）夾在 `[8px, innerWidth - 8px]` 之間，避免貼齊視窗邊緣時被切掉；垂直預設在區塊上方，量到區塊距視窗頂端不足一個面板高度時（約 80px 判斷）自動翻到區塊下方 —— 這與原生 tooltip 的碰撞處理是同一套邏輯
+
+- **D67**: 勾選複製全部做在前端，後端一行不改（US17）。區塊 payload 從 US13 就帶著 `email`（`finishBlock()`），要的資料已經在畫面上，再開一個「給我這些 lead 的 email」端點只是把手邊的東西繞一圈回來，還多一次往返與一組權限判斷。
+  代價是這個功能靠一條**沒有型別、沒人保證**的前後端契約活著：哪天有人為了瘦身 payload 把 `email` 拿掉，畫面不會壞、按鈕照按，複製出來的是一串空字串 —— 靜默失敗，而且要等到有人把空白貼進收件欄位才發現。因此 US17 唯一的自動化測試不測 UI，測那條契約：`weekView()` 的 booked 與 held 區塊必須帶非空 `email`。這是本專案目前沒有 JS 測試環境（只有 PHPUnit）之下，唯一擋得住回歸的位置。
+
+- **D68**: 勾選不跨週保留（US17，使用者決策）。切週是整頁 Inertia visit（`preserveState: false`），狀態自然歸零，不保留等於不寫程式。
+  保留的版本要多付兩樣東西：一份獨立於畫面的選取清單，以及「你選了 3 筆，其中 2 筆不在這一週」的呈現方式 —— 後者才是真正的成本，因為看不見的勾選是會出事的那種：使用者以為在複製這一週的名單，實際上夾帶了兩週前的人。一次複製一週的名單是最常見也最好預測的用法，先做這個。
+  **實作時延伸到手機單日檢視**（2026-08-09）：切日不是整頁 visit，勾選狀態不會自然歸零，因此計數與複製結果一律以 `visibleDays` 為範圍 —— 在週一勾了人、切到週二再按複製，複製到的是週二看得到的那些。同一條原則（畫面上看不到的人不會被複製到）在兩種版面下維持一致，代價是手機上無法跨日累積名單。
+
+- **D69**: 不在這裡加「寄信給選取的人」（US17）。批次寄信已經有 US4 的既有路徑（模板 + 確認 modal + per-lead Job），在週曆上再開一顆寄信按鈕，等於多一條繞過模板系統的寄送路徑 —— 而寄出去的東西沒有回收鍵。
+  「複製 Email 貼到自己的信箱」聽起來土，但它把「寄什麼、寄給誰、什麼時候寄」整段留在人手上，不需要系統為此承擔任何責任。真的需要系統寄，正確的做法是讓週曆選取後跳到既有的批次郵件流程，而不是自己長一套。
 
 - **D63**: 重複預約的檢查**只發生在送出當下**，不做第 1 步的即時 precheck（2026-08-05，使用者決策）。
   體驗上這是有代價的：申請人會填完整份問卷、選完時段、等完 10 秒的 Email 覆核倒數，才被告知白填了。把檢查提前到第 1 步（Email 與手機都已填妥）能省下那一切。
@@ -890,6 +932,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   **只有一支** —— US16 的擋門完全建立在既有欄位（`status` / `confirmed_at` / `cancelled_at` / `phone`）之上，不需要第二支
 
   **不變量**：電話進 DB 前一律經 `PhoneNumber::normalise()`；DB 裡不應再出現含 `-`、空白或 `+886` 的號碼
+
+- **US17 無 migration、無 schema 變更、無後端邏輯變更** —— 全部在 `WeekGrid.vue` 內；唯一動到 PHP 的是新增一個守住 payload 契約的測試（D67）
 
 - **US15 schema 變更（兩支 migration）**：
 
@@ -1225,7 +1269,7 @@ Phase E — 後台 UI（相依 B）
 
 Phase F — 驗證
 - [x] T148 `php artisan test` 全綠（基準 411 passed）＋ `npm run build` exit 0
-- [ ] T149 使用者以瀏覽器實測：以顧問身分登入建時段、管理員改派、預約後確認信的 CC 收件者、Leads 名單的顧問欄
+- [x] T149 使用者以瀏覽器實測：以顧問身分登入建時段、管理員改派、預約後確認信的 CC 收件者、Leads 名單的顧問欄
 
 ### 阻擋重複預約與電話正規化（US16）
 
@@ -1279,7 +1323,27 @@ US14 補充
 - [x] T182 更新 `test_thirty_minute_starts_are_not_restricted_to_the_hour_or_half_hour`（更名為 `test_thirty_minute_starts_are_also_limited_to_the_hour_or_half_hour`，反轉斷言）；`test_forty_five_minutes_needs_three_consecutive_units`、`test_available_starts_requires_consecutive_units` 更新為新預期值；`test_rebooking_releases_the_previous_hold`／`test_release_expired_command_clears_stale_holds_only` 的 4 單位 fixture 擴為 7 單位以容納 `$starts[2]` 索引（過濾後只剩 2 個候選會 out-of-range）in `tests/Feature/HighTicket/SlotHoldTest.php`；連帶修正 `BookingWizardTest.php` 兩處撞到同一過濾規則的既有斷言（`test_slots_endpoint_reflects_the_bonus_code`、`test_expired_token_reports_expired_and_the_slot_is_free`）
 - [x] T183 覆核區不出席警語文案改為「若確定預約卻無故不出席，將不可再申請本站免費諮詢名額。」in `resources/js/Components/Course/HighTicketBookingWizard.vue`
 
+US17 — 週曆勾選預約並複製 Email
+
+Phase 1 — 勾選
+- [x] T184 `WeekGrid.vue` 新增 `selectedLeadIds`（`ref(new Set())`）與 `toggleSelect(booking)`；`selectableEmails` computed 依畫面順序（`visibleDays` → `day.bookings`）攤平出 `{ lead_id, email }`，供工具列取用 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T185 預約區塊在暱稱左側加 `<input type="checkbox" class="h-3 w-3 shrink-0 cursor-pointer accent-teal-600">`，`@click.stop` 只切換勾選不開面板；僅 `state ∈ {booked, held}` 渲染（FR-071）。區塊既有 `title` 與名字 `truncate` 維持不變 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+
+Phase 2 — 工具列與複製
+- [x] T186 格線上方加工具列：「已選 N 筆」+「複製 Email」（N=0 時 disabled）+「清除」（N>0 才出現）；沿用頁面既有按鈕樣式與 `cursor-pointer` in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T187 `copyEmails()`：取勾選中的 email → 去重（`Set`）→ `join(', ')` → `await navigator.clipboard.writeText()`；成功時按鈕文案暫時改為「已複製 N 筆」（2 秒後還原），勾選**不清空**（FR-073）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T188 複製失敗（非 secure context／權限被拒）的退路：工具列下方展開唯讀 `<input>` 帶完整字串並 `select()`，附一行「請按 Ctrl/Cmd+C 複製」；再次成功複製或清除選取時收起（FR-072）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+
+Phase 3 — 驗證
+- [x] T189 新增測試：`weekView()` 的 booked 與 held 區塊皆帶非空 `email`（D67 的契約守門）in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+- [x] T190 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T191 使用者實測：勾選框點得到且不會誤開面板、複製出來的字串貼進 Gmail 收件欄可正確拆成多個收件者、切週後勾選歸零、手機單日檢視可用
+
 ## 進度日誌
+
+- 2026-08-09: US17 週曆勾選預約並複製 Email（T184–T190）— `WeekGrid.vue` 加本地勾選 state（`pickedLeadIds` Set，重新賦值而非就地 mutate 才保得住 computed 反應性）、booked/held 區塊內常駐 12px checkbox（`@click.stop` 不觸發改期面板）、格線上方工具列（已選 N 筆／複製 Email／清除），複製走 `navigator.clipboard` 並在失敗時展開唯讀輸入框自動全選當退路。後端零改動，僅在 `ConsultationSlotAdminTest` 補一條守 payload 契約的測試（booked 與 held 區塊必帶 email）。全套 541 passed、`npm run build` 綠
+
+- 2026-08-09: US15（諮詢時段指派銷售顧問）業主確認全部完成 —— 10 條驗收與 T149 實測勾選；覆核程式碼確認顧問欄位與自動指派、歸屬選擇器（顧問鎖定自己）、管理員改派既有預約、空格歸屬 tooltip、確認時快照到 lead、Leads 名單顧問欄、Zoom 指定主持人與 404 fallback 皆已在位，`ConsultantAssignmentTest` + `ZoomMeetingTest` 23 passed。索引 status 由 partial 轉 implemented
 
 - 2026-08-08: 整點/半點限制擴大到 30 分鐘預設場次 + 不出席警語文案改寫（T181–T183 / FR-069）— 業主回報「上次說過的整點/半點限制怎麼還是沒改」，查證後發現 8/7 的實作把範圍誤縮小成只有 45 分鐘（優惠碼延長）場次才過濾，30 分鐘預設場次仍可選到 `:15`/`:45`；業主確認要擴大到所有長度。`availableStarts()` 拿掉 `$minutes >= 45` 條件，過濾對所有長度一律生效。TDD：先改 `SlotHoldTest` 既有測試的預期值反映新規則，確認因舊 code 未改而紅，拿掉條件後轉綠；過程中發現兩個測試（`test_rebooking_releases_the_previous_hold`、`test_release_expired_command_clears_stale_holds_only`）用 `$starts[2]` 索引 4 單位 fixture，過濾後只剩 2 個候選會 index-out-of-range，改用 7 單位 fixture 讓 3 個整點/半點候選都存在。跑全套時另外抓到 `BookingWizardTest.php` 兩個斷言撞到同一規則變更，一併修正。不出席警語同時由「我們將永久黑名單」改為「將不可再申請本站免費諮詢名額」（業主要求文案更具體），同步修正 D37 與後台狀態說明表格裡的舊引用文字。全套 540 passed、`npm run build` 綠。
 - 2026-08-08: 修正 .ics SUMMARY 遺漏的名稱簡化（T180 / FR-046）— 8/7 簡化 Zoom 會議 topic（T175）時漏改 `CalendarInviteService::build()` 的 `SUMMARY`，導致確認信附件的 `.ics` 加進 Google Calendar 等日曆 app 後，行程標題仍是長版「{課程名} 1v1 諮詢 - {姓名}」。業主回報後查證：SSH 到正式站直接打 Zoom API 核對最近 8 筆會議的實際 topic，確認 Zoom 端本身在 8/7 15:40 部署後即完全正確；問題單獨出在 `.ics` 的 `SUMMARY` 欄位從未跟著改。TDD：先寫斷言 `SUMMARY:王小明 諮詢` 確認紅（實際是長版），改一行後綠；連帶修正一個因此變得過時的既有測試 `test_folded_chinese_survives_a_round_trip`——它原本斷言 `$course->name` 會出現在 `.ics` 內容中，但這正是本次改動要拿掉的東西，改為只驗證長姓名 folding 後仍完整往返。全套 528 passed，純後端改動。

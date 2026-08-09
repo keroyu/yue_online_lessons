@@ -727,7 +727,8 @@
       "011.us-11",
       "011.us-13",
       "011.us-14",
-      "011.us-15"
+      "011.us-15",
+      "011.us-17"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -1121,7 +1122,8 @@
     "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
       "011.us-13",
       "011.us-14",
-      "011.us-15"
+      "011.us-15",
+      "011.us-17"
     ],
     "resources/js/Components/Admin/CouponChainInserter.vue": [
       "006.us-5"
@@ -1701,7 +1703,8 @@
     ],
     "tests/Feature/HighTicket/ConsultationSlotAdminTest.php": [
       "011.us-10",
-      "011.us-13"
+      "011.us-13",
+      "011.us-17"
     ],
     "tests/Feature/HighTicket/DuplicateBookingTest.php": [
       "011.us-16"

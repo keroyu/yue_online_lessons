@@ -202,6 +202,26 @@ class ConsultationSlotAdminTest extends TestCase
         $this->assertSame('https://zoom.us/j/123', $bookings[0]['zoom_join_url']);
     }
 
+    /**
+     * The week-grid copy button (US17) reads addresses straight off this payload
+     * — there is no endpoint behind it and no JS test suite in this project, so
+     * this assertion is the only thing standing between a slimmed-down payload
+     * and a button that silently copies empty strings (D67).
+     */
+    public function test_booked_and_held_blocks_expose_the_applicant_email(): void
+    {
+        $booked = $this->makeLead('Booked');
+        $held = $this->makeLead('Held');
+        $this->makeSlot('2026-08-05 10:00', $booked);
+        $this->makeSlot('2026-08-05 14:00', $held, now()->addHour());
+
+        $bookings = collect($this->day($this->slots()->weekView('2026-08-05'), '2026-08-05')['bookings'])
+            ->keyBy('state');
+
+        $this->assertSame('booked@example.com', $bookings['booked']['email']);
+        $this->assertSame('held@example.com', $bookings['held']['email']);
+    }
+
     // ── 狀態統計（T168 / D65） ──────────────────────────────────────────
 
     public function test_status_counts_use_different_time_windows_per_state(): void

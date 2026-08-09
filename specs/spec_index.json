@@ -3321,7 +3321,7 @@
         "database/migrations/2026_08_07_000002_add_consultant_to_high_ticket_leads_table.php",
         "tests/Feature/HighTicket/ConsultantAssignmentTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-16",
@@ -3357,6 +3357,38 @@
         "tests/Feature/HighTicket/DuplicateBookingTest.php"
       ],
       "status": "partial"
+    },
+    {
+      "id": "011.us-17",
+      "module": "011-high-ticket",
+      "title": "週曆勾選預約並複製 Email",
+      "summary": "諮詢時段週曆的已預約／暫留中區塊加常駐 checkbox，格線上方工具列可把選取的申請人 Email 以半形逗號相隔複製到剪貼簿（去重、依畫面順序）；純前端，後端 payload 早已帶 email",
+      "heading": "### User Story 17 - 週曆勾選預約並複製 Email (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-17---週曆勾選預約並複製-email-priority-p3",
+      "keywords": [
+        "複製 Email",
+        "copy email",
+        "剪貼簿",
+        "clipboard",
+        "勾選",
+        "checkbox",
+        "多選",
+        "週曆",
+        "week grid",
+        "諮詢時段",
+        "consultation slots",
+        "批次",
+        "收件者",
+        "逗號",
+        "申請人"
+      ],
+      "code_files": [
+        "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
+        "app/Services/ConsultationSlotService.php",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "011.us-2",
