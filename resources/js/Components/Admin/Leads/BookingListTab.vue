@@ -17,6 +17,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Admins + sales consultants, for the owner filter (US18)
+  consultantOptions: {
+    type: Array,
+    default: () => [],
+  },
   dripCourses: {
     type: Array,
     required: true,
@@ -41,8 +46,8 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  // { status: count } over the whole search/course-filtered set, status filter
-  // excluded — see the funnel share on the pills below.
+  // { status: count } over the whole search/course/consultant-filtered set,
+  // status filter excluded — see the funnel share on the pills below.
   statusCounts: {
     type: Object,
     default: () => ({}),
@@ -169,9 +174,16 @@ const tabTitle = (value) => {
     : `共 ${leadTotal.value} 筆`
 }
 
-// Search & course filter
+// Search, course & consultant filter. All three stack, and every navigation
+// away from here has to carry them all — dropping one silently widens the list
+// under the admin without the URL saying so.
 const search = ref(props.filters.search || '')
 const courseFilter = ref(props.filters.course_id || '')
+const consultantFilter = ref(props.filters.consultant || '')
+
+const hasAnyFilter = computed(() =>
+  Boolean(props.filters.status || search.value || courseFilter.value || consultantFilter.value)
+)
 
 let searchTimeout = null
 watch(search, () => {
@@ -184,6 +196,7 @@ const applyFilters = (overrides = {}) => {
     status: props.filters.status || undefined,
     search: search.value || undefined,
     course_id: courseFilter.value || undefined,
+    consultant: consultantFilter.value || undefined,
     ...overrides,
   }, { preserveState: true, replace: true })
 }
@@ -193,6 +206,7 @@ const applyFilter = (status) => {
     status: status || undefined,
     search: search.value || undefined,
     course_id: courseFilter.value || undefined,
+    consultant: consultantFilter.value || undefined,
   }, {
     preserveState: true,
     replace: true,
@@ -554,6 +568,7 @@ const goToPage = (page) => {
     status: props.filters.status || undefined,
     search: search.value || undefined,
     course_id: courseFilter.value || undefined,
+    consultant: consultantFilter.value || undefined,
   }, { preserveState: true })
 }
 
@@ -607,7 +622,7 @@ const copySelectedEmails = async () => {
 
 <template>
   <div>
-    <!-- Search & course filter -->
+    <!-- Search, course & consultant filter -->
     <div class="mb-4 flex flex-col sm:flex-row gap-3">
       <div class="flex-1">
         <input
@@ -621,7 +636,7 @@ const copySelectedEmails = async () => {
         <select
           v-model="courseFilter"
           @change="applyFilters()"
-          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
+          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm cursor-pointer hover:border-gray-400"
         >
           <option value="">所有課程</option>
           <option v-for="course in highTicketCourses" :key="course.id" :value="course.id">
@@ -631,8 +646,33 @@ const copySelectedEmails = async () => {
         <button
           v-if="courseFilter"
           @click="courseFilter = ''; applyFilters()"
-          class="text-gray-400 hover:text-gray-600"
+          class="text-gray-400 hover:text-gray-600 cursor-pointer"
           title="清除篩選"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <!-- Owner filter (US18). 未指派 is its own option on purpose: every lead
+           from before US15 sits there and is otherwise unreachable. -->
+      <div class="flex items-center gap-2">
+        <select
+          v-model="consultantFilter"
+          @change="applyFilters()"
+          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm cursor-pointer hover:border-gray-400"
+        >
+          <option value="">所有顧問</option>
+          <option v-for="person in consultantOptions" :key="person.id" :value="person.id">
+            {{ person.nickname || person.email }}
+          </option>
+          <option value="none">未指派</option>
+        </select>
+        <button
+          v-if="consultantFilter"
+          @click="consultantFilter = ''; applyFilters()"
+          class="text-gray-400 hover:text-gray-600 cursor-pointer"
+          title="清除顧問篩選"
         >
           <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -889,7 +929,7 @@ const copySelectedEmails = async () => {
 
           <tr v-if="leads.data?.length === 0">
             <td colspan="9" class="px-6 py-12 text-center text-gray-500">
-              {{ filters.status ? '沒有符合條件的 Leads' : '尚無預約記錄' }}
+              {{ hasAnyFilter ? '沒有符合條件的 Leads' : '尚無預約記錄' }}
             </td>
           </tr>
         </tbody>

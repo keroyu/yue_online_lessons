@@ -53,16 +53,18 @@ class HighTicketLeadController extends Controller
         $tab = $request->query('tab');
         $tab = in_array($tab, self::TABS, true) ? $tab : 'booking';
 
-        $status    = $request->query('status');
-        $search    = $request->query('search');
-        $courseId  = $request->query('course_id');
-        $subCourse = $request->query('sub_course');
-        $subStatus = $request->query('sub_status');
+        $status     = $request->query('status');
+        $search     = $request->query('search');
+        $courseId   = $request->query('course_id');
+        $consultant = $request->query('consultant');
+        $subCourse  = $request->query('sub_course');
+        $subStatus  = $request->query('sub_status');
 
         $filters = [
             'status'     => $status,
             'search'     => $search,
             'course_id'  => $courseId,
+            'consultant' => $consultant,
             'sub_course' => $subCourse ? (int) $subCourse : null,
             'sub_status' => $subStatus,
         ];
@@ -95,7 +97,7 @@ class HighTicketLeadController extends Controller
             ]);
         }
 
-        $leads = $this->bookingLeadsQuery($search, $courseId)
+        $leads = $this->bookingLeadsQuery($search, $courseId, $consultant)
             ->with(['course:id,name', 'consultant:id,nickname,email', 'slots:id,lead_id,starts_at'])
             ->when($status, fn ($q) => $q->byStatus($status))
             ->orderBy('booked_at', 'desc')
@@ -105,8 +107,10 @@ class HighTicketLeadController extends Controller
         // Funnel share behind each status pill (FR-067). Counted over the whole
         // filtered set rather than the current page, and deliberately without
         // the status filter — the shares have to keep adding up to 100% after
-        // the admin clicks into one status.
-        $statusCounts = $this->bookingLeadsQuery($search, $courseId)
+        // the admin clicks into one status. The consultant filter *does* belong
+        // in here (FR-074): sharing one builder is what keeps the pills and the
+        // list from telling two different stories.
+        $statusCounts = $this->bookingLeadsQuery($search, $courseId, $consultant)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status')
@@ -117,6 +121,13 @@ class HighTicketLeadController extends Controller
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
+
+        // Same definition of "who is a consultant" as the week grid's owner
+        // picker, minus its self-only restriction — this filter is a viewing
+        // tool, not a permission gate (D70).
+        $consultantOptions = User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))
+            ->orderBy('nickname')
+            ->get(['id', 'nickname', 'email']);
 
         $notifyTemplate = EmailTemplate::forEvent('high_ticket_slot_available')
             ->first(['id', 'subject', 'body_md'])
@@ -163,6 +174,7 @@ class HighTicketLeadController extends Controller
             'leads'             => $leads,
             'filters'           => $filters,
             'highTicketCourses' => $highTicketCourses,
+            'consultantOptions' => $consultantOptions,
             'dripCourses'       => $dripCourses,
             'notifyTemplate'    => $notifyTemplate,
             'dripByEmail'       => $dripByEmail,
@@ -177,18 +189,28 @@ class HighTicketLeadController extends Controller
     }
 
     /**
-     * The booking tab's search / course filter, shared by the paginated list
-     * and the per-status counts so the two can never disagree about which
-     * leads are in scope.
+     * The booking tab's search / course / consultant filter, shared by the
+     * paginated list and the per-status counts so the two can never disagree
+     * about which leads are in scope (FR-074).
+     *
+     * `$consultant` is a view parameter, not an identity: empty means every
+     * consultant, `none` means the leads nobody owns (everything from before
+     * US15 lives there), anything else is an id. An id that matches nobody just
+     * yields an empty list — not worth a validation layer (FR-075).
      */
-    private function bookingLeadsQuery(?string $search, $courseId): Builder
+    private function bookingLeadsQuery(?string $search, $courseId, ?string $consultant = null): Builder
     {
         return HighTicketLead::query()
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             }))
-            ->when($courseId, fn ($q) => $q->where('course_id', $courseId));
+            ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
+            ->when($consultant === 'none', fn ($q) => $q->whereNull('consultant_id'))
+            ->when(
+                $consultant !== null && $consultant !== '' && $consultant !== 'none',
+                fn ($q) => $q->where('consultant_id', (int) $consultant),
+            );
     }
 
     /**

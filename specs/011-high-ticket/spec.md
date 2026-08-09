@@ -506,6 +506,30 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋
 - [ ] 測試：`weekView()` 的 booked 與 held 區塊皆帶非空 `email`（前端唯一依賴的後端契約，見 D67）
 
+### User Story 18 - 預約名單依顧問篩選 (Priority: P3)
+
+US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方式只看某一位顧問的人。
+「我手上這批走到哪了」現在只能靠肉眼掃「負責顧問」欄，
+而狀態 tab 上那排漏斗百分比是**全站**的，看不出個別顧問的成交狀況。
+
+在搜尋列旁加一個顧問下拉選單，選了之後列表與**狀態 tab 上的百分比一起收斂**到那位顧問的名單。
+關鍵在後者：篩選只改列表而百分比停在全站，等於畫面上並排兩組互相矛盾的數字。
+
+顧問權限不變（D27 / D70）：銷售顧問一樣看得到全部，這是**檢視工具不是權限閘門**，
+下拉預設「所有顧問」，要看自己的自己選。
+
+**驗收**：
+- [ ] 搜尋列所在的那一排 MUST 有顧問下拉選單，選項為「所有顧問」（預設，不篩選）+ 每位 staff（管理員 + `is_sales_consultant`，依 `nickname` 排序，顯示 `nickname`，無暱稱則顯示 email）+ 「未指派」
+- [ ] 選「未指派」MUST 列出 `consultant_id IS NULL` 的 leads —— US15 之前的舊資料與落在無主時段上的預約全在這一堆，沒有這個選項就永遠撈不出來
+- [ ] 已選顧問時 MUST 有「清除篩選」的 ✕（比照課程篩選既有作法）
+- [ ] 套用顧問篩選後，狀態 tab 的「全部 N 筆」與各狀態百分比 MUST 依同一組篩選重算 —— 分母是該顧問名下的 leads 總數，各狀態百分比相加仍為 100%（FR-074）
+- [ ] 顧問篩選 MUST 與既有的搜尋、課程篩選、狀態 tab **可疊加**，且三者互不覆蓋；點狀態 tab、改搜尋、換課程、翻頁 MUST 保留當前的顧問篩選
+- [ ] 篩選值 MUST 在網址上（`?consultant=`），重新整理與分享連結後篩選還在
+- [ ] 銷售顧問身分 MUST NOT 被自動帶入或鎖定 —— 顧問看得到整份名單的規則不變（D27）
+- [ ] 篩到空集合時，空狀態文案 MUST 為「沒有符合條件的 Leads」而非「尚無預約記錄」（現行判斷只看 `status`，加了顧問篩選後會謊報「尚無預約記錄」）
+- [ ] 下拉選單有 hover 回饋、清除鈕 `cursor-pointer`
+- [ ] 測試：依顧問 id 篩選只回該顧問的 leads 且 `statusCounts` 同步收斂、`consultant=none` 回未指派的 leads、顧問 + 狀態 + 搜尋三者疊加、`consultantOptions` 含管理員與銷售顧問但不含一般會員、無篩選時的 `statusCounts` 與現況一致
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -675,6 +699,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 - **FR-067**: 預約名單的狀態篩選 tab MUST 在標籤後顯示該狀態佔漏斗的百分比（`[全部][待面談 70%][已面談 5%]…`）。分母 MUST 為**套用了搜尋 / 課程篩選、但不套用狀態篩選**的全體 leads —— 百分比是拿來看漏斗形狀的，若隨著點進某狀態而重算，那個狀態就會變成 100%，數字當場失去意義。計數 MUST 由後端一次 `GROUP BY status` 聚合（涵蓋整個結果集，不是當頁 20 筆），與列表共用同一組篩選條件；四捨五入後為 0 但實際有資料者顯示 `<1%`，總數為 0 時整排不顯示任何數字，`title` 提供實際筆數。「全部」MUST 顯示**總筆數**而非百分比 —— 它就是其餘百分比的分母，自己沒有佔比可言，而百分比若沒有一個絕對數字對照，「5%」是 2 筆還是 200 筆分不出來
 
+- **FR-074**: 預約名單 MUST 支援 `?consultant=` 篩選，且該條件 MUST 加在 `HighTicketLeadController::bookingLeadsQuery()` 內 —— 列表分頁與 `statusCounts` 的 `GROUP BY status` 共用這同一個 builder，因此百分比會自動跟著收斂，**不得**另外複製一份條件到其中一邊。理由與 FR-067 同源：分母的定義決定百分比在講什麼，兩邊各寫一次遲早漂移，而漂移的症狀是「列表 3 筆、tab 卻寫 400 筆」這種沒人看得懂的畫面。狀態篩選仍 MUST NOT 進分母（FR-067 不變）
+- **FR-075**: 參數取值：`consultant` 為空 = 不篩選；`consultant=none` = `whereNull('consultant_id')`；其餘一律 `(int)` 後 `where('consultant_id', ...)`。不存在的 id 回空集合即可（不 422）—— 這是一個檢視參數，網址被亂改的代價是看到空列表，不值得為它加一層驗證。選項來源 MUST 與週曆歸屬選擇器同一條件（`role = 'admin' OR is_sales_consultant = true`，依 `nickname` 排序），避免兩處的「誰是顧問」定義分岔；但 MUST NOT 沿用那裡的「顧問只能選自己」限制（見 D70）
 - **FR-063**: `ZoomMeetingService::createMeeting()` MUST 接受選填的主持人 Email，指定時打 `POST /v2/users/{email}/meetings`。該 Email 在 Zoom 帳號下不存在時 Zoom 回 **404**，此時 MUST fallback 至 `/users/me/meetings` 並記 warning —— 顧問還沒有 Zoom 席次是**預期中的過渡狀態**，不是錯誤，預約流程 MUST NOT 因此中斷（見 D60）
 
 - **FR-059**: 第 4 步的送出 MUST 為**兩段式**（2026-08-05，實測踩到）。第一次按「送出申請」MUST NOT 直接送出，而是顯示醒目的 Email 覆核區塊（大字體印出 `form.email`）並**倒數 10 秒**，倒數期間按鈕停用、顯示剩餘秒數；倒數結束後按鈕改為「Email 正確，確認送出」，第二次按下才真的送出。區塊 MUST 提供「這個 Email 不對，回去修改」直接跳回第 1 步。離開第 4 步或修改 Email MUST 重置整個流程。
@@ -728,6 +754,10 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` **不分諮詢長度**，一律 MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻（2026-08-08 擴大範圍，取代原本僅 `$minutes >= 45` 才過濾的版本——業主原意就是所有場次都要對齊整點／半點的顧問行事曆習慣，8/7 的實作把範圍縮小到只有 45 分鐘場是誤判）。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依分鐘數篩選，兩條規則不互相依賴。
 
 ## 設計決策
+
+- **D70**: 顧問篩選是**檢視工具，不是權限閘門**（使用者決策）。銷售顧問進頁面預設仍看到全部 leads，不自動帶入自己、也不鎖住選單 —— 這維持 D27 的立場（顧問接手一條 lead 時要看得到對方的完整行為紀錄）。
+  「顧問預設只看自己」被否決的理由不只是省事：那會讓同一個畫面對兩種身分講不同的話 —— 管理員看到的百分比是全站漏斗，顧問看到的是自己的漏斗，兩人對著同一個「已成交 3%」討論卻是不同的東西，而畫面上沒有任何地方說明這件事。要做身分預設，該一併做的是把當前分母寫在畫面上，那是另一個範圍。
+  「未指派」用 `consultant=none` 這個字串哨兵而不是另開一個 `unassigned=1` 參數：兩個參數表達同一個維度，就會有「同時給了會怎樣」的無意義組合要處理；一個參數一個維度，網址與程式碼都只有一種讀法。
 
 - **D57**: 顧問歸屬做在**共用行事曆**上，不改成每位顧問各一本（使用者決策）。
   `consultation_slots.starts_at` 目前是全域 unique，一個 15 分鐘單位全系統只有一列。要讓兩位顧問同時開放同一時刻，得改成 `unique(starts_at, consultant_id)`，而那會連鎖到：公開選時段頁要決定「訪客自己挑顧問還是系統分配」（**商業決定，不是技術決定**）、`availableStarts()` 要跨顧問聚合去重、FR-032 的併發搶位變成 per-consultant、週曆要分軌或加篩選。那是一個完整的 US，動到公開預約流程。
@@ -932,6 +962,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
   **只有一支** —— US16 的擋門完全建立在既有欄位（`status` / `confirmed_at` / `cancelled_at` / `phone`）之上，不需要第二支
 
   **不變量**：電話進 DB 前一律經 `PhoneNumber::normalise()`；DB 裡不應再出現含 `-`、空白或 `+886` 的號碼
+
+- **US18 無 migration、無 schema 變更** —— 完全建立在 US15 已存在的 `high_ticket_leads.consultant_id`（已有 index）之上，只多一個 `where` 與一個下拉選單
 
 - **US17 無 migration、無 schema 變更、無後端邏輯變更** —— 全部在 `WeekGrid.vue` 內；唯一動到 PHP 的是新增一個守住 payload 契約的測試（D67）
 
@@ -1339,8 +1371,27 @@ Phase 3 — 驗證
 - [x] T190 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [ ] T191 使用者實測：勾選框點得到且不會誤開面板、複製出來的字串貼進 Gmail 收件欄可正確拆成多個收件者、切週後勾選歸零、手機單日檢視可用
 
+US18 — 預約名單依顧問篩選
+
+Phase 1 — 後端篩選與選項
+- [x] T192 `bookingLeadsQuery()` 簽名加第三參數 `?string $consultant`：`none` → `whereNull('consultant_id')`，其他非空值 → `where('consultant_id', (int) $consultant)`，空值不加條件（FR-075）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T193 `index()` 讀 `$request->query('consultant')`、併入 `$filters['consultant']`，並把它傳進**兩處** `bookingLeadsQuery()` 呼叫（列表分頁與 `statusCounts` 聚合）—— 漏掉任一處就是 FR-074 要防的那個症狀 in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T194 `index()` 的 booking 分支新增 `consultantOptions` prop：`User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))->orderBy('nickname')->get(['id', 'nickname', 'email'])`（與 `ConsultationSlotController::index()` 同一條件，但不做 admin/顧問分歧，D70）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+
+Phase 2 — 前端
+- [x] T195 `Index.vue` 加 `consultantOptions` prop（`Array`，預設 `[]`）並下傳給 `BookingListTab` in `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+- [x] T196 `BookingListTab.vue` 收 `consultantOptions` prop、加 `consultantFilter = ref(props.filters.consultant || '')`；課程篩選右側加同款 `<select>`：「所有顧問」(`''`) + 每位 staff（顯示 `nickname || email`，value 為 id）+ 「未指派」(`'none'`)，`@change="applyFilters()"`，非空時顯示清除 ✕（沿用課程篩選的 ✕ 樣式與 `cursor-pointer`）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T197 三處 `router.get` —— `applyFilters()`、`applyFilter(status)`、`goToPage(page)` —— 一律補上 `consultant: consultantFilter.value || undefined`，確保換狀態 / 搜尋 / 翻頁都不掉篩選 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T198 空狀態文案判斷由 `filters.status ?` 改為「任一篩選有值」（status / search / course_id / consultant）才顯示「沒有符合條件的 Leads」in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 3 — 驗證
+- [x] T199 新增測試：依顧問 id 篩選時列表與 `statusCounts` 同步收斂（同時斷言兩者，這是 FR-074 的守門）、`consultant=none` 只回未指派、顧問 + 狀態 + 搜尋疊加、`consultantOptions` 含管理員與銷售顧問不含一般會員 in `tests/Feature/HighTicket/LeadsTabsTest.php`
+- [x] T200 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T201 使用者以瀏覽器實測：選顧問後 tab 百分比跟著變、選「未指派」撈得到舊資料、疊加狀態 tab 後篩選不掉、重新整理後篩選還在、清除 ✕ 可用
+
 ## 進度日誌
 
+- 2026-08-09: US18 預約名單依顧問篩選（T192–T200）— 顧問條件加進 `bookingLeadsQuery()` 本身而不是各自加在列表與 `statusCounts` 上，是這次唯一有份量的決定：兩個查詢共用一個 builder，狀態 tab 的漏斗百分比就必然跟著篩選走，不會出現「列表 3 筆、tab 卻寫 400 筆」。守門測試也照這個形狀寫 —— 同一條測試同時斷言 `leads.data` 與 `statusCounts`，兩者漂移就紅。`consultant=none` 用字串哨兵而非另開參數（D70）。順手修掉一個既有小 bug：空狀態文案原本只看 `filters.status`，用課程或顧問篩到空集合會謊報「尚無預約記錄」，改為任一篩選有值即顯示「沒有符合條件的 Leads」。權限維持 D27 / D70：顧問不被自動帶入自己，看得到整份名單。547 passed、`npm run build` exit 0
 - 2026-08-09: US17 週曆勾選預約並複製 Email（T184–T190）— `WeekGrid.vue` 加本地勾選 state（`pickedLeadIds` Set，重新賦值而非就地 mutate 才保得住 computed 反應性）、booked/held 區塊內常駐 12px checkbox（`@click.stop` 不觸發改期面板）、格線上方工具列（已選 N 筆／複製 Email／清除），複製走 `navigator.clipboard` 並在失敗時展開唯讀輸入框自動全選當退路。後端零改動，僅在 `ConsultationSlotAdminTest` 補一條守 payload 契約的測試（booked 與 held 區塊必帶 email）。全套 541 passed、`npm run build` 綠
 
 - 2026-08-09: US15（諮詢時段指派銷售顧問）業主確認全部完成 —— 10 條驗收與 T149 實測勾選；覆核程式碼確認顧問欄位與自動指派、歸屬選擇器（顧問鎖定自己）、管理員改派既有預約、空格歸屬 tooltip、確認時快照到 lead、Leads 名單顧問欄、Zoom 指定主持人與 404 fallback 皆已在位，`ConsultantAssignmentTest` + `ZoomMeetingTest` 23 passed。索引 status 由 partial 轉 implemented

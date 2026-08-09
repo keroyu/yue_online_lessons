@@ -16,6 +16,7 @@ const props = defineProps({
   // Booking tab
   leads: { type: Object, default: null },
   highTicketCourses: { type: Array, default: () => [] },
+  consultantOptions: { type: Array, default: () => [] },
   dripCourses: { type: Array, default: () => [] },
   notifyTemplate: { type: Object, default: null },
   dripByEmail: { type: Object, default: () => ({}) },
@@ -69,6 +70,7 @@ const switchTab = (value) => {
       :leads="leads"
       :filters="filters"
       :high-ticket-courses="highTicketCourses"
+      :consultant-options="consultantOptions"
       :drip-courses="dripCourses"
       :notify-template="notifyTemplate"
       :drip-by-email="dripByEmail"

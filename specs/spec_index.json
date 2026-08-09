@@ -3391,6 +3391,37 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-18",
+      "module": "011-high-ticket",
+      "title": "預約名單依顧問篩選",
+      "heading": "### User Story 18 - 預約名單依顧問篩選 (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-18---預約名單依顧問篩選-priority-p3",
+      "summary": "Leads 預約名單加顧問下拉篩選（所有顧問／每位 staff／未指派），條件加在 bookingLeadsQuery 內讓列表與狀態 tab 的漏斗百分比一起收斂；與搜尋／課程／狀態可疊加並保留於網址，顧問權限不變",
+      "keywords": [
+        "顧問篩選",
+        "consultant filter",
+        "負責顧問",
+        "leads 名單",
+        "狀態 tab",
+        "漏斗百分比",
+        "statusCounts",
+        "未指派",
+        "unassigned",
+        "篩選疊加",
+        "bookingLeadsQuery",
+        "高價課",
+        "high ticket"
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "tests/Feature/HighTicket/LeadsTabsTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-2",
       "module": "011-high-ticket",
       "title": "預約確認信與 Lead 記錄",

@@ -283,6 +283,156 @@ class LeadsTabsTest extends TestCase
     }
 
     /**
+     * 011 US18 (FR-074) — the consultant filter must reach the status pills too.
+     * Asserting both the list and statusCounts in one test is the point: the
+     * failure this guards against is exactly the two drifting apart.
+     */
+    public function test_consultant_filter_narrows_both_the_list_and_the_status_counts(): void
+    {
+        $course = $this->makeCourse();
+        $mine   = $this->consultant();
+        $theirs = $this->consultant();
+
+        foreach ([['a', 'pending', $mine], ['b', 'converted', $mine], ['c', 'pending', $theirs]] as [$key, $status, $owner]) {
+            HighTicketLead::create([
+                'name' => "Lead {$key}", 'email' => "{$key}@example.com",
+                'course_id' => $course->id, 'status' => $status,
+                'consultant_id' => $owner->id, 'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get("/admin/high-ticket-leads?consultant={$mine->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 2)
+                ->where('statusCounts.pending', 1)
+                ->where('statusCounts.converted', 1));
+    }
+
+    public function test_consultant_none_returns_only_unassigned_leads(): void
+    {
+        $course     = $this->makeCourse();
+        $consultant = $this->consultant();
+
+        HighTicketLead::create([
+            'name' => 'Assigned', 'email' => 'assigned@example.com',
+            'course_id' => $course->id, 'status' => 'pending',
+            'consultant_id' => $consultant->id, 'booked_at' => now(),
+        ]);
+        HighTicketLead::create([
+            'name' => 'Orphan', 'email' => 'orphan@example.com',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?consultant=none')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 1)
+                ->where('leads.data.0.email', 'orphan@example.com')
+                ->where('statusCounts.pending', 1));
+    }
+
+    public function test_consultant_filter_stacks_with_status_and_search(): void
+    {
+        $course     = $this->makeCourse();
+        $consultant = $this->consultant();
+
+        HighTicketLead::create([
+            'name' => 'Ada Wanted', 'email' => 'ada@example.com',
+            'course_id' => $course->id, 'status' => 'pending',
+            'consultant_id' => $consultant->id, 'booked_at' => now(),
+        ]);
+        // Same consultant + same search hit, wrong status.
+        HighTicketLead::create([
+            'name' => 'Ada Closed', 'email' => 'ada2@example.com',
+            'course_id' => $course->id, 'status' => 'closed',
+            'consultant_id' => $consultant->id, 'booked_at' => now(),
+        ]);
+        // Same consultant + right status, misses the search.
+        HighTicketLead::create([
+            'name' => 'Bob', 'email' => 'bob@example.com',
+            'course_id' => $course->id, 'status' => 'pending',
+            'consultant_id' => $consultant->id, 'booked_at' => now(),
+        ]);
+        // Matches status + search but belongs to someone else — without this the
+        // test would pass on the status/search filters alone.
+        HighTicketLead::create([
+            'name' => 'Ada Elsewhere', 'email' => 'ada3@example.com',
+            'course_id' => $course->id, 'status' => 'pending',
+            'consultant_id' => $this->consultant()->id, 'booked_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get("/admin/high-ticket-leads?consultant={$consultant->id}&status=pending&search=Ada")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 1)
+                ->where('leads.data.0.email', 'ada@example.com')
+                // Search stays in the denominator, status does not (FR-067).
+                ->where('statusCounts.pending', 1)
+                ->where('statusCounts.closed', 1));
+    }
+
+    public function test_unknown_consultant_id_returns_an_empty_list_rather_than_erroring(): void
+    {
+        $course = $this->makeCourse();
+        HighTicketLead::create([
+            'name' => 'Someone', 'email' => 'someone@example.com',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?consultant=999999')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('leads.data', 0));
+    }
+
+    public function test_consultant_options_list_staff_only(): void
+    {
+        $admin      = $this->admin();
+        $consultant = $this->consultant();
+        User::factory()->create(['role' => 'member']);
+
+        $this->actingAs($admin)
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(function ($page) use ($admin, $consultant) {
+                $page->has('consultantOptions', 2);
+                $ids = collect($page->toArray()['props']['consultantOptions'])->pluck('id')->all();
+                $this->assertEqualsCanonicalizing([$admin->id, $consultant->id], $ids);
+            });
+    }
+
+    /**
+     * D70 — the filter is a viewing tool, not a permission gate: a sales
+     * consultant still lands on the whole list and is never auto-scoped.
+     */
+    public function test_sales_consultant_is_not_auto_filtered_to_themselves(): void
+    {
+        $course     = $this->makeCourse();
+        $consultant = $this->consultant();
+
+        HighTicketLead::create([
+            'name' => 'Theirs', 'email' => 'theirs@example.com',
+            'course_id' => $course->id, 'status' => 'pending',
+            'consultant_id' => $consultant->id, 'booked_at' => now(),
+        ]);
+        HighTicketLead::create([
+            'name' => 'Unassigned', 'email' => 'nobody@example.com',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->actingAs($consultant)
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 2)
+                ->where('filters.consultant', null));
+    }
+
+    /**
      * 011 US9 補充 (T162) — "序列信起始時間" needs subscribed_at on dripByEmail,
      * which previously only shipped course_name/status.
      */
