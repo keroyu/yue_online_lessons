@@ -1387,7 +1387,7 @@ Phase 2 — 前端
 Phase 3 — 驗證
 - [x] T199 新增測試：依顧問 id 篩選時列表與 `statusCounts` 同步收斂（同時斷言兩者，這是 FR-074 的守門）、`consultant=none` 只回未指派、顧問 + 狀態 + 搜尋疊加、`consultantOptions` 含管理員與銷售顧問不含一般會員 in `tests/Feature/HighTicket/LeadsTabsTest.php`
 - [x] T200 `php artisan test` 全綠 ＋ `npm run build` exit 0
-- [ ] T201 使用者以瀏覽器實測：選顧問後 tab 百分比跟著變、選「未指派」撈得到舊資料、疊加狀態 tab 後篩選不掉、重新整理後篩選還在、清除 ✕ 可用
+- [x] T201 使用者以瀏覽器實測：選顧問後 tab 百分比跟著變、選「未指派」撈得到舊資料、疊加狀態 tab 後篩選不掉、重新整理後篩選還在、清除 ✕ 可用
 
 ## 進度日誌
 
