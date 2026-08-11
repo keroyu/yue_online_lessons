@@ -201,6 +201,34 @@ class BookingChangeTest extends TestCase
         $this->assertNull($held->first()->held_until, '改期後的單位必須是已確認佔用，不是暫留');
     }
 
+    /**
+     * FR-084: a cross-week move takes the booking off the screen the admin is
+     * looking at. Landing on the week that now holds it costs nothing and is
+     * the only way they can see the change actually happened.
+     */
+    public function test_the_reschedule_endpoint_lands_on_the_week_of_the_new_slot(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $lead = $this->confirmedLead($course);
+
+        // Two weeks out, well clear of the seeded block.
+        $newStart = Carbon::parse('+15 days 14:00', ConsultationSlotService::DISPLAY_TZ)->utc();
+
+        foreach ([0, 15] as $offset) {
+            ConsultationSlot::firstOrCreate(['starts_at' => $newStart->copy()->addMinutes($offset)]);
+        }
+
+        $local = $newStart->copy()->timezone(ConsultationSlotService::DISPLAY_TZ);
+
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->put("/admin/high-ticket-leads/{$lead->id}/booking", [
+                'date'       => $local->format('Y-m-d'),
+                'start_time' => $local->format('H:i'),
+            ])
+            ->assertRedirect('/admin/consultation-slots?week=' . $local->format('Y-m-d'))
+            ->assertSessionHas('success');
+    }
+
     public function test_reschedule_bumps_the_calendar_sequence(): void
     {
         $course = $this->makeHighTicketCourse();

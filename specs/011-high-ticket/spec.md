@@ -124,7 +124,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -507,7 +507,7 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 - [ ] 切換週次時勾選清空（走整頁 Inertia visit，`preserveState: false`，狀態自然重置）—— 不做跨週累積（D68）
 - [ ] 手機單日檢視行為一致：checkbox 一樣可點、工具列一樣在格線上方
 - [ ] 改期模式（`rescheduling`）進行中時，區塊維持 `pointer-events-none`，checkbox 一併不可點 —— 該模式下唯一該被點的是目標格
-- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋
+- [x] 所有新增可點元素 `cursor-pointer` + hover 回饋
 - [ ] 測試：`weekView()` 的 booked 與 held 區塊皆帶非空 `email`（前端唯一依賴的後端契約，見 D67）
 
 ### User Story 18 - 預約名單依顧問篩選 (Priority: P3)
@@ -564,6 +564,35 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - [ ] 「今天才確認、面談就在明天」MUST NOT 補寄（使用者決策，見 D74）—— 他幾小時前才收過含 `.ics` 的確認信
 - [ ] 命令 MUST 輸出實際寄出筆數（`已寄出 N 封面談提醒`），供 Forge 的排程日誌與人工重跑檢視
 - [ ] 測試：排程註冊為 `0 17 * * *` + `Asia/Taipei`、翌日 00:15 與 23:45 兩端都寄、今天與後天不寄、暫留中與已取消不寄、跨日面談只算起始日、重跑不重寄、改期清空 `reminder_sent_at`、寄出內容含 slot_time 與 zoom 連結、完全無 CC、缺模板時不寄也不丟例外
+
+### User Story 20 - 改期面板直接選時段 (Priority: P2)
+
+US14 的改期只有一條路徑：進入改期模式，然後**在格線上點目標格**。
+格線一次只畫一週，而換週是一次整頁 Inertia visit（`preserveState: false`，D68）——
+換過去的瞬間改期模式連同選取的預約一起被重置。
+
+於是「改到下週或更後面」這件事在畫面上做不出來：
+唯一能點到的目標格永遠在當前這一週。對方寫信說「這週不行，下下週三可以嗎」，
+管理員能做的只有取消預約再請對方重新申請，
+而那會多寄一封取消信、把時段丟回池子、也丟掉那筆預約的歷史。
+
+面板上加一組日期／時間下拉，清單直接來自後端算好的可用時段（跨週、跨月都在裡面），
+選完確認就送出。格線點選保留 —— 同一週小幅挪動，用點的還是最快。
+
+**驗收**：
+- [x] 進入改期模式時，面板 MUST 立即抓取「這筆預約可以改到哪些時段」的清單並顯示載入中狀態
+- [x] 清單來源 MUST 為 `ConsultationSlotService::availableStarts()`——**與訪客預約精靈同一份名單**，依日期分組、時間顯示為台北時間 `H:i`，涵蓋**所有未來日期**而不限當前週（跨週正是本故事要解的問題）
+- [x] 該 lead **目前佔用的單位** MUST 視為可用（沿用 FR-048 的自我重疊處理），使 45 分鐘場次能挪到與自己部分重疊的起始；但**目前所在的那個起始 MUST 被排除** —— 移到原地不是改期，留著它還會讓空狀態失去意義（見 FR-086）
+- [x] 面板 MUST 提供日期、時間兩個下拉；選定後按「確認改期」跳二次確認（顯示 `舊時間 → 新時間`），確認才送出既有的 `PUT /admin/high-ticket-leads/{lead}/booking`（沿用 `date` + `start_time` 參數，端點不變）
+- [x] 沒有任何可用時段時 MUST 顯示明確空狀態（「未來沒有可用時段，請先在週曆上釋出時段」），MUST NOT 只留一個空下拉——空下拉看起來就是壞掉
+- [x] 既有的「格線點選目標格」路徑 MUST 保留，兩條並存：同週微調用點的、跨週用下拉
+- [x] 清單 MUST 在每次進入改期模式時重新抓取、MUST NOT 快取——撞車的成因就是拿舊名單做決定（沿用 FR-032）
+- [x] 送出後若仍撞車 MUST 沿用既有 409 處理（提示重新整理），不得吞掉
+- [x] 面板高度會因下拉而改變，MUST 於內容變動後重算懸浮位置（沿用 `updatePanelPos()` / D66）；下拉展開 MUST NOT 被格線的 `overflow-x-auto` 容器裁切
+- [x] 改期成功後 MUST 跳轉到**新時段所在的那一週**，而非留在原本那週——跨週改期後那筆預約會離開當前畫面，停在原地等於讓管理員無法確認結果（見 D77）
+- [x] 新端點 MUST 掛 staff 群組並宣告在 `{consultationSlot}` 之前；lead 沒有生效中的預約時回 422（`isActiveBooking()` 為 false）
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋，下拉有 focus 樣式；手機單日檢視下面板一樣可用
+- [x] 測試：端點分組結構正確、該 lead 自身單位被視為可用（同日挪動的起始出現在清單）、跨週的時段確實在清單裡、無可用時段回空陣列、非 staff 擋下、非生效預約回 422、改期成功後導向新時段所在週
 
 ## Requirements
 
@@ -801,7 +830,20 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - **FR-080**: 提醒信 MUST NOT CC、MUST NOT 夾帶 `.ics`（使用者決策 + D73）。它是一封純提醒，不是一次異動通知
 - **FR-081**: 排程 MUST 為「最佳努力」：模板缺失記 warning 後正常結束，單筆寄送失敗記 error 後繼續下一筆，命令 MUST 一律回 `SUCCESS`。理由是這條排程沒有任何下游依賴它 —— 預約、時段、Zoom、`.ics` 都已經是既成事實，讓排程變紅只會在 Forge 上製造一個沒有動作可做的告警。同理，排程整個停擺時 MUST NOT 影響任何其他流程（沿用 FR-035 的立場）
 
+- **FR-082**: 新增 `GET /admin/consultation-slots/reschedule-options/{lead}`（staff 群組，宣告於 `{consultationSlot}` 之前）。回傳 `{minutes, slots: [{date, times: [{value, label}]}]}`，**與公開的 `course.booking-slots` 同一種形狀**（分組邏輯抽成共用的一段，不複製第二份）。lead 的 `isActiveBooking()` 為 false 時回 422 —— 沒有生效中的預約就沒有東西可以改期
+- **FR-083**: `ConsultationSlotService::availableStarts(int $minutes, ?HighTicketLead $ignoring = null)` 新增第二個選填參數：`$ignoring` 名下的單位在可用性判定中視為**可用**。既有呼叫端（訪客精靈、候補判定）不傳第二參數，行為完全不變。理由與 FR-048 同源 —— 改期時把自己的格子當成佔用，會讓「往後挪 15 分鐘」這種最常見的操作看起來不可能
+- **FR-084**: 改期成功後的導向 MUST 為新時段所在的那一週（`redirect()->route('admin.consultation-slots.index', ['week' => 新時段的台北日期])`），取代原本的 `back()`。`back()` 在同週改期時是對的，跨週時會把管理員留在一個看不到結果的畫面上
+- **FR-085**: 面板的時段清單 MUST 每次進入改期模式重新抓取，MUST NOT 快取或隨頁面預先載入（見 D75）
+- **FR-086**: 清單 MUST 排除該預約**目前所在的起始**（在 controller 過濾，`availableStarts()` 維持通用）。兩個理由：移到原地不是改期；而留著它會讓「沒有可用時段」的空狀態永遠不觸發 —— 下週還沒開時段時，管理員會看到一個只有自己現在時間的下拉，那比空清單更難懂。`groupStarts()` 的每組另帶 `value`（台北 `Y-m-d`）供前端送出，**MUST NOT** 用 ISO 字串前 10 碼推日期：那是 UTC 日期，台北 08:00 之前的時段會差一天
+
 ## 設計決策
+
+- **D77**: 改期成功後導向新時段的那一週（FR-084），而不是留在原處或另外做一個「跨週預覽」。跨週改期的結果必然離開當前畫面，此時停在原地會給出一個非常糟的訊號：那筆預約從格線上消失了，而 flash 訊息說「已改期至 8/26（週三）14:00」—— 兩者合起來像是「東西被移走了，但我看不到它去哪」。直接把畫面帶到它現在的位置，確認成本是零。
+  同週改期時這個導向等於原地重載，與原本的 `back()` 沒有差別。
+- **D76**: 格線點選**不被取代**。下拉解決的是「看不到的那些週」，而同一週內把 14:00 挪到 14:30 用點的只要一下，改成「展開日期下拉 → 找到今天 → 展開時間下拉 → 選 14:30 → 確認」反而更慢。兩條路徑共用同一個確認對話框與同一個端點，差別只在怎麼指定目標，並存的維護成本很低。
+  因此下拉是**補上**去的：面板在改期模式下同時說得出兩件事 —— 上面選時間，或直接在格線上點。
+- **D75**: 時段清單**按下「改期」才抓**，不隨週曆頁一起送 props。兩個理由：（1）諮詢長度是每筆預約各自的（30 或 45 分鐘，看當初有沒有用優惠碼），而「N 個連續單位皆可用」的判定必須留在後端（D46）—— 要預先送就得為兩種長度各算一份塞進每一頁；（2）撞車的成因就是拿舊名單做決定，頁面可能已經開了二十分鐘，那份 props 早就過期。按下的當下才問，是這個清單唯一有意義的時點。
+  代價是多一次請求與一個載入狀態，而那次請求發生在管理員已經表明意圖之後 —— 沒有人在等首屏。
 
 - **D71**: 排程寫 `->timezone('Asia/Taipei')->dailyAt('17:00')` 而不是沿用本檔既有的裸 UTC 慣例（`drip:process-emails` 的 `dailyAt('09:00')` 實際就是台北 17:00）。兩種寫法產生完全相同的執行時刻，差別只在讀的人：需求是「台灣下午 5 點」，程式碼就該長成那個樣子。既有那行沒有一併改，是因為它不屬於這個模組，而且改動一條正在跑的排程時間需要它的 owner 決定 —— 但新的這條沒有這個包袱。
   另一個好處是伺服器時區若哪天變了（搬機、Forge 預設調整），這條排程的行為不會跟著漂走，而裸 UTC 的那些會。
@@ -1012,6 +1054,9 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - **D63**: 逾時申請採**硬刪除**而非標記狀態（2026-08-06，業主指定）—— 名單只該留「真的成立過的預約」與「有人在跟進的對象」，填完問卷卻沒點確認信的人兩者都不是。代價講清楚：問卷答案（`phone` / `occupation` / `bottleneck` / `expertise`）會一併永久消失，而「email 已在訂閱者名單」救不回這些 —— 訂閱者名單只有 email、暱稱與訂閱狀態，且 `apply()` 本來就不建立 drip 訂閱（D35：未驗證的 email 還不算 lead），所以申請人是否在訂閱者名單其實不保證。保留 `status = 'pending'` 這道閘是整條規則的安全帶：管理員一旦動過狀態，掃除就繞開。連帶副作用：清掃後同一個確認連結會從 `expired` 落到 `invalid`，因為 lead 已不存在、無從分辨「逾時」與「網址亂打」，故 `invalid` 文案改為同時涵蓋兩種成因並導回重新申請 —— 原文案「可能是網址不完整，請直接使用信件中的連結」對一個正在使用信件連結的人是錯誤指引
 
 ## Schema
+
+- **US20 無 migration、無 schema 變更** —— 改期一直都是「把 `consultation_slots.lead_id` 從一組單位搬到另一組」，本故事只是多一種指定目標的方式。新增的是一個唯讀端點與 `availableStarts()` 的一個選填參數。
+  **不變量**：可用性的唯一判定仍是 `available()` scope（`lead_id` null 或暫留已逾時）＋「N 個連續單位」（FR-028）；`$ignoring` 只是在這個判定上開一個當事人自己的例外，不改寫任何資料
 
 - **US19 schema 變更（兩支 migration）**：
 
@@ -1490,8 +1535,30 @@ Phase 3 — 驗證
 - [x] T217 更新既有測試 `test_the_default_range_is_office_hours`：起訖改斷言 `10:00` / `23:00`、列數由 56 改 **52**（13 小時 × 4）；同時確認 `test_...outside_the_default_range...` 仍綠（06:30 的時段照樣把格線往前撐開，這是 D47 的守門）in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
 - [x] T218 `php artisan test --filter=ConsultationSlotAdminTest` 全綠 ＋ `npm run build` exit 0（前端無改動，僅確認未破版）
 
+### 改期面板直接選時段（US20）
+
+Phase 1 — 後端
+
+- [x] T219 `availableStarts()` 加第二參數 `?HighTicketLead $ignoring = null`：可用性查詢改為 `where(fn ($q) => $q->available()->orWhere('lead_id', $ignoring->id))`，未傳時維持原查詢（FR-083）in `app/Services/ConsultationSlotService.php`
+- [x] T220 新增 `rescheduleOptions(HighTicketLead $lead)`：`isActiveBooking()` 為 false 回 422；以 `minutesFor($lead->booking_code)` 取長度、`availableStarts($minutes, $lead)` 取清單，依 `dateLabel()` 分組回 JSON（形狀比照 `HighTicketBookingController::slots()`）in `app/Http/Controllers/Admin/ConsultationSlotController.php`
+- [x] T221 註冊 `GET /admin/consultation-slots/reschedule-options/{lead}`（staff 群組，**宣告在 `{consultationSlot}` 之前**）in `routes/web.php`
+- [x] T222 `reschedule()` 成功後改 `redirect()->route('admin.consultation-slots.index', ['week' => $result 新時段的台北日期])`，flash 訊息不變（FR-084）；service 的回傳補上可供導向的日期 in `app/Http/Controllers/Admin/HighTicketLeadController.php`、`app/Services/HighTicketBookingService.php`
+
+Phase 2 — 面板 UI
+
+- [x] T223 `startReschedule()` 改為 async：`axios.get` 抓選項、期間顯示載入中；成功後填入 `options`，失敗顯示錯誤並留在改期模式；每次進入都重抓不快取（FR-085）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T224 改期橫幅內加日期 `<select>` + 時間 `<select>` + 「確認改期」按鈕：時間選項依所選日期連動、空清單顯示空狀態文案、確認沿用既有 `window.confirm` 文案（舊 → 新）後 emit `reschedule`；下拉與按鈕 `cursor-pointer` + focus 樣式；內容變動後 `nextTick(updatePanelPos)` in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T225 面板容器確認不被 `overflow-x-auto` 裁切（既有 `position: fixed` 已成立，僅需驗證下拉展開後的高度與翻轉行為）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+
+Phase 3 — 驗證
+
+- [x] T226 新增測試：端點回傳分組結構、下週的時段出現在清單、該 lead 目前所在的起始**不**出現、無可用時段回空 `slots`、guest 導向登入、非生效預約 422 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`（放這裡而非 BookingChangeTest：時段建置的 helper 都在這支）；改期成功導向 `week=` 新時段所在週的測試 in `tests/Feature/HighTicket/BookingChangeTest.php`
+- [x] T227 `php artisan test` 全綠（572 passed / 2544 assertions）＋ `npm run build` exit 0
+- [ ] T228 使用者實測：選一筆本週的預約 → 面板下拉選到下週或下下週的時段 → 確認後畫面跳到該週且預約出現在新位置；同週用格線點選的舊路徑仍可用
+
 ## 進度日誌
 
+- 2026-08-11: US20 改期面板直接選時段（T219–T227，僅剩 T228 使用者實測）— 根因不是「選不到」而是**改期模式活不過換週**：換週是整頁 Inertia visit（`preserveState: false`，US17 為了勾選狀態刻意這樣做），`rescheduling` 與 `selected` 一起被重置，所以能點到的目標格永遠在當前週。新增 `GET /admin/consultation-slots/reschedule-options/{lead}`，用 `availableStarts($minutes, $lead)` 現算（新的選填參數把該 lead 自己的單位視為可用，45 分鐘場次才挪得到與自己部分重疊的起始），分組邏輯抽成 `ConsultationSlotService::groupStarts()` 與訪客精靈共用一份。實作中修掉兩個自己踩出來的坑：(1) 清單原本會包含「目前所在的起始」—— 移到原地不是改期，而且它會讓空狀態永遠不觸發，改在 controller 濾掉；(2) 前端原本想用 ISO 字串前 10 碼當日期送出，那是 UTC 日期，台北 08:00 前的時段會差一天，改由後端在每組附上台北 `Y-m-d`。改期成功後導向新時段所在的那一週（FR-084），否則跨週改期的結果會直接離開畫面。格線點選路徑保留（D76）。572 passed、`npm run build` exit 0
 - 2026-08-11: 諮詢時段格線顯示範圍 08:00–22:00 改為 10:00–23:00（T216–T218 / D47）— 只動 `ConsultationSlotService` 的兩個常數，`WeekGrid.vue` 一行未改：格線高度、拖曳命中、時間標籤全部吃後端回傳的 `range.rows`（D46 的同一個決定在這裡付了利息）。列數 56 → 52。業主追加確認「最後一場結束不得晚於 23:00」，這不需要新規則：23:00 沒有對應的列所以拖不出來，而 `availableStarts()` 只提供整段皆已釋出的起始（FR-028），因此 30 分鐘場最晚 22:30 開始、45 分鐘場最晚 22:15 開始，兩者都在 23:00 收工 —— 加了斷言釘住「23:00 不在 rows 裡」。早於 10:00 的既有時段仍會把格線撐開（D47 的既有守門測試續綠），實質效果只是開不出新的早上 8–10 點時段。順手修正 D47 裡「固定值寫在前端常數」這句失真的描述（實作一直在後端）。566 passed、`npm run build` exit 0
 - 2026-08-10: US19 面談前一日提醒信（T202–T214，僅剩 T215 使用者實測）— 排程 `booking:send-reminders` 以 `->timezone('Asia/Taipei')->dailyAt('17:00')` 註冊（`schedule:list` 顯示 `0 17 * * *`）。查詢窗以台北時間的翌日整日建構再轉 UTC，判定錨點是 lead 的最早一格，跨午夜的面談只算在起始日。`reminder_sent_at` 寄成功才寫、改期時清空。踩到一個純測試面的時區陷阱值得記下來：`Carbon::setTestNow()` 會把**測試時刻的時區**交給之後所有 Carbon 實例，包含 Eloquent 從 datetime 欄位建出來的那些 —— 用 Taipei 時區的 mock 會讓 DB 裡的 UTC 值被標成 +08:00，邊界比較整整差 8 小時而 production 完全正常。mock 改成 `->utc()` 後 12 條測試全綠。順手補上後台 Email 模板列表缺席的「已改期」「已取消」兩個中文標籤（原本顯示裸 event_type）。559 passed、`npm run build` exit 0
 - 2026-08-09: US18 預約名單依顧問篩選（T192–T200）— 顧問條件加進 `bookingLeadsQuery()` 本身而不是各自加在列表與 `statusCounts` 上，是這次唯一有份量的決定：兩個查詢共用一個 builder，狀態 tab 的漏斗百分比就必然跟著篩選走，不會出現「列表 3 筆、tab 卻寫 400 筆」。守門測試也照這個形狀寫 —— 同一條測試同時斷言 `leads.data` 與 `statusCounts`，兩者漂移就紅。`consultant=none` 用字串哨兵而非另開參數（D70）。順手修掉一個既有小 bug：空狀態文案原本只看 `filters.status`，用課程或顧問篩到空集合會謊報「尚無預約記錄」，改為任一篩選有值即顯示「沒有符合條件的 Leads」。權限維持 D27 / D70：顧問不被自動帶入自己，看得到整份名單。547 passed、`npm run build` exit 0

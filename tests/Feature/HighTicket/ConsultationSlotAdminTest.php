@@ -403,4 +403,102 @@ class ConsultationSlotAdminTest extends TestCase
                 ->has('days', 7)
                 ->has('range.rows'));
     }
+
+    // --- reschedule options (US20) ---
+
+    /** A confirmed booking occupying two consecutive units from $taipei. */
+    private function confirmedBookingAt(string $taipei): HighTicketLead
+    {
+        $lead = $this->makeLead('Mover');
+        $lead->update(['confirmed_at' => now()]);
+
+        $this->makeSlot($taipei, $lead);
+        $this->makeSlot(Carbon::parse($taipei, ConsultationSlotService::DISPLAY_TZ)
+            ->addMinutes(15)->format('Y-m-d H:i'), $lead);
+
+        return $lead->fresh();
+    }
+
+    /**
+     * US20: the whole point — a slot in a week the grid is not currently showing
+     * has to be reachable, because the grid only ever draws one week and moving
+     * between weeks resets reschedule mode (D68).
+     */
+    public function test_reschedule_options_include_future_weeks(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-05 09:00', ConsultationSlotService::DISPLAY_TZ)->utc());
+
+        $lead = $this->confirmedBookingAt('2026-08-06 10:00');
+
+        // Next week, two consecutive units so a 30-minute consultation fits.
+        $this->makeSlot('2026-08-13 14:00');
+        $this->makeSlot('2026-08-13 14:15');
+
+        $response = $this->actingAs($this->admin())
+            ->getJson("/admin/consultation-slots/reschedule-options/{$lead->id}");
+
+        $response->assertOk()->assertJsonPath('minutes', 30);
+
+        $dates = collect($response->json('slots'));
+        $target = $dates->firstWhere('date', '8/13（週四）');
+
+        $this->assertNotNull($target, '下一週的時段必須出現在清單裡');
+        $this->assertContains('14:00', array_column($target['times'], 'label'));
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * FR-083: the booking's own units count as free, or nudging it 15 minutes
+     * later would look impossible — it is sitting on the very slots it needs.
+     */
+    public function test_the_bookings_own_units_count_as_available(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-05 09:00', ConsultationSlotService::DISPLAY_TZ)->utc());
+
+        $lead = $this->confirmedBookingAt('2026-08-06 10:00');
+        // One more free unit after the booking, so 10:00 and 10:30 both fit.
+        $this->makeSlot('2026-08-06 10:30');
+        $this->makeSlot('2026-08-06 10:45');
+
+        $response = $this->actingAs($this->admin())
+            ->getJson("/admin/consultation-slots/reschedule-options/{$lead->id}");
+
+        $day = collect($response->json('slots'))->firstWhere('date', '8/6（週四）');
+        $labels = array_column($day['times'], 'label');
+
+        $this->assertContains('10:30', $labels);
+        // Where it already sits is not somewhere it can move to.
+        $this->assertNotContains('10:00', $labels);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_reschedule_options_are_empty_when_nothing_is_released(): void
+    {
+        $lead = $this->confirmedBookingAt('2099-08-06 10:00');
+
+        $this->actingAs($this->admin())
+            ->getJson("/admin/consultation-slots/reschedule-options/{$lead->id}")
+            ->assertOk()
+            ->assertJsonPath('slots', []);
+    }
+
+    /** Nothing to move: 422 rather than an empty list, which would look normal. */
+    public function test_reschedule_options_reject_a_lead_without_an_active_booking(): void
+    {
+        $lead = $this->makeLead('Unconfirmed');
+
+        $this->actingAs($this->admin())
+            ->getJson("/admin/consultation-slots/reschedule-options/{$lead->id}")
+            ->assertStatus(422);
+    }
+
+    public function test_reschedule_options_reject_a_guest(): void
+    {
+        $lead = $this->confirmedBookingAt('2099-08-06 10:00');
+
+        $this->get("/admin/consultation-slots/reschedule-options/{$lead->id}")
+            ->assertRedirect('/login');
+    }
 }

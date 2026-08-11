@@ -3542,6 +3542,43 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-20",
+      "module": "011-high-ticket",
+      "title": "改期面板直接選時段",
+      "heading": "### User Story 20 - 改期面板直接選時段 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-20---改期面板直接選時段-priority-p2",
+      "summary": "改期原本只能在當前週的格線上點選（換週會重置改期模式），跨週改期做不出來；面板加日期／時間下拉，清單由新端點以 availableStarts 現算（該 lead 自身單位視為可用），成功後導向新時段所在週，格線點選路徑保留",
+      "keywords": [
+        "改期",
+        "reschedule",
+        "跨週",
+        "週曆",
+        "面板",
+        "panel",
+        "時段下拉",
+        "availableStarts",
+        "reschedule-options",
+        "諮詢時段",
+        "booking",
+        "可用時段",
+        "高價課",
+        "high ticket"
+      ],
+      "code_files": [
+        "app/Services/ConsultationSlotService.php",
+        "app/Http/Controllers/Admin/ConsultationSlotController.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "app/Services/HighTicketBookingService.php",
+        "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
+        "routes/web.php",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php",
+        "tests/Feature/HighTicket/BookingChangeTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-3",
       "module": "011-high-ticket",
       "title": "後台 Leads 名單管理",

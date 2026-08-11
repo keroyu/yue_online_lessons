@@ -12,6 +12,7 @@ use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\ConsultationSlotService;
 use App\Services\HighTicketBookingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -109,6 +110,42 @@ class ConsultationSlotController extends Controller
         });
 
         return back()->with('success', '已更新該預約的負責顧問');
+    }
+
+    /**
+     * Where this booking could move to (011 US20 / FR-082).
+     *
+     * The grid draws one week and changing week resets reschedule mode (D68),
+     * so clicking a target cell can only ever reach the week already on screen.
+     * This is the list the panel offers instead: every future start, whatever
+     * week it falls in.
+     *
+     * Fetched when the admin presses 改期 rather than shipped with the page
+     * (D75) — the list a twenty-minute-old page carries is exactly the stale
+     * data that produces a 409.
+     */
+    public function rescheduleOptions(HighTicketLead $lead): JsonResponse
+    {
+        if (!$lead->isActiveBooking()) {
+            abort(422, '這筆預約尚未確認或已取消，無法改期');
+        }
+
+        $minutes = $this->slots->minutesFor($lead->booking_code);
+        $current = $lead->slots()->first()?->starts_at;
+
+        // Its own units count as free (FR-083) so a 45-minute booking can shift
+        // onto ground it partly occupies — but the start it already sits on is
+        // not a reschedule. Dropping it also lets the empty state mean what it
+        // says: "release some slots first", rather than showing one useless row.
+        $starts = array_filter(
+            $this->slots->availableStarts($minutes, $lead),
+            fn ($start) => !$current || !$start->equalTo($current),
+        );
+
+        return response()->json([
+            'minutes' => $minutes,
+            'slots'   => $this->slots->groupStarts(array_values($starts)),
+        ]);
     }
 
     /**

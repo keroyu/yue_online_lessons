@@ -262,8 +262,13 @@ class HighTicketLeadController extends Controller
             return back()->withErrors(['booking' => $result['message']]);
         }
 
-        return back()->with('success', "已改期至 {$result['slot_label']}，並已寄出更新通知與行事曆邀請"
-            . $this->zoomNote($result, '會議時間'));
+        // The week that now holds it, not the one the admin was looking at
+        // (FR-084): a cross-week move otherwise just makes the booking vanish
+        // from the grid while a flash message claims success.
+        return redirect()
+            ->route('admin.consultation-slots.index', ['week' => $result['slot_date']])
+            ->with('success', "已改期至 {$result['slot_label']}，並已寄出更新通知與行事曆邀請"
+                . $this->zoomNote($result, '會議時間'));
     }
 
     /** Call a confirmed booking off and hand the slot back (FR-049). */

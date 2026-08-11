@@ -216,7 +216,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/consultation-slots', [ConsultationSlotController::class, 'store'])->name('consultation-slots.store');
         Route::put('/consultation-slots/settings', [ConsultationSlotController::class, 'updateSettings'])->name('consultation-slots.settings');
         Route::put('/consultation-slots/bookings/{lead}/consultant', [ConsultationSlotController::class, 'updateConsultant'])->name('consultation-slots.consultant');
-        // Before the {consultationSlot} route, or the model binding swallows it.
+        // Both of these must precede the {consultationSlot} route below, or the
+        // model binding swallows them.
+        Route::get('/consultation-slots/reschedule-options/{lead}', [ConsultationSlotController::class, 'rescheduleOptions'])->name('consultation-slots.reschedule-options');
         Route::delete('/consultation-slots', [ConsultationSlotController::class, 'destroyRange'])->name('consultation-slots.destroy-range');
         Route::delete('/consultation-slots/{consultationSlot}', [ConsultationSlotController::class, 'destroy'])->name('consultation-slots.destroy');
 

@@ -374,14 +374,25 @@ class ConsultationSlotService
      * is free — a gap in the middle means the consultant is not available for
      * the whole session, so the start must not be offered (FR-028).
      *
+     * `$ignoring` treats one lead's own units as free (011 US20 / FR-083).
+     * Rescheduling asks "where could this booking go", and the booking is
+     * sitting on the very units it would need to shift by 15 minutes — without
+     * this, the most ordinary move on the list is the one that disappears.
+     *
      * @return array<int, Carbon> UTC instants, ascending
      */
-    public function availableStarts(int $minutes): array
+    public function availableStarts(int $minutes, ?HighTicketLead $ignoring = null): array
     {
         $units = $this->unitsFor($minutes);
 
         $free = ConsultationSlot::query()
-            ->available()
+            ->where(function ($query) use ($ignoring) {
+                $query->available();
+
+                if ($ignoring) {
+                    $query->orWhere('lead_id', $ignoring->id);
+                }
+            })
             ->upcoming()
             ->orderBy('starts_at')
             ->pluck('starts_at');
@@ -524,6 +535,38 @@ class ConsultationSlotService
         $weekday = ['日', '一', '二', '三', '四', '五', '六'][$local->dayOfWeek];
 
         return $local->format('n/j') . "（週{$weekday}）" . $local->format('H:i');
+    }
+
+    /**
+     * Available starts shaped for a picker: grouped by date, times in Taipei.
+     *
+     * Lives here because two callers need the identical shape — the visitor
+     * wizard and the admin reschedule panel (US20) — and a second copy would
+     * be a second thing to keep in step.
+     *
+     * `value` is the Taipei calendar date (Y-m-d), not a slice of the ISO
+     * instant: those disagree for anything before 08:00 Taipei, and the admin
+     * endpoints all speak Taipei wall-clock (D32).
+     *
+     * @param  array<int, Carbon>  $starts
+     * @return array<int, array{date: string, value: string, times: array<int, array{value: string, label: string}>}>
+     */
+    public function groupStarts(array $starts): array
+    {
+        $groups = [];
+
+        foreach ($starts as $start) {
+            $local = $start->copy()->timezone(self::DISPLAY_TZ);
+            $date = $this->dateLabel($start);
+
+            $groups[$date] ??= ['date' => $date, 'value' => $local->format('Y-m-d'), 'times' => []];
+            $groups[$date]['times'][] = [
+                'value' => $start->toIso8601String(),
+                'label' => $local->format('H:i'),
+            ];
+        }
+
+        return array_values($groups);
     }
 
     /** Date bucket used to group the picker, e.g. 8/6（週三）. */

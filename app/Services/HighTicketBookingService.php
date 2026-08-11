@@ -523,6 +523,9 @@ class HighTicketBookingService
         return [
             'success'     => true,
             'slot_label'  => $this->slots->label($newStart),
+            // Taipei date of the new slot, so the caller can send the admin to
+            // the week that now holds this booking (US20 / FR-084).
+            'slot_date'   => $newStart->copy()->timezone(ConsultationSlotService::DISPLAY_TZ)->format('Y-m-d'),
             'zoom_synced' => $zoomSynced,
         ];
     }

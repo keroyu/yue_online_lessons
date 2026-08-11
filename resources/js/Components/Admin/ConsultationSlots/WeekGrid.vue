@@ -106,12 +106,73 @@ function clearSelection() {
   anchorEl = null
 }
 
-function startReschedule() {
+// ---- reschedule options (011 US20) ----------------------------------------
+//
+// The grid draws one week and switching week is a full visit that resets
+// reschedule mode (D68), so clicking a target cell can only ever reach the week
+// already on screen. This list is how the other weeks become reachable.
+const options = ref([])
+const optionsLoading = ref(false)
+const optionsError = ref('')
+const pickedDate = ref('')
+const pickedTime = ref('')
+
+const pickedGroup = computed(() => options.value.find((group) => group.value === pickedDate.value))
+const timesForPickedDate = computed(() => pickedGroup.value?.times ?? [])
+
+async function startReschedule() {
   if (!selected.value) return
+
   rescheduling.value = true
   // The banner is a different width/height than the selected-booking panel
   // it replaces, so the anchor point needs recomputing once it has painted.
   nextTick(updatePanelPos)
+
+  // Always refetched, never cached (FR-085): a page that has been open for
+  // twenty minutes carries exactly the stale list that produces a 409.
+  options.value = []
+  optionsError.value = ''
+  pickedDate.value = ''
+  pickedTime.value = ''
+  optionsLoading.value = true
+
+  try {
+    const { data } = await window.axios.get(
+      `/admin/consultation-slots/reschedule-options/${selected.value.booking.lead_id}`
+    )
+    options.value = data.slots ?? []
+  } catch (e) {
+    optionsError.value = e.response?.data?.message || '無法取得可用時段，請重新整理後再試'
+  } finally {
+    optionsLoading.value = false
+    nextTick(updatePanelPos)
+  }
+}
+
+/** Reschedule via the dropdowns — the grid-click path stays as it is (D76). */
+function confirmPickedTime() {
+  const booking = selected.value?.booking
+  const time = timesForPickedDate.value.find((t) => t.value === pickedTime.value)
+
+  if (!booking || !time) return
+
+  const ok = window.confirm(
+    `將 ${booking.name} 的諮詢改期？\n\n`
+    + `原時段：${selectedDayLabel.value} ${booking.start}–${booking.end}\n`
+    + `新時段：${pickedGroup.value.date} ${time.label}\n\n`
+    + '系統會寄出更新通知與行事曆邀請，並同步調整 Zoom 會議時間。'
+  )
+
+  if (!ok) return
+
+  // Both halves are already Taipei wall-clock, which is what the endpoint
+  // expects (D32) — no timezone maths happens in here.
+  emit('reschedule', {
+    lead_id: booking.lead_id,
+    date: pickedDate.value,
+    start_time: time.label,
+  })
+  clearSelection()
 }
 
 // ---- floating action panel (011 US14 / D66) ---------------------------
@@ -558,19 +619,63 @@ function isHalf(label) {
              block: a 30-minute booking is 28px tall and holds one line. -->
         <div
           v-if="rescheduling"
-          class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-1.5 text-xs shadow-lg"
+          class="w-[19rem] max-w-[calc(100vw-1rem)] rounded-lg border border-brand-teal bg-brand-teal/10 px-3 py-2 text-xs shadow-lg"
         >
-          <span class="font-bold text-brand-teal">改期中</span>
-          <span class="text-gray-700">
-            點選新的開始時間（需 {{ selected.booking.units * 15 }} 分鐘連續空檔）
-          </span>
-          <button
-            type="button"
-            class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
-            @click="clearSelection"
-          >
-            取消改期（Esc）
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-bold text-brand-teal">改期中</span>
+            <span class="text-gray-700">需 {{ selected.booking.units * 15 }} 分鐘連續空檔</span>
+          </div>
+
+          <!-- The dropdowns exist because the grid only ever draws one week and
+               changing week resets this mode (US20). Same booking, same
+               endpoint as clicking a cell — only the way of naming the target
+               differs, so both paths stay (D76). -->
+          <p v-if="optionsLoading" class="mt-1.5 text-gray-500">讀取可用時段…</p>
+          <p v-else-if="optionsError" class="mt-1.5 text-rose-700">{{ optionsError }}</p>
+          <p v-else-if="options.length === 0" class="mt-1.5 text-gray-600">
+            未來沒有可用時段，請先在週曆上釋出時段再改期。
+          </p>
+          <div v-else class="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <select
+              v-model="pickedDate"
+              class="rounded border-gray-300 py-0.5 text-xs cursor-pointer focus:border-brand-teal focus:ring-brand-teal"
+              @change="pickedTime = ''"
+            >
+              <option value="">選日期</option>
+              <option v-for="group in options" :key="group.value" :value="group.value">
+                {{ group.date }}
+              </option>
+            </select>
+            <select
+              v-model="pickedTime"
+              :disabled="!pickedDate"
+              class="rounded border-gray-300 py-0.5 text-xs cursor-pointer focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100"
+            >
+              <option value="">選時間</option>
+              <option v-for="time in timesForPickedDate" :key="time.value" :value="time.value">
+                {{ time.label }}
+              </option>
+            </select>
+            <button
+              type="button"
+              :disabled="!pickedTime"
+              class="rounded bg-brand-teal px-2 py-0.5 font-medium text-white cursor-pointer hover:bg-teal-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="confirmPickedTime"
+            >
+              確認改期
+            </button>
+          </div>
+
+          <div class="mt-1.5 flex items-center justify-between gap-2 text-gray-600">
+            <span>或直接在格線上點選新的開始時間</span>
+            <button
+              type="button"
+              class="rounded border border-gray-300 bg-white px-2 py-0.5 text-gray-600 cursor-pointer hover:bg-gray-50 transition"
+              @click="clearSelection"
+            >
+              取消改期（Esc）
+            </button>
+          </div>
         </div>
 
         <!-- Carries everything the block gave up when it shrank to one line. -->

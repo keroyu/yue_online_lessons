@@ -28,22 +28,12 @@ class HighTicketBookingController extends Controller
         $code = $request->query('code');
         $minutes = $this->slots->minutesFor($code);
 
-        $groups = [];
-
-        foreach ($this->slots->availableStarts($minutes) as $start) {
-            $date = $this->slots->dateLabel($start);
-
-            $groups[$date] ??= ['date' => $date, 'times' => []];
-            $groups[$date]['times'][] = [
-                'value' => $start->toIso8601String(),
-                'label' => $start->timezone(ConsultationSlotService::DISPLAY_TZ)->format('H:i'),
-            ];
-        }
-
         return response()->json([
             'minutes'      => $minutes,
             'code_applied' => $this->slots->codeIsValid($code),
-            'slots'        => array_values($groups),
+            // Same shaping as the admin reschedule panel (US20) — one copy, in
+            // the service, so the two pickers cannot drift apart.
+            'slots'        => $this->slots->groupStarts($this->slots->availableStarts($minutes)),
         ]);
     }
 
