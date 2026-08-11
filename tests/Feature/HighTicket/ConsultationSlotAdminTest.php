@@ -109,7 +109,8 @@ class ConsultationSlotAdminTest extends TestCase
 
         $view = $this->slots()->weekView('2026-08-05');
 
-        // The 08:00–22:00 default is a starting point, not a filter (D47).
+        // The 10:00–23:00 default is a starting point, not a filter (D47) —
+        // an early slot that already exists must not disappear from the grid.
         $this->assertSame('06:30', $view['range']['start']);
         $this->assertContains('06:30', $view['range']['rows']);
         $this->assertContains('21:45', $view['range']['rows']);
@@ -121,9 +122,14 @@ class ConsultationSlotAdminTest extends TestCase
 
         $view = $this->slots()->weekView('2026-08-05');
 
-        $this->assertSame('08:00', $view['range']['start']);
-        $this->assertSame('22:00', $view['range']['end']);
-        $this->assertCount(56, $view['range']['rows']);
+        $this->assertSame('10:00', $view['range']['start']);
+        $this->assertSame('23:00', $view['range']['end']);
+        $this->assertCount(52, $view['range']['rows']);
+
+        // 23:00 is the closing edge, not a row: nothing can be dragged into it,
+        // which is what keeps every consultation finishing by 23:00 (D47).
+        $this->assertNotContains('23:00', $view['range']['rows']);
+        $this->assertContains('22:45', $view['range']['rows']);
     }
 
     public function test_consecutive_units_of_one_lead_merge_into_one_booking(): void

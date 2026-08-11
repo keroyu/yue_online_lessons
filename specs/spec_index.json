@@ -715,6 +715,36 @@
       "status": "implemented"
     },
     {
+      "id": "002.us-16",
+      "module": "002-storefront",
+      "title": "drip 序列信成交計入漏斗",
+      "heading": "### User Story 16 - drip 序列信成交計入漏斗 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-16---drip-序列信成交計入漏斗-priority-p2",
+      "summary": "行銷分析課程轉換漏斗把 drip_subscriptions 的 converted 人數併入該 drip 課程列的成交數字與成交率（免費課不經訂單、成交恆為 0 的結構性盲點）；查詢時計算不回寫日彙總，營收不併入，套用管道篩選時不併入",
+      "keywords": [
+        "行銷分析",
+        "課程轉換漏斗",
+        "funnel",
+        "成交率",
+        "drip 轉換",
+        "序列信成交",
+        "converted",
+        "status_changed_at",
+        "funnelReport",
+        "drip_conversions",
+        "免費課漏斗",
+        "重複計數",
+        "analytics"
+      ],
+      "code_files": [
+        "app/Services/SiteAnalyticsService.php",
+        "resources/js/Components/Admin/Analytics/TrafficTab.vue",
+        "tests/Feature/Storefront/SiteAnalyticsTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",
@@ -3184,7 +3214,7 @@
       "id": "011.us-13",
       "module": "011-high-ticket",
       "title": "諮詢時段週曆化操作",
-      "summary": "後台諮詢時段改以週曆格線（1 格 = 15 分鐘）拖曳釋出／收回，起點決定意圖；四狀態配色、預約區塊由後端聚合並顯示暱稱與 Zoom 連結；手機改單日檢視",
+      "summary": "後台諮詢時段改以週曆格線（1 格 = 15 分鐘）拖曳釋出／收回，起點決定意圖；顯示範圍預設 10:00–23:00 並被範圍外的既有時段自動撐開；四狀態配色、預約區塊由後端聚合並顯示暱稱與 Zoom 連結；手機改單日檢視",
       "heading": "### User Story 13 - 諮詢時段週曆化操作 (Priority: P2)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-13---諮詢時段週曆化操作-priority-p2",
@@ -3205,7 +3235,12 @@
         "單日檢視",
         "RWD",
         "Zoom 連結",
-        "配色圖例"
+        "配色圖例",
+        "顯示範圍",
+        "10:00",
+        "23:00",
+        "GRID_START_MINUTE",
+        "營業時間"
       ],
       "code_files": [
         "app/Services/ConsultationSlotService.php",

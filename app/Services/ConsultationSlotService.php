@@ -107,10 +107,18 @@ class ConsultationSlotService
         return ['created' => $created, 'skipped' => $skipped];
     }
 
-    /** Default first and last row of the week grid, in minutes from midnight (D47). */
-    private const GRID_START_MINUTE = 8 * 60;
+    /**
+     * Default first and last row of the week grid, in minutes from midnight
+     * (D47). Existing slots outside this window widen the grid — it is a
+     * starting point, not a filter.
+     *
+     * The end also caps how late a consultation can run: 23:00 has no row, so
+     * it cannot be dragged into existence, and availableStarts() only offers
+     * starts whose whole length is already released (FR-028).
+     */
+    private const GRID_START_MINUTE = 10 * 60;
 
-    private const GRID_END_MINUTE = 22 * 60;
+    private const GRID_END_MINUTE = 23 * 60;
 
     /**
      * Everything the admin week grid needs to draw itself (011 US13 / FR-043).

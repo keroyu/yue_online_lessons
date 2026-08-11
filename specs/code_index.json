@@ -844,7 +844,8 @@
     ],
     "app/Services/SiteAnalyticsService.php": [
       "002.us-10",
-      "002.us-13"
+      "002.us-13",
+      "002.us-16"
     ],
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
@@ -1128,7 +1129,8 @@
       "002.us-15"
     ],
     "resources/js/Components/Admin/Analytics/TrafficTab.vue": [
-      "002.us-15"
+      "002.us-15",
+      "002.us-16"
     ],
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3"
@@ -1793,7 +1795,8 @@
     ],
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
       "002.us-10",
-      "002.us-13"
+      "002.us-13",
+      "002.us-16"
     ],
     "tests/Support/BooksHighTicket.php": [
       "011.us-11",
