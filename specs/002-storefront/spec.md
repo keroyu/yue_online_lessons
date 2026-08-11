@@ -1,6 +1,6 @@
 ---
 id: 002-storefront
-status: done
+status: building
 owner_files:
   - app/Http/Controllers/HomeController.php
   - app/Http/Controllers/CourseController.php
@@ -364,6 +364,31 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 側欄移除「短網址」入口；「Leads 名單」「諮詢時段」移到「行銷分析」之前，「Email 模板」移到「API 設定」之前
 - [x] 兩個分頁本體抽成 `TrafficTab.vue`（本模組）與 `ShortLinkTab.vue`（000），頁面標題與分頁列留在 shell
 
+### User Story 16 - drip 序列信成交計入漏斗 (Priority: P2)
+
+課程轉換漏斗把每一列都當成「這門課自己賣自己」：瀏覽 → 加購 → 結帳 → 成交。
+免費的 drip 課永遠走不到後面三格 —— 領取不經過訂單，所以它的成交恆為 0、成交率恆為 0%，
+而那正是最需要被評估的一批流量：**免費課的價值本來就不在自己成交，而在序列信後來賣掉了什麼**。
+
+現況等於在報表上宣告「這門引流課一個都沒轉換」，
+真正的成交數字散在目標課程那一列，混在直接購買的人裡面分不出來。
+
+這個故事把 `drip_subscriptions` 走到 `converted` 的人數併進**該 drip 課**的成交欄，
+讓成交率終於在講一件有意義的事：看過這頁的人，最後有多少因為序列信買單。
+
+**驗收**：
+- [ ] drip 課程列的「成交」MUST 為**合併後的單一數字**（該課程自身訂單成交 + 序列信轉換人數），成交率沿用既有公式 `成交 / 瀏覽`（使用者決策）
+- [ ] 序列信轉換的定義為 `drip_subscriptions.status = 'converted'`，歸屬課程為 `drip_subscriptions.course_id`（即 drip 課本身）；`booked`（已預約高價課面談）MUST NOT 計入 —— 預約不是成交，且該筆日後真的成交時狀態會自行轉為 `converted`（`checkAndConvert()` 的 `fromStatuses` 含 `booked`）
+- [ ] 期間篩選（7 / 30 / 90 / 全部）MUST 以 `status_changed_at` 落在區間內為準（轉換發生的當天），與漏斗其他數字的日界對齊；`全部` 時不限日期
+- [ ] 期間內有轉換、但 `course_daily_stats` 沒有該課程列的情形 MUST 補出一列（瀏覽 / 加購 / 結帳 / 營收皆 0，成交為轉換數）—— 否則有成交卻整列消失
+- [ ] 套用**管道篩選**（`?channel=`）時 MUST NOT 併入序列信轉換：`drip_subscriptions` 沒有管道維度，硬塞會讓同一批人在每個管道底下各出現一次（見 D43）。此時該列成交回到自身訂單數
+- [ ] 「營收」欄 MUST NOT 併入目標課程的訂單金額（使用者決策）：營收維持「這門課自己收到多少錢」，免費課就是 0，全站營收加總不會被重複放大
+- [ ] 併入 MUST 為**查詢時計算**，MUST NOT 回寫 `course_daily_stats`：不新增欄位、不補歷史列，既有資料自動享有新口徑（見 D44）
+- [ ] 回傳的每一列 MUST 另帶 `drip_conversions`（該期間的序列信轉換數，無則 0）供前端說明用；`purchases` 本身即為合併值
+- [ ] `drip_conversions > 0` 的列，成交數字 MUST 有可見的來源說明（`title` tooltip：「其中 N 筆為序列信轉換（訂閱者後來購買目標課程）」），並在頁尾註腳補一行口徑說明
+- [ ] 已知且接受的重複計數：同一筆訂單同時計入 drip 課的成交與目標課程的成交，因此「成交」欄縱向相加 **不等於**實際訂單數（見 D41）；註腳 MUST 寫明這件事
+- [ ] 測試：轉換數併入正確課程列、`booked` 不計入、期間邊界（區間外的 `status_changed_at` 不算）、無流量列時補列、管道篩選時不併入、營收維持不變、`drip_conversions` 欄位存在且為 0 時不影響既有斷言
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -410,7 +435,21 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **FR-032**: `Course/Show.vue` 的 `renderedDescription`（`course.description_md`，課程介紹主文）MUST 以 `marked(content, { breaks: true })` 渲染（2026-08-08 修正，業主回報「必須按兩次 Enter 才換行」是老問題）。此條**推翻** 003-classroom D13 對這個檔案的排除決定——D13 當時把它定性為「銷售頁長文案，段落語意是刻意的」而故意不改；業主的實際使用回饋是單行不換行才是真正的問題，段落語意的假設不成立。至此站內所有面向使用者的 Markdown 呈現（教室 `HtmlContent`、連鎖信 `EmailMarkdownService`、留客區塊 `FreeSuccessBlock`、lead intro、課程介紹）語意一致；唯一保留 CommonMark 段落語意（不帶 `breaks`）的是部落格 `PostService::toHtml`——那是編輯過的長文章，換行語意的判斷留給下一次業主明確反映，不在本次動。
 
+- **FR-033**: 漏斗的「成交」對 **drip 課程列**擴充定義：`purchases` = 該課程自身訂單成交（`course_daily_stats.purchases`）＋ 期間內 `drip_subscriptions.status = 'converted'` 且 `course_id` 為該課的筆數。計數單位是**訂閱列（人次）**而非訂單：一位訂閱者只會在該 drip 課貢獻 1，即使他買了兩門目標課程；同一人若訂閱了兩門 drip 課並購買共同目標，兩列各計 1 —— 兩門課確實各自參與了那次成交
+- **FR-034**: 期間對齊 `status_changed_at`（`>= now()->subDays($days)->startOfDay()`），與 `course_daily_stats.date` 的日界一致。管道篩選（`?channel=`）啟用時 MUST 略過整個併入步驟（見 D43）。`status_changed_at` 為 null 的舊列在有期間篩選時自然落選、在「全部」時計入 —— 這是可接受的近似，該欄位自 010 起就隨每次狀態變更寫入
+- **FR-035**: `revenue` MUST NOT 併入目標課程金額（使用者決策）。營收欄的語意固定為「這門課自己收到多少錢」，跨課程的貢獻歸因屬於另一個報表，不在漏斗表上做
+- **FR-036**: 併入 MUST 只發生在 `funnelReport()` 的回傳組裝階段。`channelReport()`、`ctaReport()`、`course_daily_stats` 與 `bump()` 一律不動 —— 管道報表的加總必須繼續等於各管道實際事件數，塞入一個沒有管道的數字會讓那張表自相矛盾
+
 ## 設計決策
+
+- **D41**: 序列信成交記在 **drip 課那一列**，而不是（只）留在目標課程那一列（使用者決策）。免費課的漏斗現在是一條斷掉的路：瀏覽有數字，後面三格結構性地恆為 0，因為免費領取不經過訂單。報表因此對每一門引流課都給出「成交 0、成交率 0%」這個看起來像結論、其實只是量錯了的答案。
+  代價是**同一筆訂單會被計兩次**（drip 課一次、目標課程一次），所以「成交」欄縱向相加不再等於實際訂單數。這是刻意接受的：漏斗表是逐課看轉換效率的工具，不是對帳表（頁尾註腳本來就寫著「金額對帳請以交易紀錄為準」），而把重複計數藏起來的唯一方法是不做這件事。註腳要把它講明白，讓看數字的人知道欄位在講什麼。
+- **D42**: 資料來源是 `drip_subscriptions.status`，不是去 join `orders` / `purchases` 找「這個人買的東西是不是某門 drip 課的目標」。理由是後者要在報表裡重新實作一次 `DripConversionTarget` 的比對邏輯，而那份邏輯已經在 `DripService::reachGoal()` 裡跑過一次並把結果寫成了狀態 —— 兩個地方各判斷一次，遲早對不上（同樣的分岔已經在前後端 `classifyChannel()` 上發生過，見 D16）。`status` 是那次判斷的既成結果，直接讀它。
+  副作用是報表跟著 drip 狀態機走：管理員在後台手動把某人改成 `converted`，漏斗就會 +1。這是對的 —— 那個動作的語意本來就是「這個人轉換了」。
+- **D43**: 管道篩選啟用時不併入。`drip_subscriptions` 沒有、也不該有管道維度：訂閱者是哪個管道來的，記在他當初瀏覽 drip 課那天的 `course_daily_stats` 上，而轉換發生在幾週後的另一次工作階段，中間隔著好幾封信 —— 那筆成交無法被誠實地歸給任何單一管道。
+  可選的做法有三：一律併入（每個管道都看到同一批人，加總爆掉）、平均分攤（憑空發明歸因）、或篩選時不併入。選第三個，因為它是唯一不製造假數字的：篩了管道就是在看「這個管道帶來的直接成交」，序列信轉換本來就不屬於那個問題。
+- **D44**: 查詢時計算，不回寫 `course_daily_stats`。那張表的語意是「站上當天實際發生的事件」，一列一個計數器，由四個 `record*` 入口原子遞增。序列信轉換不是那天在那門課頁面上發生的事，塞進去會讓表既存事實又存衍生值，之後任何人重算或修補都要先分辨哪些列是哪一種。
+  查詢時算的另一個好處是**回溯有效**：新口徑一上線，過去所有已轉換的訂閱立刻算得出來，不需要補歷史列；口徑日後要改（例如決定把 `booked` 也算進來）也只改一個方法，沒有髒資料要清。成本是每次開頁多一次 `GROUP BY course_id` 的聚合查詢，而這張表的量級（訂閱數）遠小於 `course_daily_stats` 本身。
 
 - **D1**: 首頁所有設定集中在 site_settings key-value 表而非專用資料表 — 欄位增減免 migration；結構化資料（分類、側欄順序）以 JSON 字串存放並在讀取端正規化。
 - **D2**: 分類/類型篩選在前端做（Vue computed），不打 API — 課程總量小，一次載入後即時切換體驗最好；被否決：後端 query string 篩選。
@@ -463,6 +502,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D40**: 舊路徑保留為 302 轉址而非刪除 —— 這個網址進過側欄也可能進過書籤與交接文件，回 404 會被讀成「功能被拿掉了」，而轉址的成本只有一個方法。
 ## Schema
 
+- **US16 無 migration、無 schema 變更、無新欄位** —— 序列信轉換數在 `funnelReport()` 回傳前由 `drip_subscriptions`（`status` + `status_changed_at` + `course_id`，皆為 010 既有欄位並已有索引）現算現併（D44）。`course_daily_stats` 一個位元組都不動：那張表存的是「當天在站上發生的事件」，衍生數字不進去。
+  **不變量**：`purchases` 在**回傳的陣列**裡是合併值，在**資料表**裡永遠只是該課程自身的訂單成交 —— 兩者刻意不同步，任何要對帳的查詢請直接讀表
 - **US14 無 migration、無新資料表** —— 戳章只改寄出的網址字串，後續統計完全復用既有的 `course_daily_stats`（channel `email` + source `drip`／`newsletter`）與 `orders` 的 UTM 欄位。
 - `utm_campaign` / `utm_content` 的粒度（哪一封信、哪一篇文章）**不進 `course_daily_stats`**（該表只有 channel + source 兩維）—— 它們寫進 `orders.utm_campaign` / `utm_content` 與 `first_touch` JSON，在「課程流量」頁與 Traffic CSV 逐筆看得到。「第 2 封信帶進多少成交」因此是訂單層的問題，不是管道報表的一列；要把它做成報表需要再加一個維度，屬另一個故事。
 - `courses.free_success_md`（US11 新欄，本模組 migration）— nullable text；領取成功後顯示的自訂 Markdown（位置在課程描述之下），空值即維持既有預設成功卡片。
@@ -600,8 +641,27 @@ Phase D — 驗證（相依 B + C）
 - [x] T061 `renderedDescription` computed 改 `marked(props.course.description_md || '', { breaks: true })`（FR-032）in resources/js/Pages/Course/Show.vue
 - [x] T062 `npm run build` exit 0；同步更正 003-classroom D13 對此檔案「不改」的描述，使其不再失真（touchpoint，owner 003-classroom）in specs/003-classroom/spec.md
 
+## Tasks（drip 序列信成交計入漏斗 / US16）
+
+Phase 1 — 後端聚合
+
+- [x] T063 新增私有 `dripConversions(?int $days): array<int,int>` —— `DripSubscription::where('status','converted')`、`when($days, fn => where('status_changed_at','>=', now()->subDays($days)->startOfDay()))`、`groupBy('course_id')->selectRaw('course_id, COUNT(*) as total')->pluck('total','course_id')`（FR-033/FR-034）in app/Services/SiteAnalyticsService.php
+- [x] T064 `funnelReport()` 組裝後併入：`$channel === null` 時才取 `dripConversions()`；既有列 `purchases += n` 並帶 `drip_conversions => n`，沒有列的課程補一列（其餘欄位 0，`course_name` 沿用 `$courseNames`）；所有列一律帶 `drip_conversions`（預設 0），排序維持 `views desc`（FR-036）in app/Services/SiteAnalyticsService.php
+
+Phase 2 — 前端呈現
+
+- [x] T065 成交欄在 `row.drip_conversions > 0` 時加 `title` 說明（「其中 N 筆為序列信轉換：訂閱者後來購買了目標課程」）並以 `border-b border-dotted` 之類的輕量標記提示可 hover；數字本身維持合併值 in resources/js/Components/Admin/Analytics/TrafficTab.vue
+- [x] T066 頁尾註腳新增一行口徑說明：drip 課程的成交含序列信轉換人數、同一筆訂單會同時出現在 drip 課與目標課程兩列因此欄位不可縱向加總、套用管道篩選時不含序列信轉換（D41/D43）in resources/js/Components/Admin/Analytics/TrafficTab.vue
+
+Phase 3 — 驗證
+
+- [x] T067 新增測試：轉換併入正確課程列且 `purchases` 為合併值、`booked` 不計入、`status_changed_at` 落在期間外不計、drip 課無流量列時補出一列、`channel` 篩選時不併入、`revenue` 不變、既有漏斗斷言續過 in tests/Feature/Storefront/SiteAnalyticsTest.php
+- [x] T068 `php artisan test` 全綠（566 passed / 2528 assertions）＋ `npm run build` exit 0
+- [ ] T069 使用者實測：行銷分析頁的 drip 課程列成交數與訂閱者後台的「已轉換」數字對得上；切換期間與管道篩選時行為符合預期
+
 ## 進度日誌
 
+- 2026-08-11: US16 drip 序列信成交計入漏斗（T063–T068，僅剩 T069 使用者實測）— `funnelReport()` 在回傳組裝階段併入 `dripConversions()`（`drip_subscriptions.status='converted'`、期間比 `status_changed_at`、`GROUP BY course_id`），`purchases` 為合併值並另帶 `drip_conversions` 供前端說明；有轉換但期間內無流量列的課程補一列，否則整筆成交會從報表消失。查證後發現問題比預期更結構性：免費領取根本不建 Order（`FreePurchaseController` 不呼叫 `recordPurchase`），所以 drip 課的加購／結帳／成交三格是**恆為 0**，不是漏記而是量錯了東西。管道篩選時整個跳過併入（D43）—— 訂閱沒有管道維度，硬塞會讓同一批人在每個管道下各出現一次。營收不動、`course_daily_stats` 一個位元組不改（D44），因此新口徑對歷史資料回溯有效。前端成交數字加虛線底 + `title` 明細，頁尾補一行口徑說明（含「成交欄不可縱向加總」）。TDD：7 條新測試先紅後綠，566 passed、`npm run build` exit 0
 - 2026-08-08: 首頁課程列表區塊標題「所有課程」改「所有資源」（業主要求）in resources/js/Pages/Home.vue。純文案改動，`npm run build` 綠。
 - 2026-08-08: 課程介紹單行換行修正（T061/T062 / FR-032）— 業主回報課程介紹（`description_md`）必須按兩次 Enter 才會換行，是老問題。查證發現這其實是昨天（8/7）003-classroom D13 修教室內文換行時的一個明確排除項——當時把它定性為「銷售頁長文案，段落語意刻意保留」而故意不改，理由沒有成立：業主的實際回饋就是要單行即換行。`renderedDescription` 的 `marked()` 呼叫補 `{ breaks: true }`，跟站內其餘 Markdown 呈現（教室 `HtmlContent`、連鎖信、留客區塊、lead intro）對齊。同步改寫 003-classroom D13 的文字，使其不再宣稱這個檔案沒被動到。純樣式改動，略過 TDD。`npm run build` 綠、全套 530 passed（不涉及後端，測試數不變）。
 - 2026-08-08: 近期文章／熱門文章排序責任修正（T058–T060 / FR-031）— 業主回報「精選文章」目前只影響到首頁側欄「近期文章」，但那裡的語意應該是純時間序；真正該吃精選優先的是首頁主欄「熱門文章」（`HomePostList.vue`／`HomeController::$popularPosts`），原本完全沒接 `is_featured`。改法：`SidebarService::widgets()` 的 `blogArticles` 拿掉 `orderByDesc('is_featured')` 只留 `published_at desc`；`HomeController::index()` 的 `$popularPosts` 加 `orderByDesc('is_featured')` 排在 `view_count`/`published_at` 之前。TDD：新增 `PostListOrderingTest`（近期文章不因精選提前一顆、熱門文章精選項目蓋過高瀏覽數項目），先紅後綠。全套 530 passed，純後端改動。

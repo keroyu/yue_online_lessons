@@ -4,6 +4,7 @@ namespace Tests\Feature\Storefront;
 
 use App\Models\Course;
 use App\Models\CourseDailyStat;
+use App\Models\DripSubscription;
 use App\Models\Post;
 use App\Models\PostCtaClick;
 use App\Models\User;
@@ -409,6 +410,130 @@ class SiteAnalyticsTest extends TestCase
             ->where('funnel.0.add_to_cart', 4)
             ->where('funnel.0.purchases', 1)
         );
+    }
+
+    // --- drip conversions in the funnel (US16) ---
+
+    /** A subscription that reached the funnel goal $daysAgo days ago. */
+    private function convertedSub(Course $dripCourse, int $daysAgo = 0, string $status = 'converted'): DripSubscription
+    {
+        return DripSubscription::create([
+            'user_id'           => User::factory()->create()->id,
+            'course_id'         => $dripCourse->id,
+            'subscribed_at'     => now()->subDays($daysAgo + 10),
+            'emails_sent'       => 3,
+            'status'            => $status,
+            'status_changed_at' => now()->subDays($daysAgo),
+        ]);
+    }
+
+    /**
+     * FR-033: a free drip course never reaches the purchase column on its own —
+     * claiming does not create an order — so its conversions have to come from
+     * the subscriptions that later bought a target course.
+     */
+    public function test_drip_conversions_merge_into_the_drip_course_row(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($drip->id, 'social', 'views', 40);
+        $this->convertedSub($drip);
+        $this->convertedSub($drip);
+
+        $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
+
+        $this->assertSame(2, $row['purchases']);
+        $this->assertSame(2, $row['drip_conversions']);
+    }
+
+    /** Every row carries the key, so the front end never has to guard for it. */
+    public function test_rows_without_conversions_report_zero(): void
+    {
+        $course = $this->makeCourse();
+
+        app(SiteAnalyticsService::class)->bump($course->id, 'social', 'views', 5);
+
+        $row = collect(app(SiteAnalyticsService::class)->funnelReport(30))->firstWhere('course_id', $course->id);
+
+        $this->assertSame(0, $row['drip_conversions']);
+        $this->assertSame(0, $row['purchases']);
+    }
+
+    /** Booking a consultation is not a sale; buying afterwards flips it to converted. */
+    public function test_booked_subscribers_are_not_counted(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($drip->id, 'social', 'views', 10);
+        $this->convertedSub($drip, 0, 'booked');
+
+        $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
+
+        $this->assertSame(0, $row['purchases']);
+    }
+
+    /** FR-034: the period filters on when the conversion happened. */
+    public function test_conversions_outside_the_period_are_excluded(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($drip->id, 'social', 'views', 10);
+        $this->convertedSub($drip, 2);
+        $this->convertedSub($drip, 45);
+
+        $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
+        $this->assertSame(1, $row['drip_conversions']);
+
+        $all = collect($svc->funnelReport(null))->firstWhere('course_id', $drip->id);
+        $this->assertSame(2, $all['drip_conversions']);
+    }
+
+    /** Conversions with no traffic rows must not vanish from the report. */
+    public function test_a_drip_course_with_no_traffic_rows_still_appears(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $this->convertedSub($drip);
+
+        $row = collect(app(SiteAnalyticsService::class)->funnelReport(30))
+            ->firstWhere('course_id', $drip->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame(0, $row['views']);
+        $this->assertSame(1, $row['purchases']);
+        $this->assertSame($drip->name, $row['course_name']);
+    }
+
+    /** D43: subscriptions carry no channel, so a channel view must not claim them. */
+    public function test_channel_filter_excludes_drip_conversions(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($drip->id, 'social', 'views', 10);
+        $this->convertedSub($drip);
+
+        $row = collect($svc->funnelReport(30, 'social'))->firstWhere('course_id', $drip->id);
+
+        $this->assertSame(0, $row['purchases']);
+        $this->assertSame(0, $row['drip_conversions']);
+    }
+
+    /** FR-035: revenue stays "what this course collected", which for a freebie is nothing. */
+    public function test_drip_conversions_do_not_add_revenue(): void
+    {
+        $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
+
+        $svc = app(SiteAnalyticsService::class);
+        $svc->bump($drip->id, 'social', 'views', 10);
+        $this->convertedSub($drip);
+
+        $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
+
+        $this->assertSame(0, $row['revenue']);
     }
 
     public function test_channel_report_nests_sources_and_totals_reconcile(): void

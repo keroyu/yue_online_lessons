@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Course;
 use App\Models\CourseDailyStat;
+use App\Models\DripSubscription;
 use App\Models\Order;
 use App\Models\PostCtaClick;
 use Illuminate\Database\QueryException;
@@ -141,6 +142,11 @@ class SiteAnalyticsService
     /**
      * Funnel rows per course for the admin report.
      *
+     * Drip courses get their sequence conversions folded into `purchases`
+     * (US16): claiming a freebie never creates an order, so without this every
+     * lead magnet reports 成交 0 / 成交率 0% — a number that looks like a
+     * verdict but is really just the wrong measurement.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function funnelReport(?int $days, ?string $channel = null): array
@@ -154,18 +160,70 @@ class SiteAnalyticsService
 
         $courseNames = Course::pluck('name', 'id');
 
-        return $query->get()
-            ->map(fn ($row) => [
-                'course_id'   => $row->course_id,
-                'course_name' => $courseNames[$row->course_id] ?? "#{$row->course_id}",
-                'views'       => (int) $row->views,
-                'add_to_cart' => (int) $row->add_to_cart,
-                'checkouts'   => (int) $row->checkouts,
-                'purchases'   => (int) $row->purchases,
-                'revenue'     => (int) $row->revenue,
-            ])
-            ->sortByDesc('views')
-            ->values()
+        // Skipped entirely under a channel filter: a subscription carries no
+        // channel, and the sale happens weeks later in another session, so
+        // there is no honest way to file it under one of them (D43).
+        $conversions = $channel === null ? $this->dripConversions($days) : [];
+
+        $rows = $query->get()
+            ->map(function ($row) use ($courseNames, &$conversions) {
+                $converted = (int) ($conversions[$row->course_id] ?? 0);
+                unset($conversions[$row->course_id]);
+
+                return [
+                    'course_id'        => $row->course_id,
+                    'course_name'      => $courseNames[$row->course_id] ?? "#{$row->course_id}",
+                    'views'            => (int) $row->views,
+                    'add_to_cart'      => (int) $row->add_to_cart,
+                    'checkouts'        => (int) $row->checkouts,
+                    // Merged on purpose (D41): the same order also counts on the
+                    // target course's row, so this column cannot be summed down.
+                    'purchases'        => (int) $row->purchases + $converted,
+                    'revenue'          => (int) $row->revenue,
+                    'drip_conversions' => $converted,
+                ];
+            });
+
+        // Courses that converted somebody without recording a single view in
+        // the period still have to appear — a sale that vanishes from the
+        // report is worse than a row full of zeros.
+        foreach ($conversions as $courseId => $converted) {
+            $rows->push([
+                'course_id'        => $courseId,
+                'course_name'      => $courseNames[$courseId] ?? "#{$courseId}",
+                'views'            => 0,
+                'add_to_cart'      => 0,
+                'checkouts'        => 0,
+                'purchases'        => (int) $converted,
+                'revenue'          => 0,
+                'drip_conversions' => (int) $converted,
+            ]);
+        }
+
+        return $rows->sortByDesc('views')->values()->all();
+    }
+
+    /**
+     * Subscribers per drip course who reached the funnel goal in the period.
+     *
+     * Reads the status the drip service already wrote rather than re-deriving
+     * "did this person buy a target course" from orders: that comparison lives
+     * in DripService::reachGoal(), and a second copy of it would drift (D42).
+     *
+     * `booked` is excluded — a consultation is not a sale, and one that later
+     * becomes a sale moves to `converted` on its own.
+     *
+     * @return array<int, int> course_id => conversions
+     */
+    private function dripConversions(?int $days): array
+    {
+        return DripSubscription::query()
+            ->where('status', 'converted')
+            ->when($days, fn ($q) => $q->where('status_changed_at', '>=', now()->subDays($days)->startOfDay()))
+            ->selectRaw('course_id, COUNT(*) as total')
+            ->groupBy('course_id')
+            ->pluck('total', 'course_id')
+            ->map(fn ($total) => (int) $total)
             ->all();
     }
 

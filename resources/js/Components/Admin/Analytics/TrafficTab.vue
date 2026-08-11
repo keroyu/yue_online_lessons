@@ -143,7 +143,14 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
               <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.add_to_cart) }}</td>
               <td class="px-4 py-3 text-right text-gray-500">{{ rate(row.add_to_cart, row.views) }}</td>
               <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.checkouts) }}</td>
-              <td class="px-4 py-3 text-right text-gray-900">{{ formatNumber(row.purchases) }}</td>
+              <td class="px-4 py-3 text-right text-gray-900">
+                <span
+                  v-if="row.drip_conversions > 0"
+                  class="border-b border-dotted border-gray-400 cursor-help"
+                  :title="`其中 ${formatNumber(row.drip_conversions)} 筆為序列信轉換：訂閱者後來購買了目標課程（該筆訂單同時也計在目標課程那一列）`"
+                >{{ formatNumber(row.purchases) }}</span>
+                <template v-else>{{ formatNumber(row.purchases) }}</template>
+              </td>
               <td class="px-4 py-3 text-right text-gray-500">{{ rate(row.purchases, row.views) }}</td>
               <td class="px-4 py-3 text-right text-gray-900">NT${{ formatNumber(row.revenue) }}</td>
             </tr>
@@ -252,6 +259,7 @@ const formatNumber = (n) => (n ?? 0).toLocaleString()
       2026-08-04 起 <code class="text-gray-500">fbclid</code> 不再視為付費訊號（Meta 對每一次從 FB／IG 點出的外連結都會附加，含自然貼文與簡介連結），歷史的「付費廣告 › Facebook」已一併併入「社群 › Meta（FB/IG 未分）」；跨這個時間點比較「付費廣告」的數字同樣會有落差。<br>
       付費流量請在廣告網址參數填 <code class="text-gray-500">utm_medium=paid_social</code> 才算得準——付費只認 <code class="text-gray-500">utm_medium</code> 與 Google／TikTok 的廣告 click id，程式不從 <code class="text-gray-500">fbclid</code> 猜。<br>
       IG／FB 的 App 內建瀏覽器常不送 referrer，那部分流量會落在「直接造訪」——要精準追蹤，貼文連結請帶 <code class="text-gray-500">?utm_source=instagram</code>。<br>
+      免費的序列信課程不經過訂單，成交欄因此併入「訂閱者後來購買目標課程」的人數（有底線的數字可停留查看明細）。同一筆訂單會同時出現在序列信課程與目標課程兩列，<strong class="font-medium text-gray-500">成交欄不可縱向加總</strong>；另外，序列信轉換沒有管道歸屬（成交發生在幾週後的另一次造訪），所以篩選管道時該數字不列入。<br>
       2026-08-05 起，連鎖信與電子報寄出時會自動替信中的本站連結加上來源參數，「電子郵件」管道因此可展開為「連鎖信 ／ 電子報」；此日之前寄出的信沒有參數，那些點擊仍記在「直接造訪」。
     </p>
   </div>
