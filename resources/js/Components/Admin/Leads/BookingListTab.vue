@@ -285,10 +285,27 @@ const applicationRows = (lead) => {
   if (lead.social_url) {
     rows.push({ label: '經營社群網址', value: lead.social_url, href: lead.social_url })
   }
+
+  return rows
+}
+
+/**
+ * Booking facts, kept out of applicationRows on purpose: they are true of every
+ * lead, including the pre-questionnaire ones whose detail panel used to say
+ * "no questionnaire content" and then show nothing at all — not even when the
+ * consultation was scheduled.
+ */
+const bookingRows = (lead) => {
+  const rows = []
+
   const slotRange = formatSlotRange(lead)
-  if (slotRange) {
-    rows.push({ label: '預約時段', value: slotRange })
-  }
+  rows.push({ label: '諮詢時段', value: slotRange || '尚未有時段' })
+
+  // The submission time used to occupy the list column labelled 預約時間, which
+  // made rescheduling look broken: moving a consultation never changes when the
+  // application was sent.
+  rows.push({ label: '申請送出時間', value: formatDateTime(lead.booked_at) })
+
   if (lead.confirmed_at) {
     rows.push({ label: 'Email 確認時間', value: formatDateTime(lead.confirmed_at) })
   } else {
@@ -431,6 +448,7 @@ const subscribeDrip = async () => {
 const showConvertModal = ref(false)
 const convertingLead = ref(null)
 const convertCourseId = ref('')
+const convertPlanId = ref('')
 const convertAmount = ref(0)
 const convertLoading = ref(false)
 const convertForce = ref(false)
@@ -447,6 +465,17 @@ const convertAmountValid = computed(() => {
   const amount = Number(convertAmount.value)
   return convertAmount.value !== '' && Number.isInteger(amount) && amount >= 0
 })
+
+// Tiers of the selected course (011 US21); empty for every course without them.
+const convertCoursePlans = computed(() =>
+  props.grantableCourses.find(c => c.id === Number(convertCourseId.value))?.plans || []
+)
+
+// A tiered course must be sold as one specific tier. The server enforces this
+// too (FR-092) — this only stops the request from being made.
+const convertPlanValid = computed(() =>
+  convertCoursePlans.value.length === 0 || convertPlanId.value !== ''
+)
 
 // The purchase this conversion would overwrite, if it came from somewhere else.
 // Mirrors the server-side whitelist (FR-015) — a hint only; the guard that
@@ -466,16 +495,19 @@ const conflictingPurchase = computed(() => {
 const openConvertModal = (lead) => {
   convertingLead.value = lead
   convertCourseId.value = props.grantableCourses[0]?.id ?? ''
+  convertPlanId.value = ''
   convertAmount.value = props.grantableCourses[0]?.display_price ?? 0
   convertForce.value = false
   convertError.value = ''
   showConvertModal.value = true
 }
 
-// A warning acknowledged for one course says nothing about the next.
+// A warning acknowledged for one course says nothing about the next, and a
+// tier belongs to exactly one course.
 watch(convertCourseId, () => {
   convertForce.value = false
   convertError.value = ''
+  convertPlanId.value = ''
 })
 
 // Deal price defaults to the selected course's current display price;
@@ -485,14 +517,22 @@ watch(convertCourseId, (id) => {
   if (course) convertAmount.value = course.display_price
 })
 
+// A tier's suggested price is the more specific default when there is one.
+watch(convertPlanId, (id) => {
+  const plan = convertCoursePlans.value.find(p => p.id === Number(id))
+  if (plan && plan.price !== null) convertAmount.value = plan.price
+})
+
 const confirmConvert = async () => {
   if (!convertCourseId.value || !convertingLead.value || !convertAmountValid.value) return
+  if (!convertPlanValid.value) return
   if (conflictingPurchase.value && !convertForce.value) return
   convertLoading.value = true
   convertError.value = ''
   try {
     const res = await axios.post(`/admin/high-ticket-leads/${convertingLead.value.id}/convert`, {
       course_id: Number(convertCourseId.value),
+      course_plan_id: convertPlanId.value === '' ? null : Number(convertPlanId.value),
       amount: Number(convertAmount.value),
       force: convertForce.value,
     })
@@ -509,8 +549,9 @@ const confirmConvert = async () => {
       : `${base}；開通通知信寄送失敗，請自行聯絡對方`
     showConvertModal.value = false
   } catch (e) {
-    // 409 belongs next to the checkbox that resolves it, not in the page banner.
-    if (e.response?.status === 409) {
+    // 409 belongs next to the checkbox that resolves it, and 422 next to the
+    // plan picker that caused it — not in the page banner.
+    if (e.response?.status === 409 || e.response?.status === 422) {
       convertError.value = e.response.data.error
     } else {
       actionResult.value = `開通失敗：${e.response?.data?.message || e.message}`
@@ -783,7 +824,7 @@ const copySelectedEmails = async () => {
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
             <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">負責顧問</th>
-            <th class="hidden lg:table-cell px-4 py-3 text-left">預約時間</th>
+            <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">諮詢時段</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 bg-white">
@@ -902,16 +943,33 @@ const copySelectedEmails = async () => {
               <span v-if="lead.consultant">{{ lead.consultant.nickname || lead.consultant.email }}</span>
               <span v-else class="text-gray-400">—</span>
             </td>
-            <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-500">
-              {{ formatDateTime(lead.booked_at) }}
+            <!-- The consultation itself, not when the form was sent: this is
+                 the column that has to move when a booking is rescheduled. -->
+            <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
+              <span v-if="formatSlotRange(lead)">{{ formatSlotRange(lead) }}</span>
+              <span v-else class="text-gray-400">—</span>
             </td>
           </tr>
 
           <!-- Application questionnaire (011 US9) — rows from the old one-step
                form simply have nothing to show. -->
           <tr v-if="openDetailIds.includes(lead.id)" class="bg-gray-50">
-            <td colspan="9" class="px-6 py-4">
-              <div v-if="hasApplication(lead)" class="grid gap-3 sm:grid-cols-2 text-sm">
+            <td colspan="9" class="px-6 py-4 space-y-4">
+              <!-- Booking facts first, and never gated: they exist for every
+                   lead, questionnaire or not. -->
+              <div class="grid gap-3 sm:grid-cols-2 text-sm">
+                <div v-for="row in bookingRows(lead)" :key="row.label">
+                  <p class="text-xs font-medium text-gray-500">{{ row.label }}</p>
+                  <p v-if="row.href" class="mt-0.5">
+                    <a :href="row.href" target="_blank" rel="noopener" class="text-brand-teal underline cursor-pointer hover:opacity-70 break-all">
+                      {{ row.value }}
+                    </a>
+                  </p>
+                  <p v-else class="mt-0.5 text-gray-800 whitespace-pre-wrap break-words">{{ row.value }}</p>
+                </div>
+              </div>
+
+              <div v-if="hasApplication(lead)" class="grid gap-3 sm:grid-cols-2 text-sm border-t border-gray-200 pt-4">
                 <div v-for="row in applicationRows(lead)" :key="row.label">
                   <p class="text-xs font-medium text-gray-500">{{ row.label }}</p>
                   <p v-if="row.href" class="mt-0.5">
@@ -922,7 +980,7 @@ const copySelectedEmails = async () => {
                   <p v-else class="mt-0.5 text-gray-800 whitespace-pre-wrap break-words">{{ row.value }}</p>
                 </div>
               </div>
-              <p v-else class="text-sm text-gray-400">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
+              <p v-else class="text-sm text-gray-400 border-t border-gray-200 pt-4">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
             </td>
           </tr>
           </template>
@@ -1280,6 +1338,22 @@ const copySelectedEmails = async () => {
         </select>
       </div>
 
+      <!-- Plan selector: only for tiered (multi-plan) courses (011 US21) -->
+      <div v-if="convertCoursePlans.length > 0" class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">選擇要開通的方案</label>
+        <select
+          v-model="convertPlanId"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal text-sm cursor-pointer"
+        >
+          <option value="" disabled>請選擇方案</option>
+          <option v-for="plan in convertCoursePlans" :key="plan.id" :value="plan.id">
+            {{ plan.name }}<template v-if="plan.price !== null">（建議價 NT$ {{ Number(plan.price).toLocaleString() }}）</template>
+          </option>
+        </select>
+        <p class="mt-1 text-xs text-gray-500">此課程有多個方案，學員只看得到所選方案包含的小節；日後升級可在「會員管理 → 會員詳情」切換</p>
+        <p v-if="!convertPlanValid" class="mt-1 text-xs text-red-600">請選擇方案</p>
+      </div>
+
       <!-- Deal amount -->
       <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-1">成交價格（TWD）</label>
@@ -1327,7 +1401,7 @@ const copySelectedEmails = async () => {
         </button>
         <button
           @click="confirmConvert"
-          :disabled="!convertCourseId || !convertAmountValid || convertLoading || (conflictingPurchase && !convertForce)"
+          :disabled="!convertCourseId || !convertAmountValid || !convertPlanValid || convertLoading || (conflictingPurchase && !convertForce)"
           class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-lg hover:bg-brand-teal/90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
           <svg v-if="convertLoading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

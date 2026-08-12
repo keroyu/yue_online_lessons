@@ -66,8 +66,16 @@ class LessonController extends Controller
             $recipients = Purchase::where('course_id', $course->id)
                 ->where('status', '!=', 'refunded')
                 ->where('type', '!=', 'system_assigned')
-                ->with('user')
-                ->get();
+                ->with(['user', 'plan.lessons:id'])
+                ->get()
+                // A plan A holder must not be told about a lesson their tier
+                // does not include: they would come looking and find nothing,
+                // since plan-external lessons are hidden outright (011 FR-095).
+                ->filter(function ($purchase) use ($lesson) {
+                    $lessonIds = $purchase->accessibleLessonIds();
+
+                    return $lessonIds === null || in_array($lesson->id, $lessonIds);
+                });
 
             foreach ($recipients as $purchase) {
                 if ($purchase->user && $purchase->user->email) {

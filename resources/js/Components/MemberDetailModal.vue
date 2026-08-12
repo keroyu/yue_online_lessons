@@ -42,6 +42,52 @@ const editForm = ref({
 const editErrors = ref({})
 const saving = ref(false)
 
+// Plan switching (011 US21): the member wired the difference offline, so the
+// admin moves them to the higher tier and records what came in.
+const planEditingCourseId = ref(null)
+const planDraftId = ref('')
+const planTopUp = ref('')
+const planSaving = ref(false)
+const planError = ref('')
+
+const startPlanEdit = (course) => {
+  planEditingCourseId.value = course.id
+  planDraftId.value = course.plan_id ?? ''
+  planTopUp.value = ''
+  planError.value = ''
+}
+
+const cancelPlanEdit = () => {
+  planEditingCourseId.value = null
+  planError.value = ''
+}
+
+const savePlan = async (course) => {
+  planSaving.value = true
+  planError.value = ''
+  try {
+    const res = await axios.patch(
+      `/admin/members/${props.memberId}/purchases/${course.purchase_id}/plan`,
+      {
+        course_plan_id: planDraftId.value === '' ? null : Number(planDraftId.value),
+        additional_amount: planTopUp.value === '' ? null : Number(planTopUp.value),
+      },
+    )
+    course.plan_id = res.data.plan_id
+    course.plan_name = res.data.plan_name
+    planEditingCourseId.value = null
+    // The progress denominator moved with the plan, so re-read it rather than
+    // leaving a percentage that no longer means anything.
+    await fetchMemberDetails()
+  } catch (err) {
+    planError.value = err.response?.data?.message
+      || Object.values(err.response?.data?.errors || {})[0]?.[0]
+      || '切換方案失敗'
+  } finally {
+    planSaving.value = false
+  }
+}
+
 // Fetch member details when modal opens
 watch(() => [props.show, props.memberId], async ([show, memberId]) => {
   if (show && memberId) {
@@ -540,6 +586,59 @@ const handleBackdropClick = (e) => {
                             <p class="text-sm text-gray-500">
                               {{ course.acquisition_type === 'paid' ? '購買於' : '取得於' }} {{ formatDate(course.purchased_at) }}
                             </p>
+
+                            <!-- Tier (011 US21); absent for courses without plans -->
+                            <div v-if="course.available_plans && course.available_plans.length > 0" class="mt-1.5">
+                              <div v-if="planEditingCourseId !== course.id" class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
+                                  {{ course.plan_name || '全部內容' }}
+                                </span>
+                                <button
+                                  type="button"
+                                  class="text-xs text-brand-teal hover:text-brand-navy cursor-pointer"
+                                  @click="startPlanEdit(course)"
+                                >
+                                  切換方案
+                                </button>
+                              </div>
+
+                              <div v-else class="mt-1 space-y-2">
+                                <select
+                                  v-model="planDraftId"
+                                  class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal text-sm cursor-pointer"
+                                >
+                                  <option value="">全部內容（不限方案）</option>
+                                  <option v-for="plan in course.available_plans" :key="plan.id" :value="plan.id">
+                                    {{ plan.name }}
+                                  </option>
+                                </select>
+                                <input
+                                  v-model="planTopUp"
+                                  type="number"
+                                  min="0"
+                                  placeholder="補價金額（選填，會累加到成交金額）"
+                                  class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-brand-teal focus:border-brand-teal text-sm"
+                                />
+                                <p v-if="planError" class="text-xs text-red-600">{{ planError }}</p>
+                                <div class="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    :disabled="planSaving"
+                                    class="px-3 py-1.5 text-xs font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90 disabled:opacity-50 cursor-pointer"
+                                    @click="savePlan(course)"
+                                  >
+                                    {{ planSaving ? '儲存中…' : '儲存' }}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                                    @click="cancelPlanEdit"
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                           <span class="text-sm font-medium" :class="course.progress_percent === 100 ? 'text-green-600' : 'text-gray-600'">
                             {{ course.progress_percent }}%

@@ -160,12 +160,20 @@ class HighTicketLeadController extends Controller
 
         // display_price feeds the convert modal's default deal amount (FR-011).
         $grantableCourses = Course::select('id', 'name', 'price', 'original_price', 'promo_ends_at')
+            ->with('plans:id,course_id,name,price,sort_order')
             ->orderBy('name')
             ->get()
             ->map(fn ($c) => [
                 'id'            => $c->id,
                 'name'          => $c->name,
                 'display_price' => (int) $c->display_price,
+                // Empty for every course without tiers, which is what keeps the
+                // plan picker out of the convert modal (011 US21).
+                'plans'         => $c->plans->map(fn ($plan) => [
+                    'id'    => $plan->id,
+                    'name'  => $plan->name,
+                    'price' => $plan->price,
+                ])->values(),
             ])
             ->values();
 
@@ -374,9 +382,10 @@ class HighTicketLeadController extends Controller
     public function convert(Request $request, HighTicketLead $lead): JsonResponse
     {
         $validated = $request->validate([
-            'course_id' => ['required', 'integer', 'exists:courses,id'],
-            'amount'    => ['required', 'integer', 'min:0'],
-            'force'     => ['sometimes', 'boolean'],
+            'course_id'      => ['required', 'integer', 'exists:courses,id'],
+            'course_plan_id' => ['nullable', 'integer'],
+            'amount'         => ['required', 'integer', 'min:0'],
+            'force'          => ['sometimes', 'boolean'],
         ]);
 
         $result = $this->leadService->convertLead(
@@ -384,7 +393,14 @@ class HighTicketLeadController extends Controller
             $validated['course_id'],
             $validated['amount'],
             (bool) ($validated['force'] ?? false),
+            $validated['course_plan_id'] ?? null,
         );
+
+        // The plan does not match the course (or is missing on a tiered
+        // course): the admin picked an impossible combination (FR-092).
+        if (isset($result['error'])) {
+            return response()->json(['error' => $result['error']], 422);
+        }
 
         // 409: the buyer already owns this course through another channel, and
         // overwriting would rewrite both the transaction type and its amount

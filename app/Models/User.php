@@ -192,12 +192,24 @@ class User extends Authenticatable
 
     /**
      * Get course progress summary for a specific course.
+     *
+     * $scopeLessonIds narrows the denominator to the lessons this member is
+     * actually entitled to — a plan A holder who finished all four of their
+     * episodes is at 100%, not stuck at 40% forever (011 FR-091). Omitting it
+     * keeps the original whole-course behaviour.
      */
-    public function getCourseProgressSummary(Course $course, ?array $completedLessonIds = null): array
-    {
+    public function getCourseProgressSummary(
+        Course $course,
+        ?array $completedLessonIds = null,
+        ?array $scopeLessonIds = null,
+    ): array {
         $lessonIds = $course->relationLoaded('lessons')
             ? $course->lessons->pluck('id')->all()
             : $course->lessons()->pluck('id')->all();
+
+        if ($scopeLessonIds !== null) {
+            $lessonIds = array_values(array_intersect($lessonIds, $scopeLessonIds));
+        }
 
         $totalLessons = count($lessonIds);
 

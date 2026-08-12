@@ -6,6 +6,7 @@ use App\Jobs\NotifyHighTicketSlotJob;
 use App\Jobs\SubscribeDripLeadJob;
 use App\Mail\TemplatedMail;
 use App\Models\Course;
+use App\Models\CoursePlan;
 use App\Models\DripSubscription;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
@@ -105,11 +106,30 @@ class HighTicketLeadService
      * overwrite of someone else's purchase (FR-015), all-or-nothing writes
      * (FR-016), and a confirmation mail to the buyer (FR-017).
      *
+     * $coursePlanId picks the tier being sold on a multi-plan course; null
+     * means the whole course, which is also the only legal value for a course
+     * with no plans (011 FR-087).
+     *
      * @return array{success: true, user_created: bool, mail_sent: bool}
      *   |array{success: false, conflict: array{type: string, amount: int, status: string}}
+     *   |array{success: false, error: string}
      */
-    public function convertLead(HighTicketLead $lead, int $courseId, int $amount, bool $force = false): array
-    {
+    public function convertLead(
+        HighTicketLead $lead,
+        int $courseId,
+        int $amount,
+        bool $force = false,
+        ?int $coursePlanId = null,
+    ): array {
+        $course = Course::find($courseId);
+        $plan = $this->resolvePlan($course, $coursePlanId);
+
+        // A string error rather than a conflict: this is the admin picking an
+        // impossible combination, not a collision with someone else's record.
+        if (is_string($plan)) {
+            return ['success' => false, 'error' => $plan];
+        }
+
         $existingUser = User::where('email', $lead->email)->first();
 
         // Read-only gate, deliberately before the transaction: a blocked
@@ -131,7 +151,7 @@ class HighTicketLeadService
             }
         }
 
-        $user = DB::transaction(function () use ($lead, $courseId, $amount) {
+        $user = DB::transaction(function () use ($lead, $courseId, $amount, $coursePlanId) {
             // The application questionnaire is the only place we ever asked for
             // a phone number, so a brand-new member account inherits it (011
             // US9). firstOrCreate means an existing member keeps whatever they
@@ -148,6 +168,7 @@ class HighTicketLeadService
             Purchase::updateOrCreate(
                 ['user_id' => $user->id, 'course_id' => $courseId],
                 [
+                    'course_plan_id' => $coursePlanId,
                     'buyer_email' => $lead->email ?? '',
                     'amount'      => $amount,
                     'currency'    => 'TWD',
@@ -160,8 +181,6 @@ class HighTicketLeadService
 
             return $user;
         });
-
-        $course = Course::find($courseId);
 
         // Everything below is an external side effect: it must not roll the
         // sale back, and it must not be rolled back with it (FR-016).
@@ -183,8 +202,37 @@ class HighTicketLeadService
         return [
             'success'      => true,
             'user_created' => $user->wasRecentlyCreated,
-            'mail_sent'    => $this->sendConversionMail($lead, $course, $amount),
+            'mail_sent'    => $this->sendConversionMail($lead, $course, $amount, $plan),
         ];
+    }
+
+    /**
+     * Validate the chosen tier against the course (FR-092).
+     *
+     * The guard lives here rather than in the Form Request because "this course
+     * has plans, so one must be chosen" is a rule about the sale, and the front
+     * end's required-field is only a hint.
+     *
+     * @return CoursePlan|null|string  the plan, null for a whole-course sale,
+     *                                 or an error message
+     */
+    private function resolvePlan(?Course $course, ?int $coursePlanId): CoursePlan|null|string
+    {
+        if (!$course) {
+            return null;
+        }
+
+        $hasPlans = $course->plans()->exists();
+
+        if ($coursePlanId === null) {
+            return $hasPlans ? '此課程已設定方案，請選擇要開通的方案' : null;
+        }
+
+        $plan = CoursePlan::where('id', $coursePlanId)
+            ->where('course_id', $course->id)
+            ->first();
+
+        return $plan ?: '所選方案不屬於此課程';
     }
 
     /**
@@ -205,7 +253,7 @@ class HighTicketLeadService
      * fallback — money already changed hands, but a stranger who just wired a
      * five-figure sum should not receive a mail nobody wrote (D15).
      */
-    private function sendConversionMail(HighTicketLead $lead, ?Course $course, int $amount): bool
+    private function sendConversionMail(HighTicketLead $lead, ?Course $course, int $amount, ?CoursePlan $plan = null): bool
     {
         $template = EmailTemplate::forEvent('lead_converted')->first();
 
@@ -218,9 +266,18 @@ class HighTicketLeadService
             return false;
         }
 
+        // The plan rides along inside {{course_name}} rather than as a sixth
+        // variable: someone who just wired a five-figure sum has to be able to
+        // read what they bought without the template being edited first.
+        $courseName = $course?->name ?? '';
+
+        if ($plan) {
+            $courseName .= "（{$plan->name}）";
+        }
+
         $vars = [
             '{{user_name}}'     => $lead->name,
-            '{{course_name}}'   => $course?->name ?? '',
+            '{{course_name}}'   => $courseName,
             '{{amount}}'        => number_format($amount),
             '{{classroom_url}}' => config('app.url') . '/member/classroom/' . ($course?->id ?? ''),
             '{{app_url}}'       => config('app.url'),

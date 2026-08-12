@@ -22,7 +22,7 @@ class ChapterController extends Controller
     public function index(Course $course): Response
     {
         $chapters = $course->chapters()
-            ->with(['lessons' => fn ($query) => $query->orderBy('sort_order')])
+            ->with(['lessons' => fn ($query) => $query->orderBy('sort_order')->with('plans:id')])
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($chapter) => [
@@ -45,12 +45,14 @@ class ChapterController extends Controller
                     'promo_url' => $lesson->promo_url,
                     'reward_html' => $lesson->reward_html,
                     'video_access_hours' => $lesson->video_access_hours,
+                    'plan_ids' => $lesson->plans->pluck('id')->values(),
                 ]),
             ]);
 
         // Get standalone lessons (without chapter)
         $standaloneLessons = $course->lessons()
             ->whereNull('chapter_id')
+            ->with('plans:id')
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($lesson) => [
@@ -69,17 +71,22 @@ class ChapterController extends Controller
                 'promo_url' => $lesson->promo_url,
                 'reward_html' => $lesson->reward_html,
                 'video_access_hours' => $lesson->video_access_hours,
+                'plan_ids' => $lesson->plans->pluck('id')->values(),
             ]);
 
         return Inertia::render('Admin/Courses/Chapters', [
             'course' => [
                 'id' => $course->id,
                 'name' => $course->name,
+                'type' => $course->type,
                 'delivery_mode' => $course->course_type,
                 'status' => $course->status,
             ],
             'chapters' => $chapters,
             'standaloneLessons' => $standaloneLessons,
+            // Tiers of a high-ticket course (011 US21); empty for every other
+            // course, which is what switches the whole feature off in the UI.
+            'plans' => $course->plans()->get(['id', 'name', 'price', 'sort_order']),
             'couponChains' => $this->couponChainService->editorOptions(),
         ]);
     }

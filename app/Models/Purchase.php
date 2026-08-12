@@ -16,6 +16,7 @@ class Purchase extends Model
     protected $fillable = [
         'user_id',
         'course_id',
+        'course_plan_id',
         'portaly_order_id',
         'payuni_trade_no',
         'buyer_email',
@@ -52,6 +53,30 @@ class Purchase extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(CoursePlan::class, 'course_plan_id');
+    }
+
+    /**
+     * Lesson ids this entitlement covers, or null for the whole course.
+     *
+     * Null is the normal case (FR-087): every purchase made before plans
+     * existed, and every path with no plan picker — checkout, gifting, member
+     * import, point redemption — leaves this column alone.
+     *
+     * A dangling plan reference yields an empty array rather than null: when
+     * the entitlement is unclear, showing nothing is the safe direction.
+     */
+    public function accessibleLessonIds(): ?array
+    {
+        if (!$this->course_plan_id) {
+            return null;
+        }
+
+        return $this->plan?->lessons()->pluck('lessons.id')->all() ?? [];
     }
 
     /**

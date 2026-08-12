@@ -98,6 +98,11 @@ class Course extends Model
         return $this->hasMany(Chapter::class)->orderBy('sort_order');
     }
 
+    public function plans(): HasMany
+    {
+        return $this->hasMany(CoursePlan::class)->orderBy('sort_order');
+    }
+
     public function lessons(): HasMany
     {
         return $this->hasMany(Lesson::class)->orderBy('sort_order');
@@ -170,6 +175,30 @@ class Course extends Model
         }
 
         return $this->subscriptionForUser($user) !== null;
+    }
+
+    /**
+     * Lesson ids the user may see, or null when the whole course is open.
+     *
+     * Null covers everyone who is not on a tier: guests, admins, courses with
+     * no plans configured, full-course purchases, and drip subscribers. Only a
+     * paid purchase carrying a course_plan_id narrows the view (FR-088).
+     */
+    public function planLessonIdsForUser(?User $user, bool $includeAdmin = true): ?array
+    {
+        if (!$user || ($includeAdmin && $user->isAdmin())) {
+            return null;
+        }
+
+        if ($this->plans()->doesntExist()) {
+            return null;
+        }
+
+        $purchase = $this->paidPurchases()
+            ->where('user_id', $user->id)
+            ->first();
+
+        return $purchase?->accessibleLessonIds();
     }
 
     public function canUserSubscribe(?User $user): bool

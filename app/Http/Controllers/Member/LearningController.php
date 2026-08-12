@@ -16,7 +16,7 @@ class LearningController extends Controller
 
         // Get user's purchases with course data
         $purchases = $user->purchases()
-            ->with(['course.lessons'])
+            ->with(['course.lessons', 'plan.lessons:id'])
             ->paidStatus()
             ->orderBy('created_at', 'desc')
             ->get();
@@ -30,7 +30,8 @@ class LearningController extends Controller
         // Map to MyCourse format for frontend
         $courses = $purchases->map(function ($purchase) use ($progressMap, $user) {
             $course = $purchase->course;
-            $progress = $user->getCourseProgressSummary($course, $progressMap);
+            // Tiered purchases only count their own lessons (011 FR-091).
+            $progress = $user->getCourseProgressSummary($course, $progressMap, $purchase->accessibleLessonIds());
 
             return [
                 'id' => $course->id,

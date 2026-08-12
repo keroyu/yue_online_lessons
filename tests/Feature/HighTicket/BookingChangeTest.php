@@ -202,6 +202,41 @@ class BookingChangeTest extends TestCase
     }
 
     /**
+     * The leads list has to show the moved consultation, not a stale one.
+     *
+     * It used to render `booked_at` under a column headed 預約時間 — the time
+     * the application was submitted, which a reschedule never touches — so the
+     * list looked frozen while the week grid showed the new slot. The column
+     * now reads the eager-loaded `slots`, and this pins that they are both
+     * present and current after a move.
+     */
+    public function test_leads_list_reflects_the_new_slot_after_a_reschedule(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $lead = $this->confirmedLead($course);
+        $oldStart = $lead->slots()->first()->starts_at->copy();
+        $newStart = $this->freeStartLaterThan($oldStart);
+
+        app(HighTicketBookingService::class)->reschedule($lead, $newStart);
+
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->get('/admin/high-ticket-leads')
+            ->assertInertia(function ($page) use ($lead, $newStart, $oldStart) {
+                $row = collect($page->toArray()['props']['leads']['data'])
+                    ->firstWhere('id', $lead->id);
+
+                $starts = collect($row['slots'])->pluck('starts_at')
+                    ->map(fn ($s) => Carbon::parse($s)->utc()->toIso8601String())
+                    ->all();
+
+                $this->assertContains($newStart->copy()->utc()->toIso8601String(), $starts,
+                    '改期後的時段必須出現在 Leads 名單的 slots 上');
+                $this->assertNotContains($oldStart->copy()->utc()->toIso8601String(), $starts,
+                    '舊時段不得殘留在 Leads 名單上');
+            });
+    }
+
+    /**
      * FR-084: a cross-week move takes the booking off the screen the admin is
      * looking at. Landing on the week that now holds it costs nothing and is
      * the only way they can see the change actually happened.

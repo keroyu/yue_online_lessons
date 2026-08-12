@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -55,6 +56,15 @@ class Lesson extends Model
     public function progress(): HasMany
     {
         return $this->hasMany(LessonProgress::class);
+    }
+
+    /**
+     * Tiers of a high-ticket course that include this lesson; plans may
+     * overlap, so a lesson can belong to any number of them (011 US21).
+     */
+    public function plans(): BelongsToMany
+    {
+        return $this->belongsToMany(CoursePlan::class, 'course_plan_lesson');
     }
 
     public function assignment(): HasOne

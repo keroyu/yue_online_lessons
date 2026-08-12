@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ChapterList from '@/Components/Admin/ChapterList.vue'
+import CoursePlanPanel from '@/Components/Admin/CoursePlanPanel.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -9,6 +10,10 @@ defineProps({
   course: {
     type: Object,
     required: true,
+  },
+  plans: {
+    type: Array,
+    default: () => [],
   },
   chapters: {
     type: Array,
@@ -67,6 +72,13 @@ defineProps({
         </div>
       </div>
 
+      <!-- Tiers are high-ticket only (011 D82) -->
+      <CoursePlanPanel
+        v-if="course.type === 'high_ticket'"
+        :course-id="course.id"
+        :plans="plans"
+      />
+
       <ChapterList
         :course-id="course.id"
         :course-type="course.delivery_mode"
@@ -74,6 +86,7 @@ defineProps({
         :chapters="chapters"
         :standalone-lessons="standaloneLessons"
         :coupon-chains="couponChains"
+        :plans="plans"
       />
   </div>
 </template>

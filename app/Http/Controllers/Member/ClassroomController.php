@@ -48,9 +48,18 @@ class ClassroomController extends Controller
             ]);
         }
 
+        // Lesson-level entitlement for tiered (multi-plan) courses; null means
+        // the whole course is open. It has to reach four places below — the
+        // chapter sidebar, the standalone list, current-lesson resolution and
+        // the completion counts — because missing any one of them either blanks
+        // the page or inflates the progress bar (011 FR-089).
+        $planLessonIds = $course->planLessonIdsForUser($user);
+        $inPlan = fn ($lesson) => $planLessonIds === null || in_array($lesson->id, $planLessonIds);
+
         // Get user's completed lesson IDs
         $completedLessonIds = LessonProgress::where('user_id', $user->id)
             ->whereIn('lesson_id', $course->lessons()->pluck('id'))
+            ->when($planLessonIds !== null, fn ($q) => $q->whereIn('lesson_id', $planLessonIds))
             ->pluck('lesson_id')
             ->toArray();
 
@@ -75,6 +84,7 @@ class ClassroomController extends Controller
                     ->filter(fn ($lesson) =>
                         (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
                         && (!$isDrip || $isAdmin || !empty($lesson->video_id))
+                        && $inPlan($lesson)
                     )
                     ->values()
                     ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds)),
@@ -90,12 +100,18 @@ class ClassroomController extends Controller
             ->filter(fn ($lesson) =>
                 (!isset($lessonUnlockMap[$lesson->id]) || $lessonUnlockMap[$lesson->id])
                 && (!$isDrip || $isAdmin || !empty($lesson->video_id))
+                && $inPlan($lesson)
             )
             ->values()
             ->map(fn ($lesson) => $this->formatLesson($lesson, $completedLessonIds));
 
-        // Find the requested lesson, or first uncompleted, or first lesson
-        $allLessons = $course->lessons()->orderBy('sort_order')->get();
+        // Find the requested lesson, or first uncompleted, or first lesson.
+        // Filtered by plan first: an unfiltered list would resolve ?lesson_id=
+        // to a lesson outside the tier, and would pick a hidden lesson as the
+        // default "first uncompleted" (blank page).
+        $allLessons = $course->lessons()->orderBy('sort_order')->get()
+            ->filter($inPlan)
+            ->values();
         $requestedLessonId = $request->input('lesson_id');
 
         if ($requestedLessonId) {
@@ -209,6 +225,10 @@ class ClassroomController extends Controller
             return response()->json(['error' => '您尚未購買此課程'], 403);
         }
 
+        if (!$this->isLessonInPlan($course, $user, $lesson)) {
+            return response()->json(['error' => '您的方案不包含此小節'], 403);
+        }
+
         // Create progress record (or ignore if exists)
         LessonProgress::firstOrCreate([
             'user_id' => $user->id,
@@ -234,6 +254,10 @@ class ClassroomController extends Controller
             return response()->json(['error' => '您尚未購買此課程'], 403);
         }
 
+        if (!$this->isLessonInPlan($course, $user, $lesson)) {
+            return response()->json(['error' => '您的方案不包含此小節'], 403);
+        }
+
         // Delete progress record
         LessonProgress::where('user_id', $user->id)
             ->where('lesson_id', $lesson->id)
@@ -243,7 +267,23 @@ class ClassroomController extends Controller
     }
 
     /**
+     * Whether a tiered course's plan covers this lesson for this user.
+     *
+     * The progress endpoints are reachable without ever rendering the page, so
+     * hiding a lesson from the sidebar is not a guard (011 FR-089).
+     */
+    private function isLessonInPlan(Course $course, $user, Lesson $lesson): bool
+    {
+        $planLessonIds = $course->planLessonIdsForUser($user);
+
+        return $planLessonIds === null || in_array($lesson->id, $planLessonIds);
+    }
+
+    /**
      * Display preview classroom for a course (no auth required).
+     *
+     * Free preview is marketing (`is_preview`), not an entitlement, so plans
+     * deliberately do not apply here (011 FR-090).
      */
     public function preview(Request $request, Course $course): Response
     {

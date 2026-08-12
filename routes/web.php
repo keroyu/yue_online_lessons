@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DripLessonPreviewController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\ChapterController;
+use App\Http\Controllers\Admin\CoursePlanController;
 use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
@@ -262,6 +263,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy'])->name('lessons.destroy');
     Route::post('/courses/{course}/lessons/reorder', [LessonController::class, 'reorder'])->name('lessons.reorder');
 
+    // Course Plans (011 US21 — high-ticket tiers)
+    Route::post('/courses/{course}/plans', [CoursePlanController::class, 'store'])->name('plans.store');
+    Route::put('/plans/{plan}', [CoursePlanController::class, 'update'])->name('plans.update');
+    Route::delete('/plans/{plan}', [CoursePlanController::class, 'destroy'])->name('plans.destroy');
+    Route::put('/lessons/{lesson}/plans', [CoursePlanController::class, 'syncLessons'])->name('lessons.plans.sync');
+
     // Course Images
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');
     Route::post('/courses/{course}/images', [CourseImageController::class, 'store'])->name('images.store');
@@ -294,6 +301,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/members', [MemberController::class, 'index'])->name('members.index');
     Route::patch('/members/{member}', [MemberController::class, 'update'])->name('members.update');
     Route::post('/members/{member}/grant-points', [MemberController::class, 'grantPoints'])->name('members.grant-points');
+    // Tier switch after an offline upgrade payment (011 US21). Declared before
+    // the bare {member} GET for readability; the verbs differ so order is moot.
+    Route::patch('/members/{member}/purchases/{purchase}/plan', [MemberController::class, 'updatePurchasePlan'])->name('members.purchase-plan');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
     Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])
         ->middleware('throttle:10,1')

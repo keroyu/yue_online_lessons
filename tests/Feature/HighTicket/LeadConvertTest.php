@@ -4,6 +4,7 @@ namespace Tests\Feature\HighTicket;
 
 use App\Mail\TemplatedMail;
 use App\Models\Course;
+use App\Models\CoursePlan;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
@@ -382,6 +383,160 @@ class LeadConvertTest extends TestCase
                 ->where('grantableCourses.0.id', $course->id)
                 // Promo active → display price is the promo price.
                 ->where('grantableCourses.0.display_price', 30000)
+            );
+    }
+
+    // ── US21: which plan is being sold (FR-092) ─────────────────────────────
+
+    private function planned(Course $course): array
+    {
+        return [
+            CoursePlan::create(['course_id' => $course->id, 'name' => '方案A', 'price' => 30000, 'sort_order' => 0]),
+            CoursePlan::create(['course_id' => $course->id, 'name' => '方案B', 'price' => 80000, 'sort_order' => 1]),
+        ];
+    }
+
+    public function test_convert_writes_the_selected_plan(): void
+    {
+        $course = $this->makeCourse();
+        $lead = $this->makeLead($course);
+        [$planA] = $this->planned($course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id,
+                'course_plan_id' => $planA->id,
+                'amount' => 30000,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('purchases', [
+            'course_id' => $course->id,
+            'course_plan_id' => $planA->id,
+            'amount' => 30000,
+        ]);
+    }
+
+    public function test_convert_is_refused_when_a_planned_course_has_no_plan_selected(): void
+    {
+        $course = $this->makeCourse();
+        $lead = $this->makeLead($course);
+        $this->planned($course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id,
+                'amount' => 30000,
+            ])
+            ->assertStatus(422);
+
+        // Nothing may have been created — not even the user account.
+        $this->assertDatabaseCount('purchases', 0);
+        $this->assertSame('contacted', $lead->fresh()->status);
+    }
+
+    public function test_convert_rejects_a_plan_from_another_course(): void
+    {
+        $course = $this->makeCourse();
+        $other = $this->makeCourse(['slug' => 'other-' . uniqid()]);
+        $lead = $this->makeLead($course);
+        $foreign = CoursePlan::create(['course_id' => $other->id, 'name' => '別課方案', 'sort_order' => 0]);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id,
+                'course_plan_id' => $foreign->id,
+                'amount' => 30000,
+            ])
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('purchases', 0);
+    }
+
+    public function test_courses_without_plans_still_convert_with_a_null_plan(): void
+    {
+        $course = $this->makeCourse();
+        $lead = $this->makeLead($course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id,
+                'amount' => 30000,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('purchases', [
+            'course_id' => $course->id,
+            'course_plan_id' => null,
+        ]);
+    }
+
+    public function test_upgrading_from_a_to_b_overwrites_the_plan_without_the_conflict_guard(): void
+    {
+        // Both records are lead_conversion, so FR-015's overwrite guard is not
+        // supposed to fire — this is an upgrade, the normal case.
+        $course = $this->makeCourse();
+        $lead = $this->makeLead($course);
+        [$planA, $planB] = $this->planned($course);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id, 'course_plan_id' => $planA->id, 'amount' => 30000,
+            ])
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id, 'course_plan_id' => $planB->id, 'amount' => 80000,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseCount('purchases', 1);
+        $this->assertDatabaseHas('purchases', [
+            'course_id' => $course->id,
+            'course_plan_id' => $planB->id,
+            'amount' => 80000,
+        ]);
+    }
+
+    public function test_conversion_mail_names_the_plan(): void
+    {
+        Mail::fake();
+        EmailTemplate::create([
+            'event_type' => 'lead_converted',
+            'name' => '顧問成交開通通知',
+            'subject' => '{{course_name}} 已開通',
+            'body_md' => '{{user_name}} 你好，{{course_name}} 已開通，成交金額 {{amount}}。',
+        ]);
+
+        $course = $this->makeCourse(['name' => '高階陪跑']);
+        $lead = $this->makeLead($course);
+        [, $planB] = $this->planned($course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/high-ticket-leads/{$lead->id}/convert", [
+                'course_id' => $course->id, 'course_plan_id' => $planB->id, 'amount' => 80000,
+            ])
+            ->assertOk()
+            ->assertJson(['mail_sent' => true]);
+
+        Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail) =>
+            str_contains($mail->emailSubject, '高階陪跑（方案B）')
+            && str_contains($mail->htmlBody, '高階陪跑（方案B）'));
+    }
+
+    public function test_index_grantable_courses_include_plans(): void
+    {
+        $course = $this->makeCourse();
+        [$planA] = $this->planned($course);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads')
+            ->assertInertia(fn ($page) => $page
+                ->where('grantableCourses.0.plans.0.id', $planA->id)
+                ->where('grantableCourses.0.plans.0.name', '方案A')
+                ->where('grantableCourses.0.plans.0.price', 30000)
             );
     }
 }

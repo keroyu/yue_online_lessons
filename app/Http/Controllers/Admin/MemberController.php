@@ -8,17 +8,20 @@ use App\Http\Requests\Admin\GrantPointsRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\ToggleSalesConsultantRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
+use App\Http\Requests\Admin\UpdatePurchasePlanRequest;
 use App\Services\DripService;
 use App\Services\PointService;
 use App\Mail\BatchEmailMail;
 use App\Mail\CourseGiftedMail;
 use App\Models\Course;
+use App\Models\CoursePlan;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -109,7 +112,7 @@ class MemberController extends Controller
 
         // Load courses with progress calculation
         $courses = $member->purchases()
-            ->with(['course.lessons'])
+            ->with(['course.lessons', 'course.plans', 'plan.lessons:id'])
             ->paidStatus()
             ->get()
             ->values();
@@ -122,11 +125,19 @@ class MemberController extends Controller
         $courses = $courses
             ->map(function ($purchase) use ($member, $progressMap) {
                 $course = $purchase->course;
-                $progress = $member->getCourseProgressSummary($course, $progressMap);
+                // Tiered purchases only count their own lessons (011 FR-091).
+                $progress = $member->getCourseProgressSummary($course, $progressMap, $purchase->accessibleLessonIds());
 
                 return [
                     'id' => $course->id,
                     'name' => $course->name,
+                    'purchase_id' => $purchase->id,
+                    'plan_id' => $purchase->course_plan_id,
+                    'plan_name' => $purchase->plan?->name,
+                    'available_plans' => $course->plans->map(fn ($plan) => [
+                        'id' => $plan->id,
+                        'name' => $plan->name,
+                    ])->values(),
                     'purchased_at' => $purchase->created_at->toIso8601String(),
                     'acquisition_type' => match(true) {
                         $purchase->type === 'lead_conversion' => 'lead_conversion',
@@ -208,6 +219,56 @@ class MemberController extends Controller
         }
 
         return back()->with('success', '會員資料更新成功');
+    }
+
+    /**
+     * Move a member between a course's plans, e.g. after they wired the
+     * difference to upgrade from A to B (011 US21 / FR-094).
+     *
+     * The top-up is added to the purchase rather than replacing it, so that
+     * sum(Purchase.amount) keeps matching what was actually collected.
+     */
+    public function updatePurchasePlan(
+        UpdatePurchasePlanRequest $request,
+        User $member,
+        Purchase $purchase,
+    ): JsonResponse {
+        // Route model binding validates each parameter on its own; the
+        // relationship between them is ours to check.
+        if ($purchase->user_id !== $member->id) {
+            abort(403, '此購買紀錄不屬於該會員');
+        }
+
+        $planId = $request->validated('course_plan_id');
+
+        if ($planId !== null) {
+            $belongs = CoursePlan::where('id', $planId)
+                ->where('course_id', $purchase->course_id)
+                ->exists();
+
+            if (!$belongs) {
+                return response()->json(['message' => '所選方案不屬於此課程'], 422);
+            }
+        }
+
+        $topUp = (int) ($request->validated('additional_amount') ?? 0);
+
+        DB::transaction(function () use ($purchase, $planId, $topUp) {
+            $purchase->course_plan_id = $planId;
+
+            if ($topUp > 0) {
+                $purchase->amount = $purchase->amount + $topUp;
+            }
+
+            $purchase->save();
+        });
+
+        return response()->json([
+            'success' => true,
+            'plan_id' => $planId,
+            'plan_name' => $purchase->fresh()->plan?->name,
+            'amount' => (int) $purchase->fresh()->amount,
+        ]);
     }
 
     /**

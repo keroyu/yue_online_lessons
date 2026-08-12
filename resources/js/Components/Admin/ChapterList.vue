@@ -29,6 +29,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  plans: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['update:chapters', 'update:standaloneLessons'])
@@ -143,6 +147,28 @@ const deleteLesson = (lesson) => {
 
   router.delete(`/admin/lessons/${lesson.id}`, {
     preserveScroll: true,
+  })
+}
+
+// Plan assignment (011 US21). Saved on click like the other inline edits on
+// this page — there is no separate save button to forget.
+const isInPlan = (lesson, planId) => (lesson.plan_ids || []).includes(planId)
+
+const togglePlan = (lesson, planId) => {
+  const current = lesson.plan_ids || []
+  const next = current.includes(planId)
+    ? current.filter(id => id !== planId)
+    : [...current, planId]
+
+  // Optimistic: the chip should not lag behind the click on a round trip.
+  lesson.plan_ids = next
+
+  router.put(`/admin/lessons/${lesson.id}/plans`, { plan_ids: next }, {
+    preserveScroll: true,
+    preserveState: true,
+    onError: () => {
+      lesson.plan_ids = current
+    },
   })
 }
 
@@ -288,8 +314,8 @@ const onLessonDragEnd = (chapterId = null) => {
             @end="onLessonDragEnd(chapter.id)"
           >
             <template #item="{ element: lesson }">
-              <div class="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                <div class="flex items-center flex-1">
+              <div class="px-4 py-3 flex items-start justify-between hover:bg-gray-50">
+                <div class="flex items-start flex-1 min-w-0">
                   <button
                     type="button"
                     class="lesson-handle cursor-move p-1 text-gray-400 hover:text-gray-600 mr-2"
@@ -299,6 +325,7 @@ const onLessonDragEnd = (chapterId = null) => {
                     </svg>
                   </button>
 
+                  <div class="flex-1 min-w-0">
                   <div class="flex items-center">
                     <span v-if="lesson.has_video" class="text-brand-teal mr-2">
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -316,9 +343,28 @@ const onLessonDragEnd = (chapterId = null) => {
                       {{ lesson.duration_formatted }}
                     </span>
                   </div>
+
+                    <div v-if="plans.length > 0" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <button
+                        v-for="plan in plans"
+                        :key="plan.id"
+                        type="button"
+                        class="px-2 py-0.5 rounded-full text-xs font-medium border transition-colors cursor-pointer"
+                        :class="isInPlan(lesson, plan.id)
+                          ? 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90'
+                          : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 hover:text-gray-700'"
+                        @click="togglePlan(lesson, plan.id)"
+                      >
+                        {{ plan.name }}
+                      </button>
+                      <span v-if="(lesson.plan_ids || []).length === 0" class="text-xs text-amber-600">
+                        未歸類，學員看不到
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 shrink-0">
                   <button
                     type="button"
                     class="text-gray-400 hover:text-gray-600"
@@ -366,8 +412,8 @@ const onLessonDragEnd = (chapterId = null) => {
         @end="onLessonDragEnd(null)"
       >
         <template #item="{ element: lesson }">
-          <div class="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-            <div class="flex items-center flex-1">
+          <div class="px-4 py-3 flex items-start justify-between hover:bg-gray-50">
+            <div class="flex items-start flex-1 min-w-0">
               <button
                 type="button"
                 class="lesson-handle cursor-move p-1 text-gray-400 hover:text-gray-600 mr-2"
@@ -377,6 +423,7 @@ const onLessonDragEnd = (chapterId = null) => {
                 </svg>
               </button>
 
+              <div class="flex-1 min-w-0">
               <div class="flex items-center">
                 <span v-if="lesson.has_video" class="text-brand-teal mr-2">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -394,9 +441,28 @@ const onLessonDragEnd = (chapterId = null) => {
                   {{ lesson.duration_formatted }}
                 </span>
               </div>
+
+                <div v-if="plans.length > 0" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <button
+                    v-for="plan in plans"
+                    :key="plan.id"
+                    type="button"
+                    class="px-2 py-0.5 rounded-full text-xs font-medium border transition-colors cursor-pointer"
+                    :class="isInPlan(lesson, plan.id)
+                      ? 'bg-brand-teal text-white border-brand-teal hover:bg-brand-teal/90'
+                      : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 hover:text-gray-700'"
+                    @click="togglePlan(lesson, plan.id)"
+                  >
+                    {{ plan.name }}
+                  </button>
+                  <span v-if="(lesson.plan_ids || []).length === 0" class="text-xs text-amber-600">
+                    未歸類，學員看不到
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 shrink-0">
               <button
                 type="button"
                 class="text-gray-400 hover:text-gray-600"

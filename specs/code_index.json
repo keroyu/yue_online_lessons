@@ -41,7 +41,8 @@
     ],
     "app/Http/Controllers/Admin/ChapterController.php": [
       "004.us-3",
-      "006.us-5"
+      "006.us-5",
+      "011.us-21"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
       "011.us-10",
@@ -72,6 +73,9 @@
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "004.us-4"
     ],
+    "app/Http/Controllers/Admin/CoursePlanController.php": [
+      "011.us-21"
+    ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7"
     ],
@@ -92,6 +96,7 @@
       "011.us-15",
       "011.us-18",
       "011.us-20",
+      "011.us-21",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -115,7 +120,8 @@
     "app/Http/Controllers/Admin/LessonController.php": [
       "004.us-3",
       "004.us-6",
-      "010.us-8"
+      "010.us-8",
+      "011.us-21"
     ],
     "app/Http/Controllers/Admin/MemberController.php": [
       "001.us-3",
@@ -129,7 +135,8 @@
       "008.us-7",
       "008.us-8",
       "008.us-9",
-      "010.us-13"
+      "010.us-13",
+      "011.us-21"
     ],
     "app/Http/Controllers/Admin/PostController.php": [
       "012.us-1",
@@ -248,10 +255,12 @@
       "010.us-12",
       "010.us-14",
       "010.us-7",
-      "010.us-9"
+      "010.us-9",
+      "011.us-21"
     ],
     "app/Http/Controllers/Member/LearningController.php": [
-      "003.us-1"
+      "003.us-1",
+      "011.us-21"
     ],
     "app/Http/Controllers/Member/NotificationController.php": [
       "003.us-8"
@@ -362,6 +371,9 @@
     "app/Http/Requests/Admin/StoreCouponRequest.php": [
       "006.us-2"
     ],
+    "app/Http/Requests/Admin/StoreCoursePlanRequest.php": [
+      "011.us-21"
+    ],
     "app/Http/Requests/Admin/StoreCourseRequest.php": [
       "002.us-11",
       "002.us-12",
@@ -386,6 +398,9 @@
     ],
     "app/Http/Requests/Admin/StoreTransactionRequest.php": [
       "009.us-3"
+    ],
+    "app/Http/Requests/Admin/SyncLessonPlansRequest.php": [
+      "011.us-21"
     ],
     "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php": [
       "008.us-9"
@@ -419,6 +434,9 @@
     ],
     "app/Http/Requests/Admin/UpdatePostRequest.php": [
       "012.us-1"
+    ],
+    "app/Http/Requests/Admin/UpdatePurchasePlanRequest.php": [
+      "011.us-21"
     ],
     "app/Http/Requests/Admin/UpdateShortLinkRequest.php": [
       "000.us-8"
@@ -580,7 +598,8 @@
       "002.us-8",
       "004.us-1",
       "004.us-2",
-      "004.us-5"
+      "004.us-5",
+      "011.us-21"
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
@@ -588,6 +607,9 @@
     ],
     "app/Models/CourseImage.php": [
       "004.us-4"
+    ],
+    "app/Models/CoursePlan.php": [
+      "011.us-21"
     ],
     "app/Models/DripConversionTarget.php": [
       "010.us-5"
@@ -626,7 +648,8 @@
       "003.us-8"
     ],
     "app/Models/Lesson.php": [
-      "004.us-3"
+      "004.us-3",
+      "011.us-21"
     ],
     "app/Models/LessonProgress.php": [
       "003.us-3"
@@ -662,6 +685,7 @@
       "005.us-4",
       "005.us-6",
       "005.us-7",
+      "011.us-21",
       "011.us-5"
     ],
     "app/Models/ShortLink.php": [
@@ -685,6 +709,7 @@
       "001.us-1",
       "001.us-2",
       "001.us-3",
+      "011.us-21",
       "012.us-4"
     ],
     "app/Models/UserSocialLink.php": [
@@ -794,6 +819,7 @@
     ],
     "app/Services/HighTicketLeadService.php": [
       "010.us-13",
+      "011.us-21",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -1110,6 +1136,15 @@
     "database/migrations/2026_08_09_000003_install_consultation_reminder_template.php": [
       "011.us-19"
     ],
+    "database/migrations/2026_08_13_000001_create_course_plans_table.php": [
+      "011.us-21"
+    ],
+    "database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php": [
+      "011.us-21"
+    ],
+    "database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php": [
+      "011.us-21"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1138,7 +1173,8 @@
       "002.us-16"
     ],
     "resources/js/Components/Admin/ChapterList.vue": [
-      "004.us-3"
+      "004.us-3",
+      "011.us-21"
     ],
     "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
       "011.us-13",
@@ -1160,6 +1196,9 @@
       "006.us-5",
       "010.us-8"
     ],
+    "resources/js/Components/Admin/CoursePlanPanel.vue": [
+      "011.us-21"
+    ],
     "resources/js/Components/Admin/HintBox.vue": [
       "000.us-9"
     ],
@@ -1171,6 +1210,7 @@
       "011.us-14",
       "011.us-15",
       "011.us-18",
+      "011.us-21",
       "011.us-8",
       "011.us-9"
     ],
@@ -1325,7 +1365,8 @@
       "007.us-6",
       "008.us-2",
       "008.us-3",
-      "008.us-9"
+      "008.us-9",
+      "011.us-21"
     ],
     "resources/js/Components/MyCourseCard.vue": [
       "003.us-1"
@@ -1409,7 +1450,8 @@
       "006.us-4"
     ],
     "resources/js/Pages/Admin/Courses/Chapters.vue": [
-      "004.us-3"
+      "004.us-3",
+      "011.us-21"
     ],
     "resources/js/Pages/Admin/Courses/Create.vue": [
       "004.us-1",
@@ -1738,6 +1780,9 @@
       "011.us-17",
       "011.us-20"
     ],
+    "tests/Feature/HighTicket/CoursePlanTest.php": [
+      "011.us-21"
+    ],
     "tests/Feature/HighTicket/DuplicateBookingTest.php": [
       "011.us-16"
     ],
@@ -1754,6 +1799,12 @@
       "011.us-18",
       "011.us-8",
       "011.us-9"
+    ],
+    "tests/Feature/HighTicket/PlanAccessTest.php": [
+      "011.us-21"
+    ],
+    "tests/Feature/HighTicket/PlanSwitchTest.php": [
+      "011.us-21"
     ],
     "tests/Feature/HighTicket/SlotHoldTest.php": [
       "011.us-10",
