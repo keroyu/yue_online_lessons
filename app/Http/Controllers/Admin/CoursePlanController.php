@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCoursePlanRequest;
 use App\Http\Requests\Admin\SyncLessonPlansRequest;
+use App\Http\Requests\Admin\SyncPlanLessonsRequest;
 use App\Models\Course;
 use App\Models\CoursePlan;
 use App\Models\Lesson;
@@ -72,6 +73,21 @@ class CoursePlanController extends Controller
     public function syncLessons(SyncLessonPlansRequest $request, Lesson $lesson): RedirectResponse
     {
         $lesson->plans()->sync($request->validated('plan_ids'));
+
+        return back();
+    }
+
+    /**
+     * Replace this plan's lesson set wholesale — the plan-side counterpart of
+     * syncLessons(), used by the per-chapter shortcuts on the plan card.
+     *
+     * The caller sends the complete resulting set rather than a delta: the
+     * browser already knows the current membership, and a full set means a
+     * double-click cannot drift the two sides apart.
+     */
+    public function syncPlanLessons(SyncPlanLessonsRequest $request, CoursePlan $plan): RedirectResponse
+    {
+        $plan->lessons()->sync($request->validated('lesson_ids'));
 
         return back();
     }

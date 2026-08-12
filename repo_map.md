@@ -572,6 +572,7 @@ main_files:
 - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
 - app/Http/Requests/Admin/StoreCoursePlanRequest.php
 - app/Http/Requests/Admin/SyncLessonPlansRequest.php
+- app/Http/Requests/Admin/SyncPlanLessonsRequest.php
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php

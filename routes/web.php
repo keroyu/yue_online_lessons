@@ -268,6 +268,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/plans/{plan}', [CoursePlanController::class, 'update'])->name('plans.update');
     Route::delete('/plans/{plan}', [CoursePlanController::class, 'destroy'])->name('plans.destroy');
     Route::put('/lessons/{lesson}/plans', [CoursePlanController::class, 'syncLessons'])->name('lessons.plans.sync');
+    Route::put('/plans/{plan}/lessons', [CoursePlanController::class, 'syncPlanLessons'])->name('plans.lessons.sync');
 
     // Course Images
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');

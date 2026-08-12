@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import HintBox from './HintBox.vue'
 
@@ -12,7 +12,89 @@ import HintBox from './HintBox.vue'
 const props = defineProps({
   courseId: { type: Number, required: true },
   plans: { type: Array, default: () => [] },
+  chapters: { type: Array, default: () => [] },
+  standaloneLessons: { type: Array, default: () => [] },
 })
+
+/**
+ * Chapter shortcuts. Ticking chips one lesson at a time is fine for a tweak
+ * and miserable for "plan B covers everything" — this assigns a whole chapter
+ * in one click.
+ *
+ * Standalone lessons ride along as a pseudo-group so the shortcut can cover
+ * the entire course, not just the chaptered part of it.
+ */
+const groups = computed(() => {
+  const list = props.chapters.map(c => ({
+    key: `c${c.id}`,
+    title: c.title,
+    lessonIds: c.lessons.map(l => l.id),
+  }))
+
+  if (props.standaloneLessons.length > 0) {
+    list.push({
+      key: 'standalone',
+      title: '獨立小節',
+      lessonIds: props.standaloneLessons.map(l => l.id),
+    })
+  }
+
+  return list.filter(g => g.lessonIds.length > 0)
+})
+
+const allLessonIds = computed(() => groups.value.flatMap(g => g.lessonIds))
+
+// Which lessons each plan currently holds, read back off the lesson payloads
+// so this panel and the chips below can never disagree.
+const planLessonIds = (planId) => {
+  const ids = []
+  for (const c of props.chapters) {
+    for (const l of c.lessons) if ((l.plan_ids || []).includes(planId)) ids.push(l.id)
+  }
+  for (const l of props.standaloneLessons) {
+    if ((l.plan_ids || []).includes(planId)) ids.push(l.id)
+  }
+  return ids
+}
+
+/** 'all' | 'some' | 'none' — drives the tri-state look of each shortcut. */
+const groupState = (planId, group) => {
+  const held = new Set(planLessonIds(planId))
+  const hits = group.lessonIds.filter(id => held.has(id)).length
+  if (hits === 0) return 'none'
+  return hits === group.lessonIds.length ? 'all' : 'some'
+}
+
+const shortcutOpenId = ref(null)
+
+const toggleShortcut = (planId) => {
+  shortcutOpenId.value = shortcutOpenId.value === planId ? null : planId
+}
+
+const syncPlanLessons = (planId, lessonIds) => {
+  router.put(`/admin/plans/${planId}/lessons`, { lesson_ids: lessonIds }, {
+    preserveScroll: true,
+  })
+}
+
+// Whole chapter in, or whole chapter out. Partial counts as "not yet in",
+// so a second click after a partial selection completes it rather than
+// clearing what was already there.
+const toggleGroup = (planId, group) => {
+  const held = new Set(planLessonIds(planId))
+  const state = groupState(planId, group)
+
+  if (state === 'all') {
+    group.lessonIds.forEach(id => held.delete(id))
+  } else {
+    group.lessonIds.forEach(id => held.add(id))
+  }
+
+  syncPlanLessons(planId, [...held])
+}
+
+const selectAll = (planId) => syncPlanLessons(planId, allLessonIds.value)
+const clearAll = (planId) => syncPlanLessons(planId, [])
 
 const newName = ref('')
 const newPrice = ref('')
@@ -66,8 +148,10 @@ const deletePlan = (plan) => {
 </script>
 
 <template>
-  <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
-    <div class="bg-gray-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  <!-- No overflow-hidden: the chapter shortcut popover has to escape the card.
+       The header carries its own rounded corners instead. -->
+  <div class="bg-white shadow rounded-lg mb-6">
+    <div class="bg-gray-50 rounded-t-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h3 class="text-sm font-medium text-gray-900">課程方案</h3>
         <p class="text-xs text-gray-500 mt-0.5">
@@ -163,6 +247,58 @@ const deletePlan = (plan) => {
               <div class="flex items-center gap-2 shrink-0">
                 <button type="button" class="text-brand-teal hover:text-brand-navy text-xs cursor-pointer" @click="startEdit(plan)">編輯</button>
                 <button type="button" class="text-red-400 hover:text-red-600 text-xs cursor-pointer" @click="deletePlan(plan)">刪除</button>
+              </div>
+            </div>
+
+            <!-- Chapter shortcuts, in a popover so the card keeps its height -->
+            <div v-if="groups.length > 0" class="relative mt-2">
+              <button
+                type="button"
+                class="w-full inline-flex items-center justify-between gap-1 px-2 py-1 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 cursor-pointer"
+                :aria-expanded="shortcutOpenId === plan.id"
+                @click="toggleShortcut(plan.id)"
+              >
+                <span>選取章節（{{ planLessonIds(plan.id).length }}/{{ allLessonIds.length }} 節）</span>
+                <svg class="w-3 h-3 shrink-0 transition-transform" :class="shortcutOpenId === plan.id ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <!-- Click-anywhere-else closes it; a backdrop beats a document
+                   listener here because it cannot outlive the popover. -->
+              <div v-if="shortcutOpenId === plan.id" class="fixed inset-0 z-10" @click="shortcutOpenId = null"></div>
+
+              <div
+                v-if="shortcutOpenId === plan.id"
+                class="absolute z-20 mt-1 w-full min-w-[13rem] rounded-md border border-gray-200 bg-white shadow-lg p-1.5 space-y-0.5"
+              >
+                <button
+                  v-for="group in groups"
+                  :key="group.key"
+                  type="button"
+                  class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-gray-100 cursor-pointer"
+                  @click="toggleGroup(plan.id, group)"
+                >
+                  <span
+                    class="shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center"
+                    :class="{
+                      'bg-brand-teal border-brand-teal': groupState(plan.id, group) === 'all',
+                      'bg-brand-teal/30 border-brand-teal': groupState(plan.id, group) === 'some',
+                      'border-gray-300': groupState(plan.id, group) === 'none',
+                    }"
+                  >
+                    <svg v-if="groupState(plan.id, group) === 'all'" class="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                  <span class="flex-1 truncate text-gray-800" :title="group.title">{{ group.title }}</span>
+                  <span class="shrink-0 text-gray-400">{{ group.lessonIds.length }}</span>
+                </button>
+
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-1.5 mt-1 px-2">
+                  <button type="button" class="text-xs text-brand-teal hover:text-brand-navy cursor-pointer" @click="selectAll(plan.id)">全選</button>
+                  <button type="button" class="text-xs text-gray-500 hover:text-gray-700 cursor-pointer" @click="clearAll(plan.id)">全部清除</button>
+                </div>
               </div>
             </div>
           </template>

@@ -3624,6 +3624,7 @@
         "app/Http/Controllers/Member/LearningController.php",
         "app/Http/Requests/Admin/StoreCoursePlanRequest.php",
         "app/Http/Requests/Admin/SyncLessonPlansRequest.php",
+        "app/Http/Requests/Admin/SyncPlanLessonsRequest.php",
         "app/Http/Requests/Admin/UpdatePurchasePlanRequest.php",
         "app/Services/HighTicketLeadService.php",
         "database/migrations/2026_08_13_000001_create_course_plans_table.php",

@@ -77,6 +77,8 @@ defineProps({
         v-if="course.type === 'high_ticket'"
         :course-id="course.id"
         :plans="plans"
+        :chapters="chapters"
+        :standalone-lessons="standaloneLessons"
       />
 
       <ChapterList

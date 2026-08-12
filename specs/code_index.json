@@ -402,6 +402,9 @@
     "app/Http/Requests/Admin/SyncLessonPlansRequest.php": [
       "011.us-21"
     ],
+    "app/Http/Requests/Admin/SyncPlanLessonsRequest.php": [
+      "011.us-21"
+    ],
     "app/Http/Requests/Admin/ToggleSalesConsultantRequest.php": [
       "008.us-9"
     ],

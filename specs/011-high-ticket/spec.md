@@ -6,6 +6,7 @@ owner_files:
   - app/Http/Controllers/Admin/CoursePlanController.php
   - app/Http/Requests/Admin/StoreCoursePlanRequest.php
   - app/Http/Requests/Admin/SyncLessonPlansRequest.php
+  - app/Http/Requests/Admin/SyncPlanLessonsRequest.php
   - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php
   - database/migrations/2026_08_13_000001_create_course_plans_table.php
   - database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php
@@ -133,7 +134,7 @@ touchpoints:
     why: US21 章節編輯頁需要方案清單與每個小節的 `plan_ids`（course payload 加 `type`、兩處 lesson map 加 `plan_ids`）
   - file: resources/js/Pages/Admin/Courses/Chapters.vue
     owner: 004-course-admin
-    why: US21 掛載 `CoursePlanPanel.vue` 並把 `plans` 透傳給 ChapterList
+    why: US21 掛載 `CoursePlanPanel.vue` 並把 `plans` 透傳給 ChapterList；另把 `chapters` / `standaloneLessons` 傳進方案面板供章節捷徑計算三態（FR-096）
   - file: resources/js/Components/Admin/ChapterList.vue
     owner: 004-course-admin
     why: US21 每個小節列加一排方案 chip（章節內與獨立小節兩處模板），點擊即 sync
@@ -172,7 +173,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US21 新增 admin 群組內的方案 CRUD 四條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -658,6 +659,8 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 只有 `type = high_ticket` 的課程能設定方案：章節編輯頁的方案面板 `v-if` 該條件，後端另擋一次（403）
 - [x] 章節編輯頁可新增／改名／刪除方案並設定「建議價格」（選填）；未建立任何方案 = 單一方案，行為與現況完全相同
 - [x] 每個小節列可勾選歸屬哪些方案，**同一小節可屬於多個方案**；點擊即存（`preserveScroll`），不需要另按儲存
+- [x] 方案卡片提供「選取章節」捷徑：以章節為單位整批加入／移除，另有獨立小節組與「全選／全部清除」；按鈕上顯示該方案目前涵蓋節數（`N/總數`）
+- [x] 捷徑的章節勾選為三態（全選／部分／未選），**部分狀態視為「尚未選滿」**——再點一次是補齊而非清空，不得清掉管理員已手動勾好的小節
 - [x] 沒有被歸類到任何方案的小節，持方案的會員**一律看不到**（授權單向明確：看得到 = 該方案有勾）
 - [x] 方案外的小節是**完全隱藏**而非鎖頭：整個從章節側欄濾掉，連標題都不出現（與 drip 的 `is_locked` 刻意不同，見 D80）
 - [x] 教室四個判定點都吃到方案範圍：章節側欄、獨立小節、`currentLesson` 解析（含 `?lesson_id=` 直連）、完成紀錄的統計範圍
@@ -928,7 +931,12 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - **FR-095**: 新增小節的通知信（`LessonController::store()`）收件人 MUST 排除「方案看不到這節」的會員。否則方案 A 的人收到「新增了一節」，進教室卻找不到，而他甚至不知道有方案 B 的存在（FR-089 的隱藏是徹底的）。
   **已知限制（實作時發現，2026-08-13）**：小節是先建立、之後才在章節列表勾選方案，因此**建立當下**那一節還不屬於任何方案 —— 在有方案的課程上勾「通知學員」，實際只會寄給 `course_plan_id` 為 null 的全開會員，所有持方案者都會被這條規則濾掉。這是 FR-095 的正確推論（那一刻他們確實看不到），不是 bug，但也代表「先歸類方案、再通知」目前沒有路徑。已由測試釘住實際行為；要補的話需另開一個「對指定方案補寄通知」的入口，不在本故事範圍
 
+- **FR-096**: 方案與小節的歸屬有**兩個方向的端點**，各自驗證歸屬課程：`PUT /admin/lessons/{lesson}/plans`（一節對多方案，chip 用）與 `PUT /admin/plans/{plan}/lessons`（一方案對多節，章節捷徑用）。兩者皆送**完整結果集合**而非增減差異 —— 瀏覽器已知現況，送完整集合表示連點兩下不會讓兩邊漂掉。捷徑的三態判定（全選／部分／未選）MUST 由 lesson payload 的 `plan_ids` 現算，MUST NOT 另存一份狀態，否則捷徑與下方的 chip 會各說各話
+
 ## 設計決策
+
+- **D84**: 章節捷徑做成**卡片內的 popover**而非展開式面板（2026-08-13，業主先要求壓低卡片高度、隨後要求加捷徑，兩者直接衝突）。連帶必須拿掉方案面板外層的 `overflow-hidden`（否則下拉被裁切），圓角改由 header 自己的 `rounded-t-lg` 承擔。關閉用透明 backdrop 而非 document listener —— backdrop 不可能活得比 popover 久，不會留下殘留監聽。
+  「部分」狀態刻意**不**做成第三種點擊行為（點了變全選、再點變清空），而是併入「尚未選滿」：管理員手動勾過幾節之後點章節捷徑，預期是補齊而不是被清掉，而誤清的代價遠高於多點一次。
 
 - **D83**: 方案掛在 `purchases.course_plan_id`，而不是另開一張 `user_course_plan` 表。`purchases` 已經有 `unique(user_id, course_id)`，一人一課本來就只有一筆記錄，而「買到哪個層級」正是這筆記錄的屬性 —— 另開一張表會產生兩份真相，且立刻要回答「有 purchase 沒有 plan 列」與「有 plan 列沒有 purchase」這兩種不該存在的狀態該怎麼辦。
   連帶好處是升級補價可以直接累加在同一筆的 `amount` 上（FR-094），營收圖表的 `sum(Purchase.amount)` 一行都不用改。
@@ -1742,6 +1750,7 @@ Phase 7 — 驗證
 
 ## 進度日誌
 
+- 2026-08-13: 方案卡片加「選取章節」捷徑（FR-096 / D84）— 一節一節點 chip 對「方案B 涵蓋全部」是苦工，卡片內加 popover 以章節為單位整批加入／移除（獨立小節自成一組、另有全選／全部清除），按鈕上顯示 `已選/總數`。後端加第二個方向的端點 `PUT /admin/plans/{plan}/lessons`（送完整結果集合，不送差異），與既有的 lesson→plans 端點各自驗證歸屬課程。三態的「部分」刻意併入「尚未選滿」——再點是補齊不是清空，誤清的代價高於多點一次。做成 popover 而非展開面板是因為前一輪才剛壓低卡片高度，連帶拿掉外層 `overflow-hidden`（會裁切下拉）並把圓角移到 header。CoursePlanTest 11 → 14，全套 617 passed（2677 assertions）、`npm run build` exit 0
 - 2026-08-13: 課程方案面板版面調整（業主實測回饋，純前端樣式）— 新增方案的輸入欄位改為常駐在標題列的按鈕前面（移除 `showAdd` 展開狀態，名稱空白時按鈕 disabled）；方案清單由「一個方案一整條撐滿版」改為 `grid-cols-1 / sm:2 / lg:4` 卡片，編輯／刪除移到卡片右側與文字同列（卡片從三行縮成兩行）。順手補了「未設建議價」的顯示文字 —— 原本該行留空會讓卡片高度不齊。無後端變更，US21 相關 55 支測試維持全綠、`npm run build` exit 0
 - 2026-08-13: US21 高價課多方案與分級授權完成（T229–T259，僅剩 T260 使用者實測）— 三支 migration（`course_plans` / `course_plan_lesson` / `purchases.course_plan_id`），授權收斂在 `Purchase::accessibleLessonIds()` 與 `Course::planLessonIdsForUser()` 兩個方法。教室的四個判定點全部接上（章節側欄、獨立小節、`$allLessons` 的 currentLesson 解析、`$completedLessonIds` 範圍），兩個 progress 端點各補 403。進度分母走 `getCourseProgressSummary()` 新的第三參數，`LearningController` 與 `MemberController::show()` 各傳入該筆 purchase 的方案範圍。開通加方案下拉（預設價 `plan.price ?? display_price`），service 層擋「有方案卻沒選」與「方案不屬於此課程」；通知信的 `{{course_name}}` 附上方案名而非新增第六個變數 —— 剛匯完款的人得看得懂自己買到什麼，而那不該先要求管理員改模板。會員詳情加方案下拉 + 選填補價（累加不覆寫），切換後重抓詳情因為分母跟著換了。刪方案兩層擋（service 422 + FK `restrict`）。
   **實作中發現並記錄一個限制**（見 FR-095 補述）：小節是先建立、之後才勾方案，所以建立當下勾「通知學員」在有方案的課程上只會寄給全開會員 —— 這是 FR-095 的正確推論而非 bug，已用測試釘住，但「先歸類再通知」目前沒有路徑。

@@ -218,6 +218,51 @@ class CoursePlanTest extends TestCase
         );
     }
 
+    // ── plan-side bulk assignment (chapter shortcuts) ───────────────────────
+
+    public function test_plan_lessons_can_be_synced_in_bulk(): void
+    {
+        $course = $this->makeCourse();
+        $plan = CoursePlan::create(['course_id' => $course->id, 'name' => 'A', 'sort_order' => 0]);
+        $one = $this->makeLesson($course, 'EP1');
+        $two = $this->makeLesson($course, 'EP2');
+
+        $this->actingAs($this->admin())
+            ->put("/admin/plans/{$plan->id}/lessons", ['lesson_ids' => [$one->id, $two->id]])
+            ->assertRedirect();
+
+        $this->assertSame([$one->id, $two->id], $plan->fresh()->lessons->pluck('id')->sort()->values()->all());
+    }
+
+    public function test_bulk_sync_replaces_rather_than_appends(): void
+    {
+        $course = $this->makeCourse();
+        $plan = CoursePlan::create(['course_id' => $course->id, 'name' => 'A', 'sort_order' => 0]);
+        $one = $this->makeLesson($course, 'EP1');
+        $two = $this->makeLesson($course, 'EP2');
+        $plan->lessons()->sync([$one->id, $two->id]);
+
+        $this->actingAs($this->admin())
+            ->put("/admin/plans/{$plan->id}/lessons", ['lesson_ids' => [$two->id]])
+            ->assertRedirect();
+
+        $this->assertSame([$two->id], $plan->fresh()->lessons->pluck('id')->all());
+    }
+
+    public function test_bulk_sync_rejects_a_lesson_from_another_course(): void
+    {
+        $course = $this->makeCourse();
+        $other = $this->makeCourse();
+        $plan = CoursePlan::create(['course_id' => $course->id, 'name' => 'A', 'sort_order' => 0]);
+        $foreign = $this->makeLesson($other, '別課的小節');
+
+        $this->actingAs($this->admin())
+            ->put("/admin/plans/{$plan->id}/lessons", ['lesson_ids' => [$foreign->id]])
+            ->assertSessionHasErrors('lesson_ids');
+
+        $this->assertCount(0, $plan->fresh()->lessons);
+    }
+
     public function test_plan_from_another_course_is_rejected(): void
     {
         $course = $this->makeCourse();
