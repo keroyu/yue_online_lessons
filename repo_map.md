@@ -656,6 +656,7 @@ main_files:
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
 - tests/Feature/HighTicket/ConsultationReminderTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
+- tests/Feature/HighTicket/ConversionStatsTest.php
 - tests/Feature/HighTicket/CoursePlanTest.php
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php

@@ -3642,6 +3642,43 @@
       "status": "partial"
     },
     {
+      "id": "011.us-22",
+      "module": "011-high-ticket",
+      "title": "預約名單成交業績摘要",
+      "summary": "Leads 狀態色塊列右側顯示本月／年度的成交人數與總金額，範圍共用 bookingLeadsQuery（課程／顧問篩選連動、狀態 tab 不影響），只計 lead_conversion 且 paid 的購買，人數以 email 去重，期間以台北時間切分",
+      "heading": "### User Story 22 - 預約名單成交業績摘要 (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-22---預約名單成交業績摘要-priority-p3",
+      "keywords": [
+        "成交業績",
+        "業績摘要",
+        "conversion stats",
+        "成交人數",
+        "總金額",
+        "revenue",
+        "本月",
+        "年度",
+        "monthly",
+        "yearly",
+        "lead_conversion",
+        "顧問業績",
+        "漏斗",
+        "bookingLeadsQuery",
+        "台北時間",
+        "timezone",
+        "去重",
+        "distinct"
+      ],
+      "code_files": [
+        "app/Services/HighTicketLeadService.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "tests/Feature/HighTicket/ConversionStatsTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-3",
       "module": "011-high-ticket",
       "title": "後台 Leads 名單管理",

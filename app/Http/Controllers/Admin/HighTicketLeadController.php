@@ -117,6 +117,13 @@ class HighTicketLeadController extends Controller
             ->map(fn ($total) => (int) $total)
             ->all();
 
+        // Deals closed, on the same scope as the pills above and deliberately
+        // without the status filter — clicking into a status must not move the
+        // money (FR-097, mirrors the funnel-share rule).
+        $conversionStats = $this->leadService->conversionStats(
+            $this->bookingLeadsQuery($search, $courseId, $consultant)
+        );
+
         $highTicketCourses = Course::where('type', 'high_ticket')
             ->select('id', 'name')
             ->orderBy('name')
@@ -191,6 +198,7 @@ class HighTicketLeadController extends Controller
             'grantableCourses'  => $grantableCourses,
             'dripCourseOptions' => $dripCourses,
             'subscriberData'    => null,
+            'conversionStats'   => $conversionStats,
             // Cast so an empty result still reaches Vue as {} rather than [].
             'statusCounts'      => (object) $statusCounts,
         ]);

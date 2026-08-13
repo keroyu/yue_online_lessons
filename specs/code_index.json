@@ -97,6 +97,7 @@
       "011.us-18",
       "011.us-20",
       "011.us-21",
+      "011.us-22",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -823,6 +824,7 @@
     "app/Services/HighTicketLeadService.php": [
       "010.us-13",
       "011.us-21",
+      "011.us-22",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -1214,6 +1216,7 @@
       "011.us-15",
       "011.us-18",
       "011.us-21",
+      "011.us-22",
       "011.us-8",
       "011.us-9"
     ],
@@ -1491,6 +1494,7 @@
     ],
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
       "011.us-18",
+      "011.us-22",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -1782,6 +1786,9 @@
       "011.us-13",
       "011.us-17",
       "011.us-20"
+    ],
+    "tests/Feature/HighTicket/ConversionStatsTest.php": [
+      "011.us-22"
     ],
     "tests/Feature/HighTicket/CoursePlanTest.php": [
       "011.us-21"

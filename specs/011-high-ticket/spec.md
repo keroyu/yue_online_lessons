@@ -12,6 +12,7 @@ owner_files:
   - database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php
   - database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php
   - resources/js/Components/Admin/CoursePlanPanel.vue
+  - tests/Feature/HighTicket/ConversionStatsTest.php
   - tests/Feature/HighTicket/CoursePlanTest.php
   - tests/Feature/HighTicket/PlanAccessTest.php
   - tests/Feature/HighTicket/PlanSwitchTest.php
@@ -678,6 +679,28 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；方案 chip 與會員詳情下拉在手機寬度不破版
 - [x] 測試：方案 CRUD 與刪除守門、教室過濾與 403、進度分母、開通選方案、切換方案 + 補價累加
 
+### User Story 22 - 預約名單成交業績摘要 (Priority: P3)
+
+自 D13 起後台開通是高價課唯一的成交入口，成交金額也都落在 `purchases.amount` 上，
+但這條銷售線的業績目前只能到「交易管理」翻列表或看營收圖表 —— 而那兩處混著
+線上刷卡、贈課與積分兌換，看不出「顧問這個月談成多少」。
+
+狀態色塊列的右側加一塊摘要：本月與年度各自的**成交人數**與**總金額**。
+它與既有的狀態百分比共用同一份篩選範圍，所以選了某位顧問就是那個人的業績，
+選了某門課就是那門課的數字。
+
+**驗收**：
+- [x] 狀態色塊列右側以**單行**顯示本月與年度的「成交人數」與「總金額」
+- [x] 摘要 MUST NOT 增加色塊列的高度：純文字 `text-xs`、無邊框無底色無垂直 padding，整體矮於色塊本身（`text-sm` + `py-1.5` + border），列高仍由色塊決定
+- [x] 數字 MUST 與狀態色塊共用 `bookingLeadsQuery()` 的篩選範圍（課程／顧問／關鍵字），MUST NOT 各自寫一份查詢
+- [x] 狀態 tab 本身（`?status=`）MUST NOT 影響摘要 —— 比照 FR-067，點進「已成交」不該讓分母跟著變
+- [x] 成交人數以**人**為單位去重：同一個 Email 買兩門課算 1 人
+- [x] 金額只計 `type = lead_conversion` 且 `status = paid` 的購買紀錄；已退款的不計入
+- [x] 期間以**台北時間**的當月／當年判定，轉 UTC 後查詢（伺服器跑 UTC，沿用 FR-077 的作法）
+- [x] 沒有任何成交時顯示 `0 人 · NT$ 0`，MUST NOT 隱藏整塊 —— 空的數字本身就是資訊
+- [ ] 手機寬度下摘要換行到色塊列下方，不擠壓色塊
+- [x] 測試：篩選連動（顧問／課程）、狀態 tab 不影響、同人多課去重、退款不計、跨月邊界以台北時間切分
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -933,7 +956,17 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 
 - **FR-096**: 方案與小節的歸屬有**兩個方向的端點**，各自驗證歸屬課程：`PUT /admin/lessons/{lesson}/plans`（一節對多方案，chip 用）與 `PUT /admin/plans/{plan}/lessons`（一方案對多節，章節捷徑用）。兩者皆送**完整結果集合**而非增減差異 —— 瀏覽器已知現況，送完整集合表示連點兩下不會讓兩邊漂掉。捷徑的三態判定（全選／部分／未選）MUST 由 lesson payload 的 `plan_ids` 現算，MUST NOT 另存一份狀態，否則捷徑與下方的 chip 會各說各話
 
+- **FR-097**: 業績摘要的範圍 MUST 由 `bookingLeadsQuery($search, $courseId, $consultant)` 決定 —— 取該範圍內 leads 的 email 集合，再以 `users.email` 連到 `purchases`。**不加 `status` 條件**（FR-067 的同一理由：點進某個狀態不該改變摘要）。理由：`purchases` 沒有 `consultant_id` 也沒有「這筆是哪個 lead 轉來的」外鍵，唯一的連結是 email；而讓摘要與狀態色塊共用同一個 builder，是唯一能保證兩者不會各說各話的作法（沿用 FR-074）
+- **FR-098**: 期間邊界 MUST 以**台北時間**建構再轉 UTC：本月為 `now('Asia/Taipei')->startOfMonth()`、年度為 `->startOfYear()`，區間取半開 `[start, next)`。伺服器跑 UTC，直接用 `whereMonth()` / `whereYear()` 會把台北 08:00 之前的成交算到前一天／前一個月（沿用 FR-077）
+- **FR-099**: 計入條件為 `type = 'lead_conversion'` **且** `status = 'paid'`。退款作廢的成交 MUST NOT 計入營收 —— 這與 FR-008 把 `refunded` 視為可覆寫的作廢紀錄是同一個立場。成交人數 MUST 以 `count(distinct users.email)` 計算，金額以 `sum(purchases.amount)`；同一 email 在範圍內有多筆 lead（不同課程）時，購買紀錄 MUST 只算一次
+- **FR-100**: 方案升級的補價（FR-094）**計入原成交月**（使用者決策）。補價是累加到既有 `purchases.amount` 上，`created_at` 不動，所以 8 月成交、9 月補的 5 萬會出現在 8 月的數字裡。**這是已知的失真，不是 bug**：要讓月營收反映實際進帳，需要一張逐筆進帳的記錄表與改寫升級流程，那是獨立的一個故事；在只有「後台手動開通」這一條成交路徑、補價又不常見的現況下，不值得為它先付這個成本
+
 ## 設計決策
+
+- **D85**: 業績摘要放在 Leads 頁而不是擴充「交易管理」或營收圖表。那兩處是全站口徑，混著線上刷卡、贈課與積分兌換；顧問要問的是「我這個月談成幾個、多少錢」，而那個問題的上下文就是他正在看的這份名單。把數字放在他已經在看的畫面上，比要他切頁再自己心算篩選條件便宜得多。
+  代價是同一份營收在兩個地方各有一種口徑（全站 vs 顧問線），這是刻意的 —— 兩個問題本來就不同，硬合成一個會兩邊都答不好。
+
+- **D86**: 成交人數以 **email 去重**而非算購買筆數（使用者決策）。「人數」字面上就是這個意思，也是顧問看自己成交了幾個客戶的直覺。代價是人數與金額的加總基礎不一致（一個人可能貢獻兩筆金額），因此 UI **不得**呈現「平均客單價」之類由兩者相除得到的數字 —— 那會是個沒有意義的商。
 
 - **D84**: 章節捷徑做成**卡片內的 popover**而非展開式面板（2026-08-13，業主先要求壓低卡片高度、隨後要求加捷徑，兩者直接衝突）。連帶必須拿掉方案面板外層的 `overflow-hidden`（否則下拉被裁切），圓角改由 header 自己的 `rounded-t-lg` 承擔。關閉用透明 backdrop 而非 document listener —— backdrop 不可能活得比 popover 久，不會留下殘留監聽。
   「部分」狀態刻意**不**做成第三種點擊行為（點了變全選、再點變清空），而是併入「尚未選滿」：管理員手動勾過幾節之後點章節捷徑，預期是補齊而不是被清掉，而誤清的代價遠高於多點一次。
@@ -1164,6 +1197,9 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - **D63**: 逾時申請採**硬刪除**而非標記狀態（2026-08-06，業主指定）—— 名單只該留「真的成立過的預約」與「有人在跟進的對象」，填完問卷卻沒點確認信的人兩者都不是。代價講清楚：問卷答案（`phone` / `occupation` / `bottleneck` / `expertise`）會一併永久消失，而「email 已在訂閱者名單」救不回這些 —— 訂閱者名單只有 email、暱稱與訂閱狀態，且 `apply()` 本來就不建立 drip 訂閱（D35：未驗證的 email 還不算 lead），所以申請人是否在訂閱者名單其實不保證。保留 `status = 'pending'` 這道閘是整條規則的安全帶：管理員一旦動過狀態，掃除就繞開。連帶副作用：清掃後同一個確認連結會從 `expired` 落到 `invalid`，因為 lead 已不存在、無從分辨「逾時」與「網址亂打」，故 `invalid` 文案改為同時涵蓋兩種成因並導回重新申請 —— 原文案「可能是網址不完整，請直接使用信件中的連結」對一個正在使用信件連結的人是錯誤指引
 
 ## Schema
+
+- **US22 無 migration、無 schema 變更** —— 成交金額自 D8 起就寫在 `purchases.amount`，成交類型是既有的 `type = 'lead_conversion'`，本故事只是把它們依台北時間的月／年加總後顯示。
+  **不變量**：摘要是純讀取，MUST NOT 寫入任何資料表；`purchases` 的 `(user_id, course_id)` unique 意味著同人同課只有一列，因此「同一人重複開通」不會讓人數或金額重複計算（FR-099 的去重是為了處理**同人多課**與**同 email 多 lead**）
 
 - **US21 schema 變更（三支 migration）**：
 
@@ -1748,8 +1784,31 @@ Phase 7 — 驗證
 - [x] T259 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [ ] T260 使用者實測：建 high_ticket 課 8 節 → 建方案 A(1–4) / B(全部，含 2 節重疊) → 開通方案 A → 該會員教室只見 4 節、進度分母 4、改網址指向第 6 節看不到 → 會員詳情切 B + 補價 5000 → 交易金額 = 原價+5000、教室見全部 8 節 → 手機寬度檢查
 
+### US22 預約名單成交業績摘要
+
+Phase 1 — Service（單一真相，controller 只負責傳）
+
+- [x] T261 `conversionStats(Builder $leadsQuery): array` — 取範圍內 leads 的 email，連 `users` → `purchases`（`type=lead_conversion` + `status=paid`），回 `['month' => ['people' => int, 'amount' => int], 'year' => [...]]`；期間以台北時間建構再轉 UTC（FR-097/098/099）in `app/Services/HighTicketLeadService.php`
+
+Phase 2 — Controller（相依 T261）
+
+- [x] T262 `index()` 的 booking 分支呼叫 `conversionStats($this->bookingLeadsQuery($search, $courseId, $consultant))`，以 prop `conversionStats` 傳出；**不得**帶入 `$status`（FR-097）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+
+Phase 3 — 前端（相依 T262）
+
+- [x] T263 狀態色塊列右側加摘要區塊（`ml-auto`，本月／年度各一行、人數 + 金額，`toLocaleString()` 千分位），手機寬度換行到色塊下方；新增 `conversionStats` prop in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 4 — 驗證
+
+- [x] T264 新增測試：顧問／課程篩選連動、`?status=` 不影響摘要、同一 email 多門課只算 1 人、退款不計、台北時間跨月邊界（月初 07:59 台北 = 前一月 UTC，必須算在本月）in `tests/Feature/HighTicket/ConversionStatsTest.php`
+- [x] T265 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
+
 ## 進度日誌
 
+- 2026-08-13: 業績摘要改單行、不增加列高（業主回饋，純前端樣式）— 初版做成有邊框底色的兩行卡片，把狀態色塊列整條撐高了。改為單行純文字 `text-xs`、拿掉邊框／底色／垂直 padding，整體矮於色塊（`text-sm` + `py-1.5` + border），列高回到由色塊決定；靠右仍用 `lg:ml-auto`，加 `whitespace-nowrap` 避免數字中間斷行。驗收條款一併就地改為「單行」並新增「不得增加列高」一條。無後端變更，11 支測試維持全綠、`npm run build` exit 0
+- 2026-08-13: US22 成交業績摘要完成（T261–T265，僅剩 T266 使用者實測）— `conversionStats(Builder $leadsQuery)` 收在 service，收的是**已經篩好的 builder** 而不是一堆篩選參數：這樣它與列表、狀態色塊三者共用同一份範圍定義，不可能各自漂掉（FR-097）。`purchases` 沒有 `consultant_id` 也沒有回指 lead 的外鍵，email 是唯一的連結，所以先取範圍內 leads 的 email 再 join `users`。期間邊界用 `now('Asia/Taipei')` 建構再轉 UTC 的半開區間，不用 `whereMonth()` —— 台北 9/1 早上 07:00 在 UTC 還是 8/31，naive 寫法會把它歸到上個月（FR-098，測試釘住這條邊界）。人數 `count(distinct users.email)`、金額 `sum(amount)`，兩者基礎不同故 UI 不做客單價（D86）。新增 ConversionStatsTest（11 tests，含顧問／課程連動、狀態 tab 不影響、同人多課去重、退款與 gift 不計、跨月與跨年邊界），全套 628 passed（2719 assertions）、`npm run build` exit 0
+- 2026-08-13: [draft] 規劃 US22 預約名單成交業績摘要 — 狀態色塊列右側加「本月／年度的成交人數與總金額」。範圍共用 `bookingLeadsQuery()`（FR-097），所以顧問／課程篩選會連動而狀態 tab 不會，與既有的漏斗百分比同一套邏輯；`purchases` 沒有 `consultant_id`，唯一的連結是 email，這也是為什麼必須共用 builder 而不是另寫一份查詢。三個使用者決策：跟著篩選連動、成交人數以 email 去重（D86，連帶禁止在 UI 上做人數與金額相除的「客單價」）、補價計入原成交月（FR-100，已知失真但不值得為它先建進帳記錄表）。期間以台北時間切分再轉 UTC（FR-098）。無 schema 變更。**2026-08-13 使用者確認六項關鍵決策，方案通過，進入 `/dev`。**
 - 2026-08-13: 方案卡片加「選取章節」捷徑（FR-096 / D84）— 一節一節點 chip 對「方案B 涵蓋全部」是苦工，卡片內加 popover 以章節為單位整批加入／移除（獨立小節自成一組、另有全選／全部清除），按鈕上顯示 `已選/總數`。後端加第二個方向的端點 `PUT /admin/plans/{plan}/lessons`（送完整結果集合，不送差異），與既有的 lesson→plans 端點各自驗證歸屬課程。三態的「部分」刻意併入「尚未選滿」——再點是補齊不是清空，誤清的代價高於多點一次。做成 popover 而非展開面板是因為前一輪才剛壓低卡片高度，連帶拿掉外層 `overflow-hidden`（會裁切下拉）並把圓角移到 header。CoursePlanTest 11 → 14，全套 617 passed（2677 assertions）、`npm run build` exit 0
 - 2026-08-13: 課程方案面板版面調整（業主實測回饋，純前端樣式）— 新增方案的輸入欄位改為常駐在標題列的按鈕前面（移除 `showAdd` 展開狀態，名稱空白時按鈕 disabled）；方案清單由「一個方案一整條撐滿版」改為 `grid-cols-1 / sm:2 / lg:4` 卡片，編輯／刪除移到卡片右側與文字同列（卡片從三行縮成兩行）。順手補了「未設建議價」的顯示文字 —— 原本該行留空會讓卡片高度不齊。無後端變更，US21 相關 55 支測試維持全綠、`npm run build` exit 0
 - 2026-08-13: US21 高價課多方案與分級授權完成（T229–T259，僅剩 T260 使用者實測）— 三支 migration（`course_plans` / `course_plan_lesson` / `purchases.course_plan_id`），授權收斂在 `Purchase::accessibleLessonIds()` 與 `Course::planLessonIdsForUser()` 兩個方法。教室的四個判定點全部接上（章節側欄、獨立小節、`$allLessons` 的 currentLesson 解析、`$completedLessonIds` 範圍），兩個 progress 端點各補 403。進度分母走 `getCourseProgressSummary()` 新的第三參數，`LearningController` 與 `MemberController::show()` 各傳入該筆 purchase 的方案範圍。開通加方案下拉（預設價 `plan.price ?? display_price`），service 層擋「有方案卻沒選」與「方案不屬於此課程」；通知信的 `{{course_name}}` 附上方案名而非新增第六個變數 —— 剛匯完款的人得看得懂自己買到什麼，而那不該先要求管理員改模板。會員詳情加方案下拉 + 選填補價（累加不覆寫），切換後重抓詳情因為分母跟著換了。刪方案兩層擋（service 422 + FK `restrict`）。

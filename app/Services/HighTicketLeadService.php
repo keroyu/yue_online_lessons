@@ -12,6 +12,8 @@ use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -85,6 +87,71 @@ class HighTicketLeadService
         }
 
         return ['dispatched' => $dispatched, 'skipped' => $skipped];
+    }
+
+    /**
+     * Deals closed this month and this year, for the leads currently in scope
+     * (011 US22).
+     *
+     * The caller passes the *same* builder that feeds the list and the status
+     * pills, which is what keeps all three from telling different stories
+     * (FR-097). `purchases` has no consultant_id and no back-reference to the
+     * lead it came from — email is the only join available.
+     *
+     * @param Builder $leadsQuery the filtered lead scope, WITHOUT the status filter
+     * @return array{month: array{people: int, amount: int}, year: array{people: int, amount: int}}
+     */
+    public function conversionStats(Builder $leadsQuery): array
+    {
+        $emails = (clone $leadsQuery)->pluck('email')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($emails->isEmpty()) {
+            return [
+                'month' => ['people' => 0, 'amount' => 0],
+                'year'  => ['people' => 0, 'amount' => 0],
+            ];
+        }
+
+        // Boundaries are Taipei's, not the server's: a deal closed at 07:00
+        // Taipei on the 1st is still the previous month in UTC, and a naive
+        // whereMonth() on the stored column would file it there (FR-098).
+        $now = now(ConsultationSlotService::DISPLAY_TZ);
+
+        return [
+            'month' => $this->conversionTotals($emails, $now->copy()->startOfMonth(), $now->copy()->startOfMonth()->addMonth()),
+            'year'  => $this->conversionTotals($emails, $now->copy()->startOfYear(), $now->copy()->startOfYear()->addYear()),
+        ];
+    }
+
+    /**
+     * People and money between two Taipei instants, half-open [from, until).
+     *
+     * People are counted per email rather than per purchase (D86): one buyer
+     * taking two courses is one customer. The two figures therefore rest on
+     * different bases and MUST NOT be divided into an "average deal size".
+     *
+     * @return array{people: int, amount: int}
+     */
+    private function conversionTotals($emails, CarbonInterface $from, CarbonInterface $until): array
+    {
+        $row = Purchase::query()
+            ->join('users', 'users.id', '=', 'purchases.user_id')
+            ->whereIn('users.email', $emails)
+            ->where('purchases.type', 'lead_conversion')
+            // A refunded sale is a voided one — it is not revenue (FR-099).
+            ->where('purchases.status', 'paid')
+            ->where('purchases.created_at', '>=', $from->copy()->utc())
+            ->where('purchases.created_at', '<', $until->copy()->utc())
+            ->selectRaw('count(distinct users.email) as people, coalesce(sum(purchases.amount), 0) as amount')
+            ->first();
+
+        return [
+            'people' => (int) ($row->people ?? 0),
+            'amount' => (int) ($row->amount ?? 0),
+        ];
     }
 
     /**

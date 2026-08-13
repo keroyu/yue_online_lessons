@@ -48,6 +48,10 @@ const props = defineProps({
   },
   // { status: count } over the whole search/course/consultant-filtered set,
   // status filter excluded — see the funnel share on the pills below.
+  conversionStats: {
+    type: Object,
+    default: () => ({ month: { people: 0, amount: 0 }, year: { people: 0, amount: 0 } }),
+  },
   statusCounts: {
     type: Object,
     default: () => ({}),
@@ -723,7 +727,7 @@ const copySelectedEmails = async () => {
     </div>
 
     <!-- Status filter tabs -->
-    <div class="mb-4 flex gap-2 flex-wrap">
+    <div class="mb-4 flex gap-2 flex-wrap items-center">
       <button
         v-for="tab in tabs"
         :key="tab.value"
@@ -737,6 +741,22 @@ const copySelectedEmails = async () => {
         {{ tab.label }}
         <span v-if="tabMetric(tab.value)" class="ml-1 tabular-nums opacity-80">{{ tabMetric(tab.value) }}</span>
       </button>
+
+      <!-- Deals closed (011 US22). Follows the course/consultant filters, not
+           the status tab — clicking into a status must not move the money.
+           One line, and shorter than a pill, so the row keeps its height. -->
+      <div
+        class="lg:ml-auto text-xs text-gray-500 tabular-nums whitespace-nowrap"
+        title="成交人數依 Email 去重；金額只計顧問開通（已退款不計）。跟隨上方課程／顧問篩選，不受狀態色塊影響"
+      >
+        本月
+        <span class="font-medium text-gray-900">{{ conversionStats.month.people }}</span> 人
+        <span class="font-medium text-gray-900">NT$ {{ Number(conversionStats.month.amount).toLocaleString() }}</span>
+        <span class="mx-1.5 text-gray-300">|</span>
+        年度
+        <span class="font-medium text-gray-900">{{ conversionStats.year.people }}</span> 人
+        <span class="font-medium text-gray-900">NT$ {{ Number(conversionStats.year.amount).toLocaleString() }}</span>
+      </div>
     </div>
 
     <!-- Action result -->

@@ -24,6 +24,7 @@ const props = defineProps({
   suppressionsByEmail: { type: Object, default: () => ({}) },
   grantableCourses: { type: Array, default: () => [] },
   statusCounts: { type: Object, default: () => ({}) },
+  conversionStats: { type: Object, default: () => ({ month: { people: 0, amount: 0 }, year: { people: 0, amount: 0 } }) },
 
   // Subscriber tab
   dripCourseOptions: { type: Array, default: () => [] },
@@ -78,6 +79,7 @@ const switchTab = (value) => {
       :suppressions-by-email="suppressionsByEmail"
       :grantable-courses="grantableCourses"
       :status-counts="statusCounts"
+      :conversion-stats="conversionStats"
     />
 
     <SubscriberListTab
