@@ -29,6 +29,18 @@ class Purchase extends Model
         'type',
         'webhook_received_at',
         'order_id',
+        // Only meaningful on free claims (source = 'free'); a checkout purchase
+        // carries its attribution on the matching order (002 US17).
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_term',
+        'utm_content',
+        'referrer_domain',
+        'gclid',
+        'fbclid',
+        'ttclid',
+        'first_touch',
     ];
 
     protected function casts(): array
@@ -37,6 +49,7 @@ class Purchase extends Model
             'amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'webhook_received_at' => 'datetime',
+            'first_touch' => 'array',
         ];
     }
 

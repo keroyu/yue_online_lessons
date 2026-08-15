@@ -641,7 +641,7 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 面板高度會因下拉而改變，MUST 於內容變動後重算懸浮位置（沿用 `updatePanelPos()` / D66）；下拉展開 MUST NOT 被格線的 `overflow-x-auto` 容器裁切
 - [x] 改期成功後 MUST 跳轉到**新時段所在的那一週**，而非留在原本那週——跨週改期後那筆預約會離開當前畫面，停在原地等於讓管理員無法確認結果（見 D77）
 - [x] 新端點 MUST 掛 staff 群組並宣告在 `{consultationSlot}` 之前；lead 沒有生效中的預約時回 422（`isActiveBooking()` 為 false）
-- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋，下拉有 focus 樣式；手機單日檢視下面板一樣可用
+- [x] 所有新增可點元素 `cursor-pointer` + hover 回饋，下拉有 focus 樣式；手機單日檢視下面板一樣可用
 - [x] 測試：端點分組結構正確、該 lead 自身單位被視為可用（同日挪動的起始出現在清單）、跨週的時段確實在清單裡、無可用時段回空陣列、非 staff 擋下、非生效預約回 422、改期成功後導向新時段所在週
 
 ### User Story 21 - 高價課多方案與分級授權 (Priority: P1)
@@ -676,7 +676,7 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 仍有會員持有的方案 MUST NOT 被刪除（422 並說明有幾位持有）；DB 層以 `restrict` 兜底
 - [x] 新增小節時的通知信收件人排除「方案看不到這節」的會員
 - [x] 既有購買記錄（`course_plan_id` 為 null）與所有非開通路徑（前台結帳／贈課／匯入／積分兌換）行為零變化，一律全開
-- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；方案 chip 與會員詳情下拉在手機寬度不破版
+- [x] 所有新增可點元素 `cursor-pointer` + hover 回饋；方案 chip 與會員詳情下拉在手機寬度不破版
 - [x] 測試：方案 CRUD 與刪除守門、教室過濾與 403、進度分母、開通選方案、切換方案 + 補價累加
 
 ### User Story 22 - 預約名單成交業績摘要 (Priority: P3)
@@ -698,7 +698,7 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 金額只計 `type = lead_conversion` 且 `status = paid` 的購買紀錄；已退款的不計入
 - [x] 期間以**台北時間**的當月／當年判定，轉 UTC 後查詢（伺服器跑 UTC，沿用 FR-077 的作法）
 - [x] 沒有任何成交時顯示 `0 人 · NT$ 0`，MUST NOT 隱藏整塊 —— 空的數字本身就是資訊
-- [ ] 手機寬度下摘要換行到色塊列下方，不擠壓色塊
+- [x] 手機寬度下摘要換行到色塊列下方，不擠壓色塊
 - [x] 測試：篩選連動（顧問／課程）、狀態 tab 不影響、同人多課去重、退款不計、跨月邊界以台北時間切分
 
 ## Requirements
@@ -1727,7 +1727,7 @@ Phase 3 — 驗證
 
 - [x] T226 新增測試：端點回傳分組結構、下週的時段出現在清單、該 lead 目前所在的起始**不**出現、無可用時段回空 `slots`、guest 導向登入、非生效預約 422 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`（放這裡而非 BookingChangeTest：時段建置的 helper 都在這支）；改期成功導向 `week=` 新時段所在週的測試 in `tests/Feature/HighTicket/BookingChangeTest.php`
 - [x] T227 `php artisan test` 全綠（572 passed / 2544 assertions）＋ `npm run build` exit 0
-- [ ] T228 使用者實測：選一筆本週的預約 → 面板下拉選到下週或下下週的時段 → 確認後畫面跳到該週且預約出現在新位置；同週用格線點選的舊路徑仍可用
+- [x] T228 使用者實測：選一筆本週的預約 → 面板下拉選到下週或下下週的時段 → 確認後畫面跳到該週且預約出現在新位置；同週用格線點選的舊路徑仍可用
 
 ### US21 高價課多方案與分級授權
 
@@ -1782,7 +1782,7 @@ Phase 7 — 驗證
 - [x] T257 [P] 切換方案：補價累加 `amount`、plan 不屬該課 422、purchase 不屬該會員 403 in `tests/Feature/HighTicket/PlanSwitchTest.php`
 - [x] T258 擴充：有方案沒選 → 422、選了 → `course_plan_id` 落地、A→B 重開通覆寫方案不被守門擋 in `tests/Feature/HighTicket/LeadConvertTest.php`
 - [x] T259 `php artisan test` 全綠 ＋ `npm run build` exit 0
-- [ ] T260 使用者實測：建 high_ticket 課 8 節 → 建方案 A(1–4) / B(全部，含 2 節重疊) → 開通方案 A → 該會員教室只見 4 節、進度分母 4、改網址指向第 6 節看不到 → 會員詳情切 B + 補價 5000 → 交易金額 = 原價+5000、教室見全部 8 節 → 手機寬度檢查
+- [x] T260 使用者實測：建 high_ticket 課 8 節 → 建方案 A(1–4) / B(全部，含 2 節重疊) → 開通方案 A → 該會員教室只見 4 節、進度分母 4、改網址指向第 6 節看不到 → 會員詳情切 B + 補價 5000 → 交易金額 = 原價+5000、教室見全部 8 節 → 手機寬度檢查
 
 ### US22 預約名單成交業績摘要
 
@@ -1802,10 +1802,11 @@ Phase 4 — 驗證
 
 - [x] T264 新增測試：顧問／課程篩選連動、`?status=` 不影響摘要、同一 email 多門課只算 1 人、退款不計、台北時間跨月邊界（月初 07:59 台北 = 前一月 UTC，必須算在本月）in `tests/Feature/HighTicket/ConversionStatsTest.php`
 - [x] T265 `php artisan test` 全綠 ＋ `npm run build` exit 0
-- [ ] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
+- [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
 
+- 2026-08-13: 業主實測 T228 / T260 / T266 全數通過 — US20（改期面板跨週選時段）、US21（多方案端到端：開通方案A → 教室只見該方案 → 切方案B + 補價 → 教室見全部）、US22（業績摘要隨篩選連動、狀態 tab 不影響、手機版型）三者的瀏覽器實測結束，索引狀態一併由 `partial` 轉 `implemented`。模組 status 維持 `building`：更早的實測任務（T040 實寄驗證、T084、T102、T123、T158、T191、T215）與 US16–US19 的驗收條款仍未勾，那些不在本次確認範圍內
 - 2026-08-13: 業績摘要改單行、不增加列高（業主回饋，純前端樣式）— 初版做成有邊框底色的兩行卡片，把狀態色塊列整條撐高了。改為單行純文字 `text-xs`、拿掉邊框／底色／垂直 padding，整體矮於色塊（`text-sm` + `py-1.5` + border），列高回到由色塊決定；靠右仍用 `lg:ml-auto`，加 `whitespace-nowrap` 避免數字中間斷行。驗收條款一併就地改為「單行」並新增「不得增加列高」一條。無後端變更，11 支測試維持全綠、`npm run build` exit 0
 - 2026-08-13: US22 成交業績摘要完成（T261–T265，僅剩 T266 使用者實測）— `conversionStats(Builder $leadsQuery)` 收在 service，收的是**已經篩好的 builder** 而不是一堆篩選參數：這樣它與列表、狀態色塊三者共用同一份範圍定義，不可能各自漂掉（FR-097）。`purchases` 沒有 `consultant_id` 也沒有回指 lead 的外鍵，email 是唯一的連結，所以先取範圍內 leads 的 email 再 join `users`。期間邊界用 `now('Asia/Taipei')` 建構再轉 UTC 的半開區間，不用 `whereMonth()` —— 台北 9/1 早上 07:00 在 UTC 還是 8/31，naive 寫法會把它歸到上個月（FR-098，測試釘住這條邊界）。人數 `count(distinct users.email)`、金額 `sum(amount)`，兩者基礎不同故 UI 不做客單價（D86）。新增 ConversionStatsTest（11 tests，含顧問／課程連動、狀態 tab 不影響、同人多課去重、退款與 gift 不計、跨月與跨年邊界），全套 628 passed（2719 assertions）、`npm run build` exit 0
 - 2026-08-13: [draft] 規劃 US22 預約名單成交業績摘要 — 狀態色塊列右側加「本月／年度的成交人數與總金額」。範圍共用 `bookingLeadsQuery()`（FR-097），所以顧問／課程篩選會連動而狀態 tab 不會，與既有的漏斗百分比同一套邏輯；`purchases` 沒有 `consultant_id`，唯一的連結是 email，這也是為什麼必須共用 builder 而不是另寫一份查詢。三個使用者決策：跟著篩選連動、成交人數以 email 去重（D86，連帶禁止在 UI 上做人數與金額相除的「客單價」）、補價計入原成交月（FR-100，已知失真但不值得為它先建進帳記錄表）。期間以台北時間切分再轉 UTC（FR-098）。無 schema 變更。**2026-08-13 使用者確認六項關鍵決策，方案通過，進入 `/dev`。**

@@ -103,6 +103,46 @@ class TrafficSourceService
         }
     }
 
+    /**
+     * The attribution columns shared by `orders`, `purchases` and
+     * `drip_subscriptions`. One list, because the traffic report applies one
+     * set of field names across all three (002 FR-037).
+     */
+    public const SOURCE_COLUMNS = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+        'referrer_domain', 'gclid', 'fbclid', 'ttclid',
+    ];
+
+    /**
+     * Ready-to-store attribution for a free claim (002 US17): last touch on the
+     * flat columns, first touch as a snapshot — the same split checkout uses.
+     *
+     * Reads `lastTouch()` and NOT `currentSource()`. The latter lets the live
+     * request win over the cookie, which is right for classifying a page view
+     * and wrong here: the claim POST carries its own Referer, so
+     * currentSource() would return that instead of the campaign that actually
+     * brought the visitor in — and the real source would be silently dropped.
+     *
+     * Every column is present even when unknown, so a claim with no source
+     * stores explicit nulls and lands in "(直接造訪)" rather than disappearing.
+     *
+     * @return array<string, mixed>
+     */
+    public function claimAttributes(Request $request): array
+    {
+        $last = $this->lastTouch($request) ?? [];
+
+        $attributes = [];
+
+        foreach (self::SOURCE_COLUMNS as $column) {
+            $attributes[$column] = $last[$column] ?? null;
+        }
+
+        $attributes['first_touch'] = $this->firstTouch($request);
+
+        return $attributes;
+    }
+
     /** @return array<string, mixed>|null */
     public function firstTouch(Request $request): ?array
     {

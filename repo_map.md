@@ -132,7 +132,9 @@ main_files:
 - app/Http/Controllers/BlogController.php
 - app/Http/Controllers/CheckoutController.php
 - app/Http/Controllers/CourseController.php
+- app/Http/Controllers/DripSubscriptionController.php
 - app/Http/Controllers/HomeController.php
+- app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/TrackController.php
 - app/Http/Middleware/TrackTrafficSource.php
 - app/Http/Requests/Admin/StoreCourseRequest.php
@@ -146,13 +148,16 @@ main_files:
 - app/Mail/NewsletterBroadcastMail.php
 - app/Models/Course.php
 - app/Models/CourseDailyStat.php
+- app/Models/DripSubscription.php
 - app/Models/HomepageFeaturedCourse.php
 - app/Models/Order.php
 - app/Models/PostCtaClick.php
+- app/Models/Purchase.php
 - app/Models/ShortLink.php
 - app/Models/SocialLink.php
 - app/Services/BlogRssService.php
 - app/Services/CheckoutService.php
+- app/Services/DripService.php
 - app/Services/EmailLinkTagger.php
 - app/Services/SidebarService.php
 - app/Services/SiteAnalyticsService.php
@@ -166,6 +171,8 @@ main_files:
 - database/migrations/2026_07_31_000004_add_free_success_md_to_courses_table.php
 - database/migrations/2026_08_02_000001_add_source_to_course_daily_stats_table.php
 - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
+- database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
+- database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
@@ -192,6 +199,7 @@ main_files:
 - tests/Feature/Platform/ShortLinkTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/EmailLinkTaggerTest.php
+- tests/Feature/Storefront/FreeClaimTrafficTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php

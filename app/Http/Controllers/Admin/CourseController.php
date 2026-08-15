@@ -12,8 +12,10 @@ use App\Models\SiteSetting;
 use App\Services\CouponChainService;
 use App\Services\DripService;
 use App\Services\TrafficSourceService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -357,6 +359,49 @@ class CourseController extends Controller
             ->with('success', '課程已下架為草稿');
     }
 
+    /**
+     * Free claims for this course, or null when the course has none to count
+     * (002 FR-039).
+     *
+     * The table is chosen by course type rather than unioned: a drip course
+     * claimed through FreePurchaseController has a row in BOTH `purchases` and
+     * `drip_subscriptions`, and counting both would report one person twice —
+     * an error that only makes the numbers look better. The cost is that a
+     * purchase with no matching subscription (a failed subscribe) is missed;
+     * undercounting is the safer side of that trade.
+     */
+    private function freeClaimQuery(Course $course, ?int $days): ?Builder
+    {
+        if ($course->price > 0) {
+            return null;
+        }
+
+        $query = $course->is_drip
+            ? DB::table('drip_subscriptions')->where('course_id', $course->id)
+            : DB::table('purchases')->where('course_id', $course->id)->where('source', 'free');
+
+        return $query->when($days, fn ($q) => $q->where('created_at', '>=', now()->subDays($days)));
+    }
+
+    /**
+     * Claims grouped into the same shape the order query produces, so both feed
+     * one mapping pass and one resolveSource() ruleset.
+     */
+    private function groupedFreeClaims(Builder $claimQuery): Collection
+    {
+        $columns = TrafficSourceService::SOURCE_COLUMNS;
+
+        return (clone $claimQuery)
+            ->select(array_merge($columns, [
+                DB::raw('COUNT(*) as order_count'),
+                // Claiming something free produces no revenue, and the column
+                // must keep meaning "money this course took in".
+                DB::raw('0 as revenue'),
+            ]))
+            ->groupBy($columns)
+            ->get();
+    }
+
     public function traffic(Course $course, Request $request): Response
     {
         $days = $request->input('days');
@@ -368,7 +413,12 @@ class CourseController extends Controller
             ->where('orders.status', 'paid')
             ->when($days, fn ($q) => $q->where('orders.created_at', '>=', now()->subDays($days)));
 
-        $totalOrders = (clone $query)->distinct()->count('orders.id');
+        // Free claims never create an order, so a free course would otherwise
+        // report 0 forever no matter what the link brought in (002 US17).
+        $claimQuery = $this->freeClaimQuery($course, $days);
+
+        $totalOrders = (clone $query)->distinct()->count('orders.id')
+            + ($claimQuery ? (clone $claimQuery)->count() : 0);
 
         $trackedOrders = (clone $query)
             ->where(function ($q) {
@@ -380,6 +430,18 @@ class CourseController extends Controller
             })
             ->distinct()
             ->count('orders.id');
+
+        if ($claimQuery) {
+            $trackedOrders += (clone $claimQuery)
+                ->where(function ($q) {
+                    $q->whereNotNull('utm_source')
+                      ->orWhereNotNull('referrer_domain')
+                      ->orWhereNotNull('gclid')
+                      ->orWhereNotNull('fbclid')
+                      ->orWhereNotNull('ttclid');
+                })
+                ->count();
+        }
 
         $sources = (clone $query)
             ->select(
@@ -395,6 +457,7 @@ class CourseController extends Controller
                 'orders.gclid', 'orders.fbclid', 'orders.ttclid', 'orders.first_touch'
             )
             ->get()
+            ->concat($claimQuery ? $this->groupedFreeClaims($claimQuery) : [])
             ->map(function ($row) {
                 $hasClickId = $row->gclid || $row->fbclid || $row->ttclid;
                 if ($hasClickId) {
@@ -440,6 +503,9 @@ class CourseController extends Controller
                 'total_orders'   => $totalOrders,
                 'tracked_orders' => $trackedOrders,
                 'sources'        => $sources,
+                // Free courses count claims, not orders — the column heading
+                // has to say so or the two are read as the same thing.
+                'is_free_claim'  => $claimQuery !== null,
             ],
         ]);
     }
@@ -464,9 +530,37 @@ class CourseController extends Controller
             )
             ->orderByDesc('orders.created_at');
 
+        // Same rule as the page: free claims come from one table or the other,
+        // never both (FR-039). Aliased to the order query's column names so a
+        // single writer loop can handle either.
+        $claimQuery = null;
+
+        if ($course->price <= 0) {
+            // Table-qualified throughout: the drip branch joins `users`, which
+            // also has created_at.
+            $table = $course->is_drip ? 'drip_subscriptions' : 'purchases';
+
+            $claimQuery = ($course->is_drip
+                ? DB::table($table)
+                    ->join('users', 'users.id', '=', "{$table}.user_id")
+                    ->select("{$table}.created_at", 'users.email as buyer_email')
+                : DB::table($table)
+                    ->where("{$table}.source", 'free')
+                    ->select("{$table}.created_at", "{$table}.buyer_email")
+            )
+                ->where("{$table}.course_id", $course->id)
+                ->when($days, fn ($q) => $q->where("{$table}.created_at", '>=', now()->subDays($days)))
+                ->addSelect(array_merge(
+                    [DB::raw("'' as merchant_order_no"), DB::raw('0 as unit_price')],
+                    array_map(fn ($c) => "{$table}.{$c}", TrafficSourceService::SOURCE_COLUMNS),
+                    ["{$table}.first_touch"],
+                ))
+                ->orderByDesc("{$table}.created_at");
+        }
+
         $filename = 'course-' . $course->id . '-traffic-' . now()->format('Ymd') . '.csv';
 
-        return response()->streamDownload(function () use ($query) {
+        return response()->streamDownload(function () use ($query, $claimQuery) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, [
@@ -474,7 +568,7 @@ class CourseController extends Controller
                 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
                 'referrer_domain', 'gclid', 'fbclid', 'ttclid', 'first_touch',
             ]);
-            $query->chunk(200, function ($rows) use ($handle) {
+            $write = function ($rows) use ($handle) {
                 foreach ($rows as $row) {
                     fputcsv($handle, [
                         $row->merchant_order_no ?? '',
@@ -493,7 +587,11 @@ class CourseController extends Controller
                         $row->first_touch ?? '',
                     ]);
                 }
-            });
+            };
+
+            $query->chunk(200, fn ($rows) => $write($rows));
+            $claimQuery?->chunk(200, fn ($rows) => $write($rows));
+
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }

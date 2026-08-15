@@ -167,7 +167,32 @@ class DripService
      *
      * @return array{success: bool, error?: string, subscription?: DripSubscription}
      */
-    public function subscribe(User $user, Course $course): array
+    /**
+     * Whitelist the attribution keys before they reach create(): callers hand
+     * over whatever TrafficSourceService produced, and a stray key would be a
+     * mass-assignment error rather than a silently ignored one.
+     *
+     * @param array<string, mixed> $trafficSource
+     * @return array<string, mixed>
+     */
+    private static function trafficSourceAttributes(array $trafficSource): array
+    {
+        $keys = array_merge(TrafficSourceService::SOURCE_COLUMNS, ['first_touch']);
+
+        return array_intersect_key($trafficSource, array_flip($keys));
+    }
+
+    /**
+     * $trafficSource is where this claim came from (002 US17 / FR-038). It is
+     * the single write point on purpose: the callers that have a Request pass
+     * it in, background paths (SubscribeDripLeadJob, PortalyWebhookService,
+     * RedemptionService) pass nothing and store null. Capturing it in each
+     * controller instead is exactly the shape that leaves one path behind.
+     *
+     * @param array<string, mixed> $trafficSource keys mirror `orders`: utm_*,
+     *        referrer_domain, gclid, fbclid, ttclid, first_touch
+     */
+    public function subscribe(User $user, Course $course, array $trafficSource = []): array
     {
         // Check if course is a drip course
         if ($course->course_type !== 'drip') {
@@ -187,13 +212,13 @@ class DripService
         }
 
         // Create subscription
-        $subscription = DripSubscription::create([
+        $subscription = DripSubscription::create(array_merge([
             'user_id' => $user->id,
             'course_id' => $course->id,
             'subscribed_at' => now(),
             'emails_sent' => 0,
             'status' => 'active',
-        ]);
+        ], self::trafficSourceAttributes($trafficSource)));
 
         // Send welcome email (first lesson) immediately
         $firstLesson = $course->lessons()->orderBy('sort_order')->first();

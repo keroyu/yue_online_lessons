@@ -14,6 +14,11 @@ const props = defineProps({
 // ── 統計篩選 ──────────────────────────────────────────────
 const currentDays = computed(() => props.filters.days)
 
+// Free courses count claims, not orders (002 US17). Saying 訂單數 there reads
+// as "nobody bought", which is the misunderstanding this story exists to fix.
+const countLabel = computed(() => (props.traffic.is_free_claim ? '領取數' : '訂單數'))
+const totalLabel = computed(() => `總${countLabel.value}`)
+
 const trackedPct = computed(() => {
   if (!props.traffic.total_orders) return 0
   return Math.round((props.traffic.tracked_orders / props.traffic.total_orders) * 100)
@@ -319,7 +324,7 @@ function resetUtm() {
     <!-- Summary cards -->
     <div class="grid grid-cols-2 gap-4">
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <p class="text-sm text-gray-500">總訂單數</p>
+        <p class="text-sm text-gray-500">{{ totalLabel }}</p>
         <p class="text-2xl font-bold text-gray-900">{{ traffic.total_orders }}</p>
       </div>
       <div class="bg-white rounded-lg border border-gray-200 p-4">
@@ -356,7 +361,7 @@ function resetUtm() {
             <th class="px-4 py-3">活動</th>
             <th class="px-4 py-3">關鍵字</th>
             <th class="px-4 py-3">內容</th>
-            <th class="px-4 py-3 text-right">訂單數</th>
+            <th class="px-4 py-3 text-right">{{ countLabel }}</th>
             <th class="px-4 py-3 text-right">金額</th>
           </tr>
         </thead>
@@ -380,7 +385,7 @@ function resetUtm() {
         <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3">管道</th>
-            <th class="px-4 py-3 text-right">訂單數</th>
+            <th class="px-4 py-3 text-right">{{ countLabel }}</th>
             <th class="px-4 py-3 text-right">金額</th>
           </tr>
         </thead>

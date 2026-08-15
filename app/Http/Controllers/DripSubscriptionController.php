@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\DripSubscription;
 use App\Models\User;
 use App\Services\DripService;
+use App\Services\TrafficSourceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -81,7 +82,13 @@ class DripSubscriptionController extends Controller
             ]);
         }
 
-        $result = $this->dripService->subscribe($user, $course);
+        // Where this claim came from, so the course traffic report can credit
+        // the link that produced it (002 US17).
+        $result = $this->dripService->subscribe(
+            $user,
+            $course,
+            app(TrafficSourceService::class)->claimAttributes($request),
+        );
 
         if (!$result['success']) {
             return back()->withErrors(['email' => $result['error']]);
@@ -106,7 +113,11 @@ class DripSubscriptionController extends Controller
 
         $user->update(['nickname' => trim($validated['nickname'])]);
 
-        $result = $this->dripService->subscribe($user, $course);
+        $result = $this->dripService->subscribe(
+            $user,
+            $course,
+            app(TrafficSourceService::class)->claimAttributes($request),
+        );
 
         if (!$result['success']) {
             return back()->withErrors(['subscribe' => $result['error']]);

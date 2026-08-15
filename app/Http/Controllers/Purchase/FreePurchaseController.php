@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Purchase;
 use App\Services\DripService;
 use App\Services\PayuniService;
+use App\Services\TrafficSourceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -67,7 +68,12 @@ class FreePurchaseController extends Controller
             return response()->json(['success' => true, 'already_enrolled' => true]);
         }
 
-        $purchase = Purchase::create([
+        // Where this claim came from, for the course traffic report (002 US17).
+        // Captured once and shared with the drip subscription below so both
+        // rows agree about the origin.
+        $trafficSource = app(TrafficSourceService::class)->claimAttributes($request);
+
+        $purchase = Purchase::create(array_merge([
             'user_id'            => $user->id,
             'course_id'          => $course->id,
             'buyer_email'        => $email,
@@ -77,7 +83,7 @@ class FreePurchaseController extends Controller
             'type'               => 'paid',
             'source'             => 'free',
             'webhook_received_at' => now(),
-        ]);
+        ], $trafficSource));
 
         Log::info('Free enrollment: purchase created', [
             'purchase_id' => $purchase->id,
@@ -87,7 +93,7 @@ class FreePurchaseController extends Controller
 
         // Auto-subscribe for drip courses
         if ($course->course_type === 'drip') {
-            $this->dripService->subscribe($user, $course);
+            $this->dripService->subscribe($user, $course, $trafficSource);
         }
 
         $this->dripService->checkAndConvert($user, $course);

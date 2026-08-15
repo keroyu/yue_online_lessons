@@ -62,6 +62,7 @@
       "002.us-11",
       "002.us-12",
       "002.us-13",
+      "002.us-17",
       "002.us-8",
       "004.us-1",
       "004.us-2",
@@ -220,6 +221,7 @@
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
+      "002.us-17",
       "010.us-1",
       "010.us-15",
       "010.us-2",
@@ -293,6 +295,7 @@
     ],
     "app/Http/Controllers/Purchase/FreePurchaseController.php": [
       "000.us-7",
+      "002.us-17",
       "005.us-7",
       "010.us-5"
     ],
@@ -623,6 +626,7 @@
       "010.us-12"
     ],
     "app/Models/DripSubscription.php": [
+      "002.us-17",
       "010.us-13",
       "010.us-14",
       "010.us-6"
@@ -686,6 +690,7 @@
       "012.us-1"
     ],
     "app/Models/Purchase.php": [
+      "002.us-17",
       "005.us-4",
       "005.us-6",
       "005.us-7",
@@ -780,6 +785,7 @@
     ],
     "app/Services/DripService.php": [
       "000.us-9",
+      "002.us-17",
       "010.us-1",
       "010.us-10",
       "010.us-11",
@@ -886,7 +892,8 @@
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
       "002.us-13",
-      "002.us-14"
+      "002.us-14",
+      "002.us-17"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
@@ -1149,6 +1156,12 @@
     ],
     "database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php": [
       "011.us-21"
+    ],
+    "database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php": [
+      "002.us-17"
+    ],
+    "database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php": [
+      "002.us-17"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
@@ -1477,6 +1490,7 @@
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-13",
       "002.us-14",
+      "002.us-17",
       "002.us-8"
     ],
     "resources/js/Pages/Admin/Dashboard.vue": [
@@ -1854,6 +1868,9 @@
     ],
     "tests/Feature/Storefront/EmailLinkTaggerTest.php": [
       "002.us-14"
+    ],
+    "tests/Feature/Storefront/FreeClaimTrafficTest.php": [
+      "002.us-17"
     ],
     "tests/Feature/Storefront/FreeSuccessBlockTest.php": [
       "002.us-11",

@@ -745,6 +745,49 @@
       "status": "partial"
     },
     {
+      "id": "002.us-17",
+      "module": "002-storefront",
+      "title": "免費領取計入課程來源追蹤",
+      "summary": "免費領取當下把 UTM/click id/referrer 寫進 purchases 與 drip_subscriptions（兩張表各一組同名欄位），課程 Traffic 頁依課程型態擇一併入領取數（drip 取訂閱、非 drip 取 source=free 的 purchase），退訂者仍計入、營收維持 0；行銷分析頁維持 US16 口徑不變",
+      "heading": "### User Story 17 - 免費領取計入課程來源追蹤 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-17---免費領取計入課程來源追蹤-priority-p2",
+      "keywords": [
+        "免費領取",
+        "free claim",
+        "drip 領取",
+        "來源追蹤",
+        "traffic source",
+        "UTM",
+        "utm_source",
+        "referrer",
+        "gclid",
+        "fbclid",
+        "轉換",
+        "訂單數",
+        "領取數",
+        "course traffic",
+        "歸因",
+        "attribution",
+        "drip_subscriptions",
+        "purchases"
+      ],
+      "code_files": [
+        "database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php",
+        "database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php",
+        "app/Models/Purchase.php",
+        "app/Models/DripSubscription.php",
+        "app/Services/TrafficSourceService.php",
+        "app/Services/DripService.php",
+        "app/Http/Controllers/DripSubscriptionController.php",
+        "app/Http/Controllers/Purchase/FreePurchaseController.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Pages/Admin/Courses/Traffic.vue",
+        "tests/Feature/Storefront/FreeClaimTrafficTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",
@@ -3576,7 +3619,7 @@
         "tests/Feature/HighTicket/ConsultationSlotAdminTest.php",
         "tests/Feature/HighTicket/BookingChangeTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-21",
@@ -3639,7 +3682,7 @@
         "tests/Feature/HighTicket/PlanAccessTest.php",
         "tests/Feature/HighTicket/PlanSwitchTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-22",
@@ -3676,7 +3719,7 @@
         "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
         "tests/Feature/HighTicket/ConversionStatsTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-3",

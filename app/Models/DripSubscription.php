@@ -34,6 +34,18 @@ class DripSubscription extends Model
         'unlock_all',
         'status_changed_at',
         'unsubscribe_token',
+        // Where this claim came from (002 US17). Same field names as `orders`
+        // and `purchases` — the traffic report applies one list to all three.
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_term',
+        'utm_content',
+        'referrer_domain',
+        'gclid',
+        'fbclid',
+        'ttclid',
+        'first_touch',
     ];
 
     protected function casts(): array
@@ -41,6 +53,7 @@ class DripSubscription extends Model
         return [
             'subscribed_at' => 'datetime',
             'status_changed_at' => 'datetime',
+            'first_touch' => 'array',
             'emails_sent' => 'integer',
             'unlock_all' => 'boolean',
         ];

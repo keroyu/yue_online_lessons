@@ -2,6 +2,9 @@
 id: 002-storefront
 status: building
 owner_files:
+  - database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
+  - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
+  - tests/Feature/Storefront/FreeClaimTrafficTest.php
   - app/Http/Controllers/HomeController.php
   - app/Http/Controllers/CourseController.php
   - app/Http/Controllers/Admin/HomepageSettingController.php
@@ -57,6 +60,21 @@ owner_files:
   - tests/Feature/Storefront/SalesPromoCouponChainTest.php
   - tests/Feature/Storefront/CourseUrlSlugTest.php
 touchpoints:
+  - file: app/Models/Purchase.php
+    owner: 005-checkout
+    why: US17 加一組與 orders 同名的來源欄位（只對 source=free 的列有意義），供課程 Traffic 頁計入免費領取
+  - file: app/Http/Controllers/Purchase/FreePurchaseController.php
+    owner: 005-checkout
+    why: US17 非 drip 免費領取在建立 Purchase 時寫入來源，並把同一份來源傳給 DripService::subscribe()
+  - file: app/Models/DripSubscription.php
+    owner: 010-drip-email
+    why: US17 加同一組來源欄位 —— drip 領取走 /drip/subscribe 完全不碰 purchases，來源只能存在這裡（D45）
+  - file: app/Services/DripService.php
+    owner: 010-drip-email
+    why: US17 `subscribe()` 加選填第三參數 $trafficSource 作為唯一寫入點，背景呼叫端不傳則行為完全不變（FR-038）
+  - file: app/Http/Controllers/DripSubscriptionController.php
+    owner: 010-drip-email
+    why: US17 訪客領取與會員一鍵領取兩處各自以 TrafficSourceService::claimAttributes() 取來源傳入
   - file: app/Models/Course.php
     owner: 004-course-admin
     why: 首頁列表/銷售頁讀取課程資料（visibleToUser/ordered scope、slug 路由綁定）；分類 slug 改名時 cascade 更新 courses.content_category；US11/US12 新欄位 free_success_md / promo_html / promo_delay_seconds 加入 fillable 與 casts
@@ -389,6 +407,32 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [ ] 已知且接受的重複計數：同一筆訂單同時計入 drip 課的成交與目標課程的成交，因此「成交」欄縱向相加 **不等於**實際訂單數（見 D41）；註腳 MUST 寫明這件事
 - [ ] 測試：轉換數併入正確課程列、`booked` 不計入、期間邊界（區間外的 `status_changed_at` 不算）、無流量列時補列、管道篩選時不併入、營收維持不變、`drip_conversions` 欄位存在且為 0 時不影響既有斷言
 
+### User Story 17 - 免費領取計入課程來源追蹤 (Priority: P2)
+
+課程的「連結來源追蹤」頁（US8）統計的是 `orders`。**免費課從不建立訂單**，
+所以不管那條 UTM 連結帶進多少領取者，那一頁永遠顯示 0 筆、0 元 ——
+而免費課正是最需要衡量投放成效的一種：它的目的就是換名單。
+
+更麻煩的是領取當下的來源**根本沒有被留下來**：
+`purchases` 與 `drip_subscriptions` 都沒有任何 UTM 欄位，
+`TrackTrafficSource` 在那個 request 裡明明拿得到來源，卻沒有任何地方寫下它。
+
+這個故事讓免費領取留下來源，並把領取者計入該課程 Traffic 頁的成交數字。
+
+**驗收**：
+- [x] 免費領取 MUST 在領取當下寫下來源（UTM 五欄 + referrer_domain + 三種 click id + first_touch），欄位定義比照 `orders`
+- [x] **兩條領取路徑各自落庫**：drip 課的 `POST /drip/subscribe` 寫進 `drip_subscriptions`；非 drip 免費課的 `POST /api/purchase/free/{course}` 寫進 `purchases`（見 D45）
+- [x] 課程 Traffic 頁的「訂單數」MUST 併入免費領取數：drip 課取 `drip_subscriptions`、非 drip 免費課取 `purchases.source = 'free'`，**依課程型態擇一**，MUST NOT 同時計算（drip 課走 `FreePurchaseController` 時兩張表都會有列，同時算就是雙重計數，見 D46）
+- [x] 領取者 MUST **全數**計入，不論其後是否退訂：`drip_subscriptions.status = 'unsubscribed'` 一樣算 —— 領取這件事發生過，而且是那條連結帶來的
+- [x] 來源分組與顯示邏輯 MUST 沿用既有那一套（`resolveSource()` 解析 click id、`(外部連結) domain`、`(直接造訪)` 退路），MUST NOT 為免費領取另寫一份判斷
+- [x] 沒有來源的領取（背景任務建立、或使用者直接輸入網址）MUST 落在既有的 `(直接造訪)` 分組，MUST NOT 被丟棄
+- [x] 營收欄對免費領取 MUST 為 0（免費課本來就沒有收入），總營收不得因此被灌水
+- [x] CSV 匯出 MUST 與頁面同口徑，免費領取一併匯出
+- [x] 免費課的頁面 MUST 標示該欄是「領取數」而非訂單數，避免與付費課的口徑混淆
+- [x] 行銷分析頁（`/admin/analytics`）**維持 US16 現行口徑不變**（使用者決策）：那裡的成交併入的是 `drip_subscriptions.status = 'converted'`（後續真的買了目標課），與本故事的「領取即轉換」是兩個不同的問題（見 D47）
+- [x] 既有資料無法回填來源，MUST 接受歷史領取一律落在 `(直接造訪)`；MUST NOT 為了好看而猜測歸屬
+- [x] 測試：drip 領取寫入來源、非 drip 免費領取寫入來源、Traffic 頁併入領取數且不雙重計數、退訂者仍計入、無來源落在直接造訪、營收維持 0、CSV 含免費領取、行銷分析頁數字不受影響
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -438,9 +482,22 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-033**: 漏斗的「成交」對 **drip 課程列**擴充定義：`purchases` = 該課程自身訂單成交（`course_daily_stats.purchases`）＋ 期間內 `drip_subscriptions.status = 'converted'` 且 `course_id` 為該課的筆數。計數單位是**訂閱列（人次）**而非訂單：一位訂閱者只會在該 drip 課貢獻 1，即使他買了兩門目標課程；同一人若訂閱了兩門 drip 課並購買共同目標，兩列各計 1 —— 兩門課確實各自參與了那次成交
 - **FR-034**: 期間對齊 `status_changed_at`（`>= now()->subDays($days)->startOfDay()`），與 `course_daily_stats.date` 的日界一致。管道篩選（`?channel=`）啟用時 MUST 略過整個併入步驟（見 D43）。`status_changed_at` 為 null 的舊列在有期間篩選時自然落選、在「全部」時計入 —— 這是可接受的近似，該欄位自 010 起就隨每次狀態變更寫入
 - **FR-035**: `revenue` MUST NOT 併入目標課程金額（使用者決策）。營收欄的語意固定為「這門課自己收到多少錢」，跨課程的貢獻歸因屬於另一個報表，不在漏斗表上做
+- **FR-037**: 免費領取的來源 MUST 在**領取當下**由 `TrafficSourceService` 取出並落庫（`lastTouch()` 為主、`first_touch` 另存一欄，比照 `CheckoutService::createOrder()` 的既有作法）。兩張表各自持有一組欄位，定義與 `orders` 完全一致（`utm_source/medium/campaign/term/content` 各 `varchar(100)`、`referrer_domain/gclid/fbclid/ttclid` 各 `varchar(255)`、`first_touch` 為 json），並比照 orders 建 `utm_source` 與 `referrer_domain` 兩個 index。欄位同名是硬性要求 —— Traffic 頁的分組 SQL 要能對兩張表套用同一份欄位清單
+- **FR-038**: `DripService::subscribe(User $user, Course $course, array $trafficSource = [])` 新增第三個選填參數作為**唯一寫入點**。有 Request 的呼叫端（`DripSubscriptionController::subscribe()` / `memberSubscribe()`、`FreePurchaseController`）傳入；背景路徑（`SubscribeDripLeadJob`、`PortalyWebhookService`、`RedemptionService`）不傳，落 null。**MUST NOT** 在各 controller 各自寫一次 —— 那正是會漏掉某條路徑的形狀
+- **FR-039**: Traffic 頁的免費領取來源**依課程型態擇一**：`course_type = 'drip'` 取 `drip_subscriptions`，否則取 `purchases` 且 `source = 'free'`。MUST NOT 同時查兩張表 —— drip 課若經 `FreePurchaseController` 領取，兩張表都會有一列，同時計算就是把同一個人算兩次（D46）。已知取捨：drip 課有 Purchase 卻沒有 subscription 的孤兒列（`subscribe()` 失敗）不會被計入，這比雙重計數安全
+- **FR-040**: 領取者 MUST 全數計入，`drip_subscriptions.status` 不參與過濾（含 `unsubscribed`）。退訂發生在領取之後，不會讓「那條連結帶來一個人」這件事變成沒發生。這與 FR-033 的 `converted` 過濾刻意不同：那裡問的是「後來買了嗎」，這裡問的是「進來了嗎」
 - **FR-036**: 併入 MUST 只發生在 `funnelReport()` 的回傳組裝階段。`channelReport()`、`ctaReport()`、`course_daily_stats` 與 `bump()` 一律不動 —— 管道報表的加總必須繼續等於各管道實際事件數，塞入一個沒有管道的數字會讓那張表自相矛盾
 
 ## 設計決策
+
+- **D45**: 來源欄位加在 **`purchases` 與 `drip_subscriptions` 兩張表**，而不是「讓 drip 領取也建一筆 0 元 Purchase 好統一到一張表」（2026-08-13，規劃中途修正）。原本的方案是只加 `purchases`，那是在錯誤前提下做的決定 —— 以為免費領取只有 `FreePurchaseController` 一條路；實際上銷售頁的 drip 領取走 `POST /drip/subscribe`，**完全不碰 `purchases`**。
+  否決「補建 0 元 Purchase」的理由不是麻煩，而是**行為擴散**：`purchases` 是全站「這個人擁有這門課」的真相來源，被會員詳情的擁有課程、新增小節通知的收件名單、贈課的重複檢查、`hasPaidAccessForUser()` 等一票地方讀取。為了一個報表欄位去改變「誰擁有這門課」的定義，代價遠超過多加一組欄位。
+  代價是同一組欄位定義存在兩處，因此 FR-037 把「欄位同名」列為硬性要求 —— Traffic 頁要能對兩張表套用同一份欄位清單。
+
+- **D46**: Traffic 頁的免費領取來源**依課程型態擇一**而非 union 兩張表。drip 課若經 `FreePurchaseController` 領取，`purchases` 與 `drip_subscriptions` 會各有一列指向同一次領取；union 起來就是同一個人被算兩次，而那種錯誤在報表上完全看不出來（數字只是偏高）。擇一的代價是「有 Purchase 卻沒有 subscription」的孤兒列會被漏掉（只在 `subscribe()` 失敗時發生），漏算比重複計數安全 —— 前者少一個人，後者讓整張表失去可信度。
+
+- **D47**: 行銷分析頁**不跟著改口徑**（使用者決策）。它與課程 Traffic 頁回答的是兩個不同的問題：US16 的併入問的是「這門引流課後來賣掉了什麼」（`status = 'converted'`），本故事問的是「這條連結帶進了多少人」（全部領取者）。把兩者統一成一個數字，等於挑一個問題不回答。
+  代價是兩頁的「成交」在免費課上會是不同的數字，因此兩邊都要有可見的口徑說明（US16 已有註腳，本故事在免費課的欄位標題上標示「領取數」）。
 
 - **D41**: 序列信成交記在 **drip 課那一列**，而不是（只）留在目標課程那一列（使用者決策）。免費課的漏斗現在是一條斷掉的路：瀏覽有數字，後面三格結構性地恆為 0，因為免費領取不經過訂單。報表因此對每一門引流課都給出「成交 0、成交率 0%」這個看起來像結論、其實只是量錯了的答案。
   代價是**同一筆訂單會被計兩次**（drip 課一次、目標課程一次），所以「成交」欄縱向相加不再等於實際訂單數。這是刻意接受的：漏斗表是逐課看轉換效率的工具，不是對帳表（頁尾註腳本來就寫著「金額對帳請以交易紀錄為準」），而把重複計數藏起來的唯一方法是不做這件事。註腳要把它講明白，讓看數字的人知道欄位在講什麼。
@@ -501,6 +558,27 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D39**: 短網址併成行銷分析的分頁、而非在側欄改排序 —— 兩者都是「這個行銷動作帶來多少點擊」，分開兩個入口只是因為它們先後被做出來，不是因為使用時會分開想。短網址的**擁有權仍留在 000**（表、寫入端點、元件），002 只提供承載它的頁面與 `?tab=` 分派；否則會變成把別人的功能整組搬進自己模組。
 - **D40**: 舊路徑保留為 302 轉址而非刪除 —— 這個網址進過側欄也可能進過書籤與交接文件，回 404 會被讀成「功能被拿掉了」，而轉址的成本只有一個方法。
 ## Schema
+
+- **US17 schema 變更（兩支 migration，內容對稱）**：
+
+  `2026_08_16_000001_add_traffic_source_to_purchases_table.php`
+  `2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php`
+
+  兩張表各加同一組欄位，定義與 `orders` 逐欄一致（見 `2026_05_08_000001` 與 `2026_07_12_000004`）：
+
+  | 欄位 | 型別 |
+  |------|------|
+  | `utm_source` / `utm_medium` / `utm_campaign` / `utm_term` / `utm_content` | `varchar(100)` nullable |
+  | `referrer_domain` / `gclid` / `fbclid` / `ttclid` | `varchar(255)` nullable |
+  | `first_touch` | `json` nullable |
+
+  index：`utm_source`、`referrer_domain`（比照 orders）
+
+  **不變量**：
+  - 欄位名稱在三張表（`orders` / `purchases` / `drip_subscriptions`）**必須完全相同** —— Traffic 頁對它們套用同一份欄位清單與同一套 `resolveSource()` 判斷（FR-037）
+  - 寫入只發生在領取當下，且 **MUST NOT 回填**：既有資料一律 null，在報表上落入 `(直接造訪)`
+  - `purchases` 的這組欄位**只對 `source = 'free'` 的列有意義**；結帳產生的 purchase 其來源在對應的 `orders` 上，兩者不同步也不比對
+  - 兩張表的欄位是**平行而非互補**：同一次 drip 領取可能兩張表都有列，報表依 FR-039 擇一讀取
 
 - **US16 無 migration、無 schema 變更、無新欄位** —— 序列信轉換數在 `funnelReport()` 回傳前由 `drip_subscriptions`（`status` + `status_changed_at` + `course_id`，皆為 010 既有欄位並已有索引）現算現併（D44）。`course_daily_stats` 一個位元組都不動：那張表存的是「當天在站上發生的事件」，衍生數字不進去。
   **不變量**：`purchases` 在**回傳的陣列**裡是合併值，在**資料表**裡永遠只是該課程自身的訂單成交 —— 兩者刻意不同步，任何要對帳的查詢請直接讀表
@@ -659,7 +737,39 @@ Phase 3 — 驗證
 - [x] T068 `php artisan test` 全綠（566 passed / 2528 assertions）＋ `npm run build` exit 0
 - [ ] T069 使用者實測：行銷分析頁的 drip 課程列成交數與訂閱者後台的「已轉換」數字對得上；切換期間與管道篩選時行為符合預期
 
+## Tasks（免費領取計入來源追蹤 / US17）
+
+Phase 1 — Schema（兩支對稱 migration，可平行）
+
+- [x] T001 [P] `purchases` 加 10 個來源欄位 + 兩個 index，定義比照 `orders` in `database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php`
+- [x] T002 [P] `drip_subscriptions` 加同一組欄位與 index in `database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php`
+- [x] T003 [P] `$fillable` 與 `first_touch` 的 array cast in `app/Models/Purchase.php`〔touchpoint 005〕
+- [x] T004 [P] 同上 in `app/Models/DripSubscription.php`〔touchpoint 010〕
+
+Phase 2 — 寫入（單一入口，相依 Phase 1）
+
+- [x] T005 `subscribe(User $user, Course $course, array $trafficSource = [])` 新增第三參數並寫入訂閱列；既有呼叫端不傳則行為不變（FR-038）in `app/Services/DripService.php`〔touchpoint 010〕
+- [x] T006 `subscribe()` / `memberSubscribe()` 以 `TrafficSourceService` 取來源並傳入 `DripService::subscribe()` in `app/Http/Controllers/DripSubscriptionController.php`〔touchpoint 010〕
+- [x] T007 建立 Purchase 時寫入來源欄位，並把來源一併傳給 `DripService::subscribe()` in `app/Http/Controllers/Purchase/FreePurchaseController.php`〔touchpoint 000〕
+
+Phase 3 — 報表（相依 Phase 2）
+
+- [x] T008 `traffic()` 依 `course_type` 擇一併入免費領取（drip → `drip_subscriptions`、否則 → `purchases.source='free'`），沿用既有 `resolveSource()` 與分組邏輯；免費課回傳 `is_free_claim` 旗標供前端改欄位標題（FR-039/040）in `app/Http/Controllers/Admin/CourseController.php`
+- [x] T009 `trafficExport()` 套用同一份口徑，免費領取一併匯出 in `app/Http/Controllers/Admin/CourseController.php`
+- [x] T010 免費課時「訂單數」欄標題改為「領取數」並加口徑說明 in `resources/js/Pages/Admin/Courses/Traffic.vue`
+
+Phase 4 — 驗證
+
+- [x] T011 新增測試：drip 領取寫入來源、非 drip 免費領取寫入來源、Traffic 頁併入且不雙重計數（drip 課同時有 Purchase 與 subscription 時只算一次）、退訂者仍計入、無來源落 `(直接造訪)`、營收維持 0、行銷分析頁數字不受影響 in `tests/Feature/Storefront/FreeClaimTrafficTest.php`
+- [x] T012 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T013 使用者實測：以帶 UTM 的連結領取一門 drip 課 → Traffic 頁該來源出現 1 筆領取；非 drip 免費課同樣驗一次；確認行銷分析頁數字沒變
+
 ## 進度日誌
+
+- 2026-08-16: US17 免費領取計入課程來源追蹤完成（T001–T012，僅剩 T013 使用者實測）— 兩支對稱 migration 讓 `purchases` 與 `drip_subscriptions` 各持一組與 `orders` 同名的來源欄位；寫入收斂在 `DripService::subscribe()` 的新選填第三參數與 `TrafficSourceService::claimAttributes()`。報表依 `course_type` 擇一讀表後與訂單列合流，共用既有的 `resolveSource()` 與分組邏輯，CSV 匯出走同一份口徑；免費課的欄位標題改為「領取數／總領取數」。
+  **實作中修掉一個自己寫出來的 bug**：`claimAttributes()` 原本用 `currentSource()`，那個 accessor 讓即時 request 優先於 cookie（對「分類這次瀏覽」是對的），結果領取 POST 自己的 Referer 會蓋掉真正的來源，campaign 被靜默丟掉。改讀 `lastTouch()`，與 `CheckoutController` 既有作法一致。另記一個測試層的坑：`postJson()` 預設不送任何 cookie（`prepareCookiesForJsonRequest()` 需 `withCredentials()`），這害我一度誤判成產品問題。
+  新增 FreeClaimTrafficTest（9 tests，含雙重計數守門與退訂者仍計入），全套 637 passed（2756 assertions）、`npm run build` exit 0
+- 2026-08-14: [draft] 規劃 US17 免費領取計入課程來源追蹤 — 課程 Traffic 頁只查 `orders`，免費課從不建訂單，所以那頁對免費課恆為 0；而且領取當下的來源**根本沒被存下來**（`purchases` 與 `drip_subscriptions` 都沒有 UTM 欄位）。規劃中途修正了一次方向：原本決定「只加 `purchases`」，查證後發現銷售頁的 drip 領取走 `POST /drip/subscribe`，完全不碰 `purchases`（D45），改為兩張表各自加同一組欄位；否決「補建 0 元 Purchase 統一到一張表」是因為 `purchases` 是全站「誰擁有這門課」的真相來源，被會員詳情、新增小節通知、贈課檢查與 `hasPaidAccessForUser()` 讀取，為一個報表欄位改動它代價過大。報表依課程型態擇一讀表而非 union（D46）—— drip 課經 `FreePurchaseController` 時兩張表都有列，union 會把同一個人算兩次而且在報表上看不出來。行銷分析頁維持 US16 口徑不變（D47）：那裡問「後來買了什麼」，這裡問「進來了幾個」。寫入收斂在 `DripService::subscribe()` 的新選填參數（FR-038），避免各 controller 各寫一次而漏掉某條路徑。**2026-08-16 使用者確認方案通過，進入 `/dev`。**
 
 - 2026-08-11: US16 drip 序列信成交計入漏斗（T063–T068，僅剩 T069 使用者實測）— `funnelReport()` 在回傳組裝階段併入 `dripConversions()`（`drip_subscriptions.status='converted'`、期間比 `status_changed_at`、`GROUP BY course_id`），`purchases` 為合併值並另帶 `drip_conversions` 供前端說明；有轉換但期間內無流量列的課程補一列，否則整筆成交會從報表消失。查證後發現問題比預期更結構性：免費領取根本不建 Order（`FreePurchaseController` 不呼叫 `recordPurchase`），所以 drip 課的加購／結帳／成交三格是**恆為 0**，不是漏記而是量錯了東西。管道篩選時整個跳過併入（D43）—— 訂閱沒有管道維度，硬塞會讓同一批人在每個管道下各出現一次。營收不動、`course_daily_stats` 一個位元組不改（D44），因此新口徑對歷史資料回溯有效。前端成交數字加虛線底 + `title` 明細，頁尾補一行口徑說明（含「成交欄不可縱向加總」）。TDD：7 條新測試先紅後綠，566 passed、`npm run build` exit 0
 - 2026-08-08: 首頁課程列表區塊標題「所有課程」改「所有資源」（業主要求）in resources/js/Pages/Home.vue。純文案改動，`npm run build` 綠。
