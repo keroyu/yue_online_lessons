@@ -64,7 +64,7 @@ const destroy = async (note) => {
   }
 }
 
-const link = 'text-xs font-medium cursor-pointer transition-colors'
+const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors whitespace-nowrap'
 </script>
 
 <template>
@@ -78,45 +78,48 @@ const link = 'text-xs font-medium cursor-pointer transition-colors'
     <div
       v-for="note in notes"
       :key="note.id"
-      class="rounded-lg border border-gray-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2"
+      class="rounded-lg border border-gray-200 bg-white px-4 py-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-2"
     >
-      <!-- 場次 -->
-      <div class="min-w-0 flex flex-wrap items-baseline gap-x-2">
-        <span class="text-sm font-semibold text-gray-900">{{ formatDate(note.met_at) || '時間未定' }}</span>
-        <span v-if="note.course" class="text-xs text-gray-500">{{ note.course.name }}</span>
-        <span v-if="note.consultant" class="text-xs text-gray-500">· {{ note.consultant.nickname }}</span>
-      </div>
+      <!-- 場次時間，緊接著就是兩個動作 —— 讀到「哪一場」的下一個念頭就是「打開它」，
+           把動作推到列尾等於要求眼睛橫越整列才找得到 -->
+      <span class="text-sm font-semibold text-gray-900">{{ formatDate(note.met_at) || '時間未定' }}</span>
 
-      <!-- 兩個連結 -->
-      <div class="flex items-center gap-4 ml-auto">
-        <button
-          type="button"
-          :class="[link, note.summary ? 'text-brand-teal hover:underline' : 'text-gray-400 hover:text-gray-700']"
-          @click="openNote = note"
-        >
-          {{ note.summary ? '查看摘要' : '撰寫摘要' }}
-        </button>
+      <button
+        type="button"
+        :class="[action, note.summary
+          ? 'border-brand-teal/30 bg-brand-teal/5 text-brand-teal hover:bg-brand-teal/10'
+          : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800']"
+        @click="openNote = note"
+      >
+        {{ note.summary ? '查看摘要' : '撰寫摘要' }}
+      </button>
 
-        <a
-          v-if="note.transcript_bytes"
-          :href="`/admin/consultation-notes/${note.id}/transcript.txt`"
-          :class="[link, 'text-brand-teal hover:underline']"
-          :title="`下載逐字稿（${formatSize(note.transcript_bytes)}）`"
-        >
-          下載逐字稿 <span class="text-gray-400 font-normal">{{ formatSize(note.transcript_bytes) }}</span>
-        </a>
-        <span v-else class="text-xs text-gray-400">尚無逐字稿</span>
+      <a
+        v-if="note.transcript_bytes"
+        :href="`/admin/consultation-notes/${note.id}/transcript.txt`"
+        :class="[action, 'border-brand-teal/30 bg-brand-teal/5 text-brand-teal hover:bg-brand-teal/10']"
+        :title="`下載逐字稿（${formatSize(note.transcript_bytes)}）`"
+      >
+        下載逐字稿
+        <span class="text-brand-teal/60 font-normal">{{ formatSize(note.transcript_bytes) }}</span>
+      </a>
+      <span v-else class="text-xs text-gray-400">尚無逐字稿</span>
 
-        <button
-          type="button"
-          class="text-xs text-gray-300 hover:text-red-600 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="刪除這場面談紀錄"
-          :disabled="deleting === note.id"
-          @click="destroy(note)"
-        >
-          {{ deleting === note.id ? '刪除中…' : '刪除' }}
-        </button>
-      </div>
+      <!-- 課程與顧問是辨識用的次要資訊，讓位給動作 -->
+      <span v-if="note.course || note.consultant" class="text-xs text-gray-400 truncate">
+        {{ [note.course?.name, note.consultant?.nickname].filter(Boolean).join(' · ') }}
+      </span>
+
+      <!-- 破壞性動作留在最右邊，離其他按鈕越遠越好 -->
+      <button
+        type="button"
+        class="ml-auto text-xs text-gray-300 hover:text-red-600 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        title="刪除這場面談紀錄"
+        :disabled="deleting === note.id"
+        @click="destroy(note)"
+      >
+        {{ deleting === note.id ? '刪除中…' : '刪除' }}
+      </button>
     </div>
 
     <p v-if="error" class="text-xs text-red-600">{{ error }}</p>
