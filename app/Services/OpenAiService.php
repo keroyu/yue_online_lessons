@@ -80,13 +80,36 @@ class OpenAiService
             );
         }
 
-        return $this->extractText($response->json());
+        $text = $this->extractText($response->json());
+
+        if ($text === null) {
+            // A 200 with nothing we can read is a parsing bug or a response
+            // shape change, not a configuration choice — and it must never be
+            // as quiet as the "not configured" null above. That silence is
+            // exactly how the first summaries came back empty with a completed
+            // request and 732 billed output tokens sitting in the response.
+            Log::warning('OpenAI: request succeeded but no text could be extracted', [
+                'key'    => $promptKey,
+                'model'  => $model,
+                'status' => data_get($response->json(), 'status'),
+                'types'  => array_map(
+                    fn ($item) => is_array($item) ? ($item['type'] ?? '?') : '?',
+                    (array) data_get($response->json(), 'output', [])
+                ),
+            ]);
+        }
+
+        return $text;
     }
 
     /**
-     * `output_text` is the convenience field; the nested path is the contract.
-     * Read both so a response shape change degrades to null rather than a
-     * fatal, and let the caller decide what an empty result means.
+     * `output_text` is the convenience field; walking `output` is the contract.
+     *
+     * The walk is not optional and the index is not zero: a reasoning model puts
+     * a `reasoning` item first and the `message` after it, so the obvious
+     * `output.0.content.0.text` reads an empty reasoning block and concludes the
+     * model said nothing. Find the message items by type and take every
+     * text-bearing part of them.
      */
     private function extractText(mixed $body): ?string
     {
@@ -96,11 +119,29 @@ class OpenAiService
 
         $text = $body['output_text'] ?? null;
 
-        if (!is_string($text) || trim($text) === '') {
-            $text = data_get($body, 'output.0.content.0.text');
+        if (is_string($text) && trim($text) !== '') {
+            return trim($text);
         }
 
-        return is_string($text) && trim($text) !== '' ? trim($text) : null;
+        $parts = [];
+
+        foreach ((array) ($body['output'] ?? []) as $item) {
+            if (!is_array($item) || ($item['type'] ?? null) !== 'message') {
+                continue;
+            }
+
+            foreach ((array) ($item['content'] ?? []) as $content) {
+                $part = is_array($content) ? ($content['text'] ?? null) : null;
+
+                if (is_string($part) && trim($part) !== '') {
+                    $parts[] = $part;
+                }
+            }
+        }
+
+        $joined = trim(implode("\n", $parts));
+
+        return $joined !== '' ? $joined : null;
     }
 
     private function apiKey(): string

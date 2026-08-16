@@ -334,7 +334,8 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 
 - **FR-027**: `ai_prompts` 的 `key` / `feature` / `label` 由**程式**擁有，後台只得編輯 `instructions` / `model` / `max_output_tokens`。`updateAi` MUST 忽略請求裡的其餘欄位，且 MUST NOT 提供新增／刪除列的路徑 —— 一列對應一個程式裡寫死的呼叫點，讓使用者自由增列只會產生沒有東西會讀的孤兒資料。新功能上線時由 migration 補列
 - **FR-028**: 安裝預設 prompt 的 migration MUST 採「逐筆查 `key`、缺才 insert、**永不 update**」（沿用 `2026_08_09_000003` 對 email template 的既有作法）。正式站的 instructions 可能已被業主調整過，`updateOrCreate` 會把它默默改回原廠值
-- **FR-029**: `OpenAiService::respond()` 為全站唯一的 OpenAI 呼叫點。憑證未設定或指定的 `ai_prompts` 列不存在時 MUST 回 `null` 而非丟例外 —— 呼叫端據此靜默跳過該功能，本機與 CI 永遠不需要真的 API key（沿用 011 D40 對 Zoom 的既有立場）。模型解析順序為 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`
+- **FR-029**: `OpenAiService::respond()` 為全站唯一的 OpenAI 呼叫點。憑證未設定或指定的 `ai_prompts` 列不存在時 MUST 回 `null` 而非丟例外 —— 呼叫端據此靜默跳過該功能，本機與 CI 永遠不需要真的 API key（沿用 011 D40 對 Zoom 的既有立場）。模型解析順序為 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`。
+  取文字時 MUST **依 `type` 走訪 `output` 陣列找 `message`**，MUST NOT 假設 `output.0` —— 推理模型會先放一個空的 `reasoning` 項、`message` 在其後，讀索引 0 會得到空字串並誤判成「模型沒回話」。另外，200 卻取不到文字 MUST 寫 warning：那是解析錯誤或回應格式變動，不是「未設定」，兩者用同一種靜默的 null 表達就沒有人會發現
 
 ## 設計決策
 
@@ -395,7 +396,7 @@ US 10（AI 設定與 Prompt 管理）：
 - [x] T0A1 migration 建 `ai_prompts` 表，並以「逐筆查 key、缺才 insert、永不 update」寫入 `consultation_transcript_proofread` 與 `consultation_summary` 兩列（FR-028）in `database/migrations/2026_08_17_000002_create_ai_prompts_table.php`
 - [x] T0A2 `config/ai.php`：`features`（feature → 中文顯示名）與 `models`（可選型號清單）+ `default_model` in `config/ai.php`
 - [x] T0A3 `AiPrompt` model：`fillable` 三欄 + `AiPrompt::for(string $key): ?self` in `app/Models/AiPrompt.php`
-- [x] T0A4 `OpenAiService::respond(string $promptKey, string $input): ?string` —— 讀憑證與 prompt、解析模型（FR-029）、`Http::withToken()->timeout(120)->retry(2, 2000, throw: false)` 打 `POST https://api.openai.com/v1/responses`、取 `output_text`（退回 `output.0.content.0.text`）、失敗帶 body 丟 RuntimeException in `app/Services/OpenAiService.php`
+- [x] T0A4 `OpenAiService::respond(string $promptKey, string $input): ?string` —— 讀憑證與 prompt、解析模型（FR-029）、`Http::withToken()->timeout(120)->retry(2, 2000, throw: false)` 打 `POST https://api.openai.com/v1/responses`、取 `output_text`（退回依 `type` 走訪 `output` 找 `message`，見 FR-029）、失敗帶 body 丟 RuntimeException in `app/Services/OpenAiService.php`
 - [x] T0A5 `SettingsController::ai()` / `updateAi()` —— 憑證沿用 `maskSecret()` 與留白不覆蓋；prompt 只更新三個可編欄位（FR-027）in `app/Http/Controllers/Admin/SettingsController.php`
 - [x] T0A6 路由 `GET|POST /admin/settings/ai` 加在 `admin` 群組（動詞比照同頁層級的 payment / points，皆為 post） in `routes/web.php`
 - [x] T0A7 `Ai.vue`：憑證區 + 依 feature 分組的 prompt 區（`v-for`，不寫死任何 prompt）in `resources/js/Pages/Admin/Settings/Ai.vue`
@@ -480,6 +481,9 @@ Phase 5 — 驗證：
 - [x] T045 Feature 測試：Permanent bounce 建列 / Transient 不建列 / complaint 建列 / 重複事件冪等 / complaint→bounce 升級且不反向 / 行銷信被擋 / 交易信在 complaint 下照寄、在 bounce 下被擋 / drip 跳過已封鎖訂閱 / secret 已設時驗簽失敗回 403 / secret 未設時不掛驗簽（回歸提醒）in `tests/Feature/Platform/EmailSuppressionTest.php`
 
 ## 進度日誌
+
+- 2026-08-16: 修 `extractText()` 讀錯位置（FR-029）— 正式站第一次實跑面談摘要，逐字稿存進去了但摘要是空的，且沒有任何錯誤。直接打 API 看回應才發現：請求 `status=completed`、`output_tokens=732`、`message` 裡有 752 字的摘要 —— **東西一直都在，是我們讀錯地方**。`output_text` 在這個回應裡是空的，而備援路徑寫死 `output.0.content.0.text`，但推理模型的 `output[0]` 是空的 `reasoning` 項、`message` 在 `output[1]`。改成依 `type` 走訪找 `message` 並串接其所有文字段。
+  連帶的災情比摘要更大：校訂那步用同一支 `respond()`，每個分段都拿到 null 後**靜靜退回機械式原文**，所以那份逐字稿從頭到尾沒被校訂過，未能機械對應的講者標籤也沒被語境判斷補上（實測留下的是「投好壯壯The Must Big」與「Zoom使用者」—— 都不是真實人名，FR-109 未被違反，但也不是該有的「顧問／客戶」）。根因是「未設定」與「解析失敗」共用同一個靜默的 null；現在後者會寫 warning 並記下 `output` 各項的 type。704 passed。
 
 - 2026-08-16: US10 AI 設定與 Prompt 管理完成（T0A1–T0A9 全數）— `ai_prompts` 表 + `AiPrompt` model + `OpenAiService::respond()` 全站唯一呼叫點 + `/admin/settings/ai` 分頁（依 feature 分組、`v-for` 渲染，新增 AI 功能不必改 Vue）。模型解析鏈 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`，兩個 prompt 各自指定模型的行為由測試釘住（校訂用 luna、摘要可單獨升級）。憑證沿用 D3 的遮罩＋留白不覆蓋。AiSettingsTest 16 passed；模組 status 轉回 `done`（US10 已完結，既有的 T001 Error.vue 仍未做，與本次無關）。
 - 2026-08-16: [draft] 規劃 US10 AI 設定與 Prompt 管理 — 011 US23 的面談摘要是本站第一個 AI 功能，趁這次把「用哪家、用哪個模型、每個用途的 instructions」抽成全站基礎設施，第二個 AI 功能上線時只要插一列 + 呼叫一支 service。三個關鍵決策：prompt 存獨立的 `ai_prompts` 表而非散成 site_settings 的鍵（D29 —— prompt 是同構的一組，同構的東西該用列；這也是使用者「方便以後擴展」要求的直接後果），每個 prompt 各自可指定模型（D30，使用者決策 —— 校訂是機械活、摘要要判斷力，同一個模型不是浪費就是將就），獨立分頁而非塞進金流的 API 設定頁（D31，admin-only，因為每次儲存都影響全站行為與費用）。`OpenAiService::respond()` 為全站唯一呼叫點，憑證未設定回 null 不丟例外（FR-029，沿用 011 D40 對 Zoom 的立場）。模組 status 由 `done` 轉 `draft` 待審。

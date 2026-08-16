@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\OpenAiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class AiSettingsTest extends TestCase
@@ -215,11 +216,78 @@ class AiSettingsTest extends TestCase
 
         Http::fake([
             'api.openai.com/*' => Http::response([
-                'output' => [['content' => [['type' => 'text', 'text' => '巢狀取值']]]],
+                'output' => [
+                    ['type' => 'message', 'content' => [['type' => 'output_text', 'text' => '巢狀取值']]],
+                ],
             ], 200),
         ]);
 
         $this->assertSame('巢狀取值', app(OpenAiService::class)->respond('consultation_summary', '逐字稿'));
+    }
+
+    /**
+     * The shape that actually shipped and broke: a reasoning model answers with
+     * an empty `reasoning` item first and the message second, so reading
+     * `output.0` finds nothing and the caller concludes the model said nothing.
+     * The transcripts came back unproofread and the summaries empty, with a
+     * completed request and billed output tokens sitting in the response.
+     */
+    public function test_respond_skips_the_reasoning_item_and_reads_the_message(): void
+    {
+        SiteSetting::set(OpenAiService::API_KEY, 'sk-test');
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'status' => 'completed',
+                'output' => [
+                    ['type' => 'reasoning', 'summary' => [], 'content' => []],
+                    ['type' => 'message', 'content' => [['type' => 'output_text', 'text' => '## 客戶背景']]],
+                ],
+            ], 200),
+        ]);
+
+        $this->assertSame('## 客戶背景', app(OpenAiService::class)->respond('consultation_summary', '逐字稿'));
+    }
+
+    public function test_respond_joins_multiple_message_parts(): void
+    {
+        SiteSetting::set(OpenAiService::API_KEY, 'sk-test');
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'output' => [
+                    ['type' => 'reasoning', 'content' => []],
+                    ['type' => 'message', 'content' => [
+                        ['type' => 'output_text', 'text' => '第一段'],
+                        ['type' => 'output_text', 'text' => '第二段'],
+                    ]],
+                ],
+            ], 200),
+        ]);
+
+        $this->assertSame("第一段\n第二段", app(OpenAiService::class)->respond('consultation_summary', '逐字稿'));
+    }
+
+    /**
+     * A 200 we cannot read is a bug, not a configuration choice — it must not be
+     * as quiet as the "no API key" null.
+     */
+    public function test_an_unreadable_success_is_logged(): void
+    {
+        SiteSetting::set(OpenAiService::API_KEY, 'sk-test');
+
+        Http::fake([
+            'api.openai.com/*' => Http::response([
+                'status' => 'completed',
+                'output' => [['type' => 'reasoning', 'content' => []]],
+            ], 200),
+        ]);
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn (string $message) => str_contains($message, 'no text could be extracted'));
+
+        $this->assertNull(app(OpenAiService::class)->respond('consultation_summary', '逐字稿'));
     }
 
     public function test_respond_throws_with_the_response_body_on_failure(): void
