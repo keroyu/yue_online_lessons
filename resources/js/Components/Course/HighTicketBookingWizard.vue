@@ -100,6 +100,19 @@ const socialUrlInvalid = computed(() => {
 
 const allCommitted = computed(() => commitments.value.every(Boolean))
 
+/**
+ * Split the server's `8/6（週三）` into two lines for a narrow column header.
+ *
+ * Done here rather than in `ConsultationSlotService::dateLabel()` because that
+ * one string is also what the admin week grid and the confirmation mail read —
+ * this is a layout concern for one picker, not a change to what a date is.
+ */
+const dateHead = (label) => {
+  const parts = String(label).match(/^(.+?)（(.+?)）$/)
+
+  return parts ? { day: parts[1], weekday: parts[2] } : { day: label, weekday: '' }
+}
+
 // ---- step 3 ----------------------------------------------------------------
 
 const slotGroups = ref([])
@@ -128,6 +141,71 @@ async function fetchSlots() {
     slotsLoading.value = false
   }
 }
+
+/**
+ * Page the picker through the dates that actually have slots (FR-122).
+ *
+ * Deliberately not split by calendar week: availability is sparse and uneven,
+ * so a Mon–Sun page routinely held two or three columns and left most of the
+ * row blank — whitespace that carried no information, since the empty days were
+ * not shown either. Chunking the dates themselves keeps every page full.
+ */
+const perPage = ref(4)
+
+const pages = computed(() => {
+  const out = []
+
+  for (let i = 0; i < slotGroups.value.length; i += perPage.value) {
+    out.push(slotGroups.value.slice(i, i + perPage.value))
+  }
+
+  return out
+})
+
+const pageIndex = ref(0)
+
+// Falls back to the first page rather than rendering nothing: a stale index
+// after a re-fetch or a resize would otherwise blank the picker while slots exist.
+const currentPage = computed(() => pages.value[pageIndex.value] ?? pages.value[0] ?? null)
+
+const pageLabel = computed(() => {
+  if (!currentPage.value?.length) return ''
+
+  const first = dateHead(currentPage.value[0].date).day
+  const last = dateHead(currentPage.value[currentPage.value.length - 1].date).day
+
+  return first === last ? first : `${first} – ${last}`
+})
+
+/** Which page holds the currently picked time, or 0. */
+const pageHolding = (value) => {
+  if (!value) return 0
+
+  const found = pages.value.findIndex((page) => page.some((g) => g.times.some((t) => t.value === value)))
+
+  return found === -1 ? 0 : found
+}
+
+// Land on the page holding the current pick rather than always on the first:
+// applying a code re-fetches the list, and being thrown back to page one after
+// choosing a time weeks out reads as the choice having been lost.
+watch(slotGroups, () => {
+  pageIndex.value = pageHolding(form.slot_starts_at)
+})
+
+// Fewer columns on a phone so each time stays a comfortable tap target; more on
+// a wide card so the row is not half empty. Re-paged around the current pick so
+// a rotation does not silently move the visitor somewhere else in the list.
+const wideScreen = window.matchMedia('(min-width: 640px)')
+
+const applyPerPage = () => {
+  perPage.value = wideScreen.matches ? 6 : 4
+  pageIndex.value = pageHolding(form.slot_starts_at)
+}
+
+applyPerPage()
+wideScreen.addEventListener('change', applyPerPage)
+onUnmounted(() => wideScreen.removeEventListener('change', applyPerPage))
 
 const availableValues = computed(() =>
   slotGroups.value.flatMap(g => g.times.map(t => t.value))
@@ -615,23 +693,79 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
               </p>
             </div>
 
-            <div v-else class="space-y-4 max-h-80 overflow-y-auto pr-1">
-              <p class="text-xs text-gray-500">一場 {{ slotMinutes }} 分鐘，請選擇開始時間。</p>
-              <div v-for="group in slotGroups" :key="group.date">
-                <p class="text-xs font-semibold text-gray-700 mb-2">{{ group.date }}</p>
-                <div class="flex flex-wrap gap-2">
+            <!-- One column per date, times stacked beneath it. The old layout
+                 wrapped every day's times across the full width, so two days
+                 with four slots each already pushed the third day below the
+                 fold — reading "when could I come?" meant scrolling. Columns
+                 put the whole week in one glance and move the overflow
+                 sideways, where an empty Tuesday costs nothing. -->
+            <!-- One column per date that has slots, times stacked beneath, paged
+                 with arrows rather than scrolled sideways: a horizontal scroller
+                 is awkward on a trackpad and worse on a phone, and it hides how
+                 far the availability runs. Columns share the row evenly and
+                 carry no max width, so every page fills the card whatever the
+                 screen and nothing ever scrolls sideways. -->
+            <div v-else-if="currentPage" class="space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <p class="text-xs text-gray-500">一場 {{ slotMinutes }} 分鐘，請選擇開始時間。</p>
+
+                <div v-if="pages.length > 1" class="flex items-center gap-1">
                   <button
-                    v-for="t in group.times"
-                    :key="t.value"
                     type="button"
-                    class="px-3 py-2 rounded-lg text-sm border tabular-nums cursor-pointer transition"
-                    :class="form.slot_starts_at === t.value
-                      ? 'bg-brand-teal text-white border-brand-teal ring-2 ring-brand-teal/30'
-                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'"
-                    @click="form.slot_starts_at = t.value"
+                    class="rounded-md border border-gray-200 p-1 text-gray-600 transition-colors cursor-pointer hover:bg-gray-50 hover:text-brand-teal disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="較早的日期"
+                    :disabled="pageIndex === 0"
+                    @click="pageIndex--"
                   >
-                    {{ t.label }}
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
                   </button>
+
+                  <span class="min-w-[5rem] text-center text-xs font-medium text-gray-600 tabular-nums">{{ pageLabel }}</span>
+
+                  <button
+                    type="button"
+                    class="rounded-md border border-gray-200 p-1 text-gray-600 transition-colors cursor-pointer hover:bg-gray-50 hover:text-brand-teal disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="更晚的日期"
+                    :disabled="pageIndex >= pages.length - 1"
+                    @click="pageIndex++"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex max-h-80 gap-1 overflow-y-auto sm:gap-2">
+                <div
+                  v-for="group in currentPage"
+                  :key="group.date"
+                  class="min-w-0 flex-1 basis-0"
+                >
+                  <!-- Sticky so the date stays readable when a long column is
+                       scrolled; needs its own background or the times show
+                       through it. -->
+                  <div class="sticky top-0 z-10 bg-white pb-1.5 text-center">
+                    <p class="text-xs font-bold text-brand-navy tabular-nums sm:text-sm">{{ dateHead(group.date).day }}</p>
+                    <p class="text-[10px] leading-none text-gray-400">{{ dateHead(group.date).weekday }}</p>
+                  </div>
+
+                  <div class="flex flex-col gap-1 sm:gap-1.5">
+                    <button
+                      v-for="t in group.times"
+                      :key="t.value"
+                      type="button"
+                      class="w-full rounded-lg border px-0.5 py-2 text-xs tabular-nums cursor-pointer transition sm:text-sm"
+                      :class="form.slot_starts_at === t.value
+                        ? 'bg-brand-teal text-white border-brand-teal ring-2 ring-brand-teal/30'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'"
+                      @click="form.slot_starts_at = t.value"
+                    >
+                      {{ t.label }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
