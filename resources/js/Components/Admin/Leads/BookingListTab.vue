@@ -237,16 +237,25 @@ const hasApplication = (lead) =>
   Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
 
 /**
- * The badge shortcut: straight to the newest session's summary (011 FR-121).
+ * The badge shortcut: straight to the newest summary (011 FR-121).
  *
  * Reading the summary is the whole reason to open one of these rows, and making
  * that a two-step — expand, then find the button — is a tax on the common case.
- * Notes arrive newest-first, so index 0 is the session just held.
+ *
+ * Counted over sessions that actually have a summary, not over sessions. A badge
+ * is a promise that there is something to read: a booking made this morning has
+ * a record and nothing in it, and offering to open that is a wasted click. The
+ * empty sessions are still listed inside the expanded row.
  */
+const summarised = (lead) =>
+  (lead.consultation_notes ?? []).filter((note) => (note.summary ?? '').trim() !== '')
+
 const quickNote = ref(null)
 
 const openSummary = (lead) => {
-  quickNote.value = lead.consultation_notes?.[0] ?? null
+  // Notes arrive newest-first, so the first one still holding a summary is the
+  // most recent thing worth reading.
+  quickNote.value = summarised(lead)[0] ?? null
 }
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -891,22 +900,22 @@ const copySelectedEmails = async () => {
                   {{ lead.name }}
                 </button>
 
-                <!-- 011 US23: how many consultations sit behind this row, and a
-                     shortcut straight into the newest one's summary. A sibling of
-                     the toggle rather than a child of it — a button inside a
-                     button is invalid markup, and @click.stop on a span would
-                     leave it unreachable by keyboard. -->
+                <!-- 011 US23: how many summaries sit behind this row, and a
+                     shortcut straight into the newest one. A sibling of the
+                     toggle rather than a child of it — a button inside a button
+                     is invalid markup, and @click.stop on a span would leave it
+                     unreachable by keyboard. -->
                 <button
-                  v-if="lead.consultation_notes?.length"
+                  v-if="summarised(lead).length"
                   type="button"
                   class="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600 cursor-pointer hover:bg-brand-teal/10 hover:text-brand-teal transition-colors"
-                  :title="`${lead.consultation_notes.length} 場面談紀錄 — 點擊查看最近一場的摘要`"
+                  :title="`${summarised(lead).length} 份面談摘要 — 點擊查看最近一份`"
                   @click="openSummary(lead)"
                 >
                   <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  {{ lead.consultation_notes.length }}
+                  {{ summarised(lead).length }}
                 </button>
               </div>
             </td>
