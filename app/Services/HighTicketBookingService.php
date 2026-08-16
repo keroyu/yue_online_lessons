@@ -322,8 +322,13 @@ class HighTicketBookingService
      * Matched on `zoom_meeting_id` when there is one so a re-confirmation moves
      * the existing row instead of producing a duplicate; without Zoom it falls
      * back to this lead's own row.
+     *
+     * Public because `booking:backfill-consultation-notes` calls it too: bookings
+     * confirmed before US23 shipped never ran through here, and their meetings
+     * are still ahead of them. That idempotent match above is what makes the
+     * backfill safe to run more than once.
      */
-    private function recordConsultationNote(HighTicketLead $lead, Course $course, ?Carbon $startsAt): void
+    public function recordConsultationNote(HighTicketLead $lead, Course $course, ?Carbon $startsAt): void
     {
         if (!$startsAt) {
             return;

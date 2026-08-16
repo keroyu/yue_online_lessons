@@ -504,6 +504,8 @@ main_files:
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Middleware/HandleInertiaRequests.php
+- app/Http/Requests/Admin/StoreCourseRequest.php
+- app/Http/Requests/Admin/UpdateCourseRequest.php
 - app/Http/Requests/StoreDripClaimRequest.php
 - app/Http/Requests/StoreDripSubscriptionRequest.php
 - app/Jobs/SendDripEmailJob.php
@@ -512,6 +514,7 @@ main_files:
 - app/Models/DripConversionTarget.php
 - app/Models/DripEmailEvent.php
 - app/Models/DripSubscription.php
+- app/Models/Lesson.php
 - app/Services/CheckoutService.php
 - app/Services/DripService.php
 - app/Services/HighTicketBookingService.php
@@ -529,6 +532,7 @@ main_files:
 - database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php
 - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
 - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
+- database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
@@ -551,6 +555,7 @@ main_files:
 - tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/GuestClaimTest.php
 - tests/Feature/Drip/LessonEmailPreviewTest.php
+- tests/Feature/Drip/VariableScheduleTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 
 related_specs:

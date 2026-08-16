@@ -28,7 +28,6 @@ class ConsultationNote extends Model
         'zoom_meeting_id',
         'transcript',
         'transcript_fetched_at',
-        'transcript_edited_at',
         'summary',
         'summary_generated_at',
         'summary_edited_at',
@@ -39,7 +38,6 @@ class ConsultationNote extends Model
         return [
             'met_at'                => 'datetime',
             'transcript_fetched_at' => 'datetime',
-            'transcript_edited_at'  => 'datetime',
             'summary_generated_at'  => 'datetime',
             'summary_edited_at'     => 'datetime',
         ];
@@ -86,9 +84,17 @@ class ConsultationNote extends Model
         return trim((string) $this->transcript) === '' && trim((string) $this->summary) === '';
     }
 
-    public function transcriptIsLocked(): bool
+    /**
+     * The transcript is already in hand — fetching and proofreading it again
+     * would just re-buy the same result (FR-110).
+     *
+     * Zoom fires `recording.completed` and `recording.transcript_completed`
+     * separately and we subscribe to both (D88), so a second job for the same
+     * session is the normal case, not the exception.
+     */
+    public function transcriptIsSettled(): bool
     {
-        return $this->transcript_edited_at !== null;
+        return $this->transcript_fetched_at !== null && trim((string) $this->transcript) !== '';
     }
 
     public function summaryIsLocked(): bool

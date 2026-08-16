@@ -186,4 +186,66 @@ class ConsultationNoteTest extends TestCase
 
         $this->assertTrue($dates[0]->greaterThan($dates[1]));
     }
+
+    // ── 補建（FR-119）──
+
+    /**
+     * The situation this exists for: bookings confirmed before US23 shipped.
+     * Simulated by deleting the record the confirmation created.
+     */
+    public function test_backfill_creates_the_missing_note_for_a_confirmed_booking(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->applyAndConfirm($course);
+
+        ConsultationNote::query()->delete();
+        $this->assertSame(0, ConsultationNote::count());
+
+        $this->artisan('booking:backfill-consultation-notes')->assertExitCode(0);
+
+        $note = ConsultationNote::first();
+        $this->assertNotNull($note);
+        $this->assertSame('booker@example.com', $note->email);
+        $this->assertSame($course->id, $note->course_id);
+        $this->assertNotNull($note->met_at);
+    }
+
+    public function test_backfill_is_idempotent(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->applyAndConfirm($course);
+
+        $this->artisan('booking:backfill-consultation-notes')->assertExitCode(0);
+        $this->artisan('booking:backfill-consultation-notes')->assertExitCode(0);
+
+        $this->assertSame(1, ConsultationNote::count());
+    }
+
+    public function test_backfill_dry_run_writes_nothing(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->applyAndConfirm($course);
+        ConsultationNote::query()->delete();
+
+        $this->artisan('booking:backfill-consultation-notes', ['--dry-run' => true])->assertExitCode(0);
+
+        $this->assertSame(0, ConsultationNote::count());
+    }
+
+    /**
+     * A cancelled booking has no meeting left to transcribe, and FR-114 already
+     * decided its empty record should not exist.
+     */
+    public function test_backfill_skips_cancelled_bookings(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->applyAndConfirm($course);
+
+        app(HighTicketBookingService::class)->cancel(HighTicketLead::first());
+        $this->assertSame(0, ConsultationNote::count());
+
+        $this->artisan('booking:backfill-consultation-notes')->assertExitCode(0);
+
+        $this->assertSame(0, ConsultationNote::count());
+    }
 }

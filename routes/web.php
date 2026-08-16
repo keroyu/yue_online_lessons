@@ -237,8 +237,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
         // Consultation records (011 US23) — edited from the leads page, so staff.
         Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');
-        Route::patch('/consultation-notes/{note}/transcript', [ConsultationNoteController::class, 'updateTranscript'])->name('consultation-notes.transcript');
         Route::post('/consultation-notes/{note}/regenerate-summary', [ConsultationNoteController::class, 'regenerateSummary'])->name('consultation-notes.regenerate-summary');
+        Route::get('/consultation-notes/{note}/transcript.txt', [ConsultationNoteController::class, 'downloadTranscript'])->name('consultation-notes.transcript-download');
+        Route::delete('/consultation-notes/{note}', [ConsultationNoteController::class, 'destroy'])->name('consultation-notes.destroy');
 
         // Drip letter preview (010 US17) — read-only, and staff-level because it
         // opens from the subscriber tab of the leads page above.

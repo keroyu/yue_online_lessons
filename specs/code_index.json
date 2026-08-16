@@ -75,6 +75,7 @@
       "006.us-5",
       "010.us-11",
       "010.us-13",
+      "010.us-18",
       "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
@@ -129,6 +130,7 @@
     "app/Http/Controllers/Admin/LessonController.php": [
       "004.us-3",
       "004.us-6",
+      "010.us-18",
       "010.us-8",
       "011.us-21"
     ],
@@ -394,7 +396,8 @@
       "002.us-11",
       "002.us-12",
       "004.us-1",
-      "004.us-2"
+      "004.us-2",
+      "010.us-18"
     ],
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
@@ -438,7 +441,8 @@
       "002.us-11",
       "002.us-12",
       "004.us-1",
-      "004.us-2"
+      "004.us-2",
+      "010.us-18"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -679,6 +683,7 @@
     ],
     "app/Models/Lesson.php": [
       "004.us-3",
+      "010.us-18",
       "011.us-21"
     ],
     "app/Models/LessonProgress.php": [
@@ -818,6 +823,7 @@
       "010.us-13",
       "010.us-14",
       "010.us-17",
+      "010.us-18",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -1201,6 +1207,9 @@
     "database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php": [
       "002.us-17"
     ],
+    "database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php": [
+      "010.us-18"
+    ],
     "database/migrations/2026_08_17_000001_create_consultation_notes_table.php": [
       "011.us-23"
     ],
@@ -1256,6 +1265,7 @@
       "002.us-12",
       "004.us-2",
       "006.us-5",
+      "010.us-18",
       "010.us-8"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
@@ -1823,6 +1833,9 @@
     ],
     "tests/Feature/Drip/LessonEmailPreviewTest.php": [
       "010.us-17"
+    ],
+    "tests/Feature/Drip/VariableScheduleTest.php": [
+      "010.us-18"
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"

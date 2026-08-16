@@ -4,6 +4,8 @@ namespace Tests\Feature\HighTicket;
 
 use App\Models\AiPrompt;
 use App\Models\ConsultationNote;
+use App\Models\Course;
+use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\OpenAiService;
@@ -60,6 +62,35 @@ class ConsultationSummaryTest extends TestCase
             'met_at'          => now()->subHour(),
             'zoom_meeting_id' => self::MEETING_ID,
         ], $overrides));
+    }
+
+    /** A lead the admin list will render, with one recorded session behind it. */
+    private function leadWithNote(string $transcript): HighTicketLead
+    {
+        $course = Course::create([
+            'name'                   => 'HT Course',
+            'slug'                   => 'ht-' . uniqid(),
+            'tagline'                => 'tag',
+            'description'            => 'desc',
+            'price'                  => 50000,
+            'instructor_name'        => 'Tester',
+            'type'                   => 'high_ticket',
+            'status'                 => 'selling',
+            'course_type'            => 'standard',
+            'is_published'           => true,
+            'is_visible'             => true,
+            'payment_gateway'        => 'payuni',
+            'high_ticket_hide_price' => true,
+        ]);
+
+        $this->note(['transcript' => $transcript, 'course_id' => $course->id]);
+
+        return HighTicketLead::create([
+            'name'      => 'Booker',
+            'email'     => 'booker@example.com',
+            'course_id' => $course->id,
+            'booked_at' => now(),
+        ]);
     }
 
     private function payload(string $event = 'recording.transcript_completed'): array
@@ -195,7 +226,6 @@ class ConsultationSummaryTest extends TestCase
         $this->assertNotNull($note->transcript_fetched_at);
         $this->assertStringContainsString('## 客戶背景', $note->summary);
         $this->assertNotNull($note->summary_generated_at);
-        $this->assertNull($note->transcript_edited_at);
         $this->assertNull($note->summary_edited_at);
     }
 
@@ -272,12 +302,16 @@ class ConsultationSummaryTest extends TestCase
         $this->assertNotNull($note->transcript, '逐字稿仍應更新');
     }
 
-    public function test_an_edited_transcript_is_not_overwritten_and_costs_no_tokens(): void
+    /**
+     * Zoom sends two recording events and we subscribe to both (D88), so the
+     * second job for a session is routine — it must not re-buy the same tokens.
+     */
+    public function test_an_already_fetched_transcript_is_not_reprocessed(): void
     {
         $note = $this->note([
-            'transcript'           => '顧問: 人工修訂過的版本',
-            'transcript_edited_at' => now(),
-            'summary_edited_at'    => now(),
+            'transcript'            => '顧問: 已經取回並校訂過的版本',
+            'transcript_fetched_at' => now(),
+            'summary_edited_at'     => now(),
         ]);
         $this->enableOpenAi();
         $this->fakeZoomAndOpenAi();
@@ -285,7 +319,7 @@ class ConsultationSummaryTest extends TestCase
         $this->sendWebhook($this->payload())->assertOk();
 
         $note->refresh();
-        $this->assertSame('顧問: 人工修訂過的版本', $note->transcript);
+        $this->assertSame('顧問: 已經取回並校訂過的版本', $note->transcript);
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.openai.com'));
     }
 
@@ -322,19 +356,6 @@ class ConsultationSummaryTest extends TestCase
         $note->refresh();
         $this->assertSame('人工摘要', $note->summary);
         $this->assertNotNull($note->summary_edited_at);
-    }
-
-    public function test_admin_can_edit_the_transcript_which_locks_it(): void
-    {
-        $note = $this->note(['transcript' => '顧問: 原本的']);
-
-        $this->actingAs($this->admin())
-            ->patchJson("/admin/consultation-notes/{$note->id}/transcript", ['transcript' => '顧問: 修過的'])
-            ->assertOk();
-
-        $note->refresh();
-        $this->assertSame('顧問: 修過的', $note->transcript);
-        $this->assertNotNull($note->transcript_edited_at);
     }
 
     public function test_regenerating_the_summary_uses_the_stored_transcript_and_never_calls_zoom(): void
@@ -375,5 +396,121 @@ class ConsultationSummaryTest extends TestCase
     {
         $this->assertNotNull(AiPrompt::for('consultation_transcript_proofread'));
         $this->assertNotNull(AiPrompt::for('consultation_summary'));
+    }
+
+    // ── 逐字稿下載（FR-120）──
+
+    public function test_the_transcript_downloads_as_a_text_file(): void
+    {
+        $note = $this->note(['transcript' => "顧問: 預算大概多少\n客戶: 大概三十萬"]);
+
+        $res = $this->actingAs($this->admin())
+            ->get("/admin/consultation-notes/{$note->id}/transcript.txt");
+
+        $res->assertOk();
+        $res->assertHeader('content-type', 'text/plain; charset=UTF-8');
+        $this->assertStringContainsString("attachment; filename=\"consultation-", $res->headers->get('content-disposition'));
+
+        $body = $res->getContent();
+        $this->assertStringContainsString('大概三十萬', $body);
+        $this->assertStringContainsString('booker@example.com', $body);
+        // The BOM is what keeps Windows Notepad from mangling the Chinese.
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $body);
+    }
+
+    public function test_downloading_a_missing_transcript_is_a_404(): void
+    {
+        $note = $this->note();
+
+        $this->actingAs($this->admin())
+            ->get("/admin/consultation-notes/{$note->id}/transcript.txt")
+            ->assertNotFound();
+    }
+
+    public function test_a_guest_cannot_download_a_transcript(): void
+    {
+        $note = $this->note(['transcript' => '顧問: 機密內容']);
+
+        $this->get("/admin/consultation-notes/{$note->id}/transcript.txt")
+            ->assertRedirect();
+    }
+
+    /**
+     * The body is heavy enough that shipping it with the leads list was the
+     * reason for the download in the first place (FR-120).
+     */
+    public function test_the_leads_payload_carries_a_size_but_not_the_transcript(): void
+    {
+        $transcript = str_repeat('顧問: 這是一段逐字稿內容。', 50);
+        $lead = $this->leadWithNote($transcript);
+
+        $res = $this->actingAs($this->admin())->get('/admin/high-ticket-leads');
+        $res->assertOk();
+
+        $note = $res->viewData('page')['props']['leads']['data'][0]['consultation_notes'][0];
+
+        $this->assertArrayNotHasKey('transcript', $note);
+        $this->assertGreaterThan(0, $note['transcript_bytes']);
+        $this->assertStringNotContainsString('這是一段逐字稿內容', json_encode($res->viewData('page'), JSON_UNESCAPED_UNICODE));
+        unset($lead);
+    }
+
+    // ── 刪除場次（FR-118）──
+
+    public function test_admin_can_delete_an_empty_session(): void
+    {
+        $note = $this->note();
+
+        $this->actingAs($this->admin())
+            ->deleteJson("/admin/consultation-notes/{$note->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('consultation_notes', ['id' => $note->id]);
+    }
+
+    /**
+     * A short accidental meeting still produces a recording, so "only empty
+     * ones may be deleted" would block the case this exists for.
+     */
+    public function test_admin_can_delete_a_session_that_already_has_content(): void
+    {
+        $note = $this->note([
+            'transcript' => '顧問: 走錯房間了',
+            'summary'    => '## 客戶背景\n未提及',
+        ]);
+
+        $this->actingAs($this->admin())
+            ->deleteJson("/admin/consultation-notes/{$note->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('consultation_notes', ['id' => $note->id]);
+    }
+
+    public function test_a_guest_cannot_delete_a_session(): void
+    {
+        $note = $this->note();
+
+        $this->deleteJson("/admin/consultation-notes/{$note->id}")->assertStatus(401);
+
+        $this->assertDatabaseHas('consultation_notes', ['id' => $note->id]);
+    }
+
+    /**
+     * Deletion has to stick. Zoom resends `recording.completed` for days, and a
+     * record that quietly came back would make the button useless.
+     */
+    public function test_a_deleted_session_is_not_recreated_by_a_later_webhook(): void
+    {
+        $note = $this->note();
+        $this->enableOpenAi();
+        $this->fakeZoomAndOpenAi();
+
+        $this->actingAs($this->admin())
+            ->deleteJson("/admin/consultation-notes/{$note->id}")
+            ->assertOk();
+
+        $this->sendWebhook($this->payload())->assertOk();
+
+        $this->assertSame(0, ConsultationNote::count());
     }
 }

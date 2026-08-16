@@ -757,7 +757,7 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - [x] 摘要以校訂後的逐字稿為輸入，依 `ai_prompts` 的 instructions 產出固定 Markdown 結構
 - [x] 後台展開 lead 時列出**該 email 的所有面談場次**（依 `met_at` 倒序），不只本次預約那一場
 - [x] 逐字稿與摘要在每一列場次上皆可編輯儲存，各自蓋上 `*_edited_at`
-- [x] `consultation_transcript_edited_at` 有值 → webhook 不覆寫逐字稿，且不重跑校訂（不浪費 token）
+- [x] 逐字稿已取回 → webhook 再送一次不重跑校訂（不浪費 token）
 - [x] `consultation_summary_edited_at` 有值 → webhook 不覆寫摘要；後台「重新產生摘要」按鈕可明確解鎖重跑
 - [x] 「重新產生摘要」用資料庫既存的逐字稿重跑，**MUST NOT 再打 Zoom**（雲端錄影有保存期限）；逐字稿為空時回 422 而非 500
 - [x] `openai_api_key` 未設定時 AI 步驟靜默跳過、不丟例外，逐字稿仍以機械式解析結果落庫
@@ -1037,10 +1037,13 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - **FR-115**: `email` 是 `consultation_notes` 的唯一客戶識別鍵，寫入時 MUST 正規化為小寫（沿用 000 `email_suppressions` 的既有作法）。`lead_id` / `user_id` / `course_id` 僅為來源標記，**MUST NOT** 用於「找出這位客戶的所有面談」—— 那一律以 email 查詢，否則買了第二次顧問服務的人會被切成兩個人
 - **FR-116**: 後台 lead detail row 顯示的是**以 email 查出的所有場次**（`met_at` 倒序），不限於當前 lead 的那一場。多場次是這張表存在的理由，只顯示一場等於回到 D92 被推翻的設計
 - **FR-109**: 落庫的 `transcript` MUST 只有校訂後的匿名版。**原始 VTT、Zoom 顯示名稱與真實人名 MUST NOT 寫入任何資料表，也 MUST NOT 出現在任何 log**；`Log::` 只得記 lead id、字元數、模型、耗時。原始檔在 job 記憶體中處理完即釋放
-- **FR-110**: `transcript_edited_at` 與 `summary_edited_at` 各自是對應欄位的**唯一覆寫守門**，互相獨立。job 見到哪一個有值就跳過哪一步並寫 log。逐字稿的守門尤其重要：顧問修掉的辨識錯誤，不該因為 Zoom 重送一次 webhook 就被打回原形。**兩個守門都 MUST 在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token
+- **FR-110**: 兩個步驟各有獨立守門，**MUST 都在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token。逐字稿的守門是 `transcript_fetched_at` + 已有內容（`transcriptIsSettled()`）—— 我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`（D88），所以同一場次收到第二次事件是常態而非例外，沒有這道守門就是同一份逐字稿付兩次校訂費。摘要的守門是 `summary_edited_at`：人寫的摘要不該被 Zoom 重送打回原形。兩者都以 job 的 `$force` 旗標（`booking:fetch-transcript --force`）刻意繞過
 - **FR-111**: 「重新產生摘要」MUST 以該場次既存的 `transcript` 為輸入，MUST NOT 再向 Zoom 請求。Zoom 雲端錄影有保存期限，過期即永久取不回；把校訂稿留在自己的資料庫，正是為了讓摘要格式日後能隨時調整重跑。逐字稿為空時回 422（提示尚未取得逐字稿），不是 500
 - **FR-117**: `ProcessZoomTranscriptJob` MUST 跑在專屬的 `database_long` 佇列連線上，並自帶 `$timeout`（1500 秒）。**這不是調校而是正確性問題**：worker 預設 timeout 為 60 秒，而校訂一小時的逐字稿是數次連續 LLM 呼叫、分鐘級的工作，預設值會在中途砍掉它；更糟的是 `database` 連線的 `retry_after` 為 90 秒，job 只要跑超過 90 秒佇列就判定它已死、把同一份 payload 交給第二個 worker —— 重複處理、重複付 API 費用。`retry_after` MUST 恆大於 job 的 `$timeout`（本連線設 1800）。獨立連線而非直接調高 `database` 的 `retry_after`，是為了讓卡住的**信件** job 仍在 90 秒後重試，而不是等半小時
 - **FR-112**: `openai_api_key` 或對應的 `ai_prompts` 列不存在時，AI 步驟 MUST 靜默跳過而非丟例外，逐字稿仍以機械式解析結果落庫（沿用 D40 對 Zoom 的既有立場：未設定憑證即該路徑不存在，本機與 CI 永遠不需要真的 key）
+- **FR-120**: 後台每場次 MUST 收斂成兩個連結：「摘要」開 modal 檢視／編輯，「下載逐字稿」輸出 `.txt`。逐字稿 **MUST NOT 在頁面上直接呈現** —— 一大片對話塞在已展開的表格列裡，會讓上下場次無法掃讀，而摘要才是真正被讀的東西。既然不再顯示，leads payload MUST 改送 `LENGTH(transcript)` 而非本文（用 `LENGTH` 不用 MySQL 的 `CHAR_LENGTH`，因為測試跑在 sqlite 上）：一頁 20 筆 lead、每筆帶著該客戶所有場次，逐字稿本文可達 200k 字元，不送才是把「不直接呈現」落實到傳輸層而非只是視覺上藏起來。**連帶清除**：逐字稿既不可編輯，`updateTranscript()` 端點、其路由與 `transcript_edited_at` 欄位 MUST 一併移除（migration `..._000003` 卸掉該欄）—— 一個永遠為 null 的時間戳是在邀請後人寫程式去檢查它。原本掛在該欄上的覆寫守門改以 `transcript_fetched_at` 表達，見 FR-110
+- **FR-119**: 面談紀錄只在**預約確認當下**建立，因此本功能上線前已確認的預約一筆紀錄都沒有 —— 而沒有紀錄，webhook 就沒有 `zoom_meeting_id` 可對，逐字稿會直接被丟掉。MUST 提供 `booking:backfill-consultation-notes` 補建，且 MUST 與確認路徑共用 `recordConsultationNote()`（該方法以 `zoom_meeting_id` 比對既有列，這正是補建可重複執行而不產生重複列的原因）。已取消的預約 MUST 略過（沿用 FR-114 的立場：那場會議不會發生了）
+- **FR-118**: 後台 MUST 能刪除單一場次（誤約、測試約、客人走錯房間）。硬刪除而非軟刪除 —— 沒有還原介面可以正當化留著那列，而隱藏的列仍得在每一處以 email 查歷史的地方被過濾掉。**MUST NOT 以「有內容就不准刪」設限**：促成這個需求的正是一場短暫誤入而確實產生了錄影的會議，設限等於擋掉需求本身；升級版的確認對話留在 UI，可追溯性靠 `Log::warning`（只記 note id、lead id、`met_at`、字元數與操作者 id，內容仍受 FR-109 約束）。刪除 MUST 是終局的 —— Zoom 會連續數日重送 `recording.completed`，webhook 找不到對應列即回 200 且不重建
 
 ## 設計決策
 
@@ -1309,8 +1312,8 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
   | `met_at` | datetime, **index** | **場次時間**（UTC）。列表以此倒序 |
   | `zoom_meeting_id` | varchar(50) nullable, **unique** | webhook 的對照鍵。unique 保證一場 Zoom 會議只對應一列 |
   | `transcript` | longText nullable | **校訂後的匿名對話稿**；原始 VTT 與 Zoom 顯示名稱不進這裡（FR-109） |
-  | `transcript_fetched_at` | timestamp nullable | 取回並校訂完成的時間 |
-  | `transcript_edited_at` | timestamp nullable | 人工修訂時間；**非 null 即鎖定**自動覆寫（FR-110） |
+  | `transcript_fetched_at` | timestamp nullable | 取回並校訂完成的時間；**非 null 且有內容即不再重跑**（FR-110） |
+  | ~~`transcript_edited_at`~~ | — | 已於 `..._000003` 移除：逐字稿改為只可下載，沒有任何程式會寫它（FR-120） |
   | `summary` | text nullable | AI 產出的摘要，管理員可覆寫 |
   | `summary_generated_at` | timestamp nullable | 最近一次自動產生摘要的時間 |
   | `summary_edited_at` | timestamp nullable | 人工編輯時間；**非 null 即鎖定**自動覆寫（FR-110） |
@@ -1489,7 +1492,7 @@ Phase 2 — 抓取、解析與 AI
 - [x] T275 `ConsultationTranscriptService::normaliseSpeakers(string $dialogue, ConsultationNote $note): string` —— 機械式對應顧問／客戶（客戶名取自 note 的 lead 或 user，顧問名取自 `consultant_id`；FR-106）in `app/Services/ConsultationTranscriptService.php`
 - [x] T276 `ConsultationTranscriptService::proofread(string $dialogue): string` —— 分段（4000 字、切在講者邊界）逐段呼叫 `OpenAiService`，含防縮水檢查與 warning log（FR-107/FR-108）in `app/Services/ConsultationTranscriptService.php`
 - [x] T277 `ConsultationTranscriptService::summarise(string $transcript): ?string` in `app/Services/ConsultationTranscriptService.php`
-- [x] T278 `ProcessZoomTranscriptJob(int $noteId, array $payload, bool $force = false)`（`$tries = 3`、`$backoff = [60, 300, 900]`）：找 TRANSCRIPT 檔（缺則丟例外重試）→ 下載 → 解析 → 正規化 → 校訂 → 摘要，兩個守門各自檢查（FR-110/FR-112）in `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T278 `ProcessZoomTranscriptJob(int $noteId, array $payload, bool $force = false)`（`$tries = 3`、`$backoff = [60, 300, 900]`）：找 TRANSCRIPT 檔（缺則丟例外重試）→ 下載 → 解析 → 正規化 → 校訂 → 摘要，兩個守門各自檢查（FR-110/FR-112；逐字稿守門於 T293 改為 `transcriptIsSettled()`）in `app/Jobs/ProcessZoomTranscriptJob.php`
 - [x] T279 [P] `booking:fetch-transcript {note}` 手動指令（不進排程）in `app/Console/Commands/FetchConsultationTranscript.php`
 
 Phase 3 — 後台 UI
@@ -1500,12 +1503,20 @@ Phase 3 — 後台 UI
 - [x] T283 detail row 加「面談紀錄」區塊：`v-for` 列出該 email 的所有場次（`met_at` 標題 + 課程／顧問），每場一組可編輯摘要 + 兩個時間戳。**抽成 `ConsultationNotesPanel.vue` 獨立組件**（BookingListTab 已 1438 行）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
 - [x] T284 每場次內加「逐字稿」收合區塊（可編輯 textarea、等寬字體、複製按鈕）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
 - [x] T285 每場次加「重新產生摘要」按鈕 + 二次確認 in `ConsultationNotesPanel.vue`；姓名旁加場次數量標記 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T290 刪除場次（FR-118）：`destroy()` 硬刪除 + 稽核 log in `app/Http/Controllers/Admin/ConsultationNoteController.php`；`DELETE /admin/consultation-notes/{note}` in `routes/web.php`；場次抬頭右側「刪除場次」按鈕，確認文案依有無內容分級 in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
 
 Phase 4 — 測試與驗證
 
 - [x] T286 `ConsultationSummaryTest`：URL 驗證、驗簽失敗、逾時時間戳、講者匿名化（原始姓名不得出現）、防縮水、兩個覆寫守門、重跑不打 Zoom、憑證未設定、meeting_id 對不到 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [x] T286b `ConsultationNoteTest`：確認預約建列、改期更新 `met_at`、取消依內容有無決定刪或留（FR-114）、**同一 email 跨兩筆不同 lead 的場次會一起列出**（FR-116）、email 大小寫不影響歸戶（FR-115）in `tests/Feature/HighTicket/ConsultationNoteTest.php`
 - [x] T288 佇列連線與 timeout：新增 `database_long` 連線（`retry_after` 1800）、job 設 `$timeout = 1500` 並於非 sync 環境掛上該連線（FR-117）in `config/queue.php`, `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T292 面談紀錄 UX 收斂為兩個連結（FR-120）：`ConsultationSummaryModal.vue` 新組件（摘要檢視／編輯／重新產生）、`ConsultationNotesPanel.vue` 改為單行場次列、`downloadTranscript()` 輸出含 BOM 的 `.txt`、leads payload 改送 `transcript_bytes` in `resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue`, `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`, `app/Http/Controllers/Admin/ConsultationNoteController.php`, `app/Http/Controllers/Admin/HighTicketLeadController.php`, `routes/web.php`
+- [x] T293 清除逐字稿編輯路徑（FR-120）：移除 `updateTranscript()` 與其路由、`transcriptIsLocked()`，新增 migration `..._000003` 卸掉 `transcript_edited_at`；job 的守門改為 `transcriptIsSettled()`（`transcript_fetched_at` + 有內容），順帶擋掉 Zoom 兩個錄影事件造成的重複校訂 in `app/Http/Controllers/Admin/ConsultationNoteController.php`, `routes/web.php`, `app/Models/ConsultationNote.php`, `app/Jobs/ProcessZoomTranscriptJob.php`, `database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php`
+- [x] T292b 下載與 payload 測試：`.txt` 標頭與 BOM 正確、無逐字稿回 404、訪客被擋、**leads payload 不含逐字稿本文但有 `transcript_bytes`**（FR-120）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T291 補建指令 `booking:backfill-consultation-notes {--dry-run}`（FR-119）：`recordConsultationNote()` 改 public 供共用，略過已有紀錄／無時段／已取消 in `app/Console/Commands/BackfillConsultationNotes.php`, `app/Services/HighTicketBookingService.php`
+- [x] T291b 補建測試：補出缺漏的紀錄、可重複執行不產生重複列、`--dry-run` 不寫入、已取消的預約略過（FR-119）in `tests/Feature/HighTicket/ConsultationNoteTest.php`
+- [ ] T291c 正式站部署後執行 `php artisan booking:backfill-consultation-notes --dry-run` 確認清單，再實跑一次（上線前已確認的 7 筆預約，面談都還在 8/22–9/5）
+- [x] T290b 刪除場次測試：空場次可刪、**有內容的場次也可刪**、訪客不可刪、**已刪除的場次不因後續 webhook 復活**（FR-118）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
 - [ ] T287 使用者實測：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要自動出現；人工讀校訂稿確認未被摘要掉、無殘留真實姓名；`tail` log 確認無內容外洩
 
@@ -1975,6 +1986,10 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-08-16: 面談紀錄 UX 收斂（T292 / T292b，FR-120）— 原本每場次在展開列裡塞了一個摘要 textarea 加一個可收合的逐字稿 textarea，一位有三場面談的客戶等於三面牆，上下場次完全無法掃讀。改成單行場次列 + 兩個連結：摘要開 modal（沿用 `ReferrerDetailModal` 的 Teleport／ESC／背景鎖捲版型），逐字稿只給 `.txt` 下載。順手把 leads payload 裡的逐字稿本文拿掉改送 `LENGTH(transcript)` —— 「不直接呈現」若只是視覺上藏起來、本文仍躺在頁面原始碼裡，那叫裝飾不叫設計；一頁 20 筆 lead 各帶該客戶所有場次，本文可達 200k 字元。下載檔加 UTF-8 BOM，否則 Windows 記事本會把中文顯示成亂碼。**取捨已記入 FR-120**：逐字稿因此不可在後台編輯。702 passed。
+- 2026-08-16: 清除逐字稿編輯路徑（T293，FR-120）— 使用者確認逐字稿不需要編輯後，把上一步暫時留著的死路徑清掉：`updateTranscript()`、其路由、`transcriptIsLocked()`、以及 `transcript_edited_at` 欄位（migration `..._000003`）。留一個永遠為 null 的時間戳，等於邀請後人寫程式去檢查它。清的過程發現原本那道守門其實擋錯了東西：它防的是「人改過的稿被 webhook 蓋掉」，但真正會發生的是**同一場次收到兩次事件**（我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`，D88），而舊守門對此毫無作用 —— 等於同一份逐字稿付兩次校訂費，這個洞從一開始就在。改成 `transcriptIsSettled()`（`transcript_fetched_at` 有值且有內容）後兩者都擋住了，`--force` 仍可刻意重跑。701 passed。
+- 2026-08-16: 補建指令（T291 / T291b，FR-119）— 使用者回報「7 個人預約只有 1 個有面談紀錄」，並推測是「有錄影才建立」。查正式站資料後是部署時間：lead 64–71 於 06:08–11:27 UTC 確認，lead 72 於 13:17 UTC 確認，而功能是 12:09 UTC 推上去的 —— 分界線正好落在那裡。這暴露了一個規劃時沒想到的缺口：**紀錄只在確認當下建立，所以上線前的預約永遠不會有**，而沒有紀錄 webhook 就沒有 `zoom_meeting_id` 可對，逐字稿會被靜靜丟掉（只留一行 `no matching record`）。那 7 場面談都還在 8/22–9/5，補得回來。新增 `booking:backfill-consultation-notes`，與確認路徑共用 `recordConsultationNote()`（因此改為 public）—— 該方法本來就以 `zoom_meeting_id` 比對既有列，補建的冪等性是白撿的。687 passed。
+- 2026-08-16: 加刪除場次（T290 / T290b，FR-118）— 使用者回報有人誤入會議室、留下用不到的空紀錄，而面談紀錄一旦建立就沒有任何移除途徑（US14 的取消只在「無內容」時順帶刪列，且要先取消預約）。做成硬刪除：沒有還原介面可以正當化軟刪除，而隱藏的列在每一處以 email 查歷史的地方都還得再過濾一次。**刻意不設「有內容就不准刪」**—— 促成需求的正是一場短暫誤入而確實產生了錄影的會議，設限等於擋掉需求本身；改由 UI 依有無內容分級確認文案（有逐字稿時明說 Zoom 錄影過期後再也抓不回來），並在 server 端寫稽核 log（只記 note id、字元數與操作者 id，內容仍受 FR-109 約束）。另補一支測試釘住「已刪除的場次不因 Zoom 後續重送 `recording.completed` 而復活」—— Zoom 會連送數日，會復活的刪除鍵等於沒有。683 passed。
 - 2026-08-16: 修正佇列租約（T288，FR-117）— 使用者問「時間差多久」時才發現：這支 job 是全站第一個分鐘級的工作，而 worker 預設 timeout 60 秒、`database` 連線 `retry_after` 90 秒。前者會把校訂砍在半途，後者更糟 —— job 跑超過 90 秒佇列就判定它死了、把同一份 payload 交給第二個 worker，變成重複處理與重複付 OpenAI 費用。既有 5 支 job 都是幾秒內的寄信，所以從來沒人踩到。新增 `database_long` 連線（`retry_after` 1800）並讓 job 自帶 `$timeout = 1500`；獨立連線而非直接調高 `database`，是為了讓卡住的信件仍在 90 秒後重試。連線只在非 sync 環境掛上，否則測試與手動指令的 inline 執行會被打斷。679 passed 不變。**正式站需為此連線加第二個 worker（T289）**
 - 2026-08-16: US23 實作完成（T267–T286b，僅剩 T287 使用者實測）— `consultation_notes` 新表 + `ConsultationNote` model，`HighTicketLead::consultationNotes()` 刻意以 **email** 而非 `lead_id` 關聯（FR-116），所以買第二次的人所有場次會聚在一起。預約確認建列、改期搬 `met_at`、取消依內容有無決定刪或留，三個掛載點都在 `HighTicketBookingService`。Webhook 走 `/api/webhooks/zoom`：url_validation 先回、`v0:{ts}:{raw body}` HMAC 驗簽、5 分鐘時間戳容差，其餘例外一律吞掉回 200。
   **實作中抓到一個會毀掉所有中文逐字稿的 bug**：`preg_split('/\R/', ...)` 沒加 `/u` 時，`\R` 會匹配到 CJK 字元內部的 `0x85` 位元組，把中文字從中間切斷 —— 產出無效 UTF-8，接著每一次 `json_encode` 都失敗，而 job 的例外被 controller 吞掉，症狀是「逐字稿永遠是 null 且完全沒有錯誤訊息」。三處 split 全部補上 `/u`，並在 docblock 註明這個修飾符是功能性的不是裝飾。是測試的中文 fixture 逼出來的，用英文樣本永遠不會發現。

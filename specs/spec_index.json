@@ -2898,6 +2898,45 @@
       "status": "implemented"
     },
     {
+      "id": "010.us-18",
+      "module": "010-drip-email",
+      "title": "每封信各自設定發送日（可變間隔）",
+      "summary": "drip 序列信由等距間隔改為每封各自設定「訂閱後第幾天寄」（Day 0 → 3 → 7 → 14 → 30）；天數存 lessons.drip_day，null 時 fallback 舊公式 位次 × drip_interval_days，編輯介面為 CourseForm 排程表格，天數須嚴格遞增",
+      "heading": "### User Story 18 - 每封信各自設定發送日（可變間隔） (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-18---每封信各自設定發送日（可變間隔）-priority-p2",
+      "keywords": [
+        "發信排程",
+        "drip schedule",
+        "可變間隔",
+        "variable interval",
+        "drip_day",
+        "drip_interval_days",
+        "解鎖日",
+        "unlockDay",
+        "天數",
+        "cadence",
+        "排程表格",
+        "應寄數",
+        "Day 0",
+        "遞增",
+        "CourseForm",
+        "連鎖 Email 設定"
+      ],
+      "code_files": [
+        "database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php",
+        "app/Models/Lesson.php",
+        "app/Services/DripService.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "app/Http/Controllers/Admin/LessonController.php",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "tests/Feature/Drip/VariableScheduleTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "010.us-2",
       "module": "010-drip-email",
       "title": "已登入會員一鍵訂閱",

@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -104,13 +105,21 @@ class HighTicketLeadController extends Controller
                 'slots:id,lead_id,starts_at',
                 // Joined on email, so this pulls every session this person has
                 // ever had — including ones booked under a different lead
-                // (011 FR-116). Transcripts are large; the list only needs to
-                // know they exist, so the body is fetched lazily per row.
+                // (011 FR-116).
+                //
+                // The transcript body is deliberately absent: it can run to
+                // 200k characters, twenty leads to a page each carry every
+                // session that person ever had, and the panel now offers it as
+                // a download rather than on screen (FR-120). `LENGTH` (not
+                // MySQL's `CHAR_LENGTH`) because it has to work on the sqlite
+                // the tests run against, and bytes are what the download's size
+                // hint wants anyway.
                 'consultationNotes' => fn ($q) => $q->with('consultant:id,nickname')
                     ->select([
                         'id', 'email', 'source', 'lead_id', 'consultant_id', 'course_id',
                         'met_at', 'summary', 'summary_generated_at', 'summary_edited_at',
-                        'transcript', 'transcript_fetched_at', 'transcript_edited_at',
+                        'transcript_fetched_at',
+                        DB::raw('LENGTH(transcript) AS transcript_bytes'),
                     ]),
                 'consultationNotes.course:id,name',
             ])

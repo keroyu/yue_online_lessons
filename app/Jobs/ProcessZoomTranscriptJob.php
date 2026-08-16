@@ -74,10 +74,11 @@ class ProcessZoomTranscriptJob implements ShouldQueue
         ZoomTranscriptService $zoom,
         ConsultationTranscriptService $transcripts,
     ): void {
-        // A human edit outranks anything the model would produce, and skipping
-        // early also means we never pay for tokens to overwrite it (FR-110).
-        if ($note->transcriptIsLocked() && !$this->force) {
-            Log::info('Consultation transcript: skipped, human-edited', ['note_id' => $note->id]);
+        // Already fetched and proofread. Skipping early is what stops the second
+        // of Zoom's two recording events from paying for the same tokens twice
+        // (FR-110); `--force` is the way to redo one deliberately.
+        if ($note->transcriptIsSettled() && !$this->force) {
+            Log::info('Consultation transcript: skipped, already fetched', ['note_id' => $note->id]);
 
             return;
         }
