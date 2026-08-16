@@ -4,11 +4,16 @@ use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Purchase\FreePurchaseController;
 use App\Http\Controllers\Webhook\PortalyController;
+use App\Http\Controllers\Webhook\ZoomController;
 use Illuminate\Support\Facades\Route;
 
 // Portaly Webhook
 Route::post('/webhooks/portaly', [PortalyController::class, 'handle'])
     ->name('webhook.portaly');
+
+// Zoom cloud-recording webhook — consultation transcripts (011 US23)
+Route::post('/webhooks/zoom', [ZoomController::class, 'handle'])
+    ->name('webhook.zoom');
 
 // PayUni 統一金流
 Route::post('/webhooks/payuni', [PayuniController::class, 'notify'])

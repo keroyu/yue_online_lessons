@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\CourseImageController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\ConsultationNoteController;
 use App\Http\Controllers\Admin\ConsultationSlotController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
@@ -234,6 +235,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::put('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'reschedule'])->name('high-ticket-leads.reschedule');
         Route::delete('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'cancelBooking'])->name('high-ticket-leads.cancel-booking');
 
+        // Consultation records (011 US23) — edited from the leads page, so staff.
+        Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');
+        Route::patch('/consultation-notes/{note}/transcript', [ConsultationNoteController::class, 'updateTranscript'])->name('consultation-notes.transcript');
+        Route::post('/consultation-notes/{note}/regenerate-summary', [ConsultationNoteController::class, 'regenerateSummary'])->name('consultation-notes.regenerate-summary');
+
         // Drip letter preview (010 US17) — read-only, and staff-level because it
         // opens from the subscriber tab of the leads page above.
         Route::get('/drip/lessons/{lesson}/email-preview', DripLessonPreviewController::class)->name('drip.lesson-email-preview');
@@ -366,6 +372,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Payment settings
     Route::get('/settings/payment', [AdminSettingsController::class, 'showPayment'])->name('settings.payment');
     Route::post('/settings/payment', [AdminSettingsController::class, 'updatePayment'])->name('settings.payment.update');
+
+    // AI settings — credentials + per-feature prompts (000 US10). Admin-only:
+    // every save here changes behaviour and cost for the whole site.
+    Route::get('/settings/ai', [AdminSettingsController::class, 'showAi'])->name('settings.ai');
+    Route::post('/settings/ai', [AdminSettingsController::class, 'updateAi'])->name('settings.ai.update');
 
     // Points settings
     Route::get('/settings/points', [AdminSettingsController::class, 'showPoints'])->name('settings.points');

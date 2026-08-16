@@ -2,6 +2,12 @@
 id: 000-platform-core
 status: done
 owner_files:
+  - app/Models/AiPrompt.php
+  - app/Services/OpenAiService.php
+  - config/ai.php
+  - resources/js/Pages/Admin/Settings/Ai.vue
+  - database/migrations/2026_08_17_000002_create_ai_prompts_table.php
+  - tests/Feature/Platform/AiSettingsTest.php
   - app/Http/Controllers/Controller.php
   - resources/js/Components/Admin/HintBox.vue
   - app/Models/EmailSuppression.php
@@ -276,6 +282,27 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - [x] webhook secret 在後台 API 設定頁以遮罩欄位設定（留空不覆蓋，比照金流／CAPI／Zoom）
 - [x] secret 未設定時套件不掛驗簽 middleware、端點形同無認證 — 後台該欄位需標示此風險，且驗簽失敗回 403
 
+### User Story 10 - AI 設定與 Prompt 管理 (Priority: P2)
+
+011 US23 的面談摘要是本站第一個 AI 功能，但它不會是最後一個。這個故事把「用哪家、
+用哪個模型、每個用途的 instructions 是什麼」抽成一塊全站基礎設施，讓第二、第三個 AI
+功能上線時只需要插一列資料 + 呼叫一支 service，不必各自處理憑證、錯誤與模型選擇。
+
+後台獨立分頁 `/admin/settings/ai`：上半是服務憑證（API key + 全站預設模型），
+下半依**功能**分組列出所有 prompt，每個 prompt 各自可調 instructions 與**指定要用哪個模型**
+（便宜的校訂用 luna、需要判斷力的摘要單獨升級，互不影響）。目前只有「面談整理」一組。
+
+**驗收**：
+- [x] `/admin/settings/ai` 為 admin-only（不開給 staff：AI 憑證是全站設定，且會產生費用）
+- [x] 服務憑證區：`openai_api_key` 遮罩顯示、留空不覆蓋（沿用 D3/D13/D27 的既有 pattern）、`openai_default_model` 下拉
+- [x] Prompt 區以 `v-for` 依 `feature` 分組渲染 `ai_prompts` 全表，MUST NOT 寫死任何單一 prompt —— 新增 AI 功能後這頁自動多一組，不改 Vue
+- [x] 每列可編輯 `instructions`、`model`（含「使用全站預設」選項）、`max_output_tokens`，並唯讀顯示 label / description / `updated_at`
+- [x] 模型選項來自 `config/ai.php`，MUST NOT 硬寫在 Vue —— OpenAI 出新型號時改一行
+- [x] 後台 MUST NOT 能新增列、刪除列或修改 `key` / `feature` / `label`：一列對應一個程式裡寫死的呼叫點
+- [x] `OpenAiService::respond(string $promptKey, string $input): ?string` 為全站唯一的 OpenAI 呼叫點；憑證或 prompt 列不存在時回 null，不丟例外
+- [x] 側欄設定區加入口，與既有的積分／金流設定並列
+- [x] 測試：admin 可讀寫、staff 被擋、送進來的 `key` / `feature` / `label` 被忽略、`model` 覆寫生效
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -305,7 +332,15 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - **FR-025**: drip 序列 MUST 在 `processSubscription` 就跳過已封鎖的訂閱，不推進 `emails_sent`、不派 job — 只靠 MessageSending 攔會讓游標空轉、開信率分母持續被汙染
 - **FR-026**: US9 收得到事件的**前提**是寄件網域在 Resend 完成驗證、且 DNS 有那筆 `MX` 記錄 — 該 MX 正是收件方回報退信與投訴的通道，少了它 webhook 永遠不會被觸發，封鎖名單恆為空而且不會有任何錯誤訊息。此前提不在程式碼裡，只能靠後台 API 設定頁的說明傳達（見 US9 的設定說明），部署新站台時 MUST 一併檢查
 
+- **FR-027**: `ai_prompts` 的 `key` / `feature` / `label` 由**程式**擁有，後台只得編輯 `instructions` / `model` / `max_output_tokens`。`updateAi` MUST 忽略請求裡的其餘欄位，且 MUST NOT 提供新增／刪除列的路徑 —— 一列對應一個程式裡寫死的呼叫點，讓使用者自由增列只會產生沒有東西會讀的孤兒資料。新功能上線時由 migration 補列
+- **FR-028**: 安裝預設 prompt 的 migration MUST 採「逐筆查 `key`、缺才 insert、**永不 update**」（沿用 `2026_08_09_000003` 對 email template 的既有作法）。正式站的 instructions 可能已被業主調整過，`updateOrCreate` 會把它默默改回原廠值
+- **FR-029**: `OpenAiService::respond()` 為全站唯一的 OpenAI 呼叫點。憑證未設定或指定的 `ai_prompts` 列不存在時 MUST 回 `null` 而非丟例外 —— 呼叫端據此靜默跳過該功能，本機與 CI 永遠不需要真的 API key（沿用 011 D40 對 Zoom 的既有立場）。模型解析順序為 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`
+
 ## 設計決策
+
+- **D29**: AI prompt 存**獨立的 `ai_prompts` 表**，不散成 `site_settings` 的一堆 key。使用者要求這頁「方便以後擴展到其他 AI 功能」，而用表的話新增一個功能 = 插一列資料、設定頁自動長出區塊；用 site_settings 的話每加一個功能都要動 controller 與 Vue。這與 D2「新增設定鍵零 migration」不衝突：D2 的前提是設定鍵彼此獨立、UI 各自寫死，而 prompt 是**同構的一組**，同構的東西該用列而不是鍵。
+- **D30**: 每個 prompt 各自可指定 `model`，而不是全站一個模型設定（使用者決策）。同一個功能裡的不同步驟對智慧的需求差很多 —— 逐字稿校訂是機械活、摘要要判斷力，兩者用同一個模型不是浪費就是將就。`null` 表示「跟隨全站預設」，讓大多數 prompt 不必操心這件事。
+- **D31**: 獨立分頁 `/admin/settings/ai`，不塞進既有的「API 設定」（金流）頁。金流頁已經是四張憑證卡片，再加 AI 憑證 + N 組 prompt textarea 會變成一頁滾不完的東西；而且 AI 設定的擴展方向明確（會一直長），值得從一開始就有自己的地方。定為 admin-only 而非 staff：這裡的每一次儲存都會影響全站 AI 行為與費用。
 
 - **D1**: 條款內容做成靜態 Vue 組件而非 DB/CMS — 條款極少變動，改版走 git；否決後台編輯（過度設計）
 - **D2**: `site_settings` 採單表 key-value（`key` unique、`value` text）而非每功能一張設定表 — 新增設定鍵零 migration；型別轉換由讀取端負責（如積分參數 cast int）
@@ -351,8 +386,21 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
   不變量：`clicks` 只增不減（原子 `increment`，不重算）；`slug` 唯一且不得與任何已註冊路由的第一段相同；停用不刪資料（`is_active=false` 即 404，點擊數保留）。
 - `email_suppressions`（US9 新表）— Resend 判定為硬退信或垃圾信投訴的 email 封鎖名單；`email` varchar(255) unique（**恆為小寫**，寫入時正規化）、`reason` enum('bounce','complaint')、`detail` varchar(500) nullable（Resend 的 bounce `subType` / `message` 原文，供日後判讀真實原因）、`suppressed_at` timestamp、timestamps。
   不變量：一個 email 只有一列；`reason` 只能由 complaint 升級為 bounce，不可降級；本表只記「發生了什麼事實」，不記「要不要擋」（政策在 listener，見 D28）。
+- `ai_prompts`（US10 新表）— 全站 AI 功能的 prompt 與模型設定；`key` varchar(50) unique（程式對接鍵，比照 `email_templates.event_type` 的角色）、`feature` varchar(50)（功能分組，後台依此分區）、`label` varchar(100)、`description` varchar(255) nullable、`instructions` text、`model` varchar(50) nullable（null = 用 `openai_default_model`）、`max_output_tokens` unsigned int nullable、`sort_order` int default 0、timestamps。
+  不變量：列由 migration 建立，**後台不得新增、刪除或改 `key` / `feature` / `label`**（FR-027）；一個 `key` 對應程式裡恰好一個呼叫點，沒有呼叫點的列即為孤兒；安裝 migration 永不 update 既有列（FR-028）。
+- `site_settings` 新鍵（US10）：`openai_api_key`（機密、遮罩、留空不覆蓋）、`openai_default_model`（非機密，空 = 用 `config('ai.default_model')`）。
 
-## Tasks
+US 10（AI 設定與 Prompt 管理）：
+
+- [x] T0A1 migration 建 `ai_prompts` 表，並以「逐筆查 key、缺才 insert、永不 update」寫入 `consultation_transcript_proofread` 與 `consultation_summary` 兩列（FR-028）in `database/migrations/2026_08_17_000002_create_ai_prompts_table.php`
+- [x] T0A2 `config/ai.php`：`features`（feature → 中文顯示名）與 `models`（可選型號清單）+ `default_model` in `config/ai.php`
+- [x] T0A3 `AiPrompt` model：`fillable` 三欄 + `AiPrompt::for(string $key): ?self` in `app/Models/AiPrompt.php`
+- [x] T0A4 `OpenAiService::respond(string $promptKey, string $input): ?string` —— 讀憑證與 prompt、解析模型（FR-029）、`Http::withToken()->timeout(120)->retry(2, 2000, throw: false)` 打 `POST https://api.openai.com/v1/responses`、取 `output_text`（退回 `output.0.content.0.text`）、失敗帶 body 丟 RuntimeException in `app/Services/OpenAiService.php`
+- [x] T0A5 `SettingsController::ai()` / `updateAi()` —— 憑證沿用 `maskSecret()` 與留白不覆蓋；prompt 只更新三個可編欄位（FR-027）in `app/Http/Controllers/Admin/SettingsController.php`
+- [x] T0A6 路由 `GET|POST /admin/settings/ai` 加在 `admin` 群組（動詞比照同頁層級的 payment / points，皆為 post） in `routes/web.php`
+- [x] T0A7 `Ai.vue`：憑證區 + 依 feature 分組的 prompt 區（`v-for`，不寫死任何 prompt）in `resources/js/Pages/Admin/Settings/Ai.vue`
+- [x] T0A8 [P] 側欄設定區加「AI 設定」入口 in `resources/js/Layouts/AdminLayout.vue`
+- [x] T0A9 [P] `AiSettingsTest`：admin 可讀寫、staff 被擋、`key`/`feature`/`label` 被忽略、`model` 覆寫生效、憑證未設定時 `respond()` 回 null in `tests/Feature/Platform/AiSettingsTest.php`
 
 - [ ] T001 將 `resources/js/Pages/Error.vue` 掛上 exception handler（`bootstrap/app.php` 的 `withExceptions` 目前為空，403/404/500 仍走 Laravel 預設 HTML 錯誤頁，Error.vue 尚未被任何程式渲染）
 
@@ -433,6 +481,8 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-08-16: US10 AI 設定與 Prompt 管理完成（T0A1–T0A9 全數）— `ai_prompts` 表 + `AiPrompt` model + `OpenAiService::respond()` 全站唯一呼叫點 + `/admin/settings/ai` 分頁（依 feature 分組、`v-for` 渲染，新增 AI 功能不必改 Vue）。模型解析鏈 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`，兩個 prompt 各自指定模型的行為由測試釘住（校訂用 luna、摘要可單獨升級）。憑證沿用 D3 的遮罩＋留白不覆蓋。AiSettingsTest 16 passed；模組 status 轉回 `done`（US10 已完結，既有的 T001 Error.vue 仍未做，與本次無關）。
+- 2026-08-16: [draft] 規劃 US10 AI 設定與 Prompt 管理 — 011 US23 的面談摘要是本站第一個 AI 功能，趁這次把「用哪家、用哪個模型、每個用途的 instructions」抽成全站基礎設施，第二個 AI 功能上線時只要插一列 + 呼叫一支 service。三個關鍵決策：prompt 存獨立的 `ai_prompts` 表而非散成 site_settings 的鍵（D29 —— prompt 是同構的一組，同構的東西該用列；這也是使用者「方便以後擴展」要求的直接後果），每個 prompt 各自可指定模型（D30，使用者決策 —— 校訂是機械活、摘要要判斷力，同一個模型不是浪費就是將就），獨立分頁而非塞進金流的 API 設定頁（D31，admin-only，因為每次儲存都影響全站行為與費用）。`OpenAiService::respond()` 為全站唯一呼叫點，憑證未設定回 null 不丟例外（FR-029，沿用 011 D40 對 Zoom 的立場）。模組 status 由 `done` 轉 `draft` 待審。
 - 2026-08-06: 短網址管理畫面併入行銷分析頁成為分頁（正典在 002 US15），本模組這側的變動：`ShortLinks/Index.vue` 搬成 `Components/Admin/Analytics/ShortLinkTab.vue`、列表組裝上移為 `ShortLink::adminListing()`（畫面歸 002 的頁面管，資料形狀留在擁有這張表的模組，兩邊才不會各自漂移）、`ShortLinkController::index` 改為轉址而非刪除（這個路徑進過側欄也進過書籤，404 讀起來像「功能被拿掉了」）。側欄同時重排：移除短網址、Leads 名單與諮詢時段移到行銷分析之前、Email 模板移到 API 設定之前 —— 依接站時的實際使用頻率排，而非依功能加入的先後。US8 驗收條款已就地更新為新路徑。
 - 2026-08-06: API 設定頁的 Resend 區塊補完整設定說明，並把說明框改成可收合元件。查 Resend 官方文件時發現一條沒人會自己想到的依賴：驗證網域要加的那筆 `MX` 記錄，正是收件方回報退信與投訴的通道 —— 少了它 US9 的 webhook 永遠不會被觸發，而且封鎖名單只會安靜地保持空的，不會有任何錯誤。補成 FR-026。說明同時涵蓋三項仍在 `.env` 的設定（`RESEND_API_KEY` 只顯示一次、`MAIL_FROM_ADDRESS` 必須落在已驗證網域否則全站寄不出信、`MAIL_FROM_NAME`），因為量販給客戶時這些是對方自己要設的。四個說明框（Resend ×3、Zoom ×1）抽成 `HintBox.vue`：字級 `text-xs` → `text-sm`、預設收合 —— 這些是接站當天讀一次就不再看的內容，攤開只會把真正要填的欄位擠到摺線以下。觸發用 `<button type="button">`，框在 `<form>` 裡，不寫死 type 每點一次展開就送出整張表單。`npm run build` 綠、EmailSuppression/ShortLink 32 tests passed；未在瀏覽器實測（後台需 Email 驗證碼登入）。
 - 2026-08-06: /dev 完成 US9 退信與投訴自動標記 — `email_suppressions` 表 + `EmailSuppression`（小寫正規化、`reasonFor`/`reasonsFor` 單筆與批次查詢）、`EmailSuppressionService`（`record` 冪等升級、`blocks` 依 marketing 判斷）、`RecordEmailSuppression` 監聽 Resend `EmailBounced`/`EmailComplained`（只認 `Permanent`）、`BlockSuppressedRecipients` 監聽 `MessageSending` 單一攔截點（讀 `X-Mail-Class` 後移除該 header）、四支行銷 Mailable + `NotifyHighTicketSlotJob`（`withSymfonyMessage` 動態加 header，因 `TemplatedMail` 同時服務交易信）掛 marketing 標記、`DripService::processSubscription` 跳過已封鎖訂閱、leads/訂閱者名單顯示封鎖標記、API 設定頁加 `resend_webhook_secret` 遮罩欄位。**實作時修正 D27 的掛載點**：原規劃在 `AppServiceProvider::boot()` 依 `request()->is()` 判斷路徑，測試時發現 boot() 每個 process（測試裡是每個 test case）只跑一次、抓到的是啟動當下的 request 而非之後每次模擬的 HTTP 呼叫，導致 secret 永遠餵不進去；改監聽 `RouteMatched` 事件判斷路由名稱，行為正確且可用真實 HTTP 測試驗證，細節記在 D27。EmailSuppressionTest 16 tests，全套 519 passed、vite build 綠。T001（Error.vue exception handler）仍是既有 backlog，本次未動。

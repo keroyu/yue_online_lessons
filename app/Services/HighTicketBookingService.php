@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Exceptions\SlotUnavailableException;
 use App\Mail\BookingVerifyMail;
 use App\Mail\TemplatedMail;
+use App\Models\ConsultationNote;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use App\Models\User;
 use App\Support\PhoneNumber;
 use Carbon\CarbonInterface;
 use Illuminate\Mail\Mailables\Attachment;
@@ -221,6 +223,18 @@ class HighTicketBookingService
 
         $this->createMeetingAndConfirm($lead, $course, $startsAt);
 
+        // The CRM record for this session, created now rather than when the
+        // transcript arrives (FR-113) — the admin panel should show "已排定"
+        // before the meeting happens, not only after it.
+        try {
+            $this->recordConsultationNote($lead, $course, $startsAt);
+        } catch (\Exception $e) {
+            Log::error('High ticket booking: consultation note could not be created', [
+                'lead_id' => $lead->id,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
         try {
             app(DripService::class)->checkAndBook($lead->email, $course);
         } catch (\Exception $e) {
@@ -300,6 +314,40 @@ class HighTicketBookingService
 
             $this->sendConfirmationMail($lead, $course, '（會議連結將另行寄出）');
         }
+    }
+
+    /**
+     * Create (or move) this booking's consultation record (011 US23 / FR-113).
+     *
+     * Matched on `zoom_meeting_id` when there is one so a re-confirmation moves
+     * the existing row instead of producing a duplicate; without Zoom it falls
+     * back to this lead's own row.
+     */
+    private function recordConsultationNote(HighTicketLead $lead, Course $course, ?Carbon $startsAt): void
+    {
+        if (!$startsAt) {
+            return;
+        }
+
+        $lead->refresh();
+        $meetingId = trim((string) ($lead->zoom_meeting_id ?? ''));
+
+        $existing = $meetingId !== ''
+            ? ConsultationNote::where('zoom_meeting_id', $meetingId)->first()
+            : ConsultationNote::where('lead_id', $lead->id)->whereNull('zoom_meeting_id')->first();
+
+        $attributes = [
+            'email'           => $lead->email,
+            'source'          => ConsultationNote::SOURCE_HIGH_TICKET,
+            'lead_id'         => $lead->id,
+            'user_id'         => User::where('email', $lead->email)->value('id'),
+            'consultant_id'   => $lead->consultant_id,
+            'course_id'       => $course->id,
+            'met_at'          => Carbon::instance($startsAt)->utc(),
+            'zoom_meeting_id' => $meetingId !== '' ? $meetingId : null,
+        ];
+
+        $existing ? $existing->update($attributes) : ConsultationNote::create($attributes);
     }
 
     /**
@@ -513,6 +561,10 @@ class HighTicketBookingService
             '{{slot_time}}'     => $this->slots->label($newStart),
         ], $this->inviteAttachment($lead, $course, $newStart, $lead->zoom_join_url ?: null));
 
+        // The record follows the booking; no history row (011 US23 / FR-114,
+        // 沿用 US14 對 consultation_slots 的既有立場：只表達「現在」).
+        ConsultationNote::where('lead_id', $lead->id)->update(['met_at' => $newStart]);
+
         $zoomSynced = $this->syncZoom(
             fn (ZoomMeetingService $zoom) => $zoom->updateMeeting($lead->zoom_meeting_id, $newStart, $minutes),
             $lead->zoom_meeting_id,
@@ -563,6 +615,15 @@ class HighTicketBookingService
 
         $lead->increment('calendar_sequence');
         $lead->refresh();
+
+        // A cancelled session that was never held carries nothing worth keeping;
+        // one that already has a transcript or summary does — the conversation
+        // happened, only the follow-up was called off (011 FR-114).
+        ConsultationNote::where('lead_id', $lead->id)
+            ->get()
+            ->each(fn (ConsultationNote $note) => $note->isEmpty()
+                ? $note->delete()
+                : $note->update(['zoom_meeting_id' => null]));
 
         if ($course && $startsAt) {
             $this->sendChangeMail($lead, $course, 'high_ticket_booking_cancelled', [

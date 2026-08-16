@@ -34,6 +34,7 @@ main_files:
 - app/Mail/DripLessonMail.php
 - app/Mail/NewsletterBroadcastMail.php
 - app/Mail/NewsletterWelcomeMail.php
+- app/Models/AiPrompt.php
 - app/Models/EmailSuppression.php
 - app/Models/Order.php
 - app/Models/ShortLink.php
@@ -45,14 +46,17 @@ main_files:
 - app/Services/HighTicketBookingService.php
 - app/Services/MetaConversionsService.php
 - app/Services/NewsletterService.php
+- app/Services/OpenAiService.php
 - app/Services/PortalyWebhookService.php
 - bootstrap/app.php
+- config/ai.php
 - config/services.php
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
 - database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
 - database/migrations/2026_07_31_000001_create_short_links_table.php
 - database/migrations/2026_08_09_000001_create_email_suppressions_table.php
+- database/migrations/2026_08_17_000002_create_ai_prompts_table.php
 - database/seeders/ShortLinkSeeder.php
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/HintBox.vue
@@ -66,11 +70,13 @@ main_files:
 - resources/js/Components/Legal/PurchaseContent.vue
 - resources/js/Components/Legal/TermsContent.vue
 - resources/js/Layouts/AdminLayout.vue
+- resources/js/Pages/Admin/Settings/Ai.vue
 - resources/js/Pages/Admin/Settings/Payment.vue
 - resources/js/app.js
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
 - routes/web.php
+- tests/Feature/Platform/AiSettingsTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/ShortLinkTest.php
 
@@ -557,10 +563,12 @@ purpose: 高價課預約 — 隱藏價格銷售頁預約表單、leads 後台、
 specs: specs/011-high-ticket/
 
 main_files:
+- app/Console/Commands/FetchConsultationTranscript.php
 - app/Console/Commands/ReleaseExpiredBookingHolds.php
 - app/Console/Commands/SendConsultationReminders.php
 - app/Exceptions/SlotUnavailableException.php
 - app/Http/Controllers/Admin/ChapterController.php
+- app/Http/Controllers/Admin/ConsultationNoteController.php
 - app/Http/Controllers/Admin/ConsultationSlotController.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/CoursePlanController.php
@@ -574,6 +582,7 @@ main_files:
 - app/Http/Controllers/HighTicketBookingController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/LearningController.php
+- app/Http/Controllers/Webhook/ZoomController.php
 - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
 - app/Http/Requests/Admin/EmailTemplateRequest.php
 - app/Http/Requests/Admin/RescheduleBookingRequest.php
@@ -588,6 +597,7 @@ main_files:
 - app/Http/Requests/HighTicketBookingRequest.php
 - app/Http/Requests/Member/UpdateProfileRequest.php
 - app/Jobs/NotifyHighTicketSlotJob.php
+- app/Jobs/ProcessZoomTranscriptJob.php
 - app/Jobs/SendDripEmailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
@@ -595,6 +605,7 @@ main_files:
 - app/Mail/CourseGiftedMail.php
 - app/Mail/LessonAddedNotification.php
 - app/Mail/TemplatedMail.php
+- app/Models/ConsultationNote.php
 - app/Models/ConsultationSlot.php
 - app/Models/Course.php
 - app/Models/CoursePlan.php
@@ -606,11 +617,14 @@ main_files:
 - app/Models/User.php
 - app/Services/CalendarInviteService.php
 - app/Services/ConsultationSlotService.php
+- app/Services/ConsultationTranscriptService.php
 - app/Services/DripService.php
 - app/Services/EmailMarkdownService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/HighTicketLeadService.php
 - app/Services/ZoomMeetingService.php
+- app/Services/ZoomTranscriptService.php
+- app/Services/ZoomWebhookService.php
 - app/Support/PhoneNumber.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
@@ -632,11 +646,13 @@ main_files:
 - database/migrations/2026_08_13_000001_create_course_plans_table.php
 - database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php
 - database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php
+- database/migrations/2026_08_17_000001_create_consultation_notes_table.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
+- resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/MemberDetailModal.vue
@@ -654,6 +670,7 @@ main_files:
 - resources/views/emails/booking-verify.blade.php
 - resources/views/emails/high-ticket-booking.blade.php
 - resources/views/emails/template-text.blade.php
+- routes/api.php
 - routes/console.php
 - routes/web.php
 - tests/Feature/HighTicket/BookingChangeTest.php
@@ -662,8 +679,10 @@ main_files:
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+- tests/Feature/HighTicket/ConsultationNoteTest.php
 - tests/Feature/HighTicket/ConsultationReminderTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php
+- tests/Feature/HighTicket/ConsultationSummaryTest.php
 - tests/Feature/HighTicket/ConversionStatsTest.php
 - tests/Feature/HighTicket/CoursePlanTest.php
 - tests/Feature/HighTicket/DuplicateBookingTest.php

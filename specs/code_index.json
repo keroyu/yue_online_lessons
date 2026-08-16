@@ -6,6 +6,9 @@
     "app/Console/Commands/CleanDormantSubscribers.php": [
       "012.us-7"
     ],
+    "app/Console/Commands/FetchConsultationTranscript.php": [
+      "011.us-23"
+    ],
     "app/Console/Commands/MaturePoints.php": [
       "007.us-2"
     ],
@@ -43,6 +46,9 @@
       "004.us-3",
       "006.us-5",
       "011.us-21"
+    ],
+    "app/Http/Controllers/Admin/ConsultationNoteController.php": [
+      "011.us-23"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
       "011.us-10",
@@ -99,6 +105,7 @@
       "011.us-20",
       "011.us-21",
       "011.us-22",
+      "011.us-23",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -151,13 +158,15 @@
       "007.us-8"
     ],
     "app/Http/Controllers/Admin/SettingsController.php": [
+      "000.us-10",
       "000.us-5",
       "000.us-7",
       "000.us-9",
       "007.us-4",
       "007.us-5",
       "007.us-7",
-      "011.us-12"
+      "011.us-12",
+      "011.us-23"
     ],
     "app/Http/Controllers/Admin/ShortLinkController.php": [
       "000.us-8",
@@ -319,6 +328,9 @@
     ],
     "app/Http/Controllers/Webhook/PortalyController.php": [
       "005.us-6"
+    ],
+    "app/Http/Controllers/Webhook/ZoomController.php": [
+      "011.us-23"
     ],
     "app/Http/Middleware/AdminMiddleware.php": [
       "000.us-2"
@@ -497,6 +509,9 @@
       "011.us-4",
       "011.us-7"
     ],
+    "app/Jobs/ProcessZoomTranscriptJob.php": [
+      "011.us-23"
+    ],
     "app/Jobs/SendBroadcastEmailJob.php": [
       "012.us-5"
     ],
@@ -568,6 +583,9 @@
       "001.us-1",
       "012.us-4"
     ],
+    "app/Models/AiPrompt.php": [
+      "000.us-10"
+    ],
     "app/Models/Assignment.php": [
       "003.us-5",
       "003.us-6"
@@ -587,6 +605,9 @@
     "app/Models/Comment.php": [
       "003.us-5",
       "003.us-6"
+    ],
+    "app/Models/ConsultationNote.php": [
+      "011.us-23"
     ],
     "app/Models/ConsultationSlot.php": [
       "011.us-10",
@@ -646,6 +667,7 @@
       "011.us-15",
       "011.us-19",
       "011.us-2",
+      "011.us-23",
       "011.us-3",
       "011.us-9"
     ],
@@ -774,6 +796,9 @@
       "011.us-17",
       "011.us-20"
     ],
+    "app/Services/ConsultationTranscriptService.php": [
+      "011.us-23"
+    ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
     ],
@@ -823,6 +848,7 @@
       "011.us-19",
       "011.us-2",
       "011.us-20",
+      "011.us-23",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -849,6 +875,9 @@
     ],
     "app/Services/OgImageService.php": [
       "012.us-2"
+    ],
+    "app/Services/OpenAiService.php": [
+      "000.us-10"
     ],
     "app/Services/PayuniService.php": [
       "005.us-3",
@@ -913,6 +942,12 @@
       "011.us-14",
       "011.us-15"
     ],
+    "app/Services/ZoomTranscriptService.php": [
+      "011.us-23"
+    ],
+    "app/Services/ZoomWebhookService.php": [
+      "011.us-23"
+    ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
     ],
@@ -921,6 +956,9 @@
       "000.us-7",
       "002.us-10",
       "010.us-6"
+    ],
+    "config/ai.php": [
+      "000.us-10"
     ],
     "config/drip.php": [
       "010.us-10"
@@ -1163,6 +1201,12 @@
     "database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php": [
       "002.us-17"
     ],
+    "database/migrations/2026_08_17_000001_create_consultation_notes_table.php": [
+      "011.us-23"
+    ],
+    "database/migrations/2026_08_17_000002_create_ai_prompts_table.php": [
+      "000.us-10"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1230,8 +1274,12 @@
       "011.us-18",
       "011.us-21",
       "011.us-22",
+      "011.us-23",
       "011.us-8",
       "011.us-9"
+    ],
+    "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue": [
+      "011.us-23"
     ],
     "resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue": [
       "010.us-17"
@@ -1419,6 +1467,7 @@
       "012.us-4"
     ],
     "resources/js/Layouts/AdminLayout.vue": [
+      "000.us-10",
       "000.us-2",
       "000.us-6",
       "000.us-8",
@@ -1542,11 +1591,15 @@
       "012.us-1",
       "012.us-8"
     ],
+    "resources/js/Pages/Admin/Settings/Ai.vue": [
+      "000.us-10"
+    ],
     "resources/js/Pages/Admin/Settings/Payment.vue": [
       "000.us-7",
       "000.us-9",
       "011.us-12",
-      "011.us-15"
+      "011.us-15",
+      "011.us-23"
     ],
     "resources/js/Pages/Admin/Settings/Points.vue": [
       "007.us-4",
@@ -1705,7 +1758,8 @@
     ],
     "routes/api.php": [
       "005.us-5",
-      "005.us-7"
+      "005.us-7",
+      "011.us-23"
     ],
     "routes/console.php": [
       "004.us-5",
@@ -1716,6 +1770,7 @@
       "012.us-7"
     ],
     "routes/web.php": [
+      "000.us-10",
       "000.us-2",
       "000.us-6",
       "000.us-8",
@@ -1732,6 +1787,7 @@
       "011.us-14",
       "011.us-15",
       "011.us-20",
+      "011.us-23",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1792,6 +1848,9 @@
     "tests/Feature/HighTicket/ConsultantAssignmentTest.php": [
       "011.us-15"
     ],
+    "tests/Feature/HighTicket/ConsultationNoteTest.php": [
+      "011.us-23"
+    ],
     "tests/Feature/HighTicket/ConsultationReminderTest.php": [
       "011.us-19"
     ],
@@ -1800,6 +1859,9 @@
       "011.us-13",
       "011.us-17",
       "011.us-20"
+    ],
+    "tests/Feature/HighTicket/ConsultationSummaryTest.php": [
+      "011.us-23"
     ],
     "tests/Feature/HighTicket/ConversionStatsTest.php": [
       "011.us-22"
@@ -1855,6 +1917,9 @@
     ],
     "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
+    ],
+    "tests/Feature/Platform/AiSettingsTest.php": [
+      "000.us-10"
     ],
     "tests/Feature/Platform/EmailSuppressionTest.php": [
       "000.us-9"

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiPrompt;
 use App\Models\SiteSetting;
+use App\Services\OpenAiService;
 use App\Services\ZoomMeetingService;
+use App\Services\ZoomWebhookService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -53,6 +56,10 @@ class SettingsController extends Controller
                 'client_secret'         => '',
                 'client_secret_preview' => $this->maskSecret(SiteSetting::get(ZoomMeetingService::CLIENT_SECRET_KEY, '')),
                 'enabled'               => app(ZoomMeetingService::class)->isEnabled(),
+                // 011 US23: the recording webhook's Secret Token. Blank means
+                // the endpoint refuses every event rather than running unsigned.
+                'webhook_secret'         => '',
+                'webhook_secret_preview' => $this->maskSecret(SiteSetting::get(ZoomWebhookService::SECRET_KEY, '')),
             ],
         ]);
     }
@@ -75,6 +82,7 @@ class SettingsController extends Controller
             'zoom_account_id'    => ['nullable', 'string', 'max:100'],
             'zoom_client_id'     => ['nullable', 'string', 'max:100'],
             'zoom_client_secret' => ['nullable', 'string', 'max:200'],
+            'zoom_webhook_secret_token' => ['nullable', 'string', 'max:200'],
         ]);
 
         $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env', 'zoom_account_id', 'zoom_client_id'];
@@ -84,7 +92,7 @@ class SettingsController extends Controller
             }
         }
 
-        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token', 'resend_webhook_secret', 'zoom_client_secret'];
+        $secretFields = ['payuni_hash_key', 'payuni_hash_iv', 'newebpay_hash_key', 'newebpay_hash_iv', 'portaly_webhook_key', 'meta_capi_access_token', 'resend_webhook_secret', 'zoom_client_secret', 'zoom_webhook_secret_token'];
         foreach ($secretFields as $key) {
             // ConvertEmptyStringsToNull turns '' into null; both mean "keep the old secret"
             $value = (string) $request->input($key, '');
@@ -97,6 +105,91 @@ class SettingsController extends Controller
         SiteSetting::set('meta_capi_test_event_code', $request->input('meta_capi_test_event_code') ?? '');
 
         return redirect()->back()->with('success', 'API 設定已儲存');
+    }
+
+    /**
+     * Site-wide AI settings (000 US10).
+     *
+     * Separate page rather than another card on the payment screen: this one is
+     * expected to keep growing a group per AI feature (D31), and every save here
+     * changes behaviour and cost for the whole site — hence admin-only.
+     */
+    public function showAi(): Response
+    {
+        $features = (array) config('ai.features', []);
+
+        return Inertia::render('Admin/Settings/Ai', [
+            'credentials' => [
+                'api_key'         => '',
+                'api_key_preview' => $this->maskSecret(SiteSetting::get(OpenAiService::API_KEY, '')),
+                'default_model'   => SiteSetting::get(OpenAiService::DEFAULT_MODEL_KEY, ''),
+                'enabled'         => app(OpenAiService::class)->isEnabled(),
+            ],
+            'models'   => (array) config('ai.models', []),
+            'features' => $features,
+            // Grouped by feature so the page renders whatever exists; adding an
+            // AI feature is a migration, not a Vue change (US10 acceptance).
+            'prompts' => AiPrompt::query()
+                ->orderBy('feature')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (AiPrompt $prompt) => [
+                    'id'                => $prompt->id,
+                    'key'               => $prompt->key,
+                    'feature'           => $prompt->feature,
+                    'feature_label'     => $features[$prompt->feature] ?? $prompt->feature,
+                    'label'             => $prompt->label,
+                    'description'       => $prompt->description,
+                    'instructions'      => $prompt->instructions,
+                    'model'             => $prompt->model,
+                    'max_output_tokens' => $prompt->max_output_tokens,
+                    'updated_at'        => $prompt->updated_at?->toIso8601String(),
+                ])
+                ->values(),
+        ]);
+    }
+
+    public function updateAi(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'openai_api_key'       => ['nullable', 'string', 'max:200'],
+            'openai_default_model' => ['nullable', 'string', 'max:50'],
+            'prompts'                      => ['sometimes', 'array'],
+            'prompts.*.id'                 => ['required', 'integer'],
+            'prompts.*.instructions'       => ['required', 'string', 'max:20000'],
+            'prompts.*.model'              => ['nullable', 'string', 'max:50'],
+            'prompts.*.max_output_tokens'  => ['nullable', 'integer', 'min:1', 'max:128000'],
+        ]);
+
+        // Blank means "keep the stored secret" — same contract as every other
+        // credential field on the site (D3).
+        $apiKey = (string) $request->input('openai_api_key', '');
+        if ($apiKey !== '') {
+            SiteSetting::set(OpenAiService::API_KEY, $apiKey);
+        }
+
+        SiteSetting::set(OpenAiService::DEFAULT_MODEL_KEY, $request->input('openai_default_model') ?? '');
+
+        // Only ever updates rows that already exist, and only the three tunable
+        // columns — `key` / `feature` / `label` belong to the code (FR-027).
+        foreach ($validated['prompts'] ?? [] as $row) {
+            $prompt = AiPrompt::find($row['id']);
+
+            if ($prompt === null) {
+                continue;
+            }
+
+            $model = trim((string) ($row['model'] ?? ''));
+
+            $prompt->update([
+                'instructions'      => $row['instructions'],
+                'model'             => $model !== '' ? $model : null,
+                'max_output_tokens' => $row['max_output_tokens'] ?? null,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'AI 設定已儲存');
     }
 
     public function showPoints(Request $request): Response

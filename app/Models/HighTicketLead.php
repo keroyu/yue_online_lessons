@@ -67,6 +67,19 @@ class HighTicketLead extends Model
         return $this->belongsTo(User::class, 'consultant_id');
     }
 
+    /**
+     * Every consultation this person has had — joined on email, not id (011 FR-116).
+     *
+     * Deliberately not `hasMany(..., 'lead_id')`: someone who books a second
+     * session, or later buys 1-on-1 coaching, produces rows that belong to no
+     * lead. Keying on email is what makes the admin panel show one customer's
+     * whole history instead of one booking's.
+     */
+    public function consultationNotes(): HasMany
+    {
+        return $this->hasMany(ConsultationNote::class, 'email', 'email')->orderByDesc('met_at');
+    }
+
     /** Slots this lead holds — 2 rows for a 30-minute consultation, 3 for 45. */
     public function slots(): HasMany
     {

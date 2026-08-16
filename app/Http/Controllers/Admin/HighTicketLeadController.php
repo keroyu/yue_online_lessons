@@ -98,7 +98,22 @@ class HighTicketLeadController extends Controller
         }
 
         $leads = $this->bookingLeadsQuery($search, $courseId, $consultant)
-            ->with(['course:id,name', 'consultant:id,nickname,email', 'slots:id,lead_id,starts_at'])
+            ->with([
+                'course:id,name',
+                'consultant:id,nickname,email',
+                'slots:id,lead_id,starts_at',
+                // Joined on email, so this pulls every session this person has
+                // ever had — including ones booked under a different lead
+                // (011 FR-116). Transcripts are large; the list only needs to
+                // know they exist, so the body is fetched lazily per row.
+                'consultationNotes' => fn ($q) => $q->with('consultant:id,nickname')
+                    ->select([
+                        'id', 'email', 'source', 'lead_id', 'consultant_id', 'course_id',
+                        'met_at', 'summary', 'summary_generated_at', 'summary_edited_at',
+                        'transcript', 'transcript_fetched_at', 'transcript_edited_at',
+                    ]),
+                'consultationNotes.course:id,name',
+            ])
             ->when($status, fn ($q) => $q->byStatus($status))
             ->orderBy('booked_at', 'desc')
             ->paginate(20)

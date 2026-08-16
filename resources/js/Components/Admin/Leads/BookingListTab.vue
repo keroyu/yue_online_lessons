@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
+import ConsultationNotesPanel from '@/Components/Admin/Leads/ConsultationNotesPanel.vue'
 
 const props = defineProps({
   leads: {
@@ -873,6 +874,17 @@ const copySelectedEmails = async () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
                 {{ lead.name }}
+                <!-- 011 US23: how many consultations sit behind this row. -->
+                <span
+                  v-if="lead.consultation_notes?.length"
+                  class="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600"
+                  :title="`${lead.consultation_notes.length} 場面談紀錄`"
+                >
+                  <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {{ lead.consultation_notes.length }}
+                </span>
               </button>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
@@ -1001,6 +1013,9 @@ const copySelectedEmails = async () => {
                 </div>
               </div>
               <p v-else class="text-sm text-gray-400 border-t border-gray-200 pt-4">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
+
+              <!-- 011 US23：這個 email 的所有面談場次，不只這一筆預約 -->
+              <ConsultationNotesPanel :notes="lead.consultation_notes || []" />
             </td>
           </tr>
           </template>

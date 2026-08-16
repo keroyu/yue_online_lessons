@@ -44,6 +44,26 @@ return [
             'after_commit' => false,
         ],
 
+        /*
+         * Same table, far longer lease — for jobs that legitimately run for
+         * minutes (011 US23: proofreading an hour-long transcript is several
+         * sequential LLM calls).
+         *
+         * `retry_after` MUST stay above the job's own `$timeout`, or the queue
+         * decides the job died while it is still working and hands the same
+         * payload to a second worker: duplicate processing and duplicate API
+         * spend. Kept as its own connection so a stuck *email* still retries in
+         * 90 seconds instead of half an hour.
+         */
+        'database_long' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => env('DB_QUEUE_LONG', 'long'),
+            'retry_after' => (int) env('DB_QUEUE_LONG_RETRY_AFTER', 1800),
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

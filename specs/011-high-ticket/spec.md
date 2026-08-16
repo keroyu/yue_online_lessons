@@ -99,6 +99,18 @@ owner_files:
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
   - tests/Feature/HighTicket/LeadsTabsTest.php
   - tests/Feature/HighTicket/ExpiredApplicationPurgeTest.php
+  - app/Models/ConsultationNote.php
+  - app/Http/Controllers/Admin/ConsultationNoteController.php
+  - app/Http/Controllers/Webhook/ZoomController.php
+  - app/Services/ZoomWebhookService.php
+  - app/Services/ZoomTranscriptService.php
+  - app/Services/ConsultationTranscriptService.php
+  - app/Jobs/ProcessZoomTranscriptJob.php
+  - app/Console/Commands/FetchConsultationTranscript.php
+  - database/migrations/2026_08_17_000001_create_consultation_notes_table.php
+  - tests/Feature/HighTicket/ConsultationSummaryTest.php
+  - tests/Feature/HighTicket/ConsultationNoteTest.php
+  - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
 touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
@@ -204,7 +216,16 @@ touchpoints:
     why: US12 在「API 設定」頁（`showPayment` / `updatePayment`）加一組 Zoom 憑證欄位，沿用該頁既有的 `maskSecret()` 與「留白即維持原值」的 secret 處理（D41），不新增頁面與路由
   - file: resources/js/Pages/Admin/Settings/Payment.vue
     owner: 000-platform-core
-    why: US12 新增「Zoom 會議」設定卡（account_id / client_id 明文、client_secret 遮罩），版面比照同頁既有的金流與 Meta CAPI 卡片
+    why: US12 新增「Zoom 會議」設定卡（account_id / client_id 明文、client_secret 遮罩），版面比照同頁既有的金流與 Meta CAPI 卡片；US23 於同卡再加 `zoom_webhook_secret_token` 遮罩欄位與唯讀的 webhook URL 供複製
+  - file: routes/api.php
+    owner: 000-platform-core
+    why: US23 新增 `POST /api/webhooks/zoom`；該群組無 session / CSRF，與既有三個金流／Portaly webhook 同性質（000 FR-002）
+  - file: app/Models/AiPrompt.php
+    owner: 000-platform-core
+    why: US23 以 `AiPrompt::for('consultation_transcript_proofread' / 'consultation_summary')` 取用 instructions 與模型；prompt 本身是全站 AI 設定的一部分，由 000 US10 擁有
+  - file: app/Services/OpenAiService.php
+    owner: 000-platform-core
+    why: US23 的校訂與摘要都經由這支通用呼叫發出；本模組不自行組裝 OpenAI 請求，否則第二個 AI 功能上線時會有兩份憑證與錯誤處理
 ---
 
 # High Ticket（高價課預約：隱藏價格銷售頁 + Leads 後台 + Email 模板系統）
@@ -701,6 +722,48 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 手機寬度下摘要換行到色塊列下方，不擠壓色塊
 - [x] 測試：篩選連動（顧問／課程）、狀態 tab 不影響、同人多課去重、退款不計、跨月邊界以台北時間切分
 
+### User Story 23 - 面談逐字稿自動摘要 (Priority: P2)
+
+這條銷售線在「面談之後」是斷的。`high_ticket_leads` 記了誰、什麼時候、哪位顧問、Zoom 連結，
+但**面談裡談了什麼完全沒有留下** —— 這張表連一個備註欄位都沒有，唯一的自由文字是
+前台問卷填的 `bottleneck` / `expertise`，而那是面談**之前**的答案。談完一輪，客戶的痛點、
+預算、異議、承諾事項全在顧問腦袋裡，換人接手或隔週回訪就要重問一次。
+
+面談結束、Zoom 產出雲端錄影的 VTT 逐字稿後，系統自動抓回來、校訂成乾淨的匿名對話稿存檔，
+再萃取成固定格式的摘要。兩者都能在後台再編輯。
+
+紀錄落在新的 `consultation_notes` 表，**一場面談一列、以 email 對應客戶**（D92）：
+買了多次一對一顧問的人會累積出完整的面談史，而即將開發的「客戶自行登記時段的顧問服務」
+也寫進同一張表。後台展開一位 lead 時看到的是**這個 email 的所有場次**，不只這次預約 ——
+這才是 CRM 該有的樣子。
+
+面談列在**預約確認當下**就建立（此時 Zoom 會議剛開好、時段已定），逐字稿與摘要之後補上。
+webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
+
+**驗收**：
+- [x] Zoom 的 `endpoint.url_validation` 挑戰在驗簽之前處理，回 `plainToken` + HMAC-SHA256 的 `encryptedToken`，3 秒內完成
+- [x] 其餘事件一律驗 `x-zm-signature`（`v0=` + HMAC-SHA256 of `v0:{timestamp}:{raw body}`，`hash_equals` 比對）；不符或時間戳超過 5 分鐘 → 401
+- [x] 只認 `recording.transcript_completed` 與 `recording.completed`，其餘事件回 200 忽略
+- [x] webhook 端點只做「驗簽 → 找 lead → 派 job → 回 200」，所有處理在佇列；處理中的例外一律吞掉並回 200
+- [x] 派工走專屬的長租約佇列連線，job `$timeout` 大於實際工作時間、連線 `retry_after` 又大於 `$timeout`（FR-117）
+- [x] 預約確認成功時建立一列 `consultation_notes`（email、met_at、zoom_meeting_id、consultant_id、course_id、lead_id、source=`high_ticket_booking`）
+- [x] 改期 → 更新該列 `met_at`；取消 → 該列**無逐字稿也無摘要時才刪除**，已有內容則保留
+- [x] `zoom_meeting_id` 對不到任何 note → 寫 log 回 200，MUST NOT 視為錯誤（可能是非面談用途的會議）
+- [x] VTT 解析剝除 `WEBVTT` 檔頭、cue 序號、時間軸與空行，同一講者連續行合併
+- [x] 講者以 `lead.name` / `lead.consultant.name` **機械式**對應為「客戶」／「顧問」，MUST NOT 交給模型猜；未能對應者才由校訂階段依語境判定
+- [x] 校訂分段送出（約 4000 字／段，切在講者邊界），要求逐句保留、只修錯字與贅詞
+- [x] 防縮水：任一段輸出長度 < 輸入的 60% 即視為模型擅自摘要，保留該段機械式原文並寫 warning log
+- [x] 落庫的逐字稿只有校訂後的匿名版；**原始 VTT、Zoom 顯示名稱與真實人名 MUST NOT 進資料庫、MUST NOT 進 log**
+- [x] 摘要以校訂後的逐字稿為輸入，依 `ai_prompts` 的 instructions 產出固定 Markdown 結構
+- [x] 後台展開 lead 時列出**該 email 的所有面談場次**（依 `met_at` 倒序），不只本次預約那一場
+- [x] 逐字稿與摘要在每一列場次上皆可編輯儲存，各自蓋上 `*_edited_at`
+- [x] `consultation_transcript_edited_at` 有值 → webhook 不覆寫逐字稿，且不重跑校訂（不浪費 token）
+- [x] `consultation_summary_edited_at` 有值 → webhook 不覆寫摘要；後台「重新產生摘要」按鈕可明確解鎖重跑
+- [x] 「重新產生摘要」用資料庫既存的逐字稿重跑，**MUST NOT 再打 Zoom**（雲端錄影有保存期限）；逐字稿為空時回 422 而非 500
+- [x] `openai_api_key` 未設定時 AI 步驟靜默跳過、不丟例外，逐字稿仍以機械式解析結果落庫
+- [ ] `php artisan booking:fetch-transcript {note}` 可在沒有 webhook 的情況下手動跑完整條流程（指令已實作，但需真實錄影才驗得了 —— 見 T287）
+- [x] 測試：URL 驗證、驗簽失敗、講者匿名化、防縮水、兩個覆寫守門、重跑不打 Zoom、憑證未設定
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -961,8 +1024,40 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - **FR-099**: 計入條件為 `type = 'lead_conversion'` **且** `status = 'paid'`。退款作廢的成交 MUST NOT 計入營收 —— 這與 FR-008 把 `refunded` 視為可覆寫的作廢紀錄是同一個立場。成交人數 MUST 以 `count(distinct users.email)` 計算，金額以 `sum(purchases.amount)`；同一 email 在範圍內有多筆 lead（不同課程）時，購買紀錄 MUST 只算一次
 - **FR-100**: 方案升級的補價（FR-094）**計入原成交月**（使用者決策）。補價是累加到既有 `purchases.amount` 上，`created_at` 不動，所以 8 月成交、9 月補的 5 萬會出現在 8 月的數字裡。**這是已知的失真，不是 bug**：要讓月營收反映實際進帳，需要一張逐筆進帳的記錄表與改寫升級流程，那是獨立的一個故事；在只有「後台手動開通」這一條成交路徑、補價又不常見的現況下，不值得為它先付這個成本
 
+- **FR-101**: `endpoint.url_validation` MUST 在驗簽**之前**回應。Zoom 的 CRC 挑戰本身就是用來建立信任的握手，先驗簽等於要求對方先證明一件還沒建立的事；回應內容為 `{plainToken, encryptedToken}`，`encryptedToken = hash_hmac('sha256', $plainToken, $secret)`，且 MUST 在 3 秒內完成（Zoom 的硬性上限）
+- **FR-102**: 其餘所有事件 MUST 驗簽：訊息為 `"v0:{x-zm-request-timestamp}:{raw request body}"`，期望值 `'v0=' . hash_hmac('sha256', $message, $secret)`，以 `hash_equals` 比對 `x-zm-signature`。不符 → 401。時間戳與現在相差超過 5 分鐘 → 401（擋重放）。**raw body MUST 取自 `$request->getContent()`**，不得用重新序列化的陣列 —— 任何欄位順序或空白差異都會讓 HMAC 對不上
+- **FR-103**: webhook 端點 MUST 只做「驗簽 → 找 lead → 派 job → 回 200」。所有下載、解析、AI 呼叫都在佇列，因為 Zoom 要求 3 秒內回應，而校訂一小時的逐字稿是分鐘級的工作
+- **FR-104**: 業務處理中的例外 MUST 吞掉並回 200（比照 000 對 Portaly / 藍新 webhook 的既有立場）。回非 2xx 只會讓 Zoom 進入重送迴圈，而重送不會讓壞掉的解析變好；驗簽失敗是唯一回非 2xx（401）的情況
+- **FR-105**: `zoom_meeting_id` 對照 `payload.object.id` 時兩邊 MUST 轉 string 後 trim（Zoom 送數字型別，本站存 varchar），查的是 `consultation_notes`。對不到任何列時寫 `Log::info` 回 200 —— 同一個 Zoom 帳號可能有非面談用途的會議，那不是錯誤
+- **FR-106**: 講者對應 MUST 先做機械式判定：以 `lead.name` 與 `lead.consultant?->name` 比對 VTT 的講者標籤（去空白、全形轉半形後比對），命中即映射為「客戶」／「顧問」。只有未能對應的標籤才交給校訂階段依語境判定。**誰是誰是已知事實，不該讓模型猜** —— 猜錯會讓整份紀錄的歸屬顛倒，而這是最貴的一種錯
+- **FR-107**: 校訂 MUST 分段送出（約 4000 字／段，切點落在講者邊界，不切斷單一發言）。單次送完整份逐字稿會撞上輸出上限，而模型在接近上限時的行為是「開始摘要」而不是「截斷」，那正是最難察覺的失敗
+- **FR-108**: 校訂 MUST 有**防縮水檢查**：任一段輸出長度 < 輸入的 60% 即判定為模型擅自摘要，**保留該段的機械式原文**並寫 warning log。一份被悄悄砍半的「逐字稿」比一份有錯字的逐字稿危險得多 —— 前者看起來完全正常
+- **FR-113**: `consultation_notes` 的列由**預約確認**建立（`HighTicketBookingService::confirm()`，Zoom 會議剛開好、時段已定的那一刻），不是等 webhook 才 lazily 建立 —— 這樣後台在面談發生**之前**就看得到「已排定」，而不是只有事後才有東西。webhook 找不到對應列時仍只寫 log 回 200（FR-105），不補建：沒有預約紀錄的 Zoom 會議不屬於這張表
+- **FR-114**: 改期 MUST 更新該列 `met_at`（沿用 US14 的既有立場：`consultation_slots` 只表達「現在誰佔著哪一格」，不留異動歷史）。取消 MUST **只在該列無 `transcript` 也無 `summary` 時刪除**；已有內容者保留 —— 談過了才取消後續安排的情況存在，那份紀錄不該跟著消失
+- **FR-115**: `email` 是 `consultation_notes` 的唯一客戶識別鍵，寫入時 MUST 正規化為小寫（沿用 000 `email_suppressions` 的既有作法）。`lead_id` / `user_id` / `course_id` 僅為來源標記，**MUST NOT** 用於「找出這位客戶的所有面談」—— 那一律以 email 查詢，否則買了第二次顧問服務的人會被切成兩個人
+- **FR-116**: 後台 lead detail row 顯示的是**以 email 查出的所有場次**（`met_at` 倒序），不限於當前 lead 的那一場。多場次是這張表存在的理由，只顯示一場等於回到 D92 被推翻的設計
+- **FR-109**: 落庫的 `transcript` MUST 只有校訂後的匿名版。**原始 VTT、Zoom 顯示名稱與真實人名 MUST NOT 寫入任何資料表，也 MUST NOT 出現在任何 log**；`Log::` 只得記 lead id、字元數、模型、耗時。原始檔在 job 記憶體中處理完即釋放
+- **FR-110**: `transcript_edited_at` 與 `summary_edited_at` 各自是對應欄位的**唯一覆寫守門**，互相獨立。job 見到哪一個有值就跳過哪一步並寫 log。逐字稿的守門尤其重要：顧問修掉的辨識錯誤，不該因為 Zoom 重送一次 webhook 就被打回原形。**兩個守門都 MUST 在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token
+- **FR-111**: 「重新產生摘要」MUST 以該場次既存的 `transcript` 為輸入，MUST NOT 再向 Zoom 請求。Zoom 雲端錄影有保存期限，過期即永久取不回；把校訂稿留在自己的資料庫，正是為了讓摘要格式日後能隨時調整重跑。逐字稿為空時回 422（提示尚未取得逐字稿），不是 500
+- **FR-117**: `ProcessZoomTranscriptJob` MUST 跑在專屬的 `database_long` 佇列連線上，並自帶 `$timeout`（1500 秒）。**這不是調校而是正確性問題**：worker 預設 timeout 為 60 秒，而校訂一小時的逐字稿是數次連續 LLM 呼叫、分鐘級的工作，預設值會在中途砍掉它；更糟的是 `database` 連線的 `retry_after` 為 90 秒，job 只要跑超過 90 秒佇列就判定它已死、把同一份 payload 交給第二個 worker —— 重複處理、重複付 API 費用。`retry_after` MUST 恆大於 job 的 `$timeout`（本連線設 1800）。獨立連線而非直接調高 `database` 的 `retry_after`，是為了讓卡住的**信件** job 仍在 90 秒後重試，而不是等半小時
+- **FR-112**: `openai_api_key` 或對應的 `ai_prompts` 列不存在時，AI 步驟 MUST 靜默跳過而非丟例外，逐字稿仍以機械式解析結果落庫（沿用 D40 對 Zoom 的既有立場：未設定憑證即該路徑不存在，本機與 CI 永遠不需要真的 key）
+
 ## 設計決策
 
+- **D87**: 走 Zoom webhook 而不是排程輪詢 `GET /users/me/recordings`。輪詢要嘛延遲要嘛浪費 —— 面談是低頻事件，為了 15 分鐘的延遲每天空掃幾百次沒有意義；webhook 的代價是要多維護一個公開端點與驗簽，但那份程式碼本站已經寫過三次（Portaly、PayUni、藍新），是熟路。
+  代價是 Zoom Marketplace 的事件訂閱設定不在 git 裡，換站台要人工重設一次 —— 已寫進 US23 的上線前提。
+- **D88**: 同時訂閱 `recording.transcript_completed` 與 `recording.completed`。逐字稿比錄影晚幾分鐘產出，只收後者會拿不到檔；但前者的事件名稱**必須在實作時於 Zoom Marketplace 的事件清單確認確實可訂閱**（公開文件查不到這一層）。兩個都收 + job 端自行判斷 TRANSCRIPT 檔在不在、不在就靠 backoff 重試，是唯一不依賴那個確認結果的作法。
+- **D89**: 逐字稿**保留**而非只存摘要（使用者決策，推翻初版）。留著才能在改摘要格式後直接重跑、才能回頭查原話；一小時面談約 30–60KB 文字，量體完全不構成問題。真正的風險是隱私，而那由 D90 處理。
+- **D90**: 講者一律正規化為「顧問」／「客戶」，原始姓名不落庫。這讓「保留全文」的隱私成本大幅下降 —— 資料庫裡是一份去識別化的對話稿，而客戶身份本來就在同一列的 `name` / `email` 欄位上，重複存一次在逐字稿裡只增加外洩面、不增加任何資訊。
+  機械式對應優先、模型只處理殘留（FR-106）：誰是誰是已知事實，不是推理題。
+- **D91**: 校訂與摘要拆成兩次 API 呼叫，不用一次呼叫同時產出兩者。要求模型「原樣輸出整份逐字稿並額外附上摘要」會把輸出長度推到上限附近，而模型在那個區域的失敗模式是悄悄開始摘要（FR-108 就是在防這件事）。兩次呼叫多花的錢在 `gpt-5.6-luna` 的價位是零頭。
+- **D92**: 面談紀錄獨立成 `consultation_notes` 表，**以 email 為客戶識別鍵**，一場面談一列（使用者決策，2026-08-16 推翻初版的「存在 lead 欄位上」）。
+  初版把六個欄位掛在 `high_ticket_leads` 上，前提是「一個 lead 對一場面談」—— 但那個前提只在**售前**成立。買了多次一對一顧問的客戶會有第二、第三場，而那些場次不屬於任何 lead；即將開發的「客戶自行登記時段的顧問服務」也要寫進同一個地方。掛在 lead 上等於把售前的一次性接觸當成客戶關係的全部，第二場一來就要搬遷。
+  **email 而非 `user_id` 或 `lead_id` 當識別鍵**：沿用 000 D22 對 `email_suppressions` 的既有立場 —— email 是所有管道唯一的共同鍵，受訪者不一定是會員（lead 階段還沒有帳號），而 `lead_id` 只存在於售前那條路徑。`lead_id` / `user_id` 都留欄位但可為 null，是**來源標記**不是識別鍵。
+  代價是後台要多一次以 email 的查詢，而不是跟著 lead 一起載出來 —— 換來的是同一個人的所有面談自動聚在一起，這正是 CRM 的最小要求。
+- **D93**: 兩個 `*_edited_at` 各自獨立守門，而不是用一個「已人工介入」旗標。逐字稿與摘要是兩種不同的東西 —— 顧問可能修了逐字稿卻想讓 AI 重出摘要（這正是最有價值的路徑：修正辨識錯誤 → 重跑 → 得到更準的摘要），一個旗標會把這條路堵死。
+- **D94**: 用 `Http::` facade 打 OpenAI，不引入 SDK。OpenAI 沒有官方 PHP SDK，而本站全部對外 API 呼叫（Meta CAPI、Zoom、Blog RSS）都是 `Http::`；為一支 POST 引入社群套件，換來的是一個要跟著升級的相依。
+- **D95**: 摘要用固定 Markdown 結構而非 JSON structured output。這份東西的讀者是顧問，不是程式 —— 沒有任何程式會去 parse 它的欄位，存成 Markdown 就能直接在 textarea 裡編輯與閱讀。改用 JSON 只會多一層渲染，且讓人工編輯變成要顧格式的苦工。
 - **D85**: 業績摘要放在 Leads 頁而不是擴充「交易管理」或營收圖表。那兩處是全站口徑，混著線上刷卡、贈課與積分兌換；顧問要問的是「我這個月談成幾個、多少錢」，而那個問題的上下文就是他正在看的這份名單。把數字放在他已經在看的畫面上，比要他切頁再自己心算篩選條件便宜得多。
   代價是同一份營收在兩個地方各有一種口徑（全站 vs 顧問線），這是刻意的 —— 兩個問題本來就不同，硬合成一個會兩邊都答不好。
 
@@ -1198,6 +1293,38 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 
 ## Schema
 
+- **US23 schema 變更（一支 migration）**：
+
+  `2026_08_17_000001_create_consultation_notes_table.php` — 新表 `consultation_notes`，**一列 = 一場面談**。`high_ticket_leads` **不動**（D92）：
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `id` | bigint PK | |
+  | `email` | varchar(255), **index** | **客戶識別鍵**，恆為小寫（寫入時正規化）。同一 email 的所有場次即該客戶的面談史 |
+  | `source` | varchar(30) | 這場從哪來：`high_ticket_booking`（本模組）；未來顧問服務寫入自己的值。無 DB enum 約束（比照 004 對 `content_category` 的既有作法） |
+  | `lead_id` | unsignedBigInteger nullable, index | 來源標記，非識別鍵；無外鍵約束（比照 `consultation_slots.lead_id` 的既有作法，D7） |
+  | `user_id` | unsignedBigInteger nullable, index | 面談當下若已是會員則記下；null 不代表非會員（lead 階段可能還沒註冊） |
+  | `consultant_id` | unsignedBigInteger nullable, index | 主談顧問，自 lead 快照（比照 FR-061） |
+  | `course_id` | unsignedBigInteger nullable | 這場面談談的是哪門課；顧問服務場次可為 null |
+  | `met_at` | datetime, **index** | **場次時間**（UTC）。列表以此倒序 |
+  | `zoom_meeting_id` | varchar(50) nullable, **unique** | webhook 的對照鍵。unique 保證一場 Zoom 會議只對應一列 |
+  | `transcript` | longText nullable | **校訂後的匿名對話稿**；原始 VTT 與 Zoom 顯示名稱不進這裡（FR-109） |
+  | `transcript_fetched_at` | timestamp nullable | 取回並校訂完成的時間 |
+  | `transcript_edited_at` | timestamp nullable | 人工修訂時間；**非 null 即鎖定**自動覆寫（FR-110） |
+  | `summary` | text nullable | AI 產出的摘要，管理員可覆寫 |
+  | `summary_generated_at` | timestamp nullable | 最近一次自動產生摘要的時間 |
+  | `summary_edited_at` | timestamp nullable | 人工編輯時間；**非 null 即鎖定**自動覆寫（FR-110） |
+  | timestamps | | |
+
+  **不變量**：
+  - `email` 是唯一的客戶識別鍵，恆小寫；`lead_id` / `user_id` / `course_id` 皆為來源標記，全 null 也是合法的一列（未來顧問服務的場次可能三者皆無）
+  - `zoom_meeting_id` unique 且 nullable —— 沒有 Zoom 的面談（實體、電話）將來也放得進這張表
+  - 原始 VTT、Zoom 顯示名稱、真實人名**不存在於任何資料表與任何 log**；`transcript` 裡的講者標籤只有「顧問」與「客戶」兩種值
+  - 兩個 `*_edited_at` 各自獨立、互不影響（D93）；`*_generated_at` / `*_fetched_at` 只由自動流程寫入，`*_edited_at` 只由後台編輯端點寫入 —— 四個時間戳各有唯一寫入點
+  - **本表為跨模組的客戶面談紀錄**：目前唯一寫入者是本模組，未來的顧問服務模組以 `touchpoints` 聲明使用，**MUST NOT 移轉 owner**（沿用「一檔一 owner」原則）
+  - **佇列**：本 job 走 `database_long` 連線（同一張 `jobs` 表、`long` 佇列、`retry_after` 1800），與寄信類 job 分離；`retry_after` > job `$timeout` 是不可違反的關係，否則會重複執行（FR-117）
+  - `site_settings.zoom_webhook_secret_token` — Zoom Event Subscription 的 Secret Token；空值即 webhook 無從驗簽，端點 MUST 直接拒絕所有非 url_validation 事件（不得退化為無認證）
+
 - **US22 無 migration、無 schema 變更** —— 成交金額自 D8 起就寫在 `purchases.amount`，成交類型是既有的 `type = 'lead_conversion'`，本故事只是把它們依台北時間的月／年加總後顯示。
   **不變量**：摘要是純讀取，MUST NOT 寫入任何資料表；`purchases` 的 `(user_id, course_id)` unique 意味著同人同課只有一列，因此「同一人重複開通」不會讓人數或金額重複計算（FR-099 的去重是為了處理**同人多課**與**同 email 多 lead**）
 
@@ -1339,6 +1466,48 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - `email_templates.body_type` — `markdown`（預設，經 CommonMark 轉 HTML）或 `html`（原樣輸出）；無 DB 層 enum 約束，合法值由 `EmailTemplateRequest` 把關，未知值一律當 markdown 處理
 
 ## Tasks
+
+### US23 面談逐字稿自動摘要
+
+> 依賴 000 US10 的 `ai_prompts` 表、`AiPrompt` model 與 `OpenAiService`（T267–T272）先落地。
+
+Phase 1 — 資料層與 Zoom 接收
+
+- [x] T267 migration：建 `consultation_notes` 表（見 Schema；`email` / `met_at` / `lead_id` / `user_id` / `consultant_id` index，`zoom_meeting_id` unique）in `database/migrations/2026_08_17_000001_create_consultation_notes_table.php`
+- [x] T268 `ConsultationNote` model：`$fillable`、四個時間欄 + `met_at` 進 `casts()`、`lead()` / `consultant()` / `course()` 關聯、`scopeForEmail(string $email)`（小寫正規化後比對，FR-115）in `app/Models/ConsultationNote.php`
+- [x] T268b `HighTicketLead::consultationNotes()` —— 以 email 而非 `lead_id` 關聯（`hasMany(..., 'email', 'email')`），讓同一個人的所有場次跟著出來（FR-116）in `app/Models/HighTicketLead.php`
+- [x] T268c 確認預約時建立 note（FR-113）；`reschedule()` 更新 `met_at`、`cancel()` 依 FR-114 條件刪除 in `app/Services/HighTicketBookingService.php`
+- [x] T269 `ZoomWebhookService`：`secret()` / `challengeResponse(string $plainToken)` / `verify(Request $request): bool`（HMAC + 5 分鐘時間戳容差，FR-101/FR-102）in `app/Services/ZoomWebhookService.php`
+- [x] T270 `Webhook\ZoomController::handle()`：url_validation 先回、驗簽、事件過濾、以 `zoom_meeting_id` 找 note、派 job、例外一律 200（FR-103/FR-104/FR-105）in `app/Http/Controllers/Webhook/ZoomController.php`
+- [x] T271 路由 `POST /api/webhooks/zoom` in `routes/api.php`（000 touchpoint）
+- [x] T272 [P] API 設定頁加 `zoom_webhook_secret_token` 遮罩欄位與唯讀 webhook URL in `app/Http/Controllers/Admin/SettingsController.php`, `resources/js/Pages/Admin/Settings/Payment.vue`（000 touchpoint）
+
+Phase 2 — 抓取、解析與 AI
+
+- [x] T273 `ZoomTranscriptService::download(array $recordingFile, ?string $downloadToken): string` —— 優先用 payload 的 download_token，退回 `ZoomMeetingService::token()`；timeout 30 秒 in `app/Services/ZoomTranscriptService.php`
+- [x] T274 `ConsultationTranscriptService::vttToDialogue(string $vtt): string` —— 剝除檔頭／cue 序號／時間軸，同講者連續行合併 in `app/Services/ConsultationTranscriptService.php`
+- [x] T275 `ConsultationTranscriptService::normaliseSpeakers(string $dialogue, ConsultationNote $note): string` —— 機械式對應顧問／客戶（客戶名取自 note 的 lead 或 user，顧問名取自 `consultant_id`；FR-106）in `app/Services/ConsultationTranscriptService.php`
+- [x] T276 `ConsultationTranscriptService::proofread(string $dialogue): string` —— 分段（4000 字、切在講者邊界）逐段呼叫 `OpenAiService`，含防縮水檢查與 warning log（FR-107/FR-108）in `app/Services/ConsultationTranscriptService.php`
+- [x] T277 `ConsultationTranscriptService::summarise(string $transcript): ?string` in `app/Services/ConsultationTranscriptService.php`
+- [x] T278 `ProcessZoomTranscriptJob(int $noteId, array $payload, bool $force = false)`（`$tries = 3`、`$backoff = [60, 300, 900]`）：找 TRANSCRIPT 檔（缺則丟例外重試）→ 下載 → 解析 → 正規化 → 校訂 → 摘要，兩個守門各自檢查（FR-110/FR-112）in `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T279 [P] `booking:fetch-transcript {note}` 手動指令（不進排程）in `app/Console/Commands/FetchConsultationTranscript.php`
+
+Phase 3 — 後台 UI
+
+- [x] T280 `Admin\ConsultationNoteController`：`updateSummary()` / `updateTranscript()` / `regenerateSummary()`（inline validate、回 JSON、比照既有 `updateStatus()`；重跑不打 Zoom、逐字稿為空回 422，FR-111）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T281 三條路由 `PATCH|POST /admin/consultation-notes/{note}/...` 加在 `staff` 群組末尾 in `routes/web.php`（000 touchpoint）
+- [x] T282 `index()` 的 leads payload 掛上 `consultationNotes`（以 email 關聯、`met_at` 倒序，FR-116）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T283 detail row 加「面談紀錄」區塊：`v-for` 列出該 email 的所有場次（`met_at` 標題 + 課程／顧問），每場一組可編輯摘要 + 兩個時間戳。**抽成 `ConsultationNotesPanel.vue` 獨立組件**（BookingListTab 已 1438 行）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [x] T284 每場次內加「逐字稿」收合區塊（可編輯 textarea、等寬字體、複製按鈕）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [x] T285 每場次加「重新產生摘要」按鈕 + 二次確認 in `ConsultationNotesPanel.vue`；姓名旁加場次數量標記 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 4 — 測試與驗證
+
+- [x] T286 `ConsultationSummaryTest`：URL 驗證、驗簽失敗、逾時時間戳、講者匿名化（原始姓名不得出現）、防縮水、兩個覆寫守門、重跑不打 Zoom、憑證未設定、meeting_id 對不到 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T286b `ConsultationNoteTest`：確認預約建列、改期更新 `met_at`、取消依內容有無決定刪或留（FR-114）、**同一 email 跨兩筆不同 lead 的場次會一起列出**（FR-116）、email 大小寫不影響歸戶（FR-115）in `tests/Feature/HighTicket/ConsultationNoteTest.php`
+- [x] T288 佇列連線與 timeout：新增 `database_long` 連線（`retry_after` 1800）、job 設 `$timeout = 1500` 並於非 sync 環境掛上該連線（FR-117）in `config/queue.php`, `app/Jobs/ProcessZoomTranscriptJob.php`
+- [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
+- [ ] T287 使用者實測：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要自動出現；人工讀校訂稿確認未被摘要掉、無殘留真實姓名；`tail` log 確認無內容外洩
 
 - [x] T001 `convert()` 驗證新增 `amount` (`required|integer|min:0`) 並傳入 service；`index()` 的 `grantableCourses` select 加 `price / original_price / promo_ends_at` 並 map 出 `display_price` in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T002 `convertLead(HighTicketLead $lead, int $courseId, int $amount)` — `Purchase::updateOrCreate` 的 amount 改寫入參數值 in `app/Services/HighTicketLeadService.php`
@@ -1806,6 +1975,14 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-08-16: 修正佇列租約（T288，FR-117）— 使用者問「時間差多久」時才發現：這支 job 是全站第一個分鐘級的工作，而 worker 預設 timeout 60 秒、`database` 連線 `retry_after` 90 秒。前者會把校訂砍在半途，後者更糟 —— job 跑超過 90 秒佇列就判定它死了、把同一份 payload 交給第二個 worker，變成重複處理與重複付 OpenAI 費用。既有 5 支 job 都是幾秒內的寄信，所以從來沒人踩到。新增 `database_long` 連線（`retry_after` 1800）並讓 job 自帶 `$timeout = 1500`；獨立連線而非直接調高 `database`，是為了讓卡住的信件仍在 90 秒後重試。連線只在非 sync 環境掛上，否則測試與手動指令的 inline 執行會被打斷。679 passed 不變。**正式站需為此連線加第二個 worker（T289）**
+- 2026-08-16: US23 實作完成（T267–T286b，僅剩 T287 使用者實測）— `consultation_notes` 新表 + `ConsultationNote` model，`HighTicketLead::consultationNotes()` 刻意以 **email** 而非 `lead_id` 關聯（FR-116），所以買第二次的人所有場次會聚在一起。預約確認建列、改期搬 `met_at`、取消依內容有無決定刪或留，三個掛載點都在 `HighTicketBookingService`。Webhook 走 `/api/webhooks/zoom`：url_validation 先回、`v0:{ts}:{raw body}` HMAC 驗簽、5 分鐘時間戳容差，其餘例外一律吞掉回 200。
+  **實作中抓到一個會毀掉所有中文逐字稿的 bug**：`preg_split('/\R/', ...)` 沒加 `/u` 時，`\R` 會匹配到 CJK 字元內部的 `0x85` 位元組，把中文字從中間切斷 —— 產出無效 UTF-8，接著每一次 `json_encode` 都失敗，而 job 的例外被 controller 吞掉，症狀是「逐字稿永遠是 null 且完全沒有錯誤訊息」。三處 split 全部補上 `/u`，並在 docblock 註明這個修飾符是功能性的不是裝飾。是測試的中文 fixture 逼出來的，用英文樣本永遠不會發現。
+  防縮水檢查（FR-108）與兩個獨立的 `*_edited_at` 守門（FR-110）都由測試釘住。後台面談紀錄抽成 `ConsultationNotesPanel.vue` 獨立組件（BookingListTab 已 1438 行）。ConsultationSummaryTest 17 + ConsultationNoteTest 9，全套 679 passed（2861 assertions）、`npm run build` exit 0。
+- 2026-08-16: [draft] 規劃 US23 面談逐字稿自動摘要 — 這條銷售線在「面談之後」是斷的：`high_ticket_leads` 連一個備註欄位都沒有，唯一的自由文字是面談**之前**的問卷答案。Zoom webhook 推 VTT → 機械式解析與講者正規化 → 分段校訂 → 摘要。關鍵前提是 US12 已經把 `zoom_meeting_id` 寫在每筆確認的預約上，對照關係現成、不必新建。
+  使用者決策五項：webhook 而非輪詢（D87）、模型 `gpt-5.6-luna`、**面談紀錄獨立成 `consultation_notes` 表並以 email 為客戶識別鍵**（D92 —— 審核時推翻初版的「掛在 lead 欄位上」：那個設計的前提「一個 lead 對一場面談」只在售前成立，買了多次一對一顧問的客戶、以及即將開發的「客戶自行登記時段的顧問服務」都放不進去，第二場一來就要搬遷）、**逐字稿保留而非只存摘要**（D89，也是推翻初版；留著才能改格式後重跑、才能回頭查原話）、**逐字稿也可後台編輯**（連帶 D93：兩個 `*_edited_at` 各自獨立守門，因為「修逐字稿 → 重跑摘要」正是最有價值的路徑，一個共用旗標會把它堵死）。
+  隱私上的取捨：保留全文的成本由 D90 抵銷 —— 講者一律正規化為「顧問」／「客戶」，原始姓名不落庫不進 log（FR-109），機械式對應優先、模型只處理殘留（FR-106，誰是誰是已知事實不是推理題）。技術上最需要小心的是 FR-108 的防縮水檢查：模型接近輸出上限時的失敗模式是悄悄開始摘要而不是截斷，一份被砍半的「逐字稿」看起來完全正常，所以分段送出 + 長度比對兩道一起上。
+  依賴 000 US10 的 `ai_prompts` / `OpenAiService` 先落地。一支 migration 建一張新表；`high_ticket_leads` 完全不動。
 - 2026-08-13: 業主實測 T228 / T260 / T266 全數通過 — US20（改期面板跨週選時段）、US21（多方案端到端：開通方案A → 教室只見該方案 → 切方案B + 補價 → 教室見全部）、US22（業績摘要隨篩選連動、狀態 tab 不影響、手機版型）三者的瀏覽器實測結束，索引狀態一併由 `partial` 轉 `implemented`。模組 status 維持 `building`：更早的實測任務（T040 實寄驗證、T084、T102、T123、T158、T191、T215）與 US16–US19 的驗收條款仍未勾，那些不在本次確認範圍內
 - 2026-08-13: 業績摘要改單行、不增加列高（業主回饋，純前端樣式）— 初版做成有邊框底色的兩行卡片，把狀態色塊列整條撐高了。改為單行純文字 `text-xs`、拿掉邊框／底色／垂直 padding，整體矮於色塊（`text-sm` + `py-1.5` + border），列高回到由色塊決定；靠右仍用 `lg:ml-auto`，加 `whitespace-nowrap` 避免數字中間斷行。驗收條款一併就地改為「單行」並新增「不得增加列高」一條。無後端變更，11 支測試維持全綠、`npm run build` exit 0
 - 2026-08-13: US22 成交業績摘要完成（T261–T265，僅剩 T266 使用者實測）— `conversionStats(Builder $leadsQuery)` 收在 service，收的是**已經篩好的 builder** 而不是一堆篩選參數：這樣它與列表、狀態色塊三者共用同一份範圍定義，不可能各自漂掉（FR-097）。`purchases` 沒有 `consultant_id` 也沒有回指 lead 的外鍵，email 是唯一的連結，所以先取範圍內 leads 的 email 再 join `users`。期間邊界用 `now('Asia/Taipei')` 建構再轉 UTC 的半開區間，不用 `whereMonth()` —— 台北 9/1 早上 07:00 在 UTC 還是 8/31，naive 寫法會把它歸到上個月（FR-098，測試釘住這條邊界）。人數 `count(distinct users.email)`、金額 `sum(amount)`，兩者基礎不同故 UI 不做客單價（D86）。新增 ConversionStatsTest（11 tests，含顧問／課程連動、狀態 tab 不影響、同人多課去重、退款與 gift 不計、跨月與跨年邊界），全套 628 passed（2719 assertions）、`npm run build` exit 0

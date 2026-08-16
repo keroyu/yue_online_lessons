@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import HintBox from '@/Components/Admin/HintBox.vue'
@@ -12,7 +13,7 @@ const props = defineProps({
   resend: { type: Object, default: () => ({ webhook_secret: '', webhook_secret_preview: '' }) },
   meta_pixel_id: { type: String, default: '' },
   meta_capi: { type: Object, default: () => ({ access_token: '', access_token_preview: '', test_event_code: '' }) },
-  zoom: { type: Object, default: () => ({ account_id: '', client_id: '', client_secret_preview: '', enabled: false }) },
+  zoom: { type: Object, default: () => ({ account_id: '', client_id: '', client_secret_preview: '', webhook_secret_preview: '', enabled: false }) },
 })
 
 const form = useForm({
@@ -31,6 +32,7 @@ const form = useForm({
   zoom_account_id: props.zoom.account_id,
   zoom_client_id: props.zoom.client_id,
   zoom_client_secret: '',
+  zoom_webhook_secret_token: '',
 })
 
 // Written out rather than inlined: a literal {{…}} inside a template
@@ -40,6 +42,14 @@ const zoomUrlVariable = '{' + '{zoom_join_url}' + '}'
 // Read off the browser rather than passed from the server: this is only ever
 // shown as copy-paste help, and it is always the host the admin is looking at.
 const webhookUrl = `${window.location.origin}/resend/webhook`
+const zoomWebhookUrl = `${window.location.origin}/api/webhooks/zoom`
+const zoomWebhookCopied = ref(false)
+
+const copyZoomWebhookUrl = async () => {
+  await navigator.clipboard.writeText(zoomWebhookUrl)
+  zoomWebhookCopied.value = true
+  setTimeout(() => (zoomWebhookCopied.value = false), 2000)
+}
 
 const submit = () => {
   form.post('/admin/settings/payment')
@@ -241,6 +251,26 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
           <input type="password" v-model="form.zoom_client_secret" :class="inputClasses" :placeholder="zoom.client_secret_preview || '尚未設定'" autocomplete="new-password" />
           <p class="mt-1 text-xs text-gray-500">留空 = 不變更</p>
           <p v-if="form.errors.zoom_client_secret" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_client_secret }}</p>
+        </div>
+
+        <!-- 011 US23：錄影逐字稿 webhook -->
+        <div class="border-t pt-4">
+          <label :class="labelClasses">Webhook Secret Token</label>
+          <input type="password" v-model="form.zoom_webhook_secret_token" :class="inputClasses" :placeholder="zoom.webhook_secret_preview || '尚未設定'" autocomplete="new-password" />
+          <p class="mt-1 text-xs text-gray-500">留空 = 不變更。未設定時本站會拒收所有 Zoom 事件（不會退化成無認證端點）。</p>
+          <p v-if="form.errors.zoom_webhook_secret_token" class="mt-1 text-sm text-red-600">{{ form.errors.zoom_webhook_secret_token }}</p>
+
+          <p class="mt-3 text-xs text-gray-500">請把下面這個網址填進 Zoom App 的 Event Subscription，並訂閱錄影完成／逐字稿完成事件：</p>
+          <div class="mt-1 flex items-center gap-2">
+            <code class="flex-1 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 break-all">{{ zoomWebhookUrl }}</code>
+            <button
+              type="button"
+              @click="copyZoomWebhookUrl"
+              class="shrink-0 px-2.5 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+            >
+              {{ zoomWebhookCopied ? '已複製' : '複製' }}
+            </button>
+          </div>
         </div>
       </div>
 
