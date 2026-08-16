@@ -69,6 +69,35 @@ class DripService
         return $this->lessonPosition($lesson) + 1;
     }
 
+    /** course_id => drip_interval_days, memoised per request. */
+    private array $courseIntervals = [];
+
+    /**
+     * Which day after subscribing this lesson goes out, counting from 0.
+     *
+     * The single source for the schedule (FR-035). A warming sequence is not
+     * evenly spaced — Day 0, 3, 7, 14, 30 is the shape people actually want —
+     * so each lesson carries its own `drip_day`. Lessons with none fall back to
+     * the old `position x interval` formula, which is what keeps every course
+     * built before US18 running unchanged with no backfill (D31).
+     *
+     * A course with neither (no drip_day, no usable interval) lands on 0 for
+     * every lesson, i.e. everything unlocks at once — the FR-002 guard.
+     */
+    public function unlockDay(Lesson $lesson): int
+    {
+        if ($lesson->drip_day !== null) {
+            return (int) $lesson->drip_day;
+        }
+
+        $interval = $this->courseIntervals[$lesson->course_id] ??= max(
+            0,
+            (int) Course::whereKey($lesson->course_id)->value('drip_interval_days'),
+        );
+
+        return $this->lessonPosition($lesson) * $interval;
+    }
+
     /**
      * Compose the letter for one lesson — the single source of what goes out.
      *
@@ -244,23 +273,23 @@ class DripService
     }
 
     /**
-     * Calculate unlocked lesson count for a subscription.
+     * How many emails should have gone out by now.
+     *
+     * Counts the lessons whose send day has arrived rather than dividing the
+     * elapsed days by one interval (FR-036). Send days are strictly increasing
+     * (FR-037), so "how many qualify" and "how far down the list we are" are
+     * the same number; the first lesson always sits on day 0, which keeps the
+     * old "at least one" floor without stating it.
      */
     public function getUnlockedLessonCount(DripSubscription $subscription): int
     {
         $daysSince = (int) $subscription->subscribed_at->diffInDays(now());
-        $interval = $subscription->course->drip_interval_days;
 
-        if ($interval <= 0) {
-            return $subscription->course->lessons()->count();
-        }
-
-        $totalLessons = $subscription->course->lessons()->count();
-
-        return min(
-            (int) floor($daysSince / $interval) + 1,
-            $totalLessons
-        );
+        return $subscription->course->lessons()
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(fn (Lesson $lesson) => $this->unlockDay($lesson) <= $daysSince)
+            ->count();
     }
 
     /**
@@ -296,11 +325,9 @@ class DripService
             return -1;
         }
 
-        $interval = $subscription->course->drip_interval_days;
-        $unlockDay = $this->lessonPosition($lesson) * $interval;
         $daysSince = (int) $subscription->subscribed_at->diffInDays(now());
 
-        return max(0, $unlockDay - $daysSince);
+        return max(0, $this->unlockDay($lesson) - $daysSince);
     }
 
     /**
@@ -394,7 +421,7 @@ class DripService
         }
 
         $anchor = $sentAt ?? $subscription->subscribed_at->copy()
-            ->addDays($this->lessonPosition($lesson) * $subscription->course->drip_interval_days);
+            ->addDays($this->unlockDay($lesson));
 
         return $anchor->copy()->addHours($hours);
     }

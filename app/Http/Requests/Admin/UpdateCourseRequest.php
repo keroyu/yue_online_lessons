@@ -73,9 +73,68 @@ class UpdateCourseRequest extends FormRequest
             'is_visible' => ['nullable', 'boolean'],
             'course_type' => ['required', 'in:standard,drip'],
             'drip_interval_days' => ['nullable', 'required_if:course_type,drip', 'integer', 'min:1', 'max:30'],
+            'drip_days' => ['nullable', 'array'],
+            'drip_days.*' => ['integer', 'min:0', 'max:365'],
             'target_course_ids' => ['nullable', 'array'],
             'target_course_ids.*' => ['exists:courses,id'],
         ];
+    }
+
+    /**
+     * The drip schedule must run strictly forwards (010 FR-037).
+     *
+     * The sending cursor only ever moves forwards, so `Day 0 -> 7 -> 3`
+     * actually behaves as `0 -> 7 -> 7` — the third email waits for the second.
+     * Nothing on screen says so, which makes rejecting it at save time cheaper
+     * than explaining it afterwards.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $days = $this->input('drip_days');
+
+            if (! is_array($days) || $days === []) {
+                return;
+            }
+
+            $lessons = $this->route('course')->lessons()
+                ->orderBy('sort_order')
+                ->get(['id']);
+
+            if (array_diff(array_keys($days), $lessons->pluck('id')->map(fn ($id) => (string) $id)->all())) {
+                $validator->errors()->add('drip_days', '發信排程包含不屬於本課程的小節');
+
+                return;
+            }
+
+            $previous = null;
+            foreach ($lessons as $index => $lesson) {
+                $day = $days[$lesson->id] ?? null;
+
+                if ($day === null) {
+                    continue;
+                }
+
+                $day = (int) $day;
+
+                if ($index === 0 && $day !== 0) {
+                    $validator->errors()->add('drip_days', '第 1 封信固定為 Day 0（訂閱當下寄出）');
+
+                    return;
+                }
+
+                if ($previous !== null && $day <= $previous) {
+                    $validator->errors()->add(
+                        'drip_days',
+                        '第 ' . ($index + 1) . ' 封信的天數必須大於前一封（目前為 Day ' . $day . '，前一封是 Day ' . $previous . '）',
+                    );
+
+                    return;
+                }
+
+                $previous = $day;
+            }
+        });
     }
 
     /**
@@ -107,10 +166,14 @@ class UpdateCourseRequest extends FormRequest
             'promo_ends_at.date' => '優惠到期時間格式不正確',
             'course_type.required' => '請選擇課程模式',
             'course_type.in' => '課程模式無效',
-            'drip_interval_days.required_if' => '連鎖課程需設定發信間隔天數',
-            'drip_interval_days.integer' => '發信間隔天數必須是整數',
-            'drip_interval_days.min' => '發信間隔天數至少為 1 天',
-            'drip_interval_days.max' => '發信間隔天數不能超過 30 天',
+            'drip_interval_days.required_if' => '連鎖課程需設定預設間隔天數',
+            'drip_interval_days.integer' => '預設間隔天數必須是整數',
+            'drip_interval_days.min' => '預設間隔天數至少為 1 天',
+            'drip_interval_days.max' => '預設間隔天數不能超過 30 天',
+            'drip_days.array' => '發信排程格式無效',
+            'drip_days.*.integer' => '發信天數必須是整數',
+            'drip_days.*.min' => '發信天數不能為負數',
+            'drip_days.*.max' => '發信天數不能超過 365 天',
             'target_course_ids.array' => '目標課程格式無效',
             'target_course_ids.*.exists' => '選擇的目標課程不存在',
         ];

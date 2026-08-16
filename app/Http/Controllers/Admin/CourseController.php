@@ -173,7 +173,7 @@ class CourseController extends Controller
         // Get lessons for schedule preview
         $courseLessons = $course->lessons()
             ->orderBy('sort_order')
-            ->get(['id', 'title', 'sort_order']);
+            ->get(['id', 'title', 'sort_order', 'drip_day']);
 
         return Inertia::render('Admin/Courses/Edit', [
             'course' => [
@@ -252,6 +252,10 @@ class CourseController extends Controller
         $targetCourseIds = $data['target_course_ids'] ?? null;
         unset($data['target_course_ids']);
 
+        // Per-lesson send days live on the lessons table, not on the course
+        $dripDays = $data['drip_days'] ?? null;
+        unset($data['drip_days']);
+
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail')) {
             // Delete old thumbnail if exists
@@ -269,8 +273,18 @@ class CourseController extends Controller
             $data['drip_interval_days'] = null;
         }
 
-        DB::transaction(function () use ($course, $data, $targetCourseIds) {
+        DB::transaction(function () use ($course, $data, $targetCourseIds, $dripDays) {
             $course->update($data);
+
+            // Drip send schedule: write the per-lesson days, or wipe them when
+            // the course is no longer a drip (010 US18)
+            if (($data['course_type'] ?? 'standard') === 'standard') {
+                $course->lessons()->whereNotNull('drip_day')->update(['drip_day' => null]);
+            } elseif ($dripDays) {
+                foreach ($dripDays as $lessonId => $day) {
+                    $course->lessons()->whereKey($lessonId)->update(['drip_day' => (int) $day]);
+                }
+            }
 
             // Sync conversion targets for drip courses
             if (($data['course_type'] ?? 'standard') === 'drip' && $targetCourseIds !== null) {

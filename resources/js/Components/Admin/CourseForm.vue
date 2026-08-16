@@ -71,6 +71,12 @@ const form = useForm({
   is_visible: props.course?.is_visible ?? true,
   course_type: props.course?.delivery_mode || props.course?.course_type || 'standard',
   drip_interval_days: props.course?.drip_interval_days || '',
+  drip_days: Object.fromEntries(
+    (props.courseLessons || []).map((lesson, index) => [
+      lesson.id,
+      lesson.drip_day ?? index * (parseInt(props.course?.drip_interval_days) || 1),
+    ]),
+  ),
   target_course_ids: props.course?.target_course_ids || [],
   free_success_md: props.course?.free_success_md || '',
   promo_html: props.course?.promo_html || '',
@@ -91,14 +97,35 @@ watch(() => form.portaly_product_id, (val) => {
   }
 })
 
-// Schedule preview for drip courses
-const schedulePreview = computed(() => {
-  if (!isDrip.value || !form.drip_interval_days || props.courseLessons.length === 0) return []
-  const interval = parseInt(form.drip_interval_days) || 1
-  return props.courseLessons.map((lesson, index) => ({
-    title: lesson.title,
-    day: index * interval,
-  }))
+// Drip send schedule — one editable day per email (US18).
+// Rows whose lesson has no drip_day are pre-filled with the old evenly-spaced
+// formula, so what the admin sees always equals what the system is doing right
+// now; one save turns that implicit fallback into explicit days (D32).
+const scheduleRows = computed(() => {
+  if (!isDrip.value || props.courseLessons.length === 0) return []
+  return props.courseLessons.map((lesson, index) => {
+    const day = Number(form.drip_days[lesson.id] ?? 0)
+    const previous = index === 0 ? null : Number(form.drip_days[props.courseLessons[index - 1].id] ?? 0)
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      number: index + 1,
+      day,
+      gap: previous === null ? null : day - previous,
+    }
+  })
+})
+
+// Mirrors the FR-037 check the Form Request enforces — this one is only here to
+// catch it while typing; the backend is the one that decides.
+const scheduleError = computed(() => {
+  const rows = scheduleRows.value
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].day <= rows[i - 1].day) {
+      return `第 ${i + 1} 封信的天數必須大於前一封（第 ${i} 封是 Day ${rows[i - 1].day}）`
+    }
+  }
+  return ''
 })
 
 // Image gallery modal
@@ -179,7 +206,8 @@ const fieldLabels = {
   payment_gateway: '金流商',
   is_visible: '是否顯示於首頁',
   course_type: '課程模式',
-  drip_interval_days: '發信間隔天數',
+  drip_interval_days: '預設間隔天數',
+  drip_days: '發信排程',
   target_course_ids: '目標商品',
 }
 
@@ -722,7 +750,7 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
         <!-- Interval Days -->
         <div data-field="drip_interval_days" class="sm:max-w-sm">
           <label for="drip_interval_days" :class="labelClasses">
-            發信間隔天數 <span class="text-red-500">*</span>
+            預設間隔天數 <span class="text-red-500">*</span>
           </label>
           <input
             id="drip_interval_days"
@@ -733,7 +761,9 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             placeholder="例如：3"
             :class="[inputClasses, form.errors.drip_interval_days ? inputErrorClasses : '']"
           />
-          <p :class="helpTextClasses">每隔幾天發送一封 Lesson 通知信（1-30 天）</p>
+          <p :class="helpTextClasses">
+            兩個用途：新增 Lesson 時的預設遞增天數，以及尚未設定發信排程的課程沿用的等距間隔（1-30 天）。實際發送日以下方「發信排程」為準。
+          </p>
           <p v-if="form.errors.drip_interval_days" :class="errorTextClasses">{{ form.errors.drip_interval_days }}</p>
         </div>
 
@@ -761,27 +791,48 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           <p v-if="form.errors.target_course_ids" :class="errorTextClasses">{{ form.errors.target_course_ids }}</p>
         </div>
 
-        <!-- Schedule Preview -->
-        <div v-if="schedulePreview.length > 0">
-          <label :class="labelClasses">發信排程預覽</label>
-          <div class="mt-3 ring-1 ring-gray-200 rounded-lg overflow-x-auto">
+        <!-- Send schedule: one day per email -->
+        <div v-if="scheduleRows.length > 0" data-field="drip_days">
+          <label :class="labelClasses">發信排程</label>
+          <p :class="helpTextClasses" class="!mt-1 mb-3">
+            每封信各自設定「訂閱後第幾天寄」，天數必須由小到大。第 1 封固定在訂閱當下寄出。
+          </p>
+          <div class="ring-1 ring-gray-200 rounded-lg overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100">
-              <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <thead class="bg-gray-50">
                 <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">信件</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">發送日</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">間隔</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lesson</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">解鎖日</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <tr v-for="(item, index) in schedulePreview" :key="index">
-                  <td class="px-4 py-2 text-sm text-gray-700">{{ item.title }}</td>
-                  <td class="px-4 py-2 text-sm text-gray-500">
-                    {{ item.day === 0 ? '訂閱當天' : `第 ${item.day} 天` }}
+                <tr v-for="row in scheduleRows" :key="row.id">
+                  <td class="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">第 {{ row.number }} 封</td>
+                  <td class="px-4 py-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm text-gray-400">Day</span>
+                      <input
+                        v-model.number="form.drip_days[row.id]"
+                        type="number"
+                        min="0"
+                        max="365"
+                        :disabled="row.number === 1"
+                        class="w-20 rounded-lg border-gray-300 text-sm focus:border-brand-teal focus:ring-brand-teal disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      />
+                    </div>
                   </td>
+                  <td class="px-4 py-2 text-sm whitespace-nowrap" :class="row.gap !== null && row.gap <= 0 ? 'text-red-500' : 'text-gray-400'">
+                    {{ row.gap === null ? '訂閱當下' : `+${row.gap} 天` }}
+                  </td>
+                  <td class="px-4 py-2 text-sm text-gray-700">{{ row.title }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <p v-if="scheduleError" :class="errorTextClasses">{{ scheduleError }}</p>
+          <p v-else-if="form.errors.drip_days" :class="errorTextClasses">{{ form.errors.drip_days }}</p>
         </div>
       </div>
     </div>

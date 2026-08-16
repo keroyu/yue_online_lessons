@@ -32,6 +32,8 @@ owner_files:
   - database/migrations/2026_07_20_000001_add_sent_to_drip_email_events_event_type.php
   - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
   - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
+  - database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php
+  - tests/Feature/Drip/VariableScheduleTest.php
   - tests/Feature/Drip/VideoAccessAnchorTest.php
   - tests/Feature/Drip/FunnelStopTest.php
   - tests/Feature/Drip/ClaimWordingTest.php
@@ -56,7 +58,19 @@ touchpoints:
     why: 2026-08-05 起寄信前以 EmailLinkTagger 戳 UTM（002 US14）；本模組另提供 DripService::lessonNumber() 供 utm_content 取「第幾封信」
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
-    why: 「連鎖 Email 設定」分頁 — course_type、drip_interval_days、目標課程選擇、發信排程預覽
+    why: 「連鎖 Email 設定」分頁 — course_type、drip_interval_days、目標課程選擇、發信排程預覽。US18 起排程預覽表格改為可編輯（每列一個 Day 輸入框），送出 `drip_days` map
+  - file: app/Http/Controllers/Admin/CourseController.php
+    owner: 004-course-admin
+    why: US18 — `edit()` 的 courseLessons 加 `drip_day`；`update()` 在 transaction 內批次寫回 lessons.drip_day，切回 standard 時清空
+  - file: app/Http/Requests/Admin/UpdateCourseRequest.php
+    owner: 004-course-admin
+    why: US18 — 新增 `drip_days` 陣列驗證（key 為 lesson id、首封必為 0、依 sort_order 嚴格遞增，FR-037）
+  - file: app/Http/Requests/Admin/StoreCourseRequest.php
+    owner: 004-course-admin
+    why: US18 — `drip_interval_days` 的錯誤訊息語意由「發信間隔」改為「預設間隔」（規則本身不動）
+  - file: app/Models/Lesson.php
+    owner: 004-course-admin
+    why: US18 — `drip_day` 加入 fillable 與 casts（integer）
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
     why: Lesson 的 promo_delay_seconds / promo_html / promo_url / reward_html / video_access_hours 欄位、CTA 快速插入、{{classroom_url}} 插入按鈕與影片警示、drip 信固定格式（開頭問候 + 結尾退訂）的說明區塊
@@ -65,7 +79,7 @@ touchpoints:
     why: 2026-08-04 起訂閱者頁併入 Leads 名單頁的「訂閱者名單」tab（011 US8），由該 controller 的 index() 呼叫 `DripService::subscriberPageData()`；原 `CourseController@subscribers` 已刪除
   - file: app/Http/Controllers/Admin/LessonController.php
     owner: 004-course-admin
-    why: drip 課程新增 Lesson 時呼叫 DripService::reactivateCompletedSubscriptions()
+    why: drip 課程新增 Lesson 時呼叫 DripService::reactivateCompletedSubscriptions()。US18 — `store()` 為 drip 課程的新 Lesson 帶入預設 `drip_day`（既有最大值 + drip_interval_days，FR-038）
   - file: app/Services/PortalyWebhookService.php
     owner: 005-checkout
     why: Portaly webhook 付款成功 — 購買 drip 課程自動 subscribe()、購買任何課程觸發 checkAndConvert()
@@ -363,10 +377,35 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - [x] 本次**不做**「寄測試信到我的信箱」，只做畫面預覽（D28）
 - [x] 測試：admin 取得 200 且 HTML 含內文與頁尾、不含追蹤像素 `<img`；非 admin 不得存取；非 drip Lesson 404；既有 `DripMailDeliverabilityTest` 零修改續過
 
+### User Story 18 - 每封信各自設定發送日（可變間隔） (Priority: P2)
+
+目前一門 drip 課程只有一個 `drip_interval_days`，整串信被綁成等距：Day 0、3、6、9、12。
+但加溫序列的節奏本來就不是等距的 —— 前段要密（人還記得你），後段要疏（給決策時間），
+實務上想要的是 **Day 0 → 3 → 7 → 14 → 30**，而現行結構排不出來。
+
+改為每一封信各自設定「訂閱後第幾天寄」，編輯介面就放在課程的「連鎖 Email 設定」分頁：
+現有的排程預覽表格改成可編輯，每列一個天數輸入框，一次看完整個節奏並看到與前一封的間隔。
+
+`drip_interval_days` **不移除**，語意改為「預設間隔」：既有課程沒填天數時仍用舊公式算（零遷移），
+新增 Lesson 時用它算出預設天數。
+
+**驗收**：
+- [x] `lessons.drip_day`（nullable）存「訂閱後第幾天寄這封信」；null 時 fallback 舊公式 `位次 × drip_interval_days`（FR-035）
+- [x] CourseForm「連鎖 Email 設定」分頁的排程表格每列可編輯：第 N 封、Day 輸入框、與前一封的間隔（`+X 天`）、Lesson 標題
+- [x] 首封（位次 0）的 Day 固定為 0 且輸入框 disabled —— 訂閱當下就寄，這不是可調的參數（FR-005 不變）
+- [x] 表格開啟時，`drip_day` 為 null 的列**預帶**舊公式算出來的數值（位次 × 間隔），管理員看到的一定是「現在實際的行為」，存檔後即落地為明確值
+- [x] 天數 MUST 嚴格遞增，不遞增時存檔擋下並指出是哪一列（FR-037）；前端同步顯示紅字提示，但正典是後端驗證
+- [x] 存檔後 `getUnlockedLessonCount()` / `daysUntilUnlock()` / 觀看期 fallback 錨點三處一致改吃新天數（FR-036）
+- [x] `drip_interval_days` 欄位保留，UI 文案改為「預設間隔天數」，說明它只影響「未設定天數的課程」與「新增 Lesson 的預設值」
+- [x] drip 課程新增 Lesson 時，若該課程已有任何明確 `drip_day`，新 Lesson 自動帶 `max(drip_day) + drip_interval_days`；若整門課都還是 null 則維持 null（FR-038）
+- [x] 課程由 drip 切回 standard 時，該課程所有 `lessons.drip_day` 一併清為 null（比照既有清 `drip_interval_days` 的作法）
+- [x] 進行中的訂閱不需遷移：改天數後下一次排程即依新天數計算應寄數，已寄出的信不重寄、不回收（FR-039）
+- [x] 測試：Day 0/3/7/14/30 的課程，訂閱後第 0/3/6/7/13/14/29/30 天各自算出正確應寄數；`drip_day` 全 null 的課程行為與改版前逐字相同；非遞增天數存檔回 422
+
 ## Requirements
 
-- **FR-001**: 解鎖日公式 `位次 × drip_interval_days`（位次見 FR-022）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
-- **FR-002**: drip_interval_days ≤ 0 時視為全部解鎖（防呆）
+- **FR-001**: 解鎖日由 `DripService::unlockDay(Lesson)` 單一入口決定 —— `lessons.drip_day` 有值即為該值，null 則 fallback 舊公式 `位次 × drip_interval_days`（位次見 FR-022，US18 修訂）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
+- **FR-002**: 課程算不出有效排程時視為全部解鎖（防呆）—— 即 `drip_day` 為 null 且 `drip_interval_days` ≤ 0/null，此時 `unlockDay()` 一律回 0，每一課的解鎖日都是 Day 0，等價於改版前「interval ≤ 0 全開」的行為
 - **FR-003**: 訂閱唯一性：(user_id, course_id) DB unique；unsubscribed 是終態 — 永不能再訂閱同課程
 - **FR-004**: 狀態機：active → booked（預約目標高價課）/ converted（購買目標課程）/ completed（寄完全部）/ unsubscribed（退訂）；booked → converted 可升級（預約後真的成交），其餘轉移不可逆；completed 可因新增 Lesson 回到 active
 - **FR-005**: 第一封信 dispatchAfterResponse（回應後即發），emails_sent 同步 +1；發送計數在 dispatch 時記錄，實際寄出與否由 Job 內狀態檢查決定
@@ -403,6 +442,16 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-032**: 預覽 MUST 為唯讀且無副作用：`$subscription`/`$user` 為 null 時 `openPixelUrl` 為空字串（blade 不輸出像素）、`unsubscribeUrl` 為 `#`、問候語為 `DripService::PREVIEW_GREETING_NAME`。MUST NOT 寫入 `drip_email_events`、MUST NOT 使用真實訂閱者的 `unsubscribe_token`（誤點即真的把人退掉）
 - **FR-033**: 預覽端點 `GET /admin/drip/lessons/{lesson}/email-preview` MUST 與宿主頁面同權限層級 —— 掛 **staff** middleware 群組（不是 admin）。訂閱者名單本身就在 `/admin/high-ticket-leads` 的 staff 群組內，端點若收緊成 admin，業務諮詢師看得到那張統計表卻點不開預覽。且 MUST 對非 drip 課程的 Lesson 回 404 —— 一般課程根本不寄這封信，能預覽只是誤導
 - **FR-034**: 預覽 HTML MUST 以 `sandbox` iframe 的 `srcdoc` 呈現（比照 011 FR 的模板預覽）。兩個理由：後台頁面的 Tailwind 樣式會讓預覽比實際的信好看，以及 `md_content` 允許原生 HTML，未 sandbox 等於讓內容在 admin session 下執行 script
+
+- **FR-035**: 解鎖日 MUST 只由 `DripService::unlockDay(Lesson $lesson): int` 產出，回傳「訂閱後第幾天」的絕對天數。實作為 `$lesson->drip_day ?? 位次 × ($course->drip_interval_days ?? 0)`。原本散在三處的 `位次 × drip_interval_days` 算式（`getUnlockedLessonCount`、`daysUntilUnlock`、`getVideoAccessExpiresAt` 的 fallback 錨點）MUST 全部改呼叫它 —— 這正是 FR-022 那次 off-by-one 要改四個地方的原因，同一個算式不得再有第二份
+
+- **FR-036**: 應寄數 MUST 為「`unlockDay(lesson) ≤ 已訂閱天數` 的 Lesson 數」（依 sort_order 由前往後計數），取代原本的 `floor(訂閱天數 / 間隔) + 1`。天數保證嚴格遞增（FR-037），因此「符合條件的數量」與「前綴長度」等價，不需另設前綴邏輯。上限仍為 Lesson 總數，`processSubscription()` 的差額補發邏輯一行不改
+
+- **FR-037**: `drip_days` MUST 在 `UpdateCourseRequest` 驗證：格式為 `{lesson_id: day}`、key MUST 全屬該課程、值為 0–365 整數、依 `sort_order` 排序後 MUST **嚴格遞增**、首封 MUST 為 0。非遞增一律擋下，不做「用前綴規則吃掉」的寬容處理 —— 發信游標本來就是循序推進的，`Day 0 → 7 → 3` 在系統裡執行起來等於 `0 → 7 → 7`，那不是管理員填那個數字時想要的東西，而畫面上看不出來。**存檔時擋下比事後解釋便宜。** 錯誤訊息 MUST 指出是第幾封
+
+- **FR-038**: drip 課程新增 Lesson 時，`LessonController::store()` MUST 決定新 Lesson 的 `drip_day`：該課程已有任何非 null 的 `drip_day` → 帶 `max(drip_day) + (drip_interval_days ?: 7)`；全部為 null → 維持 null。理由是不得產生**混合狀態** —— 明確天數的課程混進一個 null 列，fallback 算出來的 `位次 × 間隔` 幾乎必定小於前一課的明確天數，排程順序當場錯亂，而 FR-037 的遞增驗證只在課程表單存檔時跑，攔不到這條路徑
+
+- **FR-039**: 改天數 MUST 立即對進行中的訂閱生效，且 MUST NOT 回補或重寄。下一次 `drip:process-emails` 依新天數算出應寄數，與 `emails_sent` 比差額 —— 天數往前調（Day 14 → 7）可能一次補寄多封，天數往後調則單純變慢，`emails_sent` 只增不減，寄出去的信收不回來。這是 D2「進度用單欄位游標」的既有結果，不另做遷移或凍結
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -451,7 +500,22 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **D28**: 只做畫面預覽，不做「寄測試信到我的信箱」（US17）。兩者解決的問題不同：畫面預覽答「內容與連結對不對」，測試信答「Gmail 會不會剪字、暗色模式會不會爆」。後者是真問題，但它需要另一條寄送路徑（不寫事件、不推進 `emails_sent`、收件者從 admin 帳號取），而每多一條**繞過正常流程的寄送路徑**，就多一個「以為在測試卻寄給了真人」的破口。先做覆蓋 90% 情境的那個，需要時再加 —— 屆時應該掛在同一個 modal 內、共用同一個 `buildLessonMail()`。
 
+- **D29**: 天數存在 **`lessons.drip_day`（絕對天數）**，不是課程層的間隔陣列、也不是「與前一封的間隔」（US18）。三種存法都能表達 Day 0/3/7/14/30，差別在改動時會壞掉的地方：
+  課程層 JSON 陣列（`[0,3,7,14,30]`）以位次對應，Lesson 一新增或一拖曳，陣列長度與內容就得跟著校正，而那是兩個不同 controller 的事；存「相對間隔」則是把每一封的絕對日期變成前面所有列的累加 —— 改中間一列，後面全部連動位移，管理員改的是 A 卻動到 B。
+  絕對天數存在 Lesson 自己身上，改哪列就只有那列變，也讓 `unlockDay()` 能單筆回答而不必先讀全課程。代價是拖曳重排後天數不會自動跟著換位置，可能變成非遞增 —— 由 FR-037 在存檔時擋下，且那正是管理員應該自己決定的事（換順序時，是內容跟著日期走還是日期跟著內容走，只有他知道）
+
+- **D30**: 編輯介面放 **CourseForm 的排程表格**，LessonForm 不加這個欄位（US18）。節奏是一個關於**序列**的決定 —— 「Day 7 到 Day 14 之間隔太久嗎」這個問題，在只看得到一課的畫面上問不出來。既有的排程預覽表格本來就把整串列在那裡，把唯讀數字換成輸入框，是離「管理員腦中想的東西」最近的一次改動。代價是新增 Lesson 之後要回課程頁補天數，由 FR-038 的自動預設吸收掉大部分情況
+
+- **D31**: `drip_interval_days` **保留不刪**，語意從「發信間隔」降級為「預設間隔」（US18）。刪掉它需要一次性回填正式站所有 drip 課程的 lessons，而那些課程正有進行中的訂閱 —— 回填算錯一課，受影響的是已經在收信的人，且沒有回頭路。保留 fallback 則是零遷移：既有課程一行資料都不動、行為逐字相同，管理員哪天想改成不規則，打開課程頁把預帶的數字改掉就落地了。**這是 D11（觀看期錨點缺席就 fallback 舊公式）同一套取捨**：捨棄「只有一條路徑」的帳面乾淨，換零遷移風險。
+  這個欄位留著還有第二個用途 —— FR-038 新增 Lesson 的預設遞增值，所以它不是純粹的歷史包袱
+
+- **D32**: 表格開啟時把 null 的列**預帶**成舊公式的數值，而不是留空白（US18）。空白會讓管理員以為「還沒設定 = 不會寄」，但實際上舊公式正在跑；預帶則讓畫面上的數字永遠等於系統實際的行為，而且他只要按一次儲存，整門課就從隱性的 fallback 變成明確的天數。**預帶是 UI 行為，不是自動寫入** —— 沒有按儲存就不會有任何 migration 之外的資料變動
+
+- **D33**: 遞增驗證放後端 Form Request，前端只做即時提示（US18）。前端紅字是為了讓管理員在打字當下就看到問題，但它擋不住直接打 API 的路徑，也擋不住 FR-038 那條 Lesson 新增路徑；把正典放後端，前端提示壞掉的時候壞的是體驗而不是資料
+
 ## Schema
+
+- **US18** 新增 migration `2026_08_16_000003_add_drip_day_to_lessons_table.php` — `lessons` 加 `drip_day`（`unsignedSmallInteger`、nullable、`after('video_access_hours')`），語意為「訂閱後第幾天寄這封信」，null = 沿用 `位次 × drip_interval_days` 舊公式。**不回填、不動 `courses.drip_interval_days`**（D31）。不變量：同一門課程內非 null 的 `drip_day` 依 `sort_order` 嚴格遞增（由 FR-037 在寫入面守住，DB 不加 constraint —— 它是跨列條件，MySQL 表達不了）；位次 0 的值恆為 0
 
 - **US17 無 migration、無 schema 變更** —— 只新增一個唯讀端點與一支前端 modal；`SendDripEmailJob` 的改動為純重構（邏輯搬進 `DripService::buildLessonMail()`），寄出的信 byte-for-byte 不變
 
@@ -467,6 +531,34 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
 
 - **US16 無 migration、無 schema 變更、無後端變更** —— 全部是前台文案與互動：新增一個共用文案元件、改寫停止接收確認頁、重新命名一支 composable。`DripSubscriptionController::unsubscribe()` 與路由**一行都不動**（FR-028）。
+
+## Tasks（US18 — 每封信各自設定發送日）
+
+**Phase 1：資料層**
+- [x] T001 migration `2026_08_16_000003_add_drip_day_to_lessons_table.php`：`lessons` 加 `drip_day` unsignedSmallInteger nullable after `video_access_hours` in database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php
+- [x] T002 `Lesson`：`drip_day` 加入 `$fillable` 與 `casts`（integer）in app/Models/Lesson.php
+
+**Phase 2：Service 單一入口（相依 T002）**
+- [x] T003 `DripService`：新增 `public function unlockDay(Lesson $lesson): int` — `$lesson->drip_day ?? $this->lessonPosition($lesson) * (int) ($lesson->course->drip_interval_days ?? 0)`；沿用 `lessonPositions` 的 per-course memoise，避免教室逐 Lesson 觸發查詢 in app/Services/DripService.php
+- [x] T004 `DripService::getUnlockedLessonCount()`：改為載入該課程 lessons（orderBy sort_order）後計數 `unlockDay ≤ daysSince`，上限 Lesson 總數；移除 `floor($daysSince / $interval) + 1` 與 `$interval <= 0` 分支（防呆改由 `unlockDay()` 回 0 天然覆蓋，FR-002）in app/Services/DripService.php
+- [x] T005 [P] `DripService::daysUntilUnlock()`：解鎖日改用 `unlockDay($lesson)`，其餘（已解鎖回 0、停信回 -1）不動 in app/Services/DripService.php
+- [x] T006 [P] `DripService::getVideoAccessExpiresAt()`：fallback 錨點改為 `subscribed_at->addDays($this->unlockDay($lesson))` in app/Services/DripService.php
+
+**Phase 3：後台寫入面（相依 T003）**
+- [x] T007 `UpdateCourseRequest`：加 `drip_days` 陣列規則（`nullable|array`、`drip_days.*` integer 0–365），並在 `withValidator` 檢查 key 全屬該課程、依 sort_order 嚴格遞增、首封為 0；錯誤訊息指出第幾封（FR-037）in app/Http/Requests/Admin/UpdateCourseRequest.php
+- [x] T008 `CourseController::update()`：transaction 內批次寫回 `lessons.drip_day`；`course_type=standard` 時一併把該課程所有 `drip_day` 清為 null in app/Http/Controllers/Admin/CourseController.php
+- [x] T009 `CourseController::edit()`：`courseLessons` 的 select 加 `drip_day` in app/Http/Controllers/Admin/CourseController.php
+- [x] T010 `LessonController::store()`：drip 課程且該課程已有非 null `drip_day` 時，新 Lesson 帶 `max(drip_day) + (drip_interval_days ?: 7)`（FR-038）in app/Http/Controllers/Admin/LessonController.php
+- [x] T011 [P] `StoreCourseRequest`/`UpdateCourseRequest`：`drip_interval_days` 的 messages 文案改為「預設間隔天數」語意（規則不動）in app/Http/Requests/Admin/StoreCourseRequest.php
+
+**Phase 4：前端（相依 T009）**
+- [x] T012 `CourseForm`：`schedulePreview` 改為可編輯表格 —— form 加 `drip_days`（lesson_id ⇒ day），初值取 `lesson.drip_day ?? index × interval`（D32 預帶）；每列顯示「第 N 封／Day 輸入框／`+X 天`／Lesson 標題」；位次 0 固定 0 且 disabled in resources/js/Components/Admin/CourseForm.vue
+- [x] T013 `CourseForm`：非遞增即時紅字提示（computed 檢查），並把 `drip_interval_days` 的 label/help 文案改為「預設間隔天數」＋說明其兩個用途 in resources/js/Components/Admin/CourseForm.vue
+
+**Phase 5：測試（相依 T004、T007）**
+- [x] T014 `VariableScheduleTest`：Day 0/3/7/14/30 課程，subscribed_at 回推 0/3/6/7/13/14/29/30 天各自斷言應寄數；`drip_day` 全 null 的課程與改版前逐字相同（等距）；`drip_day` 為 null 且 interval 為 0/null 時全開（FR-002）in tests/Feature/Drip/VariableScheduleTest.php
+- [x] T015 `VariableScheduleTest`：後台 PUT 課程送非遞增 `drip_days` 回 422、送遞增值寫入成功；drip → standard 後 `drip_day` 全清為 null in tests/Feature/Drip/VariableScheduleTest.php
+- [x] T016 既有 drip 測試全數續過（`LessonPositionTest`、`VideoAccessAnchorTest`、`FunnelStopTest`）—— 它們全部用 `drip_interval_days` 且不設 `drip_day`，是 fallback 路徑的回歸網 in tests/Feature/Drip/
 
 ## Tasks（US17 — 後台預覽 Lesson 信件實際樣貌）
 
@@ -598,6 +690,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-16: US18 可變發信頻率 — 新增 `lessons.drip_day`（null 走舊等距公式，既有課程零遷移），解鎖日收斂為 `DripService::unlockDay()` 單一入口（應寄數／daysUntilUnlock／觀看期 fallback 三處改吃它），CourseForm 排程預覽改為可編輯表格並預帶現行天數，遞增驗證擋在 `UpdateCourseRequest`，新增 Lesson 自動接續天數；`php artisan test` 702 passed / 2933 assertions、`npm run build` exit 0
 - 2026-08-08: US17 後台預覽 Lesson 信件 — 寄信組裝抽為 `DripService::buildLessonMail()`（Job 改呼叫，既有 45 個 drip 測試零修改續過），新增 staff 權限的唯讀預覽端點與 `LessonEmailPreviewModal`，統計表標題可點開 sandbox iframe 預覽；預覽用假資料佔位、不寫任何事件
 
 - 2026-08-07: 修正會員一鍵領取 500 error（T147/T148 / FR-029）— `DripSubscriptionController::memberSubscribe()` 的 `Request` 型別缺 `use Illuminate\Http\Request;`，在 `App\Http\Controllers` 命名空間下被解析成不存在的 `App\Http\Controllers\Request`，路由參數綁定丟 `ReflectionException` → 500（正式站 2026-08-07 事件，`userId:93`）。TDD：先寫 `MemberSubscribeTest` 重現同一個錯誤訊息確認紅，補 import 後綠。全套 524 passed，純後端改動不涉及前端。

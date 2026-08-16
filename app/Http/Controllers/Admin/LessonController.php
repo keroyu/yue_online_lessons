@@ -52,6 +52,18 @@ class LessonController extends Controller
         }
         $data['sort_order'] = $maxSortOrder + 1;
 
+        // A drip course running an explicit schedule must not gain a lesson
+        // with no send day: the fallback formula (position x interval) would
+        // put it before the lesson it follows, and the strictly-increasing
+        // check only runs on the course form (010 FR-038).
+        if ($course->course_type === 'drip') {
+            $lastDay = $course->lessons()->max('drip_day');
+
+            if ($lastDay !== null) {
+                $data['drip_day'] = $lastDay + ($course->drip_interval_days ?: 7);
+            }
+        }
+
         $lesson = $course->lessons()->create($data);
 
         $this->updateCourseDuration($course);
