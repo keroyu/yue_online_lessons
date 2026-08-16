@@ -4,6 +4,7 @@ import axios from 'axios'
 import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 import ConsultationNotesPanel from '@/Components/Admin/Leads/ConsultationNotesPanel.vue'
+import ConsultationSummaryModal from '@/Components/Admin/Leads/ConsultationSummaryModal.vue'
 
 const props = defineProps({
   leads: {
@@ -234,6 +235,19 @@ const toggleDetail = (id) => {
 
 const hasApplication = (lead) =>
   Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
+
+/**
+ * The badge shortcut: straight to the newest session's summary (011 FR-121).
+ *
+ * Reading the summary is the whole reason to open one of these rows, and making
+ * that a two-step — expand, then find the button — is a tax on the common case.
+ * Notes arrive newest-first, so index 0 is the session just held.
+ */
+const quickNote = ref(null)
+
+const openSummary = (lead) => {
+  quickNote.value = lead.consultation_notes?.[0] ?? null
+}
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
@@ -860,32 +874,41 @@ const copySelectedEmails = async () => {
               />
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 cursor-pointer hover:text-brand-teal transition"
-                :title="hasApplication(lead) ? '展開申請內容' : '這筆沒有申請問卷（舊資料）'"
-                @click="toggleDetail(lead.id)"
-              >
-                <svg
-                  class="h-3.5 w-3.5 text-gray-400 transition-transform"
-                  :class="{ 'rotate-90': openDetailIds.includes(lead.id) }"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              <div class="inline-flex items-center gap-1.5">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 cursor-pointer hover:text-brand-teal transition"
+                  :title="hasApplication(lead) ? '展開申請內容' : '這筆沒有申請問卷（舊資料）'"
+                  @click="toggleDetail(lead.id)"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-                {{ lead.name }}
-                <!-- 011 US23: how many consultations sit behind this row. -->
-                <span
+                  <svg
+                    class="h-3.5 w-3.5 text-gray-400 transition-transform"
+                    :class="{ 'rotate-90': openDetailIds.includes(lead.id) }"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  {{ lead.name }}
+                </button>
+
+                <!-- 011 US23: how many consultations sit behind this row, and a
+                     shortcut straight into the newest one's summary. A sibling of
+                     the toggle rather than a child of it — a button inside a
+                     button is invalid markup, and @click.stop on a span would
+                     leave it unreachable by keyboard. -->
+                <button
                   v-if="lead.consultation_notes?.length"
-                  class="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600"
-                  :title="`${lead.consultation_notes.length} 場面談紀錄`"
+                  type="button"
+                  class="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600 cursor-pointer hover:bg-brand-teal/10 hover:text-brand-teal transition-colors"
+                  :title="`${lead.consultation_notes.length} 場面談紀錄 — 點擊查看最近一場的摘要`"
+                  @click="openSummary(lead)"
                 >
                   <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   {{ lead.consultation_notes.length }}
-                </span>
-              </button>
+                </button>
+              </div>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
               <div class="flex items-center gap-2">
@@ -1450,4 +1473,8 @@ const copySelectedEmails = async () => {
     </div>
   </div>
   </Teleport>
+
+  <!-- 姓名旁的場次徽章直接開這一個（FR-121）；展開列裡的面談紀錄面板另有一個實例，
+       兩者各自持有狀態，但改動的是同一個 note 物件，所以資料不會分岔 -->
+  <ConsultationSummaryModal :show="!!quickNote" :note="quickNote" @close="quickNote = null" />
 </template>
