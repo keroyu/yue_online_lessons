@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Drip;
 
+use App\Models\Chapter;
 use App\Models\Course;
 use App\Models\DripSubscription;
 use App\Models\Lesson;
@@ -243,6 +244,71 @@ class VariableScheduleTest extends TestCase
             $this->assertNull($lesson->fresh()->drip_day);
         }
         $this->assertNull($course->fresh()->drip_interval_days);
+    }
+
+    /**
+     * A standard course has no send schedule and must never be judged against
+     * one (FR-040).
+     *
+     * The course form posts every field it holds whatever the course type, so
+     * a standard course was posting drip_days too. With chapters it then failed
+     * outright: LessonController restarts sort_order at 1 per chapter, so the
+     * positional days the form fills in (0, 1, 2, ...) stop lining up with the
+     * running order the increasing-check reads — and a course with nothing to
+     * do with drip could not be saved at all.
+     */
+    public function test_standard_course_with_chapters_is_not_judged_against_a_schedule(): void
+    {
+        $course = Course::create([
+            'name'            => 'Std ' . uniqid(),
+            'slug'            => 'std-' . uniqid(),
+            'tagline'         => 'tag',
+            'description'     => 'desc',
+            'price'           => 1000,
+            'instructor_name' => 'Tester',
+            'type'            => 'lecture',
+            'status'          => 'selling',
+            'course_type'     => 'standard',
+            'is_published'    => true,
+            'is_visible'      => true,
+            'payment_gateway' => 'payuni',
+        ]);
+
+        $postedDays = [];
+        foreach ([1, 2] as $chapterNumber) {
+            $chapter = Chapter::create([
+                'course_id'  => $course->id,
+                'title'      => "C{$chapterNumber}",
+                'sort_order' => $chapterNumber,
+            ]);
+
+            // Each chapter numbers its lessons from 1, as the admin does.
+            foreach ([1, 2, 3] as $sortOrder) {
+                $lesson = Lesson::create([
+                    'course_id'      => $course->id,
+                    'chapter_id'     => $chapter->id,
+                    'title'          => "L{$chapterNumber}-{$sortOrder}",
+                    'video_platform' => 'vimeo',
+                    'video_id'       => '1032766965',
+                    'sort_order'     => $sortOrder,
+                ]);
+                $postedDays[$lesson->id] = count($postedDays);
+            }
+        }
+
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->put("/admin/courses/{$course->id}", $this->courseFormPayload($course, [
+                'course_type'        => 'standard',
+                'drip_interval_days' => null,
+                'price'              => 1000,
+                'drip_days'          => $postedDays, // what the form posts regardless of type
+            ]))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        foreach (array_keys($postedDays) as $lessonId) {
+            $this->assertNull(Lesson::find($lessonId)->drip_day, '一般課程不該被寫入發信排程');
+        }
     }
 
     /** FR-038 — a new lesson must not land as a null hole in an explicit schedule. */

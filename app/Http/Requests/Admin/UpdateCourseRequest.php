@@ -37,7 +37,17 @@ class UpdateCourseRequest extends FormRequest
     {
         if ($this->input('course_type') === 'drip') {
             $this->merge(['price' => 0]);
+
+            return;
         }
+
+        // A standard course has no send schedule. The form posts every field it
+        // holds regardless of course type, so without this the drip rules run
+        // on a course that will never send an email — and a course with
+        // chapters fails them outright, because each chapter restarts
+        // sort_order at 1 and the posted rows no longer line up with the
+        // running order the check reads (010 FR-037).
+        $this->merge(['drip_days' => null]);
     }
 
     /**
@@ -93,7 +103,7 @@ class UpdateCourseRequest extends FormRequest
         $validator->after(function ($validator) {
             $days = $this->input('drip_days');
 
-            if (! is_array($days) || $days === []) {
+            if ($this->input('course_type') !== 'drip' || ! is_array($days) || $days === []) {
                 return;
             }
 

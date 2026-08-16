@@ -453,6 +453,9 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **FR-039**: 改天數 MUST 立即對進行中的訂閱生效，且 MUST NOT 回補或重寄。下一次 `drip:process-emails` 依新天數算出應寄數，與 `emails_sent` 比差額 —— 天數往前調（Day 14 → 7）可能一次補寄多封，天數往後調則單純變慢，`emails_sent` 只增不減，寄出去的信收不回來。這是 D2「進度用單欄位游標」的既有結果，不另做遷移或凍結
 
+- **FR-040**: `drip_days` MUST 只在 `course_type=drip` 時被送出與驗證。`CourseForm` 用同一份 `useForm` 服務兩種課程類型，**不管當下是哪一種都會把所有欄位送出**，所以「表單沒顯示這個欄位」不等於「後端不會收到它」。修法兩端都做：前端 `transform` 在非 drip 時把 `drip_days` 拿掉，後端 `prepareForValidation()` 一律清成 null（正典）。
+  **這條是踩過才寫的**：一般課程只要有章節就存不了檔 —— `LessonController` 的 `sort_order` 是**每章各自從 1 起算**，整門課因此有重複值，前端按位次預帶的 0,1,2,3… 與後端 `orderBy('sort_order')` 讀到的順序對不上，遞增檢查判定失敗，畫面回「發信排程：第 4 封信的天數必須大於前一封」—— 一門跟連鎖信毫無關係的課程，被一個它根本沒有的東西擋住（2026-08-17 正式站事件）
+
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
 ## 設計決策
@@ -531,6 +534,12 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
 
 - **US16 無 migration、無 schema 變更、無後端變更** —— 全部是前台文案與互動：新增一個共用文案元件、改寫停止接收確認頁、重新命名一支 composable。`DripSubscriptionController::unsubscribe()` 與路由**一行都不動**（FR-028）。
+
+## Tasks（修正一般課程被發信排程擋住）
+
+- [x] T017 `UpdateCourseRequest::prepareForValidation()`：非 drip 一律 `drip_days => null`；`withValidator` 的遞增檢查加 `course_type === 'drip'` 前提（FR-040）in app/Http/Requests/Admin/UpdateCourseRequest.php
+- [x] T018 `CourseForm`：`submit()` 以 `transform` 在非 drip 時剔除 `drip_days`，create/update 兩條路徑都套用 in resources/js/Components/Admin/CourseForm.vue
+- [x] T019 回歸測試：有章節（sort_order 每章從 1 起算）的一般課程送出 `drip_days` 仍存檔成功、且 `lessons.drip_day` 維持 null in tests/Feature/Drip/VariableScheduleTest.php
 
 ## Tasks（US18 — 每封信各自設定發送日）
 
@@ -690,6 +699,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-17: 修正一般課程存不了檔 —— `CourseForm` 不分課程類型都送出 `drip_days`，有章節的一般課程（sort_order 每章從 1 起算）因此被遞增檢查擋下；改為前端 transform 剔除 + 後端 `prepareForValidation()` 清空（FR-040），補有章節的回歸測試；`php artisan test` 705 passed
 - 2026-08-16: US18 可變發信頻率 — 新增 `lessons.drip_day`（null 走舊等距公式，既有課程零遷移），解鎖日收斂為 `DripService::unlockDay()` 單一入口（應寄數／daysUntilUnlock／觀看期 fallback 三處改吃它），CourseForm 排程預覽改為可編輯表格並預帶現行天數，遞增驗證擋在 `UpdateCourseRequest`，新增 Lesson 自動接續天數；`php artisan test` 702 passed / 2933 assertions、`npm run build` exit 0
 - 2026-08-08: US17 後台預覽 Lesson 信件 — 寄信組裝抽為 `DripService::buildLessonMail()`（Job 改呼叫，既有 45 個 drip 測試零修改續過），新增 staff 權限的唯讀預覽端點與 `LessonEmailPreviewModal`，統計表標題可點開 sandbox iframe 預覽；預覽用假資料佔位、不寫任何事件
 

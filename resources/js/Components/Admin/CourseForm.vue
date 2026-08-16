@@ -245,6 +245,15 @@ const scrollToFirstError = () => {
   })
 }
 
+// The send schedule belongs to drip courses only — a standard course must not
+// post it at all, or it gets validated against a sequence it does not have.
+const withoutInapplicableFields = (data) => {
+  if (isDrip.value) return data
+
+  const { drip_days: _dripDays, ...rest } = data
+  return rest
+}
+
 const submit = () => {
   const options = {
     forceFormData: true,
@@ -254,11 +263,11 @@ const submit = () => {
 
   if (props.method === 'put') {
     form.transform((data) => ({
-      ...data,
+      ...withoutInapplicableFields(data),
       _method: 'put',
     })).post(props.submitUrl, options)
   } else {
-    form.post(props.submitUrl, options)
+    form.transform(withoutInapplicableFields).post(props.submitUrl, options)
   }
 }
 
