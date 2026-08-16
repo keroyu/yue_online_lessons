@@ -107,10 +107,13 @@ owner_files:
   - app/Services/ConsultationTranscriptService.php
   - app/Jobs/ProcessZoomTranscriptJob.php
   - app/Console/Commands/FetchConsultationTranscript.php
+  - app/Console/Commands/BackfillConsultationNotes.php
   - database/migrations/2026_08_17_000001_create_consultation_notes_table.php
+  - database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
   - tests/Feature/HighTicket/ConsultationSummaryTest.php
   - tests/Feature/HighTicket/ConsultationNoteTest.php
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
+  - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
@@ -374,7 +377,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
 - [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
 - [x] 已登入者自動帶入 real_name / email（行為與現況相同）；重新申請時若該 email 已有 lead，問卷欄位預填既有值省得重打
-- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為三條全 true，任一不符回 422 並 inline 顯示於對應欄位
+- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為四條全 true（FR-026），任一不符回 422 並 inline 顯示於對應欄位
 - [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約時段、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
 - [x] 展開列不再顯示「預約優惠碼」（原值仍存在 `booking_code`，只是後台不需要看它）；改顯示該筆已預約的時段，格式如「2026/8/8 14:00-15:45」，起訖時間由該 lead 名下 `consultation_slots`（依 `starts_at` 排序）取首尾單位換算 —— 起始單位的 `starts_at`，結束時間為末位單位 `starts_at + 15 分鐘`；lead 尚未選定時段（候補中）則不顯示此列
 - [x] 展開列「Email 確認時間」之後新增「序列信起始時間」，格式如「2026/8/3 17:03（經過 3 天）」，用於追蹤該 email 被序列信加溫多久：取該 email 名下**所有**序列信訂閱（`dripByEmail`，不限課程、不限狀態）中 `subscribed_at` **最早**的一筆；天數為**日曆天差**（比較年月日，不比時分，避免數字隨查看時刻跳動）；該 email 完全沒有任何序列信訂閱時不顯示此列。**天數的比較終點**：該筆預約已確認（有 `confirmed_at`）時，比較終點固定為 `confirmed_at`——「序列信起始 → 確認預約」是已發生的歷史事實，天數算出來後不應再變動；尚未確認時終點才是「今天」，隨查看當下累加（2026-08-07 修正，原本一律比較到今天，導致已轉換的 lead 天數還在持續增加，見下方進度日誌）
@@ -730,7 +733,8 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 預算、異議、承諾事項全在顧問腦袋裡，換人接手或隔週回訪就要重問一次。
 
 面談結束、Zoom 產出雲端錄影的 VTT 逐字稿後，系統自動抓回來、校訂成乾淨的匿名對話稿存檔，
-再萃取成固定格式的摘要。兩者都能在後台再編輯。
+再萃取成固定格式的摘要。後台每場次收斂成兩個動作：**摘要**開 modal 檢視與編輯，
+**逐字稿**只提供 `.txt` 下載、不在頁面上呈現也不可編輯（FR-120）。
 
 紀錄落在新的 `consultation_notes` 表，**一場面談一列、以 email 對應客戶**（D92）：
 買了多次一對一顧問的人會累積出完整的面談史，而即將開發的「客戶自行登記時段的顧問服務」
@@ -812,12 +816,15 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 - **FR-024**: 兩個 tab 的篩選參數各用各的命名：預約名單沿用 `status` / `search` / `course_id`（既有網址不得失效），訂閱者名單用 `sub_course` / `sub_status`。**MUST NOT 共用 `status`** —— 兩邊的狀態 enum 完全不同（pending/contacted/no_response/converted/closed vs active/booked/converted/completed/unsubscribed），共用會讓切 tab 後帶著一個對方不認得的值。`page` 可共用（一次只渲染一個列表）
 
-- **FR-026**: 承諾條件清單的三條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
+- **FR-026**: 承諾條件清單的四條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
   1. 我有明確想改善的問題，有意投入時間學習並持續執行。
   2. 我願意接受務實建議，也願意調整原本的想法與做法。
-  3. 如果確認方向適合，我願意認真評估並採取下一步行動。
+  3. 我有預算／決策權，希望在未來 3-6 個月內實踐計劃。
+  4. 如果確認方向適合，我願意認真評估並採取下一步行動。
 
-  三條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 3 且全為 true 的陣列）。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，三條全真才寫入，存了也只會是三個 true（見 D30）。三個選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
+  第 3 條為 2026-08-17 追加（使用者決策），刻意插在「認真評估並採取下一步」**之前** —— 預算與決策權是資格條件，該在對方承諾行動之前先問清楚。
+
+  四條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 4 且全為 true 的陣列）。**條數是跨語言的耦合**：清單定義在 Vue、長度驗證在 PHP，改一邊忘了另一邊會讓每一次送出都被 422 擋下，而使用者看到的錯誤訊息完全不提「條數」。因此後端的長度寫成具名常數 `HighTicketBookingRequest::COMMITMENT_COUNT`，並由測試讀取 Vue 的 `COMMITMENTS` 陣列實際比對兩者，不靠註解自律。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，全真才寫入，存了也只會是一排 true（見 D30）。選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
 
 - **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）。
   **前端 MUST 同步擋下**（2026-08-05 追加）：`social_url` 格式錯誤時 MUST NOT 讓使用者離開第 1 步，且第 4 步覆核區 MUST 把該列標紅、附修正提示並停用送出鈕 —— 只靠後端 422 的話，使用者要按完「送出申請」才被丟回第 1 步，而覆核畫面在那之前完全看不出哪裡有問題。判定用 `new URL()` 而非 regex（瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與危險的 `javascript:`）；空字串一律略過（選填）。
@@ -1499,7 +1506,7 @@ Phase 2 — 抓取、解析與 AI
 Phase 3 — 後台 UI
 
 - [x] T280 `Admin\ConsultationNoteController`：`updateSummary()` / `updateTranscript()` / `regenerateSummary()`（inline validate、回 JSON、比照既有 `updateStatus()`；重跑不打 Zoom、逐字稿為空回 422，FR-111）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
-- [x] T281 三條路由 `PATCH|POST /admin/consultation-notes/{note}/...` 加在 `staff` 群組末尾 in `routes/web.php`（000 touchpoint）
+- [x] T281 `/admin/consultation-notes/{note}` 四條路由加在 `staff` 群組末尾 in `routes/web.php`（000 touchpoint）：`PATCH .../summary`、`POST .../regenerate-summary`、`GET .../transcript.txt`（T292）、`DELETE`（T290）。原本的 `PATCH .../transcript` 已於 T293 移除
 - [x] T282 `index()` 的 leads payload 掛上 `consultationNotes`（以 email 關聯、`met_at` 倒序，FR-116）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T283 detail row 加「面談紀錄」區塊：`v-for` 列出該 email 的所有場次（`met_at` 標題 + 課程／顧問），每場一組可編輯摘要 + 兩個時間戳。**抽成 `ConsultationNotesPanel.vue` 獨立組件**（BookingListTab 已 1438 行）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
 - [x] T284 每場次內加「逐字稿」收合區塊（可編輯 textarea、等寬字體、複製按鈕）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
@@ -1517,10 +1524,12 @@ Phase 4 — 測試與驗證
 - [x] T292b 下載與 payload 測試：`.txt` 標頭與 BOM 正確、無逐字稿回 404、訪客被擋、**leads payload 不含逐字稿本文但有 `transcript_bytes`**（FR-120）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [x] T291 補建指令 `booking:backfill-consultation-notes {--dry-run}`（FR-119）：`recordConsultationNote()` 改 public 供共用，略過已有紀錄／無時段／已取消 in `app/Console/Commands/BackfillConsultationNotes.php`, `app/Services/HighTicketBookingService.php`
 - [x] T291b 補建測試：補出缺漏的紀錄、可重複執行不產生重複列、`--dry-run` 不寫入、已取消的預約略過（FR-119）in `tests/Feature/HighTicket/ConsultationNoteTest.php`
-- [ ] T291c 正式站部署後執行 `php artisan booking:backfill-consultation-notes --dry-run` 確認清單，再實跑一次（上線前已確認的 7 筆預約，面談都還在 8/22–9/5）
+- [x] T291c 正式站補建完成：`--dry-run` 確認後實跑，補出 **39 筆**（涵蓋所有曾確認且未取消的預約，不只上線前那批）
+- [x] T291d 正式站補抓已結束場次的逐字稿：13 場成功（逐字稿 11k–27k 字、摘要 747–1054 字），4 場 Zoom 回 `3301 此錄製不存在`（沒開錄影／客人未出席／顧問改用個人會議室）
 - [x] T290b 刪除場次測試：空場次可刪、**有內容的場次也可刪**、訪客不可刪、**已刪除的場次不因後續 webhook 復活**（FR-118）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
-- [ ] T287 使用者實測：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要自動出現；人工讀校訂稿確認未被摘要掉、無殘留真實姓名；`tail` log 確認無內容外洩
+- [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
+- [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**擋在 T289 之前，worker 未加則此項無法驗證**
 
 - [x] T001 `convert()` 驗證新增 `amount` (`required|integer|min:0`) 並傳入 service；`index()` 的 `grantableCourses` select 加 `price / original_price / promo_ends_at` 並 map 出 `display_price` in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T002 `convertLead(HighTicketLead $lead, int $courseId, int $amount)` — `Purchase::updateOrCreate` 的 amount 改寫入參數值 in `app/Services/HighTicketLeadService.php`
@@ -1988,6 +1997,8 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-08-17: 承諾清單加第 4 條（FR-026）— 「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」插在原第 3 條之前（使用者決策）：預算與決策權是資格條件，該在對方承諾採取行動之前先問。同步改後端 `size:3` → 4 —— 這條若漏改，每一次送出都會被 422 擋下，而錯誤訊息「請確認全部的預約前提條件」完全不提條數，前端看起來像是全勾了卻送不出去。條數改寫成具名常數 `COMMITMENT_COUNT`，並補一支測試直接讀 Vue 的 `COMMITMENTS` 陣列與伺服器實際接受的長度比對 —— 跨語言的耦合靠註解自律遲早會斷。706 passed。
+- 2026-08-17: [sync] 正式站補建與補抓完成（T291c / T291d / T287a）— 補建 39 筆紀錄（不只上線前那 7 筆，是所有曾確認且未取消的預約），再對已結束的場次補抓逐字稿：**13 場成功**（逐字稿 11k–27k 字、摘要 747–1054 字），4 場 Zoom 回 `3301 此錄製不存在`。掃過全部 13 份逐字稿的每一行，講者標籤異常 0 筆 —— FR-109 的匿名化在真實資料上成立，不只在測試裡。另補上索引缺口：`BackfillConsultationNotes.php`、`ConsultationSummaryModal.vue`、`..._000003` migration 三個新檔未列入 `owner_files`；T281 的「三條路由」描述已過時（現為四條，`PATCH .../transcript` 於 T293 移除）。**US23 仍為 partial**：自動路徑（webhook → 佇列）尚未驗證過，卡在 T289 —— 正式站的 `database_long` worker 還沒加，13 場全是手動指令跑的。
 - 2026-08-16: 動作列位置與徽章捷徑（T294，FR-121）— 使用者實際用起來才發現的兩件事。其一：`ml-auto` 把兩個動作推到列尾，寬螢幕下與面談時間隔了半個畫面，「右邊根本看不到」。改成緊接時間，課程與顧問這類辨識資訊往後讓位；純文字連結也改成有邊框的小按鈕，原本跟旁邊的灰字長得一樣、看不出可點。其二：姓名旁的場次徽章加上點擊直開最近一場摘要 —— 讀摘要是打開那一列的唯一理由，做成「先展開、再找按鈕」是對常見路徑課稅。徽章改成展開鈕的兄弟元素而非子元素（button 套 button 是無效標記，而 `<span>` 掛 `@click.stop` 會讓它鍵盤到不了）。徽章的判準與數字改為「有摘要的場次」而非「總場次」—— 補建之後每筆確認過的預約都有紀錄，若按總場次算，全部 40 筆都會長出徽章，點下去卻是空白 modal。704 passed。
 - 2026-08-16: 面談紀錄 UX 收斂（T292 / T292b，FR-120）— 原本每場次在展開列裡塞了一個摘要 textarea 加一個可收合的逐字稿 textarea，一位有三場面談的客戶等於三面牆，上下場次完全無法掃讀。改成單行場次列 + 兩個連結：摘要開 modal（沿用 `ReferrerDetailModal` 的 Teleport／ESC／背景鎖捲版型），逐字稿只給 `.txt` 下載。順手把 leads payload 裡的逐字稿本文拿掉改送 `LENGTH(transcript)` —— 「不直接呈現」若只是視覺上藏起來、本文仍躺在頁面原始碼裡，那叫裝飾不叫設計；一頁 20 筆 lead 各帶該客戶所有場次，本文可達 200k 字元。下載檔加 UTF-8 BOM，否則 Windows 記事本會把中文顯示成亂碼。**取捨已記入 FR-120**：逐字稿因此不可在後台編輯。702 passed。
 - 2026-08-16: 清除逐字稿編輯路徑（T293，FR-120）— 使用者確認逐字稿不需要編輯後，把上一步暫時留著的死路徑清掉：`updateTranscript()`、其路由、`transcriptIsLocked()`、以及 `transcript_edited_at` 欄位（migration `..._000003`）。留一個永遠為 null 的時間戳，等於邀請後人寫程式去檢查它。清的過程發現原本那道守門其實擋錯了東西：它防的是「人改過的稿被 webhook 蓋掉」，但真正會發生的是**同一場次收到兩次事件**（我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`，D88），而舊守門對此毫無作用 —— 等於同一份逐字稿付兩次校訂費，這個洞從一開始就在。改成 `transcriptIsSettled()`（`transcript_fetched_at` 有值且有內容）後兩者都擋住了，`--force` 仍可刻意重跑。701 passed。

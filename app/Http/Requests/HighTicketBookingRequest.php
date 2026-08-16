@@ -14,6 +14,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class HighTicketBookingRequest extends FormRequest
 {
+    /**
+     * How many boxes the wizard shows — keep in step with `COMMITMENTS` in
+     * `resources/js/Components/Course/HighTicketBookingWizard.vue`.
+     *
+     * Named rather than inline because the two halves live in different
+     * languages and different directories: adding a fourth commitment to the
+     * form and leaving a `size:3` here rejects every submission, and the error
+     * the visitor sees says nothing about a count.
+     */
+    private const COMMITMENT_COUNT = 4;
+
     /** Public booking endpoint — the course itself decides eligibility. */
     public function authorize(): bool
     {
@@ -46,7 +57,7 @@ class HighTicketBookingRequest extends FormRequest
             // Scheme-restricted: the bare `url` rule accepts ftp:, javascript:
             // and data:, and this string ends up as an href in the admin panel.
             'social_url'     => ['nullable', 'url:http,https', 'max:500'],
-            'commitments'    => ['required', 'array', 'size:3'],
+            'commitments'    => ['required', 'array', 'size:' . self::COMMITMENT_COUNT],
             // Optional on the waitlist route, where there is nothing to pick.
             'slot_starts_at' => [$this->routeIs('course.waitlist') ? 'nullable' : 'required', 'date'],
             'code'           => ['nullable', 'string', 'max:50'],

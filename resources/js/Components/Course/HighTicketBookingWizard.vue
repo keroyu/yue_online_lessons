@@ -23,9 +23,12 @@ const STEPS = [
   { n: 4, label: '確認' },
 ]
 
+// Changing the length here means changing `size:` in HighTicketBookingRequest —
+// the server counts the boxes and will reject the form otherwise.
 const COMMITMENTS = [
   '我有明確想改善的問題，有意投入時間學習並持續執行。',
   '我願意接受務實建議，也願意調整原本的想法與做法。',
+  '我有預算／決策權，希望在未來 3-6 個月內實踐計劃。',
   '如果確認方向適合，我願意認真評估並採取下一步行動。',
 ]
 

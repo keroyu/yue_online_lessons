@@ -568,6 +568,7 @@ purpose: 高價課預約 — 隱藏價格銷售頁預約表單、leads 後台、
 specs: specs/011-high-ticket/
 
 main_files:
+- app/Console/Commands/BackfillConsultationNotes.php
 - app/Console/Commands/FetchConsultationTranscript.php
 - app/Console/Commands/ReleaseExpiredBookingHolds.php
 - app/Console/Commands/SendConsultationReminders.php
@@ -652,12 +653,14 @@ main_files:
 - database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php
 - database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php
 - database/migrations/2026_08_17_000001_create_consultation_notes_table.php
+- database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
+- resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/MemberDetailModal.vue

@@ -89,7 +89,7 @@ class BookingWizardTest extends TestCase
             'bottleneck'  => '接案收入不穩定',
             'expertise'   => '品牌識別設計',
             'social_url'  => 'https://instagram.com/someone',
-            'commitments' => [true, true, true],
+            'commitments' => [true, true, true, true],
         ], $overrides);
     }
 
@@ -153,11 +153,36 @@ class BookingWizardTest extends TestCase
 
         $response = $this->postJson("/course/{$course->id}/book", $this->payload([
             'slot_starts_at' => $start->toIso8601String(),
-            'commitments'    => [true, false, true],
+            'commitments'    => [true, false, true, true],
         ]));
 
         $response->assertStatus(422)->assertJsonValidationErrors(['commitments']);
         $this->assertSame(0, HighTicketLead::count());
+    }
+
+    /**
+     * The checklist is defined in Vue and counted in PHP, so the two can drift
+     * apart in a way neither side notices: add a commitment to the form, leave
+     * `size:` behind, and every submission is rejected with a message that says
+     * nothing about a count. Read the real array and compare.
+     */
+    public function test_the_wizard_checklist_length_matches_what_the_server_accepts(): void
+    {
+        $wizard = file_get_contents(base_path('resources/js/Components/Course/HighTicketBookingWizard.vue'));
+
+        $this->assertSame(1, preg_match('/const COMMITMENTS = \[(.*?)\]/s', $wizard, $matches));
+
+        $inForm = preg_match_all("/'[^']+'\s*,/", $matches[1]);
+
+        Mail::fake();
+        $this->templates();
+        $start = $this->makeSlots();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/book", $this->payload([
+            'slot_starts_at' => $start->toIso8601String(),
+            'commitments'    => array_fill(0, $inForm, true),
+        ]))->assertStatus(200);
     }
 
     public function test_social_url_is_optional_but_must_be_a_url(): void

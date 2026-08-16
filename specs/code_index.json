@@ -3,6 +3,9 @@
     ".env.example": [
       "003.us-9"
     ],
+    "app/Console/Commands/BackfillConsultationNotes.php": [
+      "011.us-23"
+    ],
     "app/Console/Commands/CleanDormantSubscribers.php": [
       "012.us-7"
     ],
@@ -1216,6 +1219,9 @@
     "database/migrations/2026_08_17_000002_create_ai_prompts_table.php": [
       "000.us-10"
     ],
+    "database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php": [
+      "011.us-23"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1289,6 +1295,9 @@
       "011.us-9"
     ],
     "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue": [
+      "011.us-23"
+    ],
+    "resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue": [
       "011.us-23"
     ],
     "resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue": [
