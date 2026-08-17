@@ -12,7 +12,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class NotifyHighTicketSlotJob implements ShouldQueue
 {
@@ -79,19 +78,11 @@ class NotifyHighTicketSlotJob implements ShouldQueue
      * Telling somebody "we have slots now" and then making them retype the
      * whole questionnaire is how you lose the application you already earned.
      *
-     * The token is minted here rather than only at waitlist time, so leads that
-     * predate FR-042 — and leads that came through the full flow rather than
-     * the waitlist — get a working link too. Lazily: a lead nobody ever
-     * notifies never needs one.
+     * Delegated to the service since US26 needed the same link for its own
+     * mail — two copies of a URL shape is one copy too many.
      */
     private function bookingUrl(HighTicketLead $lead): string
     {
-        if (!$lead->resume_token) {
-            $lead->update(['resume_token' => Str::random(64)]);
-        }
-
-        $url = rtrim(config('app.url'), '/') . '/course/' . ($lead->course?->slug ?: $lead->course_id);
-
-        return $url . '?resume=' . $lead->resume_token;
+        return app(\App\Services\HighTicketBookingService::class)->resumeUrl($lead);
     }
 }

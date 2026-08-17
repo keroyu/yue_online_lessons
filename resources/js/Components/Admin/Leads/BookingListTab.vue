@@ -246,8 +246,11 @@ const toggleDetail = (id) => {
   }
 }
 
+// Questionnaire only. Screening has its own block with its own guard, and
+// folding it in here made every screened-but-unfinished lead render the row of
+// 「—」 that US9 explicitly asked not to exist.
 const hasApplication = (lead) =>
-  Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url || lead.screened_at)
+  Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
 
 // 資格審核 (011 FR-131). Scores are admin-only — the applicant is never shown
 // one, so this is the single place the number appears at all.
@@ -1067,6 +1070,9 @@ const copySelectedEmails = async () => {
                   <p v-else class="mt-0.5 text-gray-800 whitespace-pre-wrap break-words">{{ row.value }}</p>
                 </div>
               </div>
+              <p v-else-if="lead.screened_at" class="text-sm text-gray-400 border-t border-gray-200 pt-4">
+                —　通過資格審核後就沒有再往下填，尚未送出申請。
+              </p>
               <p v-else class="text-sm text-gray-400 border-t border-gray-200 pt-4">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
 
               <!-- 011 US24：第一步的五題資格審核。分數只在這裡出現，申請人永遠看不到 -->

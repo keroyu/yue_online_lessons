@@ -40,6 +40,18 @@ class HighTicketBookingService
     /** How long a slot stays reserved while we wait for the emailed click. */
     public const HOLD_MINUTES = 60;
 
+    /**
+     * How long an abandoned application is left alone before the nudge (US26).
+     *
+     * Three hours: long enough that somebody who stepped away mid-form is not
+     * emailed about it while they are still in the tab, short enough that the
+     * reason they applied is still on their mind.
+     */
+    public const RESUME_REMINDER_AFTER_HOURS = 3;
+
+    /** Nothing older than this is nudged — switching the feature on must not mail the archive. */
+    public const RESUME_REMINDER_MAX_AGE_DAYS = 7;
+
     public function __construct(protected ConsultationSlotService $slots) {}
 
     /**
@@ -853,6 +865,112 @@ class HighTicketBookingService
     {
         return Attachment::fromData(fn () => $ics, 'consultation.ics')
             ->withMime("text/calendar; charset=UTF-8; method={$method}");
+    }
+
+    /**
+     * Deep link that reopens the wizard with this lead's answers (011 FR-042).
+     *
+     * Canonical here rather than in `NotifyHighTicketSlotJob`, which had the
+     * only copy until US26 needed the same link: two builders means one of them
+     * eventually points at a URL shape the wizard no longer honours.
+     *
+     * The token is minted lazily — a lead nobody ever writes to never needs one.
+     */
+    public function resumeUrl(HighTicketLead $lead): string
+    {
+        if (!$lead->resume_token) {
+            $lead->update(['resume_token' => Str::random(64)]);
+        }
+
+        $course = $lead->course ?: Course::find($lead->course_id);
+        $url = rtrim(config('app.url'), '/') . '/course/' . ($course?->slug ?: $lead->course_id);
+
+        return $url . '?resume=' . $lead->resume_token;
+    }
+
+    /**
+     * Nudge the applications that cleared the gate and then stopped (011 US26).
+     *
+     * These leads exist because screening records everybody at step 1 (FR-125),
+     * and a good share of them are the most interesting rows in the table: they
+     * answered five questions honestly, scored well, and then hit the field
+     * asking them to write out their bottleneck. One mail, once, with a link
+     * that puts them back where they left off.
+     *
+     * Deliberately narrow. `phone` is the marker for "never reached step 2" —
+     * it is the first required field there, so anybody who has one got further
+     * than this mail is for. And nothing older than a week: switching this on
+     * must not mail every abandoned screening in the archive at once (FR-136).
+     */
+    public function sendApplicationResumeReminders(): int
+    {
+        $leads = HighTicketLead::query()
+            ->whereNotNull('screened_at')
+            ->where('screened_at', '<=', now()->subHours(self::RESUME_REMINDER_AFTER_HOURS))
+            ->where('screened_at', '>=', now()->subDays(self::RESUME_REMINDER_MAX_AGE_DAYS))
+            ->whereNull('resume_reminder_sent_at')
+            ->whereNull('phone')
+            ->whereNull('confirmed_at')
+            ->where('status', 'pending')
+            ->with('course')
+            ->get();
+
+        $sent = 0;
+
+        foreach ($leads as $lead) {
+            if (!$lead->course) {
+                Log::warning('High ticket resume reminder: lead has no course', ['lead_id' => $lead->id]);
+
+                continue;
+            }
+
+            if ($this->sendResumeReminderMail($lead, $lead->course)) {
+                // Only after a successful send — the same rule as the day-before
+                // reminder (FR-078), for the same reason.
+                $lead->forceFill(['resume_reminder_sent_at' => now()])->save();
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    public function sendResumeReminderMail(HighTicketLead $lead, Course $course): bool
+    {
+        $template = EmailTemplate::forEvent('high_ticket_application_resume')->first();
+
+        if (!$template) {
+            Log::warning('High ticket resume reminder: template missing', ['lead_id' => $lead->id]);
+
+            return false;
+        }
+
+        $vars = [
+            '{{user_name}}'   => $lead->name,
+            '{{user_email}}'  => $lead->email,
+            '{{course_name}}' => $course->name,
+            '{{booking_url}}' => $this->resumeUrl($lead),
+        ];
+
+        try {
+            // No CC: this is a nudge about an unfinished form, not news anybody
+            // needs to act on (FR-062).
+            Mail::to($lead->email)
+                ->send(new TemplatedMail(
+                    $template->renderSubject($vars),
+                    $template->renderBody($vars),
+                    $template->renderText($vars),
+                ));
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('High ticket resume reminder failed', [
+                'lead_id' => $lead->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     private function courseUrl(Course $course): string

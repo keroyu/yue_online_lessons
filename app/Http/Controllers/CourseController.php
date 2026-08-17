@@ -184,6 +184,12 @@ class CourseController extends Controller
             // So a resumed draft still carries a verdict the submit can re-score
             // (011 FR-129); null on any lead that predates the screening.
             ...$lead->only(\App\Support\BookingScreening::fields()),
+            // One bit, not the rubric: whether these stored answers still pass.
+            // The wizard skips step 1 on the strength of it (FR-137), so it has
+            // to be decided here — a declined lead reloading the page would
+            // otherwise walk past the gate on its own prefilled answers.
+            'screening_cleared' => $lead->screened_at !== null
+                && \App\Support\BookingScreening::passes($lead->only(\App\Support\BookingScreening::fields())),
             // Only ever stored when it was valid, so restoring it cannot
             // resurrect a dead code — and dropping it would quietly shorten a
             // 45-minute consultation the applicant already qualified for.

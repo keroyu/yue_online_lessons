@@ -40,3 +40,11 @@ Schedule::command('booking:release-holds')->everyTenMinutes();
 // out because the server runs UTC: the requirement is "17:00 Taiwan time", and
 // the bare 17:00 above it would mean 01:00 in Taipei.
 Schedule::command('booking:send-reminders')->timezone('Asia/Taipei')->dailyAt('17:00');
+
+// Nudge unfinished applications (011 US26 / FR-136). Hourly rather than daily —
+// the momentum this mail is trying to recover is measured in hours — but only
+// inside waking hours, because the alternative is a 03:00 email about a form.
+Schedule::command('booking:send-resume-reminders')
+    ->timezone('Asia/Taipei')
+    ->hourly()
+    ->between('9:00', '21:00');

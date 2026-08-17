@@ -571,6 +571,7 @@ main_files:
 - app/Console/Commands/BackfillConsultationNotes.php
 - app/Console/Commands/FetchConsultationTranscript.php
 - app/Console/Commands/ReleaseExpiredBookingHolds.php
+- app/Console/Commands/SendApplicationResumeReminders.php
 - app/Console/Commands/SendConsultationReminders.php
 - app/Exceptions/SlotUnavailableException.php
 - app/Http/Controllers/Admin/ChapterController.php
@@ -658,6 +659,8 @@ main_files:
 - database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
 - database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php
 - database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php
+- database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
+- database/migrations/2026_08_18_000004_install_application_resume_template.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
@@ -686,6 +689,7 @@ main_files:
 - routes/api.php
 - routes/console.php
 - routes/web.php
+- tests/Feature/HighTicket/ApplicationResumeReminderTest.php
 - tests/Feature/HighTicket/BookingChangeTest.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php

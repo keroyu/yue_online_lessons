@@ -43,11 +43,16 @@ const COMMITMENTS = [
 // drop them on the picker rather than walking them through it all again.
 const resuming = props.draft?.resume === true
 
-const step = ref(resuming ? 4 : 1)
+// Answers already on file that still pass (011 FR-137). Somebody arriving from
+// the 續填提醒 mail cleared the gate hours ago; making them answer the same five
+// questions and watch the same countdown would be asking them to prove it twice.
+const screeningCleared = props.draft?.screening_cleared === true
+
+const step = ref(resuming ? 4 : (screeningCleared ? 2 : 1))
 
 // Resuming means this applicant already cleared the gate (or predates it) —
 // re-screening somebody we invited back by email would be absurd (FR-129).
-const screeningPassed = ref(resuming)
+const screeningPassed = ref(resuming || screeningCleared)
 
 const form = reactive({
   name: props.draft?.name || page.props.auth?.user?.real_name || page.props.auth?.user?.nickname || '',

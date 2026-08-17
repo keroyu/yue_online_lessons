@@ -43,6 +43,7 @@ class HighTicketLead extends Model
         'calendar_sequence',
         'cancelled_at',
         'reminder_sent_at',
+        'resume_reminder_sent_at',
     ];
 
     /**
@@ -93,6 +94,7 @@ class HighTicketLead extends Model
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'reminder_sent_at' => 'datetime',
+            'resume_reminder_sent_at' => 'datetime',
             'calendar_sequence' => 'integer',
         ];
     }

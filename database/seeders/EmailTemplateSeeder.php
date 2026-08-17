@@ -72,6 +72,12 @@ class EmailTemplateSeeder extends Seeder
                 'body_md' => "您好 {{user_name}}，\n\n提醒您，「{{course_name}}」的 1v1 諮詢就在**明天**：\n\n- 時段：{{slot_time}}\n- 長度：{{consult_minutes}} 分鐘\n\n會議連結：\n{{zoom_join_url}}\n\n請準時出席，並提前幾分鐘進入會議室確認網路與麥克風。時段是為您單獨保留的，遲到會直接壓縮我們可以談的時間。\n\n若臨時無法出席，請盡快來信 {{support_email}} 告知，讓我們把時段留給其他人。\n\n明天見。\n\n經營者時間銀行",
             ],
             [
+                'name' => '申請未完成提醒',
+                'event_type' => 'high_ticket_application_resume',
+                'subject' => '【還差幾步】你的 {{course_name}} 1v1 諮詢申請尚未完成',
+                'body_md' => "您好 {{user_name}}，\n\n你通過了「{{course_name}}」1v1 諮詢的資格審核，但申請還沒完成 —— 只差填寫聯絡方式與想討論的問題，再選一個時段。\n\n從這裡接著填，先前的回答都幫你留著：\n{{booking_url}}\n\n名額有限，時段是先完成申請的人先選。\n\n如果目前不打算繼續，這封信可以直接忽略，我們不會再提醒。\n\n經營者時間銀行",
+            ],
+            [
                 'name' => '客製服務預約已取消',
                 'event_type' => 'high_ticket_booking_cancelled',
                 'subject' => '【預約已取消】{{course_name}} — {{slot_time}}',

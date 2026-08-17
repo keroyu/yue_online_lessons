@@ -26,6 +26,9 @@
       "011.us-10",
       "011.us-11"
     ],
+    "app/Console/Commands/SendApplicationResumeReminders.php": [
+      "011.us-26"
+    ],
     "app/Console/Commands/SendConsultationReminders.php": [
       "011.us-19"
     ],
@@ -99,6 +102,7 @@
       "011.us-12",
       "011.us-14",
       "011.us-19",
+      "011.us-26",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -234,6 +238,7 @@
       "011.us-1",
       "011.us-10",
       "011.us-24",
+      "011.us-26",
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
@@ -520,6 +525,7 @@
     "app/Jobs/NotifyHighTicketSlotJob.php": [
       "000.us-9",
       "011.us-10",
+      "011.us-26",
       "011.us-4",
       "011.us-7"
     ],
@@ -683,6 +689,7 @@
       "011.us-2",
       "011.us-23",
       "011.us-24",
+      "011.us-26",
       "011.us-3",
       "011.us-9"
     ],
@@ -867,6 +874,7 @@
       "011.us-20",
       "011.us-23",
       "011.us-24",
+      "011.us-26",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1240,11 +1248,18 @@
     "database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php": [
       "011.us-24"
     ],
+    "database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php": [
+      "011.us-26"
+    ],
+    "database/migrations/2026_08_18_000004_install_application_resume_template.php": [
+      "011.us-26"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
       "011.us-14",
       "011.us-19",
+      "011.us-26",
       "011.us-6"
     ],
     "database/seeders/ShortLinkSeeder.php": [
@@ -1310,6 +1325,7 @@
       "011.us-22",
       "011.us-23",
       "011.us-24",
+      "011.us-26",
       "011.us-8",
       "011.us-9"
     ],
@@ -1415,6 +1431,7 @@
       "011.us-10",
       "011.us-16",
       "011.us-24",
+      "011.us-26",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -1810,6 +1827,7 @@
       "011.us-10",
       "011.us-11",
       "011.us-19",
+      "011.us-26",
       "012.us-7"
     ],
     "routes/web.php": [
@@ -1873,6 +1891,9 @@
     ],
     "tests/Feature/Drip/VideoAccessAnchorTest.php": [
       "010.us-12"
+    ],
+    "tests/Feature/HighTicket/ApplicationResumeReminderTest.php": [
+      "011.us-26"
     ],
     "tests/Feature/HighTicket/BookingChangeTest.php": [
       "011.us-14",

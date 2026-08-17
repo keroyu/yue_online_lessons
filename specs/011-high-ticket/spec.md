@@ -3,6 +3,10 @@ id: 011-high-ticket
 status: building
 owner_files:
   - app/Support/BookingScreening.php
+  - app/Console/Commands/SendApplicationResumeReminders.php
+  - database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_18_000004_install_application_resume_template.php
+  - tests/Feature/HighTicket/ApplicationResumeReminderTest.php
   - app/Http/Requests/BookingScreeningRequest.php
   - database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php
   - database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php
@@ -846,6 +850,33 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 **前提**：慢的那一半仍跑在 `long` 佇列上，因此本功能與自動路徑共用 T289 的 worker。
 worker 未建時按鈕仍會誠實回報 Zoom 端的狀態，但抓回來的動作不會發生。
 
+### User Story 26 - 未完成申請的續填提醒 (Priority: P1)
+
+US24 把 lead 的落地時機提前到資格審核（FR-125），於是名單裡出現一種新的列：
+**通過了審核，然後就沒有下文**。第一步只要 30 秒，第二步要寫出自己的事業瓶頸 ——
+斷點會固定落在這裡，而且斷掉的往往不是不想來的人，是被打斷的人。
+上線第一天實際遇到的那一筆是 7/10、想在一個月內開始、能自行決定、想盡快確認合作方式。
+
+這種列有三個問題：逾時清掃碰不到它們（沒有 `confirm_expires_at`）所以會無限累積、
+它們混在 `pending` 裡跟真的預約長得一樣、而最貴的是**沒有人去把他們找回來**。
+本故事只解決第三個，因為那是唯一會賺錢的那個：排程每小時挑出這些人，
+寄**一封**帶回站連結的信，連結直接把他們放回第二步。
+
+**驗收**：
+- [x] 命中條件（全部同時成立）：`screened_at` 非 null 且距今 **≥ 3 小時**、`screened_at` 距今 **≤ 7 天**、`resume_reminder_sent_at` 為 null、`phone` 為 null、`confirmed_at` 為 null、`status = pending`（FR-135）
+- [x] `phone` 是「沒走到第二步」的判準 —— 它是第二步的第一個必填欄位，有值就表示對方走得比這封信要處理的情形更遠
+- [x] **7 天上限**：功能上線當下 MUST NOT 對名單裡所有歷史未完成申請發一輪信
+- [x] 每筆 lead **一生只寄一次**：寄送成功後才蓋 `resume_reminder_sent_at`（寄失敗不蓋，比照 FR-078）；欄位獨立，MUST NOT 沿用 `last_notified_at`（那是 US4 的「通知新時段」，共用會讓兩封信互相取消）
+- [x] 信件走既有模板機制：新 `event_type` = `high_ticket_application_resume`（「申請未完成提醒」），變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}` / `{{booking_url}}`；MUST 同時登記於 `EmailTemplateSeeder::templates()`、一支資料 migration（沿用既有的「缺才 insert、永不 update」迴圈）與 `EmailTemplateController::$availableVariables`
+- [x] 提醒信 **MUST NOT CC 任何人** —— 這是一封關於未填完表單的催填信，沒有任何人需要據此行動（FR-062）
+- [x] `{{booking_url}}` 為 `?resume=` 深連結，token 於寄信時 lazy 產生；URL 組法 MUST 只有一份定義（`HighTicketBookingService::resumeUrl()`，`NotifyHighTicketSlotJob` 改為委派）
+- [x] 點連結回站 MUST 直接落在**第二步**且不重跑資格審核（FR-137）
+- [x] 排程 `booking:send-resume-reminders` MUST 為**每小時**執行但限台北時間 09:00–21:00 —— 每日一次會讓提醒晚到十幾小時，而不限時段會在凌晨三點寄一封關於表單的信
+- [x] 模板不存在或單筆寄送失敗 MUST 記 log 後繼續，排程不變紅（比照 FR-081）
+- [x] 命令輸出實際寄出筆數（`已寄出 N 封續填提醒`）
+- [x] 測試：命中一次即寄且帶正確 resume 連結、第二次執行不重寄、3 小時內不寄、7 天前不寄、`declined` 不寄、已填手機不寄、管理員改過狀態不寄、缺模板不蓋章、回站 `screening_cleared` 為 true、**答案不及格者 `screening_cleared` MUST 為 false**
+
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1210,6 +1241,13 @@ worker 未建時按鈕仍會誠實回報 Zoom 端的狀態，但抓回來的動�
 - **FR-129**: `book` / `waitlist` 送出時，伺服器 MUST 以**該次請求帶上來的答案**重新計分並擋下未通過者（422），MUST NOT 只信任 lead 上已存的 `screened_at` —— 否則用 A 信箱通過審核、用 B 信箱送出申請就繞過整道閘。
   **答案完全未帶時放行**：`?resume=` 從「新時段通知」信回站的人不會重做審核，本功能上線前的舊 lead 也沒有答案，擋下他們是拿一道軟性過濾去砸真實預約。這確實留下一個「不送欄位就過」的縫，而 D97 已經接受了這道閘門本來就繞得過去。
 - **FR-130**: 預約精靈的步驟結構改為五步：**1 資格 → 2 資料 → 3 承諾 → 4 時段 → 5 確認**。US9 驗收條款中提到的 Step 編號一律以此為準（原 Step 1 的問卷欄位移至新 Step 2，原 Step 2/3/4 各順延一格）。回到第一步 MUST NOT 重跑審核倒數 —— 答案未變更時直接放行，變更後才需重審。
+- **FR-135**: 續填提醒的命中條件 MUST 為六者同時成立：`screened_at` 非 null 且在 **3 小時前～7 天內**、`resume_reminder_sent_at` 為 null、`phone` 為 null、`confirmed_at` 為 null、`status = pending`。
+  三個守門各有各的理由：**3 小時**是不要在對方還開著分頁時就寄信；**7 天**是功能上線那一刻不能對整份歷史名單發信；**`status = pending`** 是管理員一旦動過這筆就代表有人在手動處理，機器不該同時也在寫信。
+  `phone` 而不是別的欄位當「沒走到第二步」的判準：它是第二步的第一個必填欄位，有值即代表對方走得比這封信要處理的情形更遠。
+- **FR-136**: 提醒 MUST 一生只寄一次，且 MUST 在**寄送成功後**才蓋 `resume_reminder_sent_at`（先蓋後寄會在寄信失敗時把人永久吃掉）。欄位 MUST 獨立於 `last_notified_at`（US4 的「通知新時段」）—— 共用一個時間戳等於寄出其中一封就默默取消另一封。
+  排程 MUST 為每小時、限台北 09:00–21:00：這封信要救的動能以小時計，每日一次會讓它晚到十幾小時；而不限時段就會在凌晨三點寄一封關於「你的表單還沒填完」的信。
+- **FR-137**: `?resume=` 回站時，若該 lead 的既存答案**仍然通過**，`bookingDraft.screening_cleared` MUST 為 true，精靈據此**直接開在第二步**且不重跑 15 秒審核。
+  這個判斷 MUST 在伺服器端做，MUST NOT 由前端看著自己被預填的答案自行認定通過 —— 一個被婉拒的 lead 重新載入頁面時，草稿裡同樣帶著那五個答案，讓前端自行判斷等於把閘門交給被擋下的人保管。送出時仍會重新計分（FR-129），這是第二道。
 - **FR-131**: 後台 Leads 展開列 MUST 顯示「資格審核」區：分數 `N/10`、分級標籤（8–10 高購買意願 / 5–7 值得談 / 0–4 培育名單）與五題答案的中文標籤。**分數與分級只在後台出現**（FR-124）。無審核紀錄的舊 lead 顯示一句說明，MUST NOT 印五排「—」。
 
 
@@ -1680,6 +1718,16 @@ worker 未建時按鈕仍會誠實回報 Zoom 端的狀態，但抓回來的動�
 - `email_templates.body_type` — `markdown`（預設，經 CommonMark 轉 HTML）或 `html`（原樣輸出）；無 DB 層 enum 約束，合法值由 `EmailTemplateRequest` 把關，未知值一律當 markdown 處理
 
 ## Tasks
+
+### US26 未完成申請的續填提醒
+
+- [x] T319 [P] migration：`high_ticket_leads` 加 `resume_reminder_sent_at`（FR-136）in `database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php`
+- [x] T320 模板：`EmailTemplateSeeder` 加 `high_ticket_application_resume` 一筆 + 資料 migration（既有的「缺才 insert」迴圈）+ `EmailTemplateController::$availableVariables` 四個變數 in `database/seeders/EmailTemplateSeeder.php`, `database/migrations/2026_08_18_000004_install_application_resume_template.php`, `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T321 `HighTicketBookingService`：`resumeUrl()` 收為單一定義（`NotifyHighTicketSlotJob` 改委派）、`sendApplicationResumeReminders()` 依 FR-135 挑人並蓋章、`sendResumeReminderMail()` 無 CC in `app/Services/HighTicketBookingService.php`, `app/Jobs/NotifyHighTicketSlotJob.php`
+- [x] T322 命令與排程：`booking:send-resume-reminders`、`->timezone('Asia/Taipei')->hourly()->between('9:00','21:00')` in `app/Console/Commands/SendApplicationResumeReminders.php`, `routes/console.php`
+- [x] T323 回站落在第二步（FR-137）：`draftAnswers()` 加 `screening_cleared`（伺服器端判定）、精靈依此把起始步驟設為 2 並預設 `screeningPassed` in `app/Http/Controllers/CourseController.php`, `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T324 [P] 修回歸：`hasApplication()` 移除 `screened_at`（US24 加入後，只完成審核的 lead 會渲染出一排「—」，正是 US9 明文禁止的），未完成者改顯示專屬說明 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T325 `ApplicationResumeReminderTest`：見 US26 驗收最後一條 in `tests/Feature/HighTicket/ApplicationResumeReminderTest.php`
 
 ### US24 前置資格審核與自動婉拒
 
@@ -2243,6 +2291,8 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-17: US26 未完成申請的續填提醒（T319–T325）— 起因是使用者在正式站看到一筆「通過審核 7/10 但沒往下填」的 lead。排程每小時（限台北 09:00–21:00）挑出 3 小時前～7 天內、未填手機、仍為 pending 的審核通過者，寄一封帶 `?resume=` 的信，一生一次；點回站直接落在第二步（`screening_cleared` 由伺服器判定，不讓前端看著自己的預填答案自認通過）。順帶把 `resumeUrl()` 收成單一定義（原本只存在於 `NotifyHighTicketSlotJob`），並修掉 US24 造成的回歸：`hasApplication()` 誤含 `screened_at`，讓只完成審核的 lead 渲染出一排「—」。`php artisan test` 740 passed。
 
 - 2026-08-17: 面談提醒信改為 CC 顧問（使用者決策，推翻 US19 原本的「不 CC 任何人」，FR-062 / FR-078 已改）—— 沿用確認信的 `confirmationCc()`：有指派就只 CC 顧問，未指派才退回通知清單，兩封信的收件規則因此只有一份定義。附件規則不變（仍不附 `.ics`，D73）。測試改寫原本斷言「完全無 CC」的那條，另補兩條（指派／未指派）。`php artisan test` 729 passed。
 
