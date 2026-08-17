@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Fetch, proofread and summarise one consultation's transcript (011 US23).
  *
- * The backoff is generous because Zoom produces the audio transcript a few
- * minutes after the recording itself — an early `recording.completed` legitimately
- * arrives before the file exists, and waiting is the correct response.
+ * The retries cover what retrying can actually fix — a failed download, a Zoom
+ * or OpenAI hiccup. A payload that simply has no transcript file in it is not
+ * one of those: see `fetchTranscript()`.
  */
 class ProcessZoomTranscriptJob implements ShouldQueue
 {
@@ -85,16 +85,21 @@ class ProcessZoomTranscriptJob implements ShouldQueue
 
         $files = (array) data_get($this->payload, 'object.recording_files', []);
 
-        if ($files === []) {
-            return;
-        }
-
-        $file = $zoom->findTranscriptFile($files);
+        $file = $files === [] ? null : $zoom->findTranscriptFile($files);
 
         if ($file === null) {
-            // Not an error — the transcript trails the recording. Throwing hands
-            // it to the backoff instead of silently giving up.
-            throw new \RuntimeException('Zoom recording has no transcript file yet');
+            // Waiting, not failing. `recording.completed` never carries the VTT —
+            // Zoom produces the transcript minutes later and announces it as its
+            // own `recording.transcript_completed` event, which dispatches its
+            // own job with its own file list. Retrying re-reads *this* payload,
+            // whose file list is frozen, so the backoff could only ever burn
+            // three attempts and one failed_jobs row per meeting for a condition
+            // that is the normal course of events (D88, revised).
+            Log::info('Consultation transcript: this payload has no transcript file, waiting for the transcript event', [
+                'note_id' => $note->id,
+            ]);
+
+            return;
         }
 
         $vtt = $zoom->download(

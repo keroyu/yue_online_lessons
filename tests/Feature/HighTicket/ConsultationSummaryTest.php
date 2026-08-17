@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\HighTicket;
 
+use App\Jobs\ProcessZoomTranscriptJob;
 use App\Models\AiPrompt;
 use App\Models\ConsultationNote;
 use App\Models\Course;
@@ -321,6 +322,37 @@ class ConsultationSummaryTest extends TestCase
         $note->refresh();
         $this->assertSame('顧問: 已經取回並校訂過的版本', $note->transcript);
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'api.openai.com'));
+    }
+
+    /**
+     * `recording.completed` arrives with the video and audio only — the VTT is a
+     * later, separate event. Retrying this payload would re-read the same file
+     * list, so it must end the job quietly rather than fail it (D88, revised).
+     */
+    public function test_a_payload_without_a_transcript_file_is_not_treated_as_a_failure(): void
+    {
+        $note = $this->note();
+        $this->enableOpenAi();
+        Http::fake();
+
+        // Straight to the job: the webhook controller swallows exceptions by
+        // design, which would hide the very thing under test.
+        ProcessZoomTranscriptJob::dispatchSync($note->id, [
+            'object' => [
+                'id'              => (int) self::MEETING_ID,
+                'recording_files' => [
+                    ['file_type' => 'MP4', 'file_extension' => 'MP4', 'download_url' => 'https://zoom.us/rec/video.mp4'],
+                    ['file_type' => 'M4A', 'file_extension' => 'M4A', 'download_url' => 'https://zoom.us/rec/audio.m4a'],
+                ],
+            ],
+            'download_token' => 'dl-token',
+        ]);
+
+        $note->refresh();
+        $this->assertNull($note->transcript);
+        $this->assertNull($note->transcript_fetched_at);
+        $this->assertNull($note->summary, '沒有逐字稿就不該產生摘要');
+        Http::assertNothingSent();
     }
 
     // ── 未設定憑證（FR-112）──
