@@ -108,6 +108,39 @@ class AiGradingTest extends TestCase
             ->assertOk();
     }
 
+    public function test_a_handout_without_a_question_is_rejected_with_a_readable_message(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment(handout: null);
+
+        // Saving only the handout used to fail silently: the page rendered no
+        // errors at all, so 儲存 looked like it did nothing.
+        $this->actingAs($admin)
+            ->put("/admin/homework/{$assignment->id}", [
+                'question_md' => '',
+                'handout_md'  => '只有講義',
+            ])
+            ->assertSessionHasErrors(['question_md' => '請填寫作業題目（只填講義無法建立題目）']);
+
+        $this->assertNull($assignment->fresh()->handout_md);
+    }
+
+    public function test_a_long_handout_is_accepted(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment(handout: null);
+        $handout = str_repeat('講義', 15000); // 30000 字
+
+        $this->actingAs($admin)
+            ->put("/admin/homework/{$assignment->id}", [
+                'question_md' => '題目',
+                'handout_md'  => $handout,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(30000, mb_strlen($assignment->fresh()->handout_md));
+    }
+
     public function test_draft_sends_handout_question_and_submission_to_the_model(): void
     {
         $admin = $this->admin();

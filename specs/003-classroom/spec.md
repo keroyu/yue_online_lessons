@@ -23,6 +23,7 @@ owner_files:
   - database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php
   - database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
   - database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
+  - database/migrations/2026_08_18_000008_widen_assignment_markdown_columns.php
   - tests/Feature/Classroom/CloudflareStreamTest.php
   - tests/Feature/Classroom/AiGradingTest.php
   - tests/Feature/Classroom/HomeworkCoursesTest.php
@@ -288,6 +289,8 @@ touchpoints:
 - **FR-014**: 教室小節內文以 `marked(content, { breaks: true })` 渲染 — 單一 `\n` 產生 `<br>`、空行為新段落；raw HTML（iframe 嵌入）維持 marked v17 預設原樣通過，不 sanitize
 - **FR-015**: 站內 Markdown 欄位命名一律 `*_md` 後綴（`content_md` / `question_md` / `handout_md` / `body_md` / `description_md` / `free_success_md`）；`md_content` 為 2026-02 改名遺留，US10 一併清除，日後不得再新增此形式的欄位
 - **FR-016**: 講義存 `assignments.handout_md`（選填，上限 50000 字，與題目同一驗證規則）；純屬 AI 脈絡資料，前台教室與學員端任何位置都不得輸出
+- **FR-022**: `assignments` 的兩個 Markdown 欄位 MUST 為 `longText`（同 `posts.body_md` / `email_templates.body_md`）。MySQL `TEXT` 是 65,535 **bytes**，驗證的 `max:50000` 是**字元** — 中文一字 3 bytes，約 21,845 字起就是「通過驗證、INSERT 時 1406」的死角，而講義正是會被整篇貼進來的欄位
+- **FR-023**: 作業題目表單 MUST 顯示後端回傳的驗證錯誤。這頁原本完全沒有錯誤 UI，任何被擋下的儲存都是靜默無反應；加入第二個欄位後這個缺陷才變得容易踩到。錯誤訊息 MUST 為中文（`AssignmentRequest::messages()`），因為它直接呈現給使用者
 - **FR-017**: AI 批改只產生**草稿**：一律追加到批改輸入框末端，永不覆蓋既有文字、永不自動建立 comment — 送出批改始終是管理員的明確動作
 - **FR-018**: 草稿不落地 — 沒有 `ai_draft` 欄位、沒有生成紀錄表；未送出即丟棄。已送出的批改就是一般 comment，與手寫的無從也不需區分
 - **FR-019**: 生成為**同步** JSON 端點（非 queue）：一次呼叫、輸出短，管理員必須當場看到結果才能編輯。OpenAI 未設定、prompt 列不存在、模型無回傳一律回 422 + 可讀中文訊息，不寫入任何資料
@@ -396,6 +399,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-08-18: US10 上線後修正（FR-022/FR-023）— 業主回報「講義輸入後全部存檔失敗」。查證：正式站 migration 全 Ran、程式碼為最新 commit、laravel.log 無任何例外、DB 全部 assignments 的 updated_at 停在 6/6，代表請求根本沒寫進 DB 也沒丟錯 → 指向「被擋下但畫面不說」。根因是這頁自始就沒有錯誤顯示 UI（`errors` 出現 0 次），加了第二個欄位後才容易踩到。同時修掉 `TEXT` 只裝得下約 21,845 中文字的未爆彈（本機 MySQL 實測 25000 字即 1406）。業主端待確認是否為 session 過期的 419。760 passed
 - 2026-08-18: 實作 US10 完成（T014–T030）— Phase F 欄位改名（md_content → content_md / question_md，PHP+Vue+測試共 60 處，行為零變更）、Phase G 講義欄位、Phase H AI 批改（HomeworkGradingService + 同步 JSON 端點 + 回覆面板按鈕）。新增 AiGradingTest 11 案，全 repo 758 passed（改名前基準 747）、npm build exit 0。過程修正兩處測試預期：admin 防護是 302 導回首頁非 403、截斷計數誤含標題字元
 - 2026-08-18: 規劃 US10 AI 快速批改（講義欄位 + 回覆面板一鍵生成草稿），同時清掉 `md_content` 命名舊債（→ `content_md` / `question_md`），status: draft 待審
 - 2026-08-07: 教室小節內文補 `breaks: true`（FR-014 / D13）— 同一份 `md_content` 在信裡會換行、在教室卻被併成一行，原因是 `HtmlContent` 是站內唯一沒帶 breaks 的 marked 呼叫。查證時確認 Email 端（`EmailMarkdownService` soft_break）自 8/4 起就是對的，正式站實跑 pipeline 有 `<br />`，問題只在教室。522 passed、npm build exit 0。

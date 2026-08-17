@@ -85,17 +85,27 @@ const lessonGroups = computed(() => {
   return groups
 })
 
+// Rejected saves used to be completely silent: the request redirects back with
+// errors and this page rendered none of them, so 儲存 looked like it did nothing.
+const createErrors = ref([])
+const editErrors = ref([])
+
+const messagesFrom = (errors) => Object.values(errors ?? {}).flat()
+
 const openCreateForm = (lessonId) => {
   showAssignmentForm.value = lessonId
   assignmentForm.value = { question_md: '', handout_md: '', lesson_id: lessonId }
+  createErrors.value = []
   previewMode.value = false
 }
 
 const submitAssignment = (lessonId) => {
+  createErrors.value = []
   router.post(`/admin/lessons/${lessonId}/assignment`, assignmentForm.value, {
-    only: ['assignmentsMap', 'flash'],
+    only: ['assignmentsMap', 'errors', 'flash'],
     preserveState: true,
     preserveScroll: true,
+    onError: (errors) => { createErrors.value = messagesFrom(errors) },
     onSuccess: () => {
       showAssignmentForm.value = null
       assignmentForm.value = { question_md: '', handout_md: '', lesson_id: '' }
@@ -111,14 +121,17 @@ const editPreview = ref(false)
 const openEditForm = (assignment) => {
   editingAssignment.value = assignment.id
   editForm.value = { question_md: assignment.question_md, handout_md: assignment.handout_md ?? '' }
+  editErrors.value = []
   editPreview.value = false
 }
 
 const submitEdit = (assignmentId) => {
+  editErrors.value = []
   router.put(`/admin/homework/${assignmentId}`, editForm.value, {
-    only: ['assignmentsMap', 'flash'],
+    only: ['assignmentsMap', 'errors', 'flash'],
     preserveState: true,
     preserveScroll: true,
+    onError: (errors) => { editErrors.value = messagesFrom(errors) },
     onSuccess: () => { editingAssignment.value = null },
   })
 }
@@ -521,6 +534,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                           <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-24" v-html="renderMd(editForm.handout_md || '_（未填寫講義）_')" />
                         </div>
 
+                        <ul v-if="editErrors.length" class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 space-y-0.5">
+                          <li v-for="(msg, i) in editErrors" :key="i">{{ msg }}</li>
+                        </ul>
+
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
@@ -550,6 +567,10 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                           <textarea v-if="!previewMode" v-model="assignmentForm.handout_md" rows="6" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式，例如本節重點、評分標準、常見錯誤..." />
                           <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-24" v-html="renderMd(assignmentForm.handout_md || '_（未填寫講義）_')" />
                         </div>
+
+                        <ul v-if="createErrors.length" class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 space-y-0.5">
+                          <li v-for="(msg, i) in createErrors" :key="i">{{ msg }}</li>
+                        </ul>
 
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitAssignment(row.id)">建立題目</button>
