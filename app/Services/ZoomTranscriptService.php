@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Fetching the VTT file Zoom produced for a cloud recording (011 US23).
@@ -39,6 +40,42 @@ class ZoomTranscriptService
         }
 
         return null;
+    }
+
+    /**
+     * Ask Zoom what this meeting currently has (011 US25 / FR-133).
+     *
+     * The webhook hands us a frozen snapshot of one event; this asks for the
+     * present state instead, which is the only way to answer "is the transcript
+     * ready yet" on demand. Shaped exactly like the webhook payload so the job
+     * downstream keeps one code path — the manual command has done it this way
+     * since it was written, and this method is that code, lifted out so the
+     * admin button does not become a second copy of it.
+     *
+     * Returns null when Zoom has no recording for the meeting (404 / 3301 is
+     * routine: recordings expire, and not every consultation is recorded).
+     *
+     * @return array{object: array<string, mixed>, download_token: string}|null
+     */
+    public function recordingPayload(string $meetingId): ?array
+    {
+        $response = Http::withToken(app(ZoomMeetingService::class)->token())
+            ->acceptJson()
+            ->timeout(self::TIMEOUT_SECONDS)
+            ->get('https://api.zoom.us/v2/meetings/' . urlencode($meetingId) . '/recordings');
+
+        if (!$response->successful()) {
+            Log::info('Zoom: no recording available for this meeting', [
+                'meeting_id' => $meetingId,
+                'status'     => $response->status(),
+            ]);
+
+            return null;
+        }
+
+        // No download token outside the webhook path; `download()` falls back to
+        // the account token.
+        return ['object' => (array) $response->json(), 'download_token' => ''];
     }
 
     /**

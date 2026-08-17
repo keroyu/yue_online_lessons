@@ -836,16 +836,16 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 把整段都丟進佇列會讓最常見的兩種情形失去回饋 —— 按了、等三分鐘、回來看，畫面還是一樣。
 
 **驗收**：
-- [ ] 後台面談紀錄列在 `transcript_bytes` 為 0 時，「尚無逐字稿」文字改為「抓取逐字稿」按鈕；已有逐字稿的場次 MUST NOT 顯示此按鈕（既有的「重新產生摘要」已涵蓋該情境，且不必重付校訂費用）
-- [ ] `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組、`throttle:10,1`）：同步查 Zoom，**慢的部分才派工**
-- [ ] Zoom 憑證未設定 → 422，訊息指向後台 API 設定頁
-- [ ] 該場次沒有 `zoom_meeting_id` → 422（例如手動補建但沒有會議的場次）
-- [ ] Zoom 回錯（含 `3301 此錄製不存在`）→ 422，文案說明可能未開錄影或雲端錄影已過保存期限，MUST NOT 派工
-- [ ] 錄影存在但清單裡沒有 TRANSCRIPT/VTT → 422，文案說明逐字稿尚未產出、稍後再試，MUST NOT 派工（沿用 FR-132 的立場：這不是故障）
-- [ ] 清單裡有 VTT → 派 `ProcessZoomTranscriptJob` 並回 202，前端提示「已排入處理，約 1–3 分鐘後重新整理」
-- [ ] 查詢 Zoom 錄影清單的邏輯 MUST 只有一份，`booking:fetch-transcript` 指令與本端點共用（沿用 FR-019 對重複渲染的既有立場）
-- [ ] 後端 MUST NOT 另設「已有逐字稿就拒絕」的守門 —— job 的 `transcriptIsSettled()` 已經擋住重抓（FR-110），再擋一次只是把同一條規則寫在兩個地方
-- [ ] 測試：有 VTT 則派工、Zoom 404 不派工、無 VTT 不派工、憑證未設定、無 meeting id、訪客被擋
+- [x] 後台面談紀錄列在 `transcript_bytes` 為 0 時，「尚無逐字稿」文字改為「抓取逐字稿」按鈕；已有逐字稿的場次 MUST NOT 顯示此按鈕（既有的「重新產生摘要」已涵蓋該情境，且不必重付校訂費用）
+- [x] `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組、`throttle:10,1`）：同步查 Zoom，**慢的部分才派工**
+- [x] Zoom 憑證未設定 → 422，訊息指向後台 API 設定頁
+- [x] 該場次沒有 `zoom_meeting_id` → 422（例如手動補建但沒有會議的場次）
+- [x] Zoom 回錯（含 `3301 此錄製不存在`）→ 422，文案說明可能未開錄影或雲端錄影已過保存期限，MUST NOT 派工
+- [x] 錄影存在但清單裡沒有 TRANSCRIPT/VTT → 422，文案說明逐字稿尚未產出、稍後再試，MUST NOT 派工（沿用 FR-132 的立場：這不是故障）
+- [x] 清單裡有 VTT → 派 `ProcessZoomTranscriptJob` 並回 202，前端提示「已排入處理，約 1–3 分鐘後重新整理」
+- [x] 查詢 Zoom 錄影清單的邏輯 MUST 只有一份，`booking:fetch-transcript` 指令與本端點共用（沿用 FR-019 對重複渲染的既有立場）
+- [x] 後端 MUST NOT 另設「已有逐字稿就拒絕」的守門 —— job 的 `transcriptIsSettled()` 已經擋住重抓（FR-110），再擋一次只是把同一條規則寫在兩個地方
+- [x] 測試：有 VTT 則派工、Zoom 404 不派工、無 VTT 不派工、憑證未設定、無 meeting id、訪客被擋
 
 **前提**：慢的那一半仍跑在 `long` 佇列上，因此本功能與自動路徑共用 T289 的 worker。
 worker 未建時按鈕仍會誠實回報 Zoom 端的狀態，但抓回來的動作不會發生。
@@ -1815,13 +1815,13 @@ Phase 4 — 測試與驗證
 - [x] T312 payload 無 TRANSCRIPT 檔改為靜默結束（FR-132 / D88 修訂）：`fetchTranscript()` 不再丟 `RuntimeException`，改寫 info log 後 return；測試以 `dispatchSync` 直接驗 job 不再拋例外（webhook controller 會吞例外，走 HTTP 驗不到）in `app/Jobs/ProcessZoomTranscriptJob.php`, `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
 - [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
-**US25 — 手動抓取逐字稿（draft）**
+**US25 — 手動抓取逐字稿**
 
-- [ ] T313 `ZoomTranscriptService::recordingPayload(string $meetingId): ?array` — 打 `GET /meetings/{id}/recordings`，成功回 `['object' => $json, 'download_token' => '']`（與 webhook 同形），Zoom 非 2xx 回 null 並寫 info log（含狀態碼，不含內容）；`FetchConsultationTranscript` 改為呼叫此方法，指令的錯誤文案不變（FR-133）in `app/Services/ZoomTranscriptService.php`, `app/Console/Commands/FetchConsultationTranscript.php`
-- [ ] T314 `ConsultationNoteController::fetchTranscript()` — 依序守門：Zoom 憑證未設定 / 無 `zoom_meeting_id` / `recordingPayload()` 回 null / 清單無 VTT，四種各回 422 與各自文案；有 VTT 則 `ProcessZoomTranscriptJob::dispatch()` 回 202 `{queued: true}`（FR-133 / FR-134）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
-- [ ] T315 [P] 路由 `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組內、`throttle:10,1`，比照既有 regenerate-summary 一行）in `routes/web.php`
-- [ ] T316 前端按鈕：`transcript_bytes` 為 0 時把「尚無逐字稿」換成「抓取逐字稿」按鈕（`action` class 沿用、`cursor-pointer`、處理中顯示「查詢中…」並 disabled）；成功顯示「已排入處理，約 1–3 分鐘後重新整理」，失敗顯示後端訊息（沿用既有 `error` 區塊）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
-- [ ] T317 測試（`Queue::fake()` 驗派工與否）：有 VTT → 202 且派工、Zoom 404 → 422 不派工、清單無 VTT → 422 不派工、憑證未設定 → 422、無 meeting id → 422、訪客 → 302/403 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T313 `ZoomTranscriptService::recordingPayload(string $meetingId): ?array` — 打 `GET /meetings/{id}/recordings`，成功回 `['object' => $json, 'download_token' => '']`（與 webhook 同形），Zoom 非 2xx 回 null 並寫 info log（含狀態碼，不含內容）；`FetchConsultationTranscript` 改為呼叫此方法，指令的錯誤文案不變（FR-133）in `app/Services/ZoomTranscriptService.php`, `app/Console/Commands/FetchConsultationTranscript.php`
+- [x] T314 `ConsultationNoteController::fetchTranscript()` — 依序守門：Zoom 憑證未設定 / 無 `zoom_meeting_id` / `recordingPayload()` 回 null / 清單無 VTT，四種各回 422 與各自文案；有 VTT 則 `ProcessZoomTranscriptJob::dispatch()` 回 202 `{queued: true}`（FR-133 / FR-134）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T315 [P] 路由 `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組內、`throttle:10,1`，比照既有 regenerate-summary 一行）in `routes/web.php`
+- [x] T316 前端按鈕：`transcript_bytes` 為 0 時把「尚無逐字稿」換成「抓取逐字稿」按鈕（`action` class 沿用、`cursor-pointer`、處理中顯示「查詢中…」並 disabled）；成功顯示「已排入處理，約 1–3 分鐘後重新整理」，失敗顯示後端訊息（沿用既有 `error` 區塊）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [x] T317 測試（`Queue::fake()` 驗派工與否）：有 VTT → 202 且派工、Zoom 404 → 422 不派工、清單無 VTT → 422 不派工、憑證未設定 → 422、無 meeting id → 422、訪客 → 302/403 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T318 使用者實測：對一場「尚無逐字稿」的場次按下按鈕，確認三種回應文案讀得懂；有 VTT 者於 1–3 分鐘後重整看到摘要（依賴 T289）
 
 - [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**擋在 T289 之前，worker 未加則此項無法驗證**
@@ -2291,6 +2291,8 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-17: US25 實作完成（T313–T317，僅剩 T318 使用者實測）— 後台面談紀錄列的「尚無逐字稿」改成「抓取逐字稿」按鈕，直接問 Zoom 現況、不依賴 webhook 是否到達。端點兩段式（FR-133）：同步查 `GET /meetings/{id}/recordings`（一秒），四種擋下的情形各給各自文案（憑證未設定／無 meeting id／Zoom 沒有錄影／逐字稿還沒產出），只有清單裡真有 VTT 才派工並回 202。查 Zoom 錄影清單的實作抽成 `ZoomTranscriptService::recordingPayload()`，`booking:fetch-transcript` 指令改呼叫同一個方法 —— 那段 HTTP 呼叫原本只存在指令裡，複製到 controller 就會養出第二套逾時與錯誤處理。後端刻意不加「已有逐字稿就拒絕」的守門（FR-134），job 的 `transcriptIsSettled()` 已經擋住，按鈕本身在有逐字稿時也不顯示。測試 6 條（有 VTT 派工、無 VTT 不派工、Zoom 404 不派工、憑證未設定不打 Zoom、無 meeting id、訪客被擋）以 `Queue::fake()` 釘住「不該派工就真的沒派」。全站 746 passed（3126 assertions）、`npm run build` exit 0。
 
 - 2026-08-17: US26 未完成申請的續填提醒（T319–T325）— 起因是使用者在正式站看到一筆「通過審核 7/10 但沒往下填」的 lead。排程每小時（限台北 09:00–21:00）挑出 3 小時前～7 天內、未填手機、仍為 pending 的審核通過者，寄一封帶 `?resume=` 的信，一生一次；點回站直接落在第二步（`screening_cleared` 由伺服器判定，不讓前端看著自己的預填答案自認通過）。順帶把 `resumeUrl()` 收成單一定義（原本只存在於 `NotifyHighTicketSlotJob`），並修掉 US24 造成的回歸：`hasApplication()` 誤含 `screened_at`，讓只完成審核的 lead 渲染出一排「—」。`php artisan test` 740 passed。
 

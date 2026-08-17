@@ -10,9 +10,11 @@ use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\OpenAiService;
+use App\Services\ZoomMeetingService;
 use App\Services\ZoomWebhookService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -428,6 +430,123 @@ class ConsultationSummaryTest extends TestCase
     {
         $this->assertNotNull(AiPrompt::for('consultation_transcript_proofread'));
         $this->assertNotNull(AiPrompt::for('consultation_summary'));
+    }
+
+    // ── 手動抓取逐字稿（US25 / FR-133）──
+
+    private function enableZoom(): void
+    {
+        SiteSetting::set(ZoomMeetingService::ACCOUNT_ID_KEY, 'acc-1');
+        SiteSetting::set(ZoomMeetingService::CLIENT_ID_KEY, 'client-1');
+        SiteSetting::set(ZoomMeetingService::CLIENT_SECRET_KEY, 'secret-1');
+    }
+
+    /** Zoom's `GET /meetings/{id}/recordings` reply, with or without the VTT. */
+    private function fakeRecordings(bool $withTranscript, int $status = 200): void
+    {
+        $files = [
+            ['file_type' => 'MP4', 'file_extension' => 'MP4', 'download_url' => 'https://zoom.us/rec/video.mp4'],
+        ];
+
+        if ($withTranscript) {
+            $files[] = [
+                'file_type'      => 'TRANSCRIPT',
+                'file_extension' => 'VTT',
+                'download_url'   => 'https://zoom.us/rec/transcript.vtt',
+            ];
+        }
+
+        Http::fake([
+            'zoom.us/oauth/token'    => Http::response(['access_token' => 'tok-1', 'expires_in' => 3600]),
+            'api.zoom.us/v2/meetings/*/recordings' => $status === 200
+                ? Http::response(['id' => self::MEETING_ID, 'recording_files' => $files], 200)
+                : Http::response(['code' => 3301, 'message' => '此錄製不存在。'], $status),
+        ]);
+    }
+
+    private function fetchTranscript(ConsultationNote $note): \Illuminate\Testing\TestResponse
+    {
+        return $this->actingAs($this->admin())
+            ->postJson("/admin/consultation-notes/{$note->id}/fetch-transcript");
+    }
+
+    public function test_manual_fetch_queues_the_job_when_zoom_has_the_transcript(): void
+    {
+        Queue::fake();
+        $note = $this->note();
+        $this->enableZoom();
+        $this->fakeRecordings(withTranscript: true);
+
+        $this->fetchTranscript($note)->assertStatus(202)->assertJson(['queued' => true]);
+
+        Queue::assertPushed(
+            ProcessZoomTranscriptJob::class,
+            fn (ProcessZoomTranscriptJob $job) => $job->noteId === $note->id
+        );
+    }
+
+    /**
+     * The common case this button exists for: Zoom is still transcribing. That
+     * is an answer, not a failure — and it must not cost a queued job (FR-132).
+     */
+    public function test_manual_fetch_reports_a_transcript_that_is_not_ready_yet(): void
+    {
+        Queue::fake();
+        $note = $this->note();
+        $this->enableZoom();
+        $this->fakeRecordings(withTranscript: false);
+
+        $this->fetchTranscript($note)->assertStatus(422);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_manual_fetch_reports_a_recording_zoom_no_longer_has(): void
+    {
+        Queue::fake();
+        $note = $this->note();
+        $this->enableZoom();
+        $this->fakeRecordings(withTranscript: true, status: 404);
+
+        $this->fetchTranscript($note)->assertStatus(422);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_manual_fetch_without_zoom_credentials_never_calls_zoom(): void
+    {
+        Queue::fake();
+        Http::fake();
+        $note = $this->note();
+
+        $this->fetchTranscript($note)->assertStatus(422);
+
+        Http::assertNothingSent();
+        Queue::assertNothingPushed();
+    }
+
+    public function test_manual_fetch_needs_a_meeting_id(): void
+    {
+        Queue::fake();
+        Http::fake();
+        $note = $this->note(['zoom_meeting_id' => null]);
+        $this->enableZoom();
+
+        $this->fetchTranscript($note)->assertStatus(422);
+
+        Http::assertNothingSent();
+        Queue::assertNothingPushed();
+    }
+
+    public function test_a_guest_cannot_trigger_a_manual_fetch(): void
+    {
+        Queue::fake();
+        Http::fake();
+        $note = $this->note();
+
+        $this->postJson("/admin/consultation-notes/{$note->id}/fetch-transcript")->assertStatus(401);
+
+        Queue::assertNothingPushed();
     }
 
     // ── 逐字稿下載（FR-120）──

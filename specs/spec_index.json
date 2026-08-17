@@ -3930,13 +3930,38 @@
       "id": "011.us-25",
       "module": "011-high-ticket",
       "title": "手動抓取逐字稿",
-      "summary": "",
+      "summary": "後台面談紀錄列的「抓取逐字稿」按鈕：同步問 Zoom 錄影清單（一秒內分辨沒有錄影／逐字稿未產出／已就緒），只有真有 VTT 才派 ProcessZoomTranscriptJob 並回 202；查詢邏輯與 booking:fetch-transcript 指令共用 recordingPayload()",
       "heading": "### User Story 25 - 手動抓取逐字稿 (Priority: P2)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-25---手動抓取逐字稿-priority-p2",
-      "keywords": [],
-      "code_files": [],
-      "status": "planned"
+      "keywords": [
+        "手動抓取",
+        "抓取逐字稿",
+        "fetch transcript",
+        "manual fetch",
+        "recordingPayload",
+        "逐字稿沒出來",
+        "webhook 沒到",
+        "自救",
+        "Zoom 錄影清單",
+        "recordings API",
+        "排入處理",
+        "202",
+        "throttle",
+        "ConsultationNotesPanel",
+        "FR-133",
+        "FR-134"
+      ],
+      "code_files": [
+        "app/Services/ZoomTranscriptService.php",
+        "app/Http/Controllers/Admin/ConsultationNoteController.php",
+        "app/Console/Commands/FetchConsultationTranscript.php",
+        "app/Jobs/ProcessZoomTranscriptJob.php",
+        "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue",
+        "routes/web.php",
+        "tests/Feature/HighTicket/ConsultationSummaryTest.php"
+      ],
+      "status": "partial"
     },
     {
       "id": "011.us-26",

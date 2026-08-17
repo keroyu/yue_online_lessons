@@ -244,6 +244,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');
         Route::post('/consultation-notes/{note}/regenerate-summary', [ConsultationNoteController::class, 'regenerateSummary'])->name('consultation-notes.regenerate-summary');
         Route::get('/consultation-notes/{note}/transcript.txt', [ConsultationNoteController::class, 'downloadTranscript'])->name('consultation-notes.transcript-download');
+        // Throttled because each press is a live Zoom API call (011 US25).
+        Route::post('/consultation-notes/{note}/fetch-transcript', [ConsultationNoteController::class, 'fetchTranscript'])
+            ->middleware('throttle:10,1')
+            ->name('consultation-notes.fetch-transcript');
         Route::delete('/consultation-notes/{note}', [ConsultationNoteController::class, 'destroy'])->name('consultation-notes.destroy');
 
         // Drip letter preview (010 US17) — read-only, and staff-level because it

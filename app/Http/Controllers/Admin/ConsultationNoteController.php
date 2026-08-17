@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessZoomTranscriptJob;
 use App\Models\ConsultationNote;
 use App\Services\ConsultationTranscriptService;
+use App\Services\ZoomMeetingService;
+use App\Services\ZoomTranscriptService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -69,6 +72,65 @@ class ConsultationNoteController extends Controller
             'summary'              => $summary,
             'summary_generated_at' => $note->summary_generated_at?->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Go and ask Zoom for this session's transcript now (US25 / FR-133).
+     *
+     * Two-stage on purpose. Asking Zoom what it has takes a second, and that
+     * second separates the three answers an admin presses this button for: no
+     * recording at all, transcript not ready yet, transcript ready. Only the
+     * third is slow work (download, proofread, summarise — minutes on a long
+     * consultation), and only it goes to the queue. Queueing the whole thing
+     * would turn the two common answers into "press, wait three minutes, see
+     * nothing changed"; running the whole thing inline would outlive PHP-FPM's
+     * read timeout while the work carried on invisibly (FR-117).
+     *
+     * No "already has a transcript" guard here by design (FR-134): the job's
+     * own `transcriptIsSettled()` covers it, and the button is not rendered for
+     * those sessions.
+     */
+    public function fetchTranscript(
+        ConsultationNote $note,
+        ZoomMeetingService $zoom,
+        ZoomTranscriptService $transcripts,
+    ): JsonResponse {
+        if (!$zoom->isEnabled()) {
+            return response()->json([
+                'message' => 'Zoom 憑證尚未設定，請先到後台 → API 設定填入 Zoom 帳號資訊',
+            ], 422);
+        }
+
+        $meetingId = trim((string) $note->zoom_meeting_id);
+
+        if ($meetingId === '') {
+            return response()->json([
+                'message' => '這場面談沒有對應的 Zoom 會議，無法抓取逐字稿',
+            ], 422);
+        }
+
+        $payload = $transcripts->recordingPayload($meetingId);
+
+        if ($payload === null) {
+            return response()->json([
+                'message' => 'Zoom 上找不到這場會議的錄影 —— 可能沒有開啟雲端錄影，或錄影已過保存期限',
+            ], 422);
+        }
+
+        $files = (array) data_get($payload, 'object.recording_files', []);
+
+        if ($transcripts->findTranscriptFile($files) === null) {
+            return response()->json([
+                'message' => 'Zoom 的逐字稿還沒產出（錄影結束後通常還要 1–4 小時），請稍後再試一次',
+            ], 422);
+        }
+
+        ProcessZoomTranscriptJob::dispatch($note->id, $payload);
+
+        return response()->json([
+            'queued'  => true,
+            'message' => '已排入處理，約 1–3 分鐘後重新整理即可看到逐字稿與摘要',
+        ], 202);
     }
 
     /**

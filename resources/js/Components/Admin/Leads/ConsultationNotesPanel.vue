@@ -20,6 +20,8 @@ const props = defineProps({
 
 const openNote = ref(null)
 const deleting = ref(null)
+const fetching = ref(null)
+const queued = ref(null)
 const error = ref('')
 
 const formatDate = (iso) => {
@@ -64,6 +66,28 @@ const destroy = async (note) => {
   }
 }
 
+/**
+ * Ask Zoom for the transcript right now (US25).
+ *
+ * The wait for a transcript is measured in hours and its arrival is not
+ * announced anywhere on this page, so this is the one way to find out where a
+ * session actually stands. The server answers within a second — either with a
+ * reason it cannot proceed, or with a job on the queue.
+ */
+const fetchTranscript = async (note) => {
+  fetching.value = note.id
+  error.value = ''
+  queued.value = null
+  try {
+    const { data } = await axios.post(`/admin/consultation-notes/${note.id}/fetch-transcript`)
+    queued.value = data.message || '已排入處理，約 1–3 分鐘後重新整理'
+  } catch (e) {
+    error.value = e.response?.data?.message || '抓取失敗，請稍後再試'
+  } finally {
+    fetching.value = null
+  }
+}
+
 const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors whitespace-nowrap'
 </script>
 
@@ -103,7 +127,18 @@ const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer
         下載逐字稿
         <span class="text-brand-teal/60 font-normal">{{ formatSize(note.transcript_bytes) }}</span>
       </a>
-      <span v-else class="text-xs text-gray-400">尚無逐字稿</span>
+      <!-- 沒有逐字稿的場次才給這顆：已經抓過的用既有的「重新產生摘要」，
+           不必再向 Zoom 要一次、也不必重付校訂費用（FR-134） -->
+      <button
+        v-else
+        type="button"
+        :class="[action, 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed']"
+        title="向 Zoom 查詢這場會議的逐字稿是否已產出"
+        :disabled="fetching === note.id"
+        @click="fetchTranscript(note)"
+      >
+        {{ fetching === note.id ? '查詢中…' : '抓取逐字稿' }}
+      </button>
 
       <!-- 課程與顧問是辨識用的次要資訊，讓位給動作 -->
       <span v-if="note.course || note.consultant" class="text-xs text-gray-400 truncate">
@@ -122,6 +157,7 @@ const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer
       </button>
     </div>
 
+    <p v-if="queued" class="text-xs text-brand-teal">{{ queued }}</p>
     <p v-if="error" class="text-xs text-red-600">{{ error }}</p>
 
     <ConsultationSummaryModal :show="!!openNote" :note="openNote" @close="openNote = null" />

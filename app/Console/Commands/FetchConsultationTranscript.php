@@ -5,8 +5,8 @@ namespace App\Console\Commands;
 use App\Jobs\ProcessZoomTranscriptJob;
 use App\Models\ConsultationNote;
 use App\Services\ZoomMeetingService;
+use App\Services\ZoomTranscriptService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 
 /**
  * Pull one consultation's transcript by hand (011 US23).
@@ -49,14 +49,13 @@ class FetchConsultationTranscript extends Command
 
         $this->info("向 Zoom 查詢會議 {$meetingId} 的錄影檔…");
 
-        $response = Http::withToken($zoom->token())
-            ->acceptJson()
-            ->timeout(30)
-            ->get("https://api.zoom.us/v2/meetings/{$meetingId}/recordings");
+        // Shared with the admin button (FR-133) — one place that knows how to
+        // ask Zoom, so both callers get the same timeout and error handling.
+        $payload = app(ZoomTranscriptService::class)->recordingPayload($meetingId);
 
-        if (!$response->successful()) {
-            $this->error('Zoom 回應 ' . $response->status() . '：' . $response->body());
-            $this->line('雲端錄影可能已過保存期限。');
+        if ($payload === null) {
+            $this->error('Zoom 上找不到這場會議的錄影。');
+            $this->line('雲端錄影可能已過保存期限，或這場會議沒有開啟錄影。');
 
             return self::FAILURE;
         }
@@ -64,7 +63,7 @@ class FetchConsultationTranscript extends Command
         // Same shape the webhook delivers, so the job takes one code path.
         ProcessZoomTranscriptJob::dispatchSync(
             $note->id,
-            ['object' => $response->json(), 'download_token' => ''],
+            $payload,
             (bool) $this->option('force')
         );
 
