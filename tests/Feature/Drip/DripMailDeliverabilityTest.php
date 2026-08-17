@@ -52,6 +52,22 @@ class DripMailDeliverabilityTest extends TestCase
         $this->assertStringContainsString('停止接收', $html);
     }
 
+    /**
+     * An HTML-only bulk mail is a free spam signal to hand over. The text part
+     * must carry the same letter — greeting, body, and an unsubscribe URL a
+     * reader can act on without any HTML.
+     */
+    public function test_mail_ships_a_plain_text_alternative(): void
+    {
+        $mail = $this->mail();
+
+        $mail->assertSeeInText('Hi 小明');
+        $mail->assertSeeInText('內容');
+        $mail->assertSeeInText('https://example.test/drip/unsubscribe/abc-123', false);
+        $mail->assertSeeInText('Unsubscribe');
+        $mail->assertDontSeeInText('<p>', false);
+    }
+
     public function test_one_click_unsubscribe_urls_bypass_csrf(): void
     {
         // RFC 8058 clients POST with no session; CSRF verification would 419 them.

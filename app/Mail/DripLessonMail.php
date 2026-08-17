@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use League\HTMLToMarkdown\HtmlConverter;
 
 class DripLessonMail extends Mailable
 {
@@ -54,7 +55,27 @@ class DripLessonMail extends Mailable
     {
         return new Content(
             view: 'emails.drip-lesson',
+            text: 'emails.drip-lesson-text',
+            with: ['textContent' => $this->plainTextBody()],
         );
+    }
+
+    /**
+     * The plain-text half of the multipart mail. An HTML-only bulk mail is one
+     * of the cheaper spam signals to give away, and this body round-trips well:
+     * it was authored as Markdown (lessons.md_content) and comes back as
+     * Markdown, keeping the UTM stamping that was applied to the HTML links.
+     */
+    private function plainTextBody(): string
+    {
+        if ($this->htmlContent === '') {
+            return '';
+        }
+
+        return trim((new HtmlConverter([
+            'strip_tags'      => true,
+            'suppress_errors' => true,
+        ]))->convert($this->htmlContent));
     }
 
     public function attachments(): array

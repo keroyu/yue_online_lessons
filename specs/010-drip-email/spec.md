@@ -16,6 +16,7 @@ owner_files:
   - app/Mail/DripLessonMail.php
   - config/drip.php
   - resources/views/emails/drip-lesson.blade.php
+  - resources/views/emails/drip-lesson-text.blade.php
   - resources/js/Components/Course/DripSubscribeForm.vue
   - resources/js/Components/Course/ClaimConsentNotice.vue
   - resources/js/Pages/Drip/Unsubscribe.vue
@@ -161,6 +162,8 @@ touchpoints:
 - [x] SendDripEmailJob 發信前跳過停信狀態（unsubscribed/converted/**booked**，US13 修訂）；completed 仍寄出最後一封（狀態與 dispatch 同時發生）
 - [x] 失敗重試 3 次（backoff 60/300/900 秒）
 - [x] 信件內容 = 問候語（有名字才顯示）+ md_content 轉 HTML（strip style/class）+ 退訂連結 + tracking pixel；`{{classroom_url}}` 佔位符替換為教室 URL（帶 lesson_id）
+- [x] 信為 multipart：同一份 `md_content` 同時產出 HTML 與純文字兩版一起寄出（FR-041），後台無第二個編輯欄位
+- [x] HTML 版以 wrapper div 宣告 16px / 行高 1.75 / 無襯線字型，段落間距 20px；無卡片外框、無底色、無品牌標題列（D34）
 - [x] 主旨/問候名字：nickname 優先、fallback real_name；3 個中文字取後 2 字；無名字則省略
 - [x] 管理員新增 Lesson 時，completed 訂閱自動 reactivate 為 active（後續排程補發新信）
 
@@ -191,6 +194,7 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 - [x] `/drip/unsubscribe/{token}` 顯示確認頁（Drip/Unsubscribe.vue），token 建立訂閱時自動產生（model booted）
 - [x] 序列信帶 `List-Unsubscribe` 與 `List-Unsubscribe-Post: One-Click`（比照電子報），並在 `bootstrap/app.php` 豁免該路徑的 CSRF，否則郵件用戶端的一鍵 POST 會 419
 - [x] 信件內的停止接收行位於正文之後空兩行＋分隔線，以 12px 淺灰呈現並附英文 `Unsubscribe`：既是垃圾郵件過濾器認得的訊號，也不會讀起來像正文的結尾句
+- [x] 純文字版同樣帶得出可讀的停止接收網址（不是只有 HTML 版有）；HTML-only 的大量信本身就是過濾器認得的可疑特徵（FR-041）
 - [x] 確認後 status=unsubscribed（欄位值不變，只有文案改）；重複進入顯示「您已停止接收此商品的信件」
 - [x] 停止接收者解鎖狀態凍結在 emails_sent（已收信的 Lesson 仍可看，不再解鎖新內容）
 - [x] 停止接收者無法再次領取同商品（US1 驗收）
@@ -456,6 +460,10 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-040**: `drip_days` MUST 只在 `course_type=drip` 時被送出與驗證。`CourseForm` 用同一份 `useForm` 服務兩種課程類型，**不管當下是哪一種都會把所有欄位送出**，所以「表單沒顯示這個欄位」不等於「後端不會收到它」。修法兩端都做：前端 `transform` 在非 drip 時把 `drip_days` 拿掉，後端 `prepareForValidation()` 一律清成 null（正典）。
   **這條是踩過才寫的**：一般課程只要有章節就存不了檔 —— `LessonController` 的 `sort_order` 是**每章各自從 1 起算**，整門課因此有重複值，前端按位次預帶的 0,1,2,3… 與後端 `orderBy('sort_order')` 讀到的順序對不上，遞增檢查判定失敗，畫面回「發信排程：第 4 封信的天數必須大於前一封」—— 一門跟連鎖信毫無關係的課程，被一個它根本沒有的東西擋住（2026-08-17 正式站事件）
 
+- **FR-041**: 序列信 MUST 為 multipart（HTML + text/plain），兩版 MUST 由同一份 `lessons.md_content` 產出 —— 後台 MUST NOT 出現第二個內容欄位。純文字版由 `DripLessonMail::plainTextBody()` 拿**最終 HTML** 經 `league/html-to-markdown` 轉回 Markdown，不是直接取 `md_content`：`EmailLinkTagger` 的 UTM 戳章只發生在 HTML 上，取原始 md 會得到一份沒有歸因的連結。內文為空時純文字版走與 HTML 版相同的 fallback 文案
+
+- **FR-042**: 信的字級 MUST 宣告在 blade 的 wrapper `div` 上（16px / 行高 1.75 / 無襯線字型堆疊），MUST NOT 只寫在 `<body>` —— Gmail 會把 `<body>` 改寫成 div 並丟掉它的屬性，寫在那裡等於沒寫。段落間距走 `<head>` 的 `<style>`（`p { margin: 0 0 20px }`），被 strip 的客戶端退回預設 1em，是可接受的降級。內文的字級 MUST 靠 wrapper 繼承，MUST NOT 期待 `md_content` 自帶樣式 —— `stripStylesForEmail()` 會把它的 `style`/`class` 全部清掉（FR-030 那條鏈的一環）
+
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
 ## 設計決策
@@ -515,6 +523,12 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **D32**: 表格開啟時把 null 的列**預帶**成舊公式的數值，而不是留空白（US18）。空白會讓管理員以為「還沒設定 = 不會寄」，但實際上舊公式正在跑；預帶則讓畫面上的數字永遠等於系統實際的行為，而且他只要按一次儲存，整門課就從隱性的 fallback 變成明確的天數。**預帶是 UI 行為，不是自動寫入** —— 沒有按儲存就不會有任何 migration 之外的資料變動
 
 - **D33**: 遞增驗證放後端 Form Request，前端只做即時提示（US18）。前端紅字是為了讓管理員在打字當下就看到問題，但它擋不住直接打 API 的路徑，也擋不住 FR-038 那條 Lesson 新增路徑；把正典放後端，前端提示壞掉的時候壞的是體驗而不是資料
+
+- **D34**: 序列信只調字級、**不加卡片外框**（2026-08-17）。業主原本問的是「能不能套上登入驗證信那個框」（白卡片＋圓角＋陰影＋置中品牌標題）。拒絕的理由不是實作成本，是定位：驗證信是交易信，而序列信整個模組的文案是照**一封私人的信**寫的 —— `Hi 小明,` 開頭、頁尾刻意空兩行做成 boilerplate（US6 驗收）。套上品牌卡片等於把它改造成電子報外觀，那正是往促銷分頁走的方向。
+  順帶更正一個常見誤解：**HTML 的「量」不是被分到促銷分頁的主因**。8/2 那次的查證記錄在本檔進度日誌 —— DKIM/SPF/DMARC 全正常，缺的是 `List-Unsubscribe` 標頭加上內文拿掉「退訂」字樣。真正的訊號是大 CTA 按鈕、高圖文比、多欄 table 版型、促銷字眼與低互動率；一個 wrapper div 加字級行高一個都沒碰到。同網域的 `newsletter-broadcast.blade.php` 有 560px 容器、實心彩色按鈕、整張封面圖也沒事，出事的反而是當時完全沒框的序列信。
+  真正值錢的是同一批改動裡的 **multipart 純文字版**（FR-041）—— 那是這次唯一實質降低促銷分頁風險的動作，視覺調整則純粹是可讀性
+
+- **D35**: 不設 `max-width`（US3）。沒有外框的情況下寬度限制是「看不見的框」，桌機寬視窗下長行會偏寬，這是業主明確選擇後接受的取捨。要改是一行 `max-width:600px;margin:0 auto` 的事，且不動任何投遞訊號
 
 ## Schema
 
@@ -699,6 +713,7 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-08-17: 序列信可讀性與 multipart（FR-041/FR-042、D34/D35）— 業主問「能不能套上驗證信那個框，字會不會太多 HTML 被歸促銷」。查 8/2 事件記錄後回覆：促銷分頁的成因是缺 `List-Unsubscribe` 與內文沒有退訂字樣，不是 HTML 的量；同網域的電子報有容器＋彩色按鈕＋封面圖反而沒事。業主選擇「只調字級不加框」，因此只在 blade 加 wrapper div（16px / 1.75 / 無襯線）與 `p` 的 20px 間距，卡片外框與 `max-width` 都不加。同批補上純文字替代版（新 `drip-lesson-text.blade.php`，內容由最終 HTML 經 `league/html-to-markdown` 轉回，保住 UTM 戳章）—— 這才是實質的投遞率收益。後台預覽 modal **不需任何改動**：它本來就渲染真正的 `DripLessonMail`（FR-030/FR-031），新字級自動生效，另加一條斷言把「字級確實經 blade 傳到預覽」釘住，防止日後有人改成前端重繪。`php artisan test` 747 passed / 3131 assertions。
 - 2026-08-17: 修正一般課程存不了檔 —— `CourseForm` 不分課程類型都送出 `drip_days`，有章節的一般課程（sort_order 每章從 1 起算）因此被遞增檢查擋下；改為前端 transform 剔除 + 後端 `prepareForValidation()` 清空（FR-040），補有章節的回歸測試；`php artisan test` 705 passed
 - 2026-08-16: US18 可變發信頻率 — 新增 `lessons.drip_day`（null 走舊等距公式，既有課程零遷移），解鎖日收斂為 `DripService::unlockDay()` 單一入口（應寄數／daysUntilUnlock／觀看期 fallback 三處改吃它），CourseForm 排程預覽改為可編輯表格並預帶現行天數，遞增驗證擋在 `UpdateCourseRequest`，新增 Lesson 自動接續天數；`php artisan test` 702 passed / 2933 assertions、`npm run build` exit 0
 - 2026-08-08: US17 後台預覽 Lesson 信件 — 寄信組裝抽為 `DripService::buildLessonMail()`（Job 改呼叫，既有 45 個 drip 測試零修改續過），新增 staff 權限的唯讀預覽端點與 `LessonEmailPreviewModal`，統計表標題可點開 sandbox iframe 預覽；預覽用假資料佔位、不寫任何事件

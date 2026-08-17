@@ -1,9 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Paragraph rhythm for the body copy. md_content reaches the blade with
+         every style and class attribute stripped (DripService::stripStylesForEmail),
+         so this is the only place the letter's spacing can come from. Clients
+         that drop <style> fall back to the default 1em margin, which is close. --}}
+    <style>
+        p { margin: 0 0 20px; }
+    </style>
 </head>
-<body>
+<body style="margin:0;padding:0;">
+{{-- Gmail rewrites <body> into a div and drops its attributes, so the type
+     scale has to live on a wrapper the client will keep. Deliberately no card,
+     border, background or brand header: the copy is written as a personal
+     letter, and a newsletter frame is the wrong signal for a mail that already
+     sits one step from the Promotions tab (see 010 spec, 2026-08-02). --}}
+<div style="font-family:-apple-system,'Noto Sans TC',Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;">
 @if($greetingName)
 <p>Hi {{ $greetingName }}，</p>
 @endif
@@ -21,6 +35,7 @@
 <p style="margin:8px 0 0;color:#9a9a9a;font-size:12px;line-height:1.7;">
     不想再收到這個商品的信件，可<a href="{{ $unsubscribeUrl }}" style="color:#9a9a9a;">按此停止接收（Unsubscribe）</a>。
 </p>
+</div>
 
 {{-- Tracking pixel (hidden, records email open) --}}
 @if($openPixelUrl)

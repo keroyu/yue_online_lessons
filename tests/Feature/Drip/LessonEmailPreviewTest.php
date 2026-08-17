@@ -82,6 +82,10 @@ class LessonEmailPreviewTest extends TestCase
             $response->json('subject')
         );
         $this->assertStringContainsString('Hi ' . DripService::PREVIEW_GREETING_NAME, $html);
+        // The type scale lives on the blade's wrapper, so the preview only shows
+        // the real letter for as long as it keeps coming from the blade. A
+        // front-end re-render would lose it without failing anything else here.
+        $this->assertStringContainsString('font-size:16px;line-height:1.75', $html);
     }
 
     public function test_links_carry_the_same_utm_stamp_as_a_real_send(): void
