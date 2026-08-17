@@ -268,7 +268,7 @@ class HighTicketLeadController extends Controller
     public function updateStatus(Request $request, HighTicketLead $lead): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,contacted,no_response,converted,closed,cancelled'],
+            'status' => ['required', 'in:pending,contacted,no_response,converted,closed,cancelled,declined'],
         ]);
 
         if ($validated['status'] === 'cancelled' && $lead->isActiveBooking()) {

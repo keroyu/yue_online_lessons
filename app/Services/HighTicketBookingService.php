@@ -12,6 +12,7 @@ use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Support\BookingScreening;
 use App\Support\PhoneNumber;
 use Carbon\CarbonInterface;
 use Illuminate\Mail\Mailables\Attachment;
@@ -42,6 +43,71 @@ class HighTicketBookingService
     public function __construct(protected ConsultationSlotService $slots) {}
 
     /**
+     * Step one of the wizard: the five-question gate (011 US24 / FR-125).
+     *
+     * Records the answers whatever the verdict — the output of this step IS
+     * "which kind of person is this", and the people who walk away halfway are
+     * exactly the ones worth having on file. Nothing is emailed, no slot is
+     * touched, and a refusal deliberately does NOT stop the drip sequence these
+     * applicants arrived from (FR-126).
+     *
+     * @return array{success: bool, message?: string, passed?: bool}
+     */
+    public function screen(Course $course, array $data): array
+    {
+        if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
+            return ['success' => false, 'message' => '此課程不接受預約'];
+        }
+
+        $answers = BookingScreening::only($data);
+        $passed = BookingScreening::passes($answers);
+
+        $attributes = array_merge($answers, [
+            'name'            => $data['name'],
+            'screening_score' => BookingScreening::score($answers),
+            'screened_at'     => now(),
+        ]);
+
+        $lead = HighTicketLead::where('email', $data['email'])
+            ->where('course_id', $course->id)
+            ->latest('id')
+            ->first();
+
+        if (!$lead) {
+            HighTicketLead::create(array_merge($attributes, [
+                'email'       => $data['email'],
+                'course_id'   => $course->id,
+                'status'      => $passed ? 'pending' : 'declined',
+                'declined_at' => $passed ? null : now(),
+                'booked_at'   => now(),
+            ]));
+
+            return ['success' => true, 'passed' => $passed];
+        }
+
+        // Whose status this is allowed to rewrite. A confirmed booking or a
+        // status an admin moved by hand is somebody's work in progress —
+        // re-answering a questionnaire must never undo it (FR-125).
+        if ($lead->confirmed_at === null && in_array($lead->status, ['pending', 'declined'], true)) {
+            $attributes['status'] = $passed ? 'pending' : 'declined';
+            $attributes['declined_at'] = $passed ? null : now();
+
+            // An application that was mid-flight and just failed a re-screen
+            // would otherwise keep its hold and a live confirmation link —
+            // a declined lead holding a slot is the one shape FR-126 forbids.
+            if (!$passed) {
+                $this->slots->release($lead);
+                $attributes['confirm_token'] = null;
+                $attributes['confirm_expires_at'] = null;
+            }
+        }
+
+        $lead->update($attributes);
+
+        return ['success' => true, 'passed' => $passed];
+    }
+
+    /**
      * Stage one of a booking (011 US9–US11 / FR-033).
      *
      * Submitting the wizard does NOT make a booking: it records the application,
@@ -60,6 +126,10 @@ class HighTicketBookingService
 
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
+        }
+
+        if ($refused = $this->screeningRefusal($data)) {
+            return $refused;
         }
 
         $code = $data['code'] ?? null;
@@ -145,6 +215,10 @@ class HighTicketBookingService
 
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
+        }
+
+        if ($refused = $this->screeningRefusal($data)) {
+            return $refused;
         }
 
         if ($this->slots->availableStarts(ConsultationSlotService::DEFAULT_MINUTES) !== []) {
@@ -835,6 +909,30 @@ class HighTicketBookingService
      *
      * @param array<string, mixed> $data
      */
+    /**
+     * Re-run the gate on the answers this very request carries (011 FR-129).
+     *
+     * Trusting the `screened_at` already on the lead is not enough: screening
+     * as one address and submitting as another lands on a different row and
+     * walks straight past the gate.
+     *
+     * A payload with no answers at all is let through on purpose — somebody
+     * resuming from a 「通知新時段」 mail never sees step 1, and every lead
+     * predating this feature has nothing to re-score. Turning those away would
+     * spend a soft filter on real bookings (D97).
+     *
+     * @param array<string, mixed> $data
+     * @return array{success: bool, message: string}|null
+     */
+    private function screeningRefusal(array $data): ?array
+    {
+        if (!BookingScreening::answered($data) || BookingScreening::passes($data)) {
+            return null;
+        }
+
+        return ['success' => false, 'message' => '此申請未通過資格審核'];
+    }
+
     private function duplicateMessage(Course $course, array $data): ?string
     {
         $lead = $this->existingLead($course, $data);
@@ -923,6 +1021,18 @@ class HighTicketBookingService
             'booked_at'               => now(),
         ];
 
+        // Carried through the wizard so the row keeps the answers even when the
+        // applicant never went through step 1 in this browser session (011 US24).
+        if (BookingScreening::answered($data)) {
+            $answers = BookingScreening::only($data);
+
+            $application = array_merge($application, $answers, [
+                'screening_score' => BookingScreening::score($answers),
+                'screened_at'     => now(),
+                'declined_at'     => null,
+            ]);
+        }
+
         $lead = HighTicketLead::where('email', $data['email'])
             ->where('course_id', $course->id)
             ->latest('id')
@@ -939,7 +1049,9 @@ class HighTicketBookingService
         $lead->update(array_merge($application, [
             // 'cancelled' joins the revivable set (FR-049): somebody re-applying
             // after calling one off is exactly the re-engagement we wanted.
-            'status'       => in_array($lead->status, ['closed', 'no_response', 'cancelled'], true) ? 'pending' : $lead->status,
+            // 'declined' likewise (FR-127 / D97) — getting this far means the
+            // screening let them through, so the old refusal is spent.
+            'status'       => in_array($lead->status, ['closed', 'no_response', 'cancelled', 'declined'], true) ? 'pending' : $lead->status,
             'cancelled_at' => null,
         ]));
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\SlotUnavailableException;
+use App\Http\Requests\BookingScreeningRequest;
 use App\Http\Requests\HighTicketBookingRequest;
 use App\Models\Course;
 use App\Services\ConsultationSlotService;
@@ -35,6 +36,24 @@ class HighTicketBookingController extends Controller
             // the service, so the two pickers cannot drift apart.
             'slots'        => $this->slots->groupStarts($this->slots->availableStarts($minutes)),
         ]);
+    }
+
+    /**
+     * The qualifying gate in front of the wizard (011 US24).
+     *
+     * Answers `passed` and nothing else: the score belongs to the consultant,
+     * not to the applicant, and a number on screen is an invitation to work out
+     * which answer to change (FR-124).
+     */
+    public function screen(BookingScreeningRequest $request, Course $course): JsonResponse
+    {
+        $result = $this->bookingService->screen($course, $request->validated());
+
+        if (!$result['success']) {
+            return response()->json(['message' => $result['message']], 422);
+        }
+
+        return response()->json(['passed' => $result['passed']]);
     }
 
     public function store(HighTicketBookingRequest $request, Course $course): JsonResponse

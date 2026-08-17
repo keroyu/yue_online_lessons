@@ -78,6 +78,12 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  // The five qualifying questions in front of the wizard (011 US24) — titles
+  // and option labels only, the scoring stays on the server.
+  screeningQuestions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 // ── 積分兌換：兩段式確認（按綠色按鈕 → 左側面板顯示兌換後餘額 → 確定才扣點）──
@@ -921,7 +927,11 @@ const isFunnelLanding = computed(() =>
             </p>
           </div>
 
-          <HighTicketBookingWizard :course="course" :draft="props.bookingDraft" />
+          <HighTicketBookingWizard
+            :course="course"
+            :draft="props.bookingDraft"
+            :screening-questions="props.screeningQuestions || []"
+          />
         </div>
 
         <!-- ── Normal purchase UI ── -->

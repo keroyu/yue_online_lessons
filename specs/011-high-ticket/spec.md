@@ -2,6 +2,12 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Support/BookingScreening.php
+  - app/Http/Requests/BookingScreeningRequest.php
+  - database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php
+  - database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php
+  - resources/js/Components/Course/BookingScreeningStep.vue
+  - tests/Feature/HighTicket/BookingScreeningTest.php
   - app/Models/CoursePlan.php
   - app/Http/Controllers/Admin/CoursePlanController.php
   - app/Http/Requests/Admin/StoreCoursePlanRequest.php
@@ -117,10 +123,10 @@ owner_files:
 touchpoints:
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
-    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此
+    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
     why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
@@ -189,7 +195,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -368,6 +374,8 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 願意花五分鐘寫完瓶頸與專長、逐條勾選承諾的人，才是值得排進行事曆的人。
 
 **驗收**：
+> **2026-08-17 起步驟編號由 US24 改寫**（1 資格 → 2 資料 → 3 承諾 → 4 時段 → 5 確認）：以下條款所稱 Step 1 的問卷欄位現在位於 **Step 2**，Step 2/3/4 各順延一格。條款內容本身未變，只有編號與所在畫面移動（FR-130）。
+
 - [x] Step 1：填 Email + 暱稱後按「開始申請」，**同頁下方即時展開**簡易問卷（不換頁、不打 API、不捲走）；問卷欄位為手機電話\*、職業和從事時長\*、事業瓶頸\*、知識或能力的專長\*、經營社群網址（選填），`*` 欄位以紅色星號標示且未填不得前進
 - [x] Step 2：問卷按「下一步」後顯示承諾條件清單（三條，文案見 FR-026），三個 checkbox **全部勾選**才啟用「下一步」；未全勾時按鈕為 disabled 樣式並附說明「請確認全部項目後繼續」
 - [x] Step 4：選完時段後顯示**申請資料覆核區**，逐欄列出 Step 1–3 的所有輸入值（含所選時段與諮詢長度），每欄可點「修改」跳回該步驟且保留已填內容
@@ -377,7 +385,7 @@ Markdown 寫不出來也貼不進去（CommonMark 會吃掉縮排與空行）。
 - [x] 四個步驟共用一組進度指示（1 資料 → 2 承諾 → 3 時段 → 4 確認），已完成步驟可點回、未達步驟不可點；所有可點元素 `cursor-pointer` + hover 樣式（專案規則）
 - [x] 整段流程抽成獨立元件 `Components/Course/HighTicketBookingWizard.vue`，`Course/Show.vue` 只保留一行掛載（見 D29）；既有的一步式表單整組移除，不留開關（使用者決策）
 - [x] 已登入者自動帶入 real_name / email（行為與現況相同）；重新申請時若該 email 已有 lead，問卷欄位預填既有值省得重打
-- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為四條全 true（FR-026），任一不符回 422 並 inline 顯示於對應欄位
+- [x] 後端驗證由 `HighTicketBookingRequest` 承擔（非 controller inline）：必填、長度上限、`social_url` 須為合法 URL、`commitments` 須為三條全 true（FR-026），任一不符回 422 並 inline 顯示於對應欄位
 - [x] 後台 Leads 名單的每列可展開檢視該筆申請的問卷答覆（手機、職業、瓶頸、專長、社群連結、預約時段、Email 確認時間、Zoom 連結）；舊資料無問卷欄位時顯示說明而非一排「—」
 - [x] 展開列不再顯示「預約優惠碼」（原值仍存在 `booking_code`，只是後台不需要看它）；改顯示該筆已預約的時段，格式如「2026/8/8 14:00-15:45」，起訖時間由該 lead 名下 `consultation_slots`（依 `starts_at` 排序）取首尾單位換算 —— 起始單位的 `starts_at`，結束時間為末位單位 `starts_at + 15 分鐘`；lead 尚未選定時段（候補中）則不顯示此列
 - [x] 展開列「Email 確認時間」之後新增「序列信起始時間」，格式如「2026/8/3 17:03（經過 3 天）」，用於追蹤該 email 被序列信加溫多久：取該 email 名下**所有**序列信訂閱（`dripByEmail`，不限課程、不限狀態）中 `subscribed_at` **最早**的一筆；天數為**日曆天差**（比較年月日，不比時分，避免數字隨查看時刻跳動）；該 email 完全沒有任何序列信訂閱時不顯示此列。**天數的比較終點**：該筆預約已確認（有 `confirmed_at`）時，比較終點固定為 `confirmed_at`——「序列信起始 → 確認預約」是已發生的歷史事實，天數算出來後不應再變動；尚未確認時終點才是「今天」，隨查看當下累加（2026-08-07 修正，原本一律比較到今天，導致已轉換的 lead 天數還在持續增加，見下方進度日誌）
@@ -762,11 +770,49 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - [x] 後台展開 lead 時列出**該 email 的所有面談場次**（依 `met_at` 倒序），不只本次預約那一場
 - [x] 逐字稿與摘要在每一列場次上皆可編輯儲存，各自蓋上 `*_edited_at`
 - [x] 逐字稿已取回 → webhook 再送一次不重跑校訂（不浪費 token）
+- [x] payload 沒有 TRANSCRIPT 檔（`recording.completed` 的常態）→ 寫 info log 靜默結束，不丟例外、不進 failed_jobs（FR-132）
 - [x] `consultation_summary_edited_at` 有值 → webhook 不覆寫摘要；後台「重新產生摘要」按鈕可明確解鎖重跑
 - [x] 「重新產生摘要」用資料庫既存的逐字稿重跑，**MUST NOT 再打 Zoom**（雲端錄影有保存期限）；逐字稿為空時回 422 而非 500
 - [x] `openai_api_key` 未設定時 AI 步驟靜默跳過、不丟例外，逐字稿仍以機械式解析結果落庫
 - [ ] `php artisan booking:fetch-transcript {note}` 可在沒有 webhook 的情況下手動跑完整條流程（指令已實作，但需真實錄影才驗得了 —— 見 T287）
 - [x] 測試：URL 驗證、驗簽失敗、講者匿名化、防縮水、兩個覆寫守門、重跑不打 Zoom、憑證未設定
+
+### User Story 24 - 前置資格審核與自動婉拒 (Priority: P1)
+
+申請 1v1 的人幾乎都來自電子書的序列信名單 —— 他們**本來就在信箱裡**，這一步要做的不是獲取名單，
+是**分流**：把「真的想買」的人挑出來排進行事曆（確認預約後 `checkAndBook()` 標記 `booked`、停止序列信），
+其餘的人留在序列信裡繼續加溫。
+
+因此閘門必須放在**最前面**。讓人寫完五分鐘的問卷、選好時段、再告訴他不安排，反彈不會隨著他離開 ——
+他還在你的名單裡，接下來每一封信都在提醒他那件事。這是被拒絕者仍留在資產內部的漏斗特有的成本
+（D96，推翻本 spec 前一版「填完再婉拒」的設計）。
+
+流程改為五步：**1 資格 → 2 資料 → 3 承諾 → 4 時段 → 5 確認**。
+第一步只要 Email + 暱稱 + 五題單選（時程、預算、決策權、痛點成本、下一步），
+送出後**一律等 15 秒**跑自動審核：滿 5 分進第二步，未達 5 分或勾選「目前沒有預算」則顯示婉拒文案。
+第二步之後的流程與 US9–US12 完全不變。
+
+**驗收**：
+- [x] 第一步只有三塊：Email、暱稱、五題單選（題目與選項文案、計分、一票否決見 FR-123）；MUST NOT 出現手機／職業／瓶頸／專長／社群等第二步欄位
+- [ ] 五題**全部必答**才可送出審核（FR-124）—— 未作答在計分制下只能算 0 分，留成選填等於做一題使用者看不懂自己被什麼擋住的扣分題
+- [ ] 每題以單選卡片呈現（比照承諾清單的 `<label>` 卡片），MUST NOT 用 `<select>`；選項文字在手機上單欄不溢出，每張卡 `cursor-pointer` + 選中樣式
+- [ ] 題目與選項文字由後端以 prop 下發（`CourseController@show`），**分數與否決旗標 MUST NOT 下發**（FR-124 / D101）
+- [ ] 送出 → `POST /course/{course}/screen`（throttle:10,1），回 `{passed: true|false}`，**不回分數**
+- [ ] 收到回應後**不論通過與否一律顯示「自動審核中」畫面**（進度條 + 倒數秒數，長度 15 秒）；倒數結束後通過者進入第二步、未通過者顯示婉拒文案（FR-128）
+- [ ] 倒數由前端跑，伺服器 MUST NOT sleep 或延遲回應（FR-128）
+- [ ] 婉拒文案定版見 FR-128，版面為中性灰而非錯誤紅 —— 這不是他填錯了什麼；畫面上 MUST NOT 出現分數、也 MUST NOT 說明是哪一題造成的
+- [ ] 審核當下即建立／更新該 email 的 lead：五題答案、`screening_score`、`screened_at` 落庫（FR-125）—— 這是「他是哪一種」的紀錄，中途離開也留得住
+- [ ] 未通過者：`status = declined`、`declined_at = now()`、**不寄任何信**（不寄婉拒信、不寄內部 CC）、不佔時段、不產 `confirm_token`（FR-126）
+- [ ] 未通過者 MUST NOT 被停掉序列信 —— 他們正是要留在加溫名單裡的那群（FR-126）
+- [ ] 審核 MUST NOT 覆寫已有進行中預約的 lead 狀態：`confirmed_at` 非 null 或 `status` 已被管理員改動者，只更新答案與分數，`status` 不動（FR-125）
+- [ ] 送出申請（`book` / `waitlist`）時伺服器**以送上來的答案重新計分**：帶了答案就必須通過，沒帶答案（`?resume=` 回訪、本功能上線前的舊 lead）則放行（FR-129 / D97）
+- [ ] `?resume=` 回訪者直接開在時段步驟，MUST NOT 被要求重做資格審核；已存的答案由 `draftAnswers()` 帶回（FR-129）
+- [ ] 婉拒非永久：同一 email 重做審核、答案改變即照常通過，`status` 回 `pending`、`declined_at` 清空（D97）
+- [ ] 進度指示改為五格（1 資格 / 2 資料 / 3 承諾 / 4 時段 / 5 確認）；已完成可點回、未達不可點；**回到第一步 MUST NOT 重跑審核倒數**（同一組答案未變更時直接放行）
+- [ ] 後台 Leads 狀態新增第 7 個「已婉拒」（字母 `R`、rose 色系），狀態方塊與篩選 pill 同步；管理員仍可手動改成其他狀態
+- [ ] 後台展開列新增「資格審核」區：分數（`N/10`）、分級標籤（8–10 高意願 / 5–7 值得談 / 0–4 培育名單）與五題答案的中文標籤；無審核紀錄的舊 lead 顯示說明而非一排「—」
+- [ ] 逾時清掃 MUST NOT 刪到只完成審核、尚未送出申請的 lead（`confirm_expires_at` 為 null 即已排除，FR-126）
+- [ ] 測試：計分表逐題、5 分邊界、「沒有預算」一票否決、未通過不寄信／不停 drip／不佔時段、通過者照常走完既有流程、重新審核可翻案、送出時重新計分、舊 lead 無答案仍可送出
 
 ## Requirements
 
@@ -816,13 +862,13 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 - **FR-024**: 兩個 tab 的篩選參數各用各的命名：預約名單沿用 `status` / `search` / `course_id`（既有網址不得失效），訂閱者名單用 `sub_course` / `sub_status`。**MUST NOT 共用 `status`** —— 兩邊的狀態 enum 完全不同（pending/contacted/no_response/converted/closed vs active/booked/converted/completed/unsubscribed），共用會讓切 tab 後帶著一個對方不認得的值。`page` 可共用（一次只渲染一個列表）
 
-- **FR-026**: 承諾條件清單的四條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
+- **FR-026**: 承諾條件清單的三條文案 MUST 逐字如下（前導說明「預約前，請先確認：」）：
   1. 我有明確想改善的問題，有意投入時間學習並持續執行。
   2. 我願意接受務實建議，也願意調整原本的想法與做法。
-  3. 我有預算／決策權，希望在未來 3-6 個月內實踐計劃。
-  4. 如果確認方向適合，我願意認真評估並採取下一步行動。
+  3. 如果確認方向適合，我願意認真評估並採取下一步行動。
 
-  第 3 條為 2026-08-17 追加（使用者決策），刻意插在「認真評估並採取下一步」**之前** —— 預算與決策權是資格條件，該在對方承諾行動之前先問清楚。
+  原第 3 條「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」於 2026-08-17 移除（使用者決策）：US24 的資格審核已在第一步用兩道各七／五選項的題目問過預算與決策權，而且問到了級距。承諾清單再勾一次同一件事，只是把一個已經有答案的問題降級成一個沒有資訊量的核取方塊。
+  **條數 MUST 與 `HighTicketBookingRequest::COMMITMENT_COUNT` 同步**，漏改則每次送出都被 422，而訊息「請確認全部的預約前提條件」完全不提條數（`BookingWizardTest` 有一條測試直接讀 Vue 的陣列長度去打端點，就是為了讓這種漂移出聲）。
 
   四條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 4 且全為 true 的陣列）。**條數是跨語言的耦合**：清單定義在 Vue、長度驗證在 PHP，改一邊忘了另一邊會讓每一次送出都被 422 擋下，而使用者看到的錯誤訊息完全不提「條數」。因此後端的長度寫成具名常數 `HighTicketBookingRequest::COMMITMENT_COUNT`，並由測試讀取 Vue 的 `COMMITMENTS` 陣列實際比對兩者，不靠註解自律。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，全真才寫入，存了也只會是一排 true（見 D30）。選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
 
@@ -1047,6 +1093,7 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - **FR-110**: 兩個步驟各有獨立守門，**MUST 都在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token。逐字稿的守門是 `transcript_fetched_at` + 已有內容（`transcriptIsSettled()`）—— 我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`（D88），所以同一場次收到第二次事件是常態而非例外，沒有這道守門就是同一份逐字稿付兩次校訂費。摘要的守門是 `summary_edited_at`：人寫的摘要不該被 Zoom 重送打回原形。兩者都以 job 的 `$force` 旗標（`booking:fetch-transcript --force`）刻意繞過
 - **FR-111**: 「重新產生摘要」MUST 以該場次既存的 `transcript` 為輸入，MUST NOT 再向 Zoom 請求。Zoom 雲端錄影有保存期限，過期即永久取不回；把校訂稿留在自己的資料庫，正是為了讓摘要格式日後能隨時調整重跑。逐字稿為空時回 422（提示尚未取得逐字稿），不是 500
 - **FR-117**: `ProcessZoomTranscriptJob` MUST 跑在專屬的 `database_long` 佇列連線上，並自帶 `$timeout`（1500 秒）。**這不是調校而是正確性問題**：worker 預設 timeout 為 60 秒，而校訂一小時的逐字稿是數次連續 LLM 呼叫、分鐘級的工作，預設值會在中途砍掉它；更糟的是 `database` 連線的 `retry_after` 為 90 秒，job 只要跑超過 90 秒佇列就判定它已死、把同一份 payload 交給第二個 worker —— 重複處理、重複付 API 費用。`retry_after` MUST 恆大於 job 的 `$timeout`（本連線設 1800）。獨立連線而非直接調高 `database` 的 `retry_after`，是為了讓卡住的**信件** job 仍在 90 秒後重試，而不是等半小時
+- **FR-132**: payload 的 `recording_files` 裡沒有 TRANSCRIPT 檔時，job MUST 寫一行 info log 後靜默結束，**MUST NOT 丟例外交給 backoff**。`recording.completed` 依定義不帶 VTT（逐字稿由 `recording.transcript_completed` 另行送達，帶自己的檔案清單），而 job 拿到的是**派工當下凍結的 payload 快照** —— 重試只會重讀同一份清單，永遠不可能讀出逐字稿。原設計因此讓每場面談固定產生一個註定失敗的 job（三次重試 + 一筆 failed_jobs + 兩行 ERROR log），把「這一則不是逐字稿事件」記成故障（D88 修訂）。逐字稿為空時 `summarise()` 已回 null，故靜默結束不會產生空摘要
 - **FR-112**: `openai_api_key` 或對應的 `ai_prompts` 列不存在時，AI 步驟 MUST 靜默跳過而非丟例外，逐字稿仍以機械式解析結果落庫（沿用 D40 對 Zoom 的既有立場：未設定憑證即該路徑不存在，本機與 CI 永遠不需要真的 key）
 - **FR-122**: 前台時段選擇器 MUST 為**日期成欄、時間直向堆疊**的版面（原本是每日一列、時間橫向 wrap，兩天各四格就把第三天推到摺線下，「我什麼時候能來」變成要捲動才答得出來）。翻頁 MUST 用左右箭頭按鈕，MUST NOT 用橫向捲動 —— 觸控板難控、手機更差，且看不出可預約期間有多長。
   分頁單位 MUST 是**連續 N 個有時段的日期**，MUST NOT 依日曆週切分：可預約日稀疏且不平均，一個 Mon–Sun 頁常只有兩三欄，右側整片空白 —— 那片留白不帶任何資訊（空日期本來就不顯示）。欄位 MUST 平分整列且不設 `max-width`，使每頁填滿卡片、任何螢幕都不需橫向捲動；每頁欄數依螢幕寬度切換（< 640px 四欄、≥ 640px 六欄，`matchMedia`）。
@@ -1055,12 +1102,103 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - **FR-120**: 後台每場次 MUST 收斂成兩個連結：「摘要」開 modal 檢視／編輯，「下載逐字稿」輸出 `.txt`。逐字稿 **MUST NOT 在頁面上直接呈現** —— 一大片對話塞在已展開的表格列裡，會讓上下場次無法掃讀，而摘要才是真正被讀的東西。既然不再顯示，leads payload MUST 改送 `LENGTH(transcript)` 而非本文（用 `LENGTH` 不用 MySQL 的 `CHAR_LENGTH`，因為測試跑在 sqlite 上）：一頁 20 筆 lead、每筆帶著該客戶所有場次，逐字稿本文可達 200k 字元，不送才是把「不直接呈現」落實到傳輸層而非只是視覺上藏起來。**連帶清除**：逐字稿既不可編輯，`updateTranscript()` 端點、其路由與 `transcript_edited_at` 欄位 MUST 一併移除（migration `..._000003` 卸掉該欄）—— 一個永遠為 null 的時間戳是在邀請後人寫程式去檢查它。原本掛在該欄上的覆寫守門改以 `transcript_fetched_at` 表達，見 FR-110
 - **FR-119**: 面談紀錄只在**預約確認當下**建立，因此本功能上線前已確認的預約一筆紀錄都沒有 —— 而沒有紀錄，webhook 就沒有 `zoom_meeting_id` 可對，逐字稿會直接被丟掉。MUST 提供 `booking:backfill-consultation-notes` 補建，且 MUST 與確認路徑共用 `recordConsultationNote()`（該方法以 `zoom_meeting_id` 比對既有列，這正是補建可重複執行而不產生重複列的原因）。已取消的預約 MUST 略過（沿用 FR-114 的立場：那場會議不會發生了）
 - **FR-118**: 後台 MUST 能刪除單一場次（誤約、測試約、客人走錯房間）。硬刪除而非軟刪除 —— 沒有還原介面可以正當化留著那列，而隱藏的列仍得在每一處以 email 查歷史的地方被過濾掉。**MUST NOT 以「有內容就不准刪」設限**：促成這個需求的正是一場短暫誤入而確實產生了錄影的會議，設限等於擋掉需求本身；升級版的確認對話留在 UI，可追溯性靠 `Log::warning`（只記 note id、lead id、`met_at`、字元數與操作者 id，內容仍受 FR-109 約束）。刪除 MUST 是終局的 —— Zoom 會連續數日重送 `recording.completed`，webhook 找不到對應列即回 200 且不重建
+- **FR-123**: 資格審核共五題，題目、選項、儲存值與計分定版如下。滿分 10 分，**5 分（含）以上通過**（`BookingScreening::PASS_SCORE`）。標「否決」者無論總分多少一律不通過（使用者決策）。
+
+  **Q1 `screen_timeline` — 你希望在多久內開始改善目前的問題？**
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `immediate` | 立即，希望 1 個月內開始 | 2 |
+  | `1_3m` | 1–3 個月內 | 2 |
+  | `3_6m` | 3–6 個月內 | 1 |
+  | `6m_plus` | 6 個月以上 | 0 |
+  | `exploring` | 目前只是先了解，沒有明確時間表 | 0 |
+
+  **Q2 `screen_budget` — 如果確認這項服務適合你，你目前可考慮投入的預算大約是多少？**
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `over_100k` | NT$100,000 以上 | 2 |
+  | `50k_100k` | NT$50,000–100,000 | 2 |
+  | `10k_50k` | NT$10,000–49,999 | 2 |
+  | `6k_10k` | NT$6,000–9,999 | 1 |
+  | `under_6k` | NT$5,999 以下 | 0 |
+  | `none` | 目前沒有預算 | 0 **· 否決** |
+  | `unsure` | 不確定，希望先了解方案內容與價格 | 1 |
+
+  級距對應實際方案定價（入門 8,888 / 一般 36,000 / 旗艦 58,000）：**買得起主力方案的門檻在 1 萬以上，故 `10k_50k` 給滿分**；`6k_10k` 只買得起入門級，是客戶但不是最該佔用 1v1 的那種，給 1 分。`unsure` 給 1 分而非 0 —— 銷售頁本來就隱藏價格，「想先知道多少錢」是誠實回答，不是低意圖。
+
+  **Q3 `screen_authority` — 關於這筆投入，你目前的決策狀態最接近哪一種？**
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `self` | 我可以自行決定，只要確認適合就能開始 | 2 |
+  | `discuss` | 我是主要決策者，但需要和伴侶／夥伴討論 | 2 |
+  | `approval` | 需要其他人共同核准 | 1 |
+  | `none` | 我目前沒有決策權 | 0 |
+  | `not_considered` | 還沒想過是否要投入 | 0 |
+
+  **Q4 `screen_pain` — 如果接下來 3–6 個月都沒有改善這個問題，對你的影響有多大？**
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `severe` | 影響非常大，已經造成明顯損失或壓力 | 2 |
+  | `high` | 影響很大，希望盡快解決 | 2 |
+  | `moderate` | 有影響，但目前仍可接受 | 1 |
+  | `low` | 影響不大 | 0 |
+  | `curious` | 只是想提前了解 | 0 |
+
+  **Q5 `screen_next_step` — 如果這次討論後，你認為方向適合，你最可能採取哪個下一步？**
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `start_now` | 希望盡快確認合作方式並開始 | 2 |
+  | `evaluate` | 願意認真評估方案與費用後決定 | 2 |
+  | `compare` | 需要再比較其他選項 | 1 |
+  | `diy` | 想先自己嘗試一段時間 | 0 |
+  | `advice_only` | 目前主要是想獲得一些建議，暫時沒有合作打算 | 0 |
+
+  分級（僅供後台顯示，不影響通過與否）：8–10 高購買意願、5–7 值得談但需 qualification、0–4 培育名單。
+- **FR-124**: 五題**全部必答**。未作答在計分制下只能算 0 分，把它留成選填等於做一題「答不答都算你錯」的扣分題，而使用者永遠不會知道自己被什麼擋住。
+  題目與選項文字由後端下發（單一來源見 D101），**分數與否決旗標 MUST NOT 出現在任何前端 payload**：把評分表放進網頁原始碼，等於在閘門旁邊貼上答案。審核回應同理只回 `{passed}`，**不回分數** —— 分數是給顧問看的，不是給申請人看的。
+- **FR-125**: `POST /course/{course}/screen`（throttle:10,1）：驗證 Email／暱稱／五題 → 伺服器端計分 → 建立或更新該 `email + course_id` 的 lead，寫入五題答案、`screening_score`、`screened_at`，回 `{passed: bool}`。
+  **審核即落地**是刻意的：這一步的產出就是「這個人是哪一種」，而中途離開的人正是最需要留住的資料。通過者以 `status = pending` 存在（尚無 `confirm_token`、無時段），未通過者見 FR-126。
+  **MUST NOT 覆寫進行中的預約**：`confirmed_at` 非 null 或 `status` 已非 `pending` / `declined` 者，只更新答案與分數，`status` 與 `declined_at` 一律不動 —— 一個已確認的客人回來把玩表單，不該把自己的預約洗成婉拒。
+- **FR-126**: 未通過者的落庫形狀：`status = declined`、`declined_at = now()`、`confirm_token` 與 `confirm_expires_at` 皆 null、名下無 `consultation_slots`。並且 MUST NOT：寄出任何信件（婉拒信與內部 CC 通知都不寄，使用者決策）、觸發 `DripService::checkAndBook()`、送出 Meta CAPI 事件。
+  **不停序列信是重點而非疏漏**：這些人來自電子書名單，婉拒的意思是「現在不排 1v1」，不是「不要再聯絡」—— 停掉序列信等於把唯一還在運作的加溫管道也關掉。
+- **FR-127**: `declined` 是 `high_ticket_leads.status` 的第 7 個值，新增時 MUST 同步四處，漏一處就是一個安靜的錯誤：enum migration、`HighTicketLeadController::updateStatus()` 的 `in:` 驗證清單（漏了則管理員改不回其他狀態）、`BookingListTab.vue` 的 `statusButtons`（漏了則該列狀態方塊全部呈現未選中）、`HighTicketBookingService::recordLead()` 的可復活清單（漏了則婉拒過的人永遠停在 declined，見 D97）。
+- **FR-128**: 送出審核後 MUST **一律**顯示「自動審核中」畫面（進度條 + 倒數秒數），通過與否都一樣 —— 只有被擋的人要等，會讓兩條路徑的速度差自己說出答案。倒數長度為 **15 秒**（`REVIEW_SECONDS`，2026-08-17 由 60 秒縮短，使用者決策：60 秒足以讓通過的人以為當掉了）。倒數 MUST 由前端執行，伺服器 MUST NOT sleep、MUST NOT 延遲回應：掛住一個 request 會佔用 PHP-FPM worker，而中途斷線會把已經完成的判定顯示成失敗。
+  婉拒文案定版：「感謝您的申請。根據您的現況，我們判斷現階段可能不是最適合安排一對一諮詢和推進下一步計劃的時機，因此此次先不安排預約。謝謝您的理解，祝您接下來的規劃順利。」
+  畫面上 MUST NOT 出現分數，也 MUST NOT 指出是哪一題造成的 —— 那等於附上一份修改指南。
+- **FR-129**: `book` / `waitlist` 送出時，伺服器 MUST 以**該次請求帶上來的答案**重新計分並擋下未通過者（422），MUST NOT 只信任 lead 上已存的 `screened_at` —— 否則用 A 信箱通過審核、用 B 信箱送出申請就繞過整道閘。
+  **答案完全未帶時放行**：`?resume=` 從「新時段通知」信回站的人不會重做審核，本功能上線前的舊 lead 也沒有答案，擋下他們是拿一道軟性過濾去砸真實預約。這確實留下一個「不送欄位就過」的縫，而 D97 已經接受了這道閘門本來就繞得過去。
+- **FR-130**: 預約精靈的步驟結構改為五步：**1 資格 → 2 資料 → 3 承諾 → 4 時段 → 5 確認**。US9 驗收條款中提到的 Step 編號一律以此為準（原 Step 1 的問卷欄位移至新 Step 2，原 Step 2/3/4 各順延一格）。回到第一步 MUST NOT 重跑審核倒數 —— 答案未變更時直接放行，變更後才需重審。
+- **FR-131**: 後台 Leads 展開列 MUST 顯示「資格審核」區：分數 `N/10`、分級標籤（8–10 高購買意願 / 5–7 值得談 / 0–4 培育名單）與五題答案的中文標籤。**分數與分級只在後台出現**（FR-124）。無審核紀錄的舊 lead 顯示一句說明，MUST NOT 印五排「—」。
+
 
 ## 設計決策
 
-- **D87**: 走 Zoom webhook 而不是排程輪詢 `GET /users/me/recordings`。輪詢要嘛延遲要嘛浪費 —— 面談是低頻事件，為了 15 分鐘的延遲每天空掃幾百次沒有意義；webhook 的代價是要多維護一個公開端點與驗簽，但那份程式碼本站已經寫過三次（Portaly、PayUni、藍新），是熟路。
+- **D96**: 閘門放在**第一步**，五題答完當場給結果（使用者決策，2026-08-17 推翻本 spec 初版的「填完整份申請才婉拒」）。
+  推翻的理由不是體驗，是成本歸屬：申請人幾乎全部來自電子書的序列信名單，**被婉拒之後仍留在名單裡繼續收信**。一個花五分鐘寫完瓶頸、選好時段、然後被系統擋下來的人，接下來每一封序列信都在提醒他那件事 —— 反彈不會隨著他離開漏斗而消散，它留在資產內部發酵。初版把這筆成本算成「對方多花的力氣」，那是把一次性流量的直覺套在一個名單型漏斗上。
+  代價是初版換到的兩件事都要放棄：一是被婉拒者不再留下瓶頸／專長等自由文字（現在只留五題答案），二是閘門的繞過成本從「重寫五分鐘問卷」降到「退回去改一個選項」。後者由 D97 正面接受。
+- **D97**: 婉拒**不黏**，而且這道閘門**本來就繞得過去**。不記黑名單、不設冷卻期，同一 email 重做審核、答案改了即照常通過（`declined` 併入 `recordLead()` 既有的可復活清單，與 `closed` / `no_response` / `cancelled` 同級）。
+  兩個理由。其一，這五題問的是**現況**不是身份：預算與急迫度三個月後就變了，把一次「現在沒錢」變成永久標記，擋掉的正是最該被擋回來的那種轉變。其二，一個願意退回去把答案改成「我有 5 萬、我能自己決定」的人，跟隨手點完就走的人已經不是同一群 —— 這道閘門要分的就是這個，而那句改過的答案會存在資料庫裡，面談時攤開來就是最好的開場。
+  真正的守門仍在面談裡。這也是 FR-129「答案沒帶就放行」可以接受的原因。
+- **D98**: 新增第 7 個狀態 `declined`（已婉拒），而不是沿用 `closed` 加一個旗標（使用者決策）。自動婉拒與人工關閉是兩種不同的事實 —— 混在同一桶裡，漏斗 pill 上的「已關閉 N 筆」就再也答不出「有多少人是在資格審核就被擋掉的」，而那個數字正是這個功能上線後唯一要看的指標。
+  代價是狀態列從 6 顆變 7 顆（窄螢幕要能換行），以及 FR-127 那份四處同步清單。
+- **D99**: 審核倒數**所有人都等**，通過與否一視同仁（使用者決策）。只讓被擋的人等，等於用速度差把答案講出來 —— 通過的人瞬間進下一步、被擋的人轉一分鐘，任何試第二次的人都會發現。
+  這在新的步驟結構下才成立：等待點從「填完五分鐘問卷之後」移到「點完五題之後」，通過者付出的是十幾秒而不是五分鐘加一個落空的時段，而那段等待同時把「有一道審核存在」這件事變成可信的。
+- **D100**: 計分用規則表，**不用 AI 模型**（使用者提問，本 spec 給出的建議）。五題全是單選，答案是 key 不是自然語言，計分是一張對照表的加總 —— 這件工作沒有任何一項是模型比 `array_sum()` 做得好的。用模型要付三種代價：同一組答案可能在不同時間得到不同結果（被申訴時無法還原當初為什麼擋人）、多一次 API 延遲與費用、以及一個沒有 API key 就跑不動的本機與 CI 環境。那段倒數是體感設計，不是算力需求。
+  **AI 該放的位置在後台**：把五題答案加上第二步的自由文字（瓶頸、專長）餵給既有的 `OpenAiService`，產出「這位申請人的購買意願摘要與建議切入點」給顧問在面談前看 —— 那裡有自由文字（模型的強項）、判斷錯了也不傷人，且沿用 000 US10 的 `ai_prompts` 基礎設施。列為日後獨立 US，本次不做。
+- **D101**: 題目、選項文案與計分表只有一份定義，放在 `app/Support/BookingScreening.php`（PHP 端），前端的題目與選項由 `CourseController@show` 以 prop 下發。
+  放 PHP 而不是放 `resources/js/lib/`：計分**必須**在伺服器端執行（FR-129），所以後端一定要有完整的表；如果文案另放前端，就會出現「兩份清單各自演化」的經典失敗 —— 前端加了一個選項、後端的 `Rule::in` 沒加，該選項的每一次送出都是 422，而錯誤訊息不會提到任何一題。
+  下發時 MUST 過濾掉 `score` 與 `veto`（FR-124）。沿用 `app/Support/PhoneNumber.php` 的既有位置慣例。
+- **D102**: 第一步保留**暱稱**欄位，只有 Email 是不夠的。一是 `high_ticket_leads.name` 是 `NOT NULL`，而審核當下就要建 lead（FR-125），不留欄位就得改 schema 或塞空字串；二是婉拒畫面能叫得出名字，那句話讀起來的差別比一個欄位的成本大得多。
+- **D87**: 走 Zoom webhook- **D87**: 走 Zoom webhook 而不是排程輪詢 `GET /users/me/recordings`。輪詢要嘛延遲要嘛浪費 —— 面談是低頻事件，為了 15 分鐘的延遲每天空掃幾百次沒有意義；webhook 的代價是要多維護一個公開端點與驗簽，但那份程式碼本站已經寫過三次（Portaly、PayUni、藍新），是熟路。
   代價是 Zoom Marketplace 的事件訂閱設定不在 git 裡，換站台要人工重設一次 —— 已寫進 US23 的上線前提。
-- **D88**: 同時訂閱 `recording.transcript_completed` 與 `recording.completed`。逐字稿比錄影晚幾分鐘產出，只收後者會拿不到檔；但前者的事件名稱**必須在實作時於 Zoom Marketplace 的事件清單確認確實可訂閱**（公開文件查不到這一層）。兩個都收 + job 端自行判斷 TRANSCRIPT 檔在不在、不在就靠 backoff 重試，是唯一不依賴那個確認結果的作法。
+- **D88**: 同時訂閱 `recording.transcript_completed` 與 `recording.completed`。逐字稿比錄影晚幾分鐘產出，只收後者會拿不到檔；但前者的事件名稱**必須在實作時於 Zoom Marketplace 的事件清單確認確實可訂閱**（公開文件查不到這一層）。兩個都收 + job 端自行判斷 TRANSCRIPT 檔在不在，是唯一不依賴那個確認結果的作法。
+  **已證實可訂閱（2026-08-17）**：正式站觀察到同一場會議的兩則事件各自帶著自己的 `recording_files` —— 先到的 `recording.completed` 只有 `[MP4, M4A, TIMELINE, CHAT]`，**3 小時 27 分後**才到的 `recording.transcript_completed` 只有 `[TRANSCRIPT/VTT]`。D88 標記的「事件名稱待確認」到此結案，同時也量到了逐字稿的實際延遲遠大於「幾分鐘」。
+  **修訂（2026-08-17，正式資料推翻原本的「不在就靠 backoff 重試」）**：重試對這件事完全無效。job 收到的是**該次事件的 payload 快照**，`recording_files` 清單在派工當下就凍結了，重跑只會重讀同一份清單 —— 逐字稿是由**另一個事件**帶著自己的清單進來的。原設計等於每場面談固定產生一個註定失敗的 job：兩行 ERROR log、三次重試、最後一筆 failed_jobs，而那個「失敗」的實際意義只是「這一則不是逐字稿事件」。改為靜默 return（見 FR-118）。`backoff` 保留給重試真的有用的情形：下載失敗、Zoom / OpenAI 暫時性錯誤。
 - **D89**: 逐字稿**保留**而非只存摘要（使用者決策，推翻初版）。留著才能在改摘要格式後直接重跑、才能回頭查原話；一小時面談約 30–60KB 文字，量體完全不構成問題。真正的風險是隱私，而那由 D90 處理。
 - **D90**: 講者一律正規化為「顧問」／「客戶」，原始姓名不落庫。這讓「保留全文」的隱私成本大幅下降 —— 資料庫裡是一份去識別化的對話稿，而客戶身份本來就在同一列的 `name` / `email` 欄位上，重複存一次在逐字稿裡只增加外洩面、不增加任何資訊。
   機械式對應優先、模型只處理殘留（FR-106）：誰是誰是已知事實，不是推理題。
@@ -1307,6 +1445,31 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 ## Schema
 
+- **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
+
+  `2026_08_18_000001_add_screening_to_high_ticket_leads_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `screen_timeline` | varchar(20) nullable，`after('social_url')` | Q1 時程答案（存 key，FR-123） |
+  | `screen_budget` | varchar(20) nullable | Q2 預算答案 |
+  | `screen_authority` | varchar(20) nullable | Q3 決策權答案 |
+  | `screen_pain` | varchar(20) nullable | Q4 痛點成本答案 |
+  | `screen_next_step` | varchar(20) nullable | Q5 下一步答案 |
+  | `screening_score` | tinyint unsigned nullable | 0–10 分。**存下來而不是每次重算**：計分表會隨定價調整，重算會讓上個月的判定跟著變，而「當初為什麼擋他」必須是可還原的事實 |
+  | `screened_at` | timestamp nullable | 審核完成時間；null 代表這筆 lead 早於本功能或走 `?resume=` 回訪 |
+  | `declined_at` | timestamp nullable，`after('confirmed_at')` | 自動婉拒時間 |
+
+  五個答案欄各自獨立成欄而非一個 JSON —— 這五題最終要拿來回答「勾了 X 的人成交率多少」，那是 `GROUP BY` 的工作；且測試跑在 sqlite 上，JSON 查詢的兩套方言不值得為五個固定欄位付出。**DB 層一律不設 enum 約束**（比照 004 `content_category` 的既有作法）：選項會隨定價調整，合法值由 `BookingScreening` 與 Form Request 把關。
+
+  `2026_08_18_000002_add_declined_to_high_ticket_leads_status.php` — `status` enum 加入 `declined`（第 7 個值），寫法比照既有的 `2026_08_06_000002_add_cancelled_...`。`down()` MUST 先把 `declined` 的列改回 `closed` 再收窄 enum，否則回滾會在既有資料上炸掉。
+
+  **不變量**：
+  - `screened_at` 非 null ⇒ 五個答案欄與 `screening_score` 皆非 null（一起寫，一起讀）
+  - `declined_at` 非 null ⇒ `status = declined`、`confirm_token` 為 null、名下無 `consultation_slots`（FR-126）；重新審核通過時兩者一起清
+  - `screening_score` 為 null ⇒ 舊 lead 或 resume 回訪，送出申請時放行（FR-129）
+  - 所有欄位對舊資料一律 null，後台顯示一句說明而非五排「—」（FR-131）
+
 - **US23 schema 變更（一支 migration）**：
 
   `2026_08_17_000001_create_consultation_notes_table.php` — 新表 `consultation_notes`，**一列 = 一場面談**。`high_ticket_leads` **不動**（D92）：
@@ -1481,6 +1644,40 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 ## Tasks
 
+### US24 前置資格審核與自動婉拒
+
+Phase 1 — 資料層與計分核心
+
+- [x] T295 [P] migration：`high_ticket_leads` 加五個 `screen_*` 答案欄、`screening_score`、`screened_at`、`declined_at`（見 Schema）in `database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php`
+- [x] T296 [P] migration：`status` enum 加入 `declined`；`down()` 先把 `declined` 改回 `closed` 再收窄 in `database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php`
+- [x] T297 `BookingScreening` support 類別：`PASS_SCORE = 5`、`QUESTIONS` 常數（五題 × 選項 × `label` / `score` / `veto`，FR-123）、`score(array $answers): int`、`vetoed()`、`passes()`、`tier(int $score): string`（hot / warm / cold）、`questionsForFront(): array`（**剝除 score 與 veto**，FR-124 / D101）、`rules(): array`（供 Form Request 組 `Rule::in`）in `app/Support/BookingScreening.php`
+- [x] T298 `HighTicketLead`：`$fillable` 加五個 `screen_*`、`screening_score`、`screened_at`、`declined_at`；`casts()` 加兩個 datetime 與 `screening_score => integer` in `app/Models/HighTicketLead.php`
+
+Phase 2 — 審核端點（依賴 Phase 1）
+
+- [x] T299 `BookingScreeningRequest`：`name` / `email` 必填、五題以 `BookingScreening::rules()` 驗證（全部 required + `Rule::in`）、中文 `messages()` in `app/Http/Requests/BookingScreeningRequest.php`
+- [x] T300 `HighTicketBookingService::screen(Course $course, array $data): array`：課程資格檢查 → 計分 → `firstOrNew` 該 `email + course_id` 的 lead → 寫五題答案 / `screening_score` / `screened_at`；未通過且 lead 處於可覆寫狀態（新建、`pending` 且未確認、或 `declined`）時寫 `status = declined` + `declined_at`，通過時清 `declined_at` 並回 `pending`；**MUST NOT 寄信、MUST NOT 呼叫 `checkAndBook()`、MUST NOT 送 CAPI**（FR-125 / FR-126）in `app/Services/HighTicketBookingService.php`
+- [x] T301 `HighTicketBookingController::screen()`：回 `{passed: bool}`，**不回分數**（FR-124）in `app/Http/Controllers/HighTicketBookingController.php`
+- [x] T302 [P] 路由 `POST /course/{course}/screen`（`throttle:10,1`，公開）in `routes/web.php`（touchpoint 000-platform-core）
+- [x] T303 送出時重新計分：`HighTicketBookingRequest` 五題改為 `nullable` + `Rule::in`；`apply()` / `waitlist()` 在重複預約檢查之後、時段查詢之前，對**有帶答案**的請求呼叫 `BookingScreening::passes()`，未通過回 422「此申請未通過資格審核」；答案未帶則放行（FR-129）in `app/Http/Requests/HighTicketBookingRequest.php`, `app/Services/HighTicketBookingService.php`
+- [x] T304 `recordLead()`：帶入五題答案與分數（有帶才覆寫），可復活狀態清單加入 `declined` 並清 `declined_at`（FR-127 / D97）in `app/Services/HighTicketBookingService.php`
+- [x] T305 [P] `updateStatus()` 的 `in:` 驗證清單加 `declined`（FR-127）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T306 [P] `show()` 下發 `screeningQuestions`（`BookingScreening::questionsForFront()`）；`draftAnswers()` 多帶五題答案供 `?resume=` 與登入者回填（FR-129，touchpoint 002-storefront）in `app/Http/Controllers/CourseController.php`
+
+Phase 3 — 前台第一步與審核畫面（依賴 Phase 2）
+
+- [x] T307 `BookingScreeningStep.vue` 新組件：Email / 暱稱 / 五題單選卡片（題目由 prop 來、全部必答才可送出）、`POST .../screen`、「自動審核中」畫面（進度條 + 15 秒倒數，`onUnmounted` 清 timer）、婉拒文案畫面（中性灰、不顯示分數與原因）；通過則 `emit('passed', answers)`（FR-124 / FR-128）in `resources/js/Components/Course/BookingScreeningStep.vue`
+- [x] T308 Wizard 改為五步：`STEPS` 換成 1 資格 / 2 資料 / 3 承諾 / 4 時段 / 5 確認，第一步掛 `BookingScreeningStep`，原問卷欄位整組移到第二步，`canLeave()` / `maxReachable` / `routeFieldErrors()` 的步驟編號全數順延；答案存進 `form` 並隨 `book` / `waitlist` 送出；**回到第一步且答案未變更時 MUST NOT 重跑倒數**；`resuming` 直接落在時段步驟且跳過審核（FR-130 / FR-129）in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T309 [P] 第五步覆核區的「申請資料」不列五題答案（那是審核用的，不是要覆核的），但 `reviewRows` 其餘欄位與既有的不出席警語、Email 二次確認一律不動 —— 確認此步驟在改編號後行為未變 in `resources/js/Components/Course/HighTicketBookingWizard.vue`
+
+Phase 4 — 後台名單（可與 Phase 3 平行）
+
+- [x] T310 [P] `BookingListTab`：`statusButtons` 加第 7 顆「已婉拒」（value `declined`、letter `R`、rose 色系，四組 class 字串寫全供 Tailwind 掃描）；展開列新增「資格審核」區（分數 `N/10` + 分級標籤 + 五題中文答案，無紀錄時顯示一句說明）；`hasApplication()` 納入 `screened_at`（FR-127 / FR-131）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 5 — 測試
+
+- [x] T311 `BookingScreeningTest`：五題計分逐題驗證、5 分邊界（4 分擋 / 5 分過）、`screen_budget = none` 一票否決（其餘滿分仍擋）、未通過不寄信（`Mail::assertNothingSent()`）／不呼叫 `checkAndBook()`／不佔時段／`confirm_token` 為 null、通過者照常走完 `book` 全流程、重新審核可翻案（`declined` → `pending` 且 `declined_at` 清空）、已確認的 lead 重跑審核不被改狀態、送出時重新計分擋下換信箱繞過、舊 lead 無答案仍可送出、`questionsForFront()` 不含 score / veto in `tests/Feature/HighTicket/BookingScreeningTest.php`
+
 ### US23 面談逐字稿自動摘要
 
 > 依賴 000 US10 的 `ai_prompts` 表、`AiPrompt` model 與 `OpenAiService`（T267–T272）先落地。
@@ -1503,7 +1700,7 @@ Phase 2 — 抓取、解析與 AI
 - [x] T275 `ConsultationTranscriptService::normaliseSpeakers(string $dialogue, ConsultationNote $note): string` —— 機械式對應顧問／客戶（客戶名取自 note 的 lead 或 user，顧問名取自 `consultant_id`；FR-106）in `app/Services/ConsultationTranscriptService.php`
 - [x] T276 `ConsultationTranscriptService::proofread(string $dialogue): string` —— 分段（4000 字、切在講者邊界）逐段呼叫 `OpenAiService`，含防縮水檢查與 warning log（FR-107/FR-108）in `app/Services/ConsultationTranscriptService.php`
 - [x] T277 `ConsultationTranscriptService::summarise(string $transcript): ?string` in `app/Services/ConsultationTranscriptService.php`
-- [x] T278 `ProcessZoomTranscriptJob(int $noteId, array $payload, bool $force = false)`（`$tries = 3`、`$backoff = [60, 300, 900]`）：找 TRANSCRIPT 檔（缺則丟例外重試）→ 下載 → 解析 → 正規化 → 校訂 → 摘要，兩個守門各自檢查（FR-110/FR-112；逐字稿守門於 T293 改為 `transcriptIsSettled()`）in `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T278 `ProcessZoomTranscriptJob(int $noteId, array $payload, bool $force = false)`（`$tries = 3`、`$backoff = [60, 300, 900]`）：找 TRANSCRIPT 檔（缺則寫 info log 靜默結束，T312 起不再丟例外重試，FR-132）→ 下載 → 解析 → 正規化 → 校訂 → 摘要，兩個守門各自檢查（FR-110/FR-112；逐字稿守門於 T293 改為 `transcriptIsSettled()`）in `app/Jobs/ProcessZoomTranscriptJob.php`
 - [x] T279 [P] `booking:fetch-transcript {note}` 手動指令（不進排程）in `app/Console/Commands/FetchConsultationTranscript.php`
 
 Phase 3 — 後台 UI
@@ -1530,6 +1727,7 @@ Phase 4 — 測試與驗證
 - [x] T291c 正式站補建完成：`--dry-run` 確認後實跑，補出 **39 筆**（涵蓋所有曾確認且未取消的預約，不只上線前那批）
 - [x] T291d 正式站補抓已結束場次的逐字稿：13 場成功（逐字稿 11k–27k 字、摘要 747–1054 字），4 場 Zoom 回 `3301 此錄製不存在`（沒開錄影／客人未出席／顧問改用個人會議室）
 - [x] T290b 刪除場次測試：空場次可刪、**有內容的場次也可刪**、訪客不可刪、**已刪除的場次不因後續 webhook 復活**（FR-118）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T312 payload 無 TRANSCRIPT 檔改為靜默結束（FR-132 / D88 修訂）：`fetchTranscript()` 不再丟 `RuntimeException`，改寫 info log 後 return；測試以 `dispatchSync` 直接驗 job 不再拋例外（webhook controller 會吞例外，走 HTTP 驗不到）in `app/Jobs/ProcessZoomTranscriptJob.php`, `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
 - [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
 - [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**擋在 T289 之前，worker 未加則此項無法驗證**
@@ -1999,6 +2197,19 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-17: 承諾清單移除「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」，回到三條（使用者決策，FR-026 已改）—— US24 的資格審核已經在第一步問過預算級距與決策狀態，承諾清單再勾一次是重複。同步改 `COMMITMENT_COUNT` 4 → 3 與三份測試的 payload。`php artisan test` 727 passed、`npm run build` exit 0。
+
+- 2026-08-17: 審核倒數由 60 秒縮短為 15 秒（使用者決策，FR-128 已改）；婉拒畫面的 icon 換掉 —— 原本那條 path 是拼錯的，畫出半截弧線沒有圓，改用本檔既有的 information-circle。僅動 `BookingScreeningStep.vue`。
+
+- 2026-08-17: US24 第一步改為漸進揭露（使用者回饋：一開頁就攤開五題太長）—— Email + 暱稱先行，按「下一步」才出問卷，之後一次只揭露一題並顯示 `N / 5`；草稿已帶答案者整份展開。僅動 `BookingScreeningStep.vue`，計分與端點不變，`BookingScreeningTest` + `BookingWizardTest` 59 passed、`npm run build` exit 0。
+
+- 2026-08-17: 無逐字稿檔的 payload 改為靜默結束（T312，FR-132，D88 修訂）— 起因是使用者回報「面談完幾小時了摘要還沒出來」。查正式站：note 存在、`zoom_meeting_id` 對得上、webhook 也確實派了工，但 `jobs` 表裡兩筆 `ProcessZoomTranscriptJob` 的 `queue=long`、`attempts=0`、`reserved_at=NULL` 躺了四小時 —— **沒有 worker 在吃 `long` 佇列**，正是還沒做的 T289。手動 drain 後該場逐字稿 6,629 字、摘要 763 字正常落庫。
+  drain 過程順帶暴露第二件事：四次執行裡有兩次 FAIL，訊息都是 `Zoom recording has no transcript file yet`，而且屬於**另一場**的 `recording.completed`。原設計要它丟例外靠 backoff 重試，但 job 拿到的是派工當下凍結的 payload 快照，`recording_files` 清單不會因為重試而長出 VTT —— 逐字稿是由另一個事件帶著自己的清單進來的。等於每場面談固定產生一個註定失敗的 job（三次重試、兩行 ERROR log、一筆 failed_jobs），把「這一則不是逐字稿事件」記成故障。改為寫 info log 後 return；`backoff` 留給重試真的有用的情形（下載失敗、API 暫時性錯誤）。逐字稿為空時 `summarise()` 本來就回 null，所以不會產生空摘要。
+  測試用 `dispatchSync` 直接打 job —— 走 webhook 驗不到這件事，controller 的 try/catch 會把例外吞掉，新舊行為在 HTTP 層完全同形。全站 727 passed。**T289 仍未做**，正式站 worker 沒補上之前，自動路徑（webhook → 佇列）依然不會動。
+  同一天第二場（`yiting…@gmail.com`，note 29）把兩件事一起釘死了：其一，`recording.transcript_completed` **確實有訂到也確實會來**（06:34 UTC 先來 `recording.completed` 只帶 `[MP4, M4A, TIMELINE, CHAT]`，10:01 UTC 才來 `[TRANSCRIPT/VTT]`），D88 的待確認項結案；其二，逐字稿的實際延遲是 **3 小時 27 分**，不是 spec 原本寫的「幾分鐘」——「面談完幾小時還沒摘要」在 worker 補上之後仍可能是正常現象，後台文案與心理預期都該以小時計。該場的逐字稿 25,788 字、摘要 1,152 字（以手動指令補上）。另補抓 note 4 / 11 / 13（8/11–8/14）皆回 `3301 此錄製不存在` —— 雲端錄影已過期，永久取不回。
+
+- 2026-08-17: US24 實作完成（T295–T311）— 五題資格審核前置於預約精靈第一步：`BookingScreening` support 類別持有題目／選項／計分表（分數不下發前端）、`POST /course/{course}/screen` 審核即建 lead、未通過落 `declined` 且不寄信不佔時段不停序列信、送出時以請求帶的答案重新計分（沒帶答案放行 resume 與舊 lead）；精靈改五步（資格→資料→承諾→時段→確認）並新增 `BookingScreeningStep.vue`（60 秒審核畫面 + 婉拒文案）；後台加第 7 狀態「已婉拒」與展開列的資格審核區（分數／分級／五題中文答案由 model accessor 解析）。測試 `php artisan test` 全站 726 passed、`npm run build` exit 0。
 
 - 2026-08-17: 前台時段選擇器改為日期成欄＋箭頭翻頁（FR-122）— 三輪修正才收斂，每一輪都是我少想一步。第一版把日期做成欄、時間直排，但用橫向捲動翻閱：使用者指出捲動操作不順，改為箭頭翻頁。第二版按日曆週切頁，並且欄寬固定 `4.75rem` —— 使用者兩個回饋都對：**沒考慮 RWD**（固定欄寬在 375px 手機上永遠塞不下，加斷點治標，根因是欄寬不該固定），以及**照週切完一頁只剩兩三欄、右邊一片留白**（留白不是因為畫了空日期，是分頁單位選錯）。最終版分頁單位改為「連續 N 個有時段的日期」，欄位平分整列、不設 max-width，每頁依螢幕寬度取 4 或 6 欄，完全不需橫向捲動。另兩個不明顯的點：週界若用 `new Date(ymd).getDay()` 會以**訪客時區**重解台北日期（已隨日曆週方案一併移除，但同類陷阱記著）；重新分頁時停在所選時段那一頁，否則套用優惠碼重抓後被彈回第一頁，看起來像選擇被清掉。706 passed。
 - 2026-08-17: 承諾清單加第 4 條（FR-026）— 「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」插在原第 3 條之前（使用者決策）：預算與決策權是資格條件，該在對方承諾採取行動之前先問。同步改後端 `size:3` → 4 —— 這條若漏改，每一次送出都會被 422 擋下，而錯誤訊息「請確認全部的預約前提條件」完全不提條數，前端看起來像是全勾了卻送不出去。條數改寫成具名常數 `COMMITMENT_COUNT`，並補一支測試直接讀 Vue 的 `COMMITMENTS` 陣列與伺服器實際接受的長度比對 —— 跨語言的耦合靠註解自律遲早會斷。706 passed。

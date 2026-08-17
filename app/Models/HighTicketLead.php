@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\BookingScreening;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,14 @@ class HighTicketLead extends Model
         'bottleneck',
         'expertise',
         'social_url',
+        'screen_timeline',
+        'screen_budget',
+        'screen_authority',
+        'screen_pain',
+        'screen_next_step',
+        'screening_score',
+        'screened_at',
+        'declined_at',
         'commitments_accepted_at',
         'booking_code',
         'confirm_token',
@@ -36,6 +45,40 @@ class HighTicketLead extends Model
         'reminder_sent_at',
     ];
 
+    /**
+     * The screening answers are stored as keys (011 D100), so every consumer
+     * would otherwise need its own copy of the option labels. Resolving them
+     * here keeps `BookingScreening` the only place that knows the wording —
+     * shipping the whole question table to the admin page to look up five
+     * strings would be the same duplication with extra steps.
+     */
+    protected $appends = ['screening_tier', 'screening_answers'];
+
+    /** 8–10 高購買意願 / 5–7 值得談 / 0–4 培育名單 (011 FR-131). */
+    public function getScreeningTierAttribute(): string
+    {
+        return BookingScreening::tier($this->screening_score);
+    }
+
+    /** @return array<int, array{title: string, answer: string}> */
+    public function getScreeningAnswersAttribute(): array
+    {
+        if ($this->screened_at === null) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (BookingScreening::QUESTIONS as $field => $question) {
+            $out[] = [
+                'title'  => $question['title'],
+                'answer' => $question['options'][$this->{$field}]['label'] ?? '—',
+            ];
+        }
+
+        return $out;
+    }
+
     protected function casts(): array
     {
         return [
@@ -43,6 +86,9 @@ class HighTicketLead extends Model
             'last_notified_at' => 'datetime',
             'notified_count' => 'integer',
             'commitments_accepted_at' => 'datetime',
+            'screening_score' => 'integer',
+            'screened_at' => 'datetime',
+            'declined_at' => 'datetime',
             'confirm_expires_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',

@@ -99,6 +99,11 @@ class CourseController extends Controller
             'userSubscription' => $userSubscription,
             'canSubscribe' => $canSubscribe,
             'bookingDraft' => $this->bookingDraft($request, $course),
+            // Titles and option labels only — the scores stay on the server
+            // (011 FR-124 / D101).
+            'screeningQuestions' => $course->is_high_ticket && $course->high_ticket_hide_price
+                ? \App\Support\BookingScreening::questionsForFront()
+                : null,
         ]);
     }
 
@@ -176,6 +181,9 @@ class CourseController extends Controller
             'bottleneck' => $lead->bottleneck,
             'expertise'  => $lead->expertise,
             'social_url' => $lead->social_url,
+            // So a resumed draft still carries a verdict the submit can re-score
+            // (011 FR-129); null on any lead that predates the screening.
+            ...$lead->only(\App\Support\BookingScreening::fields()),
             // Only ever stored when it was valid, so restoring it cannot
             // resurrect a dead code — and dropping it would quietly shorten a
             // 45-minute consultation the applicant already qualified for.

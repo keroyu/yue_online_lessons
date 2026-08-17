@@ -599,6 +599,7 @@ main_files:
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php
+- app/Http/Requests/BookingScreeningRequest.php
 - app/Http/Requests/CheckoutRequest.php
 - app/Http/Requests/HighTicketBookingRequest.php
 - app/Http/Requests/Member/UpdateProfileRequest.php
@@ -631,6 +632,7 @@ main_files:
 - app/Services/ZoomMeetingService.php
 - app/Services/ZoomTranscriptService.php
 - app/Services/ZoomWebhookService.php
+- app/Support/BookingScreening.php
 - app/Support/PhoneNumber.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
@@ -654,6 +656,8 @@ main_files:
 - database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php
 - database/migrations/2026_08_17_000001_create_consultation_notes_table.php
 - database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
+- database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php
+- database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
@@ -662,6 +666,7 @@ main_files:
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
 - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
+- resources/js/Components/Course/BookingScreeningStep.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/MemberDetailModal.vue
 - resources/js/Layouts/AdminLayout.vue
@@ -684,6 +689,7 @@ main_files:
 - tests/Feature/HighTicket/BookingChangeTest.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
+- tests/Feature/HighTicket/BookingScreeningTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import BookingScreeningStep from '@/Components/Course/BookingScreeningStep.vue'
 import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
 import { useDelayedConfirm } from '@/composables/useDelayedConfirm'
 
@@ -9,18 +10,24 @@ const props = defineProps({
   // Previous answers — either for the logged-in owner of the lead, or for
   // whoever holds the resume token from a 「通知新時段」 mail (`draft.resume`).
   draft: { type: Object, default: null },
+  // Step 1's five questions, titles and option labels only — the scoring stays
+  // on the server (011 FR-124).
+  screeningQuestions: { type: Array, default: () => [] },
 })
 
 const page = usePage()
 
-// 1 資料 → 2 承諾 → 3 時段 → 4 確認. Step 1 reveals the questionnaire inline
-// once there is an email to attach it to, so the first thing a visitor sees is
-// still just two fields (011 US9).
+// 1 資格 → 2 資料 → 3 承諾 → 4 時段 → 5 確認 (011 US24 / FR-130).
+//
+// The qualifying questions come first and are answered in seconds: somebody who
+// is not going to be offered a slot should find that out before writing five
+// minutes of prose, not after (D96).
 const STEPS = [
-  { n: 1, label: '資料' },
-  { n: 2, label: '承諾' },
-  { n: 3, label: '時段' },
-  { n: 4, label: '確認' },
+  { n: 1, label: '資格' },
+  { n: 2, label: '資料' },
+  { n: 3, label: '承諾' },
+  { n: 4, label: '時段' },
+  { n: 5, label: '確認' },
 ]
 
 // Changing the length here means changing `size:` in HighTicketBookingRequest —
@@ -28,7 +35,6 @@ const STEPS = [
 const COMMITMENTS = [
   '我有明確想改善的問題，有意投入時間學習並持續執行。',
   '我願意接受務實建議，也願意調整原本的想法與做法。',
-  '我有預算／決策權，希望在未來 3-6 個月內實踐計劃。',
   '如果確認方向適合，我願意認真評估並採取下一步行動。',
 ]
 
@@ -37,8 +43,11 @@ const COMMITMENTS = [
 // drop them on the picker rather than walking them through it all again.
 const resuming = props.draft?.resume === true
 
-const step = ref(resuming ? 3 : 1)
-const questionnaireOpen = ref(resuming)
+const step = ref(resuming ? 4 : 1)
+
+// Resuming means this applicant already cleared the gate (or predates it) —
+// re-screening somebody we invited back by email would be absurd (FR-129).
+const screeningPassed = ref(resuming)
 
 const form = reactive({
   name: props.draft?.name || page.props.auth?.user?.real_name || page.props.auth?.user?.nickname || '',
@@ -50,7 +59,22 @@ const form = reactive({
   social_url: props.draft?.social_url || '',
   code: props.draft?.code || '',
   slot_starts_at: '',
+  // Carried through to the submit so the server can re-score them (FR-129).
+  screen_timeline: props.draft?.screen_timeline || '',
+  screen_budget: props.draft?.screen_budget || '',
+  screen_authority: props.draft?.screen_authority || '',
+  screen_pain: props.draft?.screen_pain || '',
+  screen_next_step: props.draft?.screen_next_step || '',
 })
+
+const screeningFields = props.screeningQuestions.map(q => q.field)
+
+/** Only the answers that are actually filled in — a partial set is not a verdict. */
+const screeningAnswers = () => {
+  const answered = screeningFields.every(f => !!form[f])
+
+  return answered ? Object.fromEntries(screeningFields.map(f => [f, form[f]])) : {}
+}
 
 // Already accepted when the application was first submitted (`commitments_accepted_at`);
 // re-ticking them would read as doubting an answer we already have on file.
@@ -61,9 +85,7 @@ onMounted(() => {
   if (resuming) fetchSlots()
 })
 
-// ---- step 1 ----------------------------------------------------------------
-
-const identityFilled = computed(() => form.name.trim() !== '' && form.email.trim() !== '')
+// ---- step 2 ----------------------------------------------------------------
 
 const questionnaireFilled = computed(() =>
   form.phone.trim() !== ''
@@ -71,11 +93,6 @@ const questionnaireFilled = computed(() =>
   && form.bottleneck.trim() !== ''
   && form.expertise.trim() !== ''
 )
-
-function openQuestionnaire() {
-  if (!identityFilled.value) return
-  questionnaireOpen.value = true
-}
 
 // Mirrors the server's `url:http,https` (FR-027). Not a regex: the URL
 // constructor is the same parser the browser uses, and it rejects both the
@@ -96,7 +113,7 @@ const socialUrlInvalid = computed(() => {
   }
 })
 
-// ---- step 2 ----------------------------------------------------------------
+// ---- step 3 ----------------------------------------------------------------
 
 const allCommitted = computed(() => commitments.value.every(Boolean))
 
@@ -113,7 +130,7 @@ const dateHead = (label) => {
   return parts ? { day: parts[1], weekday: parts[2] } : { day: label, weekday: '' }
 }
 
-// ---- step 3 ----------------------------------------------------------------
+// ---- step 4 ----------------------------------------------------------------
 
 const slotGroups = ref([])
 const slotMinutes = ref(30)
@@ -225,14 +242,15 @@ const selectedSlotLabel = computed(() => {
 
 async function goTo(n) {
   if (n > step.value && !canLeave(step.value)) return
-  if (n === 3) await fetchSlots()
+  if (n === 4) await fetchSlots()
   step.value = n
 }
 
 function canLeave(n) {
-  if (n === 1) return identityFilled.value && questionnaireFilled.value && !socialUrlInvalid.value
-  if (n === 2) return allCommitted.value
-  if (n === 3) return form.slot_starts_at !== ''
+  if (n === 1) return screeningPassed.value
+  if (n === 2) return questionnaireFilled.value && !socialUrlInvalid.value
+  if (n === 3) return allCommitted.value
+  if (n === 4) return form.slot_starts_at !== ''
   return true
 }
 
@@ -240,8 +258,15 @@ const maxReachable = computed(() => {
   if (!canLeave(1)) return 1
   if (!canLeave(2)) return 2
   if (!canLeave(3)) return 3
-  return 4
+  if (!canLeave(4)) return 4
+  return 5
 })
+
+/** Step 1 cleared — move on. Re-entering step 1 later does not undo this. */
+function onScreeningPassed() {
+  screeningPassed.value = true
+  step.value = 2
+}
 
 function editFrom(n) {
   step.value = n
@@ -270,13 +295,14 @@ function routeFieldErrors(e) {
   errors.value = fields
   const keys = Object.keys(fields)
 
-  if (keys.some(k => ['name', 'email', 'phone', 'occupation', 'bottleneck', 'expertise', 'social_url'].includes(k))) {
+  if (keys.some(k => ['name', 'email', ...screeningFields].includes(k))) {
     step.value = 1
-    questionnaireOpen.value = true
-  } else if (keys.includes('commitments')) {
+  } else if (keys.some(k => ['phone', 'occupation', 'bottleneck', 'expertise', 'social_url'].includes(k))) {
     step.value = 2
-  } else if (keys.includes('slot_starts_at')) {
+  } else if (keys.includes('commitments')) {
     step.value = 3
+  } else if (keys.includes('slot_starts_at')) {
+    step.value = 4
   }
 
   return true
@@ -328,6 +354,7 @@ async function submit() {
       commitments: commitments.value,
       slot_starts_at: form.slot_starts_at,
       code: form.code || null,
+      ...screeningAnswers(),
     })
 
     mailSent.value = data?.mail_sent !== false
@@ -344,7 +371,7 @@ async function submit() {
       errors.value = { slot: e.response?.data?.message || '該時段剛被預約，請重新選擇' }
       form.slot_starts_at = ''
       await fetchSlots()
-      step.value = 3
+      step.value = 4
     } else if (routeFieldErrors(e)) {
       // handled
     } else {
@@ -371,6 +398,7 @@ async function submitWaitlist() {
       social_url: form.social_url || null,
       commitments: commitments.value,
       code: form.code || null,
+      ...screeningAnswers(),
     })
 
     waitlisted.value = true
@@ -414,12 +442,18 @@ function startCountdown() {
 
 onUnmounted(() => clearInterval(timer))
 
-// Step 4's review rows. Out of the template because the invalid-URL row needs
-// more than a label/value pair, and because every one of these lives on step 1
-// — which is why the block gets a single 修改 rather than one button per row.
-const reviewRows = computed(() => [
+// Step 5's review rows. Out of the template because the invalid-URL row needs
+// more than a label/value pair. Split in two because the fields now live on two
+// different steps, and a 修改 button has to know where it is going: identity is
+// step 1 (changing the email means clearing the gate again), the questionnaire
+// is step 2. The five screening answers are deliberately absent — they decided
+// whether this form was shown at all, they are not part of what gets booked.
+const identityRows = computed(() => [
   { label: 'Email', value: form.email },
   { label: '暱稱', value: form.name },
+])
+
+const reviewRows = computed(() => [
   { label: '手機電話', value: form.phone },
   { label: '職業和從事時長', value: form.occupation },
   { label: '事業瓶頸', value: form.bottleneck },
@@ -538,78 +572,63 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         </template>
       </div>
 
-      <!-- ── Step 1: identity + questionnaire ── -->
-      <div v-show="step === 1" class="mt-6 space-y-4">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
-            <input v-model="form.email" type="email" placeholder="your@email.com" :class="[inputClass, { 'border-red-300': errors.email }]" />
-            <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ firstError('email') }}</p>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">暱稱 <span class="text-red-500">*</span></label>
-            <input v-model="form.name" type="text" placeholder="怎麼稱呼你" :class="[inputClass, { 'border-red-300': errors.name }]" />
-            <p v-if="errors.name" class="mt-1 text-sm text-red-600">{{ firstError('name') }}</p>
-          </div>
+      <!-- ── Step 1: the qualifying gate (US24) ── -->
+      <div v-show="step === 1">
+        <BookingScreeningStep
+          :course="course"
+          :questions="screeningQuestions"
+          :form="form"
+          @passed="onScreeningPassed"
+        />
+      </div>
+
+      <!-- ── Step 2: the questionnaire ── -->
+      <div v-show="step === 2" class="mt-6 space-y-4">
+        <p class="text-xs text-gray-500"><span class="text-red-500">*</span> 為必填。</p>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">手機電話 <span class="text-red-500">*</span></label>
+          <input v-model="form.phone" type="tel" placeholder="0912345678" :class="[inputClass, { 'border-red-300': errors.phone }]" />
+          <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ firstError('phone') }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">職業和從事時長 <span class="text-red-500">*</span></label>
+          <input v-model="form.occupation" type="text" placeholder="例：平面設計師，做了 6 年" :class="[inputClass, { 'border-red-300': errors.occupation }]" />
+          <p v-if="errors.occupation" class="mt-1 text-sm text-red-600">{{ firstError('occupation') }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">目前的事業瓶頸 <span class="text-red-500">*</span></label>
+          <textarea v-model="form.bottleneck" rows="3" placeholder="卡在哪裡？越具體，我們越幫得上忙" :class="[inputClass, { 'border-red-300': errors.bottleneck }]" />
+          <p v-if="errors.bottleneck" class="mt-1 text-sm text-red-600">{{ firstError('bottleneck') }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">你的知識或能力專長 <span class="text-red-500">*</span></label>
+          <textarea v-model="form.expertise" rows="3" placeholder="你會什麼、別人會來問你什麼" :class="[inputClass, { 'border-red-300': errors.expertise }]" />
+          <p v-if="errors.expertise" class="mt-1 text-sm text-red-600">{{ firstError('expertise') }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">經營社群網址<span class="text-gray-400">（如有）</span></label>
+          <input v-model="form.social_url" type="url" placeholder="https://instagram.com/..." :class="[inputClass, { 'border-red-300': errors.social_url || socialUrlInvalid }]" />
+          <p v-if="errors.social_url" class="mt-1 text-sm text-red-600">{{ firstError('social_url') }}</p>
+          <p v-else-if="socialUrlInvalid" class="mt-1 text-sm text-red-600">{{ SOCIAL_URL_HINT }}</p>
         </div>
 
         <button
-          v-if="!questionnaireOpen"
           type="button"
-          :disabled="!identityFilled"
+          :disabled="!questionnaireFilled"
           class="w-full px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="openQuestionnaire"
+          @click="goTo(3)"
         >
-          開始申請
+          下一步
         </button>
-
-        <div v-else class="space-y-4 pt-2 border-t border-gray-100">
-          <p class="text-xs text-gray-500 pt-2">以下為簡易問卷，<span class="text-red-500">*</span> 為必填。</p>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">手機電話 <span class="text-red-500">*</span></label>
-            <input v-model="form.phone" type="tel" placeholder="0912345678" :class="[inputClass, { 'border-red-300': errors.phone }]" />
-            <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ firstError('phone') }}</p>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">職業和從事時長 <span class="text-red-500">*</span></label>
-            <input v-model="form.occupation" type="text" placeholder="例：平面設計師，做了 6 年" :class="[inputClass, { 'border-red-300': errors.occupation }]" />
-            <p v-if="errors.occupation" class="mt-1 text-sm text-red-600">{{ firstError('occupation') }}</p>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">目前的事業瓶頸 <span class="text-red-500">*</span></label>
-            <textarea v-model="form.bottleneck" rows="3" placeholder="卡在哪裡？越具體，我們越幫得上忙" :class="[inputClass, { 'border-red-300': errors.bottleneck }]" />
-            <p v-if="errors.bottleneck" class="mt-1 text-sm text-red-600">{{ firstError('bottleneck') }}</p>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">你的知識或能力專長 <span class="text-red-500">*</span></label>
-            <textarea v-model="form.expertise" rows="3" placeholder="你會什麼、別人會來問你什麼" :class="[inputClass, { 'border-red-300': errors.expertise }]" />
-            <p v-if="errors.expertise" class="mt-1 text-sm text-red-600">{{ firstError('expertise') }}</p>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">經營社群網址<span class="text-gray-400">（如有）</span></label>
-            <input v-model="form.social_url" type="url" placeholder="https://instagram.com/..." :class="[inputClass, { 'border-red-300': errors.social_url || socialUrlInvalid }]" />
-            <p v-if="errors.social_url" class="mt-1 text-sm text-red-600">{{ firstError('social_url') }}</p>
-            <p v-else-if="socialUrlInvalid" class="mt-1 text-sm text-red-600">{{ SOCIAL_URL_HINT }}</p>
-          </div>
-
-          <button
-            type="button"
-            :disabled="!questionnaireFilled"
-            class="w-full px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="goTo(2)"
-          >
-            下一步
-          </button>
-        </div>
       </div>
 
-      <!-- ── Step 2: commitments ── -->
-      <div v-show="step === 2" class="mt-6 space-y-4">
+      <!-- ── Step 3: commitments ── -->
+      <div v-show="step === 3" class="mt-6 space-y-4">
         <p class="text-sm font-semibold text-gray-900">預約前，請先確認：</p>
 
         <div class="space-y-2">
@@ -628,20 +647,20 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <p v-if="!allCommitted" class="text-xs text-gray-500">請確認全部項目後繼續。</p>
 
         <div class="flex gap-3">
-          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(1)">上一步</button>
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(2)">上一步</button>
           <button
             type="button"
             :disabled="!allCommitted"
             class="flex-1 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="goTo(3)"
+            @click="goTo(4)"
           >
             下一步
           </button>
         </div>
       </div>
 
-      <!-- ── Step 3: slot picker ── -->
-      <div v-show="step === 3" class="mt-6 space-y-4">
+      <!-- ── Step 4: slot picker ── -->
+      <div v-show="step === 4" class="mt-6 space-y-4">
         <div v-if="errors.slot" class="rounded-xl border border-red-300 bg-red-50 p-4">
           <p class="text-sm leading-relaxed text-red-700 break-words">{{ errors.slot }}</p>
         </div>
@@ -689,7 +708,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
               </button>
               <p v-if="socialUrlInvalid" class="mt-2 text-xs text-red-600">
                 {{ SOCIAL_URL_HINT }}
-                <button type="button" class="underline cursor-pointer hover:opacity-70" @click="editFrom(1)">前往修改</button>
+                <button type="button" class="underline cursor-pointer hover:opacity-70" @click="editFrom(2)">前往修改</button>
               </p>
             </div>
 
@@ -775,24 +794,42 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         </div>
 
         <div class="flex gap-3">
-          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(2)">上一步</button>
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>
           <button
             type="button"
             :disabled="!form.slot_starts_at"
             class="flex-1 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="goTo(4)"
+            @click="goTo(5)"
           >
             下一步
           </button>
         </div>
       </div>
 
-      <!-- ── Step 4: review ── -->
-      <div v-show="step === 4" class="mt-6 space-y-4">
+      <!-- ── Step 5: review ── -->
+      <div v-show="step === 5" class="mt-6 space-y-4">
         <p class="text-sm font-semibold text-gray-900">請再確認一次你的申請資料</p>
 
-        <!-- One 修改 per destination, not per row: all seven fields below live
-             on step 1, so seven buttons were seven ways to do one thing. -->
+        <!-- One 修改 per destination, not per row. Identity sits on step 1 with
+             the gate, so changing the email here means answering the five
+             questions again — which is the honest consequence of changing who
+             is applying. -->
+        <div class="rounded-lg border border-gray-200 overflow-hidden">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
+            <p class="text-xs font-semibold text-gray-600">聯絡方式</p>
+            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(1)">
+              修改
+            </button>
+          </div>
+
+          <dl class="divide-y divide-gray-100 text-sm">
+            <div v-for="row in identityRows" :key="row.label" class="flex items-start gap-3 px-4 py-3">
+              <dt class="w-28 shrink-0 text-xs text-gray-500">{{ row.label }}</dt>
+              <dd class="flex-1 break-words text-gray-800">{{ row.value }}</dd>
+            </div>
+          </dl>
+        </div>
+
         <div class="rounded-lg border border-gray-200 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
             <p class="text-xs font-semibold text-gray-600">申請資料</p>
@@ -800,7 +837,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
               type="button"
               class="text-xs cursor-pointer hover:opacity-70 transition"
               :class="socialUrlInvalid ? 'font-semibold text-red-600' : 'text-brand-teal'"
-              @click="editFrom(1)"
+              @click="editFrom(2)"
             >
               修改
             </button>
@@ -822,11 +859,11 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
           </dl>
         </div>
 
-        <!-- Separate card because its 修改 goes somewhere else (step 3). -->
+        <!-- Separate card because its 修改 goes somewhere else (step 4). -->
         <div class="rounded-lg border border-gray-200 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
             <p class="text-xs font-semibold text-gray-600">諮詢時段</p>
-            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(3)">
+            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(4)">
               修改
             </button>
           </div>
@@ -835,7 +872,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
           </p>
         </div>
 
-        <!-- Only reachable on a resumed draft: step 1 will not let an invalid
+        <!-- Only reachable on a resumed draft: step 2 will not let an invalid
              URL through, but a lead saved before FR-027 tightened can arrive
              here with one already in the form. -->
         <p v-if="socialUrlInvalid" class="text-sm text-red-600">
@@ -866,7 +903,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <p class="text-xs text-gray-500">1v1 諮詢將依名額安排，由創辦人或團隊專業顧問提供服務。</p>
 
         <div class="flex gap-3">
-          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(3)">上一步</button>
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(4)">上一步</button>
           <button
             type="button"
             :disabled="submitting || socialUrlInvalid || emailCountdown > 0"

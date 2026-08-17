@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BookingScreening;
 use App\Support\PhoneNumber;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,7 +24,7 @@ class HighTicketBookingRequest extends FormRequest
      * form and leaving a `size:3` here rejects every submission, and the error
      * the visitor sees says nothing about a count.
      */
-    private const COMMITMENT_COUNT = 4;
+    private const COMMITMENT_COUNT = 3;
 
     /** Public booking endpoint — the course itself decides eligibility. */
     public function authorize(): bool
@@ -47,7 +48,10 @@ class HighTicketBookingRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        // The five screening answers ride along so the gate can be re-run on the
+        // submit itself (FR-129). Optional here, unlike step 1: a resumed draft
+        // and every lead predating US24 carries none.
+        return array_merge(BookingScreening::rules(required: false), [
             'name'           => ['required', 'string', 'max:100'],
             'email'          => ['required', 'email', 'max:255'],
             'phone'          => ['required', 'string', 'max:30'],
@@ -61,7 +65,7 @@ class HighTicketBookingRequest extends FormRequest
             // Optional on the waitlist route, where there is nothing to pick.
             'slot_starts_at' => [$this->routeIs('course.waitlist') ? 'nullable' : 'required', 'date'],
             'code'           => ['nullable', 'string', 'max:50'],
-        ];
+        ]);
     }
 
     public function messages(): array
@@ -84,7 +88,7 @@ class HighTicketBookingRequest extends FormRequest
     }
 
     /**
-     * All five must be ticked — a partially agreed checklist is the same as no
+     * Every box must be ticked — a partially agreed checklist is the same as no
      * checklist at all (FR-026).
      */
     public function withValidator(Validator $validator): void

@@ -59,6 +59,11 @@ Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
 Route::get('/payment/success', [SuccessController::class, 'show'])->name('payment.success');
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
+// Step 1 of the wizard — the five-question gate (011 US24). Looser than the
+// submit below because changing an answer and retrying is a legitimate move.
+Route::post('/course/{course}/screen', [HighTicketBookingController::class, 'screen'])
+    ->middleware('throttle:10,1')
+    ->name('course.screen');
 Route::post('/course/{course}/book', [HighTicketBookingController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('course.book');

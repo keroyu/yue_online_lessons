@@ -89,7 +89,7 @@ class BookingWizardTest extends TestCase
             'bottleneck'  => '接案收入不穩定',
             'expertise'   => '品牌識別設計',
             'social_url'  => 'https://instagram.com/someone',
-            'commitments' => [true, true, true, true],
+            'commitments' => [true, true, true],
         ], $overrides);
     }
 
@@ -153,7 +153,7 @@ class BookingWizardTest extends TestCase
 
         $response = $this->postJson("/course/{$course->id}/book", $this->payload([
             'slot_starts_at' => $start->toIso8601String(),
-            'commitments'    => [true, false, true, true],
+            'commitments'    => [true, false, true],
         ]));
 
         $response->assertStatus(422)->assertJsonValidationErrors(['commitments']);

@@ -110,6 +110,7 @@
       "011.us-21",
       "011.us-22",
       "011.us-23",
+      "011.us-24",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -232,6 +233,7 @@
       "006.us-6",
       "011.us-1",
       "011.us-10",
+      "011.us-24",
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
@@ -250,6 +252,7 @@
       "011.us-10",
       "011.us-2",
       "011.us-20",
+      "011.us-24",
       "011.us-9"
     ],
     "app/Http/Controllers/HomeController.php": [
@@ -476,6 +479,9 @@
     "app/Http/Requests/Auth/VerifyCodeRequest.php": [
       "001.us-1"
     ],
+    "app/Http/Requests/BookingScreeningRequest.php": [
+      "011.us-24"
+    ],
     "app/Http/Requests/CheckoutRequest.php": [
       "005.us-3",
       "011.us-9"
@@ -483,6 +489,7 @@
     "app/Http/Requests/HighTicketBookingRequest.php": [
       "011.us-11",
       "011.us-16",
+      "011.us-24",
       "011.us-9"
     ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
@@ -675,6 +682,7 @@
       "011.us-19",
       "011.us-2",
       "011.us-23",
+      "011.us-24",
       "011.us-3",
       "011.us-9"
     ],
@@ -858,6 +866,7 @@
       "011.us-2",
       "011.us-20",
       "011.us-23",
+      "011.us-24",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -956,6 +965,9 @@
     ],
     "app/Services/ZoomWebhookService.php": [
       "011.us-23"
+    ],
+    "app/Support/BookingScreening.php": [
+      "011.us-24"
     ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
@@ -1222,6 +1234,12 @@
     "database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php": [
       "011.us-23"
     ],
+    "database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php": [
+      "011.us-24"
+    ],
+    "database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php": [
+      "011.us-24"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1291,6 +1309,7 @@
       "011.us-21",
       "011.us-22",
       "011.us-23",
+      "011.us-24",
       "011.us-8",
       "011.us-9"
     ],
@@ -1376,6 +1395,9 @@
       "003.us-2",
       "003.us-9"
     ],
+    "resources/js/Components/Course/BookingScreeningStep.vue": [
+      "011.us-24"
+    ],
     "resources/js/Components/Course/ClaimConsentNotice.vue": [
       "010.us-16"
     ],
@@ -1392,6 +1414,7 @@
       "010.us-16",
       "011.us-10",
       "011.us-16",
+      "011.us-24",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -1673,6 +1696,7 @@
       "010.us-2",
       "011.us-1",
       "011.us-2",
+      "011.us-24",
       "011.us-9"
     ],
     "resources/js/Pages/Drip/Unsubscribe.vue": [
@@ -1807,6 +1831,7 @@
       "011.us-15",
       "011.us-20",
       "011.us-23",
+      "011.us-24",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1859,6 +1884,9 @@
     "tests/Feature/HighTicket/BookingMailFailureTest.php": [
       "011.us-1",
       "011.us-2"
+    ],
+    "tests/Feature/HighTicket/BookingScreeningTest.php": [
+      "011.us-24"
     ],
     "tests/Feature/HighTicket/BookingWizardTest.php": [
       "011.us-10",

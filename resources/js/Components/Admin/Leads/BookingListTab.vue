@@ -137,7 +137,20 @@ const cancelledStatus = {
   tabIdle: 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100',
 }
 
-const allStatuses = [...statusButtons, cancelledStatus]
+// Set by the screening, not by hand (011 US24 / FR-127) — but still settable
+// from the row, because the whole point of D97 is that a refusal is a snapshot
+// of somebody's situation, not a verdict on them.
+const declinedStatus = {
+  value: 'declined',
+  letter: 'R',
+  label: '已婉拒',
+  active: 'bg-rose-400 text-white ring-rose-400',
+  idle: 'bg-rose-50 text-rose-600 hover:bg-rose-200',
+  tabActive: 'bg-rose-400 text-white border-rose-400 hover:bg-rose-500',
+  tabIdle: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100',
+}
+
+const allStatuses = [...statusButtons, cancelledStatus, declinedStatus]
 
 const hasLiveBooking = (lead) => Boolean(lead.confirmed_at) && !lead.cancelled_at
 
@@ -234,7 +247,17 @@ const toggleDetail = (id) => {
 }
 
 const hasApplication = (lead) =>
-  Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url)
+  Boolean(lead.phone || lead.occupation || lead.bottleneck || lead.expertise || lead.social_url || lead.screened_at)
+
+// 資格審核 (011 FR-131). Scores are admin-only — the applicant is never shown
+// one, so this is the single place the number appears at all.
+const SCREENING_TIERS = {
+  hot:  { label: '高購買意願', class: 'bg-green-100 text-green-800' },
+  warm: { label: '值得談', class: 'bg-amber-100 text-amber-800' },
+  cold: { label: '培育名單', class: 'bg-gray-100 text-gray-600' },
+}
+
+const screeningTier = (lead) => SCREENING_TIERS[lead.screening_tier] ?? null
 
 /**
  * The badge shortcut: straight to the newest summary (011 FR-121).
@@ -1045,6 +1068,36 @@ const copySelectedEmails = async () => {
                 </div>
               </div>
               <p v-else class="text-sm text-gray-400 border-t border-gray-200 pt-4">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
+
+              <!-- 011 US24：第一步的五題資格審核。分數只在這裡出現，申請人永遠看不到 -->
+              <div class="border-t border-gray-200 pt-4">
+                <div v-if="lead.screened_at" class="space-y-3">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="text-xs font-semibold text-gray-600">資格審核</p>
+                    <span class="rounded px-1.5 py-0.5 text-xs font-bold tabular-nums text-gray-700 bg-gray-100">
+                      {{ lead.screening_score }}/10
+                    </span>
+                    <span
+                      v-if="screeningTier(lead)"
+                      class="rounded px-1.5 py-0.5 text-xs font-semibold"
+                      :class="screeningTier(lead).class"
+                    >
+                      {{ screeningTier(lead).label }}
+                    </span>
+                    <span v-if="lead.declined_at" class="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700">
+                      已自動婉拒
+                    </span>
+                  </div>
+
+                  <div class="grid gap-3 text-sm sm:grid-cols-2">
+                    <div v-for="(row, i) in lead.screening_answers" :key="i">
+                      <p class="text-xs font-medium text-gray-500">{{ row.title }}</p>
+                      <p class="mt-0.5 text-gray-800 break-words">{{ row.answer }}</p>
+                    </div>
+                  </div>
+                </div>
+                <p v-else class="text-sm text-gray-400">—　這筆在資格審核上線前送出，沒有審核紀錄。</p>
+              </div>
 
               <!-- 011 US23：這個 email 的所有面談場次，不只這一筆預約 -->
               <ConsultationNotesPanel :notes="lead.consultation_notes || []" />
