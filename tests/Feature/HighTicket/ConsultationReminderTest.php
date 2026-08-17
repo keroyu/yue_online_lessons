@@ -282,7 +282,7 @@ class ConsultationReminderTest extends TestCase
 
     // --------------------------------------------------------------- content
 
-    public function test_the_reminder_carries_the_slot_time_and_no_cc_or_attachment(): void
+    public function test_the_reminder_carries_the_slot_time_and_no_attachment(): void
     {
         $course = $this->makeHighTicketCourse();
         $this->seedReminderTemplate();
@@ -297,9 +297,49 @@ class ConsultationReminderTest extends TestCase
             return str_contains($mail->emailSubject, $label)
                 && str_contains($mail->htmlBody, $label)
                 && str_contains($mail->htmlBody, 'https://zoom.us/j/123')
-                && $mail->cc === []
                 && $mail->fileAttachments === [];
         });
+    }
+
+    /**
+     * FR-078 (2026-08-17 改): the consultant is the other person who has to show
+     * up tomorrow, and nothing else in the system tells them so — the invite was
+     * mailed at confirmation, possibly weeks ago.
+     */
+    public function test_the_reminder_ccs_the_assigned_consultant(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->seedReminderTemplate();
+        Mail::fake();
+
+        $consultant = \App\Models\User::factory()->create([
+            'role'  => 'member',
+            'email' => 'consultant@example.com',
+        ]);
+
+        $lead = $this->bookingAt($course, '2026-08-11 10:00');
+        $lead->forceFill(['consultant_id' => $consultant->id])->save();
+
+        $this->artisan('booking:send-reminders')->assertSuccessful();
+
+        Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail) =>
+            collect($mail->cc)->pluck('address')->contains('consultant@example.com'));
+    }
+
+    /** Nobody assigned still means somebody has to be there (FR-062 fallback). */
+    public function test_an_unassigned_reminder_falls_back_to_the_notify_list(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $this->seedReminderTemplate();
+        \App\Models\SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'ops@example.com');
+        Mail::fake();
+
+        $this->bookingAt($course, '2026-08-11 10:00');
+
+        $this->artisan('booking:send-reminders')->assertSuccessful();
+
+        Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail) =>
+            collect($mail->cc)->pluck('address')->contains('ops@example.com'));
     }
 
     // -------------------------------------------------------------- failures

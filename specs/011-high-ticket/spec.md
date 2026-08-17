@@ -640,12 +640,12 @@ US15 之後每筆預約都記得住是誰負責的，但名單頁沒有任何方
 - [ ] `{{slot_time}}` MUST 沿用 `ConsultationSlotService::label()`（`8/10（週一）14:00`，台北時間）—— 與確認信、改期信同一種寫法，不另造格式
 - [ ] 模板 MUST 同時登記於 `EmailTemplateSeeder::templates()` 與一支**資料 migration**（沿用 FR-052 的「缺才 insert、永不 update」迴圈），否則正式站永遠不會有這筆
 - [ ] 變數清單 MUST 補進 `EmailTemplateController::$availableVariables`，後台清單 MUST 有中文標籤，否則編輯頁沒有插入按鈕、列表顯示成裸 event_type
-- [ ] 提醒信 MUST NOT CC 任何人（使用者決策，沿用 FR-062 的收斂原則）
+- [x] 提醒信 MUST CC **該筆的顧問**，未指派顧問時退回通知清單（2026-08-17 使用者決策，推翻原本的「不 CC 任何人」）—— 明天要出現的是兩個人，而顧問手上唯一提過這件事的信是確認當下寄的那封，可能已經是幾週前
 - [ ] 提醒信 MUST NOT 附 `.ics` —— 同 `UID` 同 `SEQUENCE` 的邀請對日曆是 no-op，而為了寄提醒去遞增 `SEQUENCE` 會讓真正的異動（US14）失去意義（見 D73）
 - [ ] 模板不存在時 MUST 記 warning 後正常結束（不寄、不炸、排程不變紅）；單筆寄送失敗 MUST 只記 error 並繼續處理其餘 leads，該筆 `reminder_sent_at` 不落地
 - [ ] 「今天才確認、面談就在明天」MUST NOT 補寄（使用者決策，見 D74）—— 他幾小時前才收過含 `.ics` 的確認信
 - [ ] 命令 MUST 輸出實際寄出筆數（`已寄出 N 封面談提醒`），供 Forge 的排程日誌與人工重跑檢視
-- [ ] 測試：排程註冊為 `0 17 * * *` + `Asia/Taipei`、翌日 00:15 與 23:45 兩端都寄、今天與後天不寄、暫留中與已取消不寄、跨日面談只算起始日、重跑不重寄、改期清空 `reminder_sent_at`、寄出內容含 slot_time 與 zoom 連結、完全無 CC、缺模板時不寄也不丟例外
+- [x] 測試：排程註冊為 `0 17 * * *` + `Asia/Taipei`、翌日 00:15 與 23:45 兩端都寄、今天與後天不寄、暫留中與已取消不寄、跨日面談只算起始日、重跑不重寄、改期清空 `reminder_sent_at`、寄出內容含 slot_time 與 zoom 連結、CC 指派顧問、未指派時退回通知清單、缺模板時不寄也不丟例外
 
 ### User Story 20 - 改期面板直接選時段 (Priority: P2)
 
@@ -814,6 +814,38 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - [ ] 逾時清掃 MUST NOT 刪到只完成審核、尚未送出申請的 lead（`confirm_expires_at` 為 null 即已排除，FR-126）
 - [ ] 測試：計分表逐題、5 分邊界、「沒有預算」一票否決、未通過不寄信／不停 drip／不佔時段、通過者照常走完既有流程、重新審核可翻案、送出時重新計分、舊 lead 無答案仍可送出
 
+### User Story 25 - 手動抓取逐字稿 (Priority: P2)
+
+逐字稿的抵達時間是**不可預期**的。2026-08-17 量到的兩場：一場的 `recording.transcript_completed`
+在會議結束後隨即到達，另一場等了 **3 小時 27 分**。而整條自動路徑（Zoom → webhook → 佇列 → worker）
+有四個環節，任何一環出事的症狀完全一樣 —— 後台那一列永遠停在「尚無逐字稿」，
+而管理員無從分辨「Zoom 還沒生出來」與「我們這邊壞了」。這次的實際事故（`long` 佇列沒有 worker，
+兩場面談的工作單躺了四小時）就是後者，卻只能靠人工上伺服器查 `jobs` 表才看得出來。
+
+因此在後台每一個**還沒有逐字稿**的場次上放一顆「抓取逐字稿」按鈕：直接去問 Zoom 現在有什麼，
+不依賴 webhook 是否到達、不依賴佇列裡那張工作單。管理員的使用方式很單純 ——
+會議結束一小時後還看不到逐字稿，就按一下。
+
+按下去的**第一件事是回答問題，不是排隊**：向 Zoom 查詢錄影清單只需一秒，
+而那一秒就足以分辨三種情形（沒有錄影／逐字稿還沒好／已經好了）。
+只有第三種才需要進佇列做慢的部分（下載、校訂、摘要，25k 字約 2–4 分鐘）。
+把整段都丟進佇列會讓最常見的兩種情形失去回饋 —— 按了、等三分鐘、回來看，畫面還是一樣。
+
+**驗收**：
+- [ ] 後台面談紀錄列在 `transcript_bytes` 為 0 時，「尚無逐字稿」文字改為「抓取逐字稿」按鈕；已有逐字稿的場次 MUST NOT 顯示此按鈕（既有的「重新產生摘要」已涵蓋該情境，且不必重付校訂費用）
+- [ ] `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組、`throttle:10,1`）：同步查 Zoom，**慢的部分才派工**
+- [ ] Zoom 憑證未設定 → 422，訊息指向後台 API 設定頁
+- [ ] 該場次沒有 `zoom_meeting_id` → 422（例如手動補建但沒有會議的場次）
+- [ ] Zoom 回錯（含 `3301 此錄製不存在`）→ 422，文案說明可能未開錄影或雲端錄影已過保存期限，MUST NOT 派工
+- [ ] 錄影存在但清單裡沒有 TRANSCRIPT/VTT → 422，文案說明逐字稿尚未產出、稍後再試，MUST NOT 派工（沿用 FR-132 的立場：這不是故障）
+- [ ] 清單裡有 VTT → 派 `ProcessZoomTranscriptJob` 並回 202，前端提示「已排入處理，約 1–3 分鐘後重新整理」
+- [ ] 查詢 Zoom 錄影清單的邏輯 MUST 只有一份，`booking:fetch-transcript` 指令與本端點共用（沿用 FR-019 對重複渲染的既有立場）
+- [ ] 後端 MUST NOT 另設「已有逐字稿就拒絕」的守門 —— job 的 `transcriptIsSettled()` 已經擋住重抓（FR-110），再擋一次只是把同一條規則寫在兩個地方
+- [ ] 測試：有 VTT 則派工、Zoom 404 不派工、無 VTT 不派工、憑證未設定、無 meeting id、訪客被擋
+
+**前提**：慢的那一半仍跑在 `long` 佇列上，因此本功能與自動路徑共用 T289 的 worker。
+worker 未建時按鈕仍會誠實回報 Zoom 端的狀態，但抓回來的動作不會發生。
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -965,10 +997,11 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 - **FR-061**: 確認預約當下 MUST 把時段的 `consultant_id` 快照到 `high_ticket_leads.consultant_id`。快照而非即時查詢的理由：時段可被改派，取消後更會被釋放並可能重新指派給別人，屆時「這筆預約是誰負責的」就再也查不出來（見 D58）
 
-- **FR-062**: 系統信的 CC MUST 收斂為**只有一封**：
+- **FR-062**: 系統信的 CC MUST 收斂為**只有兩封**（原為一封，2026-08-17 加入提醒信）：
   | 信件 | CC |
   |------|-----|
   | 客製服務預約確認（`high_ticket_booking_confirmation`） | **該筆的顧問**；未指派顧問時才退回客服清單（FR-014） |
+  | 客製服務面談提醒（`high_ticket_consultation_reminder`） | 同上（2026-08-17 加入，見 FR-078） |
   | 預約待確認（`BookingVerifyMail`） | **無** |
   | 預約已改期 / 已取消 | **無** |
 
@@ -1042,7 +1075,8 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 
 - **FR-076**: 面談提醒排程 MUST 以 `->timezone('Asia/Taipei')->dailyAt('17:00')` 註冊。伺服器跑 UTC，因此裸寫 `dailyAt('17:00')` 會是台北凌晨 1 點、`dailyAt('09:00')` 才是台北 17:00 —— 後者雖然能動，但檔案裡看到的數字與需求裡的數字對不上，任何人（含未來的你）想調整時間都得先在腦中做一次時區換算，而那正是這類設定最常出錯的地方（見 D71）
 - **FR-077**: 收件範圍 MUST 由**台北時間**定義：`$tomorrow = now('Asia/Taipei')->addDay()`，區間為 `[$tomorrow->startOfDay(), $tomorrow->copy()->addDay()->startOfDay())` 轉 UTC 後查詢（半開，避免 `23:59:59` 這種邊界寫法漏掉 `23:59:30` 的可能）。判定錨點為 lead 的最早時段，非「任一時段落在區間內」—— 後者會讓跨午夜的面談在兩天各被撈出一次
-- **FR-078**: 候選 lead MUST 同時滿足：`confirmed_at IS NOT NULL`、`cancelled_at IS NULL`、`reminder_sent_at IS NULL`，且其最早時段 `held_until IS NULL`（已確認佔用，沿用 FR-029 的推導）。`status` MUST NOT 參與過濾。`reminder_sent_at` 只在**寄送成功後**寫入 —— 先寫後寄會在寄信失敗時把人靜靜吃掉
+- **FR-078**: 候選 lead MUST 同時滿足：`confirmed_at IS NOT NULL`、`cancelled_at IS NULL`、`reminder_sent_at IS NULL`，且其最早時段 `held_until IS NULL`（已確認佔用，沿用 FR-029 的推導）。`status` MUST NOT 參與過濾。`reminder_sent_at` 只在**寄送成功後**寫入 —— 先寫後寄會在寄信失敗時把人靜靜吃掉。
+  **收件人**（2026-08-17 改，使用者決策）：`to` 為申請人，`cc` 為 `confirmationCc()` 的結果 —— 有指派顧問就只 CC 顧問，未指派才退回通知清單。與確認信共用同一支方法而非另寫一份收件邏輯：兩封信要回答的是同一個問題（這場面談歸誰），分成兩份定義只會在指派規則改動時漏掉一邊。附件規則不變，提醒信仍 MUST NOT 附 `.ics`（D73）
 - **FR-079**: 新增 `email_templates` 一筆：
 
   | event_type | 名稱 | 可用變數 |
@@ -1093,6 +1127,9 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - **FR-110**: 兩個步驟各有獨立守門，**MUST 都在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token。逐字稿的守門是 `transcript_fetched_at` + 已有內容（`transcriptIsSettled()`）—— 我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`（D88），所以同一場次收到第二次事件是常態而非例外，沒有這道守門就是同一份逐字稿付兩次校訂費。摘要的守門是 `summary_edited_at`：人寫的摘要不該被 Zoom 重送打回原形。兩者都以 job 的 `$force` 旗標（`booking:fetch-transcript --force`）刻意繞過
 - **FR-111**: 「重新產生摘要」MUST 以該場次既存的 `transcript` 為輸入，MUST NOT 再向 Zoom 請求。Zoom 雲端錄影有保存期限，過期即永久取不回；把校訂稿留在自己的資料庫，正是為了讓摘要格式日後能隨時調整重跑。逐字稿為空時回 422（提示尚未取得逐字稿），不是 500
 - **FR-117**: `ProcessZoomTranscriptJob` MUST 跑在專屬的 `database_long` 佇列連線上，並自帶 `$timeout`（1500 秒）。**這不是調校而是正確性問題**：worker 預設 timeout 為 60 秒，而校訂一小時的逐字稿是數次連續 LLM 呼叫、分鐘級的工作，預設值會在中途砍掉它；更糟的是 `database` 連線的 `retry_after` 為 90 秒，job 只要跑超過 90 秒佇列就判定它已死、把同一份 payload 交給第二個 worker —— 重複處理、重複付 API 費用。`retry_after` MUST 恆大於 job 的 `$timeout`（本連線設 1800）。獨立連線而非直接調高 `database` 的 `retry_after`，是為了讓卡住的**信件** job 仍在 90 秒後重試，而不是等半小時
+- **FR-133**: 手動抓取端點 MUST 為**兩段式**：同步向 Zoom 查 `GET /meetings/{id}/recordings`（一秒內），只有清單裡確實有 TRANSCRIPT/VTT 才派 `ProcessZoomTranscriptJob` 並回 202。理由是這顆按鈕要回答的問題是「到底好了沒」，而三種答案裡有兩種（Zoom 上沒有錄影、逐字稿還沒產出）在那一秒內就確定了；把整段丟進佇列會讓這兩種情形變成「按了、等三分鐘、畫面還是一樣」。反過來也不能整段同步：25k 字的校訂是七次連續 LLM 呼叫、2–4 分鐘，nginx / PHP-FPM 的 60 秒讀取逾時會先斷線，而工作其實還在跑（見 FR-117 的租約論證）。
+  查詢錄影清單的實作 MUST 收斂為 `ZoomTranscriptService::recordingPayload(string $meetingId): ?array`，回傳與 webhook 同形的 `['object' => ..., 'download_token' => '']`，`booking:fetch-transcript` 指令改為呼叫同一個方法 —— 兩處各寫一次 HTTP 呼叫，就會有兩套錯誤處理與兩種逾時
+- **FR-134**: 手動抓取 MUST NOT 在後端另設「已有逐字稿就拒絕」的守門。`ProcessZoomTranscriptJob` 的 `transcriptIsSettled()`（FR-110）已經擋住重複校訂，而按鈕本身在有逐字稿時就不顯示（UI 層）。同一條規則寫三次的代價不是多餘的程式碼，是三處會各自漂移
 - **FR-132**: payload 的 `recording_files` 裡沒有 TRANSCRIPT 檔時，job MUST 寫一行 info log 後靜默結束，**MUST NOT 丟例外交給 backoff**。`recording.completed` 依定義不帶 VTT（逐字稿由 `recording.transcript_completed` 另行送達，帶自己的檔案清單），而 job 拿到的是**派工當下凍結的 payload 快照** —— 重試只會重讀同一份清單，永遠不可能讀出逐字稿。原設計因此讓每場面談固定產生一個註定失敗的 job（三次重試 + 一筆 failed_jobs + 兩行 ERROR log），把「這一則不是逐字稿事件」記成故障（D88 修訂）。逐字稿為空時 `summarise()` 已回 null，故靜默結束不會產生空摘要
 - **FR-112**: `openai_api_key` 或對應的 `ai_prompts` 列不存在時，AI 步驟 MUST 靜默跳過而非丟例外，逐字稿仍以機械式解析結果落庫（沿用 D40 對 Zoom 的既有立場：未設定憑證即該路徑不存在，本機與 CI 永遠不需要真的 key）
 - **FR-122**: 前台時段選擇器 MUST 為**日期成欄、時間直向堆疊**的版面（原本是每日一列、時間橫向 wrap，兩天各四格就把第三天推到摺線下，「我什麼時候能來」變成要捲動才答得出來）。翻頁 MUST 用左右箭頭按鈕，MUST NOT 用橫向捲動 —— 觸控板難控、手機更差，且看不出可預約期間有多長。
@@ -1730,6 +1767,15 @@ Phase 4 — 測試與驗證
 - [x] T312 payload 無 TRANSCRIPT 檔改為靜默結束（FR-132 / D88 修訂）：`fetchTranscript()` 不再丟 `RuntimeException`，改寫 info log 後 return；測試以 `dispatchSync` 直接驗 job 不再拋例外（webhook controller 會吞例外，走 HTTP 驗不到）in `app/Jobs/ProcessZoomTranscriptJob.php`, `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
 - [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
+**US25 — 手動抓取逐字稿（draft）**
+
+- [ ] T313 `ZoomTranscriptService::recordingPayload(string $meetingId): ?array` — 打 `GET /meetings/{id}/recordings`，成功回 `['object' => $json, 'download_token' => '']`（與 webhook 同形），Zoom 非 2xx 回 null 並寫 info log（含狀態碼，不含內容）；`FetchConsultationTranscript` 改為呼叫此方法，指令的錯誤文案不變（FR-133）in `app/Services/ZoomTranscriptService.php`, `app/Console/Commands/FetchConsultationTranscript.php`
+- [ ] T314 `ConsultationNoteController::fetchTranscript()` — 依序守門：Zoom 憑證未設定 / 無 `zoom_meeting_id` / `recordingPayload()` 回 null / 清單無 VTT，四種各回 422 與各自文案；有 VTT 則 `ProcessZoomTranscriptJob::dispatch()` 回 202 `{queued: true}`（FR-133 / FR-134）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [ ] T315 [P] 路由 `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組內、`throttle:10,1`，比照既有 regenerate-summary 一行）in `routes/web.php`
+- [ ] T316 前端按鈕：`transcript_bytes` 為 0 時把「尚無逐字稿」換成「抓取逐字稿」按鈕（`action` class 沿用、`cursor-pointer`、處理中顯示「查詢中…」並 disabled）；成功顯示「已排入處理，約 1–3 分鐘後重新整理」，失敗顯示後端訊息（沿用既有 `error` 區塊）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [ ] T317 測試（`Queue::fake()` 驗派工與否）：有 VTT → 202 且派工、Zoom 404 → 422 不派工、清單無 VTT → 422 不派工、憑證未設定 → 422、無 meeting id → 422、訪客 → 302/403 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [ ] T318 使用者實測：對一場「尚無逐字稿」的場次按下按鈕，確認三種回應文案讀得懂；有 VTT 者於 1–3 分鐘後重整看到摘要（依賴 T289）
+
 - [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**擋在 T289 之前，worker 未加則此項無法驗證**
 
 - [x] T001 `convert()` 驗證新增 `amount` (`required|integer|min:0`) 並傳入 service；`index()` 的 `grantableCourses` select 加 `price / original_price / promo_ends_at` 並 map 出 `display_price` in `app/Http/Controllers/Admin/HighTicketLeadController.php`
@@ -2197,6 +2243,8 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-17: 面談提醒信改為 CC 顧問（使用者決策，推翻 US19 原本的「不 CC 任何人」，FR-062 / FR-078 已改）—— 沿用確認信的 `confirmationCc()`：有指派就只 CC 顧問，未指派才退回通知清單，兩封信的收件規則因此只有一份定義。附件規則不變（仍不附 `.ics`，D73）。測試改寫原本斷言「完全無 CC」的那條，另補兩條（指派／未指派）。`php artisan test` 729 passed。
 
 - 2026-08-17: 承諾清單移除「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」，回到三條（使用者決策，FR-026 已改）—— US24 的資格審核已經在第一步問過預算級距與決策狀態，承諾清單再勾一次是重複。同步改 `COMMITMENT_COUNT` 4 → 3 與三份測試的 payload。`php artisan test` 727 passed、`npm run build` exit 0。
 

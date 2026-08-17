@@ -573,7 +573,13 @@ class HighTicketBookingService
         ];
 
         try {
+            // The consultant is the other person who has to be there tomorrow,
+            // and nothing else tells them so — the calendar invite went out at
+            // confirmation, possibly weeks ago (FR-078, 2026-08-17 改). Same
+            // recipient rule as the confirmation: the assigned consultant, or
+            // the notify list when the slot has no owner (FR-062).
             Mail::to($lead->email)
+                ->cc($this->confirmationCc($lead))
                 ->send(new TemplatedMail(
                     $template->renderSubject($vars),
                     $template->renderBody($vars),
