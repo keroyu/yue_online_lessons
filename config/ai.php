@@ -44,6 +44,7 @@ return [
 
     'features' => [
         'consultation' => '面談整理',
+        'homework'     => '作業批改',
     ],
 
     /*

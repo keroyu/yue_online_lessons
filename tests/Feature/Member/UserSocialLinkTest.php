@@ -126,7 +126,7 @@ class UserSocialLinkTest extends TestCase
         ]);
         $chapter = Chapter::create(['course_id' => $course->id, 'title' => 'Ch', 'sort_order' => 1]);
         $lesson = Lesson::create(['course_id' => $course->id, 'chapter_id' => $chapter->id, 'title' => 'L']);
-        $assignment = Assignment::create(['lesson_id' => $lesson->id, 'md_content' => 'hw', 'is_published' => true]);
+        $assignment = Assignment::create(['lesson_id' => $lesson->id, 'question_md' => 'hw', 'is_published' => true]);
         Comment::create(['assignment_id' => $assignment->id, 'user_id' => $student->id, 'content' => 'my answer']);
 
         $this->actingAs($admin)->get('/admin/homework')

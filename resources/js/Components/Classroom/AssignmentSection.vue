@@ -102,7 +102,7 @@ const deleteItem = (commentId, hasReplies) => {
       <!-- ── Question ──────────────────────────────────────────────── -->
       <div class="px-6 pt-6 pb-5">
         <div class="flex items-start justify-between gap-4 mb-3">
-          <div class="assignment-content flex-1" v-html="renderMd(assignment.md_content)" />
+          <div class="assignment-content flex-1" v-html="renderMd(assignment.question_md)" />
           <span
             v-if="assignment.is_completed"
             class="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full"

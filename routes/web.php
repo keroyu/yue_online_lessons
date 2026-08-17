@@ -399,6 +399,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/homework/{assignment}/publish', [HomeworkController::class, 'publish'])->name('homework.publish');
     Route::post('/homework/{assignment}/unpublish', [HomeworkController::class, 'unpublish'])->name('homework.unpublish');
     Route::post('/homework/{assignment}/comments', [HomeworkController::class, 'storeComment'])->name('homework.comments.store');
+    Route::post('/homework/{assignment}/comments/{comment}/ai-draft', [HomeworkController::class, 'aiDraft'])->name('homework.comments.ai-draft');
     Route::put('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'updateComment'])->name('homework.comments.update');
     Route::delete('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'destroyComment'])->name('homework.comments.destroy');
     Route::post('/homework/{assignment}/completions/{user}', [HomeworkController::class, 'markComplete'])->name('homework.completions.store');

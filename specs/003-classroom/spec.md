@@ -17,9 +17,15 @@ owner_files:
   - app/Services/AssignmentService.php
   - app/Services/VideoEmbedService.php
   - app/Services/CloudflareStreamService.php
+  - app/Services/HomeworkGradingService.php
   - database/migrations/2026_01_17_000004_create_lesson_progress_table.php
   - database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php
+  - database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php
+  - database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
+  - database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
   - tests/Feature/Classroom/CloudflareStreamTest.php
+  - tests/Feature/Classroom/AiGradingTest.php
+  - tests/Feature/Classroom/HomeworkCoursesTest.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
   - database/migrations/2026_05_10_000003_create_comments_table.php
   - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
@@ -50,7 +56,7 @@ touchpoints:
     why: 教室側欄以 Chapter sort_order 分組顯示小節
   - file: app/Models/Lesson.php
     owner: 004-course-admin
-    why: 教室讀取小節影片欄位（video_platform/video_id/embed_url）、md_content、is_preview、duration_seconds
+    why: 教室讀取小節影片欄位（video_platform/video_id/embed_url）、content_md、is_preview、duration_seconds；US10 欄位改名 md_content → content_md（fillable）
   - file: app/Models/Purchase.php
     owner: 005-checkout
     why: paidStatus scope 決定「我的課程」列表與付費上課權限
@@ -65,10 +71,52 @@ touchpoints:
     why: 全站 Inertia shared props 提供通知鈴鐺資料（notificationCount、notifications 最新 5 則與文案）
   - file: app/Http/Requests/Admin/StoreLessonRequest.php
     owner: 004-course-admin
-    why: video_url 驗證需接受 Cloudflare Stream 連結/UID（url 規則放寬為 string + VideoEmbedService::isValid）
+    why: video_url 驗證需接受 Cloudflare Stream 連結/UID（url 規則放寬為 string + VideoEmbedService::isValid）；US10 欄位改名 md_content → content_md
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
-    why: 前端影片連結偵測提示需辨識 Cloudflare Stream 格式
+    why: 前端影片連結偵測提示需辨識 Cloudflare Stream 格式；US10 欄位改名 md_content → content_md（含插入佔位符的兩處字串操作）
+  - file: app/Http/Controllers/Admin/ChapterController.php
+    owner: 004-course-admin
+    why: US10 欄位改名 — 小節建立/更新的 md_content → content_md
+  - file: app/Http/Controllers/Admin/DripLessonPreviewController.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 預覽信取小節內文的欄位名
+  - file: app/Mail/DripLessonMail.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 註解與內文取值的欄位名
+  - file: resources/views/emails/drip-lesson.blade.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 註解提及的欄位名
+  - file: app/Console/Commands/ConvertHtmlToMarkdown.php
+    owner: 000-platform-core
+    why: US10 欄位改名 — 一次性維運指令掃描 lessons.md_content（000 FR-006 文字同步更新）
+  - file: config/ai.php
+    owner: 000-platform-core
+    why: features 陣列新增 `homework` 分組，AI 設定頁才會把作業批改 prompt 歸到「作業批改」標題下
+  - file: app/Services/OpenAiService.php
+    owner: 000-platform-core
+    why: 行為接點（不改碼）— HomeworkGradingService 經 respond() 呼叫，維持全站唯一 OpenAI 呼叫點
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: admin 群組新增 AI 批改草稿端點（homework.comments.ai-draft）
+  - file: tests/Feature/Drip/GuestClaimTest.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 測試 factory 欄位名
+  - file: tests/Feature/Drip/MemberSubscribeTest.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 測試 factory 欄位名（該檔未登記於 code_index）
+  - file: tests/Feature/Drip/LessonEmailPreviewTest.php
+    owner: 010-drip-email
+    why: US10 欄位改名 — 測試 factory 欄位名
+  - file: tests/Feature/Storefront/EmailLinkTaggerTest.php
+    owner: 002-storefront
+    why: US10 欄位改名 — 測試 factory 欄位名
+  - file: tests/Feature/Member/UserSocialLinkTest.php
+    owner: 001-auth-account
+    why: US10 欄位改名 — 測試建立作業題目時的欄位名
+  - file: tests/Feature/Points/SettingsEffectTest.php
+    owner: 007-points-referral
+    why: US10 欄位改名 — 測試建立作業題目時的欄位名（該檔未登記於 code_index）
   - file: config/services.php
     owner: 000-platform-core
     why: 新增 cloudflare_stream 設定區塊（customer_code、簽名 key、token TTL）
@@ -107,7 +155,7 @@ touchpoints:
 - [x] 支援 Vimeo / YouTube 嵌入自動播放；Vimeo 加 `texttrack=zh-TW` 自動顯示繁中字幕；YouTube 切換小節用 `loadVideoById()`（不重建 player，避免卡住）
 - [x] 影片自然播放完畢：目前小節立即標記完成（樂觀更新 + 即時 POST，跳過節流計時器）並自動切至扁平順序（章節內小節 → 獨立小節）的下一小節；最後一小節不跳轉
 - [x] 無影片小節顯示 Markdown 內文（`HtmlContent`，含響應式 iframe 與表格樣式）
-- [x] 內文中單獨一次換行即在畫面上換行（不需空行），空行仍為新段落；與同一份 `md_content` 寄出的連鎖信呈現一致
+- [x] 內文中單獨一次換行即在畫面上換行（不需空行），空行仍為新段落；與同一份 `content_md` 寄出的連鎖信呈現一致
 - [x] 側欄可收合：桌機漢堡鈕 + 右緣細長 toggle tab（width slide 動畫）、手機 translate slide + 遮罩
 - [x] drip 課程：未解鎖小節不出現在側欄、直接帶 `?lesson_id` 也會被擋；限時觀看到期顯示 `VideoAccessNotice`、promo 區塊 `LessonPromoBlock`（細節歸 010-drip-email）
 - [x] 課程無任何小節時顯示「課程內容準備中」；頁面回應帶 `Cache-Control: no-store`
@@ -158,7 +206,7 @@ touchpoints:
 管理員在後台 `/admin/homework` 為任意小節建立/編輯題目（Markdown，一節最多一題），瀏覽全部學員提交並逐筆回覆批改。
 
 **驗收**：
-- [x] 題目 CRUD：`POST /admin/lessons/{lesson}/assignment` 建立、`PUT /admin/homework/{assignment}` 更新（`md_content` 上限 50000 字）；題目管理表格依 Chapter → Lesson sort_order 章節分組
+- [x] 題目 CRUD：`POST /admin/lessons/{lesson}/assignment` 建立、`PUT /admin/homework/{assignment}` 更新（`question_md` 上限 50000 字）；題目管理表格依 Chapter → Lesson sort_order 章節分組
 - [x] 題目只能「下架/上架」（`publish`/`unpublish` 切換 `is_published`），不提供永久刪除；下架後前台完全不顯示、資料保留、可重新上架
 - [x] 提交列表：預設全部課程最新提交倒序，`paginate(10)`；可依課程、小節篩選，另支援 `search`（email/nickname LIKE，300ms debounce），條件 AND 疊加、互不清空
 - [x] 作業題目管理的課程選單獨立於提交列表篩選（各自 URL 參數：`course_id` / `manage_course_id`）：列出全部課程（含尚無題目者，供補第一題）、依最新題目建立時間降序、無題目課程置底；未指定時預設選定「最新新增題目」的課程
@@ -206,6 +254,22 @@ touchpoints:
 - [x] drip 限時觀看、試閱、進度紀錄等既有邏輯對 cloudflare 小節一體適用（`embedUrlFor()` 統一入口，僅 embed_url 產生方式不同）
 - [x] Feature 測試：parse 各格式、簽名 URL 產生（含 exp claim）、StoreLessonRequest 驗證
 
+### User Story 10 - AI 快速批改 (Priority: P2)
+
+管理員在「回覆批改」面板按一次「AI 輔助批改」，系統把**講義 + 作業題目 + 學員提交 + 這串既有的批改往返**送給模型，回傳 500 字以內的批改草稿並**追加**到批改輸入框，管理員改完再自己送出。講義是每個小節各自輸入的 Markdown，放在作業題目旁邊；prompt 走既有的 `/admin/settings/ai` 註冊表，業主可自行改寫語氣與結構。
+
+同一支 US 順手清掉一個命名舊債：`md_content` 是 2026-02 那批 `html_content` 改名留下的名字，之後新增的 Markdown 欄位（`body_md` / `description_md` / `free_success_md`）全走 `*_md` 後綴。新增 `handout_md` 前先把兩個舊欄位改名，避免同一張表裡兩套命名法並存。
+
+**驗收**：
+- [x] `lessons.md_content` → `content_md`、`assignments.md_content` → `question_md`；全 repo（PHP 35 處 / Vue 25 處 / 測試）同步替換，教室、小節後台、drip 信、作業區行為完全不變
+- [x] `assignments.handout_md` 選填 Markdown 講義，在 `/admin/homework` 的「新增/編輯題目」表單題目欄位下方，共用同一組「編輯 / 預覽」切換；欄位說明點出它只餵給 AI、學員看不到
+- [x] 回覆批改面板的 textarea 上方有「AI 輔助批改」按鈕；點擊後按鈕進入 disabled 的「AI 產生中…」狀態，同一次生成不可重複點
+- [x] 生成結果**追加**到 textarea 末端：原本有字時以空行分隔接在後面，原本空白時直接填入；永不覆蓋、永不自動送出
+- [x] 送進模型的脈絡固定四段（講義 / 作業題目 / 學員提交 / 先前的批改往返），角色標籤只有「老師」與「學員」；講義未填時該段寫「（未提供）」，按鈕照常可用
+- [x] 失敗時面板內顯示紅字訊息（未設 API Key、模型無回傳、逾時），textarea 內容不受影響，可直接重試
+- [x] `/admin/settings/ai` 自動多出「作業批改」分組（`config/ai.php` features + `ai_prompts` 一列），instructions / 模型 / max_output_tokens 皆可後台調整，預設模型 `gpt-5.6-terra`
+- [x] Feature 測試：`Http::fake` 驗證送出的 input 四段組裝與截斷、未設 key 回 422、跨 assignment 的 comment 被擋、草稿不寫入 comments
+
 ## Requirements
 
 - **FR-001**: 上課權限唯一判斷入口為 `Course::hasAccessForUser()`：admin 恆通過、付費購買（paidStatus）通過、drip 訂閱通過；退款（refunded）即失去權限
@@ -222,6 +286,13 @@ touchpoints:
 - **FR-012**: Cloudflare Stream 播放 token 一律由後端 `CloudflareStreamService` 於教室 render 時產生（RS256 JWT，TTL 預設 12 小時、config 可調）；token 不寫入 DB、不出現在後台表單，僅存 UID
 - **FR-013**: 簽名憑證（key id + private key PEM）存 `.env`，經 `config/services.php` 讀取；未設定時 degrade 為未簽名 embed URL（開發模式），不阻擋頁面
 - **FR-014**: 教室小節內文以 `marked(content, { breaks: true })` 渲染 — 單一 `\n` 產生 `<br>`、空行為新段落；raw HTML（iframe 嵌入）維持 marked v17 預設原樣通過，不 sanitize
+- **FR-015**: 站內 Markdown 欄位命名一律 `*_md` 後綴（`content_md` / `question_md` / `handout_md` / `body_md` / `description_md` / `free_success_md`）；`md_content` 為 2026-02 改名遺留，US10 一併清除，日後不得再新增此形式的欄位
+- **FR-016**: 講義存 `assignments.handout_md`（選填，上限 50000 字，與題目同一驗證規則）；純屬 AI 脈絡資料，前台教室與學員端任何位置都不得輸出
+- **FR-017**: AI 批改只產生**草稿**：一律追加到批改輸入框末端，永不覆蓋既有文字、永不自動建立 comment — 送出批改始終是管理員的明確動作
+- **FR-018**: 草稿不落地 — 沒有 `ai_draft` 欄位、沒有生成紀錄表；未送出即丟棄。已送出的批改就是一般 comment，與手寫的無從也不需區分
+- **FR-019**: 生成為**同步** JSON 端點（非 queue）：一次呼叫、輸出短，管理員必須當場看到結果才能編輯。OpenAI 未設定、prompt 列不存在、模型無回傳一律回 422 + 可讀中文訊息，不寫入任何資料
+- **FR-020**: 送進模型的 input 由 `HomeworkGradingService` 組成固定四段 Markdown（`## 講義` / `## 作業題目` / `## 學員提交` / `## 先前的批改往返`）；每段上限 8000 字（超過從尾端截斷並標註「（內容過長，已截斷）」），往返只取最近 6 則。學員身分只以「學員」出現，不帶暱稱或 email
+- **FR-021**: 端點必須驗證 `comment.assignment_id === assignment.id` 且 `parent_id` 為 null（只能對頂層提交生成）；不符一律 404，防止用別題的 assignment id 拼出跨課程脈絡
 
 ## 設計決策
 
@@ -237,20 +308,32 @@ touchpoints:
 - **D10**: `lessons.video_platform` 由 enum('vimeo','youtube') 改 string(20) — 前例 `change_content_category_to_string_on_courses`；未來加來源不再動 schema。migration 由本模組擁有（前例：010 擁有 courses 表的 drip 欄位 migration）
 - **D11**: `Lesson::embed_url` attribute 對 cloudflare 維持回 null，簽名 URL 在 `ClassroomController` 兩處 lesson formatter 注入（`CloudflareStreamService::signedEmbedUrl()`）— token 有 TTL 屬 request-time 資料，不塞進 Model 靜態 attribute；Model 不 resolve service
 - **D12**: `CloudflareStreamService` 介面：`signedEmbedUrl(string $uid): ?string`（內含 JWT 組裝：header `{alg: RS256, kid}` + payload `{sub: uid, kid, exp: now+TTL}`，openssl_sign 後 base64url 拼接）；`VideoEmbedService::parse` 的 cloudflare `embed_url` 回未簽名 iframe URL（維持回傳 shape 一致，教室端不使用它）
-- **D13**: `HtmlContent` 補 `breaks: true`，讓教室與 Email 對同一份 `md_content` 給出相同換行語意。原本教室走 CommonMark 預設（單行併段），Email 端已於 011 FR-021 改成 hard break，兩邊分歧：作者在小節編輯器打一次 Enter，信裡有換行、教室裡沒有。站內其餘 Markdown 呈現（`AssignmentSection`、`CommentThread`、`Admin/Homework`、`EmailTemplates/Edit`）本來就帶 `breaks: true`，`HtmlContent` 是唯一漏網的。
+- **D13**: `HtmlContent` 補 `breaks: true`，讓教室與 Email 對同一份 `content_md` 給出相同換行語意。原本教室走 CommonMark 預設（單行併段），Email 端已於 011 FR-021 改成 hard break，兩邊分歧：作者在小節編輯器打一次 Enter，信裡有換行、教室裡沒有。站內其餘 Markdown 呈現（`AssignmentSection`、`CommentThread`、`Admin/Homework`、`EmailTemplates/Edit`）本來就帶 `breaks: true`，`HtmlContent` 是唯一漏網的。
   - 影響範圍：所有課程的小節內文。既有內容多半以連按兩次 Enter（`\n\n`）寫成，那是段落、不受影響；真正改變的只有目前被併行的單行，而那些正是作者本來就想換行的地方。
   - 當時不改 `Pages/Course/Show.vue` 的 `renderedDescription`（判斷銷售頁長文案的段落語意是刻意的），但 2026-08-08 業主回報「必須按兩次 Enter 才換行」是老問題，證明該假設不成立——`renderedDescription` 已於 002 FR-032 補上 `breaks: true`，理由與這裡相同。`PostForm`/部落格（`PostService`）維持不動，段落語意未收到相同回饋。
+
+- **D14**: 講義存 `assignments.handout_md` 而非 `lessons.handout_md` — 作業題目本來就是一節一題（`lesson_id` unique），存在 assignment 上等同 per-lesson，且讓 AI 批改要用的三件事（講義 / 題目 / 提交）全在同一筆、同一頁維護，老師批改時不必跨到課程後台。代價是沒有作業題目的小節無處放講義，但那種小節本來也用不到 AI 批改。被否決的 `lessons.handout_md` 會多動到 004 的 Lesson / LessonForm / StoreLessonRequest 三個檔，換來的只是「未來其他 AI 功能可能共用」這個尚未存在的需求
+- **D15**: 新增 `handout_md` 前先把 `lessons.md_content` → `content_md`、`assignments.md_content` → `question_md`（FR-015）— 這 repo 的 Markdown 欄位命名其實有規則（`body_md` / `description_md` / `free_success_md` 都是 `*_md`），`md_content` 只是 2026-02 那批 `html_content` rename 留下的例外。不先改，assignments 表會變成 `md_content` + `handout_md` 兩套命名法並排，之後每次新增欄位都要重新選一次。改名是純機械替換（PHP 35 處 / Vue 25 處），Laravel 12 原生 `renameColumn` 不需 doctrine/dbal。風險：Forge 部署 pull 完才跑 migrate，中間數秒舊 code 對到新 schema 會 500 — 單人網站可接受，且刻意排在同一次部署裡一起上
+- **D16**: 同步 JSON 端點而非 queue（FR-019）— 前例是 011 的 `regenerateSummary`：單次呼叫、輸出短，管理員按下去就是要當場看到草稿再編輯。丟 queue 會變成「按了、等三分鐘、重新整理」，對一個要接著手動改字的動作沒有意義。逾時就讓它失敗重試，不做輪詢狀態機
+- **D17**: 追加（append）而非覆蓋 textarea（FR-017）— 老師常見用法是先自己寫兩句重點、再讓 AI 補完整段；覆蓋會吃掉那兩句。也因此不做「採用 / 捨棄」的預覽區：草稿直接落在可編輯的 textarea 裡，本來就是要改的
+- **D18**: prompt 走既有 `ai_prompts` 註冊表（000 US10）而非寫死在 Service — 加一列 + `config/ai.php` 的 features 加一行，`/admin/settings/ai` 就自動多出「作業批改」分組，Vue 完全不動。業主要改批改語氣、換模型、調長度都不必發版。預設模型 `gpt-5.6-terra`（要判斷學員有沒有真的理解講義，比校訂類工作需要更多判斷力），`max_output_tokens` 2000（500 字中文約 1000 tokens，其餘留給 reasoning）
+- **D19**: 草稿不落地 DB（FR-018）— 不加 `ai_draft` 欄位、不記生成歷史。沒送出的草稿沒有價值，送出後它就是一則 comment；要區分「AI 寫的 / 人寫的」得先有這個需求，目前沒有
+- **D20**: 脈絡含既有批改往返（FR-020）— 學員交二稿、或老師想補一段評語時，模型能看到前面已經講過什麼，不會把同樣的建議再講一次。取最近 6 則、角色只標「老師 / 學員」（不帶暱稱與 email，PII 不進 prompt）
 
 ## Schema
 
 - `lesson_progress` — (user_id, lesson_id) 存在即代表該小節已完成；unique 複合鍵，無其他欄位（完成時間即 created_at）
-- `assignments` — 作業題目；`lesson_id` unique（一節最多一題）、`md_content` Markdown 題目、`is_published` 上下架（下架 = 前台隱藏、資料保留）
+- `assignments` — 作業題目；`lesson_id` unique（一節最多一題）、`question_md` Markdown 題目、`handout_md` 選填 Markdown 講義（**只餵 AI，前台永不輸出**）、`is_published` 上下架（下架 = 前台隱藏、資料保留）
 - `comments` — 作業留言；`parent_id` null = 學員頂層提交、非 null = 第二層回覆（批改/追問），最多兩層；`is_edited` 編輯標記；cascade 刪除（刪頂層連同子回覆）
 - `assignment_completions` — 完成標記；(assignment_id, user_id) unique，只有 created_at，建立即觸發積分與通知，不可撤銷
 - `homework_notifications` — 站內通知；`type` enum(reply, completion)、冗餘 `course_name`（免 join）、`lesson_id` 供跳轉、`is_read`；展示端只取最新 5 則
 - `lessons.video_platform`（表歸 004，本 migration 歸 003）— enum → string(20)；合法值 `vimeo` / `youtube` / `cloudflare`，來源真相是 `VideoEmbedService::parse` 的輸出，DB 不再約束
 
-**Config（非資料表）**：`services.cloudflare_stream` = `customer_code`（iframe 子網域 customer-{code}.cloudflarestream.com）、`key_id` + `private_key`（base64 PEM，簽 JWT 用）、`token_ttl`（秒，預設 43200）；對應 env `CLOUDFLARE_STREAM_CUSTOMER_CODE` / `CLOUDFLARE_STREAM_KEY_ID` / `CLOUDFLARE_STREAM_PRIVATE_KEY` / `CLOUDFLARE_STREAM_TOKEN_TTL`
+**改名（US10 / FR-015）**：`lessons.md_content` → `content_md`、`assignments.md_content` → `question_md`；純改名，型別、nullable、內容一律不動
+
+**AI prompt 列（非本模組資料表，寫入 000 擁有的 `ai_prompts`）**：`key = homework_grading_draft`、`feature = homework`、`label = 作業批改草稿`、`model = gpt-5.6-terra`、`max_output_tokens = 2000`；migration 以「不存在才插入」寫法（比照 `create_ai_prompts_table`，避免覆蓋業主改過的 instructions）
+
+**Config（非資料表）**：`ai.features` 加 `'homework' => '作業批改'`；`services.cloudflare_stream` = `customer_code`（iframe 子網域 customer-{code}.cloudflarestream.com）、`key_id` + `private_key`（base64 PEM，簽 JWT 用）、`token_ttl`（秒，預設 43200）；對應 env `CLOUDFLARE_STREAM_CUSTOMER_CODE` / `CLOUDFLARE_STREAM_KEY_ID` / `CLOUDFLARE_STREAM_PRIVATE_KEY` / `CLOUDFLARE_STREAM_TOKEN_TTL`
 
 ## Tasks
 
@@ -282,8 +365,39 @@ touchpoints:
 - [x] T012 以 lesson 80 內文比對 marked 前後輸出（改前無 `<br>`、改後有，iframe 仍原樣通過），`npm run build` exit 0
 - [x] T013 跑 `python3 tools/build_spec_index.py` 對帳索引
 
+**Phase F — Markdown 欄位改名（US10 / FR-015 / D15，獨立於 AI 功能，先做完再往下）**
+
+- [x] T014 migration：`lessons.md_content` → `content_md`、`assignments.md_content` → `question_md`（down 反向）in `database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php`
+- [x] T015 PHP 端替換 35 處：`Lesson`(fillable)、`Assignment`(fillable)、`AssignmentRequest`、`StoreLessonRequest`、`ChapterController`、`ClassroomController`、`HomeworkController`、`DripService`、`ConvertHtmlToMarkdown`、`DripLessonPreviewController` / `DripLessonMail` / `drip-lesson.blade.php` 的註解
+- [x] T016 [P] Vue 端替換 25 處：`LessonForm.vue`（含兩處插入佔位符的字串操作）、`Pages/Member/Classroom.vue`、`Pages/Admin/Homework/Index.vue`、`AssignmentSection.vue`、`HtmlContent.vue` 註解
+- [x] T017 測試端替換：`HomeworkCoursesTest`、`UserSocialLinkTest`、`SettingsEffectTest`、`Drip/GuestClaimTest`、`Drip/MemberSubscribeTest`、`Drip/LessonEmailPreviewTest`、`Storefront/EmailLinkTaggerTest`；`php artisan test` 全綠 + `npm run build` exit 0
+- [x] T018 000 FR-006 的指令說明文字同步改名 in `specs/000-platform-core/spec.md`
+
+**Phase G — 講義欄位（US10 / FR-016 / D14）**
+
+- [x] T019 migration：`assignments.handout_md` nullable text（after `question_md`）in `database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php`
+- [x] T020 [P] `handout_md` 加入 fillable in `app/Models/Assignment.php`；驗證 `['nullable','string','max:50000']` in `app/Http/Requests/Admin/AssignmentRequest.php`
+- [x] T021 `getAssignmentsMap()` 回傳 `handout_md` 供編輯表單帶入 in `app/Http/Controllers/Admin/HomeworkController.php`
+- [x] T022 新增/編輯題目表單加「講義（選填）」textarea + 說明「只提供給 AI 參考，學員看不到」，共用既有編輯/預覽切換 in `resources/js/Pages/Admin/Homework/Index.vue`
+
+**Phase H — AI 批改（US10 / FR-017~021 / D16~D20）**
+
+- [x] T023 [P] `features` 加 `'homework' => '作業批改'` in `config/ai.php`
+- [x] T024 [P] migration：插入 `homework_grading_draft` prompt 列（不存在才插入；instructions 含「繁中、500 字以內、先具體肯定→再指 1–3 個可改進處並給做法→收尾一句下一步」「依講義用詞與觀念判斷，不臆測學員沒寫的內容」「不重複先前批改講過的建議」「直接輸出可貼上的內容，無開場白」）in `database/migrations/2026_08_18_000007_install_homework_grading_prompt.php`
+- [x] T025 `HomeworkGradingService`：`draft(Assignment, Comment): ?string` + private `buildInput()`（四段組裝、每段 8000 字截斷、往返取最近 6 則、角色標「老師/學員」）in `app/Services/HomeworkGradingService.php`
+- [x] T026 `aiDraft(Assignment, Comment, HomeworkGradingService): JsonResponse`（驗 comment 歸屬 + parent_id null 否則 404；null → 422 中文訊息；成功回 `{draft}`）in `app/Http/Controllers/Admin/HomeworkController.php`
+- [x] T027 route `POST /admin/homework/{assignment}/comments/{comment}/ai-draft` name `homework.comments.ai-draft` in `routes/web.php`
+- [x] T028 回覆面板加「AI 輔助批改」按鈕：axios POST、loading 態「AI 產生中…」且 disabled、成功追加到 textarea 末端（非空則空行分隔）並 focus、失敗顯示面板內紅字訊息 in `resources/js/Pages/Admin/Homework/Index.vue`
+
+**Phase I — 驗證**
+
+- [x] T029 Feature 測試（`Http::fake`）：input 四段組裝與截斷、講義未填仍可生成、未設 API key 回 422、跨 assignment 的 comment 回 404、生成不建立 comment in `tests/Feature/Classroom/AiGradingTest.php`
+- [x] T030 `php artisan test` 全綠、`npm run build` exit 0、跑 `python3 tools/build_spec_index.py` 對帳索引
+
 ## 進度日誌
 
+- 2026-08-18: 實作 US10 完成（T014–T030）— Phase F 欄位改名（md_content → content_md / question_md，PHP+Vue+測試共 60 處，行為零變更）、Phase G 講義欄位、Phase H AI 批改（HomeworkGradingService + 同步 JSON 端點 + 回覆面板按鈕）。新增 AiGradingTest 11 案，全 repo 758 passed（改名前基準 747）、npm build exit 0。過程修正兩處測試預期：admin 防護是 302 導回首頁非 403、截斷計數誤含標題字元
+- 2026-08-18: 規劃 US10 AI 快速批改（講義欄位 + 回覆面板一鍵生成草稿），同時清掉 `md_content` 命名舊債（→ `content_md` / `question_md`），status: draft 待審
 - 2026-08-07: 教室小節內文補 `breaks: true`（FR-014 / D13）— 同一份 `md_content` 在信裡會換行、在教室卻被併成一行，原因是 `HtmlContent` 是站內唯一沒帶 breaks 的 marked 呼叫。查證時確認 Email 端（`EmailMarkdownService` soft_break）自 8/4 起就是對的，正式站實跑 pipeline 有 `<br />`，問題只在教室。522 passed、npm build exit 0。
 - 2026-07-22: `VideoEmbedService::parse()` YouTube regex 加 `shorts/`、`live/` 路徑格式（012-newsletter 文章 shorts 網址未轉 embed 的修正；小節影片上架同步受益）。PostServiceTest 補案例，全 repo 168 passed。
 - 2026-07-15: 實作 US9 Cloudflare Stream 影音來源完成（T001–T010）— migration enum→string、CloudflareStreamService（本地 RS256 JWT 簽名）、parse 四格式、表單/驗證/播放器三端接通；全套測試 156 passed、npm build 過。附帶修正：VideoPlayer 的 Vimeo message listener 改為無條件註冊（跨平台切換小節後 Vimeo ended 事件原本會失效）

@@ -50,7 +50,7 @@ class LessonEmailPreviewTest extends TestCase
         return Lesson::create([
             'course_id'   => $course->id,
             'title'       => '第一課：為什麼你一直卡住',
-            'md_content'  => $md,
+            'content_md'  => $md,
             'sort_order'  => $sortOrder,
         ]);
     }

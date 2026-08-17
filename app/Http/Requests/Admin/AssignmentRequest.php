@@ -14,7 +14,9 @@ class AssignmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'md_content' => ['required', 'string', 'max:50000'],
+            'question_md' => ['required', 'string', 'max:50000'],
+            // Optional context for the AI grading draft only — never rendered to students (FR-016).
+            'handout_md'  => ['nullable', 'string', 'max:50000'],
         ];
     }
 }

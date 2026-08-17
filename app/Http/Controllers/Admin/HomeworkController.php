@@ -11,6 +11,8 @@ use App\Models\HomeworkNotification;
 use App\Models\Lesson;
 use App\Models\User;
 use App\Services\AssignmentService;
+use App\Services\HomeworkGradingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +61,7 @@ class HomeworkController extends Controller
                 'created_at' => $comment->created_at,
                 'assignment' => [
                     'id' => $comment->assignment->id,
-                    'md_content' => $comment->assignment->md_content,
+                    'question_md' => $comment->assignment->question_md,
                     'is_published' => $comment->assignment->is_published,
                     'lesson' => [
                         'id' => $comment->assignment->lesson->id,
@@ -223,6 +225,34 @@ class HomeworkController extends Controller
         return redirect()->back()->with('success', '回覆已送出');
     }
 
+    /**
+     * Draft a grading reply for one submission (US10 / FR-017).
+     *
+     * Synchronous on purpose (D16): the admin is standing in front of the reply
+     * panel waiting to edit whatever comes back, so a queued job would only turn
+     * one press into "wait, then refresh". Nothing is written here — the draft
+     * goes to the textarea and becomes a comment only if the admin sends it.
+     */
+    public function aiDraft(
+        Assignment $assignment,
+        Comment $comment,
+        HomeworkGradingService $grading,
+    ): JsonResponse {
+        // Only this assignment's own top-level submissions (FR-021). Otherwise a
+        // stitched-together id pair would hand back another course's context.
+        abort_if($comment->assignment_id !== $assignment->id || $comment->parent_id !== null, 404);
+
+        $draft = $grading->draft($assignment, $comment);
+
+        if ($draft === null) {
+            return response()->json([
+                'message' => 'AI 尚未設定或沒有回傳內容，請確認 AI 設定頁的 API Key',
+            ], 422);
+        }
+
+        return response()->json(['draft' => $draft]);
+    }
+
     public function updateComment(Request $request, Assignment $assignment, Comment $comment): RedirectResponse
     {
         $request->validate([
@@ -263,7 +293,8 @@ class HomeworkController extends Controller
             ->keyBy('lesson_id')
             ->map(fn ($a) => [
                 'id' => $a->id,
-                'md_content' => $a->md_content,
+                'question_md' => $a->question_md,
+                'handout_md' => $a->handout_md,
                 'is_published' => $a->is_published,
                 'lesson_id' => $a->lesson_id,
                 'lesson_title' => $a->lesson->title,

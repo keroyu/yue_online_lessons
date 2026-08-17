@@ -154,7 +154,7 @@ class EmailLinkTaggerTest extends TestCase
                 'course_id' => $course->id, 'title' => "L{$i}",
                 'video_platform' => 'vimeo', 'video_id' => '1032766965',
                 'sort_order' => $sortOrder,
-                'md_content' => "去看看 {{classroom_url}}\n\n也可以直接看[課程頁](/course/free-ebook)，"
+                'content_md' => "去看看 {{classroom_url}}\n\n也可以直接看[課程頁](/course/free-ebook)，"
                     . "或我朋友的[外站文章](https://example.org/post)。",
             ]);
         }

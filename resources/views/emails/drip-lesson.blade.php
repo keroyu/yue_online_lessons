@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {{-- Paragraph rhythm for the body copy. md_content reaches the blade with
+    {{-- Paragraph rhythm for the body copy. content_md reaches the blade with
          every style and class attribute stripped (DripService::stripStylesForEmail),
          so this is the only place the letter's spacing can come from. Clients
          that drop <style> fall back to the default 1em margin, which is close. --}}

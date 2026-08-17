@@ -149,7 +149,7 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 章 CRUD（title + sort_order）；刪章時連動刪除其下所有小節
 - [x] 節可屬章或獨立（`chapter_id` nullable）；`sort_order` 取所在容器（該章或無章區）max+1
 - [x] `video_url` 經 `VideoEmbedService` 驗證並解析為 `video_platform` + `video_id`；更新時清空連結則三欄一併設 null
-- [x] 無影片小節以 `md_content`（Markdown）呈現圖文/電子書內容
+- [x] 無影片小節以 `content_md`（Markdown）呈現圖文/電子書內容
 - [x] 時長欄接受 `M:SS` 與 `H:MM:SS` 兩種輸入，轉存 `duration_seconds`；小節增刪改後課程 `duration_minutes` 自動重算（僅加總有 `video_id` 的小節）
 - [x] 拖曳排序（vuedraggable）：章 reorder；小節 reorder 可跨章拖曳（同時更新 `chapter_id` 與 `sort_order`）
 - [x] `is_preview` 免費試閱勾選框（drip 課程不顯示）；重新編輯時勾選狀態正確回填（2026-05-09 修正）

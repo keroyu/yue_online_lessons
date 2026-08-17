@@ -9,6 +9,9 @@
     "app/Console/Commands/CleanDormantSubscribers.php": [
       "012.us-7"
     ],
+    "app/Console/Commands/ConvertHtmlToMarkdown.php": [
+      "003.us-10"
+    ],
     "app/Console/Commands/FetchConsultationTranscript.php": [
       "011.us-23",
       "011.us-25"
@@ -50,6 +53,7 @@
       "012.us-6"
     ],
     "app/Http/Controllers/Admin/ChapterController.php": [
+      "003.us-10",
       "004.us-3",
       "006.us-5",
       "011.us-21"
@@ -134,6 +138,7 @@
     ],
     "app/Http/Controllers/Admin/HomeworkController.php": [
       "001.us-3",
+      "003.us-10",
       "003.us-6",
       "003.us-7"
     ],
@@ -273,6 +278,7 @@
       "003.us-5"
     ],
     "app/Http/Controllers/Member/ClassroomController.php": [
+      "003.us-10",
       "003.us-2",
       "003.us-3",
       "003.us-4",
@@ -365,6 +371,7 @@
       "005.us-1"
     ],
     "app/Http/Requests/Admin/AssignmentRequest.php": [
+      "003.us-10",
       "003.us-6"
     ],
     "app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php": [
@@ -416,6 +423,7 @@
       "002.us-6"
     ],
     "app/Http/Requests/Admin/StoreLessonRequest.php": [
+      "003.us-10",
       "003.us-9",
       "004.us-3"
     ],
@@ -610,6 +618,7 @@
       "000.us-10"
     ],
     "app/Models/Assignment.php": [
+      "003.us-10",
       "003.us-5",
       "003.us-6"
     ],
@@ -703,6 +712,7 @@
       "003.us-8"
     ],
     "app/Models/Lesson.php": [
+      "003.us-10",
       "004.us-3",
       "010.us-18",
       "011.us-21"
@@ -837,6 +847,7 @@
     "app/Services/DripService.php": [
       "000.us-9",
       "002.us-17",
+      "003.us-10",
       "010.us-1",
       "010.us-10",
       "010.us-11",
@@ -889,6 +900,9 @@
       "011.us-4",
       "011.us-5",
       "011.us-9"
+    ],
+    "app/Services/HomeworkGradingService.php": [
+      "003.us-10"
     ],
     "app/Services/MetaConversionsService.php": [
       "000.us-7"
@@ -991,7 +1005,8 @@
       "010.us-6"
     ],
     "config/ai.php": [
-      "000.us-10"
+      "000.us-10",
+      "003.us-10"
     ],
     "config/drip.php": [
       "010.us-10"
@@ -1258,6 +1273,15 @@
     "database/migrations/2026_08_18_000004_install_application_resume_template.php": [
       "011.us-26"
     ],
+    "database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php": [
+      "003.us-10"
+    ],
+    "database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php": [
+      "003.us-10"
+    ],
+    "database/migrations/2026_08_18_000007_install_homework_grading_prompt.php": [
+      "003.us-10"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1353,6 +1377,7 @@
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
       "002.us-14",
+      "003.us-10",
       "003.us-9",
       "004.us-3",
       "004.us-6",
@@ -1388,6 +1413,7 @@
       "007.us-7"
     ],
     "resources/js/Components/Classroom/AssignmentSection.vue": [
+      "003.us-10",
       "003.us-5",
       "003.us-7"
     ],
@@ -1636,6 +1662,7 @@
     ],
     "resources/js/Pages/Admin/Homework/Index.vue": [
       "001.us-3",
+      "003.us-10",
       "003.us-6"
     ],
     "resources/js/Pages/Admin/Members/Index.vue": [
@@ -1733,6 +1760,7 @@
       "012.us-3"
     ],
     "resources/js/Pages/Member/Classroom.vue": [
+      "003.us-10",
       "003.us-2",
       "003.us-3",
       "003.us-4",
@@ -1794,6 +1822,10 @@
     "resources/views/emails/course-gifted.blade.php": [
       "008.us-6"
     ],
+    "resources/views/emails/drip-lesson-text.blade.php": [
+      "010.us-3",
+      "010.us-6"
+    ],
     "resources/views/emails/drip-lesson.blade.php": [
       "010.us-17",
       "010.us-3",
@@ -1843,6 +1875,7 @@
       "001.us-3",
       "002.us-15",
       "002.us-9",
+      "003.us-10",
       "006.us-1",
       "010.us-15",
       "010.us-17",
@@ -1871,6 +1904,9 @@
     ],
     "tests/Feature/CheckoutTrafficSourceTest.php": [
       "002.us-10"
+    ],
+    "tests/Feature/Classroom/AiGradingTest.php": [
+      "003.us-10"
     ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"

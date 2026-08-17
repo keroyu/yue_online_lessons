@@ -12,7 +12,7 @@ class Assignment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['lesson_id', 'md_content', 'is_published'];
+    protected $fillable = ['lesson_id', 'question_md', 'handout_md', 'is_published'];
 
     protected function casts(): array
     {

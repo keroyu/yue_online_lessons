@@ -386,7 +386,7 @@ class ClassroomController extends Controller
             'video_platform' => $lesson->video_platform,
             'video_id' => $lesson->video_id,
             'embed_url' => $this->embedUrlFor($lesson),
-            'md_content' => $lesson->md_content,
+            'content_md' => $lesson->content_md,
             'is_completed' => false,
             'is_locked' => false,
             'is_preview' => $lesson->is_preview,
@@ -433,7 +433,7 @@ class ClassroomController extends Controller
             'video_platform' => $isLocked ? null : $lesson->video_platform,
             'video_id' => $isLocked ? null : $lesson->video_id,
             'embed_url' => $isLocked ? null : $this->embedUrlFor($lesson),
-            'md_content' => $isLocked ? null : $lesson->md_content,
+            'content_md' => $isLocked ? null : $lesson->content_md,
             'is_completed' => in_array($lesson->id, $completedLessonIds),
             'is_locked' => $isLocked,
             'promo_delay_seconds' => $isLocked ? null : $lesson->promo_delay_seconds,
@@ -453,7 +453,7 @@ class ClassroomController extends Controller
                 : null,
             'assignment' => $assignment ? [
                 'id' => $assignment->id,
-                'md_content' => $assignment->md_content,
+                'question_md' => $assignment->question_md,
                 'is_completed' => $isAssignmentCompleted,
             ] : null,
             'assignment_comments' => $assignmentComments->map(fn ($comment) => [

@@ -35,7 +35,7 @@ class MemberSubscribeTest extends TestCase
         Lesson::create([
             'course_id' => $course->id, 'title' => '第一課',
             'video_platform' => 'vimeo', 'video_id' => '1032766965',
-            'sort_order' => 1, 'md_content' => '內容',
+            'sort_order' => 1, 'content_md' => '內容',
         ]);
 
         return $course;

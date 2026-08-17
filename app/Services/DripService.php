@@ -103,7 +103,7 @@ class DripService
      *
      * Both the real send (SendDripEmailJob) and the admin preview (US17) come
      * through here, deliberately: the delivered HTML is several transforms away
-     * from `md_content` (markdown → strip style/class → UTM stamping → greeting
+     * from `content_md` (markdown → strip style/class → UTM stamping → greeting
      * and subject assembly → blade), and a preview that re-derives any of that
      * would be previewing something other than the mail (FR-031).
      *
@@ -127,7 +127,7 @@ class DripService
             'utm_content'  => 'lesson-' . $this->lessonNumber($lesson),
         ];
 
-        $rawMd = str_replace('{{classroom_url}}', $this->linkTagger->tagUrl($classroomUrl, $utm), $lesson->md_content ?: '');
+        $rawMd = str_replace('{{classroom_url}}', $this->linkTagger->tagUrl($classroomUrl, $utm), $lesson->content_md ?: '');
         // Single Enter is a real line break here too (011 FR-021).
         $htmlContent = $rawMd
             ? $this->linkTagger->tagHtml($this->stripStylesForEmail(EmailMarkdownService::toHtml($rawMd)), $utm)

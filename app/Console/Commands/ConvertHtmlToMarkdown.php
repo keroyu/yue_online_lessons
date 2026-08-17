@@ -32,13 +32,13 @@ class ConvertHtmlToMarkdown extends Command
 
         $this->info('Courses done.');
 
-        // Convert lessons.md_content
-        $lessons = Lesson::whereNotNull('md_content')->where('md_content', '!=', '')->get();
+        // Convert lessons.content_md
+        $lessons = Lesson::whereNotNull('content_md')->where('content_md', '!=', '')->get();
         $this->info("Converting {$lessons->count()} lessons...");
 
         foreach ($lessons as $lesson) {
-            $md = $converter->convert($lesson->md_content);
-            $lesson->md_content = $md;
+            $md = $converter->convert($lesson->content_md);
+            $lesson->content_md = $md;
             $lesson->saveQuietly();
         }
 

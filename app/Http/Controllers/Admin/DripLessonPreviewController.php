@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
  * 010 US17 — what this lesson's letter looks like when it goes out.
  *
  * Renders the real DripLessonMail rather than re-deriving the HTML, because the
- * delivered mail is several transforms away from `md_content` and those
+ * delivered mail is several transforms away from `content_md` and those
  * transforms are exactly what the admin is here to check (FR-030).
  */
 class DripLessonPreviewController extends Controller

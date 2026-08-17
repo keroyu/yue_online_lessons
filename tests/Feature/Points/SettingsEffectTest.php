@@ -27,7 +27,7 @@ class SettingsEffectTest extends TestCase
         $chapter = Chapter::create(['course_id' => $course->id, 'title' => 'Ch', 'sort_order' => 1]);
         $lesson = Lesson::create(['course_id' => $course->id, 'chapter_id' => $chapter->id, 'title' => 'L']);
 
-        return Assignment::create(['lesson_id' => $lesson->id, 'md_content' => 'hw', 'is_published' => true]);
+        return Assignment::create(['lesson_id' => $lesson->id, 'question_md' => 'hw', 'is_published' => true]);
     }
 
     public function test_homework_reward_setting_affects_next_award_not_history(): void

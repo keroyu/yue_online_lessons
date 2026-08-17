@@ -63,7 +63,7 @@ class DripLessonMail extends Mailable
     /**
      * The plain-text half of the multipart mail. An HTML-only bulk mail is one
      * of the cheaper spam signals to give away, and this body round-trips well:
-     * it was authored as Markdown (lessons.md_content) and comes back as
+     * it was authored as Markdown (lessons.content_md) and comes back as
      * Markdown, keeping the UTM stamping that was applied to the HTML links.
      */
     private function plainTextBody(): string

@@ -27,7 +27,7 @@ class StoreLessonRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             // string (not url): a bare Cloudflare Stream UID is also accepted
             'video_url' => ['nullable', 'string', 'max:500'],
-            'md_content' => ['nullable', 'string'],
+            'content_md' => ['nullable', 'string'],
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:7200'],
             'promo_html' => ['nullable', 'string', 'max:10000'],

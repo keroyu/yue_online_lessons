@@ -59,7 +59,7 @@ const renderMd = (md) => marked.parse(md || '', { breaks: true })
 
 // Assignment form
 const showAssignmentForm = ref(null)
-const assignmentForm = ref({ md_content: '', lesson_id: '' })
+const assignmentForm = ref({ question_md: '', handout_md: '', lesson_id: '' })
 const previewMode = ref(false)
 
 const lessonsWithoutAssignment = computed(() => {
@@ -87,7 +87,7 @@ const lessonGroups = computed(() => {
 
 const openCreateForm = (lessonId) => {
   showAssignmentForm.value = lessonId
-  assignmentForm.value = { md_content: '', lesson_id: lessonId }
+  assignmentForm.value = { question_md: '', handout_md: '', lesson_id: lessonId }
   previewMode.value = false
 }
 
@@ -98,19 +98,19 @@ const submitAssignment = (lessonId) => {
     preserveScroll: true,
     onSuccess: () => {
       showAssignmentForm.value = null
-      assignmentForm.value = { md_content: '', lesson_id: '' }
+      assignmentForm.value = { question_md: '', handout_md: '', lesson_id: '' }
     },
   })
 }
 
 // Edit assignment
 const editingAssignment = ref(null)
-const editForm = ref({ md_content: '' })
+const editForm = ref({ question_md: '', handout_md: '' })
 const editPreview = ref(false)
 
 const openEditForm = (assignment) => {
   editingAssignment.value = assignment.id
-  editForm.value = { md_content: assignment.md_content }
+  editForm.value = { question_md: assignment.question_md, handout_md: assignment.handout_md ?? '' }
   editPreview.value = false
 }
 
@@ -144,8 +144,15 @@ const replyPanel = ref({ open: false, submission: null })
 const replyContent = ref('')
 const replyTextarea = ref(null)
 
+// AI 輔助批改：產生草稿並「追加」到批改欄位，永不覆蓋、永不自動送出
+// The globally configured axios (CSRF token) — same pattern as the other admin pages.
+const axios = window.axios
+const aiLoading = ref(false)
+const aiError = ref('')
+
 const openReplyPanel = (sub) => {
   replyContent.value = ''
+  aiError.value = ''
   replyPanel.value = { open: true, submission: sub }
   nextTick(() => replyTextarea.value?.focus())
 }
@@ -153,6 +160,34 @@ const openReplyPanel = (sub) => {
 const closeReplyPanel = () => {
   replyPanel.value = { open: false, submission: null }
   replyContent.value = ''
+  aiError.value = ''
+}
+
+const generateAiDraft = async () => {
+  const sub = replyPanel.value.submission
+  if (!sub || aiLoading.value) return
+
+  aiLoading.value = true
+  aiError.value = ''
+
+  try {
+    const { data } = await axios.post(
+      `/admin/homework/${sub.assignment.id}/comments/${sub.id}/ai-draft`
+    )
+    const existing = replyContent.value.trimEnd()
+    replyContent.value = existing ? `${existing}\n\n${data.draft}` : data.draft
+    nextTick(() => {
+      const el = replyTextarea.value
+      if (!el) return
+      el.focus()
+      el.selectionStart = el.selectionEnd = replyContent.value.length
+      el.scrollTop = el.scrollHeight
+    })
+  } catch (e) {
+    aiError.value = e.response?.data?.message ?? 'AI 產生失敗，請稍後再試一次'
+  } finally {
+    aiLoading.value = false
+  }
 }
 
 const submitReply = () => {
@@ -475,8 +510,17 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                             <button class="text-xs px-3 py-1 rounded" :class="editPreview ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="editPreview = true">預覽</button>
                           </div>
                         </div>
-                        <textarea v-if="!editPreview" v-model="editForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
-                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.md_content)" />
+                        <textarea v-if="!editPreview" v-model="editForm.question_md" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
+                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(editForm.question_md)" />
+
+                        <!-- 講義：只餵給 AI 批改，學員端永遠看不到 -->
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                          <label class="block text-sm font-semibold text-gray-800 mb-1">講義（選填）</label>
+                          <p class="text-xs text-gray-500 mb-2">只提供給「AI 輔助批改」當作判斷依據，學員看不到。填了 AI 才知道你這節課教了什麼。</p>
+                          <textarea v-if="!editPreview" v-model="editForm.handout_md" rows="6" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式，例如本節重點、評分標準、常見錯誤..." />
+                          <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-24" v-html="renderMd(editForm.handout_md || '_（未填寫講義）_')" />
+                        </div>
+
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitEdit(row.assignment.id)">儲存</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="editingAssignment = null">取消</button>
@@ -496,8 +540,17 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                             <button class="text-xs px-3 py-1 rounded" :class="previewMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'" @click="previewMode = true">預覽</button>
                           </div>
                         </div>
-                        <textarea v-if="!previewMode" v-model="assignmentForm.md_content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
-                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.md_content)" />
+                        <textarea v-if="!previewMode" v-model="assignmentForm.question_md" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式..." />
+                        <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-32" v-html="renderMd(assignmentForm.question_md)" />
+
+                        <!-- 講義：只餵給 AI 批改，學員端永遠看不到 -->
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                          <label class="block text-sm font-semibold text-gray-800 mb-1">講義（選填）</label>
+                          <p class="text-xs text-gray-500 mb-2">只提供給「AI 輔助批改」當作判斷依據，學員看不到。填了 AI 才知道你這節課教了什麼。</p>
+                          <textarea v-if="!previewMode" v-model="assignmentForm.handout_md" rows="6" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-teal focus:border-brand-teal" placeholder="Markdown 格式，例如本節重點、評分標準、常見錯誤..." />
+                          <div v-else class="assignment-content border border-gray-200 rounded-md p-4 bg-gray-50 min-h-24" v-html="renderMd(assignmentForm.handout_md || '_（未填寫講義）_')" />
+                        </div>
+
                         <div class="mt-3 flex gap-2">
                           <button class="text-sm bg-brand-teal text-white px-4 py-1.5 rounded-md hover:bg-brand-teal/90 font-medium" @click="submitAssignment(row.id)">建立題目</button>
                           <button class="text-sm text-gray-500 px-3 py-1.5 rounded-md hover:bg-gray-100" @click="showAssignmentForm = null">取消</button>
@@ -555,7 +608,26 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
       <!-- Textarea -->
       <div class="flex-1 overflow-y-auto px-4 py-3">
-        <label class="text-xs font-medium text-gray-700 mb-1 block">批改內容（支援 Markdown）</label>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-medium text-gray-700">批改內容（支援 Markdown）</label>
+          <button
+            :disabled="aiLoading"
+            class="inline-flex items-center gap-1 text-xs font-medium text-brand-teal border border-brand-teal/30 bg-brand-teal/10 px-2 py-1 rounded hover:bg-brand-teal/20 hover:border-brand-teal/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="generateAiDraft"
+          >
+            <svg v-if="aiLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+            </svg>
+            {{ aiLoading ? 'AI 產生中…' : 'AI 輔助批改' }}
+          </button>
+        </div>
+        <p v-if="aiError" class="mb-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+          {{ aiError }}
+        </p>
         <textarea
           ref="replyTextarea"
           v-model="replyContent"

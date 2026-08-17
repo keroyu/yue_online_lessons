@@ -161,8 +161,8 @@ touchpoints:
 - [x] `drip:process-emails` 每日 09:00 排程（routes/console.php），應解鎖數 = floor(訂閱天數/間隔)+1（上限為 Lesson 總數）
 - [x] SendDripEmailJob 發信前跳過停信狀態（unsubscribed/converted/**booked**，US13 修訂）；completed 仍寄出最後一封（狀態與 dispatch 同時發生）
 - [x] 失敗重試 3 次（backoff 60/300/900 秒）
-- [x] 信件內容 = 問候語（有名字才顯示）+ md_content 轉 HTML（strip style/class）+ 退訂連結 + tracking pixel；`{{classroom_url}}` 佔位符替換為教室 URL（帶 lesson_id）
-- [x] 信為 multipart：同一份 `md_content` 同時產出 HTML 與純文字兩版一起寄出（FR-041），後台無第二個編輯欄位
+- [x] 信件內容 = 問候語（有名字才顯示）+ content_md 轉 HTML（strip style/class）+ 退訂連結 + tracking pixel；`{{classroom_url}}` 佔位符替換為教室 URL（帶 lesson_id）
+- [x] 信為 multipart：同一份 `content_md` 同時產出 HTML 與純文字兩版一起寄出（FR-041），後台無第二個編輯欄位
 - [x] HTML 版以 wrapper div 宣告 16px / 行高 1.75 / 無襯線字型，段落間距 20px；無卡片外框、無底色、無品牌標題列（D34）
 - [x] 主旨/問候名字：nickname 優先、fallback real_name；3 個中文字取後 2 字；無名字則省略
 - [x] 管理員新增 Lesson 時，completed 訂閱自動 reactivate 為 active（後續排程補發新信）
@@ -218,8 +218,8 @@ drip 課程可設定多個目標課程；訂閱者購買任一目標課程後狀
 - [x] CourseForm「連鎖 Email 設定」分頁：drip_interval_days、目標課程多選、依現有 Lesson 排序預覽 Day 0/N/2N 發信日
 - [x] 解鎖日全自動：位次 × drip_interval_days（位次見 FR-022），管理員只調排序與間隔
 - [x] LessonForm（drip 課程）「+ 插入教室連結」在游標處插入 `{{classroom_url}}`；偵測到影片 URL 時顯示琥珀色提醒
-- [x] 信件不含系統固定區塊（課程標題行/影片提醒/教室連結），內容連結全由管理員在 md_content 維護（退訂連結除外）
-- [x] 系統會在 md_content **之前**自動加一行「Hi {暱稱}，」、主旨自動組成「{暱稱}，{小節標題}」（無暱稱時兩者都省略），**之後**自動附退訂連結；LessonForm 的 Markdown 內容欄上方 MUST 在 drip 課程時說明這件事，避免管理員在正文重複寫稱呼
+- [x] 信件不含系統固定區塊（課程標題行/影片提醒/教室連結），內容連結全由管理員在 content_md 維護（退訂連結除外）
+- [x] 系統會在 content_md **之前**自動加一行「Hi {暱稱}，」、主旨自動組成「{暱稱}，{小節標題}」（無暱稱時兩者都省略），**之後**自動附退訂連結；LessonForm 的 Markdown 內容欄上方 MUST 在 drip 課程時說明這件事，避免管理員在正文重複寫稱呼
 
 ### User Story 9 - Lesson 促銷區塊與教室點擊追蹤 (Priority: P2)
 
@@ -362,7 +362,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 在統計表點該列的標題，直接開 modal 看那封信寄出去的樣子。
 
-關鍵是**預覽必須等於寄出**：信件最終的 HTML 不是 `md_content` 本身，
+關鍵是**預覽必須等於寄出**：信件最終的 HTML 不是 `content_md` 本身，
 中間還隔著 Markdown 轉換、strip style/class、UTM 戳章、問候語組裝、blade 版面與頁尾。
 前端拿 `marked` 重繪一份只會給出「像那封信的東西」，而預覽的用途正是抓出那些差異，
 所以一律由後端渲染真正的 `DripLessonMail`（D25）。
@@ -376,7 +376,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - [x] 預覽為唯讀：MUST NOT 寫入任何 `drip_email_events`、MUST NOT 動到任何真實訂閱者的 token 或統計（FR-032）
 - [x] 內文連結仍帶真實的 UTM 戳章（`utm_source=drip`、`utm_content=lesson-N`）—— 那正是最需要被眼睛檢查的部分
 - [x] `{{classroom_url}}` 佔位符已代換為真實教室連結，與寄出時相同
-- [x] 無 `md_content` 的 Lesson 預覽顯示 blade 的 fallback 文案（「新的內容已經解鎖了，請至網站觀看。」），不報錯
+- [x] 無 `content_md` 的 Lesson 預覽顯示 blade 的 fallback 文案（「新的內容已經解鎖了，請至網站觀看。」），不報錯
 - [x] 端點權限跟隨宿主頁面（`/admin/high-ticket-leads` 為 **staff**，業務諮詢師看得到訂閱者 tab）；非 drip 課程的 Lesson 回 404（FR-033）
 - [x] 本次**不做**「寄測試信到我的信箱」，只做畫面預覽（D28）
 - [x] 測試：admin 取得 200 且 HTML 含內文與頁尾、不含追蹤像素 `<img`；非 admin 不得存取；非 drip Lesson 404；既有 `DripMailDeliverabilityTest` 零修改續過
@@ -445,7 +445,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-031**: 寄信與預覽 MUST 共用單一組裝函式 `DripService::buildLessonMail(Lesson $lesson, ?DripSubscription $subscription = null, ?User $user = null): DripLessonMail`。`SendDripEmailJob::handle()` 內的內文組裝（含 `resolveGreetingName`、`stripStylesForEmail`）整段移入該函式，Job 只留狀態判斷、寄送、記錄 sent 事件。兩份組裝邏輯是預覽失真的唯一來路，不得存在
 - **FR-032**: 預覽 MUST 為唯讀且無副作用：`$subscription`/`$user` 為 null 時 `openPixelUrl` 為空字串（blade 不輸出像素）、`unsubscribeUrl` 為 `#`、問候語為 `DripService::PREVIEW_GREETING_NAME`。MUST NOT 寫入 `drip_email_events`、MUST NOT 使用真實訂閱者的 `unsubscribe_token`（誤點即真的把人退掉）
 - **FR-033**: 預覽端點 `GET /admin/drip/lessons/{lesson}/email-preview` MUST 與宿主頁面同權限層級 —— 掛 **staff** middleware 群組（不是 admin）。訂閱者名單本身就在 `/admin/high-ticket-leads` 的 staff 群組內，端點若收緊成 admin，業務諮詢師看得到那張統計表卻點不開預覽。且 MUST 對非 drip 課程的 Lesson 回 404 —— 一般課程根本不寄這封信，能預覽只是誤導
-- **FR-034**: 預覽 HTML MUST 以 `sandbox` iframe 的 `srcdoc` 呈現（比照 011 FR 的模板預覽）。兩個理由：後台頁面的 Tailwind 樣式會讓預覽比實際的信好看，以及 `md_content` 允許原生 HTML，未 sandbox 等於讓內容在 admin session 下執行 script
+- **FR-034**: 預覽 HTML MUST 以 `sandbox` iframe 的 `srcdoc` 呈現（比照 011 FR 的模板預覽）。兩個理由：後台頁面的 Tailwind 樣式會讓預覽比實際的信好看，以及 `content_md` 允許原生 HTML，未 sandbox 等於讓內容在 admin session 下執行 script
 
 - **FR-035**: 解鎖日 MUST 只由 `DripService::unlockDay(Lesson $lesson): int` 產出，回傳「訂閱後第幾天」的絕對天數。實作為 `$lesson->drip_day ?? 位次 × ($course->drip_interval_days ?? 0)`。原本散在三處的 `位次 × drip_interval_days` 算式（`getUnlockedLessonCount`、`daysUntilUnlock`、`getVideoAccessExpiresAt` 的 fallback 錨點）MUST 全部改呼叫它 —— 這正是 FR-022 那次 off-by-one 要改四個地方的原因，同一個算式不得再有第二份
 
@@ -460,9 +460,9 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-040**: `drip_days` MUST 只在 `course_type=drip` 時被送出與驗證。`CourseForm` 用同一份 `useForm` 服務兩種課程類型，**不管當下是哪一種都會把所有欄位送出**，所以「表單沒顯示這個欄位」不等於「後端不會收到它」。修法兩端都做：前端 `transform` 在非 drip 時把 `drip_days` 拿掉，後端 `prepareForValidation()` 一律清成 null（正典）。
   **這條是踩過才寫的**：一般課程只要有章節就存不了檔 —— `LessonController` 的 `sort_order` 是**每章各自從 1 起算**，整門課因此有重複值，前端按位次預帶的 0,1,2,3… 與後端 `orderBy('sort_order')` 讀到的順序對不上，遞增檢查判定失敗，畫面回「發信排程：第 4 封信的天數必須大於前一封」—— 一門跟連鎖信毫無關係的課程，被一個它根本沒有的東西擋住（2026-08-17 正式站事件）
 
-- **FR-041**: 序列信 MUST 為 multipart（HTML + text/plain），兩版 MUST 由同一份 `lessons.md_content` 產出 —— 後台 MUST NOT 出現第二個內容欄位。純文字版由 `DripLessonMail::plainTextBody()` 拿**最終 HTML** 經 `league/html-to-markdown` 轉回 Markdown，不是直接取 `md_content`：`EmailLinkTagger` 的 UTM 戳章只發生在 HTML 上，取原始 md 會得到一份沒有歸因的連結。內文為空時純文字版走與 HTML 版相同的 fallback 文案
+- **FR-041**: 序列信 MUST 為 multipart（HTML + text/plain），兩版 MUST 由同一份 `lessons.content_md` 產出 —— 後台 MUST NOT 出現第二個內容欄位。純文字版由 `DripLessonMail::plainTextBody()` 拿**最終 HTML** 經 `league/html-to-markdown` 轉回 Markdown，不是直接取 `content_md`：`EmailLinkTagger` 的 UTM 戳章只發生在 HTML 上，取原始 md 會得到一份沒有歸因的連結。內文為空時純文字版走與 HTML 版相同的 fallback 文案
 
-- **FR-042**: 信的字級 MUST 宣告在 blade 的 wrapper `div` 上（16px / 行高 1.75 / 無襯線字型堆疊），MUST NOT 只寫在 `<body>` —— Gmail 會把 `<body>` 改寫成 div 並丟掉它的屬性，寫在那裡等於沒寫。段落間距走 `<head>` 的 `<style>`（`p { margin: 0 0 20px }`），被 strip 的客戶端退回預設 1em，是可接受的降級。內文的字級 MUST 靠 wrapper 繼承，MUST NOT 期待 `md_content` 自帶樣式 —— `stripStylesForEmail()` 會把它的 `style`/`class` 全部清掉（FR-030 那條鏈的一環）
+- **FR-042**: 信的字級 MUST 宣告在 blade 的 wrapper `div` 上（16px / 行高 1.75 / 無襯線字型堆疊），MUST NOT 只寫在 `<body>` —— Gmail 會把 `<body>` 改寫成 div 並丟掉它的屬性，寫在那裡等於沒寫。段落間距走 `<head>` 的 `<style>`（`p { margin: 0 0 20px }`），被 strip 的客戶端退回預設 1em，是可接受的降級。內文的字級 MUST 靠 wrapper 繼承，MUST NOT 期待 `content_md` 自帶樣式 —— `stripStylesForEmail()` 會把它的 `style`/`class` 全部清掉（FR-030 那條鏈的一環）
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -503,7 +503,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **D24**: 同意告知不加必勾 checkbox（US16）。這是免費領取不是契約簽署，多一個必勾等於在剛拆掉驗證碼、專程降低摩擦的表單上，親手加回一道摩擦。被動揭露（送出即同意，文字就在按鈕下方）在電子報產業是通行作法，也符合本模組 single opt-in 的既定定位（D17）。
 
-- **D25**: 預覽走後端渲染真信，不走前端重繪（US17）。前端方案便宜（統計表已經有 `md_content` 就能 `marked` 一下），但它預覽的是**輸入**不是**輸出** —— 看不到 UTM 有沒有戳上、strip style 有沒有把排版吃掉、問候語與主旨怎麼組、頁尾長怎樣。這些正是會出錯的地方，也是唯一值得為它開一個 modal 的東西。代價是多一個端點與一次網路往返，換「所見即所寄」。
+- **D25**: 預覽走後端渲染真信，不走前端重繪（US17）。前端方案便宜（統計表已經有 `content_md` 就能 `marked` 一下），但它預覽的是**輸入**不是**輸出** —— 看不到 UTM 有沒有戳上、strip style 有沒有把排版吃掉、問候語與主旨怎麼組、頁尾長怎樣。這些正是會出錯的地方，也是唯一值得為它開一個 modal 的東西。代價是多一個端點與一次網路往返，換「所見即所寄」。
 
 - **D26**: 個人化欄位用佔位假資料，不抓真實訂閱者（US17）。抓「該課程最新一位訂閱者」渲染看似更真實，但那份預覽帶的是**可點的真實退訂 token** —— 管理員在後台檢查排版時誤點一下，就把一位真實訂閱者退掉了，而且沒有任何提示。次要理由：預覽畫面會露出該訂閱者的暱稱（後台其他人也看得到），以及像素若一併渲染會污染開信統計。假名 `小明` 定義為 `DripService::PREVIEW_GREETING_NAME` 常數，避免散落在 controller 與測試裡。
 

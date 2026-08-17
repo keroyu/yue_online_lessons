@@ -221,6 +221,8 @@ specs: specs/003-classroom/
 
 main_files:
 - .env.example
+- app/Console/Commands/ConvertHtmlToMarkdown.php
+- app/Http/Controllers/Admin/ChapterController.php
 - app/Http/Controllers/Admin/HomeworkController.php
 - app/Http/Controllers/Member/AssignmentCommentController.php
 - app/Http/Controllers/Member/ClassroomController.php
@@ -233,10 +235,14 @@ main_files:
 - app/Models/AssignmentCompletion.php
 - app/Models/Comment.php
 - app/Models/HomeworkNotification.php
+- app/Models/Lesson.php
 - app/Models/LessonProgress.php
 - app/Services/AssignmentService.php
 - app/Services/CloudflareStreamService.php
+- app/Services/DripService.php
+- app/Services/HomeworkGradingService.php
 - app/Services/VideoEmbedService.php
+- config/ai.php
 - config/services.php
 - database/migrations/2026_01_17_000004_create_lesson_progress_table.php
 - database/migrations/2026_05_10_000002_create_assignments_table.php
@@ -244,6 +250,9 @@ main_files:
 - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
 - database/migrations/2026_05_10_000005_create_homework_notifications_table.php
 - database/migrations/2026_07_15_000002_change_video_platform_to_string_on_lessons.php
+- database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php
+- database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
+- database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/AssignmentSection.vue
 - resources/js/Components/Classroom/ChapterSidebar.vue
@@ -257,6 +266,8 @@ main_files:
 - resources/js/Pages/Member/ClassroomUnauthorized.vue
 - resources/js/Pages/Member/Learning.vue
 - resources/js/composables/useNotifications.js
+- routes/web.php
+- tests/Feature/Classroom/AiGradingTest.php
 - tests/Feature/Classroom/CloudflareStreamTest.php
 
 related_specs:
@@ -547,6 +558,7 @@ main_files:
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
 - resources/js/composables/useDelayedConfirm.js
+- resources/views/emails/drip-lesson-text.blade.php
 - resources/views/emails/drip-lesson.blade.php
 - routes/console.php
 - routes/web.php

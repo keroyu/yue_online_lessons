@@ -26,7 +26,7 @@ const emit = defineEmits(['save', 'close'])
 const form = ref({
   title: '',
   video_url: '',
-  md_content: '',
+  content_md: '',
   duration_seconds: '',
   promo_delay_seconds: '',
   promo_html: '',
@@ -71,19 +71,19 @@ const parseMMSS = (input) => {
   return null
 }
 
-const mdContentRef = ref(null)
+const contentMdRef = ref(null)
 
 const insertClassroomUrl = () => {
-  const textarea = mdContentRef.value
+  const textarea = contentMdRef.value
   const placeholder = '{{classroom_url}}'
   if (!textarea) {
-    form.value.md_content += placeholder
+    form.value.content_md += placeholder
     return
   }
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
-  const text = form.value.md_content
-  form.value.md_content = text.substring(0, start) + placeholder + text.substring(end)
+  const text = form.value.content_md
+  form.value.content_md = text.substring(0, start) + placeholder + text.substring(end)
   nextTick(() => {
     textarea.selectionStart = textarea.selectionEnd = start + placeholder.length
     textarea.focus()
@@ -109,7 +109,7 @@ onMounted(() => {
     form.value = {
       title: props.lesson.title || '',
       video_url: props.lesson.video_url || '',
-      md_content: props.lesson.md_content || '',
+      content_md: props.lesson.content_md || '',
       duration_seconds: secondsToMMSS(props.lesson.duration_seconds),
       promo_delay_seconds: props.lesson.promo_delay_seconds ?? '',
       promo_html: props.lesson.promo_html || '',
@@ -161,7 +161,7 @@ const submit = () => {
   emit('save', {
     title: form.value.title,
     video_url: form.value.video_url || null,
-    md_content: form.value.md_content || null,
+    content_md: form.value.content_md || null,
     duration_seconds: parseMMSS(form.value.duration_seconds),
     promo_delay_seconds: form.value.promo_delay_seconds !== '' ? parseInt(form.value.promo_delay_seconds) : null,
     promo_html: form.value.promo_html || null,
@@ -281,7 +281,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               <!-- Markdown Content -->
               <div>
                 <div class="flex items-center justify-between">
-                  <label for="md_content" :class="labelClasses">
+                  <label for="content_md" :class="labelClasses">
                     Markdown 內容
                   </label>
                   <button
@@ -314,9 +314,9 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   外站連結不會被動到；你自己已經標了 <code class="rounded bg-gray-200 px-1">utm_source</code> 的連結也會原樣保留。
                 </p>
                 <textarea
-                  id="md_content"
-                  ref="mdContentRef"
-                  v-model="form.md_content"
+                  id="content_md"
+                  ref="contentMdRef"
+                  v-model="form.content_md"
                   rows="8"
                   placeholder="## 標題&#10;&#10;內容...&#10;&#10;- 項目一&#10;- 項目二"
                   class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal font-mono leading-relaxed"

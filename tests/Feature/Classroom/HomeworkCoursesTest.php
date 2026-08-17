@@ -48,7 +48,7 @@ class HomeworkCoursesTest extends TestCase
     {
         $course = $this->makeCourse($name);
         $lesson = $this->addLesson($course);
-        $a = Assignment::create(['lesson_id' => $lesson->id, 'md_content' => 'hw', 'is_published' => true]);
+        $a = Assignment::create(['lesson_id' => $lesson->id, 'question_md' => 'hw', 'is_published' => true]);
         DB::table('assignments')->where('id', $a->id)->update(['created_at' => $assignedAt]);
         return $course;
     }
@@ -84,7 +84,7 @@ class HomeworkCoursesTest extends TestCase
         $this->courseWithAssignment('CourseB', now()->subDays(2));
 
         $lesson = $this->addLesson($a);
-        $fresh = Assignment::create(['lesson_id' => $lesson->id, 'md_content' => 'hw2', 'is_published' => true]);
+        $fresh = Assignment::create(['lesson_id' => $lesson->id, 'question_md' => 'hw2', 'is_published' => true]);
         DB::table('assignments')->where('id', $fresh->id)->update(['created_at' => now()]);
 
         $this->actingAs($admin)
