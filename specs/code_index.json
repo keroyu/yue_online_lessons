@@ -109,6 +109,7 @@
       "011.us-14",
       "011.us-19",
       "011.us-26",
+      "011.us-27",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -121,6 +122,7 @@
       "011.us-22",
       "011.us-23",
       "011.us-24",
+      "011.us-27",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -889,6 +891,7 @@
       "011.us-23",
       "011.us-24",
       "011.us-26",
+      "011.us-27",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1282,12 +1285,16 @@
     "database/migrations/2026_08_18_000007_install_homework_grading_prompt.php": [
       "003.us-10"
     ],
+    "database/migrations/2026_08_20_000001_install_booking_declined_template.php": [
+      "011.us-27"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
       "011.us-14",
       "011.us-19",
       "011.us-26",
+      "011.us-27",
       "011.us-6"
     ],
     "database/seeders/ShortLinkSeeder.php": [
@@ -1354,6 +1361,7 @@
       "011.us-23",
       "011.us-24",
       "011.us-26",
+      "011.us-27",
       "011.us-8",
       "011.us-9"
     ],
@@ -1648,6 +1656,7 @@
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
       "011.us-18",
       "011.us-22",
+      "011.us-27",
       "011.us-3",
       "011.us-4",
       "011.us-5",
@@ -1889,6 +1898,7 @@
       "011.us-23",
       "011.us-24",
       "011.us-25",
+      "011.us-27",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1940,6 +1950,9 @@
     "tests/Feature/HighTicket/BookingChangeTest.php": [
       "011.us-14",
       "011.us-20"
+    ],
+    "tests/Feature/HighTicket/BookingDeclineTest.php": [
+      "011.us-27"
     ],
     "tests/Feature/HighTicket/BookingLeadRecordTest.php": [
       "011.us-2"

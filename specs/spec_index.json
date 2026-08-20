@@ -4071,6 +4071,44 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-27",
+      "module": "011-high-ticket",
+      "title": "預約名單直接婉拒並取消",
+      "summary": "後台預約名單在有生效預約的列上加一顆「婉拒」按鈕：一次釋出時段、刪除 Zoom 會議、寄出帶婉拒理由的通知信（附 METHOD:CANCEL 的 .ics），並把狀態落成「已婉拒」。與週曆上中性的「取消預約」是兩個不同動作，共用同一段拆預約機制。",
+      "heading": "### User Story 27 - 預約名單直接婉拒並取消 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-27---預約名單直接婉拒並取消-priority-p2",
+      "keywords": [
+        "婉拒",
+        "decline",
+        "取消預約",
+        "cancel booking",
+        "預約名單",
+        "BookingListTab",
+        "高價課",
+        "high ticket",
+        "email template",
+        "婉拒通知信",
+        "declined",
+        "releaseBooking",
+        "ics CANCEL",
+        "釋出時段",
+        "Zoom 刪除會議"
+      ],
+      "code_files": [
+        "app/Services/HighTicketBookingService.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "database/seeders/EmailTemplateSeeder.php",
+        "database/migrations/2026_08_20_000001_install_booking_declined_template.php",
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "routes/web.php",
+        "tests/Feature/HighTicket/BookingDeclineTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-3",
       "module": "011-high-ticket",
       "title": "後台 Leads 名單管理",

@@ -53,6 +53,12 @@ class EmailTemplateController extends Controller
             ['key' => '{{slot_time}}', 'label' => '原訂時段'],
             ['key' => '{{course_url}}', 'label' => '課程銷售頁網址（讓對方可以重新預約）'],
         ],
+        'high_ticket_booking_declined' => [
+            ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
+            ['key' => '{{user_email}}', 'label' => '申請人 Email'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{slot_time}}', 'label' => '原訂時段'],
+        ],
         'high_ticket_slot_available' => [
             ['key' => '{{user_name}}', 'label' => '候補者暱稱'],
             ['key' => '{{course_name}}', 'label' => '課程名稱'],

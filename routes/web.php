@@ -239,6 +239,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // The booking is a sub-resource of the lead (US14): PUT moves it, DELETE calls it off.
         Route::put('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'reschedule'])->name('high-ticket-leads.reschedule');
         Route::delete('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'cancelBooking'])->name('high-ticket-leads.cancel-booking');
+        // Decline + cancel in one action, from the leads list (011 US27 / FR-138)
+        Route::post('/high-ticket-leads/{lead}/decline', [HighTicketLeadController::class, 'decline'])->name('high-ticket-leads.decline');
 
         // Consultation records (011 US23) — edited from the leads page, so staff.
         Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');

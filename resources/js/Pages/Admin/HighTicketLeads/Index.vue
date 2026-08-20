@@ -19,6 +19,7 @@ const props = defineProps({
   consultantOptions: { type: Array, default: () => [] },
   dripCourses: { type: Array, default: () => [] },
   notifyTemplate: { type: Object, default: null },
+  declineReason: { type: String, default: null },
   dripByEmail: { type: Object, default: () => ({}) },
   purchasesByEmail: { type: Object, default: () => ({}) },
   suppressionsByEmail: { type: Object, default: () => ({}) },
@@ -74,6 +75,7 @@ const switchTab = (value) => {
       :consultant-options="consultantOptions"
       :drip-courses="dripCourses"
       :notify-template="notifyTemplate"
+      :decline-reason="declineReason"
       :drip-by-email="dripByEmail"
       :purchases-by-email="purchasesByEmail"
       :suppressions-by-email="suppressionsByEmail"

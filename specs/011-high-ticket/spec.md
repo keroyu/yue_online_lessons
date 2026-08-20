@@ -2,6 +2,8 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - database/migrations/2026_08_20_000001_install_booking_declined_template.php
+  - tests/Feature/HighTicket/BookingDeclineTest.php
   - app/Support/BookingScreening.php
   - app/Console/Commands/SendApplicationResumeReminders.php
   - database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
@@ -199,7 +201,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -876,6 +878,40 @@ US24 把 lead 的落地時機提前到資格審核（FR-125），於是名單裡
 - [x] 命令輸出實際寄出筆數（`已寄出 N 封續填提醒`）
 - [x] 測試：命中一次即寄且帶正確 resume 連結、第二次執行不重寄、3 小時內不寄、7 天前不寄、`declined` 不寄、已填手機不寄、管理員改過狀態不寄、缺模板不蓋章、回站 `screening_cleared` 為 true、**答案不及格者 `screening_cleared` MUST 為 false**
 
+### User Story 27 - 預約名單直接婉拒並取消 (Priority: P2)
+
+US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對**這件事，只有在複查過對方寫下來的
+瓶頸與專長之後才看得出來 —— 而那一刻預約已經成立、Zoom 會議已經建好、時段已經被佔住。
+
+現在要處理這種列得走兩段路：先到「諮詢時段」週曆上找到那個區塊按取消（那裡才會釋出時段、
+刪 Zoom、寄信），再回到預約名單把狀態點成「已婉拒」。中間任一段忘記做，名單就開始說謊 ——
+只取消不標記，這筆看起來像對方臨時有事；只標記不取消，時段永遠卡在週曆上放不出去。
+而**複查本來就是在預約名單上做的**（申請內容、資格審核答案、面談紀錄都在那一列的展開區），
+要求管理員為此換頁，正是這條路徑最容易斷的地方。
+
+因此在預約名單有生效預約的列上放一顆「婉拒」按鈕：一次做完取消該做的三件事，
+狀態直接落成「已婉拒」，並附上一封說明理由的信。
+
+這與週曆上的「取消預約」是**兩個不同的動作**，不是同一個動作的兩個入口：取消是中性的
+（時間不合、對方有事，歡迎重約），婉拒是我方的決定，而且不歡迎重約。兩者的信件內容與最終狀態
+都不同，唯一共用的是「把預約拆掉」那段機制（見 D103）。
+
+**驗收**：
+- [x] 「婉拒」按鈕 MUST 只出現在**有生效預約**的列（`confirmed_at` 非 null 且 `cancelled_at` 為 null）；其餘列維持既有的「已婉拒」狀態方塊（只改標記、不寄信）
+- [x] 按下 MUST 二次確認：確認框 MUST 顯示對方暱稱、原訂時段，以及**將寄出的婉拒理由全文** —— 這封信寄出去收不回來，按之前要看得到會寄出什麼
+- [x] 一次動作 MUST 完成四件事，缺一即為狀態說謊：釋出時段、刪除 Zoom 會議、寄出婉拒信（附 `METHOD:CANCEL` 的 `.ics`）、`status` 落 `declined`（FR-138）
+- [x] `declined_at` 與 `cancelled_at` MUST **同時**落地（FR-139）：前者記錄這是我方婉拒，後者是既有的「這筆預約已不生效」判準（`isActiveBooking()`）；只落其一會讓這列在名單與週曆上繼續被當成生效中的預約
+- [x] MUST NOT 同時寄出 US14 的「客製服務預約已取消」信 —— 同一件事寄兩封說法不同的信是最糟的結果
+- [x] 婉拒信走既有模板機制：新 `event_type` = `high_ticket_booking_declined`（「預約婉拒通知」），MUST 同時登記於 `EmailTemplateSeeder::templates()`、一支資料 migration（沿用「缺才 insert、永不 update」迴圈）與 `EmailTemplateController::$availableVariables`（FR-140）
+- [x] 婉拒理由為**模板內文的一部分**，MUST NOT 在按下按鈕當下逐筆輸入（使用者決策，D105）；要改文字就到後台 Email 模板頁改一次
+- [x] 婉拒信 MUST NOT CC 任何人（沿用 FR-062）
+- [x] 序列信訂閱狀態 MUST NOT 因婉拒而改動（使用者決策，D107）：確認預約時已被標記 `booked` 停止加溫，婉拒後就停在那裡
+- [x] Zoom 刪除失敗 MUST NOT 讓婉拒失敗（沿用 FR-050）：時段與信件是事實，Zoom 是副作用；失敗時於成功訊息後附一句提醒手動處理（沿用既有 `zoomNote()`）
+- [x] 端點 MUST 自行守門：非生效預約打進來不做任何事，以紅色 flash 回報而非靜默成功（FR-139）—— 按鈕不顯示只是第一道
+- [x] 婉拒非永久（沿用 D97）：同一 email 重新申請時 `recordLead()` MUST 轉回 `pending` **並清空 `declined_at`**（現況只在帶著審核答案時才清，`?resume=` 回站的路徑會留下一枚假的「已婉拒」標記，FR-139）
+- [x] 按鈕 `cursor-pointer` + hover 回饋；送出中 disabled 並顯示處理中；完成後該列 MUST 就地更新（Inertia 局部重載 + `preserveScroll`，D108）
+- [x] 測試：釋出時段、刪 Zoom、只寄一封婉拒信、附件 method 為 CANCEL、兩個時間戳與狀態、無 CC、drip 訂閱不動、非生效預約被擋、重新申請清空 `declined_at`、訪客被擋
+
 
 ## Requirements
 
@@ -1250,6 +1286,21 @@ US24 把 lead 的落地時機提前到資格審核（FR-125），於是名單裡
   這個判斷 MUST 在伺服器端做，MUST NOT 由前端看著自己被預填的答案自行認定通過 —— 一個被婉拒的 lead 重新載入頁面時，草稿裡同樣帶著那五個答案，讓前端自行判斷等於把閘門交給被擋下的人保管。送出時仍會重新計分（FR-129），這是第二道。
 - **FR-131**: 後台 Leads 展開列 MUST 顯示「資格審核」區：分數 `N/10`、分級標籤（8–10 高購買意願 / 5–7 值得談 / 0–4 培育名單）與五題答案的中文標籤。**分數與分級只在後台出現**（FR-124）。無審核紀錄的舊 lead 顯示一句說明，MUST NOT 印五排「—」。
 
+- **FR-138**: 後台婉拒 MUST 是**單一原子動作**，一次做完四件事：釋出該 lead 佔用的時段單位、刪除 Zoom 會議、寄出婉拒信（附 `METHOD:CANCEL` 的 `.ics`）、`status` 落 `declined`。
+  MUST NOT 拆成「先取消、再改狀態」兩步交給管理員接力 —— 那正是現況，而現況的兩種漏做各自產生一種說謊的名單：只取消不標記讓這筆看起來像對方臨時有事，只標記不取消讓時段永遠卡在週曆上。
+  拆預約的那段機制（transaction 內釋出單位 + 清空 `zoom_meeting_id` / `zoom_join_url`、`calendar_sequence` 遞增、面談紀錄依 FR-114 保留或刪除、Zoom 刪除走 `syncZoom()`）MUST 只有一份定義，`cancel()` 與 `decline()` 皆委派（D104）。
+- **FR-139**: 婉拒的狀態不變量：
+  `cancelled_at` 與 `declined_at` MUST 同時寫入。`isActiveBooking()`（以及前端的 `hasLiveBooking`）判斷的是 `cancelled_at`，只寫 `declined_at` 會讓一筆已經沒有時段、沒有 Zoom 會議的 lead 繼續被系統當成生效中的預約。
+  端點 MUST 自行檢查 `isActiveBooking()`，非生效者不做任何事並回紅色 flash；按鈕的顯示條件是體驗，不是授權。
+  `recordLead()` 在把 `declined` / `cancelled` 轉回 `pending` 時 MUST 一併清空 `declined_at`（比照既有的 `cancelled_at`）。現況只有帶著審核答案的路徑會清，`?resume=` 回站的舊 lead 因此會頂著一枚已經不成立的「已婉拒」標記出現在名單上。
+- **FR-140**: 婉拒信 MUST 走既有 email_templates 機制，`event_type` = `high_ticket_booking_declined`（顯示名「預約婉拒通知」），變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}` / `{{slot_time}}`。
+  **婉拒理由寫在模板內文裡**（使用者決策，D105），MUST NOT 做成逐筆輸入的欄位。
+  MUST NOT CC 任何人（沿用 FR-062）：這是一封我方做出決定後的告知信，沒有第三方需要據此行動。
+  同一次婉拒 MUST NOT 另外觸發 `high_ticket_booking_cancelled` —— 兩封信對同一件事給出兩種說法。
+  MUST NOT 附「歡迎重新預約」的課程連結：那與這封信要說的事互相矛盾。
+- **FR-141**: 入口為預約名單（`BookingListTab`）每一列的「婉拒」按鈕，MUST 二次確認，且確認框 MUST 印出將寄出的理由全文（由後端隨頁面下發模板內文，MUST NOT 在前端另寫一份）。
+  完成後 MUST 以 Inertia 局部重載該頁並 `preserveScroll`，MUST NOT 只在前端改寫該列的 `status` —— 這個動作同時改了狀態、兩個時間戳與時段欄，逐一手動同步等於在前端維護第二份真相（D108）。
+
 
 ## 設計決策
 
@@ -1517,6 +1568,21 @@ US24 把 lead 的落地時機提前到資格審核（FR-125），於是名單裡
 - **D12**: 高價課測試已可持久化 `type=high_ticket`（2026-08-01 起）— 原本 `2026_04_09_000001` 只在 MySQL 分支擴 enum，sqlite 測試 DB 停在三值、任何高價課都無法落庫；`2026_08_01_000001`（004 D10）改用 `Schema::change()` 帶完整值列表後兩邊對齊，`CourseTypeTest` 已實測通過。既有測試（LeadConvertTest、FunnelStopTest、BookingMailFailureTest）仍走 service 層＋記憶體指定 type，改寫成 HTTP 層非必要，日後新增測試可直接建課
 
 - **D63**: 逾時申請採**硬刪除**而非標記狀態（2026-08-06，業主指定）—— 名單只該留「真的成立過的預約」與「有人在跟進的對象」，填完問卷卻沒點確認信的人兩者都不是。代價講清楚：問卷答案（`phone` / `occupation` / `bottleneck` / `expertise`）會一併永久消失，而「email 已在訂閱者名單」救不回這些 —— 訂閱者名單只有 email、暱稱與訂閱狀態，且 `apply()` 本來就不建立 drip 訂閱（D35：未驗證的 email 還不算 lead），所以申請人是否在訂閱者名單其實不保證。保留 `status = 'pending'` 這道閘是整條規則的安全帶：管理員一旦動過狀態，掃除就繞開。連帶副作用：清掃後同一個確認連結會從 `expired` 落到 `invalid`，因為 lead 已不存在、無從分辨「逾時」與「網址亂打」，故 `invalid` 文案改為同時涵蓋兩種成因並導回重新申請 —— 原文案「可能是網址不完整，請直接使用信件中的連結」對一個正在使用信件連結的人是錯誤指引
+- **D103**: 婉拒是**第三個動作**，不是「取消」的別名，也不是「取消」加上一個狀態參數的呼叫端選擇。
+  兩者在對外語意上是相反的：取消對申請人來說是一次行程異動（時間不合、臨時有事，那封信結尾放的是「歡迎再次預約」的連結），婉拒是我方單方面終止這條線。同一段機制服務兩種語意沒問題 —— 拆預約就是拆預約 —— 但它們的信、最終狀態、以及對方接下來會不會再出現在名單上都不同，共用一顆按鈕只會逼管理員在按下去之前先在腦子裡分辨這次算哪一種。
+- **D104**: `cancel()` 與 `decline()` 共用私有的 `releaseBooking(HighTicketLead $lead, string $status, string $eventType)`。
+  那段程式碼有五個副作用（釋出單位、清 Zoom 欄位、`calendar_sequence` 遞增、面談紀錄依 FR-114 分流、`syncZoom()` 刪會議），其中三個是後來一次一次補上去的。複製一份出來給婉拒用，等於保證下一次改動只會落在其中一邊 —— 而兩邊的差異會表現成「有些取消的時段沒放出來」這種要等到有人抱怨才會發現的症狀。
+- **D105**: 婉拒理由**寫死在 Email 模板內文**，不做成逐筆可編輯的欄位（使用者決策）。
+  這句話是一項政策，不是一次評論：同一個理由對每一個被婉拒的人都應該長得一樣，而讓它變成輸入框，等於每次按下按鈕前都要重新措辭一次一段本來就已經想清楚的話。要改就到後台 Email 模板頁改一次，全站跟著變。
+  **措辭**：使用者指定的原句「經過複查，對方的計劃和專業度都未成熟……」是**意思**，不是定稿（使用者 2026-08-20 確認）。原句以第三人稱寫成（「對方」指的就是收信人本人），寄出去會讀起來像不小心轉寄的內部備註，因此模板預設值改寫為第二人稱，並把判斷的對象從「這個人」移到「這個時機」：說的是現在談幫不上什麼忙，不是說他不夠格。要傳達的訊息沒有變軟 —— 面談不會發生 —— 變的是對方讀完之後會不會想回信吵。
+  結尾保留一句「日後若您的規劃更具體，歡迎再與我們聯繫」。這與 FR-140 禁止的「歡迎重新預約」課程連結是兩回事：一句話要對方寫信給人，一個連結讓他當場再佔一個時段，後者才會把剛剛婉拒掉的事情原地做回來。
+- **D106**: 婉拒同時寫 `cancelled_at` 與 `declined_at`，而不是只寫後者。
+  `cancelled_at` 在本模組不是「誰取消的」，它是**這筆預約還算不算數**的唯一判準（`isActiveBooking()`、前端 `hasLiveBooking`、`recordLead()` 的復活條件都讀它）。婉拒之後這筆預約確實不算數了，不寫就是讓資料與事實不一致；而「這是婉拒不是取消」由 `declined_at` 與 `status` 各自記得住。
+- **D107**: 婉拒**不改動序列信訂閱狀態**（使用者決策）。
+  對方在確認預約時已被 `checkAndBook()` 標記 `booked`、停止加溫，婉拒後就停在那裡。US24 對自動婉拒者採取的是相反立場（留在名單裡繼續加溫），兩者不矛盾：那些人從頭到尾不知道自己被評分過，而這裡的人剛收到一封明講婉拒的信 —— 在那之後接著寄行銷信是這條路徑上最不該發生的事。要把他放回加溫名單是之後的人工決定，不是這個按鈕的副作用。
+- **D108**: 前端用 Inertia `router.post` + `preserveScroll`，不沿用狀態方塊那條 axios 路徑。
+  狀態方塊改的是一個欄位，回一個 lead JSON 就補得回來；婉拒改的是 `status` + 兩個時間戳 + 該列的時段欄，還可能影響上方的狀態計數與分頁篩選。用 axios 就得在前端逐一同步這些衍生值，那是在前端養第二份真相 —— 而這個動作一整天按不到幾次，一次頁面重載換掉整類同步錯誤，很划算。
+
 
 ## Schema
 
@@ -1716,8 +1782,43 @@ US24 把 lead 的落地時機提前到資格審核（FR-125），於是名單裡
 - `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
 - `email_templates.body_md` — **模板原始內容，格式由 `body_type` 決定**（歷史命名，非僅 Markdown，見 D19）
 - `email_templates.body_type` — `markdown`（預設，經 CommonMark 轉 HTML）或 `html`（原樣輸出）；無 DB 層 enum 約束，合法值由 `EmailTemplateRequest` 把關，未知值一律當 markdown 處理
+- **US27 schema 變更：無欄位變更，一支資料 migration**。
+
+  `2026_08_20_000001_install_booking_declined_template.php` — 沿用 `2026_08_18_000004` 的通用迴圈（走過 `EmailTemplateSeeder::templates()` 全集、**缺才 insert、永不 update**、`down()` 為 no-op）。seeder 只在全新安裝時跑，新模板要抵達正式站的資料庫只能靠 migration；而永不 update 是因為那些內文的所有權在後台編輯它的人手上。
+
+  婉拒用到的四個欄位（`status` / `declined_at` / `cancelled_at` / `calendar_sequence`）在 US14 與 US24 都已存在，`status` enum 的 `declined` 也已是第 7 個值 —— 本故事只是第一次讓**人**寫入它。
+
 
 ## Tasks
+
+### US27 預約名單直接婉拒並取消
+
+- [x] T326 [P] 模板：`EmailTemplateSeeder` 加 `high_ticket_booking_declined` 一筆（主旨／內文定版見本節末）+ 資料 migration（既有「缺才 insert」迴圈）+ `EmailTemplateController::$availableVariables` 四個變數 in `database/seeders/EmailTemplateSeeder.php`, `database/migrations/2026_08_20_000001_install_booking_declined_template.php`, `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T327 `HighTicketBookingService`：把 `cancel()` 的內容抽成 `private releaseBooking(HighTicketLead $lead, string $status, string $eventType): array`（FR-138 / D104），`cancel()` 委派為 `('cancelled', 'high_ticket_booking_cancelled')`；`declined` 時另寫 `declined_at = now()`（FR-139 / D106）in `app/Services/HighTicketBookingService.php`
+- [x] T328 `HighTicketBookingService::decline(HighTicketLead $lead): array` — 委派 `releaseBooking($lead, 'declined', 'high_ticket_booking_declined')`；drip 訂閱不碰（D107）in `app/Services/HighTicketBookingService.php`
+- [x] T329 [P] `recordLead()` 復活路徑一併清 `declined_at`（FR-139）—— 與既有的 `'cancelled_at' => null` 同一個 update array in `app/Services/HighTicketBookingService.php`
+- [x] T330 端點：`HighTicketLeadController::decline()`，守 `isActiveBooking()`（失敗 `back()->with('error', ...)`，FR-139）、成功 `back()->with('success', ...)` 並沿用 `zoomNote()`；路由 `POST /admin/high-ticket-leads/{lead}/decline`（staff 群組內，緊鄰既有的 reschedule / cancel-booking 兩條）in `app/Http/Controllers/Admin/HighTicketLeadController.php`, `routes/web.php`〔touchpoint 000〕
+- [x] T331 婉拒理由下發：`HighTicketLeadController::index()` 加 prop `declineReason`（`EmailTemplate::forEvent('high_ticket_booking_declined')->value('body_md')`，模板缺漏時為 null）—— 確認框要印的是真的會寄出去的那段文字，不是前端另抄一份（FR-141）in `app/Http/Controllers/Admin/HighTicketLeadController.php`, `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+- [x] T332 前端：`hasLiveBooking(lead)` 的列加「婉拒」按鈕（rose 色系、`cursor-pointer` + hover、送出中 disabled）+ 確認 modal（暱稱、原訂時段、理由全文）；送出走 `router.post(..., { preserveScroll: true })`（D108）；模板缺漏時按鈕 disabled 並提示先到 Email 模板頁 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T333 `BookingDeclineTest`：見 US27 驗收最後一條 in `tests/Feature/HighTicket/BookingDeclineTest.php`
+
+**模板預設值（T326）** — `subject` = `【關於您的 1v1 諮詢申請】{{course_name}}`，`body_md`：
+
+```
+您好 {{user_name}}，
+
+關於您原訂於 {{slot_time}} 的「{{course_name}}」1v1 諮詢，我們在複查申請內容後決定不安排這次面談，該場次的會議連結同時失效。
+
+一對一諮詢很吃時機。從您目前的規劃與準備來看，現在談能幫上的忙有限，我們認為還不是最好的時候，因此這次容我們婉拒。
+
+本信附有行事曆取消檔案，開啟後即可從您的日曆移除這筆行程。
+
+日後若您的規劃更具體，歡迎再與我們聯繫。
+
+經營者時間銀行
+```
+
+（措辭的取捨見 D105：使用者指定的是意思，不是原文。）
 
 ### US26 未完成申請的續填提醒
 
@@ -1813,7 +1914,7 @@ Phase 4 — 測試與驗證
 - [x] T291d 正式站補抓已結束場次的逐字稿：13 場成功（逐字稿 11k–27k 字、摘要 747–1054 字），4 場 Zoom 回 `3301 此錄製不存在`（沒開錄影／客人未出席／顧問改用個人會議室）
 - [x] T290b 刪除場次測試：空場次可刪、**有內容的場次也可刪**、訪客不可刪、**已刪除的場次不因後續 webhook 復活**（FR-118）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [x] T312 payload 無 TRANSCRIPT 檔改為靜默結束（FR-132 / D88 修訂）：`fetchTranscript()` 不再丟 `RuntimeException`，改寫 info log 後 return；測試以 `dispatchSync` 直接驗 job 不再拋例外（webhook controller 會吞例外，走 HTTP 驗不到）in `app/Jobs/ProcessZoomTranscriptJob.php`, `tests/Feature/HighTicket/ConsultationSummaryTest.php`
-- [ ] T289 正式站 Forge 需新增第二個 queue worker 監聽 `database_long` 連線的 `long` 佇列（`--timeout=1500`）—— 不做則 webhook 收得到、逐字稿永遠不出現
+- [x] T289 正式站 Forge 已新增第二個 daemon 監聽 `database_long` 連線的 `long` 佇列（`queue:work database_long --queue=long --sleep=3 --tries=3 --backoff=60 --timeout=1500`，2026-08-18 起跑）
 - [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
 **US25 — 手動抓取逐字稿**
 
@@ -1822,9 +1923,9 @@ Phase 4 — 測試與驗證
 - [x] T315 [P] 路由 `POST /admin/consultation-notes/{note}/fetch-transcript`（staff 群組內、`throttle:10,1`，比照既有 regenerate-summary 一行）in `routes/web.php`
 - [x] T316 前端按鈕：`transcript_bytes` 為 0 時把「尚無逐字稿」換成「抓取逐字稿」按鈕（`action` class 沿用、`cursor-pointer`、處理中顯示「查詢中…」並 disabled）；成功顯示「已排入處理，約 1–3 分鐘後重新整理」，失敗顯示後端訊息（沿用既有 `error` 區塊）in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
 - [x] T317 測試（`Queue::fake()` 驗派工與否）：有 VTT → 202 且派工、Zoom 404 → 422 不派工、清單無 VTT → 422 不派工、憑證未設定 → 422、無 meeting id → 422、訪客 → 302/403 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
-- [ ] T318 使用者實測：對一場「尚無逐字稿」的場次按下按鈕，確認三種回應文案讀得懂；有 VTT 者於 1–3 分鐘後重整看到摘要（依賴 T289）
+- [x] T318 使用者實測：2026-08-18 對 note 24 按下按鈕，端點查到 VTT 後派工回 202；worker 補上後該場逐字稿 69,308 字、摘要 2,508 字落庫
 
-- [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**擋在 T289 之前，worker 未加則此項無法驗證**
+- [ ] T287 使用者實測（自動路徑）：Zoom 後台按 Validate 通過；跑一場實際會議確認逐字稿與摘要**由 webhook 自動**出現（手動 `booking:fetch-transcript` 路徑已驗證 13 次）；`tail` log 確認無內容外洩。**T289 已於 2026-08-18 完成，此項現在驗得了 —— 待下一場實際會議**
 
 - [x] T001 `convert()` 驗證新增 `amount` (`required|integer|min:0`) 並傳入 service；`index()` 的 `grantableCourses` select 加 `price / original_price / promo_ends_at` 並 map 出 `display_price` in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T002 `convertLead(HighTicketLead $lead, int $courseId, int $amount)` — `Purchase::updateOrCreate` 的 amount 改寫入參數值 in `app/Services/HighTicketLeadService.php`
@@ -2291,6 +2392,10 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-20: US27 預約名單直接婉拒並取消（T326–T333）— 後台複查完申請內容後，可直接在該列按「婉拒」：一個動作釋出時段、刪 Zoom 會議、寄出婉拒通知（附 `METHOD:CANCEL` 的 `.ics`）並把狀態落成 `declined`。先前這件事得走兩段路（週曆按取消 → 回名單改狀態），漏做任一段名單就開始說謊。實作上把 `cancel()` 的五個副作用抽成 `releaseBooking($lead, $status, $eventType)`，`cancel()` 與新的 `decline()` 都委派 —— 複製一份是保證下次只改到一邊（D104）。`cancelled_at` 與 `declined_at` 一起寫：前者才是 `isActiveBooking()` 讀的那一欄，只寫後者會讓一筆沒有時段也沒有 Zoom 的 lead 繼續被當成生效中的預約（D106）。婉拒理由寫在新模板 `high_ticket_booking_declined` 的內文裡（D105，措辭改為第二人稱、把判斷放在時機而非人），確認框直接渲染該模板內文，不在前端另抄一份。順手修掉一個既有瑕疵：`recordLead()` 復活 lead 時只清 `cancelled_at`，`?resume=` 回站的人會頂著一枚已經不成立的「已婉拒」紅標（FR-139）。新增 `BookingDeclineTest` 15 條；全站 `php artisan test` **774 passed（3203 assertions）**（新測試前）、加上婉拒的 Zoom 失敗案例後該檔 15 passed（41 assertions）；`npm run build` exit 0。
+
+- 2026-08-18: T289 正式站 `long` 佇列 worker 補上，US23 自動路徑的最後一塊基礎設施到位 —— 使用者回報「面談完 7 小時、手動按抓取逐字稿也沒有結果」。查正式站：`jobs` 表 6 筆 `queue=long`、`reserved_at=NULL` 全數躺著（最舊的從 8/17 起），其中一筆正是那次按鈕派的工作單；`ps aux` 只看得到一個 `queue:work database` 的 daemon，`long` 佇列從頭到尾沒人領。**按鈕與端點都是好的** —— 它同步查到 Zoom 上確實有 VTT 才派工回 202，壞的是慢的那一半沒有 worker，正是 T289。Forge 加第二個 daemon（`queue:work database_long --queue=long --timeout=1500`）後佇列排空，該場（note 24）逐字稿 69,308 字、摘要 2,508 字落庫，`failed_jobs` 無新增。T318 因此一併驗完（三種文案的另外兩種在先前測試已釘住）。T287（webhook 自動路徑）仍待下一場實際會議 —— 這次的逐字稿來自手動派的工作單，不是 webhook 觸發的。
 
 - 2026-08-17: US25 實作完成（T313–T317，僅剩 T318 使用者實測）— 後台面談紀錄列的「尚無逐字稿」改成「抓取逐字稿」按鈕，直接問 Zoom 現況、不依賴 webhook 是否到達。端點兩段式（FR-133）：同步查 `GET /meetings/{id}/recordings`（一秒），四種擋下的情形各給各自文案（憑證未設定／無 meeting id／Zoom 沒有錄影／逐字稿還沒產出），只有清單裡真有 VTT 才派工並回 202。查 Zoom 錄影清單的實作抽成 `ZoomTranscriptService::recordingPayload()`，`booking:fetch-transcript` 指令改呼叫同一個方法 —— 那段 HTTP 呼叫原本只存在指令裡，複製到 controller 就會養出第二套逾時與錯誤處理。後端刻意不加「已有逐字稿就拒絕」的守門（FR-134），job 的 `transcriptIsSettled()` 已經擋住，按鈕本身在有逐字稿時也不顯示。測試 6 條（有 VTT 派工、無 VTT 不派工、Zoom 404 不派工、憑證未設定不打 Zoom、無 meeting id、訪客被擋）以 `Queue::fake()` 釘住「不該派工就真的沒派」。全站 746 passed（3126 assertions）、`npm run build` exit 0。
 

@@ -690,6 +690,43 @@ class HighTicketBookingService
      */
     public function cancel(HighTicketLead $lead): array
     {
+        return $this->releaseBooking($lead, 'cancelled', 'high_ticket_booking_cancelled');
+    }
+
+    /**
+     * Call the booking off *and* refuse the applicant (011 US27 / FR-138).
+     *
+     * Deliberately not a flag on cancel(): to the applicant the two mean
+     * opposite things — a cancellation is a scheduling change that ends with
+     * "book another time", a refusal is us closing the line (D103). What they
+     * share is the mechanics of taking a booking apart, and that lives in
+     * releaseBooking() so the two can never drift.
+     *
+     * The drip subscription is left exactly as it is (D107): confirming the
+     * booking already marked it `booked` and stopped the sequence, and mailing
+     * somebody marketing right after refusing them is the one thing this path
+     * must not do.
+     *
+     * @return array{success: bool, message?: string}
+     */
+    public function decline(HighTicketLead $lead): array
+    {
+        return $this->releaseBooking($lead, 'declined', 'high_ticket_booking_declined');
+    }
+
+    /**
+     * Take a live booking apart: release the units, drop the Zoom meeting, mail
+     * the applicant, and land the lead on `$status` (FR-138 / D104).
+     *
+     * One definition for both callers. There are five side effects here and
+     * three of them were added one at a time — a second copy would be a
+     * guarantee that the next change lands on only one of them, and the symptom
+     * (some cancelled slots never coming back) only surfaces when somebody complains.
+     *
+     * @return array{success: bool, message?: string}
+     */
+    private function releaseBooking(HighTicketLead $lead, string $status, string $eventType): array
+    {
         if (!$lead->isActiveBooking()) {
             return ['success' => false, 'message' => '這筆預約尚未確認或已取消'];
         }
@@ -699,15 +736,25 @@ class HighTicketBookingService
         $startsAt = $slot?->starts_at?->copy();
         $meetingId = (string) ($lead->zoom_meeting_id ?? '');
 
-        DB::transaction(function () use ($lead) {
+        DB::transaction(function () use ($lead, $status) {
             $this->slots->release($lead);
 
-            $lead->update([
+            $attributes = [
+                // Always, whichever status this is (FR-139 / D106): cancelled_at
+                // is not "who called it off", it is the one column that says this
+                // booking no longer counts — isActiveBooking(), the row's button
+                // and recordLead()'s revival all read it.
                 'cancelled_at'    => now(),
-                'status'          => 'cancelled',
+                'status'          => $status,
                 'zoom_meeting_id' => null,
                 'zoom_join_url'   => null,
-            ]);
+            ];
+
+            if ($status === 'declined') {
+                $attributes['declined_at'] = now();
+            }
+
+            $lead->update($attributes);
         });
 
         $lead->increment('calendar_sequence');
@@ -723,7 +770,7 @@ class HighTicketBookingService
                 : $note->update(['zoom_meeting_id' => null]));
 
         if ($course && $startsAt) {
-            $this->sendChangeMail($lead, $course, 'high_ticket_booking_cancelled', [
+            $this->sendChangeMail($lead, $course, $eventType, [
                 '{{slot_time}}'  => $this->slots->label($startsAt),
                 '{{course_url}}' => $this->courseUrl($course),
             ], $this->cancellationAttachment($lead, $course, $startsAt));
@@ -1177,6 +1224,11 @@ class HighTicketBookingService
             // screening let them through, so the old refusal is spent.
             'status'       => in_array($lead->status, ['closed', 'no_response', 'cancelled', 'declined'], true) ? 'pending' : $lead->status,
             'cancelled_at' => null,
+            // Alongside cancelled_at, and for the same reason (US27 / FR-139):
+            // a revived lead that keeps declined_at wears a rose 已婉拒 badge in
+            // the leads list for a refusal that no longer stands. The screened
+            // branch above already clears it; this covers everyone else.
+            'declined_at'  => null,
         ]));
 
         return $lead;

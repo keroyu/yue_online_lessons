@@ -32,6 +32,13 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  // Raw body of the 預約婉拒通知 template, so the confirm dialog can quote the
+  // mail that will actually go out (US27 / FR-141). Null when it is missing,
+  // which is what disables the button.
+  declineReason: {
+    type: String,
+    default: null,
+  },
   dripByEmail: {
     type: Object,
     default: () => ({}),
@@ -442,6 +449,26 @@ const updateStatus = async (lead, newStatus) => {
   } finally {
     updatingStatus.value = null
   }
+}
+
+// ---- decline + cancel in one action (011 US27) -----------------------------
+const decliningId = ref(null)
+const declineTarget = ref(null)
+
+const confirmDecline = () => {
+  const lead = declineTarget.value
+  if (!lead) return
+
+  declineTarget.value = null
+  decliningId.value = lead.id
+
+  // Inertia rather than the axios path the status squares use (D108): this one
+  // action moves the status, two timestamps and the slot column at once, and a
+  // reload is cheaper than keeping a second copy of those rules in here.
+  router.post(`/admin/high-ticket-leads/${lead.id}/decline`, {}, {
+    preserveScroll: true,
+    onFinish: () => { decliningId.value = null },
+  })
 }
 
 // Notify slot batch action
@@ -1003,6 +1030,23 @@ const copySelectedEmails = async () => {
                 >
                   {{ s.letter }}
                 </button>
+
+                <!-- Decline + cancel in one action (US27 / FR-138). Only where
+                     there is a booking to take apart — without one the 已婉拒
+                     square to the left is already the whole job. -->
+                <button
+                  v-if="hasLiveBooking(lead)"
+                  type="button"
+                  :disabled="!declineReason || decliningId === lead.id"
+                  :title="declineReason
+                    ? '婉拒並取消預約：釋出時段、刪除 Zoom 會議並寄出婉拒通知'
+                    : '找不到「預約婉拒通知」Email 模板，請先到 Email 模板管理建立'"
+                  @click="declineTarget = lead"
+                  class="ml-1 flex-shrink-0 rounded border border-rose-300 bg-white px-2 py-[3px] text-xs font-semibold text-rose-600 transition-colors cursor-pointer hover:bg-rose-50 disabled:opacity-40"
+                  :class="decliningId === lead.id ? 'disabled:cursor-wait' : 'disabled:cursor-not-allowed'"
+                >
+                  {{ decliningId === lead.id ? '處理中…' : '婉拒' }}
+                </button>
               </div>
             </td>
             <td class="hidden sm:table-cell w-20 whitespace-nowrap py-4 px-2 text-sm text-right text-gray-600">
@@ -1142,6 +1186,48 @@ const copySelectedEmails = async () => {
           下一頁
         </button>
       </nav>
+    </div>
+  </div>
+
+  <!-- Decline confirmation (US27 / FR-141). Quotes the real template body:
+       this mail cannot be taken back, so it has to be readable before the click. -->
+  <div
+    v-if="declineTarget"
+    class="fixed inset-0 z-50 flex items-center justify-center"
+  >
+    <div class="fixed inset-0 bg-black bg-opacity-40" @click="declineTarget = null" />
+    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">婉拒並取消預約</h3>
+
+      <div class="mb-4 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 space-y-1">
+        <p><span class="text-gray-500">對象：</span>{{ declineTarget.name }}（{{ declineTarget.email }}）</p>
+        <p><span class="text-gray-500">原訂時段：</span>{{ formatSlotRange(declineTarget) || '—' }}</p>
+      </div>
+
+      <p class="mb-2 text-sm text-gray-600">將寄給對方的通知內容：</p>
+      <div
+        class="mb-4 rounded-md border border-gray-200 bg-white p-4 text-sm text-gray-700 prose prose-sm max-w-none"
+        v-html="marked(declineReason)"
+      />
+
+      <p class="mb-5 text-sm text-rose-700">
+        送出後會釋出該時段、刪除 Zoom 會議並寄出上面這封信，狀態轉為「已婉拒」。此動作無法復原。
+      </p>
+
+      <div class="flex justify-end gap-3">
+        <button
+          @click="declineTarget = null"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+        >
+          取消
+        </button>
+        <button
+          @click="confirmDecline"
+          class="px-4 py-2 text-sm font-medium text-white bg-rose-600 border border-transparent rounded-md cursor-pointer hover:bg-rose-700"
+        >
+          確認婉拒並寄信
+        </button>
+      </div>
     </div>
   </div>
 

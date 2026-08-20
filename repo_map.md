@@ -673,6 +673,7 @@ main_files:
 - database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php
 - database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
 - database/migrations/2026_08_18_000004_install_application_resume_template.php
+- database/migrations/2026_08_20_000001_install_booking_declined_template.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
@@ -703,6 +704,7 @@ main_files:
 - routes/web.php
 - tests/Feature/HighTicket/ApplicationResumeReminderTest.php
 - tests/Feature/HighTicket/BookingChangeTest.php
+- tests/Feature/HighTicket/BookingDeclineTest.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/BookingScreeningTest.php

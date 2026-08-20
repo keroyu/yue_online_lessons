@@ -164,6 +164,13 @@ class HighTicketLeadController extends Controller
             ->first(['id', 'subject', 'body_md'])
             ?->toArray();
 
+        // The confirm dialog quotes the mail that will actually go out (FR-141),
+        // so it reads the template rather than keeping a second copy of the
+        // wording in the component. Null when the template is missing, which is
+        // what disables the button.
+        $declineReason = EmailTemplate::forEvent('high_ticket_booking_declined')
+            ->value('body_md');
+
         $emails = $leads->pluck('email')->filter()->unique()->values();
         $suppressionsByEmail = EmailSuppression::reasonsFor($emails);
         $dripByEmail = User::whereIn('email', $emails)
@@ -216,6 +223,7 @@ class HighTicketLeadController extends Controller
             'consultantOptions' => $consultantOptions,
             'dripCourses'       => $dripCourses,
             'notifyTemplate'    => $notifyTemplate,
+            'declineReason'     => $declineReason,
             'dripByEmail'       => $dripByEmail,
             'purchasesByEmail'  => $purchasesByEmail,
             'suppressionsByEmail' => $suppressionsByEmail,
@@ -321,6 +329,26 @@ class HighTicketLeadController extends Controller
         }
 
         return back()->with('success', '已取消預約，時段已釋出，並已寄出取消通知與行事曆更新'
+            . $this->zoomNote($result, '會議刪除'));
+    }
+
+    /**
+     * Refuse an applicant and take their booking apart in one go (011 US27 / FR-138).
+     *
+     * Flashes rather than aborts on a dead booking: the only way to get here
+     * without one is a button that was rendered before somebody else cancelled
+     * the same row, and a red toast on a page that then reloads says that
+     * better than an error screen would.
+     */
+    public function decline(HighTicketLead $lead): RedirectResponse
+    {
+        $result = $this->bookingService->decline($lead);
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        return back()->with('success', '已婉拒並取消預約，時段已釋出，婉拒通知已寄出'
             . $this->zoomNote($result, '會議刪除'));
     }
 
