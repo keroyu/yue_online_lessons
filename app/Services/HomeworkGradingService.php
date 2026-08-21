@@ -22,6 +22,9 @@ class HomeworkGradingService
     /** Enough for "what did I already tell them" without replaying the whole thread. */
     private const MAX_EXCHANGE_REPLIES = 6;
 
+    /** Last section, so it is the freshest thing in the model's context. */
+    private const NOTE_HEADING = '## 講師補充指示';
+
     private const TEACHER_LABEL = '老師';
     private const STUDENT_LABEL = '學員';
 
@@ -31,18 +34,18 @@ class HomeworkGradingService
      * Null means "not configured / nothing came back" — the caller turns that
      * into a 422. A genuine API failure still throws (OpenAiService's contract).
      */
-    public function draft(Assignment $assignment, Comment $submission): ?string
+    public function draft(Assignment $assignment, Comment $submission, ?string $note = null): ?string
     {
-        return $this->ai->respond(self::PROMPT, $this->buildInput($assignment, $submission));
+        return $this->ai->respond(self::PROMPT, $this->buildInput($assignment, $submission, $note));
     }
 
     /**
-     * The four fixed sections of FR-020.
+     * The four fixed sections of FR-020, plus the optional teacher note.
      *
      * Students appear as 「學員」 and nothing else: a nickname or an email in the
      * prompt buys no better grading and sends PII somewhere it never had to go.
      */
-    private function buildInput(Assignment $assignment, Comment $submission): string
+    private function buildInput(Assignment $assignment, Comment $submission, ?string $note): string
     {
         $sections = [
             '## 講義'          => $assignment->handout_md,
@@ -56,6 +59,16 @@ class HomeworkGradingService
         foreach ($sections as $heading => $body) {
             $body = trim((string) $body);
             $parts[] = $heading . "\n" . ($body === '' ? '（未提供）' : $this->truncate($body));
+        }
+
+        // Dropped entirely when absent rather than sent as （未提供） like the
+        // four above: an empty instruction is not a section the model should
+        // reason about, and leaving it out keeps the prompt identical to what
+        // it was before this field existed (FR-024).
+        $note = trim((string) $note);
+
+        if ($note !== '') {
+            $parts[] = self::NOTE_HEADING . "\n" . $this->truncate($note);
         }
 
         return implode("\n\n", $parts);

@@ -236,6 +236,85 @@ class AiGradingTest extends TestCase
         });
     }
 
+    public function test_teacher_note_becomes_the_last_section(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment();
+        $comment = $this->submission($assignment, $this->student());
+
+        $this->fakeOpenAi();
+
+        $this->actingAs($admin)
+            ->postJson($this->draftUrl($assignment, $comment), [
+                'note' => '第三段的運鏡明顯抖，語氣溫和一點',
+            ])
+            ->assertOk();
+
+        Http::assertSent(function ($request) {
+            $input = $request['input'];
+
+            return str_contains($input, '## 講師補充指示')
+                && str_contains($input, '第三段的運鏡明顯抖，語氣溫和一點')
+                // Last section wins the model's attention (FR-024).
+                && mb_strpos($input, '## 講師補充指示') > mb_strpos($input, '## 先前的批改往返');
+        });
+    }
+
+    public function test_input_is_untouched_when_no_note_is_given(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment();
+        $comment = $this->submission($assignment, $this->student());
+
+        $this->fakeOpenAi();
+
+        // Both the absent key and a whitespace-only one mean "no instruction":
+        // the section is dropped entirely rather than sent as （未提供）, so the
+        // prompt is byte-for-byte what it was before this field existed.
+        foreach ([[], ['note' => '   ']] as $payload) {
+            $this->actingAs($admin)
+                ->postJson($this->draftUrl($assignment, $comment), $payload)
+                ->assertOk();
+        }
+
+        Http::assertSent(fn ($request) => !str_contains($request['input'], '## 講師補充指示'));
+    }
+
+    public function test_an_over_long_note_is_rejected(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment();
+        $comment = $this->submission($assignment, $this->student());
+
+        $this->fakeOpenAi();
+
+        $this->actingAs($admin)
+            ->postJson($this->draftUrl($assignment, $comment), [
+                'note' => str_repeat('喵', 2001),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('note');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_teacher_note_is_never_persisted(): void
+    {
+        $admin = $this->admin();
+        $assignment = $this->makeAssignment();
+        $comment = $this->submission($assignment, $this->student());
+
+        $this->fakeOpenAi();
+
+        $this->actingAs($admin)
+            ->postJson($this->draftUrl($assignment, $comment), ['note' => '只給 AI 看的指示'])
+            ->assertOk();
+
+        // It is prompt context, never content: FR-025.
+        $this->assertDatabaseCount('comments', 1);
+        $this->assertDatabaseMissing('comments', ['content' => '只給 AI 看的指示']);
+    }
+
     public function test_draft_is_not_persisted_anywhere(): void
     {
         $admin = $this->admin();
@@ -325,5 +404,9 @@ class AiGradingTest extends TestCase
         $this->assertSame('homework', $prompt->feature);
         $this->assertSame('gpt-5.6-terra', $prompt->model);
         $this->assertArrayHasKey('homework', (array) config('ai.features'));
+
+        // The priority of the teacher note lives in the prompt, not in the
+        // service (D24) — so its absence here is a silent behaviour change.
+        $this->assertStringContainsString('## 講師補充指示', $prompt->instructions);
     }
 }

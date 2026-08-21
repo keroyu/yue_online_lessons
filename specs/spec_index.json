@@ -1099,7 +1099,7 @@
       "id": "003.us-10",
       "module": "003-classroom",
       "title": "AI 快速批改",
-      "summary": "作業批改頁「回覆批改」面板一鍵生成 500 字以內批改草稿並追加到輸入框；脈絡為講義+題目+學員提交+既有批改往返，講義存 assignments.handout_md 與題目同屏維護；prompt 走既有 ai_prompts 註冊表（feature=homework，預設 gpt-5.6-terra）可後台自訂。同時把 md_content 改名為 content_md / question_md，統一 Markdown 欄位 *_md 命名",
+      "summary": "作業批改頁「回覆批改」面板一鍵生成 500 字以內批改草稿並追加到輸入框；脈絡為講義+題目+學員提交+既有批改往返，講義存 assignments.handout_md 與題目同屏維護；prompt 走既有 ai_prompts 註冊表（feature=homework，預設 gpt-5.6-terra）可後台自訂。同時把 md_content 改名為 content_md / question_md，統一 Markdown 欄位 *_md 命名。追加：回覆面板獨立的「補充指示給 AI」欄位（選填、不落地），組成 input 第五段且優先於講義與題目",
       "heading": "### User Story 10 - AI 快速批改 (Priority: P2)",
       "file": "specs/003-classroom/spec.md",
       "anchor": "user-story-10---ai-快速批改-priority-p2",
@@ -1130,7 +1130,14 @@
         "assignments",
         "批改往返",
         "回覆面板",
-        "admin"
+        "admin",
+        "講師補充指示",
+        "補充指示",
+        "note",
+        "自定義 prompt",
+        "custom prompt",
+        "臨時指示",
+        "第五段"
       ],
       "code_files": [
         "database/migrations/2026_08_18_000005_rename_md_content_to_suffix_columns.php",
@@ -1152,7 +1159,8 @@
         "resources/js/Pages/Member/Classroom.vue",
         "resources/js/Components/Classroom/AssignmentSection.vue",
         "tests/Feature/Classroom/AiGradingTest.php",
-        "app/Http/Controllers/Member/ClassroomController.php"
+        "app/Http/Controllers/Member/ClassroomController.php",
+        "database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php"
       ],
       "status": "implemented"
     },

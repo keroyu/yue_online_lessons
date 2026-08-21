@@ -1288,6 +1288,9 @@
     "database/migrations/2026_08_20_000001_install_booking_declined_template.php": [
       "011.us-27"
     ],
+    "database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php": [
+      "003.us-10"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",

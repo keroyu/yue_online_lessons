@@ -162,9 +162,12 @@ const replyTextarea = ref(null)
 const axios = window.axios
 const aiLoading = ref(false)
 const aiError = ref('')
+// 補充指示：只送給模型，不落地、不隨批改送出（FR-025）
+const aiNote = ref('')
 
 const openReplyPanel = (sub) => {
   replyContent.value = ''
+  aiNote.value = ''
   aiError.value = ''
   replyPanel.value = { open: true, submission: sub }
   nextTick(() => replyTextarea.value?.focus())
@@ -173,6 +176,7 @@ const openReplyPanel = (sub) => {
 const closeReplyPanel = () => {
   replyPanel.value = { open: false, submission: null }
   replyContent.value = ''
+  aiNote.value = ''
   aiError.value = ''
 }
 
@@ -185,7 +189,8 @@ const generateAiDraft = async () => {
 
   try {
     const { data } = await axios.post(
-      `/admin/homework/${sub.assignment.id}/comments/${sub.id}/ai-draft`
+      `/admin/homework/${sub.assignment.id}/comments/${sub.id}/ai-draft`,
+      { note: aiNote.value }
     )
     const existing = replyContent.value.trimEnd()
     replyContent.value = existing ? `${existing}\n\n${data.draft}` : data.draft
@@ -197,7 +202,9 @@ const generateAiDraft = async () => {
       el.scrollTop = el.scrollHeight
     })
   } catch (e) {
-    aiError.value = e.response?.data?.message ?? 'AI 產生失敗，請稍後再試一次'
+    aiError.value = e.response?.data?.errors?.note?.[0]
+      ?? e.response?.data?.message
+      ?? 'AI 產生失敗，請稍後再試一次'
   } finally {
     aiLoading.value = false
   }
@@ -629,6 +636,19 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
 
       <!-- Textarea -->
       <div class="flex-1 overflow-y-auto px-4 py-3">
+        <!-- 補充指示：只餵給 AI，永遠不會變成送給學員的文字 -->
+        <label class="block text-xs font-medium text-gray-700">補充指示給 AI（選填）</label>
+        <p class="text-xs text-gray-500 mt-0.5 mb-1.5 leading-relaxed">
+          寫 AI 從講義和提交看不出來的事，或這次的臨時要求。優先於講義與題目；學員看不到，也不會出現在送出的批改裡。
+        </p>
+        <textarea
+          v-model="aiNote"
+          rows="2"
+          maxlength="2000"
+          class="w-full mb-4 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-brand-teal focus:border-brand-teal resize-none"
+          placeholder="例如：第三段運鏡明顯在抖、他上次就犯過同樣的錯、語氣溫和一點"
+        />
+
         <div class="flex items-center justify-between mb-1">
           <label class="text-xs font-medium text-gray-700">批改內容（支援 Markdown）</label>
           <button

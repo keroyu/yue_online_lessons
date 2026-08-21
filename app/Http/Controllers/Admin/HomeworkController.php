@@ -226,7 +226,7 @@ class HomeworkController extends Controller
     }
 
     /**
-     * Draft a grading reply for one submission (US10 / FR-017).
+     * Draft a grading reply for one submission (US10 / FR-017, FR-024).
      *
      * Synchronous on purpose (D16): the admin is standing in front of the reply
      * panel waiting to edit whatever comes back, so a queued job would only turn
@@ -234,15 +234,24 @@ class HomeworkController extends Controller
      * goes to the textarea and becomes a comment only if the admin sends it.
      */
     public function aiDraft(
+        Request $request,
         Assignment $assignment,
         Comment $comment,
         HomeworkGradingService $grading,
     ): JsonResponse {
         // Only this assignment's own top-level submissions (FR-021). Otherwise a
         // stitched-together id pair would hand back another course's context.
+        // Checked before validation so a probe never learns the ids were wrong.
         abort_if($comment->assignment_id !== $assignment->id || $comment->parent_id !== null, 404);
 
-        $draft = $grading->draft($assignment, $comment);
+        // The teacher's own steer for this one submission — what the handout and
+        // the submission cannot show the model (FR-024). Prompt context only: it
+        // is never stored and never becomes part of the reply (FR-025).
+        $validated = $request->validate([
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $draft = $grading->draft($assignment, $comment, $validated['note'] ?? null);
 
         if ($draft === null) {
             return response()->json([

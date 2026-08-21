@@ -24,6 +24,7 @@ owner_files:
   - database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
   - database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
   - database/migrations/2026_08_18_000008_widen_assignment_markdown_columns.php
+  - database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php
   - tests/Feature/Classroom/CloudflareStreamTest.php
   - tests/Feature/Classroom/AiGradingTest.php
   - tests/Feature/Classroom/HomeworkCoursesTest.php
@@ -271,6 +272,13 @@ touchpoints:
 - [x] `/admin/settings/ai` 自動多出「作業批改」分組（`config/ai.php` features + `ai_prompts` 一列），instructions / 模型 / max_output_tokens 皆可後台調整，預設模型 `gpt-5.6-terra`
 - [x] Feature 測試：`Http::fake` 驗證送出的 input 四段組裝與截斷、未設 key 回 422、跨 assignment 的 comment 被擋、草稿不寫入 comments
 
+**追加：講師補充指示（2026-08-22 規劃）** — 面板在「批改內容」上方多一格選填的補充指示，讓老師把 AI 從講義與提交裡看不出來的事寫進去（「第三段運鏡抖」「他上次就犯過同樣的錯」），也可以臨時下指令（「語氣溫和一點」「不要提到分數」）。這格只給模型看，永遠不會變成送給學員的文字。
+
+- [x] 回覆面板「批改內容」label 上方有「補充指示給 AI（選填）」textarea（2 行），說明點出「只給 AI 參考，學員看不到；優先於講義與題目」
+- [x] 補充指示為純前端狀態：開啟／關閉面板即清空，不進 DB、不隨批改送出；連按兩次「AI 輔助批改」時內容仍在，可改一句再生成
+- [x] 有填時 input 多第五段 `## 講師補充指示`（上限 2000 字），prompt instructions 明示此段優先於其他脈絡且必須採納；未填時該段整段省略，行為與現況完全相同
+- [x] Feature 測試：有填／未填兩種 input 組裝、超長截斷、補充指示不寫入 comments
+
 ## Requirements
 
 - **FR-001**: 上課權限唯一判斷入口為 `Course::hasAccessForUser()`：admin 恆通過、付費購買（paidStatus）通過、drip 訂閱通過；退款（refunded）即失去權限
@@ -294,8 +302,10 @@ touchpoints:
 - **FR-017**: AI 批改只產生**草稿**：一律追加到批改輸入框末端，永不覆蓋既有文字、永不自動建立 comment — 送出批改始終是管理員的明確動作
 - **FR-018**: 草稿不落地 — 沒有 `ai_draft` 欄位、沒有生成紀錄表；未送出即丟棄。已送出的批改就是一般 comment，與手寫的無從也不需區分
 - **FR-019**: 生成為**同步** JSON 端點（非 queue）：一次呼叫、輸出短，管理員必須當場看到結果才能編輯。OpenAI 未設定、prompt 列不存在、模型無回傳一律回 422 + 可讀中文訊息，不寫入任何資料
-- **FR-020**: 送進模型的 input 由 `HomeworkGradingService` 組成固定四段 Markdown（`## 講義` / `## 作業題目` / `## 學員提交` / `## 先前的批改往返`）；每段上限 8000 字（超過從尾端截斷並標註「（內容過長，已截斷）」），往返只取最近 6 則。學員身分只以「學員」出現，不帶暱稱或 email
+- **FR-020**: 送進模型的 input 由 `HomeworkGradingService` 組成固定四段 Markdown（`## 講義` / `## 作業題目` / `## 學員提交` / `## 先前的批改往返`），選填的 `## 講師補充指示`（FR-024）附加在最後成為第五段；每段上限 8000 字（超過從尾端截斷並標註「（內容過長，已截斷）」），往返只取最近 6 則。學員身分只以「學員」出現，不帶暱稱或 email
 - **FR-021**: 端點必須驗證 `comment.assignment_id === assignment.id` 且 `parent_id` 為 null（只能對頂層提交生成）；不符一律 404，防止用別題的 assignment id 拼出跨課程脈絡
+- **FR-024**: AI 批改端點接受選填的 `note`（講師補充指示，`nullable|string|max:2000`）。它是**唯一**的 per-request 脈絡通道，來源為回覆面板獨立的 textarea，**不得**改由「批改內容」欄位推導（D21）。有值時組成第五段 `## 講師補充指示`；空值或全空白時整段省略，input 與追加此功能前逐字相同
+- **FR-025**: 補充指示不落地也不外流 — 不進 DB、不寫進 comment、不隨 `storeComment` 送出，學員端任何位置都看不到它；面板開啟與關閉時一律清空（同 FR-018 的草稿不落地立場）。生成成功後**保留**在欄位裡，讓老師改一句就能重新生成
 
 ## 設計決策
 
@@ -322,6 +332,11 @@ touchpoints:
 - **D18**: prompt 走既有 `ai_prompts` 註冊表（000 US10）而非寫死在 Service — 加一列 + `config/ai.php` 的 features 加一行，`/admin/settings/ai` 就自動多出「作業批改」分組，Vue 完全不動。業主要改批改語氣、換模型、調長度都不必發版。預設模型 `gpt-5.6-terra`（要判斷學員有沒有真的理解講義，比校訂類工作需要更多判斷力），`max_output_tokens` 2000（500 字中文約 1000 tokens，其餘留給 reasoning）
 - **D19**: 草稿不落地 DB（FR-018）— 不加 `ai_draft` 欄位、不記生成歷史。沒送出的草稿沒有價值，送出後它就是一則 comment；要區分「AI 寫的 / 人寫的」得先有這個需求，目前沒有
 - **D20**: 脈絡含既有批改往返（FR-020）— 學員交二稿、或老師想補一段評語時，模型能看到前面已經講過什麼，不會把同樣的建議再講一次。取最近 6 則、角色只標「老師 / 學員」（不帶暱稱與 email，PII 不進 prompt）
+
+- **D21**: 補充指示用**獨立欄位**，而非讀取「批改內容」裡老師已經打的字 — 共用同一格會讓一段文字同時是「要送給學員的評語」與「只給 AI 看的指令」，程式無從分辨，於是生成後那段字留著會污染批改、清掉又可能是老師本來就要留的正文，兩邊都有損失。更硬的問題是**第二次生成**：老師想微調語氣再按一次時，框裡已經是上一版 AI 草稿，「講師指示」就變成模型自己寫的東西，脈絡直接崩掉。獨立欄位讓兩者各自有位置，這兩個問題一起消失，代價只是面板多一格兩行高的 textarea
+- **D22**: 欄位放在「批改內容」**上方**而非摺疊在連結後面 — 這是每次批改都可能用到的東西，藏一層等於多一次點擊；兩行高的 textarea 在 w-96 側邊欄裡不構成壓迫。「AI 輔助批改」按鈕維持在「批改內容」那一列不動（它的作用是把草稿填進下方那格），兩者的關係由欄位說明文字交代
+- **D23**: 補充指示同樣不落地（FR-025）— 不加欄位、不做「常用片語」清單、不記 localStorage。理由與 D19 一致：真正長期固定的批改重點已經有 `handout_md` 可以放（每題一份、後台可編），而臨時指示的價值就在於它是臨時的；先做完最小可用版本，之後真的每次都在打同一句話再說
+- **D24**: 優先級寫在 prompt instructions 而非程式碼 — Service 只負責把第五段組進去，「此段優先於講義與題目、必須採納」這句判斷語意加在 `ai_prompts` 的 instructions（走 000 US10 註冊表），業主要調整補充指示的權重不必發版
 
 ## Schema
 
@@ -397,8 +412,19 @@ touchpoints:
 - [x] T029 Feature 測試（`Http::fake`）：input 四段組裝與截斷、講義未填仍可生成、未設 API key 回 422、跨 assignment 的 comment 回 404、生成不建立 comment in `tests/Feature/Classroom/AiGradingTest.php`
 - [x] T030 `php artisan test` 全綠、`npm run build` exit 0、跑 `python3 tools/build_spec_index.py` 對帳索引
 
+**Phase J — 講師補充指示（FR-024/FR-025 / D21~D24）**
+
+- [x] T031 `draft(Assignment, Comment, ?string $note = null)`；`buildInput()` 在四段之後附加 `## 講師補充指示`（trim 後為空則整段省略，沿用既有 8000 字截斷）in `app/Services/HomeworkGradingService.php`
+- [x] T032 `aiDraft` 收 `Request`，`validate(['note' => ['nullable','string','max:2000']])` 後傳給 Service in `app/Http/Controllers/Admin/HomeworkController.php`
+- [x] T033 migration：更新 `homework_grading_draft` 的 instructions，補「若出現『講師補充指示』段落，其優先於講義與題目，必須採納並自然融入評語，且不得原文照抄」in `database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php`
+- [x] T034 回覆面板「批改內容」label 上方加 `aiNote` textarea（2 行 + 說明文字）；`generateAiDraft` POST 帶 `{ note: aiNote }`；`openReplyPanel` / `closeReplyPanel` 清空 `aiNote`，生成成功後不清空 in `resources/js/Pages/Admin/Homework/Index.vue`
+- [x] T035 測試補案：有 note 時 input 含第五段且在最末、無 note 時 input 與舊版逐字相同、note 超過 2000 字回 422、note 不寫入 comments in `tests/Feature/Classroom/AiGradingTest.php`
+- [x] T036 `php artisan test` 全綠、`npm run build` exit 0、`python3 tools/build_spec_index.py` 對帳索引
+
 ## 進度日誌
 
+- 2026-08-22: 實作「講師補充指示」完成（T031–T036）— 回覆面板獨立欄位（2 行，批改內容上方）→ `note` 經 `max:2000` 驗證 → `HomeworkGradingService` 組成 input 第五段（未填則整段省略）；優先級規則以「缺才追加」方式補進 `ai_prompts` instructions，不覆蓋業主改過的文字。AiGradingTest 補 4 案 + prompt 規則斷言（17 passed），全 repo 779 passed、npm build exit 0
+- 2026-08-22: 規劃「講師補充指示」（US10 追加 FR-024/FR-025）— 回覆面板獨立欄位，把 AI 從講義與提交看不出來的事餵進去，組成 input 第五段且優先級最高；不落地 DB。否決「讀取批改內容既有文字」的作法（D21：語意重載 + 二次生成脈絡崩壞）。status: draft 待審
 - 2026-08-18: US10 上線後修正（FR-022/FR-023）— 業主回報「講義輸入後全部存檔失敗」。查證：正式站 migration 全 Ran、程式碼為最新 commit、laravel.log 無任何例外、DB 全部 assignments 的 updated_at 停在 6/6，代表請求根本沒寫進 DB 也沒丟錯 → 指向「被擋下但畫面不說」。根因是這頁自始就沒有錯誤顯示 UI（`errors` 出現 0 次），加了第二個欄位後才容易踩到。同時修掉 `TEXT` 只裝得下約 21,845 中文字的未爆彈（本機 MySQL 實測 25000 字即 1406）。業主端待確認是否為 session 過期的 419。760 passed
 - 2026-08-18: 實作 US10 完成（T014–T030）— Phase F 欄位改名（md_content → content_md / question_md，PHP+Vue+測試共 60 處，行為零變更）、Phase G 講義欄位、Phase H AI 批改（HomeworkGradingService + 同步 JSON 端點 + 回覆面板按鈕）。新增 AiGradingTest 11 案，全 repo 758 passed（改名前基準 747）、npm build exit 0。過程修正兩處測試預期：admin 防護是 302 導回首頁非 403、截斷計數誤含標題字元
 - 2026-08-18: 規劃 US10 AI 快速批改（講義欄位 + 回覆面板一鍵生成草稿），同時清掉 `md_content` 命名舊債（→ `content_md` / `question_md`），status: draft 待審
