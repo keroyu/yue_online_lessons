@@ -146,11 +146,31 @@ const sendEmail = async () => {
   }
 }
 
+/**
+ * Closing is guarded: a half-written broadcast is worth a question (008 US5).
+ *
+ * `sendEmail()` deliberately emits `close` directly — the mail is already on
+ * its way, so asking whether to discard it would be nonsense.
+ */
+const dirty = computed(() => subject.value.trim() !== '' || body.value.trim() !== '')
+
+const requestClose = () => {
+  if (dirty.value && !window.confirm('這封信還沒送出，關閉會失去已經寫好的內容。確定關閉嗎？')) {
+    return
+  }
+
+  emit('close')
+}
+
 // ESC key handler
 const handleKeydown = (e) => {
-  if (e.key === 'Escape' && props.show) {
-    emit('close')
-  }
+  if (e.key !== 'Escape' || !props.show) return
+
+  // 中文輸入法的 Esc 是「取消候選字」，不是「關掉這個視窗」。`isComposing`
+  // 在組字期間為 true；keyCode 229 是 Safari 與部分 IME 仍會送出的舊訊號。
+  if (e.isComposing || e.keyCode === 229) return
+
+  requestClose()
 }
 
 // Body scroll lock
@@ -171,10 +191,31 @@ onUnmounted(() => {
   document.body.style.overflow = ''
 })
 
+/**
+ * 背景關閉：MUST 是「按下」與「放開」都落在背景上（011 FR-143 的同一個地雷）。
+ *
+ * 在內容 textarea 裡拖曳選字、滑出面板才放開時，瀏覽器會把 click 派送到
+ * mousedown 與 mouseup 的共同祖先 —— 也就是這個根節點 —— 只看 click 的寫法
+ * 會把一次選字判成「點了背景」，於是整封寫好的信無聲消失。
+ *
+ * 順帶修好反方向：背景那一層是獨立的 `fixed` 節點且疊在上面，點它時
+ * `e.target` 從來就不是根節點，所以先前點背景其實關不掉。
+ */
+const backdrop = ref(null)
+const pressedOnBackdrop = ref(false)
+
+const isBackdrop = (el, root) => el === root || el === backdrop.value
+
+const handleBackdropMousedown = (e) => {
+  pressedOnBackdrop.value = isBackdrop(e.target, e.currentTarget)
+}
+
 const handleBackdropClick = (e) => {
-  if (e.target === e.currentTarget) {
-    emit('close')
-  }
+  const released = isBackdrop(e.target, e.currentTarget)
+  const pressed = pressedOnBackdrop.value
+  pressedOnBackdrop.value = false
+
+  if (pressed && released) requestClose()
 }
 
 // Consistent styling classes (matching CourseForm/LessonForm)
@@ -198,10 +239,11 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
       <div
         v-if="show"
         class="fixed inset-0 z-50 overflow-y-auto"
+        @mousedown="handleBackdropMousedown"
         @click="handleBackdropClick"
       >
         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-black/50 transition-opacity" aria-hidden="true" />
+        <div ref="backdrop" class="fixed inset-0 bg-black/50 transition-opacity" aria-hidden="true" />
 
         <!-- Modal container -->
         <div class="flex min-h-full items-center justify-center p-4">
@@ -232,7 +274,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                   <button
                     type="button"
                     class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
-                    @click="emit('close')"
+                    @click="requestClose"
                   >
                     <span class="sr-only">關閉</span>
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,7 +369,7 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
                 <button
                   type="button"
                   class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-                  @click="emit('close')"
+                  @click="requestClose"
                   :disabled="sending"
                 >
                   取消

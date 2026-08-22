@@ -159,6 +159,7 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 - **FR-005**: 匯入絕不修改既有會員任何欄位（僅可能為其新增課程授權）。
 - **FR-006**: 列表 index、count、匯出三處的搜尋 + 課程篩選 where 邏輯必須一致，跨頁全選人數才會與匯出結果吻合。
 - **FR-007**: 派發積分僅有「增加」入口，無扣點 UI；帳本寫入與不變量由 PointService 負責（007 模組）。
+- **FR-009**: 批次寄信 modal 的背景關閉 MUST 要求 **mousedown 與 click 都落在背景上**，且在主旨或內文非空時 MUST 先確認再關；ESC MUST 忽略輸入法組字中的按鍵（`isComposing` / keyCode 229）。沿用 011 FR-143 —— 那條是同一個地雷在客戶摘要 modal 上被實際踩到後訂下的：在 textarea 裡拖曳選字、滑出面板才放開時，`click` 會派送到 mousedown 與 mouseup 的共同祖先（modal 根節點），只看 `e.target === e.currentTarget` 會把選字判成點背景，整封寫好的信無聲消失
 - **FR-008**: 指派銷售顧問限 `role=member` 的可管理帳號；切換為冪等的布林寫入，不觸及會員其他欄位。身份實際授予的存取權限由 000-platform-core 的 `staff` middleware 落實。
 
 ## 設計決策
@@ -209,7 +210,14 @@ UI 改版（2026-07-12 回饋：詳情 modal 開關小題大作）：
 - [x] T007 新增 `SalesConsultantModal.vue`（現任列表＋移除、搜尋＋指派）、工具列按鈕；移除 MemberDetailModal 的開關 in `resources/js/Components/SalesConsultantModal.vue`, `resources/js/Pages/Admin/Members/Index.vue`, `resources/js/Components/MemberDetailModal.vue`
 - [x] T008 endpoint 測試＋全套測試/`npm run build` 驗證 in `tests/Feature/Platform/SalesConsultantTest.php`
 
+批次寄信 modal 關閉守門（2026-08-22，FR-009）：
+
+- [x] T009 背景關閉改為 mousedown + click 都在背景才成立（並修好反向瑕疵 —— 背景層是獨立的 `fixed` 節點，先前點它其實關不掉）；ESC 略過 `isComposing` / keyCode 229；三個出口統一走 `requestClose()`，主旨或內文非空時先 `confirm`；寄送成功後仍直接 `emit('close')`（信已送出，再問要不要放棄沒有意義）in `resources/js/Components/BatchEmailModal.vue`
+- [ ] T010 使用者實測：在內文裡拖曳選字並滑出面板放開，modal MUST 不關；中文輸入法按 Esc 取消候選字，modal MUST 不關；寫了內容後按關閉會先問
+
 ## 進度日誌
+
+- 2026-08-22: 批次寄信 modal 補上與 011 摘要 modal 同一組關閉守門（T009 / FR-009）— 使用者在客戶摘要那邊踩到之後，同一個寫法在這裡也在：`handleBackdropClick` 只看 `e.target === e.currentTarget`，於是在內文 textarea 裡拖曳選字、滑出面板才放開時，`click` 被派送到共同祖先（modal 根節點），一次選字就把整封信關掉。改成 mousedown 與 click 都要落在背景；同時修好反方向 —— 背景層是獨立的 `fixed` 節點且疊在上面，點它時 `e.target` 從來不是根節點，**背景關閉其實一直沒作用**。另加 ESC 略過輸入法組字，以及主旨／內文非空時關閉前先確認；寄送成功那條路徑維持直接關閉。`npm run build` exit 0、`php artisan test` 780 passed。
 
 - 2026-08-03: 批次寄信的 Markdown 渲染改用 `EmailMarkdownService::toHtml()`（011 FR-021 touchpoint）— 原本裸 `new CommonMarkConverter()` 會吃掉單次換行，管理員在 modal 裡按一次 Enter 沒有效果、得按兩次。現在單次換行即 `<br>`，空一行仍是新段落；`BatchEmailMail` 其餘行為與版型不變。
 - 2026-07-12: US9 指派 UI 依回饋改版 — 移除詳情 modal 開關，改為工具列「銷售顧問」按鈕開專屬管理視窗（現任列表＋移除、搜尋＋指派，salesConsultants endpoint admin-only、結果排除已指派者上限 8 筆）；全套 109 passed
