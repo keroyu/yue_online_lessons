@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 
 // The globally configured axios (CSRF token) — same pattern as the other admin modals.
 const axios = window.axios
@@ -71,9 +71,30 @@ const regenerate = async () => {
   }
 }
 
+/**
+ * Closing is guarded, because everything in this modal is unsaved until the
+ * admin presses 儲存摘要 and the three ways out (ESC, backdrop, 關閉) all
+ * discard it silently.
+ */
+const dirty = computed(() => draft.value !== (props.note?.summary ?? ''))
+
+const requestClose = () => {
+  if (dirty.value && !window.confirm('摘要還沒儲存，關閉會失去這次的修改。確定關閉嗎？')) {
+    return
+  }
+
+  emit('close')
+}
+
 // ESC to close + body scroll lock, matching ReferrerDetailModal.
 const handleKeydown = (e) => {
-  if (e.key === 'Escape' && props.show) emit('close')
+  if (e.key !== 'Escape' || !props.show) return
+
+  // 中文輸入法的 Esc 是「取消候選字」，不是「關掉這個視窗」。`isComposing`
+  // 在組字期間為 true；keyCode 229 是 Safari 與部分 IME 仍會送出的舊訊號。
+  if (e.isComposing || e.keyCode === 229) return
+
+  requestClose()
 }
 watch(() => props.show, (v) => {
   document.body.style.overflow = v ? 'hidden' : ''
@@ -84,8 +105,32 @@ onUnmounted(() => {
   document.body.style.overflow = ''
 })
 
+/**
+ * 背景關閉：MUST 是「按下」與「放開」都落在背景上。
+ *
+ * 這是使用者回報「編輯到一半視窗自己關掉」的成因：在 textarea 裡拖曳選字、
+ * 手指滑出面板才放開時，瀏覽器會把 click 派送到 mousedown 與 mouseup 的
+ * 共同祖先 —— 也就是這個根節點 —— 於是 `e.target === e.currentTarget` 成立，
+ * 一次單純的選字被判成「點了背景」。只看 click 的寫法無法分辨這兩件事。
+ *
+ * 順帶修好反方向：背景那一層是獨立的 `fixed` 節點且疊在上面，點它時
+ * `e.target` 從來就不是根節點，所以先前點背景其實關不掉。
+ */
+const backdrop = ref(null)
+const pressedOnBackdrop = ref(false)
+
+const isBackdrop = (el, root) => el === root || el === backdrop.value
+
+const handleBackdropMousedown = (e) => {
+  pressedOnBackdrop.value = isBackdrop(e.target, e.currentTarget)
+}
+
 const handleBackdropClick = (e) => {
-  if (e.target === e.currentTarget) emit('close')
+  const released = isBackdrop(e.target, e.currentTarget)
+  const pressed = pressedOnBackdrop.value
+  pressedOnBackdrop.value = false
+
+  if (pressed && released) requestClose()
 }
 
 const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
@@ -97,8 +142,13 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
       enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100"
       leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0"
     >
-      <div v-if="show && note" class="fixed inset-0 z-50 overflow-y-auto" @click="handleBackdropClick">
-        <div class="fixed inset-0 bg-black/50" aria-hidden="true" />
+      <div
+        v-if="show && note"
+        class="fixed inset-0 z-50 overflow-y-auto"
+        @mousedown="handleBackdropMousedown"
+        @click="handleBackdropClick"
+      >
+        <div ref="backdrop" class="fixed inset-0 bg-black/50" aria-hidden="true" />
 
         <div class="flex min-h-full items-center justify-center p-4">
           <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[88vh] flex flex-col" @click.stop>
@@ -116,7 +166,7 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
                 type="button"
                 class="text-gray-400 hover:text-gray-700 cursor-pointer transition-colors shrink-0"
                 aria-label="關閉"
-                @click="emit('close')"
+                @click="requestClose"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -163,7 +213,7 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
               <button
                 type="button"
                 :class="[btn, 'ml-auto border-transparent text-gray-500 hover:bg-gray-100']"
-                @click="emit('close')"
+                @click="requestClose"
               >
                 關閉
               </button>
