@@ -52,7 +52,7 @@ class ConsultationNoteController extends Controller
             ], 422);
         }
 
-        $summary = $transcripts->summarise($note->transcript);
+        $summary = $transcripts->summarise($note);
 
         if ($summary === null) {
             return response()->json([

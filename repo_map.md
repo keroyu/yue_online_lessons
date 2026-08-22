@@ -669,6 +669,7 @@ main_files:
 - database/migrations/2026_08_13_000002_create_course_plan_lesson_table.php
 - database/migrations/2026_08_13_000003_add_course_plan_id_to_purchases_table.php
 - database/migrations/2026_08_17_000001_create_consultation_notes_table.php
+- database/migrations/2026_08_17_000002_create_ai_prompts_table.php
 - database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
 - database/migrations/2026_08_18_000001_add_screening_to_high_ticket_leads_table.php
 - database/migrations/2026_08_18_000002_add_declined_to_high_ticket_leads_status.php

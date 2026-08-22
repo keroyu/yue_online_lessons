@@ -242,6 +242,9 @@ touchpoints:
   - file: app/Services/OpenAiService.php
     owner: 000-platform-core
     why: US23 的校訂與摘要都經由這支通用呼叫發出；本模組不自行組裝 OpenAI 請求，否則第二個 AI 功能上線時會有兩份憑證與錯誤處理
+  - file: database/migrations/2026_08_17_000002_create_ai_prompts_table.php
+    owner: 000-platform-core
+    why: 本模組的兩支 prompt（`consultation_transcript_proofread` / `consultation_summary`）的預設內文自 US23 起安裝於此；US29 在摘要內文追加「## 追銷信草稿」一節，只改這份安裝來源、不另寫 update migration（FR-149 / D115）
 ---
 
 # High Ticket（高價課預約：隱藏價格銷售頁 + Leads 後台 + Email 模板系統）
@@ -944,6 +947,33 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - [x] 測試：今日／近 7 日各自的邊界（含 6 天前、排除 8 天前、排除明日）、台北跨日邊界、無時段者不入列、與顧問／搜尋疊加、`statusCounts` 與業績摘要同步收斂、未知值不篩選
 
 
+### User Story 29 - 摘要順帶產出追蹤信草稿 (Priority: P2)
+
+面談結束後的下一個動作永遠是同一件事：寄一封信給對方。但摘要那七節全部是**寫給顧問自己看的**
+內部判斷（成交機率、主要異議、預算與決策權），沒有一段能直接寄出去 —— 顧問得自己把摘要翻譯成
+一封信，而這一步既花時間，又是整條流程裡最容易拖到隔天、拖到對方冷掉的一段。
+
+更麻煩的是，一封信最基本的要求 —— **叫對名字** —— 恰好是摘要裡唯一被系統刻意抹掉的東西：
+FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模型看得到整場對話，卻不知道對方叫什麼。
+要它寫信，只能寫出「親愛的客戶」。
+
+因此摘要的輸入在逐字稿前多帶一行客戶暱稱，prompt 多一節「## 追銷信草稿」：面談後追蹤信，
+以暱稱開頭、回顧這次談到的痛點與共識、接上對方承諾的下一步，不報價也不施壓，
+200–300 字可以直接貼進信箱微調（使用者決策）。
+
+**驗收**：
+- [x] 摘要的輸入 MUST 在逐字稿前附上客戶暱稱（`客戶暱稱：X` 一行 + 空行 + 逐字稿），MUST NOT 塞進 instructions —— instructions 是使用者在後台可編輯的文字，每場面談都不同的事實不屬於那裡
+- [x] 稱呼解析 MUST 與 `normaliseSpeakers()` 共用同一份候選清單與順序（`lead.name` → `users.nickname` → `users.real_name`），取第一個非空值；兩份各自演化的順序遲早會讓摘要叫的名字與逐字稿匿名化認得的名字對不起來（FR-148）
+- [x] 沒有任何可用暱稱時 MUST **整行省略**，MUST NOT 送出空字串或「未知」之類的佔位字 —— 那會變成模型眼中的一個名字；prompt MUST 指示此情況改用「您」
+- [x] 逐字稿本身的匿名化 MUST 維持不變（FR-106/FR-109 不動）：暱稱只出現在**摘要那一次呼叫的輸入**裡，資料庫存的逐字稿仍然只有「顧問」與「客戶」（D114）
+- [x] 追銷信草稿 MUST 是摘要 Markdown 的第 8 節（`## 追銷信草稿`），沿用既有的摘要 modal 顯示與編輯，MUST NOT 另開欄位或另跑第二次 AI 呼叫（D116）
+- [x] prompt 內文只改**安裝來源**（`create_ai_prompts_table` 的 `summaryInstructions()`），MUST NOT 另寫一支 migration 去 update 既有 row（使用者決策：正式站的內文已由使用者自行改好，任何 update 都會吃掉他寫的文字，FR-149 / D115）
+- [x] `consultation_summary` 的 `max_output_tokens` MUST 由 2000 調為 4000（使用者決策）：多出來的一節信是這份輸出裡最長的一段，而原本的 2000 是在只有七節內部摘要時訂的 —— 不調就是讓信去擠壓前七節的空間，而截斷發生時輸出看起來仍然像完整的 Markdown
+- [x] 這個值同樣只改**安裝來源**（FR-149 同一條理由）；正式站的既有列 MUST 由使用者在 `/admin/settings/ai` 自行調整，該欄位本來就在那頁可編輯
+- [x] 既有摘要 MUST NOT 自動回填或重生；要換成新格式就按既有的「重新生成」（沿用 FR-111）
+- [x] 測試：輸入含暱稱行、無暱稱時整行不存在、暱稱取候選清單第一順位、逐字稿仍為匿名、重新生成與 webhook 兩條路徑都帶到暱稱
+
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1347,6 +1377,16 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **FR-147**: 課程篩選的**介面** MUST 移除（下拉、清除鈕、`highTicketCourses` prop 與其在 `index()` 的查詢）；後端 `bookingLeadsQuery()` 的 `course_id` 條件 MUST 保留並繼續受既有測試保護。
   理由是兩者成本不對稱：介面佔的是篩選列的寬度（每次開頁都在付），後端條件是三行 `when()`（不執行就不花錢），而使用者的說法是「暫時無意義」—— 留著後端等於把日後要復原的成本壓到只剩一段 template。
 
+- **FR-148**: 摘要的輸入 MUST 是「客戶暱稱 + 逐字稿」的組合脈絡，而非裸逐字稿。
+  格式為 `客戶暱稱：{name}` 一行、一個空行、然後逐字稿；沒有可用暱稱時**整段前綴不出現**（不留空欄位、不填佔位字，那會被模型當成對方的名字）。
+  暱稱 MUST NOT 寫進 `ai_prompts.instructions`：那份文字是使用者在後台編輯的**通則**，而暱稱是每場面談都不同的**事實**。事實走輸入、通則走 instructions，是 000 US10 這套基礎設施的分工前提。
+  候選清單 MUST 與 `normaliseSpeakers()` 同源（`lead.name` → `users.nickname` → `users.real_name`），由單一私有方法產出：前者取第一個非空值當稱呼，後者仍把每一個都對應到「客戶」標籤。兩份各自維護的順序一旦漂移，摘要就會用一個匿名化程序不認得的名字叫人。
+  `summarise()` 的簽名 MUST 改為收 `ConsultationNote`（而非 `string $transcript`）—— 兩個呼叫端手上本來就有 note，逐字稿與暱稱從同一列取出，才不會出現「A 場的稿配上 B 場的名字」這種組裝錯誤。
+- **FR-149**: 摘要 prompt 的新節 MUST 只改**安裝來源**（`2026_08_17_000002_create_ai_prompts_table.php` 的 `summaryInstructions()`），使全新安裝與測試資料庫拿到含追銷信一節的版本。
+  MUST NOT 另寫一支 update migration（使用者決策）：正式站的內文已由使用者在後台改過，而 003 那支追加式 migration 的前提是「這段文字還沒有人動過」，此處不成立。已上線的環境由使用者自行在 `/admin/settings/ai` 維護。
+  代價 MUST 被記下：正式站與新裝環境的 prompt 內文自此可能不同，`summaryInstructions()` 不再是「線上實際跑的那份」的可靠參考 —— 要看線上跑什麼，看後台。
+  同一條規則適用於 `max_output_tokens`（2000 → 4000）：改安裝來源，正式站由使用者在後台那個既有欄位自行調。
+
 
 ## 設計決策
 
@@ -1649,6 +1689,18 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **D113**: 課程篩選拆掉介面、留下後端條件（使用者決策：「暫時無意義」）。
   完全刪除要動四個地方（Vue 的 select、`courseFilter` ref、`applyFilters` 的三處帶入、controller 的 `when()` 與 `highTicketCourses` 查詢）並連帶刪掉一支既有測試；日後只要再開第二門高價課就得整組寫回來。保留後端條件的實際成本是三行不執行的 `when()`，而 `?course_id=` 這個網址參數仍然可用 —— 對「暫時」這個詞來說，這是成本最低的一種保留方式。
   必須一起移除的是 `highTicketCourses`：那是專門為了填那顆下拉而跑的一次查詢加一路 prop 傳遞，沒有下拉就是純粹的浪費。
+
+- **D114**: 暱稱只進**摘要那一次呼叫的輸入**，逐字稿的匿名化完全不動。
+  兩件事的目的不同：FR-106 把講者正規化成「顧問／客戶」，是為了讓模型不必猜誰在說話 —— 猜錯會把整份文件的歸屬顛倒過來，那是這條流程最貴的錯誤。它從來不是隱私措施，所以「摘要階段告訴模型對方叫什麼」並沒有推翻它。
+  反過來把真名放回逐字稿則要付兩筆帳：校訂那一段是**分塊多次呼叫**（`CHUNK_CHARS`），每一塊都得重講一次誰是誰；而存進資料庫的逐字稿一旦帶著真名，`normaliseSpeakers()` 的既有測試（FR-109：原始講者名絕不落庫）就得整組改寫語意。收益是零 —— 摘要要的名字，摘要階段給就夠了。
+
+- **D115**: prompt 內文只改安裝來源，不寫 update migration（使用者決策）。
+  003 那支 `add_note_priority_to_homework_grading_prompt` 建立的慣例是「缺才追加、以標記守門、絕不覆寫」，前提是那段文字**還沒有人動過**。這次的前提相反：使用者已經在正式站的後台把摘要 prompt 改成他要的樣子，追加也好覆寫也罷，都是程式碼去動一份使用者已經接手的文字。
+  代價是 `summaryInstructions()` 從此只代表「全新安裝拿到的預設值」，不再是線上實際內容的鏡子。這個代價本來就已經存在（後台可編輯的那一刻起就存在），這裡只是第一次明確承認它。
+
+- **D116**: 追銷信是摘要 Markdown 的**第 8 節**，不是獨立欄位、也不是第二次 AI 呼叫。
+  獨立欄位要加一支 migration、一個編輯區、一組覆寫守門與時間戳（`summary_edited_at` 那一整套要複製一份），而它與摘要的生命週期完全一致 —— 同一場面談生成、同一顆「重新生成」重來、同一個 modal 裡讀。
+  第二次呼叫則要再送一次整份逐字稿：多一次延遲、多一份 token 帳單，換來的是模型第二次重新理解同一場對話 —— 而寫信要用的痛點與共識，正是它剛剛在前七節整理過的東西。
 
 
 ## Schema
@@ -2491,7 +2543,33 @@ Phase 5 — 驗證
 - [ ] T348 使用者實測：按 [今日] 確認名單與 pill、業績同步收斂 → 再按一次取消 → 疊加顧問篩選 → 重新整理確認網址保留 → 確認課程下拉已消失 → 手機寬度版面
 
 
+### US29 摘要順帶產出追蹤信草稿
+
+Phase 1 — Service（脈絡組裝與稱呼解析）
+
+- [x] T349 抽出 `customerNameCandidates(ConsultationNote $note): array`（`lead.name` → `users.nickname` → `users.real_name`，保序、去空值），`normaliseSpeakers()` 改用它產生「客戶」標籤對應（行為不變）in `app/Services/ConsultationTranscriptService.php`
+- [x] T350 `summarise()` 簽名改為 `summarise(ConsultationNote $note): ?string`：讀 `$note->transcript`，在前面加上 `客戶暱稱：{候選清單第一個非空值}` + 空行；無候選時整段前綴不輸出（FR-148）in `app/Services/ConsultationTranscriptService.php`
+
+Phase 2 — 呼叫端（相依 T350）
+
+- [x] T351 [P] `regenerateSummary()` 改傳 `$note`（空逐字稿的既有守門不動）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T352 [P] webhook 路徑的 `summarise()` 改傳 `$note` in `app/Jobs/ProcessZoomTranscriptJob.php`
+
+Phase 3 — Prompt 安裝來源
+
+- [x] T353 `summaryInstructions()` 加第 8 節 `## 追銷信草稿`：面談後追蹤信、以暱稱開頭（未提供暱稱則用「您」）、回顧痛點與共識、接對方承諾的下一步、不報價不施壓、200–300 字、直接可寄；**不新增 update migration**（FR-149）in `database/migrations/2026_08_17_000002_create_ai_prompts_table.php`
+- [x] T353a `consultation_summary` 的 `max_output_tokens` 由 2000 改為 4000（顯式值而非 null；null 會跟著 `config('ai.max_output_tokens')` 漂移，而這份輸出要多長是這支 prompt 自己的事）in `database/migrations/2026_08_17_000002_create_ai_prompts_table.php`
+
+Phase 4 — 驗證
+
+- [x] T354 新增測試：摘要請求的 `input` 含 `客戶暱稱：陳小明`、無任何暱稱時 `input` 不含「客戶暱稱」四字、候選順序取第一順位（lead.name 勝過 users.nickname）、存進 DB 的逐字稿仍只有「顧問／客戶」、regenerate 與 webhook 兩條路徑都帶到暱稱 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T355 `php artisan test` 全綠（`npm run build` 本次無前端變更，仍跑一次確認 exit 0）
+- [ ] T356 使用者實測：對一場既有面談按「重新生成」→ 摘要末尾出現「## 追銷信草稿」且開頭叫得出對方暱稱 → 確認正式站後台的 prompt 內文是自己那份、沒有被程式碼動過
+
+
 ## 進度日誌
+
+- 2026-08-23: US29 完成（T349–T355）— 面談摘要多產一節可直接寄的追蹤信。`summarise()` 改收 `ConsultationNote`（兩個呼叫端手上本來就有），在逐字稿前附一行 `客戶暱稱：X`；稱呼與 `normaliseSpeakers()` 共用新抽出的 `customerNameCandidates()`（`lead.name` → `users.nickname` → `users.real_name`），取第一個非空值，一份順序兩個用途，摘要不會用一個匿名化程序不認得的名字叫人。沒有任何候選時**整行省略**而非留空欄位 —— 佔位字會被模型當成對方的名字。逐字稿的匿名化完全不動（D114）：名字只出現在摘要那一次呼叫的輸入裡，落庫的稿仍只有「顧問／客戶」，FR-109 那組測試原樣通過。prompt 加第 8 節「## 追銷信草稿」（200–300 字、暱稱開頭、回顧痛點與共識、接對方承諾的下一步、不報價不施壓、不得複製前七節的內部判斷、內容不足就明說不編造），`max_output_tokens` 2000 → 4000。依使用者決策**只改安裝來源**（`create_ai_prompts_table` 的 `summaryInstructions()`），不寫 update migration —— 正式站的內文已由使用者自行改好，任何 update 都是程式碼去動一份使用者已接手的文字（D115）。代價：`summaryInstructions()` 從此只是新裝環境的預設值，不是線上實際內容的鏡子。ConsultationSummaryTest +5，全站 `php artisan test` **794 passed（3294 assertions）**、`npm run build` exit 0（本次無前端變更）。T356 使用者實測待確認；正式站需自行在 /admin/settings/ai 把 `max_output_tokens` 調成 4000。
 
 - 2026-08-23: US28 完成（T338–T347）— 預約名單篩選列的課程下拉換成 `[今日][近 7 日]` 兩顆互斥快篩（`?met=today` / `7d`），以該 lead 佔用的 `consultation_slots.starts_at` 判定，追銷名單終於能一鍵撈出「這幾天談過的人」，不必再靠展開列目視比對或繞到週曆挑人。區間定義收在 `HighTicketLeadService::metRange()`（台北日曆日建構再轉 UTC，沿用 FR-098 的作法），上界固定為明日 00:00 而非 `now()` —— 用 `now()` 會讓下午三點的場次在早上看不到、下午看得到，同一顆按鈕一天內給出兩份名單；固定上界同時讓 `today` 成為 `7d` 的子集。命中判定為 `HighTicketLead::scopeMetWithin()`（`whereHas('slots')` 半開區間，`whereBetween` 的雙端閉區間會讓午夜整點的場次同時屬於兩天）。條件加在 `bookingLeadsQuery()` 第四個參數，三個呼叫端（列表、`statusCounts`、`conversionStats`）一起帶入，列表、漏斗百分比與成交摘要恆定描述同一批人（FR-146）。無法辨識的 `met` 值正規化為 null 視為不篩選 —— 那是介面預設鍵不是使用者資料，把打錯的鍵變成空名單會被讀成「這週沒人談」。取消／婉拒已釋出時段，那些 lead 自然落在快篩之外，正是追銷名單要的結果。同時依 FR-147 拆掉課程篩選介面（select、清除鈕、`highTicketCourses` 查詢與整條 prop 傳遞），後端 `course_id` 條件與其既有測試原樣保留，`?course_id=` 仍可用。無 schema 變更。LeadsTabsTest +8、ConversionStatsTest +1，全站 `php artisan test` **789 passed（3282 assertions）**、`npm run build` exit 0。T348 使用者瀏覽器實測待確認。
 

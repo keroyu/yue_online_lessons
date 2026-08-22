@@ -664,4 +664,131 @@ class ConsultationSummaryTest extends TestCase
 
         $this->assertSame(0, ConsultationNote::count());
     }
+
+    // ── 011 US29 — the summary learns who it is writing to (FR-148/FR-149) ──
+
+    /** The one OpenAI call that carries the summary context. */
+    private function summaryInput(): ?string
+    {
+        foreach (Http::recorded() as [$request]) {
+            if (str_contains($request->url(), 'openai') && str_contains((string) $request['instructions'], '追銷信草稿')) {
+                return (string) $request['input'];
+            }
+        }
+
+        return null;
+    }
+
+    /** high_ticket_leads.course_id is NOT NULL, so a lead needs a course. */
+    private function leadNamed(string $name): HighTicketLead
+    {
+        $course = Course::create([
+            'name' => 'HT ' . uniqid(), 'slug' => 'ht-' . uniqid(), 'tagline' => 't',
+            'description' => 'd', 'price' => 50000, 'instructor_name' => 'I',
+            'type' => 'high_ticket', 'status' => 'selling', 'course_type' => 'standard',
+            'is_published' => true, 'is_visible' => true, 'payment_gateway' => 'payuni',
+        ]);
+
+        return HighTicketLead::create([
+            'name' => $name, 'email' => 'booker@example.com',
+            'course_id' => $course->id, 'booked_at' => now(),
+        ]);
+    }
+
+    private function noteForSummary(array $overrides = []): ConsultationNote
+    {
+        return $this->note(array_merge([
+            'transcript' => "顧問: 預算大概多少\n客戶: 大概三十萬",
+        ], $overrides));
+    }
+
+    public function test_the_summary_input_carries_the_customer_nickname(): void
+    {
+        $lead = $this->leadNamed('陳小明');
+        $note = $this->noteForSummary(['lead_id' => $lead->id]);
+
+        $this->enableOpenAi();
+        Http::fake(['api.openai.com/*' => Http::response(['output_text' => '## 客戶背景
+- 新摘要'], 200)]);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/consultation-notes/{$note->id}/regenerate-summary")
+            ->assertOk();
+
+        $input = $this->summaryInput();
+        $this->assertNotNull($input, '摘要呼叫應該有發出去');
+        $this->assertStringContainsString('客戶暱稱：陳小明', $input);
+        $this->assertStringContainsString('客戶: 大概三十萬', $input, '逐字稿本身仍要在輸入裡');
+    }
+
+    /**
+     * FR-148 — no name is a missing line, not an empty field: a placeholder
+     * would read to the model as what this person is called.
+     */
+    public function test_the_summary_input_omits_the_nickname_line_when_nobody_has_one(): void
+    {
+        $note = $this->noteForSummary();
+
+        $this->enableOpenAi();
+        Http::fake(['api.openai.com/*' => Http::response(['output_text' => '## 客戶背景
+- 新摘要'], 200)]);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/consultation-notes/{$note->id}/regenerate-summary")
+            ->assertOk();
+
+        $this->assertStringNotContainsString('客戶暱稱', (string) $this->summaryInput());
+    }
+
+    /**
+     * The candidate order is shared with normaliseSpeakers(): the name they
+     * registered with wins over whatever the member profile says.
+     */
+    public function test_the_nickname_prefers_the_registered_lead_name_over_the_member_profile(): void
+    {
+        $lead = $this->leadNamed('登記暱稱');
+        User::factory()->create(['email' => 'booker@example.com', 'nickname' => '會員暱稱']);
+        $note = $this->noteForSummary(['lead_id' => $lead->id]);
+
+        $this->enableOpenAi();
+        Http::fake(['api.openai.com/*' => Http::response(['output_text' => '## 客戶背景
+- 新摘要'], 200)]);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/consultation-notes/{$note->id}/regenerate-summary")
+            ->assertOk();
+
+        $this->assertStringContainsString('客戶暱稱：登記暱稱', (string) $this->summaryInput());
+    }
+
+    /**
+     * D114 — the name reaches the summary call and nothing else. What lands in
+     * the database is still anonymised (FR-109), which is what the webhook path
+     * has to keep proving.
+     */
+    public function test_the_stored_transcript_stays_anonymised_while_the_summary_learns_the_name(): void
+    {
+        $lead = $this->leadWithNote('');
+        $note = ConsultationNote::first();
+        $note->update(['lead_id' => $lead->id]);
+
+        $this->enableOpenAi();
+        Http::fake([
+            'zoom.us/rec/*'    => Http::response($this->vtt(customerName: 'Booker'), 200),
+            'api.openai.com/*' => Http::response(['output_text' => "顧問: 今天想先了解你目前的狀況\n客戶: 我的收入很不穩定"], 200),
+        ]);
+
+        $this->sendWebhook($this->payload())->assertOk();
+
+        $note->refresh();
+        $this->assertStringNotContainsString('Booker', (string) $note->transcript, '原始講者名不得落庫');
+        $this->assertStringContainsString('客戶暱稱：Booker', (string) $this->summaryInput());
+    }
+
+    public function test_the_summary_prompt_has_room_for_the_extra_section(): void
+    {
+        // 2000 was set when the output was seven internal sections; the draft
+        // email is the longest single block in there now (T353a).
+        $this->assertSame(4000, AiPrompt::for('consultation_summary')->max_output_tokens);
+    }
 }

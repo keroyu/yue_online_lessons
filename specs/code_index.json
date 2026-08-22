@@ -60,7 +60,8 @@
     ],
     "app/Http/Controllers/Admin/ConsultationNoteController.php": [
       "011.us-23",
-      "011.us-25"
+      "011.us-25",
+      "011.us-29"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
       "011.us-10",
@@ -544,7 +545,8 @@
     ],
     "app/Jobs/ProcessZoomTranscriptJob.php": [
       "011.us-23",
-      "011.us-25"
+      "011.us-25",
+      "011.us-29"
     ],
     "app/Jobs/SendBroadcastEmailJob.php": [
       "012.us-5"
@@ -837,7 +839,8 @@
       "011.us-20"
     ],
     "app/Services/ConsultationTranscriptService.php": [
-      "011.us-23"
+      "011.us-23",
+      "011.us-29"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -1262,7 +1265,8 @@
       "011.us-23"
     ],
     "database/migrations/2026_08_17_000002_create_ai_prompts_table.php": [
-      "000.us-10"
+      "000.us-10",
+      "011.us-29"
     ],
     "database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php": [
       "011.us-23"
@@ -1996,7 +2000,8 @@
     ],
     "tests/Feature/HighTicket/ConsultationSummaryTest.php": [
       "011.us-23",
-      "011.us-25"
+      "011.us-25",
+      "011.us-29"
     ],
     "tests/Feature/HighTicket/ConversionStatsTest.php": [
       "011.us-22",

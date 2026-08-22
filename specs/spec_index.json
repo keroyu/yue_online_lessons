@@ -4155,6 +4155,40 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-29",
+      "module": "011-high-ticket",
+      "title": "摘要順帶產出追蹤信草稿",
+      "summary": "面談摘要的輸入在逐字稿前多帶一行客戶暱稱（候選順序與 normaliseSpeakers 同源：lead.name → users.nickname → users.real_name，無值則整行省略），prompt 加第 8 節「## 追銷信草稿」產出可直接寄的面談後追蹤信；逐字稿匿名化不變，prompt 內文只改安裝來源不寫 update migration",
+      "heading": "### User Story 29 - 摘要順帶產出追蹤信草稿 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-29---摘要順帶產出追蹤信草稿-priority-p2",
+      "keywords": [
+        "追銷信草稿",
+        "面談後追蹤信",
+        "follow-up email",
+        "客戶暱稱",
+        "稱呼",
+        "salutation",
+        "摘要 prompt",
+        "consultation_summary",
+        "ai_prompts",
+        "instructions",
+        "匿名化",
+        "normaliseSpeakers",
+        "重新生成",
+        "高價課",
+        "high ticket"
+      ],
+      "code_files": [
+        "app/Services/ConsultationTranscriptService.php",
+        "app/Http/Controllers/Admin/ConsultationNoteController.php",
+        "app/Jobs/ProcessZoomTranscriptJob.php",
+        "database/migrations/2026_08_17_000002_create_ai_prompts_table.php",
+        "tests/Feature/HighTicket/ConsultationSummaryTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-3",
       "module": "011-high-ticket",
       "title": "後台 Leads 名單管理",

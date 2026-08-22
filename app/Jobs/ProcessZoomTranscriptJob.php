@@ -132,7 +132,7 @@ class ProcessZoomTranscriptJob implements ShouldQueue
             return;
         }
 
-        $summary = $transcripts->summarise((string) $note->transcript);
+        $summary = $transcripts->summarise($note);
 
         if ($summary === null) {
             return;

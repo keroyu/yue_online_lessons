@@ -109,12 +109,8 @@ class ConsultationTranscriptService
             }
         }
 
-        $customer = User::where('email', $note->email)->first(['nickname', 'real_name']);
-
-        foreach ([$note->lead?->name, $customer?->nickname, $customer?->real_name] as $name) {
-            if ($name) {
-                $map[$this->normaliseName($name)] = self::CUSTOMER_LABEL;
-            }
+        foreach ($this->customerNameCandidates($note) as $name) {
+            $map[$this->normaliseName($name)] = self::CUSTOMER_LABEL;
         }
 
         $lines = preg_split('/\R/u', $dialogue) ?: [];
@@ -178,13 +174,62 @@ class ConsultationTranscriptService
         return implode("\n", $output);
     }
 
-    public function summarise(string $transcript): ?string
+    /**
+     * Every name this customer might appear under, in order of authority
+     * (011 FR-148).
+     *
+     * One list with one order, because two consumers read it for different
+     * reasons: `normaliseSpeakers()` maps *all* of them onto the 客戶 label,
+     * while `summarise()` takes the first as what to call this person. Kept
+     * apart they would drift, and the summary would end up addressing someone
+     * by a name the anonymiser does not recognise.
+     *
+     * The name they registered with wins: it is what they typed about
+     * themselves for this consultation, and it is present for every lead —
+     * the member profile may not exist yet at all.
+     *
+     * @return array<int, string>
+     */
+    public function customerNameCandidates(ConsultationNote $note): array
     {
+        $customer = User::where('email', $note->email)->first(['nickname', 'real_name']);
+
+        return array_values(array_filter([
+            $note->lead?->name,
+            $customer?->nickname,
+            $customer?->real_name,
+        ], fn (?string $name) => is_string($name) && trim($name) !== ''));
+    }
+
+    /**
+     * Summarise one consultation (011 US23), addressed to a named person
+     * (US29).
+     *
+     * Takes the note rather than the transcript string so both halves of the
+     * context come off the same row — a transcript from one session with a name
+     * from another is exactly the mix-up a second parameter invites.
+     *
+     * The name rides in the *input*, never the instructions: the instructions
+     * are the owner's editable general rules, and who this particular customer
+     * is is a per-session fact (FR-148). When nobody has a usable name the line
+     * is absent entirely rather than empty — a placeholder would read to the
+     * model as what this person is called.
+     */
+    public function summarise(ConsultationNote $note): ?string
+    {
+        $transcript = (string) $note->transcript;
+
         if (trim($transcript) === '') {
             return null;
         }
 
-        return $this->ai->respond(self::SUMMARY_PROMPT, $transcript);
+        $name = $this->customerNameCandidates($note)[0] ?? null;
+
+        $input = $name === null
+            ? $transcript
+            : "客戶暱稱：{$name}\n\n{$transcript}";
+
+        return $this->ai->respond(self::SUMMARY_PROMPT, $input);
     }
 
     /**
