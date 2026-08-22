@@ -124,6 +124,7 @@ owner_files:
   - database/migrations/2026_08_17_000003_drop_transcript_edited_at_from_consultation_notes_table.php
   - tests/Feature/HighTicket/ConsultationSummaryTest.php
   - tests/Feature/HighTicket/ConsultationNoteTest.php
+  - tests/Feature/HighTicket/LongQueueDrainScheduleTest.php
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 touchpoints:
