@@ -4117,6 +4117,44 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-28",
+      "module": "011-high-ticket",
+      "title": "預約名單依面談時間快篩",
+      "summary": "預約名單篩選列加 [今日][近7日] 兩顆互斥快篩（?met=today / 7d），以 consultation_slots.starts_at 為準、台北日曆日切分、上界固定明日 00:00；條件放進 bookingLeadsQuery 讓 pill 漏斗與成交摘要一起收斂；同時移除課程篩選介面（後端 course_id 條件保留）",
+      "heading": "### User Story 28 - 預約名單依面談時間快篩 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-28---預約名單依面談時間快篩-priority-p2",
+      "keywords": [
+        "面談時間篩選",
+        "時間快篩",
+        "今日",
+        "近7日",
+        "met filter",
+        "追銷名單",
+        "工作名單",
+        "consultation_slots",
+        "starts_at",
+        "台北時間",
+        "日曆日",
+        "bookingLeadsQuery",
+        "課程篩選移除",
+        "course_id",
+        "leads 名單",
+        "高價課",
+        "high ticket"
+      ],
+      "code_files": [
+        "app/Services/HighTicketLeadService.php",
+        "app/Models/HighTicketLead.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "tests/Feature/HighTicket/LeadsTabsTest.php",
+        "tests/Feature/HighTicket/ConversionStatsTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-3",
       "module": "011-high-ticket",
       "title": "後台 Leads 名單管理",

@@ -61,11 +61,18 @@ class HighTicketLeadController extends Controller
         $subCourse  = $request->query('sub_course');
         $subStatus  = $request->query('sub_status');
 
+        // Meeting-time quick filter (US28). Normalised through the service so
+        // an unrecognised key reaches the front end as null and lights up
+        // neither button, instead of sitting in the URL doing nothing visible.
+        $met        = $request->query('met');
+        $met        = $this->leadService->metRange($met) === null ? null : $met;
+
         $filters = [
             'status'     => $status,
             'search'     => $search,
             'course_id'  => $courseId,
             'consultant' => $consultant,
+            'met'        => $met,
             'sub_course' => $subCourse ? (int) $subCourse : null,
             'sub_status' => $subStatus,
         ];
@@ -98,7 +105,7 @@ class HighTicketLeadController extends Controller
             ]);
         }
 
-        $leads = $this->bookingLeadsQuery($search, $courseId, $consultant)
+        $leads = $this->bookingLeadsQuery($search, $courseId, $consultant, $met)
             ->with([
                 'course:id,name',
                 'consultant:id,nickname,email',
@@ -134,7 +141,7 @@ class HighTicketLeadController extends Controller
         // the admin clicks into one status. The consultant filter *does* belong
         // in here (FR-074): sharing one builder is what keeps the pills and the
         // list from telling two different stories.
-        $statusCounts = $this->bookingLeadsQuery($search, $courseId, $consultant)
+        $statusCounts = $this->bookingLeadsQuery($search, $courseId, $consultant, $met)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status')
@@ -145,13 +152,8 @@ class HighTicketLeadController extends Controller
         // without the status filter — clicking into a status must not move the
         // money (FR-097, mirrors the funnel-share rule).
         $conversionStats = $this->leadService->conversionStats(
-            $this->bookingLeadsQuery($search, $courseId, $consultant)
+            $this->bookingLeadsQuery($search, $courseId, $consultant, $met)
         );
-
-        $highTicketCourses = Course::where('type', 'high_ticket')
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
 
         // Same definition of "who is a consultant" as the week grid's owner
         // picker, minus its self-only restriction — this filter is a viewing
@@ -219,7 +221,6 @@ class HighTicketLeadController extends Controller
             'tab'               => $tab,
             'leads'             => $leads,
             'filters'           => $filters,
-            'highTicketCourses' => $highTicketCourses,
             'consultantOptions' => $consultantOptions,
             'dripCourses'       => $dripCourses,
             'notifyTemplate'    => $notifyTemplate,
@@ -237,17 +238,25 @@ class HighTicketLeadController extends Controller
     }
 
     /**
-     * The booking tab's search / course / consultant filter, shared by the
-     * paginated list and the per-status counts so the two can never disagree
-     * about which leads are in scope (FR-074).
+     * The booking tab's search / course / consultant / meeting-time filter,
+     * shared by the paginated list, the per-status counts and the deal summary
+     * so the three can never disagree about which leads are in scope
+     * (FR-074 / FR-097 / FR-146).
      *
      * `$consultant` is a view parameter, not an identity: empty means every
      * consultant, `none` means the leads nobody owns (everything from before
      * US15 lives there), anything else is an id. An id that matches nobody just
      * yields an empty list — not worth a validation layer (FR-075).
+     *
+     * `$courseId` no longer has a control in the interface (FR-147): with one
+     * high-ticket course running, the dropdown only cost the filter row its
+     * width. The condition stays so `?course_id=` keeps working and putting the
+     * control back is a template change.
      */
-    private function bookingLeadsQuery(?string $search, $courseId, ?string $consultant = null): Builder
+    private function bookingLeadsQuery(?string $search, $courseId, ?string $consultant = null, ?string $met = null): Builder
     {
+        $metRange = $this->leadService->metRange($met);
+
         return HighTicketLead::query()
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -258,7 +267,8 @@ class HighTicketLeadController extends Controller
             ->when(
                 $consultant !== null && $consultant !== '' && $consultant !== 'none',
                 fn ($q) => $q->where('consultant_id', (int) $consultant),
-            );
+            )
+            ->when($metRange, fn ($q) => $q->metWithin($metRange[0], $metRange[1]));
     }
 
     /**

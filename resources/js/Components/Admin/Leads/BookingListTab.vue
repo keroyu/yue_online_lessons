@@ -15,10 +15,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  highTicketCourses: {
-    type: Array,
-    default: () => [],
-  },
   // Admins + sales consultants, for the owner filter (US18)
   consultantOptions: {
     type: Array,
@@ -200,15 +196,32 @@ const tabTitle = (value) => {
     : `共 ${leadTotal.value} 筆`
 }
 
-// Search, course & consultant filter. All three stack, and every navigation
-// away from here has to carry them all — dropping one silently widens the list
-// under the admin without the URL saying so.
+// Search, meeting-time & consultant filter. All three stack, and every
+// navigation away from here has to carry them all — dropping one silently
+// widens the list under the admin without the URL saying so.
 const search = ref(props.filters.search || '')
-const courseFilter = ref(props.filters.course_id || '')
 const consultantFilter = ref(props.filters.consultant || '')
 
+// Meeting-time quick filter (US28): '' | 'today' | '7d'. The server normalises
+// an unrecognised key to null, so nothing lights up for a URL nobody wrote.
+const metFilter = ref(props.filters.met || '')
+
+// Labels live next to the keys the server understands (FR-144).
+const metPresets = [
+  { value: 'today', label: '今日', hint: '面談時段落在今天（台北時間）的預約，含今天稍晚才要進行的場次' },
+  { value: '7d', label: '近 7 日', hint: '面談時段落在今天往前算七個日曆日內的預約，不含明天以後' },
+]
+
+// Pressing the active one again clears it — two buttons and no "所有時間"
+// option, because the cleared state is the whole list and that is already what
+// the pills above are showing.
+const toggleMet = (value) => {
+  metFilter.value = metFilter.value === value ? '' : value
+  applyFilters()
+}
+
 const hasAnyFilter = computed(() =>
-  Boolean(props.filters.status || search.value || courseFilter.value || consultantFilter.value)
+  Boolean(props.filters.status || search.value || metFilter.value || consultantFilter.value)
 )
 
 let searchTimeout = null
@@ -221,7 +234,7 @@ const applyFilters = (overrides = {}) => {
   router.get('/admin/high-ticket-leads', {
     status: props.filters.status || undefined,
     search: search.value || undefined,
-    course_id: courseFilter.value || undefined,
+    met: metFilter.value || undefined,
     consultant: consultantFilter.value || undefined,
     ...overrides,
   }, { preserveState: true, replace: true })
@@ -231,7 +244,7 @@ const applyFilter = (status) => {
   router.get('/admin/high-ticket-leads', {
     status: status || undefined,
     search: search.value || undefined,
-    course_id: courseFilter.value || undefined,
+    met: metFilter.value || undefined,
     consultant: consultantFilter.value || undefined,
   }, {
     preserveState: true,
@@ -689,7 +702,7 @@ const goToPage = (page) => {
     page,
     status: props.filters.status || undefined,
     search: search.value || undefined,
-    course_id: courseFilter.value || undefined,
+    met: metFilter.value || undefined,
     consultant: consultantFilter.value || undefined,
   }, { preserveState: true })
 }
@@ -744,7 +757,7 @@ const copySelectedEmails = async () => {
 
 <template>
   <div>
-    <!-- Search, course & consultant filter -->
+    <!-- Search, meeting-time & consultant filter -->
     <div class="mb-4 flex flex-col sm:flex-row gap-3">
       <div class="flex-1">
         <input
@@ -754,26 +767,21 @@ const copySelectedEmails = async () => {
           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
         />
       </div>
+      <!-- Meeting-time quick filters (US28). By the booked consultation slot,
+           not booked_at — the follow-up list is "who did I talk to", and the
+           two are routinely a fortnight apart. -->
       <div class="flex items-center gap-2">
-        <select
-          v-model="courseFilter"
-          @change="applyFilters()"
-          class="block rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm cursor-pointer hover:border-gray-400"
-        >
-          <option value="">所有課程</option>
-          <option v-for="course in highTicketCourses" :key="course.id" :value="course.id">
-            {{ course.name }}
-          </option>
-        </select>
         <button
-          v-if="courseFilter"
-          @click="courseFilter = ''; applyFilters()"
-          class="text-gray-400 hover:text-gray-600 cursor-pointer"
-          title="清除篩選"
+          v-for="preset in metPresets"
+          :key="preset.value"
+          @click="toggleMet(preset.value)"
+          :title="preset.hint"
+          class="px-3 py-2 rounded-md border text-sm font-medium cursor-pointer transition-colors"
+          :class="metFilter === preset.value
+            ? 'bg-brand-teal border-brand-teal text-white hover:bg-brand-teal/90'
+            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
         >
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          {{ preset.label }}
         </button>
       </div>
       <!-- Owner filter (US18). 未指派 is its own option on purpose: every lead
@@ -824,7 +832,7 @@ const copySelectedEmails = async () => {
            One line, and shorter than a pill, so the row keeps its height. -->
       <div
         class="lg:ml-auto text-xs text-gray-500 tabular-nums whitespace-nowrap"
-        title="成交人數依 Email 去重；金額只計顧問開通（已退款不計）。跟隨上方課程／顧問篩選，不受狀態色塊影響"
+        title="成交人數依 Email 去重；金額只計顧問開通（已退款不計）。跟隨上方時間／顧問篩選，不受狀態色塊影響"
       >
         本月
         <span class="font-medium text-gray-900">{{ conversionStats.month.people }}</span> 人

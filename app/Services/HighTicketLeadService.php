@@ -127,6 +127,40 @@ class HighTicketLeadService
     }
 
     /**
+     * Resolve a meeting-time quick filter key into a half-open [from, until)
+     * pair of UTC instants (011 US28 / FR-144).
+     *
+     * Boundaries are Taipei calendar days, for the same reason the deal
+     * summary's are (FR-098): the column holds UTC, and a session at 00:30
+     * Taipei is 16:30 UTC the previous day.
+     *
+     * The upper bound is tomorrow 00:00 rather than `now()` on purpose. A
+     * rolling "minus N hours" window would leave the 15:00 consultation out of
+     * this morning's list and in this afternoon's — the same button giving two
+     * different working lists on the same day. It also makes `today` a strict
+     * subset of `7d`, which is what lets the two buttons be read as one scale.
+     *
+     * An unknown key yields null (= do not filter). This is an interface key,
+     * not user data: turning a typo into an empty list would read as "nobody
+     * was met this week".
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}|null
+     */
+    public function metRange(?string $preset): ?array
+    {
+        $today = now(ConsultationSlotService::DISPLAY_TZ)->startOfDay();
+        $until = $today->copy()->addDay();
+
+        $from = match ($preset) {
+            'today' => $today,
+            '7d'    => $today->copy()->subDays(6),
+            default => null,
+        };
+
+        return $from === null ? null : [$from->utc(), $until->utc()];
+    }
+
+    /**
      * People and money between two Taipei instants, half-open [from, until).
      *
      * People are counted per email rather than per purchase (D86): one buyer

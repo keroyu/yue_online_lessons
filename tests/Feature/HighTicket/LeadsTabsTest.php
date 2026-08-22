@@ -9,6 +9,7 @@ use App\Models\HighTicketLead;
 use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -450,5 +451,198 @@ class LeadsTabsTest extends TestCase
             ->get('/admin/high-ticket-leads')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('dripByEmail.warmed@test.0.subscribed_at'));
+    }
+
+    // ── 011 US28 — the meeting-time quick filters (FR-144 … FR-147) ─────────
+
+    /** Noon in Taipei, so "today" has both a past and a future hour in it. */
+    private function freezeAtTaipeiNoon(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-22 12:00:00', 'Asia/Taipei'));
+    }
+
+    /**
+     * A lead holding two consecutive 15-minute units.
+     *
+     * `$taipei` is wall-clock Taipei; it is converted here rather than at the
+     * call sites because writing a Taipei-tz Carbon straight into the column
+     * would store the local reading as if it were UTC.
+     */
+    private function leadMetAt(Course $course, string $email, string $taipei, array $overrides = []): HighTicketLead
+    {
+        $lead = HighTicketLead::create(array_merge([
+            'name'      => $email,
+            'email'     => $email,
+            'course_id' => $course->id,
+            'status'    => 'pending',
+            'booked_at' => now(),
+        ], $overrides));
+
+        $start = Carbon::parse($taipei, 'Asia/Taipei')->utc();
+        ConsultationSlot::create(['starts_at' => $start, 'lead_id' => $lead->id]);
+        ConsultationSlot::create(['starts_at' => $start->copy()->addMinutes(15), 'lead_id' => $lead->id]);
+
+        return $lead;
+    }
+
+    /** @return array<int, string> the emails the list came back with */
+    private function listedEmails(array $query = []): array
+    {
+        $page = $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?' . http_build_query($query))
+            ->assertOk()
+            ->viewData('page');
+
+        return collect($page['props']['leads']['data'])->pluck('email')->all();
+    }
+
+    public function test_met_today_returns_only_leads_whose_slot_is_today_in_taipei(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'this-afternoon@example.com', '2026-08-22 14:00');
+        $this->leadMetAt($course, 'this-morning@example.com', '2026-08-22 09:00');
+        $this->leadMetAt($course, 'three-days-ago@example.com', '2026-08-19 15:00');
+        $this->leadMetAt($course, 'tomorrow@example.com', '2026-08-23 10:00');
+
+        $this->assertEqualsCanonicalizing(
+            ['this-afternoon@example.com', 'this-morning@example.com'],
+            $this->listedEmails(['met' => 'today']),
+            '今日 = 台北日曆日，含今天稍晚才要進行的場次，不含明天'
+        );
+    }
+
+    public function test_met_7d_covers_six_days_back_and_excludes_older_and_future(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'today@example.com', '2026-08-22 14:00');
+        $this->leadMetAt($course, 'six-days-ago@example.com', '2026-08-16 15:00');
+        $this->leadMetAt($course, 'eight-days-ago@example.com', '2026-08-14 15:00');
+        $this->leadMetAt($course, 'tomorrow@example.com', '2026-08-23 10:00');
+
+        $this->assertEqualsCanonicalizing(
+            ['today@example.com', 'six-days-ago@example.com'],
+            $this->listedEmails(['met' => '7d'])
+        );
+    }
+
+    /**
+     * FR-144 — the boundary is Taipei's. 00:30 Taipei on the 22nd is 16:30 UTC
+     * on the 21st, which a naive whereDate() on the stored column would file
+     * under yesterday.
+     */
+    public function test_met_boundaries_follow_taipei_not_utc(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'just-after-midnight@example.com', '2026-08-22 00:30');
+        $this->leadMetAt($course, 'just-before-midnight@example.com', '2026-08-21 23:30');
+
+        $this->assertSame(
+            ['just-after-midnight@example.com'],
+            $this->listedEmails(['met' => 'today'])
+        );
+    }
+
+    /**
+     * Cancelled and declined bookings hand their units back (FR-138), so those
+     * leads drop out of every meeting-time filter. That is the intent: a
+     * follow-up list is people who were actually met.
+     */
+    public function test_leads_without_slots_are_absent_from_the_meeting_filters(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'met@example.com', '2026-08-22 14:00');
+        HighTicketLead::create([
+            'name' => 'No slot', 'email' => 'no-slot@example.com',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+
+        $this->assertSame(['met@example.com'], $this->listedEmails(['met' => 'today']));
+        $this->assertCount(2, $this->listedEmails(), '沒有時間篩選時兩筆都要在');
+    }
+
+    /**
+     * FR-146 — the pills share the filter, so the list and the funnel can never
+     * describe two different populations.
+     */
+    public function test_met_filter_narrows_the_status_counts_too(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'today-pending@example.com', '2026-08-22 14:00');
+        $this->leadMetAt($course, 'today-converted@example.com', '2026-08-22 16:00', ['status' => 'converted']);
+        $this->leadMetAt($course, 'old-pending@example.com', '2026-07-01 15:00');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?met=today')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('statusCounts.pending', 1)
+                ->where('statusCounts.converted', 1)
+                ->where('filters.met', 'today'));
+    }
+
+    public function test_met_filter_stacks_with_the_consultant_and_search_filters(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+        $mine   = $this->consultant();
+
+        $this->leadMetAt($course, 'wanted@example.com', '2026-08-22 14:00', ['consultant_id' => $mine->id]);
+        $this->leadMetAt($course, 'today-someone-else@example.com', '2026-08-22 16:00');
+        $this->leadMetAt($course, 'mine-but-old@example.com', '2026-07-01 15:00', ['consultant_id' => $mine->id]);
+
+        $this->assertSame(
+            ['wanted@example.com'],
+            $this->listedEmails(['met' => 'today', 'consultant' => $mine->id])
+        );
+        $this->assertSame(
+            ['wanted@example.com'],
+            $this->listedEmails(['met' => 'today', 'search' => 'wanted@'])
+        );
+    }
+
+    /**
+     * FR-144 — `met` is an interface key, not user data: a value nobody
+     * recognises must widen back to the full list rather than produce an empty
+     * one that reads as "nobody was met this week".
+     */
+    public function test_unrecognised_met_value_is_ignored_rather_than_emptying_the_list(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'today@example.com', '2026-08-22 14:00');
+        $this->leadMetAt($course, 'ages-ago@example.com', '2026-01-05 15:00');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads?met=last-fortnight')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('leads.data', 2)
+                ->where('filters.met', null));
+    }
+
+    /**
+     * FR-147 — the course dropdown is gone, so the option list it existed to
+     * fill must stop being queried and shipped. The `?course_id=` condition
+     * itself stays (see the status-counts test above).
+     */
+    public function test_course_option_list_is_no_longer_shipped_to_the_page(): void
+    {
+        $this->makeCourse(['type' => 'high_ticket']);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->missing('highTicketCourses'));
     }
 }

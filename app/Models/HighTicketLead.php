@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\BookingScreening;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -157,5 +158,21 @@ class HighTicketLead extends Model
     public function scopeByStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Leads holding a consultation unit inside [$from, $until) (011 FR-145).
+     *
+     * Any one of the booking's units landing in the window is enough — a
+     * 30-minute consultation is 2 rows, 45 is 3, and they are consecutive.
+     *
+     * Half-open rather than whereBetween: the latter closes both ends, which
+     * would put a slot starting exactly at midnight in both adjacent days.
+     */
+    public function scopeMetWithin(Builder $query, CarbonInterface $from, CarbonInterface $until): Builder
+    {
+        return $query->whereHas('slots', fn (Builder $q) => $q
+            ->where('starts_at', '>=', $from)
+            ->where('starts_at', '<', $until));
     }
 }

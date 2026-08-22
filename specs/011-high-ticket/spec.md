@@ -914,6 +914,36 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - [x] 測試：釋出時段、刪 Zoom、只寄一封婉拒信、附件 method 為 CANCEL、兩個時間戳與狀態、無 CC、drip 訂閱不動、非生效預約被擋、重新申請清空 `declined_at`、訪客被擋
 
 
+### User Story 28 - 預約名單依面談時間快篩 (Priority: P2)
+
+追銷信的收件名單，實際上永遠是同一句話：「這幾天談過的那些人」。但預約名單目前唯一能表達
+時間的方式是排序 —— 依 `booked_at` 由新到舊，而那是**申請進來的時間**，不是面談發生的時間。
+一個上週申請、排到今天下午才談的人，會躺在名單的第二頁；今天才申請、下週才談的人反而排在最上面。
+於是管理員只能靠展開列裡的時段欄一列一列目視比對，或者繞到諮詢時段週曆上按日期挑人、
+用 US17 的勾選複製把 Email 撈出來 —— 而週曆上沒有狀態、沒有面談摘要、沒有開通與序列信的按鈕，
+撈完還是要走回名單。
+
+所以在篩選列上放兩顆快篩：**[今日]**、**[近 7 日]**，以**面談時段**為準把名單收成一份工作清單。
+按下即用、再按一次取消，不做日期區間選擇器 —— 追銷的節奏就是「剛談完的」與「這週談過的」兩種，
+一個自由區間換到的彈性遠不如兩顆按鈕按下去就有名單來得實用（D111）。
+
+同一次動作把**課程篩選拿掉**：高價課實際上只有一門在跑，那顆下拉從上線至今沒有真正分開過任何東西，
+留著只是佔掉篩選列的寬度（D113）。
+
+**驗收**：
+- [x] 篩選列 MUST 為「搜尋 / 時間快篩 / 顧問」三段，課程下拉與其清除鈕 MUST 移除
+- [x] 兩顆按鈕 MUST 互斥（同時只有一個生效），且點擊已生效的那顆 MUST 取消篩選回到不限
+- [x] 判定基準 MUST 是該 lead 佔用的**面談時段**（`consultation_slots.starts_at`），MUST NOT 用 `booked_at`（申請時間）或 `consultation_notes.met_at`（只有 Zoom 產出逐字稿才存在，FR-145 / D110）
+- [x] 區間邊界 MUST 以**台北時間的日曆日**切分（沿用 FR-098 的作法）：今日 = `[今日 00:00, 明日 00:00)`，近 7 日 = `[今日 00:00 − 6 天, 明日 00:00)`；兩者 MUST NOT 含明天以後的場次，但**今天稍晚才要進行的場次仍算今日**（FR-144 / D111）
+- [x] 沒有時段的 lead（未確認、已取消、已婉拒 —— 時段都已釋出）MUST 不出現在任一時間快篩下；這是正確行為不是遺漏，追銷名單本來就不該包含沒談成的預約
+- [x] MUST 與搜尋／顧問／狀態疊加，並 MUST 保留於網址（沿用既有 `applyFilters` 的全參數帶入，缺一即為靜默放寬）
+- [x] 時間條件 MUST 加在 `bookingLeadsQuery()` 內（使用者決策）：狀態色塊的漏斗百分比與右側成交業績摘要 MUST 一起收斂到同一批人（FR-146 / D112）
+- [x] 業績摘要的 `title` 說明文字 MUST 同步改寫（現況寫「跟隨上方課程／顧問篩選」，課程已不存在）
+- [x] 無法辨識的 `met` 值 MUST 視為不篩選（而非回空名單），且前端 MUST NOT 因此點亮任何一顆按鈕
+- [x] 兩顆按鈕 MUST 有 hover 回饋與 `cursor-pointer`；手機寬度下 MUST 與其餘篩選元件一起換行不溢出
+- [x] 測試：今日／近 7 日各自的邊界（含 6 天前、排除 8 天前、排除明日）、台北跨日邊界、無時段者不入列、與顧問／搜尋疊加、`statusCounts` 與業績摘要同步收斂、未知值不篩選
+
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1304,6 +1334,19 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **FR-141**: 入口為預約名單（`BookingListTab`）每一列的「婉拒」按鈕，MUST 二次確認，且確認框 MUST 印出將寄出的理由全文（由後端隨頁面下發模板內文，MUST NOT 在前端另寫一份）。
   完成後 MUST 以 Inertia 局部重載該頁並 `preserveScroll`，MUST NOT 只在前端改寫該列的 `status` —— 這個動作同時改了狀態、兩個時間戳與時段欄，逐一手動同步等於在前端維護第二份真相（D108）。
 
+- **FR-144**: 預約名單 MUST 支援 `?met=` 面談時間快篩，值只有兩個：`today` 與 `7d`。
+  區間 MUST 以**台北時間的日曆日**建構再轉 UTC 比對（沿用 FR-098 的理由：儲存的是 UTC，`whereDate()` 之類的裸比對會把台北凌晨的場次記到前一天）：`today` = `[今日 00:00, 明日 00:00)`，`7d` = `[今日 00:00 − 6 天, 明日 00:00)`，皆為半開區間。
+  上界 MUST 是明日 00:00 而非 `now()`：用 `now()` 會讓「今天下午三點要談的人」在早上看不到、下午看得到，同一份工作名單在一天之內自己改變內容。這個定義下 `today` 是 `7d` 的子集，兩顆按鈕的語意才對得起來。
+  無法辨識的值 MUST 視為未篩選 —— 這是一個介面預設鍵不是使用者資料，把打錯的鍵變成一份空名單只會讓人以為「這幾天沒人談」。
+- **FR-145**: 判定基準 MUST 是 `consultation_slots.starts_at`（該 lead 佔用的任一單位落在區間內即命中），MUST NOT 用 `booked_at`，MUST NOT 用 `consultation_notes.met_at`。
+  `booked_at` 是申請時間，與面談時間可以差上兩週，正是這個功能要解決的問題。
+  `met_at` 看似更貼近「真的談過」，但它只在 Zoom 產出逐字稿後才存在（US23）：沒開錄影、臨時改用電話或實體的場次一律不會有紀錄，而那些人同樣要收追銷信 —— 一個會漏人的名單比沒有名單更危險（使用者決策，D110）。
+  取消／婉拒會釋出時段（FR-138），那些 lead 因此自然落在任何時間快篩之外，這是正確結果不是副作用。
+- **FR-146**: 時間條件 MUST 併入 `bookingLeadsQuery()`（使用者決策），與搜尋／顧問同層，使列表、`statusCounts` 的漏斗百分比與 `conversionStats` 的成交摘要恆定描述同一批人（沿用 FR-074 / FR-097 的單一 builder 原則）。
+  已知代價：選了時間快篩後，右側「本月／年度成交」只計這批人的成交金額，不再是全站數字。這是單一 builder 原則的一貫結果 —— 兩個數字各自跟隨不同的篩選，才是真正說不清楚的那種介面。
+- **FR-147**: 課程篩選的**介面** MUST 移除（下拉、清除鈕、`highTicketCourses` prop 與其在 `index()` 的查詢）；後端 `bookingLeadsQuery()` 的 `course_id` 條件 MUST 保留並繼續受既有測試保護。
+  理由是兩者成本不對稱：介面佔的是篩選列的寬度（每次開頁都在付），後端條件是三行 `when()`（不執行就不花錢），而使用者的說法是「暫時無意義」—— 留著後端等於把日後要復原的成本壓到只剩一段 template。
+
 
 ## 設計決策
 
@@ -1589,6 +1632,23 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **D109**: `long` 佇列的消費者放在**排程**裡（`queue:work database_long --queue=long --stop-when-empty`，每分鐘、`runInBackground`、`withoutOverlapping(30)`），不再依賴正式站上手動維護的 worker。
   這條是被同一個故障教兩次才寫下來的：T289 當時寫成「Forge 已新增第二個 daemon」，但正式站實際上跑的是 Forge 的**一次性指令**（`provision-210173762.sh`），指令視窗結束、部署跑 `queue:restart`、或機器重開，那個 worker 就沒了 —— 而它消失的症狀是**完全無聲的**：webhook 照收、工作單照進 `jobs` 表、`reserved_at` 永遠是 NULL，後台那一列只是停在「尚無逐字稿」。2026-08-22 第二次發生時，表裡躺了 6 筆、`/etc/supervisor/conf.d/` 只有兩個舊 conf、`consultation_notes` 從 8/20 06:55 之後再無任何 `transcript_fetched_at`。
   排程贏在它是**程式碼**：跟著 deploy 走、被刪掉會出現在 diff 裡、有測試釘住（T335），而 cron 每分鐘重新起一個行程，本質上不存在「跑著跑著就沒了」這個狀態。代價是最多一分鐘的延遲 —— 對一個要等 Zoom 數十分鐘到數小時才生出逐字稿的流程，這個代價量不出來。`--stop-when-empty` 是關鍵：沒有它就變成一個沒人監管的常駐行程，而且第一次啟動後的每一次 tick 都會被重疊鎖跳過。沿用 FR-056 的既有立場（預約流程不依賴 worker），只是這裡的慢工作不能同步做，所以改由 cron 承擔常駐的那一半。
+
+- **D110**: 以**預約時段**而非**面談紀錄**為時間基準（使用者決策）。
+  兩者都能回答「什麼時候談的」，差別在覆蓋率：時段是預約成立的當下就寫進 `consultation_slots` 的事實，每一筆確認過的預約都有；`consultation_notes.met_at` 則要等 Zoom 吐出逐字稿才生得出來，沒錄影、改電話、改實體的場次一律沒有。追銷名單漏掉的人不會發出任何聲音 —— 沒收到信的人不會來抗議「你們沒寄信給我」，所以這裡選覆蓋率而不選精確度。
+  代價是取消／婉拒後時段被釋出，那些 lead 從此撈不回來；但那正是追銷名單不想要的人，代價與收益同向。
+  另一個被放棄的選項是「兩者取其一」：查詢要 OR 兩張表，而且同一個人可能因為時段與紀錄落在不同區間而語意模糊 —— 為了一種本來就該用時段回答的問題，多養一條 OR 分支不划算。
+
+- **D111**: 只做兩顆固定快篩，不做日期區間選擇器（使用者需求即如此，這裡記錄為什麼不擴大）。
+  這個篩選的用途是**產生一份工作名單**，不是分析。追銷的節奏只有兩種：「剛談完的」與「這週談過的」。日期選擇器要多付出一個彈出面板、兩個輸入框的驗證、以及一組「開始晚於結束」的錯誤狀態，換來的是一種每個月用不到一次的查詢方式。
+  區間邊界選**日曆日**而不是「往前推 N×24 小時」：後者會讓同一顆按鈕在早上與晚上給出不同名單（滾動視窗的邊緣一直在移動），而管理員對「近 7 日」的心智模型是七個格子的日曆，不是 168 小時。
+
+- **D112**: 時間條件放進 `bookingLeadsQuery()`，接受業績摘要一起被收斂（使用者決策）。
+  另一個選項是只篩列表、讓 pill 與金額維持全域視角，但那會第一次在這個頁面上製造「兩個故事」：列表顯示 6 個人，pill 說有 43 筆待面談。FR-074 當初把顧問篩選放進共用 builder 就是為了避免這件事，這裡沒有理由破例。
+  金額被縮小的那一面反而有讀法：選「近 7 日」時右側顯示的是**這批剛談過的人**至今貢獻的成交，那是一個有意義的數字，只是與「全站業績」不同義。tooltip 已寫明範圍隨篩選連動（FR-146 要求同步改寫文字）。
+
+- **D113**: 課程篩選拆掉介面、留下後端條件（使用者決策：「暫時無意義」）。
+  完全刪除要動四個地方（Vue 的 select、`courseFilter` ref、`applyFilters` 的三處帶入、controller 的 `when()` 與 `highTicketCourses` 查詢）並連帶刪掉一支既有測試；日後只要再開第二門高價課就得整組寫回來。保留後端條件的實際成本是三行不執行的 `when()`，而 `?course_id=` 這個網址參數仍然可用 —— 對「暫時」這個詞來說，這是成本最低的一種保留方式。
+  必須一起移除的是 `highTicketCourses`：那是專門為了填那顆下拉而跑的一次查詢加一路 prop 傳遞，沒有下拉就是純粹的浪費。
 
 
 ## Schema
@@ -2402,7 +2462,40 @@ Phase 4 — 驗證
 - [x] T265 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
+### US28 預約名單依面談時間快篩
+
+Phase 1 — Service（區間定義的單一真相）
+
+- [x] T338 `metRange(?string $preset): ?array` — 回 `[from, until]` 兩個 UTC 時刻或 `null`（未給／無法辨識）；`today` = 台北今日 00:00 → 明日 00:00，`7d` = 台北今日 00:00 減 6 天 → 明日 00:00，皆半開；沿用 `ConsultationSlotService::DISPLAY_TZ`（FR-144）in `app/Services/HighTicketLeadService.php`
+
+Phase 2 — Model scope（相依 T338）
+
+- [x] T339 `scopeMetWithin(Builder $q, CarbonInterface $from, CarbonInterface $until)` — `whereHas('slots', ...)` 半開區間（`>= from` / `< until`），MUST NOT 用 `whereBetween`（雙端閉區間會讓邊界那一分鐘同時屬於兩天）（FR-145）in `app/Models/HighTicketLead.php`
+
+Phase 3 — Controller（相依 T338/T339）
+
+- [x] T340 `index()` 讀 `?met=`、寫入 `$filters['met']`（無法辨識者正規化為 `null`，前端才不會點亮按鈕）；`bookingLeadsQuery()` 加第四個參數 `$met` 並套用 scope，三個呼叫端（列表、`statusCounts`、`conversionStats`）同步帶入（FR-144/FR-146）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T341 移除 `highTicketCourses` 查詢與 prop；保留 `bookingLeadsQuery()` 的 `course_id` 條件與 `$filters['course_id']`（FR-147 / D113）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+
+Phase 4 — 前端（相依 T340/T341）
+
+- [x] T342 [P] 篩選列：課程下拉與清除鈕整組移除、`courseFilter` ref 與三處 `course_id` 帶入移除、`highTicketCourses` prop 移除；加 `metFilter` ref（來自 `filters.met`）與兩顆按鈕 `[今日][近 7 日]`（互斥、再按取消、`cursor-pointer` + hover、active 用 brand-teal），變更即 `applyFilters()`；`hasAnyFilter` 改計入 `metFilter`、不再計 `courseFilter`；`applyFilter(status)` 與批次動作後的重載也要帶 `met` in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T343 [P] 移除傳給 `BookingListTab` 的 `high-ticket-courses`；`highTicketCourses` prop 一併刪除 in `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+- [x] T344 業績摘要 `title` 改寫：「跟隨上方課程／顧問篩選」→「跟隨上方時間／顧問篩選」（FR-146）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 5 — 驗證
+
+- [x] T345 [P] 新增測試：`?met=today` 只回今日有時段者、`?met=7d` 含 6 天前排除 8 天前與明日、台北跨日邊界（台北今日 00:30 的場次 = UTC 昨日 16:30，必須算今日）、無時段的 lead 不入列、met + 顧問 + 搜尋疊加、`statusCounts` 同步收斂、未知 `met` 值不篩選、`?course_id=` 仍可用（既有測試不得改動）in `tests/Feature/HighTicket/LeadsTabsTest.php`
+- [x] T346 [P] 擴充：時間快篩連動成交摘要（選 `today` 後只計今日面談者的成交）in `tests/Feature/HighTicket/ConversionStatsTest.php`
+- [x] T347 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T348 使用者實測：按 [今日] 確認名單與 pill、業績同步收斂 → 再按一次取消 → 疊加顧問篩選 → 重新整理確認網址保留 → 確認課程下拉已消失 → 手機寬度版面
+
+
 ## 進度日誌
+
+- 2026-08-23: US28 完成（T338–T347）— 預約名單篩選列的課程下拉換成 `[今日][近 7 日]` 兩顆互斥快篩（`?met=today` / `7d`），以該 lead 佔用的 `consultation_slots.starts_at` 判定，追銷名單終於能一鍵撈出「這幾天談過的人」，不必再靠展開列目視比對或繞到週曆挑人。區間定義收在 `HighTicketLeadService::metRange()`（台北日曆日建構再轉 UTC，沿用 FR-098 的作法），上界固定為明日 00:00 而非 `now()` —— 用 `now()` 會讓下午三點的場次在早上看不到、下午看得到，同一顆按鈕一天內給出兩份名單；固定上界同時讓 `today` 成為 `7d` 的子集。命中判定為 `HighTicketLead::scopeMetWithin()`（`whereHas('slots')` 半開區間，`whereBetween` 的雙端閉區間會讓午夜整點的場次同時屬於兩天）。條件加在 `bookingLeadsQuery()` 第四個參數，三個呼叫端（列表、`statusCounts`、`conversionStats`）一起帶入，列表、漏斗百分比與成交摘要恆定描述同一批人（FR-146）。無法辨識的 `met` 值正規化為 null 視為不篩選 —— 那是介面預設鍵不是使用者資料，把打錯的鍵變成空名單會被讀成「這週沒人談」。取消／婉拒已釋出時段，那些 lead 自然落在快篩之外，正是追銷名單要的結果。同時依 FR-147 拆掉課程篩選介面（select、清除鈕、`highTicketCourses` 查詢與整條 prop 傳遞），後端 `course_id` 條件與其既有測試原樣保留，`?course_id=` 仍可用。無 schema 變更。LeadsTabsTest +8、ConversionStatsTest +1，全站 `php artisan test` **789 passed（3282 assertions）**、`npm run build` exit 0。T348 使用者瀏覽器實測待確認。
+
+- 2026-08-22: [draft] 規劃 US28 預約名單依面談時間快篩 — 追銷名單的實際定義是「這幾天談過的人」，但名單只能依 `booked_at`（申請時間）排序，於是只能靠展開列目視比對、或繞到週曆按日期挑人再用 US17 勾選複製撈 Email。篩選列加兩顆互斥快篩 `[今日][近 7 日]`（`?met=today` / `?met=7d`），以 `consultation_slots.starts_at` 為準（使用者決策，不用只有 Zoom 逐字稿才生得出來的 `consultation_notes.met_at`，D110）；區間以台北日曆日切分、上界固定為明日 00:00，讓同一顆按鈕在早上與晚上給出同一份名單（FR-144 / D111）。條件放進 `bookingLeadsQuery()`（使用者決策），狀態 pill 的漏斗百分比與右側成交摘要一起收斂到同一批人（FR-146 / D112）。同一次把課程篩選的介面拆掉（含 `highTicketCourses` 查詢與 prop），後端 `course_id` 條件與其既有測試保留 —— 使用者的說法是「暫時無意義」，留著三行不執行的 `when()` 是成本最低的保留方式（FR-147 / D113）。無 schema 變更。status: draft 待審核。
 
 - 2026-08-22: 客戶摘要 modal 編輯中會自己關掉（T336 / FR-143）— 成因不是 modal「自動」關閉，是**選字被判成點背景**：在 textarea 裡拖曳選字、手指滑出面板才放開，瀏覽器會把 `click` 派送到 mousedown 與 mouseup 的共同祖先，也就是 modal 根節點，於是 `e.target === e.currentTarget` 成立、背景關閉被觸發，整段編輯無聲消失。改成 mousedown 與 click 都必須落在背景上才算數。查的過程順手發現反方向也是壞的：背景那層是獨立的 `fixed` 節點且疊在 flex 容器之上，點背景時 `e.target` 從來就不是根節點 —— **背景關閉其實一直沒作用**，現在一併正確了。另補兩道：ESC 略過輸入法組字（中文輸入時的 Esc 是取消候選字，`isComposing` / keyCode 229），以及草稿與已存內容不同時，三個出口都先 `confirm` —— 這個 modal 裡的東西在按下儲存前全部是未存的。`npm run build` exit 0。同樣的背景判定寫法還存在於 `BatchEmailModal`（有 textarea，008 領域），尚未處理。
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\HighTicket;
 
+use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
@@ -238,6 +239,33 @@ class ConversionStatsTest extends TestCase
             at: Carbon::parse('2025-12-31 23:00', 'Asia/Taipei')->utc());
 
         $this->assertSame(0, $this->stats()['year']['amount']);
+
+        Carbon::setTestNow();
+    }
+
+    // ── 011 US28: the meeting-time filter reaches the summary too ───────────
+
+    /**
+     * FR-146 — `met` lives in the same builder as the other filters, so the
+     * money follows it. What the summary then reads is "what these people, the
+     * ones I just met, have bought" — narrower than the site total on purpose.
+     */
+    public function test_meeting_time_filter_narrows_the_summary(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-05 12:00', 'Asia/Taipei'));
+
+        $metToday = $this->converted('today@example.com', 30000);
+        $metLong  = $this->converted('long-ago@example.com', 70000);
+
+        foreach ([[$metToday, '2026-09-05 14:00'], [$metLong, '2026-07-01 14:00']] as [$lead, $taipei]) {
+            $start = Carbon::parse($taipei, 'Asia/Taipei')->utc();
+            ConsultationSlot::create(['starts_at' => $start, 'lead_id' => $lead->id]);
+            ConsultationSlot::create(['starts_at' => $start->copy()->addMinutes(15), 'lead_id' => $lead->id]);
+        }
+
+        $this->assertSame(100000, $this->stats()['month']['amount'], '不篩選時兩筆都算');
+        $this->assertSame(30000, $this->stats(['met' => 'today'])['month']['amount']);
+        $this->assertSame(30000, $this->stats(['met' => '7d'])['month']['amount']);
 
         Carbon::setTestNow();
     }
