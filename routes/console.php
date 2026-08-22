@@ -48,3 +48,22 @@ Schedule::command('booking:send-resume-reminders')
     ->timezone('Asia/Taipei')
     ->hourly()
     ->between('9:00', '21:00');
+
+// Drain the `long` queue from the scheduler (011 US23 / FR-142, D109).
+// `ProcessZoomTranscriptJob` runs on the `database_long` connection, which the
+// site's single Forge worker (`queue:work database` = the `default` queue only)
+// does not touch. Twice now that gap has been patched by starting a worker by
+// hand, and twice the transcripts silently stopped when that process went away:
+// a hand-started worker does not survive a deploy's `queue:restart`, a reboot,
+// or Forge's one-off command session ending. Cron does. `--stop-when-empty`
+// keeps this a drain rather than a daemon, so an idle minute costs one exited
+// PHP process; `--max-time` bounds a busy one, and `withoutOverlapping` outlives
+// it by five minutes so a killed drain releases its lock instead of wedging.
+Schedule::command('queue:work', [
+    'database_long',
+    '--queue=long',
+    '--stop-when-empty',
+    '--max-time=1500',
+    '--tries=3',
+    '--timeout=1500',
+])->everyMinute()->runInBackground()->withoutOverlapping(30);

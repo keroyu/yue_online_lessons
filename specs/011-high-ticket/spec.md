@@ -1194,6 +1194,7 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **FR-110**: 兩個步驟各有獨立守門，**MUST 都在跑 AI 之前檢查**，跳過的同時要省下該步驟的 token。逐字稿的守門是 `transcript_fetched_at` + 已有內容（`transcriptIsSettled()`）—— 我們同時訂閱 `recording.completed` 與 `recording.transcript_completed`（D88），所以同一場次收到第二次事件是常態而非例外，沒有這道守門就是同一份逐字稿付兩次校訂費。摘要的守門是 `summary_edited_at`：人寫的摘要不該被 Zoom 重送打回原形。兩者都以 job 的 `$force` 旗標（`booking:fetch-transcript --force`）刻意繞過
 - **FR-111**: 「重新產生摘要」MUST 以該場次既存的 `transcript` 為輸入，MUST NOT 再向 Zoom 請求。Zoom 雲端錄影有保存期限，過期即永久取不回；把校訂稿留在自己的資料庫，正是為了讓摘要格式日後能隨時調整重跑。逐字稿為空時回 422（提示尚未取得逐字稿），不是 500
 - **FR-117**: `ProcessZoomTranscriptJob` MUST 跑在專屬的 `database_long` 佇列連線上，並自帶 `$timeout`（1500 秒）。**這不是調校而是正確性問題**：worker 預設 timeout 為 60 秒，而校訂一小時的逐字稿是數次連續 LLM 呼叫、分鐘級的工作，預設值會在中途砍掉它；更糟的是 `database` 連線的 `retry_after` 為 90 秒，job 只要跑超過 90 秒佇列就判定它已死、把同一份 payload 交給第二個 worker —— 重複處理、重複付 API 費用。`retry_after` MUST 恆大於 job 的 `$timeout`（本連線設 1800）。獨立連線而非直接調高 `database` 的 `retry_after`，是為了讓卡住的**信件** job 仍在 90 秒後重試，而不是等半小時
+- **FR-142**: `long` 佇列 MUST 由排程消費（`queue:work database_long --queue=long --stop-when-empty`，每分鐘、背景執行、`withoutOverlapping`），MUST NOT 依賴正式站上人工啟動或人工維護的 worker。這條是正確性而非部署偏好：沒有消費者時整條自動路徑**無聲失敗** —— webhook 回 200、工作單進表、`reserved_at` 恆為 NULL、log 一行錯誤都沒有，後台只是永遠停在「尚無逐字稿」。同樣的故障已發生兩次（2026-08-17、2026-08-22，見 D109）。`--stop-when-empty` MUST 保留：少了它排程會養出一個常駐行程，而後續每一次 tick 都會被重疊鎖跳過。測試 MUST 釘住這條排程存在（T335）
 - **FR-133**: 手動抓取端點 MUST 為**兩段式**：同步向 Zoom 查 `GET /meetings/{id}/recordings`（一秒內），只有清單裡確實有 TRANSCRIPT/VTT 才派 `ProcessZoomTranscriptJob` 並回 202。理由是這顆按鈕要回答的問題是「到底好了沒」，而三種答案裡有兩種（Zoom 上沒有錄影、逐字稿還沒產出）在那一秒內就確定了；把整段丟進佇列會讓這兩種情形變成「按了、等三分鐘、畫面還是一樣」。反過來也不能整段同步：25k 字的校訂是七次連續 LLM 呼叫、2–4 分鐘，nginx / PHP-FPM 的 60 秒讀取逾時會先斷線，而工作其實還在跑（見 FR-117 的租約論證）。
   查詢錄影清單的實作 MUST 收斂為 `ZoomTranscriptService::recordingPayload(string $meetingId): ?array`，回傳與 webhook 同形的 `['object' => ..., 'download_token' => '']`，`booking:fetch-transcript` 指令改為呼叫同一個方法 —— 兩處各寫一次 HTTP 呼叫，就會有兩套錯誤處理與兩種逾時
 - **FR-134**: 手動抓取 MUST NOT 在後端另設「已有逐字稿就拒絕」的守門。`ProcessZoomTranscriptJob` 的 `transcriptIsSettled()`（FR-110）已經擋住重複校訂，而按鈕本身在有逐字稿時就不顯示（UI 層）。同一條規則寫三次的代價不是多餘的程式碼，是三處會各自漂移
@@ -1583,6 +1584,10 @@ US24 的閘門擋掉的是「答案不對的人」。但**答案對、人不對*
 - **D108**: 前端用 Inertia `router.post` + `preserveScroll`，不沿用狀態方塊那條 axios 路徑。
   狀態方塊改的是一個欄位，回一個 lead JSON 就補得回來；婉拒改的是 `status` + 兩個時間戳 + 該列的時段欄，還可能影響上方的狀態計數與分頁篩選。用 axios 就得在前端逐一同步這些衍生值，那是在前端養第二份真相 —— 而這個動作一整天按不到幾次，一次頁面重載換掉整類同步錯誤，很划算。
 
+- **D109**: `long` 佇列的消費者放在**排程**裡（`queue:work database_long --queue=long --stop-when-empty`，每分鐘、`runInBackground`、`withoutOverlapping(30)`），不再依賴正式站上手動維護的 worker。
+  這條是被同一個故障教兩次才寫下來的：T289 當時寫成「Forge 已新增第二個 daemon」，但正式站實際上跑的是 Forge 的**一次性指令**（`provision-210173762.sh`），指令視窗結束、部署跑 `queue:restart`、或機器重開，那個 worker 就沒了 —— 而它消失的症狀是**完全無聲的**：webhook 照收、工作單照進 `jobs` 表、`reserved_at` 永遠是 NULL，後台那一列只是停在「尚無逐字稿」。2026-08-22 第二次發生時，表裡躺了 6 筆、`/etc/supervisor/conf.d/` 只有兩個舊 conf、`consultation_notes` 從 8/20 06:55 之後再無任何 `transcript_fetched_at`。
+  排程贏在它是**程式碼**：跟著 deploy 走、被刪掉會出現在 diff 裡、有測試釘住（T335），而 cron 每分鐘重新起一個行程，本質上不存在「跑著跑著就沒了」這個狀態。代價是最多一分鐘的延遲 —— 對一個要等 Zoom 數十分鐘到數小時才生出逐字稿的流程，這個代價量不出來。`--stop-when-empty` 是關鍵：沒有它就變成一個沒人監管的常駐行程，而且第一次啟動後的每一次 tick 都會被重疊鎖跳過。沿用 FR-056 的既有立場（預約流程不依賴 worker），只是這裡的慢工作不能同步做，所以改由 cron 承擔常駐的那一半。
+
 
 ## Schema
 
@@ -1914,7 +1919,9 @@ Phase 4 — 測試與驗證
 - [x] T291d 正式站補抓已結束場次的逐字稿：13 場成功（逐字稿 11k–27k 字、摘要 747–1054 字），4 場 Zoom 回 `3301 此錄製不存在`（沒開錄影／客人未出席／顧問改用個人會議室）
 - [x] T290b 刪除場次測試：空場次可刪、**有內容的場次也可刪**、訪客不可刪、**已刪除的場次不因後續 webhook 復活**（FR-118）in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
 - [x] T312 payload 無 TRANSCRIPT 檔改為靜默結束（FR-132 / D88 修訂）：`fetchTranscript()` 不再丟 `RuntimeException`，改寫 info log 後 return；測試以 `dispatchSync` 直接驗 job 不再拋例外（webhook controller 會吞例外，走 HTTP 驗不到）in `app/Jobs/ProcessZoomTranscriptJob.php`, `tests/Feature/HighTicket/ConsultationSummaryTest.php`
-- [x] T289 正式站 Forge 已新增第二個 daemon 監聽 `database_long` 連線的 `long` 佇列（`queue:work database_long --queue=long --sleep=3 --tries=3 --backoff=60 --timeout=1500`，2026-08-18 起跑）
+- [x] T289 ~~正式站 Forge 新增第二個 daemon 監聽 `long` 佇列~~ —— **記載有誤**：2026-08-18 跑的是 Forge 的一次性指令而非常駐 daemon（`/home/forge/.forge/provision-210173762.sh`），因此 8/20 之後自動路徑再度停擺。改由 T334 的排程承擔，見 D109
+- [x] T334 排程消費 `long` 佇列（D109 / FR-142）：`Schedule::command('queue:work', ['database_long', '--queue=long', '--stop-when-empty', '--max-time=1500', '--tries=3', '--timeout=1500'])->everyMinute()->runInBackground()->withoutOverlapping(30)` in `routes/console.php`
+- [x] T335 排程守門測試：schedule 裡 MUST 恰有一條 `queue:work`，且含 `database_long` / `--queue=long` / `--stop-when-empty` —— 這條是「第三次無聲停擺」的唯一防線 in `tests/Feature/HighTicket/LongQueueDrainScheduleTest.php`
 - [x] T287a 匿名化實測：掃過正式站全部 13 份逐字稿的每一行，講者標籤異常 **0 筆**（全為「顧問」／「客戶」，無 Zoom 顯示名稱或真實姓名殘留，FR-109）
 **US25 — 手動抓取逐字稿**
 
@@ -2392,6 +2399,8 @@ Phase 4 — 驗證
 - [x] T266 使用者實測：切換顧問／課程篩選確認數字跟著變、點狀態 tab 確認數字不變、手機寬度版面
 
 ## 進度日誌
+
+- 2026-08-22: `long` 佇列的消費者改由排程承擔（T334 / T335、FR-142、D109）— 使用者回報「面談後自動抓逐字稿又停了」。查正式站：`jobs` 表 6 筆 `ProcessZoomTranscriptJob`、`queue=long`、`attempts=0`、`reserved_at=NULL`（當天 04:40–07:01 陸續進來），`consultation_notes` 自 8/20 06:55 之後再無任何 `transcript_fetched_at`，log 裡連一行錯誤都沒有 —— **與 8/17 那次同一個故障**。`/etc/supervisor/conf.d/` 只有兩個 12 月／1 月建立的 conf（都是 `queue:work database`，只吃 `default`），`long` 佇列沒有任何消費者。追下去才發現 T289 的記載是錯的：8/18 跑的不是 Forge daemon，是一次性指令（`~/.forge/provision-210173762.sh` 內容正是 `queue:work database_long --queue=long …`），它把當時的積壓清掉之後就隨著指令視窗結束了，所以「修好」只是那一次的錯覺。修法是把消費者放進**程式碼**：`routes/console.php` 每分鐘背景跑 `queue:work database_long --queue=long --stop-when-empty --max-time=1500`、`withoutOverlapping(30)`。跟著 deploy 走、被刪會出現在 diff 裡、cron 每分鐘重起一次行程，本質上沒有「跑著跑著就沒了」這個狀態（D109）。`--stop-when-empty` 是關鍵，少了它會變成沒人監管的常駐行程、且之後每次 tick 都被重疊鎖跳過 —— 因此 T335 直接把這個字串釘進測試。正式站手動 drain 補回積壓（note 21 逐字稿與摘要已落庫，其餘陸續處理，`failed_jobs` 無新增）。全站 `php artisan test` **780 passed（3224 assertions）**。
 
 - 2026-08-20: US27 預約名單直接婉拒並取消（T326–T333）— 後台複查完申請內容後，可直接在該列按「婉拒」：一個動作釋出時段、刪 Zoom 會議、寄出婉拒通知（附 `METHOD:CANCEL` 的 `.ics`）並把狀態落成 `declined`。先前這件事得走兩段路（週曆按取消 → 回名單改狀態），漏做任一段名單就開始說謊。實作上把 `cancel()` 的五個副作用抽成 `releaseBooking($lead, $status, $eventType)`，`cancel()` 與新的 `decline()` 都委派 —— 複製一份是保證下次只改到一邊（D104）。`cancelled_at` 與 `declined_at` 一起寫：前者才是 `isActiveBooking()` 讀的那一欄，只寫後者會讓一筆沒有時段也沒有 Zoom 的 lead 繼續被當成生效中的預約（D106）。婉拒理由寫在新模板 `high_ticket_booking_declined` 的內文裡（D105，措辭改為第二人稱、把判斷放在時機而非人），確認框直接渲染該模板內文，不在前端另抄一份。順手修掉一個既有瑕疵：`recordLead()` 復活 lead 時只清 `cancelled_at`，`?resume=` 回站的人會頂著一枚已經不成立的「已婉拒」紅標（FR-139）。新增 `BookingDeclineTest` 15 條；全站 `php artisan test` **774 passed（3203 assertions）**（新測試前）、加上婉拒的 Zoom 失敗案例後該檔 15 passed（41 assertions）；`npm run build` exit 0。
 
