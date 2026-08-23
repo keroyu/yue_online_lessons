@@ -149,12 +149,15 @@ class HighTicketLeadService
     public function metRange(?string $preset): ?array
     {
         $today = now(ConsultationSlotService::DISPLAY_TZ)->startOfDay();
-        $until = $today->copy()->addDay();
 
-        $from = match ($preset) {
-            'today' => $today,
-            '7d'    => $today->copy()->subDays(6),
-            default => null,
+        [$from, $until] = match ($preset) {
+            'today'    => [$today, $today->copy()->addDay()],
+            '7d'       => [$today->copy()->subDays(6), $today->copy()->addDay()],
+            // The one forward-looking preset: tomorrow's list is preparation,
+            // not follow-up, which is why it is its own button rather than a
+            // widening of the other two.
+            'tomorrow' => [$today->copy()->addDay(), $today->copy()->addDays(2)],
+            default    => [null, null],
         };
 
         return $from === null ? null : [$from->utc(), $until->utc()];

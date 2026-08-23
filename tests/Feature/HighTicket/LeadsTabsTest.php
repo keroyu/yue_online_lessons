@@ -645,4 +645,49 @@ class LeadsTabsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->missing('highTicketCourses'));
     }
+
+    public function test_met_tomorrow_returns_only_leads_whose_slot_is_tomorrow(): void
+    {
+        $this->freezeAtTaipeiNoon();
+        $course = $this->makeCourse();
+
+        $this->leadMetAt($course, 'tomorrow-morning@example.com', '2026-08-23 10:00');
+        $this->leadMetAt($course, 'tomorrow-late@example.com', '2026-08-23 22:30');
+        $this->leadMetAt($course, 'today@example.com', '2026-08-22 14:00');
+        $this->leadMetAt($course, 'day-after@example.com', '2026-08-24 10:00');
+
+        $this->assertEqualsCanonicalizing(
+            ['tomorrow-morning@example.com', 'tomorrow-late@example.com'],
+            $this->listedEmails(['met' => 'tomorrow']),
+            '明日 = 台北的明天整日，不含今天也不含後天'
+        );
+    }
+
+    /**
+     * 011 FR-150 — the drip badge is read at a glance in a list column, so it
+     * ships the slug and the sequence position rather than the 中文 product
+     * name. `emails_sent` stops advancing when the subscription is marked
+     * booked, which is what makes it answer "converted after how many emails".
+     */
+    public function test_drip_badges_carry_the_course_slug_and_sequence_position(): void
+    {
+        $course = $this->makeCourse();
+        HighTicketLead::create([
+            'name' => 'Warmed', 'email' => 'warmed@test',
+            'course_id' => $course->id, 'status' => 'pending', 'booked_at' => now(),
+        ]);
+        $drip = $this->makeDripCourse(['slug' => 'ai-roadmap']);
+        $sub = $this->subscribe($drip, 'warmed@test', 'booked');
+        $sub->update(['emails_sent' => 3]);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/high-ticket-leads')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('dripByEmail.warmed@test.0.course_slug', 'ai-roadmap')
+                ->where('dripByEmail.warmed@test.0.emails_sent', 3)
+                ->where('dripByEmail.warmed@test.0.status', 'booked')
+                // The full name stays on the payload for the badge's tooltip.
+                ->has('dripByEmail.warmed@test.0.course_name'));
+    }
 }

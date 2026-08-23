@@ -210,6 +210,7 @@ const metFilter = ref(props.filters.met || '')
 const metPresets = [
   { value: 'today', label: '今日', hint: '面談時段落在今天（台北時間）的預約，含今天稍晚才要進行的場次' },
   { value: '7d', label: '近 7 日', hint: '面談時段落在今天往前算七個日曆日內的預約，不含明天以後' },
+  { value: 'tomorrow', label: '明日', hint: '面談時段落在明天（台北時間）的預約 — 這是備課用的名單，不是追銷名單' },
 ]
 
 // Pressing the active one again clears it — two buttons and no "所有時間"
@@ -317,6 +318,18 @@ const formatSlotRange = (lead) => {
   const end = new Date(starts[starts.length - 1].getTime() + 15 * 60 * 1000)
   const time = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
   return `${start.getFullYear()}/${start.getMonth() + 1}/${start.getDate()} ${time(start)}-${time(end)}`
+}
+
+// Status wording for the drip badge's tooltip. `booked` is the one that matters
+// most here and the one the badge used to render as a raw English word: it means
+// the sequence stopped because this person booked, which is what makes the
+// number beside the slug read as "converted after N emails" (FR-150).
+const dripStatusLabels = {
+  active: '訂閱中',
+  booked: '已預約停信',
+  completed: '已完成',
+  converted: '已轉換',
+  unsubscribed: '已退訂',
 }
 
 // Earliest drip subscription across every course this email has ever joined —
@@ -919,6 +932,7 @@ const copySelectedEmails = async () => {
                 class="rounded border-gray-300 text-brand-teal"
               />
             </th>
+            <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">諮詢時段</th>
             <th class="px-4 py-3 text-left">姓名</th>
             <th class="px-4 py-3 text-left">Email</th>
             <th class="hidden md:table-cell w-[173px] px-4 py-3 text-left">課程</th>
@@ -929,7 +943,6 @@ const copySelectedEmails = async () => {
             <th class="hidden sm:table-cell whitespace-nowrap w-20 py-3.5 px-2 text-right text-sm font-semibold text-gray-900">通知次數</th>
             <th class="hidden xl:table-cell min-w-56 px-4 py-3 text-left">序列信紀錄</th>
             <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">負責顧問</th>
-            <th class="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left">諮詢時段</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 bg-white">
@@ -942,6 +955,16 @@ const copySelectedEmails = async () => {
                 @change="toggleSelect(lead.id)"
                 class="rounded border-gray-300 text-brand-teal"
               />
+            </td>
+            <!-- The consultation itself, not when the form was sent: this is
+                 the column that has to move when a booking is rescheduled.
+                 Leftmost of the data columns because that is what the list is
+                 now scanned by — the 今日／近 7 日 filters above sort the page
+                 into a day's work, and the time is what identifies each row
+                 in it. -->
+            <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
+              <span v-if="formatSlotRange(lead)">{{ formatSlotRange(lead) }}</span>
+              <span v-else class="text-gray-400">—</span>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">
               <div class="inline-flex items-center gap-1.5">
@@ -1065,17 +1088,18 @@ const copySelectedEmails = async () => {
                 <div class="flex flex-wrap gap-1">
                   <span
                     v-for="sub in dripByEmail[lead.email]"
-                    :key="sub.course_name + sub.status"
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+                    :key="sub.course_slug + sub.status"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap tabular-nums"
                     :class="{
-                      'bg-blue-100 text-blue-800':   sub.status === 'active',
-                      'bg-green-100 text-green-800':  sub.status === 'completed',
+                      'bg-blue-100 text-blue-800':    sub.status === 'active',
+                      'bg-purple-100 text-purple-800': sub.status === 'booked',
+                      'bg-green-100 text-green-800':   sub.status === 'completed',
                       'bg-yellow-100 text-yellow-800': sub.status === 'converted',
-                      'bg-gray-100 text-gray-500':    sub.status === 'unsubscribed',
+                      'bg-gray-100 text-gray-500':     sub.status === 'unsubscribed',
                     }"
+                    :title="`${sub.course_name}（${dripStatusLabels[sub.status] ?? sub.status}）— 已寄出第 ${sub.emails_sent} 封`"
                   >
-                    {{ sub.course_name }}
-                    <span class="opacity-70">·{{ { active: '訂閱中', completed: '已完成', converted: '已轉換', unsubscribed: '已退訂' }[sub.status] ?? sub.status }}</span>
+                    {{ sub.course_slug }} ({{ sub.emails_sent }})
                   </span>
                 </div>
               </template>
@@ -1083,12 +1107,6 @@ const copySelectedEmails = async () => {
             </td>
             <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
               <span v-if="lead.consultant">{{ lead.consultant.nickname || lead.consultant.email }}</span>
-              <span v-else class="text-gray-400">—</span>
-            </td>
-            <!-- The consultation itself, not when the form was sent: this is
-                 the column that has to move when a booking is rescheduled. -->
-            <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
-              <span v-if="formatSlotRange(lead)">{{ formatSlotRange(lead) }}</span>
               <span v-else class="text-gray-400">—</span>
             </td>
           </tr>

@@ -175,12 +175,20 @@ class HighTicketLeadController extends Controller
 
         $emails = $leads->pluck('email')->filter()->unique()->values();
         $suppressionsByEmail = EmailSuppression::reasonsFor($emails);
+        // `emails_sent` is the sequence position this person reached: it stops
+        // advancing the moment the subscription is marked `booked`, so on a
+        // booked row it reads as "converted after N emails" (FR-150). The slug
+        // rather than the course name because the badge sits in a list column
+        // — a full 中文 product name wraps the row and says nothing the slug
+        // does not.
         $dripByEmail = User::whereIn('email', $emails)
-            ->with(['dripSubscriptions' => fn ($q) => $q->with('course:id,name')])
+            ->with(['dripSubscriptions' => fn ($q) => $q->with('course:id,name,slug')])
             ->get(['id', 'email'])
             ->keyBy('email')
             ->map(fn ($u) => $u->dripSubscriptions->map(fn ($s) => [
                 'course_name'   => $s->course->name ?? '?',
+                'course_slug'   => $s->course->slug ?? '?',
+                'emails_sent'   => (int) $s->emails_sent,
                 'status'        => $s->status,
                 'subscribed_at' => $s->subscribed_at,
             ])->values());
