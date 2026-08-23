@@ -1392,6 +1392,11 @@ FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模�
   兩個理由。其一是版面：這是列表裡的一欄，一個中文商品全名會把整列撐開換行，而它換來的資訊「這是哪個序列」用 slug 表達得一樣清楚。其二是那個數字：`emails_sent` 在訂閱被標記 `booked`（此人完成預約）的那一刻停止前進，所以在一列 booked 的徽章上，它讀作**「收到第幾封之後成交預約」** —— 那正是判斷序列信效力的唯一現場數字，而它至今從未出現在這個畫面上。
   狀態 MUST 仍以底色表達，且 `booked` MUST 有自己的顏色（現況缺這一項，booked 的徽章會落到沒有任何配色的分支）。全名與狀態中文 MUST 移入 `title` —— 資訊不刪，只是不佔列寬。
 
+- **FR-151**: Leads 名單的「諮詢時段」MUST 以**台北時間**判定與顯示（`Intl.DateTimeFormat` 指定 `timeZone: 'Asia/Taipei'`），MUST NOT 用瀏覽器本地時區。
+  落在台北今天的時段 MUST 標底色（琥珀）、落在明天的 MUST 標另一種（藍），其餘無底色 —— 與 `?met=` 三顆快篩同一套日曆日定義（FR-144），畫面上的顏色與篩選出來的名單因此永遠是同一批列。
+  時區這條是正確性不是偏好：原本的 `getHours()` 在一台設定為台北的機器上看不出問題，但只要管理員的機器不是台北，就會出現「標成今日、卻顯示昨天日期」的自相矛盾 —— 而底色正是把這個既有的隱性錯誤逼到檯面上的東西。
+  今天／明天 MUST 每次 render 重算，MUST NOT 快取：這頁是會一直開著的分頁，跨過午夜後一個被快取的「今天」不會有任何畫面變化來提示它已經在說謊。
+
 
 ## 設計決策
 
@@ -2579,8 +2584,12 @@ Phase 4 — 驗證
 - [x] T359 `dripByEmail` 加 `course_slug` 與 `emails_sent`（eager load 補 `slug`），徽章改印 `slug (N)`、補 `booked` 配色、全名與狀態移入 `title`（FR-150）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
 - [x] T360 測試：`?met=tomorrow` 只回明日場次（不含今日與後日）、徽章 payload 帶 slug／emails_sent／booked 且保留全名 in `tests/Feature/HighTicket/LeadsTabsTest.php`
 
+- [x] T361 「諮詢時段」欄：時段的顯示與日期判定改用 `Asia/Taipei`（`taipeiDateKey()` / `taipeiTime()`，`formatSlotRange` 拆出 `slotBounds()` 共用），台北今日標琥珀、明日標藍（FR-151）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
 
 ## 進度日誌
+
+- 2026-08-23: 「諮詢時段」欄的台北今日／明日標底色（T361 / FR-151）— 順手修掉一個既有的隱性錯誤：這欄原本用 `getHours()` 以**瀏覽器本地時區**算日期，在一台設定為台北的機器上完全看不出來，但只要管理員的機器不是台北，底色就會標在一列顯示著別天日期的時段上。顯示與判定一起改用 `Intl.DateTimeFormat` 指定 `Asia/Taipei`，與 `?met=` 快篩共用同一套日曆日定義，顏色與篩選結果永遠是同一批列。今天／明天每次 render 重算而不快取 —— 這頁會一直開著，跨午夜後一個快取的「今天」不會有任何畫面變化提示它已經在說謊。`formatSlotRange` 拆出 `slotBounds()` 給顏色判定共用；婉拒確認框與展開列的「諮詢時段」一併變成台北時間。`npm run build` exit 0、011 測試 444 passed。
 
 - 2026-08-23: 時間快篩加「明日」、序列信徽章改印 slug 與序列位置（T357–T360，使用者追加）— 「明日」是三顆裡唯一朝前看的：明天的名單是備課不是追銷，所以獨立成一顆而不是把「近 7 日」的上界往後推。序列信徽章原本印課程全名加中文狀態，一列有兩三個序列就把欄寬撐開；改印 `{slug} ({emails_sent})`，全名與狀態中文移進 `title`。那個數字不是裝飾：`emails_sent` 在訂閱被標記 `booked` 時停止前進，所以 booked 那列讀作「收到第幾封之後成交預約」（FR-150）—— 判斷序列信效力的現場數字，至今沒在這個畫面出現過。順手補上 `booked` 的徽章配色（原本落在沒有任何配色的分支）。全站 796 passed（3312 assertions）、`npm run build` exit 0。
 

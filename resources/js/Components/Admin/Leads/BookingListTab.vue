@@ -307,17 +307,63 @@ const openSummary = (lead) => {
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
+// Consultations are read in Taipei time, not in whatever timezone the admin's
+// laptop happens to be set to — the same clock the ?met= filters bucket by
+// (FR-144). This used to be the browser's local time, which was invisible on a
+// machine already set to Taipei and would otherwise put the 今日 highlight on a
+// row displaying yesterday's date.
+const TAIPEI = 'Asia/Taipei'
+
+// en-CA gives YYYY-MM-DD, which is both a stable sort key and trivially
+// splittable — the point here is the *date in Taipei*, not the formatting.
+const taipeiDateKey = (d) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: TAIPEI }).format(d)
+
+const taipeiTime = (d) =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: TAIPEI, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(d)
+
 // Consultation slots are 15-minute units (ConsultationSlot::UNIT_MINUTES);
 // a booking is however many consecutive units the lead holds (`lead.slots`,
 // eager-loaded ordered by starts_at), so the display range is just the first
 // unit's start to the last unit's start + 15 minutes.
-const formatSlotRange = (lead) => {
+const slotBounds = (lead) => {
   if (!lead.slots?.length) return null
   const starts = lead.slots.map(s => new Date(s.starts_at))
-  const start = starts[0]
-  const end = new Date(starts[starts.length - 1].getTime() + 15 * 60 * 1000)
-  const time = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
-  return `${start.getFullYear()}/${start.getMonth() + 1}/${start.getDate()} ${time(start)}-${time(end)}`
+  return {
+    start: starts[0],
+    end: new Date(starts[starts.length - 1].getTime() + 15 * 60 * 1000),
+  }
+}
+
+const formatSlotRange = (lead) => {
+  const bounds = slotBounds(lead)
+  if (!bounds) return null
+  const [y, m, d] = taipeiDateKey(bounds.start).split('-')
+  return `${y}/${Number(m)}/${Number(d)} ${taipeiTime(bounds.start)}-${taipeiTime(bounds.end)}`
+}
+
+/**
+ * Today / tomorrow in Taipei, recomputed per render rather than cached: the
+ * leads page is a tab that stays open, and a cached "today" turns into a lie
+ * at midnight without anything on screen changing.
+ */
+const slotDayClass = (lead) => {
+  const bounds = slotBounds(lead)
+  if (!bounds) return ''
+
+  const day = taipeiDateKey(bounds.start)
+  const now = new Date()
+
+  if (day === taipeiDateKey(now)) {
+    return 'bg-amber-100 text-amber-900'
+  }
+  if (day === taipeiDateKey(new Date(now.getTime() + 86400000))) {
+    return 'bg-blue-100 text-blue-900'
+  }
+
+  return ''
 }
 
 // Status wording for the drip badge's tooltip. `booked` is the one that matters
@@ -963,7 +1009,12 @@ const copySelectedEmails = async () => {
                  into a day's work, and the time is what identifies each row
                  in it. -->
             <td class="hidden lg:table-cell whitespace-nowrap py-4 px-3 text-sm text-gray-600">
-              <span v-if="formatSlotRange(lead)">{{ formatSlotRange(lead) }}</span>
+              <span
+                v-if="formatSlotRange(lead)"
+                class="inline-block rounded px-1.5 py-0.5 tabular-nums"
+                :class="slotDayClass(lead)"
+                :title="slotDayClass(lead) ? '台北時間的今天／明天' : null"
+              >{{ formatSlotRange(lead) }}</span>
               <span v-else class="text-gray-400">—</span>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-900">
