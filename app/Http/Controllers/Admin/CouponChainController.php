@@ -8,12 +8,16 @@ use App\Http\Requests\Admin\UpdateCouponChainRequest;
 use App\Models\Course;
 use App\Models\CouponChain;
 use App\Services\CouponChainService;
+use App\Services\CouponService;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CouponChainController extends Controller
 {
-    public function __construct(private CouponChainService $chainService) {}
+    public function __construct(
+        private CouponChainService $chainService,
+        private CouponService $couponService,
+    ) {}
 
     public function index(): Response
     {
@@ -126,11 +130,6 @@ class CouponChainController extends Controller
             return '折抵 NT$' . number_format((int) round($value));
         }
 
-        $digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-        $n      = (int) round($value * 100);
-        $tens   = intdiv($n, 10);
-        $units  = $n % 10;
-
-        return $digits[$tens] . ($units > 0 ? $digits[$units] : '') . '折優惠';
+        return $this->couponService->ratioText($value) . '優惠';
     }
 }

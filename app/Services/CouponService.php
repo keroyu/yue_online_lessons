@@ -91,14 +91,22 @@ class CouponService
             return '折抵 NT$' . number_format((int) round($coupon->value));
         }
 
+        return $this->ratioText((float) $coupon->value) . '優惠';
+    }
+
+    /**
+     * Ratio value → Chinese digits, e.g. 0.6 → 「六折」. Shared with
+     * CouponChainController, which labels a CouponChain (no CouponCode to
+     * pass to label() above) but uses the same type/value shape.
+     */
+    public function ratioText(float $value): string
+    {
         $digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-        $n      = (int) round((float) $coupon->value * 100); // 0.6 → 60, 0.85 → 85
+        $n      = (int) round($value * 100); // 0.6 → 60, 0.85 → 85
         $tens   = intdiv($n, 10);
         $units  = $n % 10;
 
-        $text = $digits[$tens] . ($units > 0 ? $digits[$units] : '') . '折';
-
-        return $text . '優惠';
+        return $digits[$tens] . ($units > 0 ? $digits[$units] : '') . '折';
     }
 
     /**
