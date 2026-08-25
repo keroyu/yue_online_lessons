@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DripEmailEvent;
 use App\Models\DripSubscription;
+use App\Models\Lesson;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -50,8 +51,15 @@ class DripTrackingController extends Controller
 
     public function click(Request $request): RedirectResponse
     {
-        $targetUrl = $request->query('url', '/');
         $lessonId = $request->integer('les');
+
+        // The redirect target is always the lesson's own stored promo_url, never
+        // the `url` query param: that param is client-supplied, and trusting it
+        // would let anyone build a link through our domain to an arbitrary site
+        // (open redirect). ClassroomController always sends the two in sync, so
+        // legitimate use is unaffected.
+        $lesson = $lessonId ? Lesson::find($lessonId) : null;
+        $targetUrl = $lesson?->promo_url ?: '/';
 
         // Auth middleware guarantees a logged-in user; use session to identify subscriber.
         $user = $request->user();
