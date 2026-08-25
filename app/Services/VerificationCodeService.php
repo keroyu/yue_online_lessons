@@ -57,7 +57,7 @@ class VerificationCodeService
             'created_at' => now(),
         ]);
 
-        Log::info("Verification code generated for {$email}: {$code}");
+        Log::info('Verification code generated', ['email' => $email]);
 
         return [
             'success' => true,
