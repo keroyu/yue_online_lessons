@@ -1,24 +1,13 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import { useFlash } from '@/composables/useFlash'
 
 const page = usePage()
-const flash = computed(() => page.props.flash)
+const { flash } = useFlash()
 const user = computed(() => page.props.auth?.user)
 
 const sidebarOpen = ref(false)
-
-watch(
-  () => flash.value,
-  (newFlash) => {
-    if (newFlash?.success || newFlash?.error) {
-      setTimeout(() => {
-        page.props.flash = { success: null, error: null }
-      }, 5000)
-    }
-  },
-  { immediate: true }
-)
 
 // staff: true → also visible to sales consultants; everything else is admin-only (000 US6)
 const allNavigation = [

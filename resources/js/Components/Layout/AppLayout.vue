@@ -1,28 +1,14 @@
 <script setup>
 import Navigation from './Navigation.vue'
 import Footer from './Footer.vue'
-import { usePage } from '@inertiajs/vue3'
-import { computed, watch } from 'vue'
+import { useFlash } from '@/composables/useFlash'
 
 defineProps({
   hideNav: { type: Boolean, default: false },
   hideBreadcrumb: { type: Boolean, default: false }
 })
 
-const page = usePage()
-const flash = computed(() => page.props.flash)
-
-watch(
-  () => flash.value,
-  (newFlash) => {
-    if (newFlash?.success || newFlash?.error) {
-      setTimeout(() => {
-        page.props.flash = { success: null, error: null }
-      }, 5000)
-    }
-  },
-  { immediate: true }
-)
+const { flash } = useFlash()
 </script>
 
 <template>
