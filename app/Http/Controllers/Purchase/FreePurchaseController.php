@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Purchase;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Purchase;
+use App\Services\CheckoutService;
 use App\Services\DripService;
-use App\Services\PayuniService;
 use App\Services\TrafficSourceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 class FreePurchaseController extends Controller
 {
     public function __construct(
-        protected PayuniService $payuniService,
+        protected CheckoutService $checkoutService,
         protected DripService $dripService
     ) {}
 
@@ -53,7 +53,7 @@ class FreePurchaseController extends Controller
             'email'     => $email,
         ]);
 
-        $user = $this->payuniService->getOrCreateUser($email, $name, $phone);
+        $user = $this->checkoutService->findOrCreateUser($email, $name, $phone);
 
         // Idempotency: one purchase per user per course
         $existing = Purchase::where('user_id', $user->id)

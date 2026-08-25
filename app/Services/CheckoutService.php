@@ -303,7 +303,12 @@ class CheckoutService
         return [$purchase, true];
     }
 
-    private function findOrCreateUser(string $email, ?string $name, ?string $phone): User
+    /**
+     * Find a user by email, patching name/phone with newer data if given.
+     * Shared with PayuniService/FreePurchaseController — one resolution rule
+     * for "who is this buyer" across every checkout entry point in this module.
+     */
+    public function findOrCreateUser(string $email, ?string $name, ?string $phone): User
     {
         $user = User::where('email', $email)->first();
 

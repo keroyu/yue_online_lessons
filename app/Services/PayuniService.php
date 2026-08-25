@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\SiteSetting;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 class PayuniService
@@ -134,35 +133,6 @@ class PayuniService
         }
 
         return ['success' => true, 'error' => ''];
-    }
-
-    /**
-     * Get or create user by email, updating name/phone with latest data.
-     */
-    public function getOrCreateUser(string $email, ?string $name, ?string $phone): User
-    {
-        $user = User::where('email', $email)->first();
-
-        if ($user) {
-            $updates = [];
-            if (!empty($name)) {
-                $updates['real_name'] = $name;
-            }
-            if (!empty($phone)) {
-                $updates['phone'] = $phone;
-            }
-            if (!empty($updates)) {
-                $user->update($updates);
-            }
-            return $user;
-        }
-
-        return User::create([
-            'email'     => $email,
-            'real_name' => $name,
-            'phone'     => $phone,
-            'role'      => 'member',
-        ]);
     }
 
     // ─── Private crypto helpers (mirror PayuniApi private methods) ───────────
