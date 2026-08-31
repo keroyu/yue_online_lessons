@@ -11,6 +11,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class HighTicketLead extends Model
 {
+    /**
+     * Display names for the seven legal `status` values (011 D122).
+     *
+     * The booking list keeps its own copy, because there each label is welded
+     * to a letter code and two sets of Tailwind classes — handing that
+     * structure to PHP so it could read seven strings out of it would be the
+     * duplication with extra steps. Insertion order is the funnel order, and
+     * the keys are pinned to the enum by test.
+     */
+    public const STATUS_LABELS = [
+        'pending'     => '待談',
+        'contacted'   => '已談',
+        'no_response' => '未出席',
+        'converted'   => '已成交',
+        'closed'      => '已關閉',
+        'cancelled'   => '已取消',
+        'declined'    => '已婉拒',
+    ];
+
     protected $fillable = [
         'name',
         'email',

@@ -231,6 +231,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
         // High-ticket leads
         Route::get('/high-ticket-leads', [HighTicketLeadController::class, 'index'])->name('high-ticket-leads.index');
+        // Must precede the /{lead} routes below, or model binding eats it (011 US31).
+        Route::get('/high-ticket-leads/export', [HighTicketLeadController::class, 'export'])->name('high-ticket-leads.export');
         Route::patch('/high-ticket-leads/{lead}/status', [HighTicketLeadController::class, 'updateStatus'])->name('high-ticket-leads.update-status');
         Route::post('/high-ticket-leads/notify-slot', [HighTicketLeadController::class, 'notifySlot'])->name('high-ticket-leads.notify-slot');
         Route::post('/high-ticket-leads/subscribe-drip', [HighTicketLeadController::class, 'subscribeDrip'])->name('high-ticket-leads.subscribe-drip');

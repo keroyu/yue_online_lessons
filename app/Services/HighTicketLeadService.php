@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\NotifyHighTicketSlotJob;
 use App\Jobs\SubscribeDripLeadJob;
 use App\Mail\TemplatedMail;
+use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\CoursePlan;
 use App\Models\DripSubscription;
@@ -12,6 +13,7 @@ use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -189,6 +191,174 @@ class HighTicketLeadService
             'people' => (int) ($row->people ?? 0),
             'amount' => (int) ($row->amount ?? 0),
         ];
+    }
+
+    /** Columns of the booking-list CSV, in order (011 FR-157). */
+    public const EXPORT_HEADINGS = [
+        '姓名', 'Email', '手機電話', '諮詢時段', '狀態',
+        '成交金額', '課程', '序列信起始時間', '已經過天數',
+    ];
+
+    /** Separator between the several values a single cell may carry. */
+    private const EXPORT_GLUE = '／';
+
+    /**
+     * Turn one chunk of leads into CSV rows (011 US31).
+     *
+     * Takes a chunk rather than a single lead so the two lookups it needs —
+     * the conversions and the drip subscriptions behind each email — can be
+     * batched. Per-lead they would be 2N queries over an export that is
+     * explicitly allowed to run to the whole filtered list.
+     *
+     * Every absent value is an empty string, never a dash: this file is opened
+     * in a spreadsheet, where a placeholder is a text cell that quietly breaks
+     * SUM and sorting (FR-157).
+     *
+     * @param  \Illuminate\Support\Collection<int, HighTicketLead>  $leads
+     *   with `course` and `slots` already loaded
+     * @return array<int, array<int, string>>
+     */
+    public function exportRows($leads): array
+    {
+        $emails = $leads->pluck('email')->filter()->unique()->values();
+
+        $conversions = $this->conversionsByEmail($emails);
+        $dripsByEmail = $this->dripStartsByEmail($emails);
+
+        return $leads->map(function (HighTicketLead $lead) use ($conversions, $dripsByEmail) {
+            $deals = $conversions->get($lead->email, collect());
+            $drips = $dripsByEmail->get($lead->email, collect());
+
+            // The endpoint of "how long has this person been warmed" freezes at
+            // the booking they confirmed: that span is a fixed fact about the
+            // conversion, not a number that should climb every time the list is
+            // reopened (FR-160, mirroring the row detail's formatDripStart).
+            $reference = $lead->confirmed_at ?? now();
+
+            return [
+                (string) $lead->name,
+                (string) $lead->email,
+                (string) ($lead->phone ?? ''),
+                $this->exportSlotRange($lead),
+                HighTicketLead::STATUS_LABELS[$lead->status] ?? (string) $lead->status,
+                // Total rather than a per-deal list, so the whole column stays
+                // summable in a spreadsheet (D120). Blank, not 0, when nothing
+                // closed — a zero-priced deal and no deal must stay apart.
+                $deals->isEmpty() ? '' : (string) $deals->sum('amount'),
+                $deals->isEmpty()
+                    ? (string) ($lead->course->name ?? '')
+                    : $deals->map(fn ($deal) => $deal['course'])->implode(self::EXPORT_GLUE),
+                $drips->map(fn ($at) => $this->taipei($at)->format('Y/n/j H:i'))->implode(self::EXPORT_GLUE),
+                $drips->map(fn ($at) => (string) $this->taipeiDaysBetween($at, $reference))->implode(self::EXPORT_GLUE),
+            ];
+        })->all();
+    }
+
+    /**
+     * Closed deals per lead email: `[email => [['amount' => int, 'course' => string], …]]`,
+     * oldest first (011 FR-158 / FR-159).
+     *
+     * Matched on both `users.email` and `purchases.buyer_email` for the reason
+     * FR-153 gives: a member can change their login address afterwards, and
+     * `buyer_email` is the snapshot of the lead's address at conversion time.
+     */
+    private function conversionsByEmail($emails)
+    {
+        if ($emails->isEmpty()) {
+            return collect();
+        }
+
+        return Purchase::query()
+            ->with(['course:id,name', 'plan:id,name', 'user:id,email'])
+            ->where('type', 'lead_conversion')
+            // A refunded sale is a voided one, exactly as the deal summary
+            // reads it (FR-099).
+            ->where('status', 'paid')
+            ->where(fn ($q) => $q
+                ->whereIn('buyer_email', $emails)
+                ->orWhereHas('user', fn ($u) => $u->whereIn('email', $emails)))
+            ->orderBy('created_at')
+            ->get()
+            ->flatMap(function (Purchase $purchase) use ($emails) {
+                $courseName = $purchase->course->name ?? '';
+
+                if ($purchase->plan) {
+                    $courseName .= "（{$purchase->plan->name}）";
+                }
+
+                $deal = ['amount' => (int) $purchase->amount, 'course' => $courseName];
+
+                // One purchase can answer for two addresses (the member's and
+                // the buyer's snapshot); key it under whichever are in scope,
+                // deduped so a lead never counts the same sale twice.
+                return collect([$purchase->buyer_email, $purchase->user?->email])
+                    ->filter()
+                    ->unique()
+                    ->filter(fn ($email) => $emails->contains($email))
+                    ->map(fn ($email) => ['email' => $email] + $deal);
+            })
+            ->groupBy('email');
+    }
+
+    /**
+     * Drip subscription start times per email, oldest first (011 FR-160).
+     *
+     * Joined on email like everything else on this page — the subscription
+     * belongs to the member account, which may or may not exist yet.
+     */
+    private function dripStartsByEmail($emails)
+    {
+        if ($emails->isEmpty()) {
+            return collect();
+        }
+
+        return DripSubscription::query()
+            ->join('users', 'users.id', '=', 'drip_subscriptions.user_id')
+            ->whereIn('users.email', $emails)
+            ->whereNotNull('drip_subscriptions.subscribed_at')
+            ->orderBy('drip_subscriptions.subscribed_at')
+            ->get(['users.email as user_email', 'drip_subscriptions.subscribed_at'])
+            ->groupBy('user_email')
+            ->map(fn ($rows) => $rows->map(fn ($row) => CarbonImmutable::parse($row->subscribed_at)));
+    }
+
+    /**
+     * `2026/9/1 00:00-00:30` in Taipei, or an empty string when the lead holds
+     * no slots (011 FR-157).
+     *
+     * A booking is however many consecutive 15-minute units it holds, so the
+     * range runs from the first unit's start to the last unit's start plus one
+     * unit — the same arithmetic the list column does in the browser.
+     */
+    private function exportSlotRange(HighTicketLead $lead): string
+    {
+        $slots = $lead->slots->sortBy('starts_at');
+
+        if ($slots->isEmpty()) {
+            return '';
+        }
+
+        $start = $this->taipei($slots->first()->starts_at);
+        $end = $this->taipei($slots->last()->starts_at)->addMinutes(ConsultationSlot::UNIT_MINUTES);
+
+        return $start->format('Y/n/j H:i') . '-' . $end->format('H:i');
+    }
+
+    private function taipei($at): CarbonImmutable
+    {
+        return CarbonImmutable::parse($at)->timezone(ConsultationSlotService::DISPLAY_TZ);
+    }
+
+    /**
+     * Whole Taipei calendar days between two instants (011 FR-160).
+     *
+     * Calendar days rather than 24-hour blocks: dividing by 86400 makes the
+     * same pair of rows read differently in the morning and in the evening.
+     */
+    private function taipeiDaysBetween($from, $to): int
+    {
+        return (int) $this->taipei($from)->startOfDay()
+            ->diffInDays($this->taipei($to)->startOfDay());
     }
 
     /**

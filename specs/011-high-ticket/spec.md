@@ -2,6 +2,9 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - tests/Feature/HighTicket/LeadExportTest.php
+  - database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
+  - tests/Feature/HighTicket/LeadRefundSyncTest.php
   - database/migrations/2026_08_20_000001_install_booking_declined_template.php
   - tests/Feature/HighTicket/BookingDeclineTest.php
   - app/Support/BookingScreening.php
@@ -128,6 +131,12 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 touchpoints:
+  - file: app/Services/TransactionService.php
+    owner: 009-transactions-admin
+    why: US30 退款回寫 —— `refund()` 在寫入 `refunded`、作廢推薦回饋之後，以 try/catch 呼叫 `HighTicketLeadService::syncRefundedLead()`；lead 狀態機留在 011，這裡只是觸發點（FR-152 / D118）
+  - file: app/Services/PortalyWebhookService.php
+    owner: 005-checkout
+    why: US30 退款回寫的第二條路徑 —— `handleRefund()` 寫入 `refunded` 之後呼叫同一個方法，形狀與 009 那條一致（FR-152）
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
     why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈
@@ -202,7 +211,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -974,6 +983,69 @@ FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模�
 - [x] 測試：輸入含暱稱行、無暱稱時整行不存在、暱稱取候選清單第一順位、逐字稿仍為匿名、重新生成與 webhook 兩條路徑都帶到暱稱
 
 
+### User Story 30 - 退款回寫 Lead 狀態 (Priority: P1)
+
+高價課成交只有一條入口（`convertLead()`，D13），它會把 lead 打成 `converted`。但成交的**反面**沒有
+任何一條回路：管理員在 PayUni 退完款、回後台按「標記退款」，`purchases.status` 變成 `refunded`、
+課程授權當場失效 —— Leads 名單那一列卻還是「已成交」。
+
+正式站現況即為此：`purchase 474`（course=6、`lead_conversion`、`refunded`）對應的 `lead 86` 至今
+status=`converted`。名單、漏斗百分比、以及顧問每天在看的成交人數，三者都把一筆已經退掉的錢繼續
+算成戰績 —— 而 `conversionStats` 早就依 FR-099 排除了 refunded，於是同一個畫面上「成交金額」已經
+歸零、狀態 pill 卻還亮著，兩個數字互相打臉。
+
+補上的是同一條鏈的回程：任何把 `lead_conversion` 交易寫成 `refunded` 的路徑，都要順手把對應的
+lead 由 `converted` 改回 `closed`（使用者決策）。
+
+**驗收**：
+- [ ] 後台「標記退款」（`TransactionService::refund()`）成功後 MUST 呼叫 lead 同步；Portaly webhook 的退款事件（`PortalyWebhookService::handleRefund()`）走同一個方法（使用者決策：兩條寫入 `refunded` 的路徑一次補齊）
+- [ ] 同步 MUST 只認 `purchase.type === 'lead_conversion'`：撤銷贈課、撤銷手動補單同樣是 `paid → refunded`，但那不是顧問成交被退掉（FR-153 / D117）
+- [ ] 比對條件為 email 相符 **且** `lead.course_id === purchase.course_id` **且** `lead.status === 'converted'`；`course_id` 為 null 的 lead 不動
+- [ ] email 取 `purchase.user.email` 與 `purchase.buyer_email` 兩者（去空去重後 whereIn）—— 會員改過 email 之後兩者會分岔，而成交當下寫進 `buyer_email` 的正是 lead 的信箱
+- [ ] 狀態改為 `closed`（使用者決策），MUST NOT 新增 enum 值；`declined_at` / `cancelled_at` 等時間戳一律不碰
+- [ ] 冪等：只更新 `status='converted'` 的列，重複退款或重跑同步不再有任何寫入
+- [ ] 同步 MUST 是退款的**外部副作用**：包在 try/catch，失敗只記 error log，MUST NOT 讓已完成的退款失敗或回滾（比照 FR-016 對 drip 的處理）
+- [ ] 反向 MUST NOT 另外實作：退款後重新開通由既有的 `convertLead()` 覆蓋（它本來就寫 `lead.status = 'converted'`，且 refunded 記錄屬於 `isOverwritable()`）。手動新增交易與贈課 MUST NOT 動 lead —— 那兩者不是顧問成交（使用者決策）
+- [ ] 一次性回填 migration：把所有「status=converted 但對應 `lead_conversion` 交易已 refunded」的 lead 改為 `closed`（至少含正式站的 lead 86）；`down()` 不還原（無從分辨哪些 closed 是回填來的）
+- [ ] 非目標：退款 MUST NOT 重開 drip 序列信（010 US13 的停信是單向的）、MUST NOT 寄任何信給客戶、MUST NOT 更動前端（狀態 pill 與漏斗數字讀 `status`，自動跟著正確）
+- [ ] 測試：退款把 converted lead 打成 closed、type≠lead_conversion 不動、course_id 不符不動、非 converted 狀態不動、同步丟例外時退款仍成功、Portaly 退款事件同樣觸發、回填 migration 正確
+
+
+### User Story 31 - 預約名單勾選匯出 CSV (Priority: P3)
+
+一個 lead 的資料在這頁攤在四個地方：列上是姓名／Email／時段／狀態，手機電話要展開那一列才看得到，
+序列信起始時間在展開列的另一段，而成交金額只有右上角**整批的**摘要 —— 沒有一處回答「這個人成交了多少」。
+於是「把這批人拉出來排一排」（誰談完還沒成交、誰被序列信養了 90 天才進來、這個月談的人金額分佈如何）
+現在只能一列一列展開手抄，或是繞到交易管理另外撈一份再自己對 Email。
+
+「複製 Email」右邊補一顆「匯出 CSV」：勾選（或跨頁全選符合篩選條件）之後按下去，
+得到九欄的一份表 —— 姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數。
+匯出**只讀不寫**，不寄信、不改狀態，是這頁既有資料的另一種輸出格式。
+
+範圍與檔案格式沿用交易管理的既有匯出（009 US5）：`ids[]` 與 `select_all` 兩種模式、UTF-8 BOM、
+`streamDownload` + `chunk`。跨頁全選那條的關鍵在於**重建的是同一個查詢** —— 匯出與畫面上的名單
+用兩份各自維護的篩選條件，遲早會給出兩份不同的名單，而那種錯誤在 CSV 裡看不出來。
+
+**驗收**：
+- [ ] 「匯出 CSV」按鈕 MUST 位於批次動作列「複製 Email」的**右邊**，未選取時 disabled（樣式比照同列既有按鈕）
+- [ ] 當頁全選後，若符合篩選的總數大於當頁筆數，MUST 出現「選取全部 N 筆符合條件」的提示（比照交易管理），選了之後匯出改走 `select_all`
+- [ ] 匯出走 `GET /admin/high-ticket-leads/export`：勾選模式傳 `ids[]`；`select_all` 模式改傳列表的全部篩選參數（`search` / `met` / `consultant` / `status` / `course_id`），後端以**同一個 `bookingLeadsQuery()`** 重建，排序同為 `booked_at desc`
+- [ ] 未選取且非 `select_all` 時後端 MUST 回 422（前端按鈕已 disabled，但那是端點不是按鈕）
+- [ ] 檔名 `high-ticket-leads-YYYYMMDD.csv`、UTF-8 BOM（Excel 中文相容）、`streamDownload` + `chunk(200)` 串流輸出
+- [ ] 欄位順序 MUST 為：姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數（共 9 欄；無值一律輸出空字串，MUST NOT 輸出 `—` 或 `N/A`）
+- [ ] 「諮詢時段」MUST 以**台北時間**輸出 `2026/8/31 14:00-15:00`（首個單位起 ~ 末個單位起 + 15 分鐘），與畫面上那一欄同一份定義；沒有時段輸出空字串
+- [ ] 「狀態」MUST 輸出中文（待談／已談／未出席／已成交／已關閉／已取消／已婉拒），MUST NOT 輸出 DB 的 enum 值
+- [ ] 「成交金額」MUST 是純數字（整欄可直接 SUM）：該 Email 名下所有 `type=lead_conversion` 且 `status=paid` 的 `purchases.amount` 總和；沒有成交輸出空字串，MUST NOT 輸出 0
+- [ ] 已退款的成交 MUST NOT 計入（與右上角業績摘要同一條規則，FR-099）
+- [ ] 「課程」MUST 是**實際成交的**那門課；有方案時附方案名（`高價課A（方案B）`），多筆用 `／` 串。**沒有成交時退回該 lead 申請的課程**（`lead.course.name`），這樣未成交的列仍看得出他在談哪一門
+- [ ] 「序列信起始時間」MUST 以台北時間輸出 `2026/8/1 09:30`；同一個 Email 有多筆訂閱時依 `subscribed_at` 由舊到新用 `／` 串
+- [ ] 「已經過天數」MUST 與上一欄**筆數相同、順序對齊**（第 N 個天數對應第 N 個起始時間），值為整數不帶單位
+- [ ] 天數的終點 MUST 沿用展開列既有的語意（`formatDripStart`）：`confirmed_at` 有值時算到確認預約那天，否則算到今天；差值以**台北日曆日**計算，MUST NOT 用 24 小時整除
+- [ ] 匯出 MUST NOT 產生任何寫入：不改狀態、不寄信、不動 `notified_count`
+- [ ] 權限與名單頁相同（`auth` + `staff`），MUST NOT 只靠前端不顯示按鈕
+- [ ] 按鈕 `cursor-pointer` + hover 回饋；disabled 時 `cursor-not-allowed`；手機寬度下與同列按鈕一起換行不溢出
+- [ ] 測試：欄位順序與表頭、`ids[]` 只匯出勾選的、`select_all` 與畫面名單同一批（含 `met` / `consultant` / `status` 疊加）、無選取回 422、成交金額只計 paid 的 lead_conversion（退款不計）、多筆訂閱兩欄對齊、無時段／無成交／無訂閱皆輸出空字串、台北時區邊界、非 staff 被擋
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1397,8 +1469,48 @@ FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模�
   時區這條是正確性不是偏好：原本的 `getHours()` 在一台設定為台北的機器上看不出問題，但只要管理員的機器不是台北，就會出現「標成今日、卻顯示昨天日期」的自相矛盾 —— 而底色正是把這個既有的隱性錯誤逼到檯面上的東西。
   今天／明天 MUST 每次 render 重算，MUST NOT 快取：這頁是會一直開著的分頁，跨過午夜後一個被快取的「今天」不會有任何畫面變化來提示它已經在說謊。
 
+- **FR-152**: 任何把 `lead_conversion` 交易寫成 `refunded` 的路徑 MUST 同步把對應的 lead 由 `converted` 改回 `closed`。實作收在 `HighTicketLeadService::syncRefundedLead(Purchase $purchase): int`（回傳受影響列數），呼叫端有兩處：`TransactionService::refund()`（009）與 `PortalyWebhookService::handleRefund()`（005），兩者一律在 `status` 寫入成功之後、以 try/catch 包住呼叫。
+  同步是退款的**外部副作用**：拋出例外只記 error log，MUST NOT 讓已完成的退款失敗或回滾（與 FR-016 對 `checkAndConvert()` 的處理同一原則）。
+  冪等由 `where('status', 'converted')` 保證 —— 重複退款、重跑回填、webhook 重送都不會產生第二次寫入，也不會把一筆早就 `closed` 的 lead 蓋掉時間順序。
+
+- **FR-153**: 比對條件為三個 AND：`purchase.type === 'lead_conversion'`、`lead.course_id === purchase.course_id`、`lead.status === 'converted'`。`course_id` 為 null 的 lead 一律不動。
+  email 取 `purchase.user?->email` 與 `purchase.buyer_email` 兩個候選，去空去重後 `whereIn('email', ...)`：`convertLead()` 當下兩者必然相同，但會員之後可以改 email，而 `buyer_email` 是成交那一刻 lead 信箱的快照 —— 只查其中一個，都會在改過信箱的人身上悄悄失效。
+  `type` 白名單是這條的關鍵守門：撤銷贈課與撤銷手動補單走的是同一個 `paid → refunded`，但那些不是顧問成交被退掉（D117）。
+
+- **FR-154**: 反向（refunded → 重新成交）MUST NOT 另外實作。`convertLead()` 本來就在 transaction 內寫 `lead.status = 'converted'`，而 `isOverwritable()` 已把 `status=refunded` 視為可覆寫，因此「退款後重新開通」這條路徑不需要任何新程式碼。
+  手動新增交易（009 US3）與贈課（008）MUST NOT 動 lead：那兩者建立的是 `system_assigned` / `gift`，把它們算成顧問成交會讓漏斗與業績摘要開始收錄不是顧問談成的單。
+
+- **FR-155**: 回填一次性 migration MUST 更新所有「`status='converted'` 但對應 `lead_conversion` 交易已 `refunded`」的既有 lead，比對規則與 FR-153 完全相同。`down()` MUST NOT 還原 —— 回填之後 `closed` 這個值再也分不出哪些是回填來的、哪些本來就是談完冷掉的。
+
+
+- **FR-156**: 預約名單 MUST 提供 `GET /admin/high-ticket-leads/export`（`auth` + `staff`，與名單頁同一群組），兩種範圍模式二選一：`ids[]`（勾選）或 `select_all=1` + 列表篩選參數。兩者皆缺 MUST 回 422。
+  `select_all` 模式 MUST 以 `bookingLeadsQuery($search, $courseId, $consultant, $met)` 加上 `->when($status, byStatus(...))` 重建，排序 `booked_at desc` —— 與 `index()` 的列表**逐字相同的組裝**。這條是正確性不是潔癖：匯出若自己寫一份 `where`，它與畫面上的名單就是兩份會各自演化的定義，而不一致在一份下載下來的 CSV 裡沒有任何跡象可循（沿用 FR-074 / FR-097 / FR-146 的單一 builder 原則）。
+- **FR-157**: 匯出的欄位順序 MUST 為姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數（9 欄），檔名 `high-ticket-leads-YYYYMMDD.csv`，UTF-8 BOM，`streamDownload` + `chunk(200)`。
+  空值一律輸出**空字串**：`—` 是給人看的畫面符號，進到試算表就變成一個會擋掉 `SUM` 與排序的文字值。
+  手機電話原樣輸出、MUST NOT 加 `="..."` 之類的 Excel 保號包裝（代價：Excel 會吃掉開頭的 0；與 009 的既有匯出保持同一種行為，要換就兩邊一起換）。
+- **FR-158**: 「成交金額」MUST 是該 Email 名下所有 `type=lead_conversion` 且 `status=paid` 的 `purchases.amount` **總和**，且 MUST 是不含符號與千分位的純數字；沒有成交輸出空字串（MUST NOT 輸出 0 —— 0 元成交與沒有成交在試算表裡必須分得開）。
+  已退款不計，與 `conversionStats` 同一條規則（FR-099），但 MUST NOT 套用它的本月／年度期間 —— 摘要問的是「這段期間談成多少」，逐列匯出問的是「這個人成交了沒」。
+  比對 Email MUST 同時取 `users.email` 與 `purchases.buyer_email` 兩個候選（理由同 FR-153：會員改過信箱之後兩者分岔，而 `buyer_email` 是成交當下 lead 信箱的快照）。
+- **FR-159**: 「課程」MUST 取**實際成交的**購買紀錄課程，有方案時附方案名（`{course.name}（{plan.name}）`），多筆依 `purchases.created_at` 由舊到新以 `／` 串。沒有任何成交紀錄時 MUST 退回 `lead.course.name`。
+  金額總和與課程明細刻意不對齊：一個人買兩筆的情況罕見，而讓整欄金額保持可 `SUM` 的純數字，比讓兩欄逐項對應值錢（D120）。要看組成去交易管理，那裡本來就是逐筆的。
+- **FR-160**: 「序列信起始時間」與「已經過天數」MUST 是**兩欄**，同一個 Email 的多筆訂閱依 `subscribed_at` 由舊到新以 `／` 串，且兩欄的**項數與順序 MUST 一致**。
+  時間以台北時區輸出 `Y/n/j H:i`；天數為整數（不帶「天」字），終點沿用展開列 `formatDripStart()` 的既有語意：`lead.confirmed_at` 有值時算到確認預約那天，否則算到今天 —— 一筆已成局的轉換，它的「養了幾天」是固定事實，不該每天重新開啟名單就往上加一。
+  差值以**台北日曆日**相減（比照前端的 `startOfDay` 作法），MUST NOT 用 86400000 整除：後者會讓同一筆資料在早上與晚上得到不同的數字。
+- **FR-161**: 匯出 MUST 是純讀取路徑：不寫任何欄位、不寄任何信、不動 `notified_count` 與 `last_notified_at`。列表頁的其他批次動作（通知新時段／加入序列信／發送郵件）皆有副作用，匯出刻意不是其中之一。
+
 
 ## 設計決策
+
+- **D119**: 匯出**照抄 009 US5 的形狀**（`ids[]` / `select_all` 雙模式、BOM、`streamDownload` + `chunk`），但 MUST NOT 為此抽出跨模組的共用匯出 helper。
+  兩份匯出唯一相同的是那五行樣板（開 handle、寫 BOM、寫表頭、chunk、fputcsv）；不同的是欄位、關聯、格式化與篩選重建，而那才是全部的工作量。抽一個 `CsvExporter` 出來，換到的是省下五行、付出的是兩個模組從此共用一個會被兩邊需求拉扯的介面。照抄形狀讓兩份匯出讀起來一樣、改起來互不相干。
+- **D120**: 成交金額是**總和**（純數字、整欄可 SUM），課程是**明細**（多筆 `／` 串），兩欄刻意不逐項對齊。
+  另一個選項是兩欄都串起來（`68000／12000` 對 `A／B`），逐列讀起來更完整 —— 但它把整欄金額變成文字，而 Excel 的 `SUM` 遇到文字是**靜默略過**：使用者會得到一個看起來正常、卻少算了幾筆的合計，且畫面上沒有任何提示。匯出的主要用途就是拉進試算表算，這個風險不能換那點可讀性。
+  代價記在這裡：多筆成交的列看不出金額組成。這種列目前是罕例，且交易管理本來就是逐筆的視圖。
+- **D121**: 序列信拆成兩欄（起始時間、已經過天數），不合併成 `slug 2026-08-01 (30 天)` 一欄（使用者決策）。
+  合併欄在畫面上讀起來順，但在試算表裡是死的：不能排序、不能篩、不能拿去算「養了 60 天以上的人成交率多少」—— 而那正是把這份名單匯出來的理由。
+  天數的終點沿用前端既有的 `confirmed_at` 規則（FR-160），不另立一套：同一個數字在展開列與 CSV 上必須一樣，否則使用者會合理地認為其中一個是壞的。
+- **D122**: 狀態輸出中文，對照表放在 `HighTicketLead::STATUS_LABELS`（PHP 端），與前端 `allStatuses` 各自持有一份。
+  前端那份的 label 與配色、字母代號綁在一起（`P` / `C` / `N` / `D` / `X` / `V` / `R` 與七組 Tailwind class），把它下發給後端用要嘛拆散那個結構、要嘛讓後端去讀一份充滿 CSS class 的資料。兩份七個字串的清單，代價是漂移的可能；由測試把 `STATUS_LABELS` 的鍵釘死為 enum 全集（少一個就紅），漂移的是文案而不是正確性。
 
 - **D96**: 閘門放在**第一步**，五題答完當場給結果（使用者決策，2026-08-17 推翻本 spec 初版的「填完整份申請才婉拒」）。
   推翻的理由不是體驗，是成本歸屬：申請人幾乎全部來自電子書的序列信名單，**被婉拒之後仍留在名單裡繼續收信**。一個花五分鐘寫完瓶頸、選好時段、然後被系統擋下來的人，接下來每一封序列信都在提醒他那件事 —— 反彈不會隨著他離開漏斗而消散，它留在資產內部發酵。初版把這筆成本算成「對方多花的力氣」，那是把一次性流量的直覺套在一個名單型漏斗上。
@@ -1712,6 +1824,14 @@ FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模�
   獨立欄位要加一支 migration、一個編輯區、一組覆寫守門與時間戳（`summary_edited_at` 那一整套要複製一份），而它與摘要的生命週期完全一致 —— 同一場面談生成、同一顆「重新生成」重來、同一個 modal 裡讀。
   第二次呼叫則要再送一次整份逐字稿：多一次延遲、多一份 token 帳單，換來的是模型第二次重新理解同一場對話 —— 而寫信要用的痛點與共識，正是它剛剛在前七節整理過的東西。
 
+- **D117**: 退款後 lead 回到既有的 `closed`，不為此新增 `refunded` 狀態（使用者決策）。
+  新增一個狀態要付的帳是三份：`high_ticket_leads.status` 的 enum migration（連帶 sqlite 測試庫的 CHECK 約束）、漏斗 pill 多一格與它的配色、以及 `updateStatus()` 的白名單與前端下拉。換來的是「談完冷掉」與「成交後退款」在漏斗上分得開 —— 這個分辨力現在有沒有價值，取決於退款頻率，而目前正式站的樣本數是一筆。
+  代價誠實記在這裡：`closed` 從此混了兩種語意，日後若要回頭統計退款流失，得從 `purchases` 那邊反查而不是讀 lead 狀態。真的常態化再拆成獨立狀態，屆時這條回填規則本身就是拆分的依據。
+
+- **D118**: 同步方法放在 `HighTicketLeadService`，由 009 / 005 的兩個 service 反向呼叫，而不是在 `TransactionService` 裡直接寫 lead。
+  lead 狀態是 011 的資產，它的狀態機（哪些值合法、哪個值代表什麼）已經散不得 —— `TransactionService` 若自己 `update(['status' => 'closed'])`，D117 那份「closed 混了兩種語意」的取捨就會有第二個不知情的寫入點，而 011 這邊改狀態機時完全看不到它。
+  反過來把 hook 做成 model event（`Purchase::updated`）也否決了：退款只是 `status` 眾多變動裡的一種，用 model event 攔會讓每一次無關的 purchase 寫入都跑一遍這段判斷，而且它會在 `TransactionService` 的 `voidReferral()` 之前或之後跑得不明不白。明確呼叫看得見順序。
+
 
 ## Schema
 
@@ -1916,6 +2036,22 @@ FR-106 把講者機械式地正規化成「顧問」與「客戶」，所以模�
   `2026_08_20_000001_install_booking_declined_template.php` — 沿用 `2026_08_18_000004` 的通用迴圈（走過 `EmailTemplateSeeder::templates()` 全集、**缺才 insert、永不 update**、`down()` 為 no-op）。seeder 只在全新安裝時跑，新模板要抵達正式站的資料庫只能靠 migration；而永不 update 是因為那些內文的所有權在後台編輯它的人手上。
 
   婉拒用到的四個欄位（`status` / `declined_at` / `cancelled_at` / `calendar_sequence`）在 US14 與 US24 都已存在，`status` enum 的 `declined` 也已是第 7 個值 —— 本故事只是第一次讓**人**寫入它。
+
+
+- **US30 schema 變更**：無欄位變動。唯一的 migration 是一次性資料回填
+  `2026_08_26_000001_sync_refunded_lead_statuses.php`（FR-155）——
+  把 `high_ticket_leads.status='converted'` 且存在對應 `purchases.type='lead_conversion'`
+  / `status='refunded'`（email + course_id 相符）的列改為 `closed`。`down()` 為 no-op。
+
+  不變量：`high_ticket_leads.status` 的合法值維持七個（`pending` / `contacted` / `no_response` /
+  `converted` / `closed` / `cancelled` / `declined`），US30 不擴充（D117）。
+
+- **US31（勾選匯出 CSV）無 schema 變更** —— 純讀取路徑，九個欄位全部來自既有資料：
+  `high_ticket_leads`（姓名／Email／phone／status／course_id／confirmed_at）、`consultation_slots.starts_at`、
+  `purchases`（`type=lead_conversion` + `status=paid` 的 `amount`、`course_id`、`course_plan_id`）
+  與 `drip_subscriptions.subscribed_at`。
+
+  不變量：`HighTicketLead::STATUS_LABELS` 的鍵 MUST 恰為 `status` enum 的七個合法值（D122，由測試釘住）。
 
 
 ## Tasks
@@ -2587,7 +2723,57 @@ Phase 4 — 驗證
 - [x] T361 「諮詢時段」欄：時段的顯示與日期判定改用 `Asia/Taipei`（`taipeiDateKey()` / `taipeiTime()`，`formatSlotRange` 拆出 `slotBounds()` 共用），台北今日標琥珀、明日標藍（FR-151）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 
 
+### US30 退款回寫 Lead 狀態
+
+Phase 1 — 同步方法（011 自己的資產）
+
+- [ ] T362 `HighTicketLeadService::syncRefundedLead(Purchase $purchase): int` — `type !== 'lead_conversion'` 或 `course_id` 為空即回 0；email 候選取 `$purchase->user?->email` 與 `$purchase->buyer_email`（去空去重）；`HighTicketLead::whereIn('email', $emails)->where('course_id', $purchase->course_id)->where('status', 'converted')->update(['status' => 'closed'])`；有更新時記 info log（purchase_id / course_id / affected）（FR-152 / FR-153）in `app/Services/HighTicketLeadService.php`
+
+Phase 2 — 呼叫端（相依 T362）
+
+- [ ] T363 [P] `TransactionService::refund()` 在 `$purchase->update(['status' => 'refunded'])` 與 `voidReferral()` 之後，加 try/catch 呼叫 `app(HighTicketLeadService::class)->syncRefundedLead($purchase)`；例外只記 error log，不影響回傳的 `['success' => true]`（FR-152）in `app/Services/TransactionService.php`〔touchpoint 009〕
+- [ ] T364 [P] `PortalyWebhookService::handleRefund()` 在 `$purchase->update([...])` 之後，以同樣的 try/catch 形狀呼叫同一個方法（FR-152）in `app/Services/PortalyWebhookService.php`〔touchpoint 005〕
+
+Phase 3 — 既有資料回填（可與 Phase 2 平行）
+
+- [ ] T365 [P] 一次性 migration：`up()` 依 FR-153 的三個條件（join `purchases` 與 `users`，email 同時比對 `users.email` 與 `purchases.buyer_email`）把命中的 lead 改 `closed` 並記 log；`down()` no-op（FR-155）in `database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php`
+
+Phase 4 — 驗證
+
+- [ ] T366 `LeadRefundSyncTest`：退款把 converted lead 打成 closed、`type=gift` / `system_assigned` 退款不動 lead、course_id 不符不動、lead 已是 `closed` / `cancelled` 時不動、會員改過 email 後仍以 `buyer_email` 命中、`syncRefundedLead` 丟例外時退款仍回 success、Portaly 退款事件同樣觸發、重複退款只寫一次 in `tests/Feature/HighTicket/LeadRefundSyncTest.php`
+- [ ] T367 `php artisan test` 全綠（本次無前端變更）
+- [ ] T368 部署後確認正式站 lead 86 已由 `converted` 變 `closed`（Forge push main 自動跑 migrate），並在 Leads 名單確認漏斗 pill 與成交摘要不再互相打臉
+
+
+### US31 預約名單勾選匯出 CSV
+
+Phase 1 — 列的組裝（可先於端點完成，純函式好測）
+
+- [x] T369 `HighTicketLead::STATUS_LABELS`（七個 enum 值 → 中文，D122）in `app/Models/HighTicketLead.php`
+- [x] T370 `HighTicketLeadService::exportRows(Collection $leads): array` — 收一個 chunk 的 leads，**每 chunk 兩次批次查詢**（`purchases` 依 email 候選取 `lead_conversion` + `paid`，含 `course:id,name` 與 `plan:id,name`；`drip_subscriptions` 依 email 取 `subscribed_at` 升冪），回傳九欄的列陣列。時段沿用 `ConsultationSlot::UNIT_MINUTES` 由首末單位算範圍、全部時間以 `ConsultationSlotService::DISPLAY_TZ` 格式化；天數以台北日曆日相減、終點取 `confirmed_at ?? today`（FR-157～FR-160）in `app/Services/HighTicketLeadService.php`
+
+Phase 2 — 端點與路由（相依 T369/T370）
+
+- [x] T371 `HighTicketLeadController::export(Request $request): StreamedResponse` — `ids[]` 或 `select_all` 二選一（皆缺 `abort(422, '請選擇要匯出的 Leads，或勾選「選取全部符合條件」')`）；`select_all` 以 `bookingLeadsQuery(...)` + `when($status, byStatus)` 重建、排序 `booked_at desc`；`streamDownload` 寫 BOM + 表頭，`chunk(200)`（`with('course:id,name', 'slots:id,lead_id,starts_at')`）逐塊交給 `exportRows()`（FR-156 / FR-161）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T372 路由 `GET /admin/high-ticket-leads/export`（staff 群組內，**宣告在 `/{lead}` 系列之前**避免被當成 model key）in `routes/web.php`〔touchpoint 000〕
+
+Phase 3 — 前端（相依 T372）
+
+- [x] T373 批次動作列在「複製 Email」右邊加「匯出 CSV」按鈕：`exportCsv()` 以 `URLSearchParams` 組參數後 `window.location.href`（下載不能走 Inertia visit），未選取 disabled；另加「選取全部 N 筆符合條件」提示（當頁全選且 `leads.total > leads.data.length` 時出現，N 取 `leads.total`，比照交易管理），切換篩選／翻頁時 `selectAllMatching` 歸零 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+
+Phase 4 — 驗證
+
+- [x] T374 `LeadExportTest`：表頭與九欄順序、`ids[]` 只匯出勾選的、`select_all` 與畫面名單同一批（`met` / `consultant` / `status` / `search` 疊加各一條）、兩者皆缺回 422、成交金額只計 `lead_conversion` + `paid`（退款與 gift 不計）、金額為總和且無成交時為空字串、課程含方案名且無成交時退回 `lead.course.name`、`buyer_email` 命中（會員改過 email）、多筆訂閱兩欄項數對齊、天數以 `confirmed_at` 為終點、無時段／無訂閱輸出空字串、台北跨日邊界、`STATUS_LABELS` 鍵集合等於 enum 全集、非 staff 403 in `tests/Feature/HighTicket/LeadExportTest.php`
+- [x] T375 `php artisan test` 全綠 + `npm run build` exit 0
+- [ ] T376 使用者實測：勾三筆匯出、Excel 開啟中文與金額欄正常（金額欄可直接 SUM）、跨頁全選匯出筆數等於畫面上的總筆數
+
+
 ## 進度日誌
+
+- 2026-08-31: US31 實作完成（T369–T375，僅剩 T376 使用者實測）— 預約名單批次動作列的「複製 Email」右邊多一顆「匯出 CSV」，勾選或跨頁全選後輸出九欄。端點 `GET /admin/high-ticket-leads/export`（staff，宣告在 `/{lead}` 之前否則被 model binding 吃掉），`select_all` 直接重建 `bookingLeadsQuery()` + `byStatus()`，與畫面名單同一個組裝（FR-156）。列的組裝收在 `HighTicketLeadService::exportRows()`，收一個 chunk 而不是單筆 —— 成交紀錄與序列信訂閱各一次批次查詢，逐筆會變成 2N 次。金額是總和的純數字、課程是明細（D120）：兩欄都串成文字會讓 Excel 的 `SUM` **靜默略過**那些格子，得到一個看起來正常卻少算的合計。成交比對同時取 `users.email` 與 `buyer_email`（會員改過信箱後兩者分岔，理由同 FR-153），且一筆購買同時掛在兩個地址時去重，不讓同一單被算兩次。時間全部走 `Asia/Taipei`，天數以台北日曆日相減、終點沿用展開列既有的 `confirmed_at` 規則 —— 同一個數字在兩個畫面上必須一樣。順手加了 `orderBy('id')` 當第二排序鍵：`chunk()` 用 offset 分頁，`booked_at` 相同的列在不確定的順序下會在某一塊重複、在下一塊消失。`STATUS_LABELS` 放模型、前端保留自己那份（D122），鍵集合由測試釘死為七個 enum 值。無 schema 變更。`LeadExportTest` 20 條、全站 `php artisan test` **820 passed（3393 assertions）**、`npm run build` exit 0。
+
+- 2026-08-31: [draft] 規劃 US31 預約名單勾選匯出 CSV — 一個 lead 的資料現在攤在四個地方（列上、展開列的手機、展開列的序列信、右上角**整批的**成交摘要），要把一批人拉進試算表排一排只能逐列展開手抄。「複製 Email」右邊補一顆「匯出 CSV」，輸出九欄：姓名／Email／手機電話／諮詢時段／狀態／成交金額／課程／序列信起始時間／已經過天數。範圍沿用交易管理的 `ids[]` + `select_all` 雙模式（使用者決策），且 `select_all` **重建的是同一個 `bookingLeadsQuery()`** —— 匯出與畫面各寫一份篩選，不一致在下載下來的 CSV 裡沒有任何跡象（FR-156）。課程與金額讀實際成交紀錄（`lead_conversion` + `paid`，退款不計，使用者決策），但金額是**總和**而課程是明細：兩欄都串成文字會讓 Excel 的 `SUM` 靜默略過那些格子，得到一個看起來正常卻少算的合計（D120）。序列信拆兩欄而非合併一欄，理由同樣是「匯出來就是要拿去排序與篩選」（D121，使用者決策）；天數的終點沿用展開列既有的 `confirmed_at` 規則，同一個數字不能在兩個畫面上不一樣（FR-160）。無 schema 變更。status: draft 待審核。
+
 
 - 2026-08-23: 「諮詢時段」欄的台北今日／明日標底色（T361 / FR-151）— 順手修掉一個既有的隱性錯誤：這欄原本用 `getHours()` 以**瀏覽器本地時區**算日期，在一台設定為台北的機器上完全看不出來，但只要管理員的機器不是台北，底色就會標在一列顯示著別天日期的時段上。顯示與判定一起改用 `Intl.DateTimeFormat` 指定 `Asia/Taipei`，與 `?met=` 快篩共用同一套日曆日定義，顏色與篩選結果永遠是同一批列。今天／明天每次 render 重算而不快取 —— 這頁會一直開著，跨午夜後一個快取的「今天」不會有任何畫面變化提示它已經在說謊。`formatSlotRange` 拆出 `slotBounds()` 給顏色判定共用；婉拒確認框與展開列的「諮詢時段」一併變成台北時間。`npm run build` exit 0、011 測試 444 passed。
 

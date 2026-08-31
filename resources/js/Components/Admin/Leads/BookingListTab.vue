@@ -458,7 +458,13 @@ const bookingRows = (lead) => {
 // Selection
 const selectedIds = ref([])
 
+// Export-only escape hatch from the page boundary (US31): every lead matching
+// the current filters, not just the twenty on screen. Any change to the
+// selection or the filters drops it — it is a claim about one specific list.
+const selectAllMatching = ref(false)
+
 const toggleSelect = (id) => {
+  selectAllMatching.value = false
   const idx = selectedIds.value.indexOf(id)
   if (idx === -1) {
     selectedIds.value.push(id)
@@ -468,6 +474,7 @@ const toggleSelect = (id) => {
 }
 
 const toggleAll = () => {
+  selectAllMatching.value = false
   const allIds = props.leads.data.map(l => l.id)
   if (selectedIds.value.length === allIds.length) {
     selectedIds.value = []
@@ -812,6 +819,43 @@ const copySelectedEmails = async () => {
     actionResult.value = '複製失敗，請手動選取 Email'
   }
 }
+
+// CSV export (US31). Offered only once the whole page is ticked and there is
+// more behind it — before that the checkbox column already says everything.
+const canSelectAllMatching = computed(() =>
+  allSelected.value && !selectAllMatching.value && props.leads.total > props.leads.data.length
+)
+
+const exportCount = computed(() =>
+  selectAllMatching.value ? props.leads.total : selectedIds.value.length
+)
+
+// A download cannot go through an Inertia visit — it expects a page component
+// back, and the browser never gets the file. Same reasoning as the transactions
+// export, whose shape this follows (D119).
+const exportCsv = () => {
+  if (exportCount.value === 0) return
+
+  const params = new URLSearchParams()
+
+  if (selectAllMatching.value) {
+    params.set('select_all', '1')
+    // Every filter the list is under, or the export silently widens.
+    if (props.filters.status) params.set('status', props.filters.status)
+    if (search.value) params.set('search', search.value)
+    if (metFilter.value) params.set('met', metFilter.value)
+    if (consultantFilter.value) params.set('consultant', consultantFilter.value)
+    if (props.filters.course_id) params.set('course_id', props.filters.course_id)
+  } else {
+    selectedIds.value.forEach(id => params.append('ids[]', id))
+  }
+
+  window.location.href = '/admin/high-ticket-leads/export?' + params.toString()
+}
+
+// The claim "all N matching" belongs to one particular list; a new page or a
+// changed filter is a different one.
+watch(() => props.leads, () => { selectAllMatching.value = false })
 </script>
 
 <template>
@@ -930,6 +974,22 @@ const copySelectedEmails = async () => {
         </svg>
         {{ copiedAll ? `已複製 ${selectedEmails.length} 個 Email` : '複製 Email' }}
       </button>
+      <!-- US31: the same selection, as a file. Read-only — unlike every other
+           button on this row, it sends nothing and changes nothing. -->
+      <button
+        :disabled="exportCount === 0"
+        @click="exportCsv"
+        class="px-3 py-1.5 text-sm rounded-md border font-medium inline-flex items-center gap-1.5"
+        :class="exportCount > 0
+          ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
+          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
+        title="匯出所選 Leads 為 CSV：姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間與已經過天數"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        匯出 CSV
+      </button>
       <button
         :disabled="!canNotifySlot || actionLoading"
         @click="openNotifyModal"
@@ -963,6 +1023,35 @@ const copySelectedEmails = async () => {
       <span class="text-xs text-gray-400 leading-snug">
         新時段釋出時，你可以通知客戶來預約；<br class="hidden sm:inline">若無法聯絡客戶／未成交，考慮加入序列信進行自動轉化。
       </span>
+    </div>
+
+    <!-- Cross-page scope for the export (US31). Only reachable from a fully
+         ticked page, so it always reads as "…and the rest of them too". -->
+    <div
+      v-if="canSelectAllMatching"
+      class="mb-4 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-2 text-sm text-yellow-800"
+    >
+      已選取本頁 {{ selectedIds.length }} 筆。
+      <button
+        type="button"
+        @click="selectAllMatching = true"
+        class="underline font-medium cursor-pointer hover:text-yellow-900"
+      >
+        選取全部 {{ leads.total }} 筆符合條件
+      </button>
+    </div>
+    <div
+      v-if="selectAllMatching"
+      class="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800"
+    >
+      已選取全部 {{ leads.total }} 筆符合條件的 Leads（匯出適用；其餘批次動作仍只作用於本頁勾選的 {{ selectedIds.length }} 筆）。
+      <button
+        type="button"
+        @click="selectAllMatching = false"
+        class="underline font-medium cursor-pointer hover:text-green-900"
+      >
+        取消
+      </button>
     </div>
 
     <!-- Table -->

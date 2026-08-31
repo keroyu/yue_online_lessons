@@ -246,6 +246,67 @@ class HighTicketLeadController extends Controller
     }
 
     /**
+     * Stream the booking list as CSV (011 US31 / FR-156).
+     *
+     * Two scopes, exactly as the transactions export has them (D119): the ids
+     * the admin ticked, or `select_all` plus the list's own filters. The second
+     * one rebuilds `bookingLeadsQuery()` rather than writing its own conditions
+     * — an export whose scope has drifted from the list it claims to mirror
+     * produces a file with nothing in it to say so.
+     *
+     * Read-only: nothing here writes a column, sends a mail or touches
+     * `notified_count` (FR-161).
+     */
+    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $ids       = $request->input('ids', []);
+        $selectAll = $request->boolean('select_all');
+
+        if (! $selectAll && empty($ids)) {
+            abort(422, '請選擇要匯出的 Leads，或勾選「選取全部符合條件」');
+        }
+
+        if ($selectAll) {
+            $met = $request->query('met');
+            $met = $this->leadService->metRange($met) === null ? null : $met;
+
+            $query = $this->bookingLeadsQuery(
+                $request->query('search'),
+                $request->query('course_id'),
+                $request->query('consultant'),
+                $met,
+            )->when($request->query('status'), fn ($q, $status) => $q->byStatus($status));
+        } else {
+            $query = HighTicketLead::whereIn('id', array_map('intval', (array) $ids));
+        }
+
+        $query->with(['course:id,name', 'slots:id,lead_id,starts_at'])
+            // `id` is the tiebreaker, not decoration: chunk() pages by offset,
+            // and rows sharing a booked_at under a non-deterministic order can
+            // be repeated in one chunk and missed in the next.
+            ->orderBy('booked_at', 'desc')
+            ->orderBy('id', 'desc');
+
+        $filename = 'high-ticket-leads-' . now()->format('Ymd') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            // UTF-8 BOM so Excel reads the Chinese columns as Chinese.
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, HighTicketLeadService::EXPORT_HEADINGS);
+
+            $query->chunk(200, function ($leads) use ($handle) {
+                foreach ($this->leadService->exportRows($leads) as $row) {
+                    fputcsv($handle, $row);
+                }
+            });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
      * The booking tab's search / course / consultant / meeting-time filter,
      * shared by the paginated list, the per-status counts and the deal summary
      * so the three can never disagree about which leads are in scope
