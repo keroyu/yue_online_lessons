@@ -3045,43 +3045,6 @@
       "status": "implemented"
     },
     {
-      "id": "010.us-19",
-      "module": "010-drip-email",
-      "title": "婉拒也停止序列信",
-      "summary": "lead 落 declined 時自動停掉對應序列信（三條路徑：資格審核自動婉拒／後台婉拒按鈕／狀態方塊手動點選），新增第六個 drip status `declined`（不重用 unsubscribed/booked 以免統計說謊），範圍沿用 DripConversionTarget 只停對應目標課的序列；既有資料由 migration 回填，重新通過審核不自動恢復",
-      "heading": "### User Story 19 - 婉拒也停止序列信 (Priority: P1)",
-      "file": "specs/010-drip-email/spec.md",
-      "anchor": "user-story-19---婉拒也停止序列信-priority-p1",
-      "keywords": [
-        "婉拒停信",
-        "declined",
-        "拒絕接待",
-        "序列信停止",
-        "funnel exit",
-        "checkAndDecline",
-        "reachGoal",
-        "DripConversionTarget",
-        "STOPS_SENDING",
-        "資格審核",
-        "screening",
-        "drip status",
-        "訂閱者名單",
-        "回填",
-        "backfill"
-      ],
-      "code_files": [
-        "database/migrations/2026_08_24_000001_add_declined_to_drip_subscriptions_status.php",
-        "app/Models/DripSubscription.php",
-        "app/Services/DripService.php",
-        "app/Services/HighTicketBookingService.php",
-        "app/Http/Controllers/Admin/HighTicketLeadController.php",
-        "resources/js/Components/Admin/Leads/SubscriberListTab.vue",
-        "resources/js/Components/Admin/Leads/BookingListTab.vue",
-        "tests/Feature/Drip/FunnelStopTest.php"
-      ],
-      "status": "planned"
-    },
-    {
       "id": "010.us-2",
       "module": "010-drip-email",
       "title": "已登入會員一鍵訂閱",

@@ -511,7 +511,6 @@ main_files:
 - app/Console/Commands/ProcessDripEmails.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/DripLessonPreviewController.php
-- app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/DripSubscriptionController.php
@@ -548,9 +547,7 @@ main_files:
 - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
 - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
 - database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php
-- database/migrations/2026_08_24_000001_add_declined_to_drip_subscriptions_status.php
 - resources/js/Components/Admin/CourseForm.vue
-- resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue

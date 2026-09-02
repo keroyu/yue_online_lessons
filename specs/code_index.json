@@ -116,7 +116,6 @@
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
       "000.us-9",
-      "010.us-19",
       "011.us-14",
       "011.us-15",
       "011.us-18",
@@ -691,7 +690,6 @@
       "002.us-17",
       "010.us-13",
       "010.us-14",
-      "010.us-19",
       "010.us-6"
     ],
     "app/Models/EmailSuppression.php": [
@@ -869,7 +867,6 @@
       "010.us-14",
       "010.us-17",
       "010.us-18",
-      "010.us-19",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -890,7 +887,6 @@
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
       "010.us-13",
-      "010.us-19",
       "011.us-1",
       "011.us-10",
       "011.us-11",
@@ -1312,9 +1308,6 @@
     "database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php": [
       "003.us-10"
     ],
-    "database/migrations/2026_08_24_000001_add_declined_to_drip_subscriptions_status.php": [
-      "010.us-19"
-    ],
     "database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php": [
       "011.us-30"
     ],
@@ -1386,7 +1379,6 @@
     ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
       "000.us-9",
-      "010.us-19",
       "011.us-14",
       "011.us-15",
       "011.us-18",
@@ -1417,7 +1409,6 @@
       "010.us-12",
       "010.us-13",
       "010.us-17",
-      "010.us-19",
       "011.us-8"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
@@ -1970,8 +1961,7 @@
     ],
     "tests/Feature/Drip/FunnelStopTest.php": [
       "010.us-13",
-      "010.us-14",
-      "010.us-19"
+      "010.us-14"
     ],
     "tests/Feature/Drip/GuestClaimTest.php": [
       "010.us-15"
