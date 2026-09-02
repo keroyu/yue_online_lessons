@@ -20,7 +20,8 @@ class SiteAnalyticsService
 
     /**
      * Count a course page view: bot-filtered, deduped per session per course
-     * per day, bucketed by the visitor's last-touch channel (FR-014/FR-015).
+     * per day per link, bucketed by the visitor's last-touch channel
+     * (FR-014/FR-015).
      */
     public function recordView(Course $course, Request $request): void
     {
@@ -28,14 +29,21 @@ class SiteAnalyticsService
             return;
         }
 
-        $dedupKey = 'viewed_course_' . $course->id . '_' . now()->toDateString();
+        $dims = $this->dims($this->trafficSource->currentSource($request));
+
+        // Deduped on the full dimension set, not on course + date (US18 D49):
+        // the old key let whichever link a visitor arrived through first own
+        // their whole day, silently swallowing every later arrival — which is
+        // exactly the question this report exists to answer.
+        $dedupKey = 'viewed_course_' . implode('_', [
+            $course->id, now()->toDateString(), $dims['channel'], $dims['source'], $dims['campaign'],
+        ]);
+
         if ($request->hasSession() && $request->session()->get($dedupKey)) {
             return;
         }
 
-        ['channel' => $channel, 'source' => $source] =
-            $this->trafficSource->resolveSource($this->trafficSource->currentSource($request));
-        $this->bump($course->id, $channel, 'views', 1, $source);
+        $this->bump($course->id, $dims, 'views');
 
         if ($request->hasSession()) {
             $request->session()->put($dedupKey, true);
@@ -45,30 +53,44 @@ class SiteAnalyticsService
     /** Add-to-cart beacon: single path for auth and guest carts (D15). */
     public function recordAddToCart(int $courseId, Request $request): void
     {
-        ['channel' => $channel, 'source' => $source] =
-            $this->trafficSource->resolveSource($this->trafficSource->currentSource($request));
-        $this->bump($courseId, $channel, 'add_to_cart', 1, $source);
+        $this->bump($courseId, $this->dims($this->trafficSource->currentSource($request)), 'add_to_cart');
     }
 
     /** Checkout stage: called once per order at creation, per order item. */
     public function recordCheckout(Order $order): void
     {
-        ['channel' => $channel, 'source' => $source] =
-            $this->trafficSource->resolveSource($this->orderSource($order));
+        $dims = $this->dims($this->orderSource($order));
         foreach ($order->items as $item) {
-            $this->bump($item->course_id, $channel, 'checkouts', 1, $source);
+            $this->bump($item->course_id, $dims, 'checkouts');
         }
     }
 
     /** Purchase stage: called once per order on fulfillment (paid). */
     public function recordPurchase(Order $order): void
     {
-        ['channel' => $channel, 'source' => $source] =
-            $this->trafficSource->resolveSource($this->orderSource($order));
+        $dims = $this->dims($this->orderSource($order));
         foreach ($order->items as $item) {
-            $this->bump($item->course_id, $channel, 'purchases', 1, $source);
-            $this->bump($item->course_id, $channel, 'revenue', (int) round($item->unit_price), $source);
+            $this->bump($item->course_id, $dims, 'purchases');
+            $this->bump($item->course_id, $dims, 'revenue', (int) round($item->unit_price));
         }
+    }
+
+    /**
+     * The dimensions of one daily-aggregate row: the classified channel and
+     * source, plus the campaign carried through as-is.
+     *
+     * One place, because the campaign has to be normalised exactly once and
+     * exactly the same way the report normalises it when reading `orders`
+     * (FR-042).
+     *
+     * @param  array<string, mixed>|null $source
+     * @return array{channel: string, source: string, campaign: string}
+     */
+    private function dims(?array $source): array
+    {
+        return $this->trafficSource->resolveSource($source) + [
+            'campaign' => TrafficSourceService::normaliseCampaign($source['utm_campaign'] ?? null),
+        ];
     }
 
     /**
@@ -100,27 +122,38 @@ class SiteAnalyticsService
     }
 
     /**
-     * Atomic counter bump on the (course, date, channel, source) daily row
-     * (FR-014). Failures degrade silently — analytics must never break a
-     * page (FR-016). $source defaults to '' so pre-US13 callers still work;
-     * that value also marks legacy rows written before the source dimension.
+     * Atomic counter bump on the (course, date, channel, source, campaign)
+     * daily row (FR-014). Failures degrade silently — analytics must never
+     * break a page (FR-016).
+     *
+     * The dimensions arrive as one array rather than as trailing positional
+     * arguments (FR-043): there have been three of them since US18 and the
+     * set only grows, at which point `bump($id, $ch, 'views', 1, $src, $camp)`
+     * stops being readable at the call site. Missing keys default to `''`,
+     * the same value that marks rows written before each dimension existed.
+     *
+     * @param array{channel?: string, source?: string, campaign?: string} $dims
      */
-    public function bump(int $courseId, string $channel, string $column, int $amount = 1, string $source = ''): void
+    public function bump(int $courseId, array $dims, string $column, int $amount = 1): void
     {
         $date = now()->toDateString();
+        $dims = [
+            'channel'      => $dims['channel'] ?? '',
+            'source'       => $dims['source'] ?? '',
+            'utm_campaign' => TrafficSourceService::normaliseCampaign($dims['campaign'] ?? ''),
+        ];
 
         try {
-            $affected = $this->dailyRow($courseId, $date, $channel, $source)->increment($column, $amount);
+            $affected = $this->dailyRow($courseId, $date, $dims)->increment($column, $amount);
 
             if (!$affected) {
                 try {
-                    CourseDailyStat::create([
-                        'course_id' => $courseId, 'date' => $date,
-                        'channel' => $channel, 'source' => $source, $column => $amount,
+                    CourseDailyStat::create($dims + [
+                        'course_id' => $courseId, 'date' => $date, $column => $amount,
                     ]);
                 } catch (QueryException) {
                     // Lost the insert race — the row exists now, increment it.
-                    $this->dailyRow($courseId, $date, $channel, $source)->increment($column, $amount);
+                    $this->dailyRow($courseId, $date, $dims)->increment($column, $amount);
                 }
             }
         } catch (\Throwable $e) {
@@ -130,13 +163,15 @@ class SiteAnalyticsService
         }
     }
 
-    /** @return \Illuminate\Database\Eloquent\Builder<CourseDailyStat> */
-    private function dailyRow(int $courseId, string $date, string $channel, string $source)
+    /**
+     * @param  array{channel: string, source: string, utm_campaign: string} $dims
+     * @return \Illuminate\Database\Eloquent\Builder<CourseDailyStat>
+     */
+    private function dailyRow(int $courseId, string $date, array $dims)
     {
         return CourseDailyStat::where('course_id', $courseId)
             ->whereDate('date', $date)
-            ->where('channel', $channel)
-            ->where('source', $source);
+            ->where($dims);
     }
 
     /**
@@ -301,11 +336,18 @@ class SiteAnalyticsService
             ->all();
     }
 
-    /** @return array<string, mixed> last-touch source snapshot stored on the order */
+    /**
+     * @return array<string, mixed> last-touch source snapshot stored on the order
+     *
+     * `utm_campaign` rides along as a dimension only — it takes no part in the
+     * channel/source classification, so adding it does not move any number the
+     * channel report already produced.
+     */
     private function orderSource(Order $order): array
     {
         return array_filter([
             'utm_source'      => $order->utm_source,
+            'utm_campaign'    => $order->utm_campaign,
             'gclid'           => $order->gclid,
             'fbclid'          => $order->fbclid,
             'ttclid'          => $order->ttclid,

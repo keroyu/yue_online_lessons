@@ -82,6 +82,7 @@
       "002.us-12",
       "002.us-13",
       "002.us-17",
+      "002.us-18",
       "002.us-8",
       "004.us-1",
       "004.us-2",
@@ -115,6 +116,7 @@
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
       "000.us-9",
+      "010.us-19",
       "011.us-14",
       "011.us-15",
       "011.us-18",
@@ -126,6 +128,7 @@
       "011.us-27",
       "011.us-28",
       "011.us-3",
+      "011.us-31",
       "011.us-4",
       "011.us-5",
       "011.us-8",
@@ -668,7 +671,8 @@
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
-      "002.us-13"
+      "002.us-13",
+      "002.us-18"
     ],
     "app/Models/CourseImage.php": [
       "004.us-4"
@@ -687,6 +691,7 @@
       "002.us-17",
       "010.us-13",
       "010.us-14",
+      "010.us-19",
       "010.us-6"
     ],
     "app/Models/EmailSuppression.php": [
@@ -709,6 +714,7 @@
       "011.us-26",
       "011.us-28",
       "011.us-3",
+      "011.us-31",
       "011.us-9"
     ],
     "app/Models/HomepageFeaturedCourse.php": [
@@ -863,6 +869,7 @@
       "010.us-14",
       "010.us-17",
       "010.us-18",
+      "010.us-19",
       "010.us-2",
       "010.us-3",
       "010.us-4",
@@ -883,6 +890,7 @@
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
       "010.us-13",
+      "010.us-19",
       "011.us-1",
       "011.us-10",
       "011.us-11",
@@ -906,6 +914,8 @@
       "011.us-21",
       "011.us-22",
       "011.us-28",
+      "011.us-30",
+      "011.us-31",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -945,7 +955,8 @@
       "000.us-7",
       "005.us-6",
       "010.us-4",
-      "010.us-5"
+      "010.us-5",
+      "011.us-30"
     ],
     "app/Services/PostService.php": [
       "012.us-1",
@@ -968,18 +979,21 @@
     "app/Services/SiteAnalyticsService.php": [
       "002.us-10",
       "002.us-13",
-      "002.us-16"
+      "002.us-16",
+      "002.us-18"
     ],
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
       "002.us-13",
       "002.us-14",
-      "002.us-17"
+      "002.us-17",
+      "002.us-18"
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
       "009.us-3",
-      "009.us-4"
+      "009.us-4",
+      "011.us-30"
     ],
     "app/Services/VerificationCodeService.php": [
       "001.us-1",
@@ -1298,6 +1312,15 @@
     "database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php": [
       "003.us-10"
     ],
+    "database/migrations/2026_08_24_000001_add_declined_to_drip_subscriptions_status.php": [
+      "010.us-19"
+    ],
+    "database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php": [
+      "011.us-30"
+    ],
+    "database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php": [
+      "002.us-18"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1363,6 +1386,7 @@
     ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
       "000.us-9",
+      "010.us-19",
       "011.us-14",
       "011.us-15",
       "011.us-18",
@@ -1373,6 +1397,7 @@
       "011.us-26",
       "011.us-27",
       "011.us-28",
+      "011.us-31",
       "011.us-8",
       "011.us-9"
     ],
@@ -1392,6 +1417,7 @@
       "010.us-12",
       "010.us-13",
       "010.us-17",
+      "010.us-19",
       "011.us-8"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
@@ -1649,6 +1675,7 @@
       "002.us-13",
       "002.us-14",
       "002.us-17",
+      "002.us-18",
       "002.us-8"
     ],
     "resources/js/Pages/Admin/Dashboard.vue": [
@@ -1911,6 +1938,7 @@
       "011.us-24",
       "011.us-25",
       "011.us-27",
+      "011.us-31",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -1942,7 +1970,8 @@
     ],
     "tests/Feature/Drip/FunnelStopTest.php": [
       "010.us-13",
-      "010.us-14"
+      "010.us-14",
+      "010.us-19"
     ],
     "tests/Feature/Drip/GuestClaimTest.php": [
       "010.us-15"
@@ -2019,6 +2048,12 @@
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"
     ],
+    "tests/Feature/HighTicket/LeadExportTest.php": [
+      "011.us-31"
+    ],
+    "tests/Feature/HighTicket/LeadRefundSyncTest.php": [
+      "011.us-30"
+    ],
     "tests/Feature/HighTicket/LeadSubscribeDripTest.php": [
       "011.us-5"
     ],
@@ -2070,6 +2105,9 @@
       "000.us-8",
       "002.us-15"
     ],
+    "tests/Feature/Storefront/CampaignTrafficTest.php": [
+      "002.us-18"
+    ],
     "tests/Feature/Storefront/CourseUrlSlugTest.php": [
       "002.us-8"
     ],
@@ -2077,7 +2115,8 @@
       "002.us-14"
     ],
     "tests/Feature/Storefront/FreeClaimTrafficTest.php": [
-      "002.us-17"
+      "002.us-17",
+      "002.us-18"
     ],
     "tests/Feature/Storefront/FreeSuccessBlockTest.php": [
       "002.us-11",
@@ -2090,7 +2129,8 @@
     "tests/Feature/Storefront/SiteAnalyticsTest.php": [
       "002.us-10",
       "002.us-13",
-      "002.us-16"
+      "002.us-16",
+      "002.us-18"
     ],
     "tests/Support/BooksHighTicket.php": [
       "011.us-11",

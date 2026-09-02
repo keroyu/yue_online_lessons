@@ -280,9 +280,9 @@ class SiteAnalyticsTest extends TestCase
         $course = $this->makeCourse();
         $svc = app(SiteAnalyticsService::class);
 
-        $svc->bump($course->id, 'social', 'views', 8, 'instagram');
-        $svc->bump($course->id, 'social', 'views', 3, 'threads');
-        $svc->bump($course->id, 'social', 'views', 2, 'instagram');
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'instagram'], 'views', 8);
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'threads'], 'views', 3);
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'instagram'], 'views', 2);
 
         $this->assertSame(2, CourseDailyStat::where('course_id', $course->id)->count());
         $this->assertSame(10, CourseDailyStat::where('source', 'instagram')->value('views'));
@@ -395,11 +395,11 @@ class SiteAnalyticsTest extends TestCase
         $course = $this->makeCourse();
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($course->id, 'social', 'views', 10);
-        $svc->bump($course->id, 'social', 'add_to_cart', 4);
-        $svc->bump($course->id, 'social', 'checkouts', 2);
-        $svc->bump($course->id, 'social', 'purchases', 1);
-        $svc->bump($course->id, 'social', 'revenue', 1000);
+        $svc->bump($course->id, ['channel' => 'social'], 'views', 10);
+        $svc->bump($course->id, ['channel' => 'social'], 'add_to_cart', 4);
+        $svc->bump($course->id, ['channel' => 'social'], 'checkouts', 2);
+        $svc->bump($course->id, ['channel' => 'social'], 'purchases', 1);
+        $svc->bump($course->id, ['channel' => 'social'], 'revenue', 1000);
 
         $response = $this->actingAs($admin)->get('/admin/analytics');
 
@@ -437,7 +437,7 @@ class SiteAnalyticsTest extends TestCase
         $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($drip->id, 'social', 'views', 40);
+        $svc->bump($drip->id, ['channel' => 'social'], 'views', 40);
         $this->convertedSub($drip);
         $this->convertedSub($drip);
 
@@ -452,7 +452,7 @@ class SiteAnalyticsTest extends TestCase
     {
         $course = $this->makeCourse();
 
-        app(SiteAnalyticsService::class)->bump($course->id, 'social', 'views', 5);
+        app(SiteAnalyticsService::class)->bump($course->id, ['channel' => 'social'], 'views', 5);
 
         $row = collect(app(SiteAnalyticsService::class)->funnelReport(30))->firstWhere('course_id', $course->id);
 
@@ -466,7 +466,7 @@ class SiteAnalyticsTest extends TestCase
         $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($drip->id, 'social', 'views', 10);
+        $svc->bump($drip->id, ['channel' => 'social'], 'views', 10);
         $this->convertedSub($drip, 0, 'booked');
 
         $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
@@ -480,7 +480,7 @@ class SiteAnalyticsTest extends TestCase
         $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($drip->id, 'social', 'views', 10);
+        $svc->bump($drip->id, ['channel' => 'social'], 'views', 10);
         $this->convertedSub($drip, 2);
         $this->convertedSub($drip, 45);
 
@@ -513,7 +513,7 @@ class SiteAnalyticsTest extends TestCase
         $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($drip->id, 'social', 'views', 10);
+        $svc->bump($drip->id, ['channel' => 'social'], 'views', 10);
         $this->convertedSub($drip);
 
         $row = collect($svc->funnelReport(30, 'social'))->firstWhere('course_id', $drip->id);
@@ -528,7 +528,7 @@ class SiteAnalyticsTest extends TestCase
         $drip = $this->makeCourse(['course_type' => 'drip', 'price' => 0]);
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($drip->id, 'social', 'views', 10);
+        $svc->bump($drip->id, ['channel' => 'social'], 'views', 10);
         $this->convertedSub($drip);
 
         $row = collect($svc->funnelReport(30))->firstWhere('course_id', $drip->id);
@@ -542,10 +542,10 @@ class SiteAnalyticsTest extends TestCase
         $course = $this->makeCourse();
 
         $svc = app(SiteAnalyticsService::class);
-        $svc->bump($course->id, 'social', 'views', 8, 'instagram');
-        $svc->bump($course->id, 'social', 'purchases', 2, 'instagram');
-        $svc->bump($course->id, 'social', 'views', 3, 'threads');
-        $svc->bump($course->id, 'search', 'views', 5, 'google');
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'instagram'], 'views', 8);
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'instagram'], 'purchases', 2);
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'threads'], 'views', 3);
+        $svc->bump($course->id, ['channel' => 'search', 'source' => 'google'], 'views', 5);
 
         $report = collect($svc->channelReport(null))->keyBy('channel');
 
@@ -571,8 +571,8 @@ class SiteAnalyticsTest extends TestCase
         $svc = app(SiteAnalyticsService::class);
 
         // Pre-US13 call signature (no $source) — must not crash or be dropped.
-        $svc->bump($course->id, 'social', 'views', 4);
-        $svc->bump($course->id, 'social', 'views', 6, 'instagram');
+        $svc->bump($course->id, ['channel' => 'social'], 'views', 4);
+        $svc->bump($course->id, ['channel' => 'social', 'source' => 'instagram'], 'views', 6);
 
         $report = collect($svc->channelReport(null))->firstWhere('channel', 'social');
 

@@ -179,6 +179,7 @@ main_files:
 - database/migrations/2026_08_04_000001_reclassify_fbclid_rows_in_course_daily_stats.php
 - database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
 - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
+- database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
@@ -203,6 +204,7 @@ main_files:
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
 - tests/Feature/Platform/ShortLinkTest.php
+- tests/Feature/Storefront/CampaignTrafficTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/EmailLinkTaggerTest.php
 - tests/Feature/Storefront/FreeClaimTrafficTest.php
@@ -509,6 +511,7 @@ main_files:
 - app/Console/Commands/ProcessDripEmails.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/DripLessonPreviewController.php
+- app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/DripSubscriptionController.php
@@ -545,7 +548,9 @@ main_files:
 - database/migrations/2026_07_31_000002_add_booked_to_drip_subscriptions_status.php
 - database/migrations/2026_07_31_000003_add_unlock_all_to_drip_subscriptions_table.php
 - database/migrations/2026_08_16_000003_add_drip_day_to_lessons_table.php
+- database/migrations/2026_08_24_000001_add_declined_to_drip_subscriptions_status.php
 - resources/js/Components/Admin/CourseForm.vue
+- resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue
@@ -643,6 +648,8 @@ main_files:
 - app/Services/EmailMarkdownService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/HighTicketLeadService.php
+- app/Services/PortalyWebhookService.php
+- app/Services/TransactionService.php
 - app/Services/ZoomMeetingService.php
 - app/Services/ZoomTranscriptService.php
 - app/Services/ZoomWebhookService.php
@@ -676,6 +683,7 @@ main_files:
 - database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
 - database/migrations/2026_08_18_000004_install_application_resume_template.php
 - database/migrations/2026_08_20_000001_install_booking_declined_template.php
+- database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
@@ -722,6 +730,8 @@ main_files:
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
+- tests/Feature/HighTicket/LeadExportTest.php
+- tests/Feature/HighTicket/LeadRefundSyncTest.php
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php
 - tests/Feature/HighTicket/PlanAccessTest.php

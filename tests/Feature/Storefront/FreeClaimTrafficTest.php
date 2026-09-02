@@ -153,7 +153,10 @@ class FreeClaimTrafficTest extends TestCase
         $rows = $this->trafficRows($course);
 
         $this->assertCount(1, $rows);
-        $this->assertSame('instagram', $rows[0]['utm_source']);
+        // The report groups by resolved dimensions since US18, so the platform
+        // slug is what a row carries — not the raw utm_source it came from.
+        $this->assertSame('instagram', $rows[0]['source']);
+        $this->assertSame('launch', $rows[0]['campaign']);
         $this->assertSame(1, $rows[0]['order_count']);
         $this->assertSame(0, (int) $rows[0]['revenue'], '免費領取不得產生營收');
     }

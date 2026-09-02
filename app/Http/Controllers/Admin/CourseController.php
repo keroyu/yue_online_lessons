@@ -416,6 +416,107 @@ class CourseController extends Controller
             ->get();
     }
 
+    /**
+     * Conversion side of the traffic report, keyed by (channel, source,
+     * campaign): paid orders plus, for a free course, the claims that never
+     * become orders (FR-039).
+     *
+     * Rows are folded in PHP after `resolveSource()` rather than grouped in
+     * SQL, because the key is derived — `ig` and `instagram` are one platform,
+     * `Summer` and `summer` are one campaign (FR-042). Grouping before the
+     * rule runs would split them and nothing on screen would say why.
+     *
+     * @param  \Illuminate\Database\Query\Builder $query
+     * @return array<string, array<string, mixed>>
+     */
+    private function conversionRows($query, ?Builder $claimQuery): array
+    {
+        $columns = array_map(fn ($c) => "orders.{$c}", TrafficSourceService::SOURCE_COLUMNS);
+
+        $grouped = (clone $query)
+            ->select(array_merge($columns, [
+                DB::raw('COUNT(DISTINCT orders.id) as order_count'),
+                DB::raw('SUM(order_items.unit_price) as revenue'),
+            ]))
+            ->groupBy($columns)
+            ->get()
+            ->concat($claimQuery ? $this->groupedFreeClaims($claimQuery) : []);
+
+        $rows = [];
+
+        foreach ($grouped as $row) {
+            $dims = $this->rowDims((array) $row);
+            $key = $this->dimKey($dims);
+
+            $rows[$key] ??= $dims + ['views' => 0, 'order_count' => 0, 'revenue' => 0.0];
+            $rows[$key]['order_count'] += (int) $row->order_count;
+            $rows[$key]['revenue'] += (float) $row->revenue;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Fold the daily aggregate's views onto the conversion rows, adding a row
+     * wherever a link brought traffic but no sale.
+     *
+     * @param  array<string, array<string, mixed>> $rows
+     * @return array<string, array<string, mixed>>
+     */
+    private function viewRows(Course $course, ?int $days, array $rows): array
+    {
+        $views = DB::table('course_daily_stats')
+            ->where('course_id', $course->id)
+            ->when($days, fn ($q) => $q->where('date', '>=', now()->subDays($days)->toDateString()))
+            ->select('channel', 'source', 'utm_campaign', DB::raw('SUM(views) as views'))
+            ->groupBy('channel', 'source', 'utm_campaign')
+            ->get();
+
+        foreach ($views as $row) {
+            $dims = [
+                'channel'  => (string) $row->channel,
+                'source'   => (string) $row->source,
+                'campaign' => (string) $row->utm_campaign,
+            ];
+            $key = $this->dimKey($dims);
+
+            $rows[$key] ??= $dims + ['views' => 0, 'order_count' => 0, 'revenue' => 0.0];
+            $rows[$key]['views'] += (int) $row->views;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The dimensions one order/claim row belongs to — the same three the daily
+     * aggregate stores, produced by the same two rules.
+     *
+     * @param  array<string, mixed> $row
+     * @return array{channel: string, source: string, campaign: string}
+     */
+    private function rowDims(array $row): array
+    {
+        return $this->trafficSource->resolveSource($row) + [
+            'campaign' => TrafficSourceService::normaliseCampaign($row['utm_campaign'] ?? null),
+        ];
+    }
+
+    /** @param array{channel: string, source: string, campaign: string} $dims */
+    private function dimKey(array $dims): string
+    {
+        return implode("\0", [$dims['channel'], $dims['source'], $dims['campaign']]);
+    }
+
+    /** Label for a source slug; the bracketed two are states, not platforms. */
+    private function displaySource(string $source): string
+    {
+        return match ($source) {
+            'direct' => '(直接造訪)',
+            ''       => '(未分類)',
+            default  => $source,
+        };
+    }
+
     public function traffic(Course $course, Request $request): Response
     {
         $days = $request->input('days');
@@ -457,58 +558,22 @@ class CourseController extends Controller
                 ->count();
         }
 
-        $sources = (clone $query)
-            ->select(
-                'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
-                'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
-                'orders.gclid', 'orders.fbclid', 'orders.ttclid',
-                DB::raw('COUNT(DISTINCT orders.id) as order_count'),
-                DB::raw('SUM(order_items.unit_price) as revenue')
-            )
-            ->groupBy(
-                'orders.utm_source', 'orders.utm_medium', 'orders.utm_campaign',
-                'orders.utm_term', 'orders.utm_content', 'orders.referrer_domain',
-                'orders.gclid', 'orders.fbclid', 'orders.ttclid', 'orders.first_touch'
-            )
-            ->get()
-            ->concat($claimQuery ? $this->groupedFreeClaims($claimQuery) : [])
-            ->map(function ($row) {
-                $hasClickId = $row->gclid || $row->fbclid || $row->ttclid;
-                if ($hasClickId) {
-                    // fbclid rides on organic Meta clicks too, so the platform is
-                    // resolved by the shared rule instead of being assumed to be
-                    // Facebook (002 FR-024).
-                    $displaySource = $row->utm_source ?: $this->trafficSource->resolveSource([
-                        'gclid'           => $row->gclid,
-                        'fbclid'          => $row->fbclid,
-                        'ttclid'          => $row->ttclid,
-                        'referrer_domain' => $row->referrer_domain,
-                    ])['source'];
-                } elseif ($row->utm_source) {
-                    $displaySource = $row->utm_source;
-                } elseif ($row->referrer_domain) {
-                    $displaySource = "(外部連結) {$row->referrer_domain}";
-                } else {
-                    $displaySource = '(直接造訪)';
-                }
+        // Views and conversions are two independent sides keyed on the same
+        // dimensions; a link with traffic and no sale exists on one side only,
+        // and that is the row this report was rebuilt to show (FR-045).
+        $rows = $this->viewRows($course, $days, $this->conversionRows($query, $claimQuery));
 
-                return [
-                    'utm_source'       => $row->utm_source,
-                    'utm_medium'       => $row->utm_medium,
-                    'utm_campaign'     => $row->utm_campaign,
-                    'utm_term'         => $row->utm_term,
-                    'utm_content'      => $row->utm_content,
-                    'referrer_domain'  => $row->referrer_domain,
-                    'gclid'            => $row->gclid,
-                    'fbclid'           => $row->fbclid,
-                    'ttclid'           => $row->ttclid,
-                    'display_source'   => $displaySource,
-                    'order_count'      => (int) $row->order_count,
-                    'revenue'          => (float) $row->revenue,
-                ];
-            })
-            ->values()
-            ->all();
+        $sources = array_map(fn (array $row) => $row + [
+            'display_source'  => $this->displaySource($row['source']),
+            // Null, not 0%, when nothing was measured: orders predating the
+            // aggregate table have no views to divide by, and a made-up 0%
+            // reads as "this link converts nobody".
+            'conversion_rate' => $row['views'] > 0
+                ? round($row['order_count'] / $row['views'] * 100, 1)
+                : null,
+        ], array_values($rows));
+
+        usort($sources, fn ($a, $b) => [$b['order_count'], $b['views']] <=> [$a['order_count'], $a['views']]);
 
         return Inertia::render('Admin/Courses/Traffic', [
             'course'  => ['id' => $course->id, 'name' => $course->name, 'url' => route('course.show', $course)],

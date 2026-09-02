@@ -37,61 +37,62 @@ function setDays(days) {
 
 const viewMode = ref('source')
 
-// Mirrors TrafficSourceService::PLATFORM_MAP — utm_source first, then the
-// referrer host (same fallback order as the server, so the same order is not
-// filed under two different channels here and on 行銷分析).
-const CHANNEL_RULES = [
-  {
-    label: '社群',
-    utm: /instagram|^ig$|threads|facebook|^fb$|twitter|^x$|linkedin|^line$/,
-    host: /(^|\.)(instagram|threads|facebook|twitter|linkedin|line)\.|^(fb\.me|fb\.com|x\.com|t\.co|lnkd\.in)$/,
-  },
-  { label: '搜尋引擎', utm: /google|bing|yahoo|duckduckgo/, host: /(^|\.)(google|bing|yahoo|duckduckgo)\./ },
-  // `^drip$` mirrors PLATFORM_MAP's own entry (US14) — our two mailing paths
-  // are separate sources but one channel.
-  { label: '電子郵件', utm: /^drip$|email|newsletter|edm|mailchimp|resend/, host: null },
-  { label: '影音', utm: /youtube|tiktok|vimeo/, host: /(^|\.)(youtube|tiktok|vimeo)\.|^youtu\.be$/ },
-]
-
-// Same paid pattern as TrafficSourceService::PAID_MEDIUM_PATTERN.
-const PAID_MEDIUM = /^(cpc|ppc|paid|paid[_-]?social|ads?|display|banner|retargeting)$/
-
-// Mirrors TrafficSourceService::resolveSource() (002 FR-024): paid is declared
-// by the advertiser, never inferred from a bare fbclid — Meta appends that to
-// every outbound FB/IG click, organic bio links included.
-function classifyChannel(row) {
-  const medium = (row.utm_medium || '').toLowerCase().trim()
-  if (PAID_MEDIUM.test(medium)) return '付費廣告'
-
-  // gclid / ttclid are only ever emitted by an ad click, so they still imply paid.
-  if (row.gclid || row.ttclid) return '付費廣告'
-
-  const src = (row.utm_source || '').toLowerCase()
-  const host = (row.referrer_domain || '').toLowerCase()
-
-  for (const rule of CHANNEL_RULES) {
-    if (src && rule.utm.test(src)) return rule.label
-  }
-  for (const rule of CHANNEL_RULES) {
-    if (host && rule.host?.test(host)) return rule.label
-  }
-
-  // Meta told us the network but not the surface, and nothing else did either.
-  if (row.fbclid) return '社群'
-
-  if (src || host) return '其他'
-  return '(直接造訪)'
+// Labels only. The classification itself is the server's (002 FR-046): the
+// mirrored copy that used to live here disagreed with it twice (D16, D34), and
+// every row now arrives with the channel already resolved.
+const CHANNEL_LABELS = {
+  paid: '付費廣告',
+  social: '社群',
+  search: '搜尋引擎',
+  email: '電子郵件',
+  video: '影音',
+  referral: '其他',
+  direct: '(直接造訪)',
 }
+
+const channelLabel = (channel) => CHANNEL_LABELS[channel] ?? channel
+
+const rate = (row) => (row.conversion_rate === null ? '—' : `${row.conversion_rate}%`)
+
+// Sorting lives in the page, not the server: the row set is one course's worth
+// of links, small enough that a round trip per click would only add latency.
+const sort = ref({ key: 'order_count', desc: true })
+
+function sortBy(key) {
+  if (sort.value.key === key) sort.value.desc = !sort.value.desc
+  else sort.value = { key, desc: true }
+}
+
+const sortArrow = (key) => (sort.value.key !== key ? '' : sort.value.desc ? ' ↓' : ' ↑')
+
+/** Unmeasured conversion rate sorts last in both directions — it is not a 0%. */
+function compare(a, b, key) {
+  const av = a[key]
+  const bv = b[key]
+  if (av === null) return bv === null ? 0 : 1
+  if (bv === null) return -1
+  return sort.value.desc ? bv - av : av - bv
+}
+
+const sortedSources = computed(() =>
+  [...props.traffic.sources].sort((a, b) => compare(a, b, sort.value.key))
+)
 
 const groupedSources = computed(() => {
   const groups = {}
   for (const row of props.traffic.sources) {
-    const ch = classifyChannel(row)
-    if (!groups[ch]) groups[ch] = { channel: ch, order_count: 0, revenue: 0 }
+    const ch = row.channel
+    if (!groups[ch]) groups[ch] = { channel: ch, views: 0, order_count: 0, revenue: 0 }
+    groups[ch].views += row.views
     groups[ch].order_count += row.order_count
     groups[ch].revenue += row.revenue
   }
-  return Object.values(groups).sort((a, b) => b.order_count - a.order_count)
+  return Object.values(groups)
+    .map((g) => ({
+      ...g,
+      conversion_rate: g.views > 0 ? Math.round((g.order_count / g.views) * 1000) / 10 : null,
+    }))
+    .sort((a, b) => b.order_count - a.order_count || b.views - a.views)
 })
 
 const exportUrl = computed(() => {
@@ -100,38 +101,43 @@ const exportUrl = computed(() => {
 })
 
 // ── UTM 連結生成器 ─────────────────────────────────────────
+// `paidMedium` is the value the 付費廣告 checkbox writes. It is the only paid
+// signal the server accepts (002 D34/D52) — a bare fbclid is not one — so the
+// checkbox exists to spell it correctly, not to be filled in by hand.
 const platformPresets = [
-  { label: 'Threads', source: 'threads', medium: 'social' },
-  { label: 'Instagram', source: 'instagram', medium: 'social' },
-  { label: 'Facebook', source: 'facebook', medium: 'social' },
-  { label: 'YouTube', source: 'youtube', medium: 'video' },
-  { label: 'EDM', source: 'email', medium: 'email' },
-  { label: 'LINE', source: 'line', medium: 'social' },
+  { label: 'Threads', source: 'threads', paidMedium: 'paid_social' },
+  { label: 'Instagram', source: 'instagram', paidMedium: 'paid_social' },
+  { label: 'Facebook', source: 'facebook', paidMedium: 'paid_social' },
+  { label: 'YouTube', source: 'youtube', paidMedium: 'cpc' },
+  { label: 'EDM', source: 'email', paidMedium: 'paid_social' },
+  { label: 'LINE', source: 'line', paidMedium: 'paid_social' },
 ]
 
-const utm = ref({ source: '', medium: '', campaign: '', content: '', term: '' })
+const utm = ref({ source: '', campaign: '', paid: false })
 const copied = ref(false)
 
 function applyPreset(preset) {
   utm.value.source = preset.source
-  utm.value.medium = preset.medium
 }
+
+// Organic links carry no medium at all: the channel comes from utm_source
+// matching the platform registry, so `social` / `video` there only ever made
+// the form look like it had been filled in properly.
+const paidMedium = computed(() =>
+  platformPresets.find((p) => p.source === utm.value.source)?.paidMedium ?? 'paid'
+)
 
 const generatedUrl = computed(() => {
   const base = props.course.url
   const params = new URLSearchParams()
   if (utm.value.source.trim())   params.set('utm_source',   utm.value.source.trim())
-  if (utm.value.medium.trim())   params.set('utm_medium',   utm.value.medium.trim())
+  if (utm.value.paid)            params.set('utm_medium',   paidMedium.value)
   if (utm.value.campaign.trim()) params.set('utm_campaign', utm.value.campaign.trim())
-  if (utm.value.content.trim())  params.set('utm_content',  utm.value.content.trim())
-  if (utm.value.term.trim())     params.set('utm_term',     utm.value.term.trim())
   const qs = params.toString()
   return qs ? `${base}?${qs}` : base
 })
 
-const hasParams = computed(() =>
-  utm.value.source || utm.value.medium || utm.value.campaign || utm.value.content || utm.value.term
-)
+const hasParams = computed(() => utm.value.source || utm.value.campaign || utm.value.paid)
 
 async function copyUrl() {
   await navigator.clipboard.writeText(generatedUrl.value)
@@ -140,7 +146,7 @@ async function copyUrl() {
 }
 
 function resetUtm() {
-  utm.value = { source: '', medium: '', campaign: '', content: '', term: '' }
+  utm.value = { source: '', campaign: '', paid: false }
 }
 </script>
 
@@ -229,39 +235,32 @@ function resetUtm() {
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">
-              管道 <span class="text-gray-400 font-normal">utm_medium</span>
-            </label>
-            <input
-              v-model="utm.medium"
-              type="text"
-              placeholder="social、email、video…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">
               活動名稱 <span class="text-gray-400 font-normal">utm_campaign</span>
+              <span class="text-brand-teal ml-1">← 區分不同貼文用這欄</span>
             </label>
             <input
               v-model="utm.campaign"
               type="text"
-              placeholder="2026-launch、母親節優惠…"
-              class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">
-              貼文識別 <span class="text-gray-400 font-normal">utm_content</span>
-              <span class="text-brand-teal ml-1">← 區分不同貼文用這欄</span>
-            </label>
-            <input
-              v-model="utm.content"
-              type="text"
-              placeholder="post-001、bio-link、限動…"
+              placeholder="0831-限動、母親節優惠、vol-12…"
               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
             />
           </div>
         </div>
+
+        <!-- 付費宣告：程式不從 fbclid 猜付費，只認這個 -->
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input
+            v-model="utm.paid"
+            type="checkbox"
+            class="mt-0.5 rounded border-gray-300 text-brand-teal focus:ring-brand-teal cursor-pointer"
+          />
+          <span class="text-sm text-gray-700">
+            這是付費廣告連結
+            <span class="block text-xs text-gray-400">
+              勾選後會加上 <code>utm_medium={{ paidMedium }}</code>。不勾的話這條連結會被算成自然流量——付費與自然只靠這個參數分辨。
+            </span>
+          </span>
+        </label>
 
         <!-- 產生結果 -->
         <div class="rounded-lg bg-gray-50 border border-gray-200 p-3">
@@ -348,31 +347,39 @@ function resetUtm() {
 
     <!-- Empty state -->
     <div v-if="!traffic.sources.length" class="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-      尚無訂單來源資料
+      尚無流量與{{ countLabel }}資料
     </div>
 
-    <!-- Source detail table -->
+    <!-- Source × campaign table -->
     <div v-else-if="viewMode === 'source'" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3">來源</th>
-            <th class="px-4 py-3">中介</th>
             <th class="px-4 py-3">活動</th>
-            <th class="px-4 py-3">關鍵字</th>
-            <th class="px-4 py-3">內容</th>
-            <th class="px-4 py-3 text-right">{{ countLabel }}</th>
-            <th class="px-4 py-3 text-right">金額</th>
+            <th class="px-4 py-3">管道</th>
+            <th
+              v-for="col in [
+                { key: 'views', label: '瀏覽' },
+                { key: 'order_count', label: countLabel },
+                { key: 'conversion_rate', label: '轉換率' },
+                { key: 'revenue', label: '金額' },
+              ]"
+              :key="col.key"
+              @click="sortBy(col.key)"
+              class="px-4 py-3 text-right cursor-pointer select-none hover:text-gray-800"
+              :class="sort.key === col.key ? 'text-gray-800' : ''"
+            >{{ col.label }}{{ sortArrow(col.key) }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-for="(row, i) in traffic.sources" :key="i" class="bg-white hover:bg-gray-50">
+          <tr v-for="(row, i) in sortedSources" :key="i" class="bg-white hover:bg-gray-50">
             <td class="px-4 py-3 font-medium text-gray-900">{{ row.display_source }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ row.utm_medium || '—' }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ row.utm_campaign || '—' }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ row.utm_term || '—' }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ row.utm_content || '—' }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ row.campaign || '—' }}</td>
+            <td class="px-4 py-3 text-gray-500">{{ channelLabel(row.channel) }}</td>
+            <td class="px-4 py-3 text-right text-gray-900">{{ row.views.toLocaleString() }}</td>
             <td class="px-4 py-3 text-right text-gray-900">{{ row.order_count }}</td>
+            <td class="px-4 py-3 text-right text-gray-600">{{ rate(row) }}</td>
             <td class="px-4 py-3 text-right text-gray-900">NT${{ row.revenue.toLocaleString() }}</td>
           </tr>
         </tbody>
@@ -385,19 +392,29 @@ function resetUtm() {
         <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           <tr>
             <th class="px-4 py-3">管道</th>
+            <th class="px-4 py-3 text-right">瀏覽</th>
             <th class="px-4 py-3 text-right">{{ countLabel }}</th>
+            <th class="px-4 py-3 text-right">轉換率</th>
             <th class="px-4 py-3 text-right">金額</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
           <tr v-for="(row, i) in groupedSources" :key="i" class="bg-white hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium text-gray-900">{{ row.channel }}</td>
+            <td class="px-4 py-3 font-medium text-gray-900">{{ channelLabel(row.channel) }}</td>
+            <td class="px-4 py-3 text-right text-gray-900">{{ row.views.toLocaleString() }}</td>
             <td class="px-4 py-3 text-right text-gray-900">{{ row.order_count }}</td>
+            <td class="px-4 py-3 text-right text-gray-600">{{ rate(row) }}</td>
             <td class="px-4 py-3 text-right text-gray-900">NT${{ row.revenue.toLocaleString() }}</td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <p class="text-xs text-gray-400 leading-relaxed">
+      瀏覽為「當天不重複的訪客 × 連結」：同一人同一天走兩條不同連結進來算兩次，重整同一條不重複計算。
+      轉換率＝{{ countLabel }} ÷ 瀏覽；2026-08-31 之前的{{ countLabel }}沒有對應的瀏覽紀錄，該列轉換率顯示「—」。
+      活動欄的「—」代表那條連結沒帶 <code>utm_campaign</code>。
+    </p>
 
   </div>
 </template>

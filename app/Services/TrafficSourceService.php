@@ -261,6 +261,21 @@ class TrafficSourceService
         return ['channel' => 'direct', 'source' => 'direct'];
     }
 
+    /**
+     * Aggregate-row form of utm_campaign (002 US18 FR-042): trimmed, lowercased
+     * and cut to the column width.
+     *
+     * Static and public because both sides of the report have to apply exactly
+     * this rule — the daily aggregate when it writes, and the traffic report
+     * when it groups `orders` to join against those rows. Two copies of the
+     * rule would put `Summer` and `summer` on separate rows, with nothing on
+     * screen to explain why.
+     */
+    public static function normaliseCampaign(?string $campaign): string
+    {
+        return mb_substr(mb_strtolower(trim((string) $campaign)), 0, 100);
+    }
+
     /** @param array<string, mixed> $source */
     private function isPaidMedium(array $source): bool
     {

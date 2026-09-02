@@ -59,6 +59,8 @@ owner_files:
   - tests/Feature/Storefront/EmailLinkTaggerTest.php
   - tests/Feature/Storefront/SalesPromoCouponChainTest.php
   - tests/Feature/Storefront/CourseUrlSlugTest.php
+  - database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
+  - tests/Feature/Storefront/CampaignTrafficTest.php
 touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
@@ -98,7 +100,7 @@ touchpoints:
     why: 結帳建立訂單時讀取 tf_first/tf_last cookie（TrafficSourceService）寫入 orders 來源欄位與 first_touch
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
-    why: traffic()/trafficExport() 兩個方法提供來源統計查詢與 CSV 匯出（頁面 Traffic.vue 屬本模組）；US11/US12 — edit() 下發 free_success_md / promo_html / promo_delay_seconds 給課程表單
+    why: traffic()/trafficExport() 兩個方法提供來源統計查詢與 CSV 匯出（頁面 Traffic.vue 屬本模組）；US11/US12 — edit() 下發 free_success_md / promo_html / promo_delay_seconds 給課程表單；US18 — traffic() 改為日彙總瀏覽與訂單兩側 outer join，每列回傳後端算好的 channel
   - file: database/migrations/2026_07_06_000001_add_content_category_to_courses_table.php
     owner: 004-course-admin
     why: content_category 欄位屬 courses 表；首頁分類篩選只讀取此欄位
@@ -433,6 +435,29 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 既有資料無法回填來源，MUST 接受歷史領取一律落在 `(直接造訪)`；MUST NOT 為了好看而猜測歸屬
 - [x] 測試：drip 領取寫入來源、非 drip 免費領取寫入來源、Traffic 頁併入領取數且不雙重計數、退訂者仍計入、無來源落在直接造訪、營收維持 0、CSV 含免費領取、行銷分析頁數字不受影響
 
+### User Story 18 - 課程流量細分到活動層與追蹤連結產生器簡化 (Priority: P2)
+
+課程的「連結來源追蹤」頁目前只看得到**有成交的**流量：整頁資料來自 `orders`（US17 起加上免費領取），所以一條連結帶進 300 個人卻沒人買，那條連結在頁面上根本不存在，跟沒發過一樣。瀏覽數其實一直有在記（`course_daily_stats.views`），只是被留在全站的 `/admin/analytics` 漏斗頁、且維度只到 `source`（平台層）。
+
+本故事把兩件事接起來：日彙總加 `utm_campaign` 維度，課程 Traffic 頁的「來源明細」檢視改成 **來源 × 活動** 的扁平表，每一列同時有瀏覽、訂單（或領取）、營收與轉換率 —— 「這則貼文帶了幾個人、成交幾筆」變成一列可讀的數字。同時把追蹤連結產生器從四欄縮成兩欄加一個勾選框，讓標記規則簡單到不會填錯。
+
+**驗收**：
+- [x] `course_daily_stats` 加 `utm_campaign` 維度，唯一鍵由四欄擴為五欄；舊資料落 `''`，在報表上顯示為「—」
+- [x] 「來源明細」檢視改為 **來源 × 活動** 扁平表：欄位為 來源／活動／瀏覽／訂單（免費課為領取）／營收／轉換率，可依任一數值欄排序
+- [x] **有瀏覽但零成交的列 MUST 出現**：這是整個故事的重點，一條沒帶來成交的連結必須看得見，而不是從表上消失
+- [x] 轉換率 = 訂單 ÷ 瀏覽；瀏覽為 0 時顯示「—」而非 0% 或無限大（歷史訂單列的瀏覽必然為 0）
+- [x] 「管道」檢視保留，加上瀏覽與轉換率兩欄
+- [x] 每列的管道 MUST 由後端給定，前端 MUST NOT 再自己判斷一次（刪除 `Traffic.vue` 內鏡射 `PLATFORM_MAP` / `PAID_MEDIUM_PATTERN` 的那份規則）
+- [x] 瀏覽計數的 session 去重維持不變，但去重鍵擴為完整維度（課程＋日期＋channel＋source＋campaign）：換一條連結進來就是另一次到訪
+- [x] `utm_campaign` 在寫入與比對時 MUST 一律 `trim` + 轉小寫，否則 `Summer` 與 `summer` 會分成兩列而使用者看不出原因
+- [x] 追蹤連結產生器縮為 **來源（utm_source）** ＋ **活動名稱（utm_campaign）** 兩欄，加一個「這是付費廣告連結」勾選框自動帶 `utm_medium`
+- [x] 移除產生器的 `utm_content` 欄位（貼文識別改寫進活動名稱）與 `utm_term` 死碼（該欄有 state、會組進網址，但 UI 從來沒有輸入框）
+- [x] 平台快速選擇 MUST NOT 再自動帶 `utm_medium`：`social` / `video` / `email` 那些值不影響任何判斷，只是讓使用者以為自己標記過了
+- [x] 逐筆 CSV 匯出維持現狀（仍含全部 UTM 五參數與 click id），本故事不改匯出格式
+- [x] 行銷分析頁（`/admin/analytics`）數字 MUST 完全不變 —— 彙總表加維度後 `SUM` 仍然正確，該頁一行都不改
+- [x] 既有資料 MUST NOT 回填：`utm_campaign` 上線前的瀏覽一律落 `''`，不猜測歸屬
+- [x] 測試：新維度寫入與去重、campaign 大小寫收斂為同一列、零成交列出現在報表、瀏覽為 0 時轉換率顯示「—」、免費領取併入不雙重計數、行銷分析頁數字不受影響
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -448,8 +473,8 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-011**: 首頁課程查詢 MUST 用 select 白名單欄位＋map 輸出，不得整包 model 傳給前端（避免洩漏後台欄位）。
 - **FR-012**: 站長形象圖存於 `Storage::disk('public')` 的 `sns-profile/` 目錄；替換或刪除時 MUST 一併刪除舊檔（比照 FR-008 hero banner）。
 - **FR-013**: 站長介紹上限 500 字 MUST 前後端雙重驗證（textarea maxlength＋即時計數器、server `max:500`）；圖與文皆為 nullable，任一為空即該元素不渲染。
-- **FR-014**: 流量計數 MUST 存日彙總（course × date × channel），不得存 raw page view 事件列；彙總 upsert MUST 用原子增量（`increment` / `ON DUPLICATE KEY UPDATE`），不可讀改寫。
-- **FR-015**: 瀏覽計數 MUST 過濾爬蟲 UA（bot/crawl/spider/slurp/facebookexternalhit/headless 等 regex）並以 session key 做同課程同日去重；beacon 端點 MUST IP throttle。
+- **FR-014**: 流量計數 MUST 存日彙總（course × date × channel × source × utm_campaign；維度隨 US13 / US18 擴增），不得存 raw page view 事件列；彙總 upsert MUST 用原子增量（`increment` / `ON DUPLICATE KEY UPDATE`），不可讀改寫。
+- **FR-015**: 瀏覽計數 MUST 過濾爬蟲 UA（bot/crawl/spider/slurp/facebookexternalhit/headless 等 regex）並以 session key 去重；去重鍵自 US18 起為**完整維度**（課程＋日期＋channel＋source＋campaign，見 FR-044），不再是同課程同日一次。beacon 端點 MUST IP throttle。
 - **FR-016**: 追蹤相關失敗（cookie 缺失、聚合寫入異常）MUST 靜默降級，不得影響頁面回應或結帳流程。
 - **FR-017**: 免費領取（drip 訂閱 / 免費課報名）成功 MUST NOT 導頁 — 成功呈現一律就地替換原表單位置並捲入視野；離站動線（前往我的課程）在有自訂成功內容時 MUST 隱藏。
 - **FR-018**: `free_success_md` 屬管理員信任輸入（比照 FR-007 放行 HTML/iframe）；變數替換 MUST 在 Markdown 轉 HTML 之前執行，避免破壞已產生的 HTML 結構。
@@ -486,9 +511,31 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-038**: `DripService::subscribe(User $user, Course $course, array $trafficSource = [])` 新增第三個選填參數作為**唯一寫入點**。有 Request 的呼叫端（`DripSubscriptionController::subscribe()` / `memberSubscribe()`、`FreePurchaseController`）傳入；背景路徑（`SubscribeDripLeadJob`、`PortalyWebhookService`、`RedemptionService`）不傳，落 null。**MUST NOT** 在各 controller 各自寫一次 —— 那正是會漏掉某條路徑的形狀
 - **FR-039**: Traffic 頁的免費領取來源**依課程型態擇一**：`course_type = 'drip'` 取 `drip_subscriptions`，否則取 `purchases` 且 `source = 'free'`。MUST NOT 同時查兩張表 —— drip 課若經 `FreePurchaseController` 領取，兩張表都會有一列，同時計算就是把同一個人算兩次（D46）。已知取捨：drip 課有 Purchase 卻沒有 subscription 的孤兒列（`subscribe()` 失敗）不會被計入，這比雙重計數安全
 - **FR-040**: 領取者 MUST 全數計入，`drip_subscriptions.status` 不參與過濾（含 `unsubscribed`）。退訂發生在領取之後，不會讓「那條連結帶來一個人」這件事變成沒發生。這與 FR-033 的 `converted` 過濾刻意不同：那裡問的是「後來買了嗎」，這裡問的是「進來了嗎」
+- **FR-041**: `course_daily_stats` 加第三個維度 `utm_campaign`（`varchar(100)` NOT NULL default `''`），唯一鍵由 `(course_id, date, channel, source)` 擴為 `(course_id, date, channel, source, utm_campaign)`。migration MUST **先建新唯一索引再刪舊的** —— `course_id` 的外鍵需要前導欄索引，順序反了會撞 MySQL errno 150（US13 已經踩過一次，見 D30）
+- **FR-042**: `utm_campaign` 在**寫入日彙總**與**讀取 orders 做比對**兩處 MUST 一律 `trim()` + `mb_strtolower()` + 截 100 字。`orders.utm_campaign` 保持原樣儲存不動（那是逐筆明細的原始值），正規化只發生在 read time —— 兩邊不套同一條規則，`Summer` 與 `summer` 就會在報表上分成兩列，而使用者從畫面上看不出為什麼
+- **FR-043**: `SiteAnalyticsService::bump()` 的維度 MUST 改由一個 `array $dims`（`channel` / `source` / `campaign`）傳遞，MUST NOT 再加第 6 個位置參數。維度只會繼續長，`bump($id, $ch, 'views', 1, $src, $camp)` 在呼叫端讀不出哪個是哪個
+- **FR-044**: 瀏覽計數的 session 去重鍵 MUST 擴為完整維度（`viewed_course_{id}_{date}_{channel}_{source}_{campaign}`）。只加 campaign 不加 source 會讓新維度半殘：同一天先從 IG 再從 Threads 進來仍然只算一次，而那是兩條不同的連結。代價是 `views` 總數會略高於改動前（同一人走多條連結進來會各記一次），這正是「哪條連結帶了人」要問的東西
+- **FR-045**: Traffic 頁的「來源明細」檢視 MUST 以 `(channel, source, campaign)` 為 key 把**日彙總的瀏覽**與**訂單／領取**兩側 outer join，任一側有值就出一列。MUST NOT 用訂單側當主表 —— 那樣「有瀏覽、零成交」的列會整列消失，而那是這個故事唯一要解決的問題
+- **FR-046**: 每一列的 `channel` MUST 由後端 `resolveSource()` 決定並隨資料回傳；`Traffic.vue` 內鏡射 `PLATFORM_MAP` / `PAID_MEDIUM_PATTERN` 的 `CHANNEL_RULES` + `classifyChannel()` MUST 整段刪除。同一套規則在前後端各寫一次已經漂移過兩次（D16、D34），而這次後端本來就要為了 join key 算出 channel，前端那份只是純粹多餘
+- **FR-047**: 追蹤連結產生器 MUST 只保留 `utm_source` 與 `utm_campaign` 兩個輸入，加一個「這是付費廣告連結」勾選框產生 `utm_medium`（社群平台 `paid_social`、搜尋／影音平台 `cpc`、未選平台時 `paid`）。平台快速選擇 MUST NOT 再自動填 `utm_medium` —— `social`/`video`/`email` 這些值不進 `PAID_MEDIUM_PATTERN`、也不影響 channel（channel 由 `utm_source` 比對 `PLATFORM_MAP` 決定），填了只會讓人以為自己標記過了
+- **FR-048**: `utm_content` **不進**日彙總維度（僅移除產生器欄位，仍逐筆存在 `orders` 並出現在 CSV）。廣告平台常自動帶 `utm_content={{ad.id}}`，把它變成彙總維度等於讓列數隨 creative 數量無上限增長，而那個粒度用 CSV 逐筆看就夠（D51）
 - **FR-036**: 併入 MUST 只發生在 `funnelReport()` 的回傳組裝階段。`channelReport()`、`ctaReport()`、`course_daily_stats` 與 `bump()` 一律不動 —— 管道報表的加總必須繼續等於各管道實際事件數，塞入一個沒有管道的數字會讓那張表自相矛盾
 
 ## 設計決策
+
+- **D48**: 維度加在 `course_daily_stats` 上，而不是另開一張 `course_visits` 逐筆事件表（US18）。逐筆表能回答任何未來的切法，但它推翻的是 FR-014 的整個前提（「不得存 raw page view 事件列」），而那條規則的理由現在依然成立：這是個人規模的站，正式站的日彙總至今 467 列，換成逐筆會是每天數千列、且要自己處理清理與彙總。加一個維度後預估列數約 3-5 倍（兩千列上下），對查詢與儲存都無感。
+  被否決的另一個選項是「加 `raw_utm_source` 保留原始字串」：`resolveSource()` 會把 `ig` / `instagram` / `Instagram` 收斂成同一個 slug，那是**特性不是缺陷** —— 同一個平台用三種寫法標記，在報表上就該是一列。真正需要分辨的差異（哪則貼文、哪次活動）屬於 campaign 這一層，本故事處理的正是它。
+
+- **D49**: 去重鍵擴為完整維度（course + date + channel + source + campaign），而不是只加 campaign（FR-044）。使用者原本選的是「維持去重、只加 campaign 進鍵」，實作上那會留下一個不對稱：換 campaign 算兩次，換平台卻只算一次。既有的 `viewed_course_{id}_{date}` 在單維度時代是合理的，但它在多維度下的意思變成「這個人今天第一次進來時走的那條連結，獨佔他當天的所有到訪」—— 後面幾條連結的瀏覽數會被靜默吃掉，而報表上看不出來。
+  **已知代價**：`views` 的口徑因此從「當天不重複訪客」變成「當天不重複的（訪客 × 連結）」，總數會略高於改動前，與 8/2 之前的歷史資料不完全可比。接受它是因為這個故事問的就是「哪條連結帶了人」，而不是「今天有幾個人」；後者在行銷分析頁的管道報表上仍然成立（那裡的加總維度更粗）。
+
+- **D50**: 前端的管道判斷整段刪除，改由後端隨每列回傳（FR-046）。這份鏡射規則已經害過兩次：D16 是前後端 `classifyChannel()` 分岔，D34 是同一筆 IG 自然流量在「行銷分析」歸社群、在「課程流量」歸付費廣告。過去留著它的理由是後端只回傳原始 UTM 欄位、前端要自己分組；本故事因為 join key 需要，後端本來就得算出 `(channel, source, campaign)`，那份鏡射就從「必要之惡」變成純粹多餘。這是這次改動附帶收掉的一整類 bug。
+
+- **D51**: `utm_content` 只從產生器移除，不進彙總維度，也不從既有資料裡刪（FR-048）。使用者最初的問題是「加 content 基數會不會失控」—— 會，但**失控的來源不是產生器**：Meta 廣告會自動帶 `utm_content={{ad.id}}`，一天幾十個 creative id，那條路徑不會因為後台少一個輸入框而消失。所以「不加 content 維度」是後端的決定，「移除產生器欄位」是另一個獨立的、關於填表負擔的決定：小規模用法下「一則貼文一條連結」，貼文識別寫進 `utm_campaign`（`threads-0831-限動`）就夠，多一欄只會讓同一個人這次填 `post-001`、下次填 `限動`，最後兩邊都對不起來。
+  廣告帶進來的 `utm_content` 仍然逐筆存在 `orders`、仍然出現在 CSV 與明細欄位 —— 只是不成為報表的一列。
+
+- **D52**: `utm_medium` 從輸入框改為勾選框，而不是整個拿掉（FR-047）。使用者觀察到「medium 的分類意義不大」，這對**有機流量**完全成立：`social` / `video` / `email` 這些值不影響 channel（channel 由 `utm_source` 比對 `PLATFORM_MAP` 決定），也不進 `PAID_MEDIUM_PATTERN`，填了等於沒填。但 `utm_medium` 同時是 D34 之後**唯一的付費宣告管道** —— 程式刻意不從 `fbclid` 推測付費，所以拿掉這個欄位會讓所有 Meta 廣告流量被歸成自然社群，付費與自然從此分不開。
+  勾選框把這件事收斂成使用者真正需要做的那一個判斷（「這條連結是要花錢投的嗎」），不必知道 medium 是什麼、也不會把 `paid_social` 拼錯。
 
 - **D45**: 來源欄位加在 **`purchases` 與 `drip_subscriptions` 兩張表**，而不是「讓 drip 領取也建一筆 0 元 Purchase 好統一到一張表」（2026-08-13，規劃中途修正）。原本的方案是只加 `purchases`，那是在錯誤前提下做的決定 —— 以為免費領取只有 `FreePurchaseController` 一條路；實際上銷售頁的 drip 領取走 `POST /drip/subscribe`，**完全不碰 `purchases`**。
   否決「補建 0 元 Purchase」的理由不是麻煩，而是**行為擴散**：`purchases` 是全站「這個人擁有這門課」的真相來源，被會員詳情的擁有課程、新增小節通知的收件名單、贈課的重複檢查、`hasPaidAccessForUser()` 等一票地方讀取。為了一個報表欄位去改變「誰擁有這門課」的定義，代價遠超過多加一組欄位。
@@ -559,6 +606,24 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D40**: 舊路徑保留為 302 轉址而非刪除 —— 這個網址進過側欄也可能進過書籤與交接文件，回 404 會被讀成「功能被拿掉了」，而轉址的成本只有一個方法。
 ## Schema
 
+- **US18 schema 變更（一支 migration）**：
+
+  `2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php`
+
+  | 欄位 | 型別 |
+  |------|------|
+  | `utm_campaign` | `varchar(100)` NOT NULL default `''`，位置在 `source` 之後 |
+
+  索引：unique 由 `(course_id, date, channel, source)` 擴為 `(course_id, date, channel, source, utm_campaign)`。
+  **執行順序 MUST 為「先建新 unique → 再 drop 舊 unique」**（外鍵前導欄索引限制，errno 150；照抄 `2026_08_02_000001` 的三段式寫法）。索引長度估算 ≈ 896 bytes，遠低於 InnoDB DYNAMIC 的 3072 上限。
+  索引 MUST 明確命名為 `cds_course_date_channel_source_campaign_unique`：Laravel 對五個欄位自動產生的名稱是 68 字元，超過 MySQL 的 64 字元識別字上限；SQLite 沒有這個限制，所以測試套件驗不出來（見 2026-08-31 日誌）。
+
+  **不變量**：
+  - 值一律 `trim` + 小寫 + 截 100（FR-042）；`''` 同時代表「這條連結沒帶 campaign」與「US18 上線前的舊資料」，兩者在報表上都顯示「—」，**刻意不區分** —— 分辨它們需要一個 nullable 三態，而那個區別沒有任何決策價值
+  - **不回填、不重算**：既有 467 列（正式站，2026-08-31）維持 `utm_campaign = ''`
+  - 現有讀取端（`funnelReport()` / `channelReport()` / `ctaReport()`）**一行都不改** —— 它們 `GROUP BY channel, source` 後 `SUM`，多一個維度不影響結果。這是彙總表加維度相對於改欄位語意的關鍵好處，也是 US18 敢動這張表的前提
+  - `utm_content` **不加為維度**（FR-048 / D51）：廣告平台自動帶的 creative id 會讓列數無上限增長
+
 - **US17 schema 變更（兩支 migration，內容對稱）**：
 
   `2026_08_16_000001_add_traffic_source_to_purchases_table.php`
@@ -583,7 +648,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **US16 無 migration、無 schema 變更、無新欄位** —— 序列信轉換數在 `funnelReport()` 回傳前由 `drip_subscriptions`（`status` + `status_changed_at` + `course_id`，皆為 010 既有欄位並已有索引）現算現併（D44）。`course_daily_stats` 一個位元組都不動：那張表存的是「當天在站上發生的事件」，衍生數字不進去。
   **不變量**：`purchases` 在**回傳的陣列**裡是合併值，在**資料表**裡永遠只是該課程自身的訂單成交 —— 兩者刻意不同步，任何要對帳的查詢請直接讀表
 - **US14 無 migration、無新資料表** —— 戳章只改寄出的網址字串，後續統計完全復用既有的 `course_daily_stats`（channel `email` + source `drip`／`newsletter`）與 `orders` 的 UTM 欄位。
-- `utm_campaign` / `utm_content` 的粒度（哪一封信、哪一篇文章）**不進 `course_daily_stats`**（該表只有 channel + source 兩維）—— 它們寫進 `orders.utm_campaign` / `utm_content` 與 `first_touch` JSON，在「課程流量」頁與 Traffic CSV 逐筆看得到。「第 2 封信帶進多少成交」因此是訂單層的問題，不是管道報表的一列；要把它做成報表需要再加一個維度，屬另一個故事。
+- `utm_campaign` 的粒度（哪一封信、哪一則貼文）**自 US18 起進入 `course_daily_stats`** 成為第三個維度 —— 「第 2 封信帶進多少瀏覽與成交」因此是課程 Traffic 頁「來源 × 活動」表上的一列。`utm_content`（哪一篇文章、哪個 creative）仍**不進**該表（FR-048 / D51），只寫進 `orders.utm_content` 與 `first_touch` JSON，在 Traffic CSV 逐筆看得到。
 - `courses.free_success_md`（US11 新欄，本模組 migration）— nullable text；領取成功後顯示的自訂 Markdown（位置在課程描述之下），空值即維持既有預設成功卡片。
 - `courses.promo_html` / `courses.promo_delay_seconds`（US12 新欄，與 US11 同一支 migration）— 銷售頁延遲促銷區塊內容與等待秒數；`promo_delay_seconds` null=停用整塊、0=立即顯示。與 `lessons` 的同名欄位語意平行但互不相干（一個在銷售頁、一個在教室）。
 - `social_links` — 首頁 SNS 連結；`platform` 限六平台枚舉字串（僅決定 icon，可重複）、`sort_order` 建立時 max+1，無啟用欄位（存在即顯示，整區顯隱由 `sns_section_enabled` 控制）。
@@ -591,7 +656,7 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
 - **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
 - 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 語意 = 最後觸點；US10 起由 cookie（TrafficSourceService）提供、middleware 捕捉。
-- `course_daily_stats`（US10 新表，US13 加維度）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`source` varchar(100) default `''`（US13 新欄）、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`,`source`)（US13 由三欄擴為四欄）、index(`date`)。不變量：只增不改（原子 increment）；channel 值域 = paid/social/search/email/video/referral/direct；source 為平台 slug（instagram/threads/facebook/line/twitter/google/bing/yahoo/duckduckgo/youtube/tiktok/vimeo/newsletter/direct）或比對不到時的 referrer 網域／utm_source 原值（FR-023），`''` 專指 US13 上線前的舊資料。
+- `course_daily_stats`（US10 新表，US13 / US18 各加一個維度）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`source` varchar(100) default `''`（US13 新欄）、`utm_campaign` varchar(100) default `''`（US18 新欄）、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`,`source`,`utm_campaign`)（US10 三欄 → US13 四欄 → US18 五欄）、index(`date`)。不變量：只增不改（原子 increment）；channel 值域 = paid/social/search/email/video/referral/direct；source 為平台 slug（instagram/threads/facebook/line/twitter/google/bing/yahoo/duckduckgo/youtube/tiktok/vimeo/newsletter/direct）或比對不到時的 referrer 網域／utm_source 原值（FR-023），`''` 專指 US13 上線前的舊資料；`utm_campaign` 一律小寫（FR-042），`''` 兼指「無 campaign」與 US18 上線前的舊資料。
 - `post_cta_clicks`（US10 新表）— `post_id` FK cascadeOnDelete、`course_id` FK cascadeOnDelete、`date`、`clicks` unsigned int；unique(`post_id`,`course_id`,`date`)。
 - `orders.first_touch`（US10 新欄）— JSON nullable，首次觸點完整來源快照；既有欄位（最後觸點）不動。
 - cookie：`tf_first` / `tf_last` — JSON（UTM 五參數 + click ids + referrer_domain + ts），7 天，`SameSite=Lax`，非機密不加密簽章亦可（僅統計用途）。
@@ -764,7 +829,50 @@ Phase 4 — 驗證
 - [x] T012 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [ ] T013 使用者實測：以帶 UTM 的連結領取一門 drip 課 → Traffic 頁該來源出現 1 筆領取；非 drip 免費課同樣驗一次；確認行銷分析頁數字沒變
 
+## Tasks（課程流量細分到活動層 / US18）
+
+Phase 1 — Schema
+
+- [x] T001 `course_daily_stats` 加 `utm_campaign` varchar(100) NOT NULL default `''`（`after('source')`），unique 擴為五欄；**先建新 unique 再 drop 舊 unique**（errno 150，照抄 `2026_08_02_000001` 三段式）in `database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php`
+- [x] T002 [P] `$fillable` 加 `utm_campaign` in `app/Models/CourseDailyStat.php`
+
+Phase 2 — 寫入（相依 Phase 1）
+
+- [x] T003 `bump()` 簽名由位置參數改為 `bump(int $courseId, array $dims, string $column, int $amount = 1)`；`dailyRow()` 三個 where 改吃 `$dims`（FR-043）in `app/Services/SiteAnalyticsService.php`
+- [x] T004 新增 private `dims(array $source): array` — `resolveSource()` 的 channel/source 加上正規化後的 campaign（`trim` + `mb_strtolower` + 截 100，FR-042），四個 `record*` 入口共用；MUST NOT 在各入口各自正規化一次 in `app/Services/SiteAnalyticsService.php`
+- [x] T005 `recordView()` 去重鍵改為完整維度 `viewed_course_{id}_{date}_{channel}_{source}_{campaign}`（FR-044 / D49）in `app/Services/SiteAnalyticsService.php`
+- [x] T006 `recordAddToCart()` / `recordCheckout()` / `recordPurchase()` 三個入口改走 `dims()` in `app/Services/SiteAnalyticsService.php`
+
+Phase 3 — 報表（相依 Phase 2）
+
+- [x] T007 `traffic()` 改為兩側 outer join：訂單／領取側依 `resolveSource()` + 正規化 campaign 分組，日彙總側依 `(channel, source, utm_campaign)` 取 `SUM(views)`，任一側有值即出列（FR-045）；每列回傳 `channel` / `source` / `campaign` / `views` / `order_count` / `revenue` in `app/Http/Controllers/Admin/CourseController.php`〔touchpoint 004〕
+- [x] T008 「來源明細」檢視改為 來源 × 活動 扁平表，加瀏覽／轉換率兩欄並可依數值欄排序；`views = 0` 時轉換率顯示「—」；`campaign = ''` 顯示「—」in `resources/js/Pages/Admin/Courses/Traffic.vue`
+- [x] T009 「管道」檢視加瀏覽與轉換率欄，分組改用後端給的 `channel` in `resources/js/Pages/Admin/Courses/Traffic.vue`
+- [x] T010 刪除 `CHANNEL_RULES` / `PAID_MEDIUM` / `classifyChannel()` 整段前端鏡射規則（FR-046 / D50）in `resources/js/Pages/Admin/Courses/Traffic.vue`
+
+Phase 4 — 產生器（可與 Phase 3 平行）
+
+- [x] T011 [P] 產生器縮為 `utm_source` + `utm_campaign` 兩欄，移除 medium／content 輸入框與 `utm.term` 死碼；平台快速選擇不再帶 medium（FR-047 / D52）in `resources/js/Pages/Admin/Courses/Traffic.vue`
+- [x] T012 [P] 加「這是付費廣告連結」勾選框：社群平台帶 `utm_medium=paid_social`、搜尋／影音平台帶 `cpc`、未選平台帶 `paid`；活動名稱欄的說明改寫（貼文識別寫進這裡）in `resources/js/Pages/Admin/Courses/Traffic.vue`
+
+Phase 5 — 驗證
+
+- [x] T013 新增測試：同一課同日兩條不同 campaign 各記一次瀏覽、同一條 campaign 重複進入只記一次、`Summer` 與 `summer` 收斂為同一列、有瀏覽零成交的列出現在 `traffic()` 回傳、`views=0` 的歷史訂單列仍出現且轉換率為 null、免費領取（drip / 非 drip）併入不雙重計數、`funnelReport()` 與 `channelReport()` 數字在加維度後完全不變 in `tests/Feature/Storefront/CampaignTrafficTest.php`
+- [x] T014 既有 `SiteAnalyticsTest` 的 `bump()` 呼叫改新簽名（FR-043 是破壞性簽名變更）in `tests/Feature/Storefront/SiteAnalyticsTest.php`
+- [x] T015 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T016 使用者實測：用產生器產兩條同 source 不同 campaign 的連結各點一次 → Traffic 頁出現兩列各 1 瀏覽 0 訂單；勾選付費後產的連結進站 → 管道歸「付費廣告」；確認行銷分析頁數字沒變
+
 ## 進度日誌
+
+- 2026-08-31: US18 課程流量細分到活動層完成（T001–T015，僅剩 T016 使用者實測）— `course_daily_stats` 加 `utm_campaign` 維度（unique 擴五欄，三段式建索引避開 errno 150）；`bump()` 簽名改收 `array $dims`，維度的產生收斂到一個 private `dims()`，`utm_campaign` 的正規化則收斂到 `TrafficSourceService::normaliseCampaign()`（static，因為報表讀 `orders` 時要套同一條規則，兩份就會讓 `Summer` 與 `summer` 分成兩列）。`traffic()` 改為兩側 outer join：訂單／領取側在 `resolveSource()` **之後**於 PHP 折疊（key 是衍生值，先在 SQL group 就會把 `ig` 與 `instagram` 拆開），日彙總側依 `(channel, source, utm_campaign)` 取 `SUM(views)`，任一側有值就出列 —— 「300 次瀏覽、0 成交」那一列因此第一次看得見。前端 `CHANNEL_RULES` + `classifyChannel()` 整段刪除，只留 label 對照表。產生器四欄縮成兩欄加付費勾選框，`utm.term` 死碼一併清掉。
+  **兩個實作中補的東西**：(1) `orderSource()` 加帶 `utm_campaign` 才能讓成交也落在正確的 campaign 列——它不參與 channel/source 判斷，所以行銷分析頁的數字一個都沒動（有測試釘住）；(2) 驗收條款寫的「可依任一數值欄排序」原本漏做，補了前端點擊表頭排序，未測得的轉換率（null）在兩個方向都排最後，因為它不是 0%。
+  既有 `FreeClaimTrafficTest` 有一條斷在新的列形狀（斷言 `utm_source`，現在是解析後的 `source`），已改為斷言 `source` + `campaign`。新增 CampaignTrafficTest（12 tests）。
+  **一個只有在本機 MySQL 實跑 migration 才會現形的坑**：Laravel 為五欄自動產生的索引名是 68 字元，超過 MySQL 的 64 字元識別字上限，`migrate` 在第二段炸掉並留下已經加好的欄位；SQLite 沒有識別字長度限制，所以 832 個測試全綠也驗不出來 —— 直接 push 的話 Forge 的自動 migrate 會在正式站重現同一個失敗。索引改為明確命名 `cds_course_date_channel_source_campaign_unique`。
+  全套 832 passed（3440 assertions）、`npm run build` exit 0、本機 MySQL `migrate` 與 `migrate:rollback` 皆 DONE
+
+- 2026-08-31: [draft] 規劃 US18 課程流量細分到活動層 — 課程 Traffic 頁只看得到有成交的流量（整頁來自 `orders`），所以一條帶進 300 人卻零成交的連結在頁面上根本不存在。查證後發現瀏覽數其實一直有在記（`course_daily_stats.views`，正式站 467 列），只是被留在全站漏斗頁、維度只到平台層。因此本故事不是「開始記錄點擊」而是「把已經記著的東西接到該看的地方，並補上活動維度」。
+  維度加在既有日彙總而非另開逐筆事件表（D48）—— 加一維後預估兩千列上下，而逐筆表會推翻 FR-014 的整個前提；否決「加 `raw_utm_source` 保留原始字串」是因為 `ig`/`instagram` 收斂成一列是特性不是缺陷，真正要分辨的差異屬於 campaign 這一層。**規劃中途延伸了使用者的一個選擇**：使用者選「維持去重、只加 campaign 進鍵」，但只加 campaign 不加 source 會留下不對稱（換 campaign 算兩次、換平台只算一次），去重鍵因此擴為完整維度（D49），代價是 `views` 口徑從「當天不重複訪客」變成「當天不重複的訪客 × 連結」，與 8/2 前的歷史資料不完全可比。
+  附帶收掉一整類 bug：前端那份鏡射 `PLATFORM_MAP` 的 `classifyChannel()` 整段刪除（D50）—— 它已經害過兩次（D16、D34），而這次後端為了 join key 本來就要算出 channel，那份鏡射從必要之惡變成純粹多餘。產生器四欄縮成兩欄加一個勾選框：`utm_content` 只從 UI 移除、不進彙總維度（D51，失控來源是廣告平台自動帶的 creative id，不是產生器）；`utm_medium` 改勾選框而非拿掉（D52，它是 D34 之後唯一的付費宣告管道，拿掉會讓 Meta 廣告全被歸成自然社群）。順手清掉 `utm.term` 死碼（有 state、會組進網址，但 UI 從來沒有輸入框）。
 
 - 2026-08-16: US17 免費領取計入課程來源追蹤完成（T001–T012，僅剩 T013 使用者實測）— 兩支對稱 migration 讓 `purchases` 與 `drip_subscriptions` 各持一組與 `orders` 同名的來源欄位；寫入收斂在 `DripService::subscribe()` 的新選填第三參數與 `TrafficSourceService::claimAttributes()`。報表依 `course_type` 擇一讀表後與訂單列合流，共用既有的 `resolveSource()` 與分組邏輯，CSV 匯出走同一份口徑；免費課的欄位標題改為「領取數／總領取數」。
   **實作中修掉一個自己寫出來的 bug**：`claimAttributes()` 原本用 `currentSource()`，那個 accessor 讓即時 request 優先於 cookie（對「分類這次瀏覽」是對的），結果領取 POST 自己的 Referer 會蓋掉真正的來源，campaign 被靜默丟掉。改讀 `lastTouch()`，與 `CheckoutController` 既有作法一致。另記一個測試層的坑：`postJson()` 預設不送任何 cookie（`prepareCookiesForJsonRequest()` 需 `withCredentials()`），這害我一度誤判成產品問題。
