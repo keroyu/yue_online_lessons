@@ -38,7 +38,7 @@ const identityFilled = computed(() => props.form.name.trim() !== '' && props.for
 
 const allAnswered = computed(() => props.questions.every(q => !!props.form[q.field]))
 
-const ready = computed(() => identityFilled.value && allAnswered.value)
+const ready = computed(() => identityFilled.value && allAnswered.value && props.form.screen_ack)
 
 // Five questions with five options each is a wall of text to open a page with,
 // and the first thing a visitor sees should still be two fields. The
@@ -117,6 +117,7 @@ async function submit() {
     const { data } = await window.axios.post(`/course/${props.course.id}/screen`, {
       name: props.form.name,
       email: props.form.email,
+      screen_ack: props.form.screen_ack,
       ...Object.fromEntries(props.questions.map(q => [q.field, props.form[q.field]])),
     })
 
@@ -235,6 +236,34 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
         <p v-if="errors[q.field]" class="text-sm text-red-600">{{ firstError(q.field) }}</p>
       </div>
+
+      <template v-if="allAnswered">
+        <!-- Consultant assignment (FR-166). Plain grey note, not part of the
+             tick: what somebody agrees to should be the risk that this may not
+             suit them, not how the company staffs its calendar. Bundling the
+             two would turn the box into a list of the seller's disclaimers,
+             which is what people start defending themselves against. -->
+        <p class="text-xs leading-relaxed text-gray-500">
+          諮詢由本公司認證顧問提供，每位顧問皆由創辦人親自訓練、使用同一套診斷架構。創辦人親自主持的場次為限量名額，額滿後由認證顧問為您服務。
+        </p>
+
+        <!-- Scope acknowledgement (FR-162). Bordered and tinted on purpose:
+             this notice exists so that people it does not fit leave before
+             finishing, and grey small print is skipped by exactly them. -->
+        <div class="rounded-xl border border-brand-gold-dark/40 bg-brand-gold/10 p-4">
+          <label class="flex cursor-pointer items-start gap-3">
+            <input
+              v-model="form.screen_ack"
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-400 text-brand-teal focus:ring-brand-teal"
+            />
+            <span class="text-sm leading-relaxed text-gray-800">
+              <span class="font-semibold">請知悉：</span>本諮詢不提供美食、旅遊、生活分享、網紅接案或純流量型帳號的定位建議。若您的主要目標是上述方向，本服務可能不適合您。
+            </span>
+          </label>
+          <p v-if="errors.screen_ack" class="mt-2 text-sm text-red-600">{{ firstError('screen_ack') }}</p>
+        </div>
+      </template>
     </template>
 
     <div v-if="errors.submit" class="rounded-xl border border-red-300 bg-red-50 p-4">

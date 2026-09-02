@@ -71,12 +71,13 @@ class BookingScreeningTest extends TestCase
         ], $overrides);
     }
 
-    /** Identity plus answers — what step 1 actually posts. */
+    /** Identity, answers and the scope acknowledgement — what step 1 posts. */
     private function screeningPayload(array $overrides = []): array
     {
         return array_merge([
-            'name'  => 'Applicant',
-            'email' => 'applicant@example.com',
+            'name'       => 'Applicant',
+            'email'      => 'applicant@example.com',
+            'screen_ack' => true,
         ], $this->answers(), $overrides);
     }
 
@@ -332,6 +333,68 @@ class BookingScreeningTest extends TestCase
     }
 
     // ── 送出時重新計分（FR-129） ────────────────────────────────────────────
+
+    // ── 服務範圍告知（FR-162…FR-165） ──────────────────────────────────────
+
+    public function test_the_scope_acknowledgement_is_required(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $payload = $this->screeningPayload();
+        unset($payload['screen_ack']);
+
+        $this->postJson("/course/{$course->id}/screen", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('screen_ack');
+
+        // Nothing is recorded for somebody who never got past the gate.
+        $this->assertSame(0, HighTicketLead::count());
+    }
+
+    public function test_an_unticked_acknowledgement_is_refused(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/screen", $this->screeningPayload(['screen_ack' => false]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('screen_ack');
+    }
+
+    /** FR-163: a gate, not a consent record — it must not reach the database. */
+    public function test_the_acknowledgement_is_not_stored(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/screen", $this->screeningPayload())->assertOk();
+
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Schema::hasColumn('high_ticket_leads', 'screen_ack'),
+            '服務範圍告知是閘門不是同意書，不落庫（FR-163）',
+        );
+    }
+
+    /**
+     * FR-164: the acknowledgement belongs to step 1 alone. A resumed draft and
+     * every pre-feature lead reaches the submit without ever having seen it, so
+     * requiring it there would lock them out at the last step.
+     */
+    public function test_submitting_does_not_require_the_acknowledgement(): void
+    {
+        Mail::fake();
+        $start = $this->makeSlots();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/book", array_merge([
+            'name'           => 'Applicant',
+            'email'          => 'applicant@example.com',
+            'phone'          => '0912345678',
+            'occupation'     => '設計師',
+            'bottleneck'     => '收入不穩',
+            'expertise'      => '設計',
+            'commitments'    => [true, true, true],
+            'slot_starts_at' => $start->toIso8601String(),
+        ], $this->answers()))->assertOk();
+    }
 
     /**
      * Screening with one address and submitting with another would otherwise

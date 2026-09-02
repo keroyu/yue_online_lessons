@@ -70,6 +70,11 @@ const form = reactive({
   screen_authority: props.draft?.screen_authority || '',
   screen_pain: props.draft?.screen_pain || '',
   screen_next_step: props.draft?.screen_next_step || '',
+  // Step 1's scope acknowledgement (FR-165). Kept on the wizard's form rather
+  // than inside the step so that stepping back and forward does not ask for it
+  // again; it rides along on the screen POST only — `book` / `waitlist` list
+  // their fields one by one and never pick it up.
+  screen_ack: false,
 })
 
 const screeningFields = props.screeningQuestions.map(q => q.field)

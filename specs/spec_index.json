@@ -4015,7 +4015,7 @@
       "id": "011.us-24",
       "module": "011-high-ticket",
       "title": "前置資格審核與自動婉拒",
-      "summary": "預約精靈改為五步（資格→資料→承諾→時段→確認）；第一步只要 Email + 暱稱 + 五題單選（時程／預算／決策權／痛點成本／下一步），伺服器端規則式計分滿分 10，5 分以上通過、「目前沒有預算」一票否決，一律等 60 秒自動審核後放行或顯示婉拒文案；未通過者以 declined 狀態落地、不寄任何信也不停序列信",
+      "summary": "預約精靈改為五步（資格→資料→承諾→時段→確認）；第一步只要 Email + 暱稱 + 五題單選（時程／預算／決策權／痛點成本／下一步），伺服器端規則式計分滿分 10，5 分以上通過、「目前沒有預算」一票否決，一律等 60 秒自動審核後放行或顯示婉拒文案；未通過者以 declined 狀態落地、不寄任何信也不停序列信；五題答完後追加一則必勾的服務範圍告知（不提供美食／旅遊／生活分享／網紅接案／純流量帳號的定位建議），screen_ack 以 accepted 驗證但不落庫",
       "heading": "### User Story 24 - 前置資格審核與自動婉拒 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-24---前置資格審核與自動婉拒-priority-p1",
@@ -4051,7 +4051,13 @@
         "nurture",
         "狀態",
         "status enum",
-        "high_ticket_leads"
+        "high_ticket_leads",
+        "服務範圍告知",
+        "screen_ack",
+        "同意勾選",
+        "必勾",
+        "不適合對象",
+        "期望管理"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
@@ -4071,7 +4077,7 @@
         "routes/web.php",
         "tests/Feature/HighTicket/BookingScreeningTest.php"
       ],
-      "status": "implemented"
+      "status": "partial"
     },
     {
       "id": "011.us-25",
