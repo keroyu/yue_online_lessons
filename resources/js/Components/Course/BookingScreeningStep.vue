@@ -22,7 +22,7 @@ const props = defineProps({
 
 const emit = defineEmits(['passed'])
 
-const REVIEW_SECONDS = 15
+const REVIEW_SECONDS = 8
 
 const errors = ref({})
 const submitting = ref(false)
