@@ -1129,10 +1129,10 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
   2. 我願意接受務實建議，也願意調整原本的想法與做法。
   3. 如果確認方向適合，我願意認真評估並採取下一步行動。
 
-  原第 3 條「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」於 2026-08-17 移除（使用者決策）：US24 的資格審核已在第一步用兩道各七／五選項的題目問過預算與決策權，而且問到了級距。承諾清單再勾一次同一件事，只是把一個已經有答案的問題降級成一個沒有資訊量的核取方塊。
+  原第 3 條「我有預算／決策權，希望在未來 3-6 個月內實踐計劃。」於 2026-08-17 移除（使用者決策，四條 → 三條）：US24 的資格審核已在第一步用兩道各七／五選項的題目問過預算與決策權，而且問到了級距。承諾清單再勾一次同一件事，只是把一個已經有答案的問題降級成一個沒有資訊量的核取方塊。
   **條數 MUST 與 `HighTicketBookingRequest::COMMITMENT_COUNT` 同步**，漏改則每次送出都被 422，而訊息「請確認全部的預約前提條件」完全不提條數（`BookingWizardTest` 有一條測試直接讀 Vue 的陣列長度去打端點，就是為了讓這種漂移出聲）。
 
-  四條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 4 且全為 true 的陣列）。**條數是跨語言的耦合**：清單定義在 Vue、長度驗證在 PHP，改一邊忘了另一邊會讓每一次送出都被 422 擋下，而使用者看到的錯誤訊息完全不提「條數」。因此後端的長度寫成具名常數 `HighTicketBookingRequest::COMMITMENT_COUNT`，並由測試讀取 Vue 的 `COMMITMENTS` 陣列實際比對兩者，不靠註解自律。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，全真才寫入，存了也只會是一排 true（見 D30）。選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
+  三條 MUST 全數勾選才能前進，前後端各驗一次（前端控制按鈕 disabled，後端 `HighTicketBookingRequest` 驗 `commitments` 為長度 `COMMITMENT_COUNT`＝3 且全為 true 的陣列）。**條數是跨語言的耦合**：清單定義在 Vue、長度驗證在 PHP，改一邊忘了另一邊會讓每一次送出都被 422 擋下，而使用者看到的錯誤訊息完全不提「條數」。因此後端的長度寫成具名常數 `HighTicketBookingRequest::COMMITMENT_COUNT`，並由測試讀取 Vue 的 `COMMITMENTS` 陣列實際比對兩者，不靠註解自律。勾選事實以 `commitments_accepted_at` 時間戳落庫 —— 不逐條存布林，全真才寫入，存了也只會是一排 true（見 D30）。選項本身以獨立容器（`space-y-2`）分組間距，不跟隨 Step 2 外層 `space-y-4` 的段落級間距（2026-08-07 修正，原本外層 `space-y-4` 把選項間距撐得跟「標題到清單」一樣大）
 
 - **FR-027**: 申請表單的必填欄位為 `name`、`email`、`phone`、`occupation`、`bottleneck`、`expertise`；`social_url` 選填但有值時 MUST 為合法 URL **且 scheme 限 http / https**（`url:http,https`）—— 光用 `url` 會放行 `ftp:`、`javascript:`、`data:`，而這個字串會成為後台 Leads 名單裡的 `href`。長度上限：name 100 / email 255 / phone 30 / occupation 255 / social_url 500；`bottleneck` 與 `expertise` 為 text，上限 2000 字。驗證 MUST 收在 `HighTicketBookingRequest`，controller 不得 inline `validate()`（專案慣例：Form Request 處理驗證）。
   **前端 MUST 同步擋下**（2026-08-05 追加）：`social_url` 格式錯誤時 MUST NOT 讓使用者離開第 1 步，且第 4 步覆核區 MUST 把該列標紅、附修正提示並停用送出鈕 —— 只靠後端 422 的話，使用者要按完「送出申請」才被丟回第 1 步，而覆核畫面在那之前完全看不出哪裡有問題。判定用 `new URL()` 而非 regex（瀏覽器同一套 parser，一次擋掉沒有 scheme 的 `instagram.com/me` 與危險的 `javascript:`）；空字串一律略過（選填）。

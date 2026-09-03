@@ -4544,7 +4544,7 @@
       "id": "011.us-9",
       "module": "011-high-ticket",
       "title": "預約申請多步驟表單",
-      "summary": "高價課預約由姓名+Email 一步式改為四步驟申請流程：簡易問卷（手機/職業與從事時長/事業瓶頸/專長/社群連結）、五條承諾清單全勾、選時段、資料覆核與不出席警語；流程抽成 HighTicketBookingWizard 元件",
+      "summary": "高價課預約由姓名+Email 一步式改為四步驟申請流程：簡易問卷（手機/職業與從事時長/事業瓶頸/專長/社群連結）、三條承諾清單全勾、選時段、資料覆核與不出席警語；流程抽成 HighTicketBookingWizard 元件",
       "heading": "### User Story 9 - 預約申請多步驟表單 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-9---預約申請多步驟表單-priority-p1",
