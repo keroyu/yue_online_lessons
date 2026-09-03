@@ -52,6 +52,17 @@ class HighTicketBookingService
     /** Nothing older than this is nudged — switching the feature on must not mail the archive. */
     public const RESUME_REMINDER_MAX_AGE_DAYS = 7;
 
+    /**
+     * When an unfinished application stops counting as pending (US32).
+     *
+     * Same seven days as the nudge's upper bound, and deliberately so: the one
+     * reminder goes out inside that window, and a week after clearing the gate
+     * with still no questionnaire and no slot, the row is not a lead anybody is
+     * waiting on. It is left in the table under 已取消 rather than deleted —
+     * the screening answers are still worth reading in aggregate.
+     */
+    public const STALE_APPLICATION_DAYS = 7;
+
     public function __construct(protected ConsultationSlotService $slots) {}
 
     /**
@@ -100,7 +111,13 @@ class HighTicketBookingService
         // Whose status this is allowed to rewrite. A confirmed booking or a
         // status an admin moved by hand is somebody's work in progress —
         // re-answering a questionnaire must never undo it (FR-125).
-        if ($lead->confirmed_at === null && in_array($lead->status, ['pending', 'declined'], true)) {
+        //
+        // 'cancelled' is in the set for the same reason `recordLead()` revives
+        // it (FR-049), and US32 makes the case concrete: the sweep retires an
+        // abandoned application after a week, and somebody who comes back and
+        // re-answers must not sit at 已取消 through the rest of the wizard. A
+        // cancelled booking is excluded by the `confirmed_at` guard above.
+        if ($lead->confirmed_at === null && in_array($lead->status, ['pending', 'declined', 'cancelled'], true)) {
             $attributes['status'] = $passed ? 'pending' : 'declined';
             $attributes['declined_at'] = $passed ? null : now();
 
@@ -980,6 +997,35 @@ class HighTicketBookingService
         }
 
         return $sent;
+    }
+
+    /**
+     * Retire the applications that cleared the gate and never came back (US32).
+     *
+     * Exactly the population US26 mails, one week on: screening answers, no
+     * phone (the first required field of step 2, so never past it), no slot, no
+     * confirmation, status untouched since. The nudge has already been sent and
+     * gone unanswered; leaving these in 待面談 makes the funnel percentages and
+     * the 「通知新時段」 batch describe people who left.
+     *
+     * Silent by design — no mail, no `cancelled_at`. `cancelled_at` means a
+     * booking was called off (FR-139), and there is no booking here; writing it
+     * would make `isActiveBooking()` and the leads list disagree about what
+     * happened. Coming back later still works: `recordLead()` already revives a
+     * `cancelled` lead on re-application (FR-049).
+     *
+     * No lower bound on age: unlike the nudge this sends nothing, so sweeping
+     * the backlog on first run is the point rather than the hazard.
+     */
+    public function cancelStaleApplications(): int
+    {
+        return HighTicketLead::query()
+            ->whereNotNull('screened_at')
+            ->where('screened_at', '<=', now()->subDays(self::STALE_APPLICATION_DAYS))
+            ->whereNull('phone')
+            ->whereNull('confirmed_at')
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
     }
 
     public function sendResumeReminderMail(HighTicketLead $lead, Course $course): bool

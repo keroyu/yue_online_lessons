@@ -2,6 +2,8 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Console/Commands/CancelStaleApplications.php
+  - tests/Feature/HighTicket/StaleApplicationCancelTest.php
   - tests/Feature/HighTicket/LeadExportTest.php
   - database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
   - tests/Feature/HighTicket/LeadRefundSyncTest.php
@@ -1049,6 +1051,30 @@ lead 由 `converted` 改回 `closed`（使用者決策）。
 - [ ] 按鈕 `cursor-pointer` + hover 回饋；disabled 時 `cursor-not-allowed`；手機寬度下與同列按鈕一起換行不溢出
 - [ ] 測試：欄位順序與表頭、`ids[]` 只匯出勾選的、`select_all` 與畫面名單同一批（含 `met` / `consultant` / `status` 疊加）、無選取回 422、成交金額只計 paid 的 lead_conversion（退款不計）、多筆訂閱兩欄對齊、無時段／無成交／無訂閱皆輸出空字串、台北時區邊界、非 staff 被擋
 
+
+### User Story 32 - 未完成申請 7 天後自動歸為已取消 (Priority: P3)
+
+資格審核在第一步就把每個人記進 leads（FR-125），所以「通過審核、然後就沒有然後了」的列是設計的一部分，
+不是髒資料。問題在於它們永遠停在 `pending`：預約名單的漏斗百分比、`statusCounts` 的「待談」數字、
+以及「通知新時段」的批次對象，全都把這些人算成還在等我們的人。名單越舊，那個數字越假。
+
+US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過了那一週還是沒手機、沒時段、沒確認，
+就把 `status` 落成 `cancelled`（已取消）—— 不刪除、不寄信、不動 `cancelled_at`。留著是因為那五題答案
+在統計上仍然有用；不寄信是因為這一段對話已經寄過一封了，第二封只是打擾。
+
+**驗收**：
+- [ ] 命中條件 MUST 為五者同時成立：`screened_at` 非 null 且在 **7 天前**或更早、`phone` 為 null、`confirmed_at` 為 null、`status = pending`
+- [ ] 命中者的 `status` 改為 `cancelled`，MUST NOT 刪除該列（與 FR-035 逾時未確認的申請不同，那些有佔用時段要釋出）
+- [ ] MUST NOT 寫 `cancelled_at`：那個欄位的語意是「一個已生效的預約被取消」（FR-139），這裡從來沒有預約
+- [ ] MUST NOT 寄任何信 —— 這一段對話的唯一一封已由 US26 寄出
+- [ ] 填過手機的申請（含 US10 候補：有問卷、只是當時沒有時段可選）MUST NOT 被掃到，他們在等「通知新時段」
+- [ ] 管理員手動改過的狀態（contacted / no_response / closed / converted）與 `declined` MUST NOT 被覆寫
+- [ ] `screened_at` 為 null 的舊 lead（資格審核上線前）MUST NOT 被掃到
+- [ ] MUST NOT 設年齡上限：本掃描不寄信，首次上線一次清掉整批積欠正是目的（與 FR-135 的理由相反）
+- [ ] 本人之後回來重填 MUST 能復活：`recordLead()` 既有的可復活集合已含 `cancelled`（FR-049），另 `screen()` 的可覆寫集合加入 `cancelled`，使重答第一步當下就回到 `pending`，不會整段精靈掛著「已取消」
+- [ ] 排程每日執行一次（台北 04:00）；命令 `booking:cancel-stale-applications`，輸出處理筆數
+- [ ] 測試：滿 7 天被取消、未滿 7 天不動、有手機不動、已確認不動、admin 改過的狀態不動、無 `screened_at` 不動、`declined` 不動、不寫 `cancelled_at`、重跑資格審核復活、命令輸出筆數
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1514,6 +1540,14 @@ lead 由 `converted` 改回 `closed`（使用者決策）。
   **MUST NOT 落庫、MUST NOT 加欄位**（使用者決策）：這是期望管理的閘門，不是要留存的同意書。代價明確記在這裡 —— 事後無法證明某一位申請者確實看過這條告知。
 - **FR-164**: `screen_ack` MUST NOT 進入 `BookingScreening::rules()`。那份規則同時被送出申請的 `HighTicketBookingRequest` 以 `rules(false)` 取用，而送出申請時本來就不會再帶這個勾選；放進去會讓 `?resume=` 回訪者與本功能上線前的舊 lead 在最後一步被一個他們從沒看過的欄位擋下來。
 - **FR-165**: 勾選狀態存在精靈的 `form` 上（`form.screen_ack`）而非步驟元件的區域狀態，回到第一步再往前 MUST NOT 要求重勾。它 MUST NOT 出現在 `book` / `waitlist` 的請求 payload —— 那兩支是逐欄列舉的，不會順手帶上。
+
+- **FR-167**: 逾期未完成申請的命中條件 MUST 為四者同時成立：`screened_at` 非 null 且 `<= now()-7d`（`HighTicketBookingService::STALE_APPLICATION_DAYS`）、`phone` 為 null、`confirmed_at` 為 null、`status = pending`。命中者 `status` 落 `cancelled`。
+  前三個條件與續填提醒（FR-135）是同一個人群定義，刻意共用：`phone` 是第二步的第一個必填欄，有值就代表走得比這兩個機制的對象更遠。差別只在時間方向 —— 提醒看的是七天**以內**，這裡看的是七天**以外**。
+- **FR-168**: 本掃描 MUST NOT 寄任何信、MUST NOT 刪除該列、MUST NOT 寫 `cancelled_at`。
+  `cancelled_at` 的語意是「一個已生效的預約被取消」（FR-139），而這批 lead 從來沒有預約；寫下去會讓 `isActiveBooking()` 與名單畫面對同一列的說法不一致。不刪除是因為那五題答案在統計上仍有用（與 FR-035 不同：那條刪的是佔著時段的半成品申請）。
+- **FR-169**: 本掃描 MUST NOT 設年齡上限 —— 首次上線一次清掉整批積欠正是目的。這與 FR-135 的「不得回頭掃檔案庫」看似相反，理由正是那條的理由：那個限制存在是因為提醒會**寄信**，而這裡什麼都不寄。
+- **FR-170**: 被掃過的 lead MUST 能復活。`recordLead()` 的可復活集合已含 `cancelled`（FR-049）；另 `screen()` 的可覆寫狀態集合 MUST 加入 `cancelled`，使回站重答第一步當下就回到 `pending`，而不是掛著「已取消」走完整段精靈。已確認過的預約被 `confirmed_at === null` 的既有守門排除在外，因此這個放寬只影響本掃描產生的列。
+- **FR-171**: 排程為 `booking:cancel-stale-applications`，台北時間每日 04:00 一次。與提醒信的每小時不同：邊界是七天前，晚幾小時對任何人都沒有差別。
 
 
 ## 設計決策
@@ -2803,7 +2837,22 @@ Phase 4 — 驗證
 - [x] T382 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [ ] T383 使用者實測：答完五題確認告知區塊出現且未勾時按鈕點不下去、勾選後可送出、前進到第二步再點回第一步不必重勾
 
+
+### US32 未完成申請 7 天後自動歸為已取消
+
+- [x] T384 `STALE_APPLICATION_DAYS = 7` 與 `cancelStaleApplications(): int`（單一 `update()`，命中條件見 FR-167；不寄信、不寫 `cancelled_at`、無年齡下限）in `app/Services/HighTicketBookingService.php`
+- [x] T385 `screen()` 的可覆寫狀態集合加入 `cancelled`（FR-170）in `app/Services/HighTicketBookingService.php`
+- [x] T386 [P] 命令 `booking:cancel-stale-applications`，輸出處理筆數 in `app/Console/Commands/CancelStaleApplications.php`
+- [x] T387 排程台北 04:00 每日一次 in `routes/console.php`
+- [x] T388 `StaleApplicationCancelTest`：滿 7 天被取消、未滿 7 天不動、有手機（含候補）不動、已確認不動、admin 改過的狀態不動、無 `screened_at` 不動、`declined` 不動、不寫 `cancelled_at`、重跑資格審核復活、命令輸出筆數 in `tests/Feature/HighTicket/StaleApplicationCancelTest.php`
+- [x] T389 `php artisan test` 全綠（本次無前端變更，不需 `npm run build`）
+- [ ] T390 使用者實測：正式站跑一次 `php artisan booking:cancel-stale-applications`，確認「待談」筆數下降、「已取消」對應上升，且沒有任何有時段的列被動到
+
 ## 進度日誌
+
+- 2026-09-04: US32 完成（T384–T389，僅剩 T390 使用者實測）— 通過資格審核後 7 天仍沒手機、沒時段、沒確認的申請，每日台北 04:00 由 `booking:cancel-stale-applications` 落成 `cancelled`。命中條件與 US26 續填提醒共用同一個人群定義（`screened_at` + `phone` is null + `confirmed_at` is null + `status=pending`），只是時間方向相反：提醒看七天以內、這裡看七天以外，所以每一位被掃到的人都確實已經收過那唯一一封信。
+  三個刻意的「不做」各有理由。**不刪除**（FR-035 刪的是佔著時段的半成品，這批沒佔任何東西，而五題答案在統計上仍有用）；**不寫 `cancelled_at`**（那欄的語意是「生效中的預約被取消」，寫下去會讓 `isActiveBooking()` 與名單畫面對同一列給出不同說法）；**不設年齡上限**（FR-169 —— FR-135 之所以有上限是因為它寄信，這支不寄，首次上線一次清完積欠正是目的）。
+  唯一一處放寬既有行為：`screen()` 的可覆寫狀態集合加入 `cancelled`（FR-170）。`recordLead()` 早就把 `cancelled` 當可復活（FR-049），但那是在**送出申請**時才生效；沒有這一步，一個回來重答第一步的人會掛著「已取消」走完整段精靈。已確認過的預約被既有的 `confirmed_at === null` 守門排除，所以這個放寬只碰得到本掃描產生的列。無 schema 變更、無前端變更。`StaleApplicationCancelTest` 10 條、全站 `php artisan test` **846 passed（3470 assertions）**。
 
 - 2026-09-02: 告知文案改版（同日追加）— 加入顧問分派說明，並依使用者決策**與勾選框分開**：說明是勾選框上方的灰色小字，必勾的只剩服務範圍那條（D125 / FR-166）。文案重寫過一輪：原句「創辦人的限量名額釋出完畢時將由其他專業顧問服務您」的結構預設了對方會失望，而解釋越多越像道歉；改為先立團隊與同源標準（認證顧問、創辦人親自訓練、同一套診斷架構）再講創辦人場次限量，句子裡就沒有降級這件事要解釋。「其他」與「專業」兩個詞刻意不用——前者定義了團隊是非主角，後者是自稱的形容詞。`npm run build` exit 0、BookingScreeningTest 24 passed（純文案與版面，測試不斷言文字）。
 

@@ -4339,6 +4339,18 @@
       "status": "partial"
     },
     {
+      "id": "011.us-32",
+      "module": "011-high-ticket",
+      "title": "未完成申請 7 天後自動歸為已取消",
+      "summary": "",
+      "heading": "### User Story 32 - 未完成申請 7 天後自動歸為已取消 (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-32---未完成申請-7-天後自動歸為已取消-priority-p3",
+      "keywords": [],
+      "code_files": [],
+      "status": "planned"
+    },
+    {
       "id": "011.us-4",
       "module": "011-high-ticket",
       "title": "通知新時段與批次郵件",

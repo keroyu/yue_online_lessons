@@ -49,6 +49,13 @@ Schedule::command('booking:send-resume-reminders')
     ->hourly()
     ->between('9:00', '21:00');
 
+// Retire the applications that never came back (011 US32 / FR-167). Runs after
+// the nudge window has closed for good — the reminder above only fires inside
+// the same seven days, so the order of the two on any given day is irrelevant.
+Schedule::command('booking:cancel-stale-applications')
+    ->timezone('Asia/Taipei')
+    ->dailyAt('04:00');
+
 // Drain the `long` queue from the scheduler (011 US23 / FR-142, D109).
 // `ProcessZoomTranscriptJob` runs on the `database_long` connection, which the
 // site's single Forge worker (`queue:work database` = the `default` queue only)
