@@ -143,6 +143,40 @@ class BookingScreeningTest extends TestCase
         $this->assertFalse(BookingScreening::passes($vetoed));
     }
 
+    // ── 「不確定」的分數上限（FR-172） ────────────────────────────────────
+
+    /** An unnamed budget scores, but it cannot reach 高購買意願 (使用者決策). */
+    public function test_an_unsure_budget_caps_the_total_at_seven(): void
+    {
+        // 2 + 1 + 2 + 2 + 2 = 9 before the ceiling.
+        $unsure = $this->answers(['screen_budget' => 'unsure']);
+
+        $this->assertSame(7, BookingScreening::score($unsure));
+        $this->assertSame('warm', BookingScreening::tier(BookingScreening::score($unsure)));
+    }
+
+    /** The cap is a ceiling, not a score — a weak application keeps its own total. */
+    public function test_the_cap_never_raises_a_lower_total(): void
+    {
+        $weak = $this->answers([
+            'screen_budget'    => 'unsure',
+            'screen_timeline'  => '3_6m',
+            'screen_authority' => 'approval',
+            'screen_pain'      => 'moderate',
+            'screen_next_step' => 'compare',
+        ]);
+
+        $this->assertSame(5, BookingScreening::score($weak));
+        $this->assertTrue(BookingScreening::passes($weak), '上限不是否決 —— 及格照樣及格');
+    }
+
+    /** Naming a budget is what the ceiling is asking for; the 10 is still reachable. */
+    public function test_a_named_budget_is_not_capped(): void
+    {
+        $this->assertSame(10, BookingScreening::score($this->answers(['screen_budget' => '10k_50k'])));
+        $this->assertSame('hot', BookingScreening::tier(10));
+    }
+
     /** The rubric must not travel to the browser (FR-124 / D101). */
     public function test_the_questions_sent_to_the_front_carry_no_scores(): void
     {
@@ -150,6 +184,7 @@ class BookingScreeningTest extends TestCase
 
         $this->assertStringNotContainsString('score', $encoded);
         $this->assertStringNotContainsString('veto', $encoded);
+        $this->assertStringNotContainsString('cap', $encoded);
         $this->assertCount(5, BookingScreening::questionsForFront());
         $this->assertStringContainsString('目前沒有預算', $encoded, '選項文字仍要送出去讓前台渲染');
     }

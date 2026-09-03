@@ -33,6 +33,10 @@ class BookingScreening
      *
      * `veto` overrides the total: no budget at all means no consultation, even
      * from somebody who is urgent, decisive and in pain (使用者決策).
+     *
+     * `cap` is the softer version of the same idea: the answer does not
+     * disqualify, but it puts a ceiling on the total however good the other
+     * four are (FR-172).
      */
     public const QUESTIONS = [
         'screen_timeline' => [
@@ -54,7 +58,12 @@ class BookingScreening
                 '6k_10k'    => ['label' => 'NT$6,000–9,999', 'score' => 1],
                 'under_6k'  => ['label' => 'NT$5,999 以下', 'score' => 0],
                 'none'      => ['label' => '目前沒有預算', 'score' => 0, 'veto' => true],
-                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1],
+                // Still an honest answer to a page that hides its price, so it
+                // scores and never blocks — but it is not yet a budget, and a
+                // 高購買意願 badge on somebody who has not named one sends the
+                // consultant in with an expectation the answers do not support
+                // (FR-172, 使用者決策).
+                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1, 'cap' => 7],
             ],
         ],
         'screen_authority' => [
@@ -144,16 +153,33 @@ class BookingScreening
         return $rules;
     }
 
-    /** @param array<string, mixed> $answers */
+    /**
+     * The total, then whatever ceiling the answers themselves impose (FR-172).
+     *
+     * The cap is applied here rather than at the banding, so the single stored
+     * `screening_score` is already the honest number: `tier()`, the `N/10` on
+     * the expanded row and any future report all read the same value, and none
+     * of them has to remember to re-apply the rule.
+     *
+     * @param array<string, mixed> $answers
+     */
     public static function score(array $answers): int
     {
         $total = 0;
+        $cap = null;
 
         foreach (self::QUESTIONS as $field => $question) {
-            $total += $question['options'][$answers[$field] ?? null]['score'] ?? 0;
+            $option = $question['options'][$answers[$field] ?? null] ?? null;
+
+            $total += $option['score'] ?? 0;
+
+            // Lowest ceiling wins, so a second capping answer can only tighten.
+            if (isset($option['cap'])) {
+                $cap = $cap === null ? $option['cap'] : min($cap, $option['cap']);
+            }
         }
 
-        return $total;
+        return $cap === null ? $total : min($total, $cap);
     }
 
     /** An answer that disqualifies on its own, whatever the total (FR-123). */

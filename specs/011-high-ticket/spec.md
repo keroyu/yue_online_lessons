@@ -2,6 +2,7 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php
   - app/Console/Commands/CancelStaleApplications.php
   - tests/Feature/HighTicket/StaleApplicationCancelTest.php
   - tests/Feature/HighTicket/LeadExportTest.php
@@ -1392,9 +1393,9 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
   | `6k_10k` | NT$6,000–9,999 | 1 |
   | `under_6k` | NT$5,999 以下 | 0 |
   | `none` | 目前沒有預算 | 0 **· 否決** |
-  | `unsure` | 不確定，希望先了解方案內容與價格 | 1 |
+  | `unsure` | 不確定，希望先了解方案內容與價格 | 1 **· 上限 7** |
 
-  級距對應實際方案定價（入門 8,888 / 一般 36,000 / 旗艦 58,000）：**買得起主力方案的門檻在 1 萬以上，故 `10k_50k` 給滿分**；`6k_10k` 只買得起入門級，是客戶但不是最該佔用 1v1 的那種，給 1 分。`unsure` 給 1 分而非 0 —— 銷售頁本來就隱藏價格，「想先知道多少錢」是誠實回答，不是低意圖。
+  級距對應實際方案定價（入門 8,888 / 一般 36,000 / 旗艦 58,000）：**買得起主力方案的門檻在 1 萬以上，故 `10k_50k` 給滿分**；`6k_10k` 只買得起入門級，是客戶但不是最該佔用 1v1 的那種，給 1 分。`unsure` 給 1 分而非 0 —— 銷售頁本來就隱藏價格，「想先知道多少錢」是誠實回答，不是低意圖。但它同時是**總分上限 7** 的觸發條件，見 FR-172。
 
   **Q3 `screen_authority` — 關於這筆投入，你目前的決策狀態最接近哪一種？**
 
@@ -1548,6 +1549,11 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 - **FR-169**: 本掃描 MUST NOT 設年齡上限 —— 首次上線一次清掉整批積欠正是目的。這與 FR-135 的「不得回頭掃檔案庫」看似相反，理由正是那條的理由：那個限制存在是因為提醒會**寄信**，而這裡什麼都不寄。
 - **FR-170**: 被掃過的 lead MUST 能復活。`recordLead()` 的可復活集合已含 `cancelled`（FR-049）；另 `screen()` 的可覆寫狀態集合 MUST 加入 `cancelled`，使回站重答第一步當下就回到 `pending`，而不是掛著「已取消」走完整段精靈。已確認過的預約被 `confirmed_at === null` 的既有守門排除在外，因此這個放寬只影響本掃描產生的列。
 - **FR-171**: 排程為 `booking:cancel-stale-applications`，台北時間每日 04:00 一次。與提醒信的每小時不同：邊界是七天前，晚幾小時對任何人都沒有差別。
+
+- **FR-172**: Q2 預算題答 `unsure`（不確定）時，總分 MUST 以 **7 分**為上限，其餘四題再滿分也一樣（使用者決策）。機制為選項上的 `cap` 旗標，與 `veto` 同層但語意較軟：`veto` 是無論如何都不通過，`cap` 是可以通過、但不得進入最高分級。多個 `cap` 同時成立時取最低者。
+  這條規則的目的不是扣分，是**分級**：8 分以上在後台顯示為「高購買意願」（FR-131），而一個還沒說出預算數字的人不該讓顧問帶著那個期待進面談。`unsure` 保留 1 分與不否決的處理不變（銷售頁隱藏價格，這仍是誠實回答）—— 變的只是它的天花板。
+  上限 MUST 在 `BookingScreening::score()` 內套用，而不是在 `tier()` 或前端：落庫的 `screening_score` 只有一個，所有讀它的地方（分級、展開列的 `N/10`、日後任何報表）都必須看到同一個已經套過上限的數字。
+  上線時 MUST 以一次性 migration 把既有 lead 補平（`screen_budget='unsure'` 且 `screening_score>7` 者改為 7），否則同樣的五個答案會因為送出時間落在部署前後而戴上不同徽章，而那件事在列上完全看不出來。`down()` MUST NOT 還原 —— 原始總分隨時可由五題答案重算，寫回未設限的分數等於撤銷規則本身。
 
 
 ## 設計決策
@@ -2848,7 +2854,20 @@ Phase 4 — 驗證
 - [x] T389 `php artisan test` 全綠（本次無前端變更，不需 `npm run build`）
 - [ ] T390 使用者實測：正式站跑一次 `php artisan booking:cancel-stale-applications`，確認「待談」筆數下降、「已取消」對應上升，且沒有任何有時段的列被動到
 
+
+### 預算「不確定」的分數上限（US24 追加 / FR-172）
+
+- [x] T391 `unsure` 選項加 `cap => 7`；`score()` 蒐集所有 `cap` 取最低者並對總分套 `min()`（上限在 `score()` 內、不在 `tier()`）in `app/Support/BookingScreening.php`
+- [x] T392 一次性回填 migration：`screen_budget='unsure'` 且 `screening_score>7` 者改為 7，`down()` 不還原 in `database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php`
+- [x] T393 `BookingScreeningTest` 補測試：`unsure` + 其餘滿分為 7 分且 tier 為 `warm`、上限不會把低分墊高且仍可及格、有講預算者不受限（10 分／`hot`）、`questionsForFront()` 不得外洩 `cap` in `tests/Feature/HighTicket/BookingScreeningTest.php`
+- [x] T394 `php artisan test` 全綠（無前端變更）
+- [ ] T395 使用者實測：正式站部署後查一筆 `screen_budget='unsure'` 的舊 lead，展開列顯示 7/10 且徽章為「值得談」
+
 ## 進度日誌
+
+- 2026-09-04: 預算答「不確定」的總分上限 7（T391–T394，僅剩 T395 使用者實測，FR-172）— 新增 `cap` 旗標，與既有的 `veto` 同層而語意較軟：`veto` 是無論如何不通過，`cap` 是可以通過但不得進入最高分級。`unsure` 搭配其餘四題滿分原本是 9 分（後台顯示「高購買意願」），現在一律 7 分（「值得談」）。它的 1 分與不否決都沒動 —— 銷售頁隱藏價格，「想先知道多少錢」仍是誠實回答，變的只是天花板。
+  上限套在 `score()` 內而非 `tier()` 或前端：落庫的 `screening_score` 只有一個，分級、展開列的 `N/10` 與日後任何報表都讀它，規則放在讀取端就等於每個讀取端都要記得再套一次。多個 `cap` 取最低者，這樣日後再加一個只會收緊不會放寬。
+  另補一次性 migration 把既有 lead 補平（`unsure` 且分數 >7 者改 7，最高只可能是 8 或 9）：不補的話，同樣的五個答案會因為送出時間落在部署前後而戴上不同徽章，而那件事在列上完全看不出來。`down()` 不還原 —— 原始總分隨時可由五題答案重算，寫回未設限的分數等於撤銷規則本身。`BookingScreeningTest` +3（含 `questionsForFront()` 不得外洩 `cap` 一條），全站 **849 passed（3477 assertions）**。無前端變更。
 
 - 2026-09-04: 審核倒數由 15 秒縮短為 8 秒（使用者決策，FR-128 已改）。D99 的「所有人都等」不變 —— 縮的是長度不是規則，通過與未通過仍走同一段等待，速度差不會把答案洩漏出去。8 秒仍足以讓「有一道審核存在」可信，而不至於讓通過的人開始懷疑畫面卡住。僅動 `BookingScreeningStep.vue` 的 `REVIEW_SECONDS`（進度條由該常數推算，不必另改）。
 
