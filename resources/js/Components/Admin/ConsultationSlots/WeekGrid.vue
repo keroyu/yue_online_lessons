@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { colorFor, UNASSIGNED_COLOR } from './consultantPalette.js'
 
 const props = defineProps({
   // { start, end, rows: ['08:00', '08:15', …] }
   range: { type: Object, required: true },
   days: { type: Array, required: true },
   consultants: { type: Array, default: () => [] },
+  ownerId: { type: Number, default: null },
   canPickConsultant: { type: Boolean, default: false },
 })
 
@@ -425,9 +427,38 @@ const dragLabel = computed(() => {
 
 const CELL_CLASS = {
   empty: 'bg-white hover:bg-brand-teal/10 cursor-pointer',
-  free: 'bg-teal-100 hover:bg-teal-200 cursor-pointer',
+  // `free` is not here: an open slot is coloured by whose it is (011 US33 /
+  // FR-177). The other three states keep their own colour — a 14px cell cannot
+  // carry both "can this be sold" and "whose is it" on the same axis.
   busy: 'bg-transparent cursor-default',
   past: 'bg-gray-50 cursor-not-allowed',
+}
+
+// id → { label, colors }. Built once per roster rather than per cell; the grid
+// asks this question 364 times a week.
+const consultantById = computed(() => {
+  const map = new Map()
+
+  for (const c of props.consultants) {
+    map.set(c.id, { label: consultantLabel(c), colors: colorFor(c.color_index) })
+  }
+
+  return map
+})
+
+const ownerOf = (id) => consultantById.value.get(id) ?? { label: '未指派', colors: UNASSIGNED_COLOR }
+
+/** Colour of the cell being dragged out — whose time this is about to become. */
+const dragCreateClass = computed(() => ownerOf(props.ownerId).colors.drag)
+
+function freeCellClass(dIndex, rIndex) {
+  return ownerOf(visibleDays.value[dIndex].owners?.[props.range.rows[rIndex]]).colors.cell
+}
+
+function ownerTitle(dIndex, label) {
+  const id = visibleDays.value[dIndex].owners?.[label]
+
+  return id === undefined ? '' : `${label} · ${ownerOf(id).label}`
 }
 
 const BLOCK_CLASS = {
@@ -828,14 +859,16 @@ function isHalf(label) {
                 ? (canStartHere(dIndex, rIndex)
                   ? 'bg-brand-teal/20 hover:bg-brand-teal/50 cursor-pointer'
                   : 'bg-gray-100 cursor-not-allowed')
-                : CELL_CLASS[cellState(dIndex, rIndex)],
+                : (cellState(dIndex, rIndex) === 'free'
+                  ? freeCellClass(dIndex, rIndex)
+                  : CELL_CLASS[cellState(dIndex, rIndex)]),
               isHour(label) ? 'border-gray-300' : (isHalf(label) ? 'border-gray-200' : 'border-gray-100'),
               inDrag(dIndex, rIndex)
-                ? (drag.mode === 'create' ? '!bg-teal-400/60' : '!bg-rose-400/60')
+                ? (drag.mode === 'create' ? dragCreateClass : '!bg-rose-400/60')
                 : '',
             ]"
             :style="{ gridRow: `${rIndex + 1} / span 1`, gridColumn: '1' }"
-            :title="visibleDays[dIndex].owners?.[label] ? `${label} · ${visibleDays[dIndex].owners[label]}` : ''"
+            :title="ownerTitle(dIndex, label)"
             :data-day="dIndex"
             :data-row="rIndex"
             @pointerdown.prevent="startDrag(dIndex, rIndex)"

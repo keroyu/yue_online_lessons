@@ -164,10 +164,11 @@ class ConsultationSlotService
 
             if ($row->isAvailable()) {
                 $free[$date][] = $local->format('H:i');
-                // Ownership of an open slot is tooltip-only in v1 (D57): with
-                // one consultant a visual lane is noise, with several it would
-                // need lanes rather than a colour.
-                $owners[$date][$local->format('H:i')] = $row->consultant?->nickname ?: $row->consultant?->email;
+                // The id, not the name (011 US33 / FR-178): the cell is
+                // coloured by owner, and colouring needs an identity — the
+                // label is looked up from the roster the page already carries.
+                // Sending both would give the same fact two sources.
+                $owners[$date][$local->format('H:i')] = $row->consultant_id;
             } else {
                 $busy[$date][] = ['row' => $row, 'local' => $local];
             }
@@ -238,6 +239,31 @@ class ConsultationSlotService
                 ->whereNull('held_until')
                 ->count(),
         ];
+    }
+
+    /**
+     * Sellable time per consultant, for the ownership buttons (US33 / FR-175).
+     *
+     * Same definition as the legend's 「可預約」 — future, not booked — with one
+     * extra dimension. Two numbers on the same screen that count almost the
+     * same thing is how a reader decides one of them is broken.
+     *
+     * One grouped query, not one per consultant: the roster is small today and
+     * the N+1 would be invisible until it is not.
+     *
+     * @return array<int|string, int> consultant id => count; unowned slots
+     *                                land under the empty-string key, which is
+     *                                what a null group key becomes in PHP
+     */
+    public function openCountsByConsultant(): array
+    {
+        return ConsultationSlot::available()
+            ->upcoming()
+            ->groupBy('consultant_id')
+            ->selectRaw('consultant_id, count(*) as total')
+            ->pluck('total', 'consultant_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
     }
 
     private function mergeBookings(array $items): array

@@ -4351,6 +4351,43 @@
       "status": "planned"
     },
     {
+      "id": "011.us-33",
+      "module": "011-high-ticket",
+      "title": "顧問色票按鈕與可預約時段計數",
+      "summary": "諮詢時段的「時段歸屬」下拉改為一列色票按鈕（暱稱 + 未預約時段數），選擇存進網址 ?owner= 換週不掉；格線上可預約的格子依顧問上色，狀態色保留給未釋出／暫留／已預約",
+      "heading": "### User Story 33 - 顧問色票按鈕與可預約時段計數 (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-33---顧問色票按鈕與可預約時段計數-priority-p3",
+      "keywords": [
+        "consultation slots",
+        "顧問",
+        "色票",
+        "palette",
+        "顏色",
+        "color",
+        "時段歸屬",
+        "owner",
+        "按鈕",
+        "計數",
+        "open count",
+        "週曆",
+        "week grid",
+        "可預約",
+        "available",
+        "consultant_id",
+        "?owner="
+      ],
+      "code_files": [
+        "app/Http/Controllers/Admin/ConsultationSlotController.php",
+        "app/Services/ConsultationSlotService.php",
+        "resources/js/Pages/Admin/ConsultationSlots/Index.vue",
+        "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
+        "resources/js/Components/Admin/ConsultationSlots/consultantPalette.js",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-4",
       "module": "011-high-ticket",
       "title": "通知新時段與批次郵件",

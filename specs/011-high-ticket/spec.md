@@ -2,6 +2,7 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
   - database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php
   - app/Console/Commands/CancelStaleApplications.php
   - tests/Feature/HighTicket/StaleApplicationCancelTest.php
@@ -1076,6 +1077,36 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 - [ ] 排程每日執行一次（台北 04:00）；命令 `booking:cancel-stale-applications`，輸出處理筆數
 - [ ] 測試：滿 7 天被取消、未滿 7 天不動、有手機不動、已確認不動、admin 改過的狀態不動、無 `screened_at` 不動、`declined` 不動、不寫 `cancelled_at`、重跑資格審核復活、命令輸出筆數
 
+
+### User Story 33 - 顧問色票按鈕與可預約時段計數 (Priority: P3)
+
+「時段歸屬」現在是一顆下拉選單，有三個問題疊在一起。
+一是**換週就掉**：週曆換週是一次完整 visit（`preserveState: false`），選單回到預設值，
+連開兩週的時段要記得每次重選，而忘記的代價是時段開在別人名下、通知也寄給別人。
+二是**看不出誰的**：格線上所有可預約的格子都是同一個 teal，歸屬只藏在 hover 的 tooltip 裡，
+排班時「這週誰的時間開得夠不夠」得一格一格滑過去看。
+三是**沒有數字**：顧問手上還剩幾個可賣的時段，這頁答不出來 —— 下方圖例只有全站合計。
+
+改成一列色票按鈕：`[ Yue Yu (30) ] [ Eileen (12) ]`。
+按鈕顏色就是該顧問在格線上的顏色，括號裡是他名下**尚未被預約**的未來時段數。
+選中的那顆是「接下來拖出來的時段算誰的」，並且寫進網址，換週與任何篩選都不會掉。
+
+**驗收**：
+- [ ] 「時段歸屬」的 `<select>` MUST 換成按鈕列，每位顧問一顆 `暱稱 (N)`；選中者以實心底 + ring 表示，未選中為淺底 + 同色邊框（FR-173）
+- [ ] 每顆按鈕的顏色 MUST 等於該顧問在格線上「可預約」格的顏色 —— 這一列同時是圖例，MUST NOT 另外再畫一份顏色對照
+- [ ] 括號內數字為該顧問名下**未來且未被預約**的時段數，與下方圖例「可預約（N）」同一個基準（FR-175）；為 0 時 MUST 照常顯示 `(0)`
+- [ ] 選定歸屬 MUST 寫進網址 `?owner=`，換週（上一週／本週／下一週）與日後任何篩選 MUST 保留（FR-174）
+- [ ] 伺服器 MUST 驗證 `?owner=`：不在名冊內、或非管理員指定他人時一律落回自己，MUST NOT 出錯頁（FR-174）
+- [ ] 非管理員只有自己那顆可按；其他顧問的色票仍 MUST 渲染（不可點、`cursor-default`），否則格線上出現一種他查不到是誰的顏色
+- [ ] 格線上**只有「可預約」的格子**依顧問上色；未釋出（白）、暫留中（琥珀）、已預約（靛藍）維持現狀（FR-177，使用者決策）
+- [ ] `consultant_id` 為 null 的既有時段以灰色呈現，色票列 MUST 只在其數量 > 0 時出現「未指派 (N)」，且該色票 MUST NOT 可選為歸屬（FR-179）
+- [ ] 拖曳釋出時的預覽色 MUST 是目前選定顧問的顏色（現為固定 teal），收回仍為紅（FR-180）
+- [ ] 顏色 MUST 在同一位顧問身上跨週、跨頁、跨重新整理保持一致；改暱稱 MUST NOT 讓顏色重排（FR-176）
+- [ ] hover tooltip 仍 MUST 顯示該格的歸屬人（現有行為，只是資料來源改為 id 對照名冊）
+- [ ] 按鈕列 `cursor-pointer` + hover 回饋；手機寬度下換行不溢出（專案規則）
+- [ ] 計數 MUST 是**單一 groupBy 查詢**，MUST NOT 每位顧問各查一次
+- [ ] 非目標：不做「只看某位顧問」的篩選（使用者決策 —— 排班時看不到同事已開的時間，正是重複開在同一格的原因）；不改任何既有路由；不動時段的建立／收回邏輯
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1550,6 +1581,21 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 - **FR-170**: 被掃過的 lead MUST 能復活。`recordLead()` 的可復活集合已含 `cancelled`（FR-049）；另 `screen()` 的可覆寫狀態集合 MUST 加入 `cancelled`，使回站重答第一步當下就回到 `pending`，而不是掛著「已取消」走完整段精靈。已確認過的預約被 `confirmed_at === null` 的既有守門排除在外，因此這個放寬只影響本掃描產生的列。
 - **FR-171**: 排程為 `booking:cancel-stale-applications`，台北時間每日 04:00 一次。與提醒信的每小時不同：邊界是七天前，晚幾小時對任何人都沒有差別。
 
+- **FR-173**: 「時段歸屬」MUST 由 `<select>` 改為按鈕列。每位顧問一顆，內容為 `暱稱 (N)`（暱稱缺值時退回 email，再退回 `#id`，沿用既有 `consultantLabel()`）。選中者為該顧問色的**實心底 + ring**，未選中為**淺底 + 同色邊框**；非管理員的他人色票 MUST 渲染但不可點（`cursor-default`、無 hover 變化）。
+  按鈕列同時是格線的顏色圖例，因此 MUST NOT 另外再畫一份對照表 —— 兩份會漂移，而漂移的形式是「圖例說藍色是 A、格線上藍色其實是 B」。
+- **FR-174**: 選定歸屬 MUST 以 `?owner=` 帶在網址上，換週與日後任何篩選 MUST 一併帶上。伺服器端 `index()` MUST 正規化：值不在名冊內、或呼叫者非管理員且指定了他人，一律落回**自己的 id**（MUST NOT 回 403 或錯誤頁 —— 這是介面狀態不是使用者資料，把打錯的網址變成錯誤頁只會讓分享連結變成陷阱）。正規化後的值以 `ownerId` 下發，前端的選中狀態 MUST 讀它，MUST NOT 自行保留本地狀態。
+  這條是本 US 的主要動機：週曆換週是 `preserveState: false` 的完整 visit，任何存在元件裡的選擇都會在換週時消失，而它消失的後果（時段開在別人名下、通知寄給別人）在畫面上看不出來。
+- **FR-175**: 按鈕上的數字為該顧問名下**未來且未被預約**的時段數，定義 MUST 與圖例「可預約（N）」完全相同（`available()->upcoming()`），只是多一個 `consultant_id` 維度。0 MUST 照常顯示為 `(0)`：「這位顧問沒有可賣的時間」正是要一眼看到的事實，隱藏它等於把空的行事曆偽裝成沒有資料。
+  MUST 以單一 `groupBy('consultant_id')` 查詢取得全部計數，MUST NOT 每位顧問各查一次。
+- **FR-176**: 顏色 MUST 由伺服器下發**色票序號** `color_index`（名冊依 `users.id` 遞增排序後的位置），前端以一張靜態對照表映射到 Tailwind class。
+  兩件事各有理由。序號依 **id** 而非暱稱或 email：改暱稱不得讓整排顏色重新洗牌，顏色是用來認人的，換一次就等於重新學一次。映射放**前端的靜態表**：Tailwind v4 掃描原始碼產生 class，伺服器組出來的 class 字串不會被掃到，於是顏色在正式站（build 過的 CSS）整組消失，而在本機 dev 看起來是好的 —— 這是最難查的那種壞法。
+  色票至少 8 色（藍／綠／紫／粉／橘／青／萊姆／玫瑰），顧問數超過色票數時以取餘數重複使用，重複時仍以 tooltip 與按鈕文字區辨。
+- **FR-177**: 格線上 MUST 只有「可預約」狀態的格子依顧問上色（使用者決策）。未釋出（白）、暫留中（琥珀）、已預約（靛藍）三種狀態色 MUST 維持現狀。
+  理由是這兩組顏色回答的是不同問題：狀態色回答「這格能不能賣」，顧問色回答「這格是誰的」。把兩者疊在同一個色相軸上，就得再發明第二套視覺變數（底紋、邊框）去承接被擠掉的那一組，而週曆的一格只有 14px 高，撐不起兩層編碼。
+- **FR-178**: `weekView()` 的 `owners[date][HH:mm]` MUST 由「顧問暱稱字串」改為 **`consultant_id`**（未指派為 null），顯示名稱由前端查名冊。同一個名字在 payload 裡出現上百次是白付的頻寬，而真正的理由是格子要染色需要的是 id 不是名字 —— 兩者都送等於讓同一件事有兩個來源。
+- **FR-179**: `consultant_id` 為 null 的時段（FR-062 的合法狀態、以及本功能之前的舊資料）MUST 以灰色呈現；色票列 MUST 只在其數量 > 0 時顯示「未指派 (N)」，且該色票 MUST NOT 可被選為歸屬 —— 新建時段一律有主人（`StoreConsultationSlotsRequest::consultantId()` 預設為建立者），提供一個「開成沒有人的」選項只會製造 FR-062 的 fallback 路徑。
+- **FR-180**: 拖曳釋出時的預覽色 MUST 改用目前選定顧問的顏色（現為固定 `teal-400/60`），使拖到一半就能看出「這段時間會變成誰的」；收回的預覽維持紅色（那是動作的顏色，與歸屬無關）。
+
 - **FR-172**: Q2 預算題答 `unsure`（不確定）時，總分 MUST 以 **7 分**為上限，其餘四題再滿分也一樣（使用者決策）。機制為選項上的 `cap` 旗標，與 `veto` 同層但語意較軟：`veto` 是無論如何都不通過，`cap` 是可以通過、但不得進入最高分級。多個 `cap` 同時成立時取最低者。
   這條規則的目的不是扣分，是**分級**：8 分以上在後台顯示為「高購買意願」（FR-131），而一個還沒說出預算數字的人不該讓顧問帶著那個期待進面談。`unsure` 保留 1 分與不否決的處理不變（銷售頁隱藏價格，這仍是誠實回答）—— 變的只是它的天花板。
   上限 MUST 在 `BookingScreening::score()` 內套用，而不是在 `tier()` 或前端：落庫的 `screening_score` 只有一個，所有讀它的地方（分級、展開列的 `N/10`、日後任何報表）都必須看到同一個已經套過上限的數字。
@@ -1557,6 +1603,12 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 
 
 ## 設計決策
+
+- **D126**: 顏色**不落庫**，由名冊順序推導（`users.id` 遞增的位置 → 色票序號）。
+  存一個 `users.calendar_color` 看起來更「可控」，代價是三件事：新增顧問時有人要記得挑色（沒挑就是沒有顏色）、兩個人可以被設成同一色而系統不會反對、以及一個需要 UI 才能改的欄位。推導出來的顏色沒有這些問題，代價是刪掉一位顧問會讓排在他後面的人整排換色 —— 顧問是極低頻的新增與幾乎不刪除的資料，這個代價一年碰不到一次。
+  真要固定，之後補一個 `calendar_color` 覆寫欄位即可，推導留作預設值。
+- **D127**: 顧問色只染「可預約」，狀態色保留給其他三態（使用者決策）。見 FR-177：一格 14px 撐不起「能不能賣」與「是誰的」兩層編碼，硬要疊就得再發明底紋或邊框去承接被擠掉的那一組。
+- **D128**: 計數為**全站未來**而非當前週（使用者決策）。這排數字要回答的是「這位顧問手上還有多少可賣的時間」，那是一個排班決策的輸入，不隨你正在看哪一週改變；而且與正下方圖例的「可預約（N）」同基準，兩個數字才能互相加總對照 —— 兩種基準並排在同一頁上，讀者只會覺得其中一個壞了。
 
 - **D123**: 服務範圍告知用**必勾 checkbox**，而不是 010 US16 那種「送出即同意」的被動揭露（D24）。兩者的目的相反：領取表單刻意拿掉驗證步驟來降低摩擦，那裡加一顆勾是走回頭路；這裡的**摩擦就是功能本身** —— 要的是那個「等一下，我是不是講的就是美食帳號」的停頓。被動揭露在這個位置會被整段跳過，而跳過的正是唯一需要讀到它的那群人。
   因此也不共用 `ClaimConsentNotice.vue`：那支元件的註解寫明它是被動揭露，把 checkbox 塞進去會讓兩個相反的決策擠在同一個檔案裡。文案定版在 FR-162。
@@ -2863,7 +2915,34 @@ Phase 4 — 驗證
 - [x] T394 `php artisan test` 全綠（無前端變更）
 - [ ] T395 使用者實測：正式站部署後查一筆 `screen_budget='unsure'` 的舊 lead，展開列顯示 7/10 且徽章為「值得談」
 
+
+### US33 顧問色票按鈕與可預約時段計數
+
+- [x] T396 `openCountsByConsultant(): array` —— 單一 `available()->upcoming()->groupBy('consultant_id')` 回 `[consultant_id|null => count]` in `app/Services/ConsultationSlotService.php`
+- [x] T397 `weekView()` 的 `owners[date][HH:mm]` 由暱稱字串改為 `consultant_id`（null 保留）（FR-178）in `app/Services/ConsultationSlotService.php`
+- [x] T398 `index()` 改動（FR-174 / FR-175 / FR-176）in `app/Http/Controllers/Admin/ConsultationSlotController.php`：
+  - 名冊一律取**全部** admin + `is_sales_consultant`（不再依角色縮成一人），依 `id` 排序，每筆附 `color_index`（位置）、`open_count`、`selectable`（`isAdmin() || id === user.id`）
+  - 新增 `ownerId`：讀 `?owner=`，不在名冊內或非管理員指定他人一律落回自己
+  - 新增 `unassignedCount`（`consultant_id` 為 null 的可預約數，0 則前端不渲染該色票）
+  - `canPickConsultant` 保留給 WeekGrid 的改派面板（US15，管理員限定），語意不變
+- [x] T399 [P] 色票靜態對照表（8 色 × 三種用途：實心底／淺底＋邊框／格線底色，加灰色 unassigned 一組），單一檔案匯出給頁面與格線共用（FR-176）in `resources/js/Components/Admin/ConsultationSlots/consultantPalette.js`
+- [x] T400 `<select>` 換成色票按鈕列：`暱稱 (N)`、選中實心＋ring、不可選者 `cursor-default`、`unassignedCount > 0` 時附灰色「未指派 (N)」；點選 `router.get` 帶 `{ week, owner }`（`preserveScroll`）；`goToWeek()` 一併帶 `owner`（FR-173 / FR-174 / FR-179）in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T401 `create()` 改送 `ownerId`（來源由本地 ref 改為 prop，FR-174）in `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T402 格線可預約格改依 `owners[label]` 的 id 上色（未指派灰）；tooltip 改查名冊取暱稱；拖曳 create 預覽色改用選定顧問色（FR-177 / FR-178 / FR-180）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T403 `ConsultationSlotAdminTest` 補測試：`?owner=` 正規化後由 `ownerId` 回傳（釋出時段本身寫入 `consultant_id` 的路徑已由 `ConsultantAssignmentTest` 覆蓋，不重複）、非管理員指定他人被落回自己、不存在的 id 落回自己且不出錯、`open_count` 只算未來且未被預約（已預約／暫留／過去皆不計）、`unassignedCount` 正確、名冊對非管理員也是全員且 `selectable` 僅自己為 true、`color_index` 依 id 排序且改暱稱不變 in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+- [x] T404 `php artisan test` 全綠 + `npm run build` exit 0
+- [ ] T405 使用者實測：選 A 顧問拖出時段 → 換下一週 → 選擇仍在 A、格子是 A 的顏色；用另一個顧問帳號登入只有自己那顆可按、但看得到別人的顏色與數字
+
 ## 進度日誌
+
+- 2026-09-04: US33 實作完成（T396–T404，僅剩 T405 使用者實測）— 「時段歸屬」下拉換成色票按鈕列 `[ Yue Yu (30) ] [ Eileen (12) ]`，選擇存進 `?owner=`，換週由 `goToWeek()` 一併帶上；格線的可預約格依歸屬上色，暫留／已預約／未釋出三態不動。
+  伺服器端三件事：`openCountsByConsultant()` 一次 `groupBy` 取全部計數（PHP 的 null group key 會變成空字串鍵，`unassignedCount` 讀的就是它）；`weekView()` 的 `owners` 由暱稱字串改成 `consultant_id`（FR-178）；`index()` 的名冊改為**對所有 staff 都下發全員**、依 `id` 排序並附 `color_index` / `open_count` / `selectable` —— 非管理員只是不能選，但看得到別人的顏色，否則格線上會出現一種他查不到是誰的顏色。`?owner=` 的正規化刻意不報錯：值不在名冊、或顧問指向他人，一律落回自己，因為那是介面狀態不是使用者資料，把它變成錯誤頁會讓每一條分享出去的連結都是陷阱（FR-174）。
+  前端把色票表獨立成 `consultantPalette.js`，class 字串**逐一寫死**而不是組出來 —— Tailwind v4 掃原始碼產 CSS，`bg-${x}-100` 或伺服器送來的 class 都掃不到，症狀是 dev 正常、正式站顏色整組消失（FR-176）。圖例的「可預約」色塊改成漸層：那格現在有八種顏色，畫成單一 teal 就是在說謊，而它真正的圖例是上方那排按鈕。
+  `ConsultationSlotAdminTest` +10（39 passed / 199 assertions），全站 `php artisan test` **859 passed（3580 assertions）**、`npm run build` exit 0。無 schema 變更、無新路由。
+
+- 2026-09-04: [draft] 規劃 US33 顧問色票按鈕與可預約時段計數 — 「時段歸屬」下拉換成一列色票按鈕 `[ Yue Yu (30) ] [ Eileen (12) ]`，顏色即該顧問在格線上可預約格的顏色，數字是他名下未來未被預約的時段數。主要動機是**換週就掉**：週曆換週是 `preserveState: false` 的完整 visit，選單回到預設值，而選錯歸屬的後果（時段開在別人名下、通知寄給別人）在畫面上看不出來 —— 所以選擇改存網址 `?owner=`，伺服器正規化後回傳 `ownerId`，前端不留本地狀態（FR-174）。
+  三個使用者決策：顧問色**只染可預約**（狀態色保留給另外三態，D127 —— 一格 14px 撐不起「能不能賣」與「是誰的」兩層編碼）；計數為**全站未來**而非當前週（D128 —— 與正下方圖例同基準，兩種基準並排會讓讀者以為其中一個壞了）；**不做「只看某位顧問」的篩選**（排班時看不到同事已開的時間，正是重複開在同一格的原因）。
+  實作上兩個容易踩的點寫進 FR-176：顏色序號依 `users.id` 而非暱稱（改暱稱不得讓整排顏色重排，顏色是拿來認人的），以及 class 對照表必須放**前端靜態表** —— Tailwind v4 掃原始碼產生 class，伺服器組出來的字串不會被掃到，結果是本機 dev 正常、正式站顏色整組消失。另外名冊改為對所有 staff 都下發全員（非管理員只是不能選），否則格線上會出現一種他查不到是誰的顏色。無 schema 變更、無新路由。status: draft 待審核。
 
 - 2026-09-04: 預算答「不確定」的總分上限 7（T391–T394，僅剩 T395 使用者實測，FR-172）— 新增 `cap` 旗標，與既有的 `veto` 同層而語意較軟：`veto` 是無論如何不通過，`cap` 是可以通過但不得進入最高分級。`unsure` 搭配其餘四題滿分原本是 9 分（後台顯示「高購買意願」），現在一律 7 分（「值得談」）。它的 1 分與不否決都沒動 —— 銷售頁隱藏價格，「想先知道多少錢」仍是誠實回答，變的只是天花板。
   上限套在 `score()` 內而非 `tier()` 或前端：落庫的 `screening_score` 只有一個，分級、展開列的 `N/10` 與日後任何報表都讀它，規則放在讀取端就等於每個讀取端都要記得再套一次。多個 `cap` 取最低者，這樣日後再加一個只會收緊不會放寬。

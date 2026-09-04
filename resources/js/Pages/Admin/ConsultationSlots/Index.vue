@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import WeekGrid from '@/Components/Admin/ConsultationSlots/WeekGrid.vue'
+import { colorFor, UNASSIGNED_COLOR } from '@/Components/Admin/ConsultationSlots/consultantPalette.js'
 
 defineOptions({ layout: AdminLayout })
 
@@ -13,16 +14,23 @@ const props = defineProps({
   bonusCodes: { type: String, default: '' },
   consultants: { type: Array, default: () => [] },
   currentUserId: { type: Number, default: null },
+  ownerId: { type: Number, default: null },
+  unassignedCount: { type: Number, default: 0 },
   canPickConsultant: { type: Boolean, default: false },
   statusCounts: { type: Object, default: () => ({}) },
 })
 
-// Who newly dragged slots belong to. Defaults to the person doing the dragging
-// — that is the point of the feature (FR-060); a consultant opens their own
-// calendar without having to say so every time.
-const owner = ref(props.currentUserId)
-
 const consultantLabel = (c) => c?.nickname || c?.email || `#${c?.id}`
+
+// Who newly dragged slots belong to (011 US33 / FR-174). Read straight from the
+// server-normalised prop rather than kept locally: changing week is a full
+// visit, so a local copy would silently reset to the default just when it
+// matters most — and a slot opened under the wrong name looks no different.
+const owner = computed(() => props.ownerId)
+
+function pickOwner(id) {
+  router.get('/admin/consultation-slots', { week: props.week.start, owner: id }, VISIT)
+}
 
 const settings = useForm({ bonus_codes: props.bonusCodes })
 
@@ -60,8 +68,10 @@ onUnmounted(() => clearTimeout(toastTimer))
 
 const VISIT = { preserveScroll: true, preserveState: false }
 
+// `owner` rides along on every navigation — that is the whole point of keeping
+// it in the URL rather than in the component (FR-174).
 function goToWeek(week) {
-  router.get('/admin/consultation-slots', { week }, VISIT)
+  router.get('/admin/consultation-slots', { week, owner: owner.value }, VISIT)
 }
 
 function create(payload) {
@@ -89,10 +99,39 @@ function cancelBooking({ lead_id }) {
 // a colour-only legend entry.
 const LEGEND = computed(() => [
   { label: '未釋出', class: 'bg-white border-gray-300', count: null },
-  { label: '可預約', class: 'bg-teal-100 border-teal-300', count: props.statusCounts.available },
+  // Open slots are coloured by consultant now (FR-177), so this row's swatch
+  // would be a lie; the ownership buttons above are its legend.
+  { label: '可預約', class: 'bg-gradient-to-r from-sky-200 to-violet-200 border-gray-300', count: props.statusCounts.available },
   { label: '暫留中', class: 'bg-amber-100 border-amber-300', count: props.statusCounts.held },
   { label: '已預約', class: 'bg-indigo-100 border-indigo-300', count: props.statusCounts.booked },
 ])
+
+// The button row doubles as the colour key for the grid, so every consultant
+// appears — a consultant who may not open somebody else's time still has to be
+// able to look up whose colour that is (FR-173).
+const ownerButtons = computed(() => {
+  const buttons = props.consultants.map((c) => ({
+    id: c.id,
+    label: consultantLabel(c),
+    count: c.open_count ?? 0,
+    selectable: c.selectable === true,
+    colors: colorFor(c.color_index),
+  }))
+
+  // Only when there are any: an always-visible 未指派 (0) would advertise a
+  // state nothing can produce any more (FR-179).
+  if (props.unassignedCount > 0) {
+    buttons.push({
+      id: null,
+      label: '未指派',
+      count: props.unassignedCount,
+      selectable: false,
+      colors: UNASSIGNED_COLOR,
+    })
+  }
+
+  return buttons
+})
 </script>
 
 <template>
@@ -128,17 +167,6 @@ const LEGEND = computed(() => [
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
-        <label class="flex items-center gap-2 text-sm text-gray-600">
-          <span class="whitespace-nowrap">時段歸屬</span>
-          <select
-            v-model="owner"
-            :disabled="!props.canPickConsultant"
-            class="rounded-lg border-gray-300 py-2 text-sm cursor-pointer focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-50"
-          >
-            <option v-for="c in props.consultants" :key="c.id" :value="c.id">{{ consultantLabel(c) }}</option>
-          </select>
-        </label>
-
         <button
           type="button"
           class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 transition"
@@ -164,6 +192,28 @@ const LEGEND = computed(() => [
       </div>
     </div>
 
+    <!-- Ownership picker and colour key in one row (011 US33). The number is
+         how much sellable time that consultant still has, site-wide and
+         future-only — the same basis as 可預約 in the legend below (FR-175). -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-sm text-gray-600 whitespace-nowrap">時段歸屬</span>
+      <button
+        v-for="b in ownerButtons"
+        :key="b.id ?? 'unassigned'"
+        type="button"
+        :disabled="!b.selectable"
+        class="px-3 py-1.5 rounded-lg border text-sm font-medium transition tabular-nums"
+        :class="[
+          owner === b.id ? `${b.colors.solid} ring-2` : b.colors.soft,
+          b.selectable ? 'cursor-pointer hover:brightness-95' : 'cursor-default opacity-80',
+        ]"
+        :title="b.selectable ? `新拖曳的時段歸給 ${b.label}` : `${b.label}（你只能開自己的時段）`"
+        @click="b.selectable && pickOwner(b.id)"
+      >
+        {{ b.label }} ({{ b.count }})
+      </button>
+    </div>
+
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <p class="text-sm font-semibold text-gray-700 tabular-nums">{{ props.week.label }}</p>
       <div class="flex items-center gap-3 flex-wrap">
@@ -179,6 +229,7 @@ const LEGEND = computed(() => [
         :range="props.range"
         :days="props.days"
         :consultants="props.consultants"
+        :owner-id="owner"
         :can-pick-consultant="props.canPickConsultant"
         @create="create"
         @release="release"

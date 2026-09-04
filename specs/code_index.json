@@ -67,7 +67,8 @@
       "011.us-10",
       "011.us-13",
       "011.us-15",
-      "011.us-20"
+      "011.us-20",
+      "011.us-33"
     ],
     "app/Http/Controllers/Admin/CouponChainController.php": [
       "006.us-5"
@@ -840,7 +841,8 @@
       "011.us-14",
       "011.us-15",
       "011.us-17",
-      "011.us-20"
+      "011.us-20",
+      "011.us-33"
     ],
     "app/Services/ConsultationTranscriptService.php": [
       "011.us-23",
@@ -1352,7 +1354,11 @@
       "011.us-14",
       "011.us-15",
       "011.us-17",
-      "011.us-20"
+      "011.us-20",
+      "011.us-33"
+    ],
+    "resources/js/Components/Admin/ConsultationSlots/consultantPalette.js": [
+      "011.us-33"
     ],
     "resources/js/Components/Admin/CouponChainInserter.vue": [
       "006.us-5"
@@ -1617,7 +1623,8 @@
       "011.us-10",
       "011.us-13",
       "011.us-14",
-      "011.us-15"
+      "011.us-15",
+      "011.us-33"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -2015,7 +2022,8 @@
       "011.us-10",
       "011.us-13",
       "011.us-17",
-      "011.us-20"
+      "011.us-20",
+      "011.us-33"
     ],
     "tests/Feature/HighTicket/ConsultationSummaryTest.php": [
       "011.us-23",

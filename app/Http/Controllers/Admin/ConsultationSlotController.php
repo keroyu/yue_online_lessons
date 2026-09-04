@@ -33,13 +33,30 @@ class ConsultationSlotController extends Controller
     {
         $user = $request->user();
 
-        // A consultant only ever sees themselves in the picker; the field is
-        // locked in the UI and refused server-side (FR-060).
-        $consultants = $user->isAdmin()
-            ? User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))
-                ->orderBy('nickname')
-                ->get(['id', 'nickname', 'email'])
-            : User::whereKey($user->id)->get(['id', 'nickname', 'email']);
+        // Everyone gets the whole roster, ordered by id (011 US33 / FR-176).
+        //
+        // Ordered by id because the position in this list IS the colour: sort
+        // by nickname and renaming one person reshuffles everybody's colour,
+        // which is the one thing a colour used to recognise people must not do.
+        //
+        // Shipped whole even to a consultant who may only open their own time
+        // (`selectable` below carries that rule): the grid colours every open
+        // slot by owner, and without the roster a consultant would be looking
+        // at a colour they cannot look up.
+        $counts = $this->slots->openCountsByConsultant();
+
+        $consultants = User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))
+            ->orderBy('id')
+            ->get(['id', 'nickname', 'email'])
+            ->values()
+            ->map(fn (User $c, int $i) => [
+                'id'          => $c->id,
+                'nickname'    => $c->nickname,
+                'email'       => $c->email,
+                'color_index' => $i,
+                'open_count'  => $counts[$c->id] ?? 0,
+                'selectable'  => $user->isAdmin() || $c->id === $user->id,
+            ]);
 
         return Inertia::render(
             'Admin/ConsultationSlots/Index',
@@ -47,10 +64,40 @@ class ConsultationSlotController extends Controller
                 'bonusCodes'        => (string) SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''),
                 'consultants'       => $consultants,
                 'currentUserId'     => $user->id,
+                'ownerId'           => $this->ownerId($request, $consultants->all()),
+                'unassignedCount'   => $counts[''] ?? 0,
                 'canPickConsultant' => $user->isAdmin(),
                 'statusCounts'      => $this->slots->statusCounts(),
             ])
         );
+    }
+
+    /**
+     * Who the next dragged slot belongs to (011 US33 / FR-174).
+     *
+     * Lives in the URL so it survives a week change — the grid navigates with
+     * `preserveState: false`, so anything held in the component is gone the
+     * moment somebody presses 下一週, and the cost of that (slots opened under
+     * the wrong name, notifications to the wrong inbox) is invisible on screen.
+     *
+     * Anything unusable falls back to the viewer rather than erroring: a link
+     * carrying a consultant who has since left, or a consultant opening an
+     * admin's link, is a stale interface state — turning it into an error page
+     * would make every shared link a trap.
+     *
+     * @param array<int, array{id: int, selectable: bool}> $consultants
+     */
+    private function ownerId(Request $request, array $consultants): int
+    {
+        $requested = $request->query('owner');
+
+        foreach ($consultants as $consultant) {
+            if ($consultant['selectable'] && (string) $consultant['id'] === (string) $requested) {
+                return $consultant['id'];
+            }
+        }
+
+        return $request->user()->id;
     }
 
     /**

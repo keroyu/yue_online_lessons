@@ -501,4 +501,154 @@ class ConsultationSlotAdminTest extends TestCase
         $this->get("/admin/consultation-slots/reschedule-options/{$lead->id}")
             ->assertRedirect('/login');
     }
+
+    // ── 顧問色票與可預約計數（011 US33 / FR-173–FR-180） ──────────────────
+
+    private function consultant(string $nickname): User
+    {
+        return User::factory()->create([
+            'nickname'            => $nickname,
+            'is_sales_consultant' => true,
+        ]);
+    }
+
+    private function ownedSlot(string $taipei, ?User $consultant, ?HighTicketLead $lead = null, ?Carbon $heldUntil = null): ConsultationSlot
+    {
+        $slot = $this->makeSlot($taipei, $lead, $heldUntil);
+        $slot->forceFill(['consultant_id' => $consultant?->id])->save();
+
+        return $slot;
+    }
+
+    /** The number on the button is "time this consultant can still sell". */
+    public function test_open_counts_only_include_future_unbooked_slots(): void
+    {
+        $mine = $this->consultant('Mine');
+
+        $this->ownedSlot('2099-08-06 10:00', $mine);
+        $this->ownedSlot('2099-08-06 10:15', $mine);
+        // Booked, held and past are all time that cannot be sold.
+        $this->ownedSlot('2099-08-06 11:00', $mine, $this->makeLead('Booked'));
+        $this->ownedSlot('2099-08-06 12:00', $mine, $this->makeLead('Held'), now()->addHour());
+        $this->ownedSlot('2020-08-06 10:00', $mine);
+
+        $this->assertSame(2, $this->slots()->openCountsByConsultant()[$mine->id] ?? 0);
+    }
+
+    /** Legacy rows with no owner are a bucket of their own, keyed by null. */
+    public function test_open_counts_bucket_unassigned_slots_under_null(): void
+    {
+        $this->ownedSlot('2099-08-06 10:00', null);
+        $this->ownedSlot('2099-08-06 10:15', null);
+
+        $counts = $this->slots()->openCountsByConsultant();
+
+        $this->assertSame(2, $counts[''] ?? $counts[null] ?? 0);
+    }
+
+    /** Colouring a cell needs the id; the name is looked up from the roster (FR-178). */
+    public function test_the_week_view_reports_slot_owners_by_id(): void
+    {
+        $owner = $this->consultant('Owner');
+        $this->ownedSlot('2026-08-05 10:00', $owner);
+        $this->ownedSlot('2026-08-05 10:15', null);
+
+        $day = $this->day($this->slots()->weekView('2026-08-05'), '2026-08-05');
+
+        $this->assertSame($owner->id, $day['owners']['10:00']);
+        $this->assertNull($day['owners']['10:15']);
+    }
+
+    public function test_the_page_ships_every_consultant_with_a_colour_and_a_count(): void
+    {
+        $admin = $this->admin();
+        $other = $this->consultant('Other');
+        $this->ownedSlot('2099-08-06 10:00', $other);
+
+        $this->actingAs($admin)
+            ->get('/admin/consultation-slots')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('ownerId', $admin->id)
+                ->has('consultants', 2)
+                ->where('consultants.0.color_index', 0)
+                ->where('consultants.1.color_index', 1)
+                ->where('consultants.1.open_count', 1)
+                ->where('consultants.0.open_count', 0)
+                ->where('consultants.0.selectable', true));
+    }
+
+    /** Colour identifies a person: renaming them must not reshuffle the palette. */
+    public function test_colour_index_follows_the_user_id_not_the_nickname(): void
+    {
+        $admin = $this->admin();
+        $second = $this->consultant('AAA');
+
+        $this->actingAs($admin)
+            ->get('/admin/consultation-slots')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('consultants.0.id', $admin->id)
+                ->where('consultants.1.id', $second->id));
+    }
+
+    /** A consultant sees everyone's colours, but may only open their own time. */
+    public function test_a_consultant_sees_the_whole_roster_but_can_only_pick_themselves(): void
+    {
+        $this->admin();
+        $me = $this->consultant('Me');
+
+        $this->actingAs($me)
+            ->get('/admin/consultation-slots')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('consultants', 2)
+                ->where('ownerId', $me->id)
+                ->where('canPickConsultant', false)
+                ->where('consultants.0.selectable', false)
+                ->where('consultants.1.selectable', true));
+    }
+
+    public function test_the_owner_query_parameter_survives_the_page(): void
+    {
+        $admin = $this->admin();
+        $other = $this->consultant('Other');
+
+        $this->actingAs($admin)
+            ->get("/admin/consultation-slots?owner={$other->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('ownerId', $other->id));
+    }
+
+    /** A shared link with a stale id is an interface state, not an error page. */
+    public function test_an_unknown_owner_falls_back_to_the_viewer(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->get('/admin/consultation-slots?owner=999999')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('ownerId', $admin->id));
+    }
+
+    public function test_a_consultant_cannot_point_owner_at_somebody_else(): void
+    {
+        $admin = $this->admin();
+        $me = $this->consultant('Me');
+
+        $this->actingAs($me)
+            ->get("/admin/consultation-slots?owner={$admin->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('ownerId', $me->id));
+    }
+
+    public function test_the_page_reports_how_many_slots_have_no_owner(): void
+    {
+        $this->ownedSlot('2099-08-06 10:00', null);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/consultation-slots')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('unassignedCount', 1));
+    }
 }

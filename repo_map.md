@@ -684,6 +684,7 @@ main_files:
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
+- resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
