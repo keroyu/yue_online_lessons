@@ -681,6 +681,7 @@ main_files:
 - database/migrations/2026_08_18_000004_install_application_resume_template.php
 - database/migrations/2026_08_20_000001_install_booking_declined_template.php
 - database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
+- database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue

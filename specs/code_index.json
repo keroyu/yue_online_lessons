@@ -1316,6 +1316,9 @@
     "database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php": [
       "002.us-18"
     ],
+    "database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php": [
+      "011.us-24"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",

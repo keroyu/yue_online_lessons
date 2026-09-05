@@ -63,7 +63,12 @@ class BookingScreening
                 // 高購買意願 badge on somebody who has not named one sends the
                 // consultant in with an expectation the answers do not support
                 // (FR-172, 使用者決策).
-                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1, 'cap' => 7],
+                //
+                // Lowered 7 → 6 on 2026-09-05: both sit in 值得談 (5–7), so the
+                // badge never moved. What moved is the ordering — a named 6 and
+                // an unnamed 6 must not read as the same application, and at 7
+                // the unnamed one outranked most of the named ones.
+                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1, 'cap' => 6],
             ],
         ],
         'screen_authority' => [

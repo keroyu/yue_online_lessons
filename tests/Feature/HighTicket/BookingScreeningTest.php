@@ -146,12 +146,12 @@ class BookingScreeningTest extends TestCase
     // ── 「不確定」的分數上限（FR-172） ────────────────────────────────────
 
     /** An unnamed budget scores, but it cannot reach 高購買意願 (使用者決策). */
-    public function test_an_unsure_budget_caps_the_total_at_seven(): void
+    public function test_an_unsure_budget_caps_the_total_at_six(): void
     {
         // 2 + 1 + 2 + 2 + 2 = 9 before the ceiling.
         $unsure = $this->answers(['screen_budget' => 'unsure']);
 
-        $this->assertSame(7, BookingScreening::score($unsure));
+        $this->assertSame(6, BookingScreening::score($unsure));
         $this->assertSame('warm', BookingScreening::tier(BookingScreening::score($unsure)));
     }
 

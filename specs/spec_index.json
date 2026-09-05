@@ -4038,7 +4038,8 @@
         "resources/js/Components/Course/HighTicketBookingWizard.vue",
         "resources/js/Pages/Course/Show.vue",
         "routes/web.php",
-        "tests/Feature/HighTicket/BookingScreeningTest.php"
+        "tests/Feature/HighTicket/BookingScreeningTest.php",
+        "database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php"
       ],
       "status": "partial"
     },
