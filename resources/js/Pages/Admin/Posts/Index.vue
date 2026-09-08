@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -60,7 +61,7 @@ const goToPage = (page) => {
     <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
       <!-- Left: search + status + 篩選 -->
       <div class="flex flex-wrap gap-3">
-        <input v-model="search" type="text" placeholder="搜尋標題 / slug / 標籤" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
+        <input v-model="search" type="text" placeholder="搜尋標題 / slug / 標籤 / 內文" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @keyup.enter="applyFilters" />
         <select v-model="status" class="rounded-md border border-gray-300 px-3 py-2 text-sm" @change="applyFilters">
           <option value="">全部狀態</option>
           <option value="draft">草稿</option>
@@ -127,15 +128,11 @@ const goToPage = (page) => {
       </table>
     </div>
 
-    <div v-if="posts.last_page > 1" class="flex justify-center gap-2 mt-4">
-      <button
-        v-for="p in posts.last_page"
-        :key="p"
-        type="button"
-        class="px-3 py-1 border text-sm"
-        :class="p === posts.current_page ? 'bg-brand-navy text-white border-brand-navy rounded-md' : 'border-gray-300 hover:bg-gray-50'"
-        @click="goToPage(p)"
-      >{{ p }}</button>
-    </div>
+    <Pagination
+      class="mt-4"
+      :current-page="posts.current_page"
+      :last-page="posts.last_page"
+      @change="goToPage"
+    />
   </div>
 </template>

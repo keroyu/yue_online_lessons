@@ -30,10 +30,13 @@ class PostController extends Controller
 
         $posts = Post::query()
             ->when(in_array($status, ['draft', 'scheduled', 'published'], true), fn ($q) => $q->where('status', $status))
-            // Keyword matches title / slug / tag name.
+            // Keyword matches title / slug / tag name / body. The clauses stay
+            // inside one where() group: hoisted out, the OR would swallow the
+            // status and tag filters above (FR-014).
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('title', 'like', "%{$search}%")
                 ->orWhere('slug', 'like', "%{$search}%")
+                ->orWhere('body_md', 'like', "%{$search}%")
                 ->orWhereHas('tags', fn ($t) => $t->where('name', 'like', "%{$search}%"))))
             // Quick tag-chip filter (by slug).
             ->when($tag !== '', fn ($q) => $q->whereHas('tags', fn ($t) => $t->where('slug', $tag)))

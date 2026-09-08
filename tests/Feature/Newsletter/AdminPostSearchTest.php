@@ -20,9 +20,9 @@ class AdminPostSearchTest extends TestCase
         return User::create(['email' => 'admin@example.com', 'role' => 'admin']);
     }
 
-    private function makePost(string $slug, string $title, ?Tag $tag = null): Post
+    private function makePost(string $slug, string $title, ?Tag $tag = null, string $bodyMd = 'x', string $status = 'published'): Post
     {
-        $p = Post::create(['slug' => $slug, 'title' => $title, 'body_md' => 'x', 'status' => 'published', 'published_at' => now()->subDay()]);
+        $p = Post::create(['slug' => $slug, 'title' => $title, 'body_md' => $bodyMd, 'status' => $status, 'published_at' => now()->subDay()]);
         if ($tag) {
             $p->tags()->attach($tag->id);
         }
@@ -60,6 +60,38 @@ class AdminPostSearchTest extends TestCase
             ->get('/admin/posts?search=beta')
             ->assertOk()
             ->assertInertia(fn ($p) => $p->has('posts.data', 1)->where('posts.data.0.slug', 'beta'));
+    }
+
+    public function test_keyword_search_matches_body_content(): void
+    {
+        // The keyword appears only in the body — not in the title, slug or any tag.
+        $this->makePost('alpha', 'Alpha', null, "第一段\n\n談到現金流管理的三個層次");
+        $this->makePost('beta', 'Beta', null, '完全無關的內容');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/posts?search=' . urlencode('現金流'))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->has('posts.data', 1)
+                ->where('posts.data.0.slug', 'alpha'));
+    }
+
+    /**
+     * The body clause has to stay inside the existing where() group. Hoisted out,
+     * the OR swallows the status filter and searching silently disables it —
+     * while the status dropdown still looks selected on screen (FR-014).
+     */
+    public function test_body_search_does_not_leak_past_the_status_filter(): void
+    {
+        $this->makePost('published-hit', 'Published', null, '談到現金流管理', 'published');
+        $this->makePost('draft-hit', 'Draft', null, '也談到現金流管理', 'draft');
+
+        $this->actingAs($this->admin())
+            ->get('/admin/posts?search=' . urlencode('現金流') . '&status=published')
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->has('posts.data', 1)
+                ->where('posts.data.0.slug', 'published-hit'));
     }
 
     public function test_tag_chip_filters_by_slug(): void

@@ -149,7 +149,7 @@ touchpoints:
 管理員在 `/admin/posts` 新增/編輯/軟刪除文章：Markdown 內文（左寫右預覽，沿用課程描述那套）、封面圖、tags、SEO slug / seo_title / meta_description / og image、精選開關、可選綁定引流課程、draft/scheduled/published 狀態。
 
 **驗收**：
-- [ ] 文章列表分頁 + 狀態篩選（draft/scheduled/published）+ 關鍵字搜尋（title/slug）
+- [x] 文章列表分頁 + 狀態篩選（draft/scheduled/published）+ 關鍵字搜尋（title / slug / tag 名稱 / 內文 `body_md`，FR-014）
 - [ ] PostForm：Markdown textarea + 現有圖片庫 Modal 多選插入、貼上 YouTube 連結存原文（前台才 render embed）
 - [ ] slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、unique；與 course slug 不同命名空間（前台前綴 `/blog/`）故不互撞
 - [ ] tags 以逗號/多選輸入，firstOrCreate Tag 並同步 pivot
@@ -261,6 +261,8 @@ touchpoints:
 - **FR-012**: `BlogController::show` 的 `related_course` payload MUST 帶 `is_high_ticket`（`$post->relatedCourse->is_high_ticket`），供 `Blog/Show.vue` 判斷 CTA 文案：高價課顯示「申請 1v1 諮詢了解詳情 →」，其餘課型維持「了解課程 →」。連結本身（`/go/post/...` 帶 UTM）不因課型改變。
 - **FR-013**: 電子報信件（`newsletter-broadcast.blade.php`、`newsletter-broadcast-text.blade.php`、`newsletter-welcome.blade.php`）頁尾提及的站名 MUST 讀 `SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))`，不得直接用 `config('app.name')`（2026-08-08 修正）。`hero_title` 是後台「首頁設定」頁「標題」欄位（002 owned，見 touchpoint），業主已在用它當對外品牌名稱；`APP_NAME` 是系統層級識別字串，兩者一直各自維護，正式站上已經是不同值（`APP_NAME="YUE Lessons"` vs `hero_title="經營者時間銀行"`），電子報頁尾原本讀錯了那一個。`config('app.name')` 字串本身留作 `SiteSetting::get()` 的第二層 fallback，不刪除。
 
+- **FR-014**: `/admin/posts` 的關鍵字搜尋 MUST 同時比對 `title`、`slug`、tag 名稱與**內文 `body_md`**，四者為 OR 且必須包在同一個 `where(fn ($w) => ...)` 群組內 —— 拆到群組外會讓 OR 吃掉狀態與 tag 篩選，變成「搜尋時篩選條件默默失效」。搜尋框 placeholder MUST 明示涵蓋內文，因為列表只顯示標題／slug／狀態，命中內文的那一列在畫面上看不出理由。
+
 ## 設計決策
 
 - **D1**: 訂閱者 = User，狀態掛 users 欄位（比照 010 drip 的 D1）— 後台會員/批次發信/贈課無縫共用，退訂/休眠只改狀態不刪帳號。否決獨立 subscribers 表（會與既有會員名單雙寫）。
@@ -274,6 +276,9 @@ touchpoints:
 - **D9**: SEO 沿用既有 `view()->share('og', …)` + app.blade.php `$og` 機制擴充，不另造系統 — 文章頁只需補 article 專屬欄位與 JSON-LD slot。
 - **D10**: 訂閱採 OTP 兩步（email→驗證碼→建會員），沿用 VerificationCodeService/VerificationCodeMail/VerificationCodeInput — 與全站「驗證後才建帳號」一致，杜絕幫他人亂訂（subscribe-bombing），且比自建 double opt-in 確認連結更省事。（否決 single opt-in 直接建帳號。）
 - **D11**: 瀏覽數用 posts.view_count 單一計數欄 + session 去重，不建 post_views 事件表 — 比照 drip 的 emails_sent 單欄取向與「不過度設計」原則；代價是無時間序列/UV 分析，未來要趨勢再升級成事件表。（否決事件表 MVP。）
+
+- **D12**: 內文搜尋用 `LIKE %keyword%`，不建 FULLTEXT 索引也不接搜尋引擎。`body_md` 是 `longText`，前綴萬用字元讓任何索引都用不上，所以這確實是一次全表掃描 —— 但這是一個 mini-blog 的後台列表，文章是幾十到幾百的量級，由一個管理員偶爾按一次。在那個量級上 FULLTEXT 的維護成本（中文斷詞、ngram parser 設定、migration 與 sqlite 測試環境的差異）遠大於它省下的毫秒。真正該換掉的訊號是文章數上千或這頁開始明顯變慢，不是現在。
+- **D13**: 只搜 `body_md`，不把 `excerpt`、`seo_title`、`meta_description` 一起加進去。它們的內容幾乎都是內文或標題的重述，加進 OR 鏈只是讓每一筆多掃三個欄位換來重複的命中；真的要找 SEO 欄位裡的字時，那是另一種需求（SEO 稽核），該有自己的入口而不是混進主搜尋框。
 
 ## Schema
 
@@ -343,7 +348,18 @@ touchpoints:
 - [x] T037 三處 blade 的 `config('app.name', '經營者時間銀行')` 改 `\App\Models\SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))` in `resources/views/emails/newsletter-broadcast.blade.php`、`resources/views/emails/newsletter-broadcast-text.blade.php`、`resources/views/emails/newsletter-welcome.blade.php`
 - [x] T038 新增測試：三封信頁尾出現 `hero_title` 的值而非 `config('app.name')`；`hero_title` 未設定時 fallback 到 `config('app.name')` in `tests/Feature/Newsletter/EmailBrandNameTest.php`
 
+### Phase 9 — 文章列表搜尋涵蓋內文（FR-014）
+- [x] T039 `index()` 的 keyword 群組加一條 `orWhere('body_md', 'like', "%{$search}%")`（維持在既有的 `where(fn ($w) => ...)` 群組內）in `app/Http/Controllers/Admin/PostController.php`
+- [x] T040 [P] 搜尋框 placeholder 改為「搜尋標題 / slug / 標籤 / 內文」in `resources/js/Pages/Admin/Posts/Index.vue`
+- [x] T041 測試：關鍵字只出現在內文時該篇被搜到；同時驗證搜尋與狀態篩選並用時 OR 不外溢（搜到的內文命中若狀態不符 MUST 被排除）in `tests/Feature/Newsletter/AdminPostSearchTest.php`
+- [x] T042 `php artisan test --filter=AdminPostSearch` 全綠、`npm run build` exit 0
+
 ## 進度日誌
+
+- 2026-09-08: 文章列表搜尋涵蓋內文（T039–T042，FR-014）— controller 一條 `orWhere('body_md', 'like', ...)`、placeholder 補「內文」。測試兩條先紅後綠：一條驗內文命中，一條釘住「OR 不外溢」—— 建一篇 published 一篇 draft、內文都含關鍵字，帶 `status=published` 搜尋 MUST 只回一筆。那條是這次唯一會真的出錯的地方，而它出錯時畫面上的狀態下拉看起來還是選著的。`AdminPostSearchTest` 6 passed。
+
+- 2026-09-08: [draft] 規劃文章列表搜尋涵蓋內文（FR-014 / D12 / D13）— 目前只比對 title / slug / tag 名稱，想找「哪篇寫過某個段落」只能一篇篇開。加一條 `orWhere('body_md', ...)`，關鍵是它必須留在既有的 `where(fn ($w) => ...)` 群組裡：搬到群組外，OR 會把狀態與 tag 篩選一起吃掉，症狀是「一搜尋，篩選就默默失效」，而畫面上兩個篩選器看起來還是選著的（FR-014）。
+  刻意不建 FULLTEXT（D12）：`body_md` 是 `longText` 且前綴萬用字元讓索引用不上，這確實是全表掃描，但這是一個 mini-blog 的後台、文章幾十到幾百筆、一個管理員偶爾按一次；中文斷詞與 ngram parser 的設定成本遠大於省下的毫秒。該換掉的訊號是文章上千或這頁明顯變慢。也不順手把 `excerpt` / `seo_title` / `meta_description` 加進 OR 鏈（D13），它們幾乎都是內文的重述。placeholder 一併改成明示「內文」—— 列表只顯示標題與 slug，命中內文的那一列在畫面上看不出為什麼會在那裡。無 schema 變更。status: draft 待審核。
 
 - 2026-08-08: 電子報頁尾站名來源修正（T037/T038 / FR-013）— 業主發現電子報頁尾「你收到這封信是因為訂閱了《YUE Lessons》電子報」用的是 `APP_NAME`（系統層級識別字串），但業主實際在維護、對外代表品牌的是後台「首頁設定」頁的「標題」欄位（`site_settings.hero_title`，正式站值「經營者時間銀行」）——兩者早已不同值，頁尾讀錯了那一個。三處 blade（broadcast HTML/text、welcome）改讀 `SiteSetting::get('hero_title', config('app.name', ...))`，`config('app.name')` 降級為找不到 `hero_title` 時的備援。`SiteSetting.php` 屬 000-platform-core，已在 touchpoints 補一筆。TDD：新增 `EmailBrandNameTest`（3 個測試：broadcast HTML+text 與 welcome 皆出現 `hero_title` 值、未設定時 fallback 到 `config('app.name')`），前兩個先紅後綠。全套 533 passed，純後端／模板改動，不涉及前端。
 - 2026-08-08: 高價課引流 CTA 文案（T034–T036 / FR-012）— 業主要求部落格文章底部連往高價課的 CTA 不要用「了解課程」，改「申請 1v1 諮詢了解詳情」。TDD 過程中意外抓到一個既有 bug：`BlogController::show()` 的 `relatedCourse` eager load 欄位白名單（`id,name,slug,tagline,thumbnail`）漏了 `type`，導致 `Course::is_high_ticket` accessor 永遠讀到 null、恆為 false —— 先寫的測試斷言 `is_high_ticket === true` 時，即使已補上 payload 欄位仍紅（值是 false 不是缺欄位），往回查才發現漏選欄位。補上 `type` 後轉綠。全套 527 passed、`npm run build` 綠。
