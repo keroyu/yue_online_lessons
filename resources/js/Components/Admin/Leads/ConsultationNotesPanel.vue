@@ -88,6 +88,55 @@ const fetchTranscript = async (note) => {
   }
 }
 
+/**
+ * Replace a wrong transcript with a file the admin has in hand (US34).
+ *
+ * Offered whether or not a transcript exists, unlike 抓取逐字稿 — the case this
+ * is for is a session that already *has* one, from the wrong recording.
+ */
+const uploadInputs = ref({})
+const uploading = ref(null)
+
+const pickTranscript = (note) => {
+  error.value = ''
+  queued.value = null
+  uploadInputs.value[note.id]?.click()
+}
+
+const uploadTranscript = async (note, event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const when = formatDate(note.met_at) || '這場'
+  const warning = note.transcript_bytes
+    ? `確定用這個檔案取代 ${when} 的逐字稿？\n\n現有的逐字稿與摘要都會被重新產生，包括你手動修改過的摘要。`
+    : `確定為 ${when} 上傳這份逐字稿？`
+
+  if (!window.confirm(warning)) {
+    event.target.value = ''
+    return
+  }
+
+  uploading.value = note.id
+  error.value = ''
+  queued.value = null
+
+  const data = new FormData()
+  data.append('file', file)
+
+  try {
+    const res = await axios.post(`/admin/consultation-notes/${note.id}/upload-transcript`, data)
+    queued.value = res.data.message || '已排入處理，約 1–3 分鐘後重新整理'
+  } catch (e) {
+    error.value = e.response?.data?.message
+      || e.response?.data?.errors?.file?.[0]
+      || '上傳失敗，請稍後再試'
+  } finally {
+    uploading.value = null
+    event.target.value = ''
+  }
+}
+
 const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors whitespace-nowrap'
 </script>
 
@@ -138,6 +187,25 @@ const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer
         @click="fetchTranscript(note)"
       >
         {{ fetching === note.id ? '查詢中…' : '抓取逐字稿' }}
+      </button>
+
+      <!-- 一場會議錄了兩次時，抓回來的可能是錯的那一段 —— 那種場次「有逐字稿」，
+           所以這顆與「抓取逐字稿」不同，有沒有逐字稿都要在（US34） -->
+      <input
+        :ref="(el) => (uploadInputs[note.id] = el)"
+        type="file"
+        accept=".vtt,.srt,.txt,.md"
+        class="hidden"
+        @change="uploadTranscript(note, $event)"
+      />
+      <button
+        type="button"
+        :class="[action, 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed']"
+        title="上傳 .vtt / .srt / .txt / .md 取代這場的逐字稿，會重新匿名化、校訂並產生摘要"
+        :disabled="uploading === note.id"
+        @click="pickTranscript(note)"
+      >
+        {{ uploading === note.id ? '上傳中…' : '上傳替換' }}
       </button>
 
       <!-- 課程與顧問是辨識用的次要資訊，讓位給動作 -->

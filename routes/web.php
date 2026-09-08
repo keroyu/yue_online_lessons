@@ -249,6 +249,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::post('/consultation-notes/{note}/regenerate-summary', [ConsultationNoteController::class, 'regenerateSummary'])->name('consultation-notes.regenerate-summary');
         Route::get('/consultation-notes/{note}/transcript.txt', [ConsultationNoteController::class, 'downloadTranscript'])->name('consultation-notes.transcript-download');
         // Throttled because each press is a live Zoom API call (011 US25).
+        Route::post('/consultation-notes/{note}/upload-transcript', [ConsultationNoteController::class, 'uploadTranscript'])
+            ->middleware('throttle:10,1')
+            ->name('consultation-notes.upload-transcript');
         Route::post('/consultation-notes/{note}/fetch-transcript', [ConsultationNoteController::class, 'fetchTranscript'])
             ->middleware('throttle:10,1')
             ->name('consultation-notes.fetch-transcript');

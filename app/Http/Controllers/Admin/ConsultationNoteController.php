@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UploadTranscriptRequest;
 use App\Jobs\ProcessZoomTranscriptJob;
 use App\Models\ConsultationNote;
 use App\Services\ConsultationTranscriptService;
@@ -130,6 +131,46 @@ class ConsultationNoteController extends Controller
         return response()->json([
             'queued'  => true,
             'message' => '已排入處理，約 1–3 分鐘後重新整理即可看到逐字稿與摘要',
+        ], 202);
+    }
+
+    /**
+     * Replace a wrong transcript with one the admin has in hand (011 US34).
+     *
+     * A meeting recorded twice leaves Zoom with two recordings, and the one
+     * `findTranscriptFile()` picked may be the ten-minute false start — the
+     * screen looks entirely normal, it just describes a different conversation.
+     *
+     * What arrives here is raw material. It is parsed to dialogue right away so
+     * an unusable file is refused before anything is overwritten, then handed to
+     * the same job the Zoom path uses so that anonymising and proofreading
+     * happen exactly once, in one place (FR-183).
+     */
+    public function uploadTranscript(
+        UploadTranscriptRequest $request,
+        ConsultationNote $note,
+        ConsultationTranscriptService $transcripts,
+    ): JsonResponse {
+        $contents = (string) file_get_contents($request->file('file')->getRealPath());
+
+        // The extension was only a hint; this is the real test. Refusing before
+        // the write is what keeps a bad upload from destroying a good record.
+        if (trim($transcripts->toDialogue($contents)) === '') {
+            return response()->json([
+                'message' => '這個檔案裡沒有可用的內容 —— 可能只有時間軸沒有台詞，或檔案是空的',
+            ], 422);
+        }
+
+        ProcessZoomTranscriptJob::dispatch(
+            $note->id,
+            [],
+            force: true,
+            rawTranscript: $contents,
+        );
+
+        return response()->json([
+            'queued'  => true,
+            'message' => '已排入處理，約 1–3 分鐘後重新整理即可看到新的逐字稿與摘要',
         ], 202);
     }
 

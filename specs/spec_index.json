@@ -4402,6 +4402,41 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-34",
+      "module": "011-high-ticket",
+      "title": "上傳替換逐字稿",
+      "summary": "面談紀錄列加「上傳替換」，接受 vtt/srt/txt/md，走與 Zoom 路徑相同的匿名化與校訂管線後覆寫逐字稿並重產摘要（含已人工編修者）",
+      "heading": "### User Story 34 - 上傳替換逐字稿 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-34---上傳替換逐字稿-priority-p2",
+      "keywords": [
+        "上傳替換",
+        "逐字稿",
+        "transcript upload",
+        "replace transcript",
+        "srt",
+        "vtt",
+        "txt",
+        "md",
+        "匿名化",
+        "normaliseSpeakers",
+        "toDialogue",
+        "錄影兩次",
+        "重新摘要",
+        "ConsultationNotesPanel"
+      ],
+      "code_files": [
+        "app/Services/ConsultationTranscriptService.php",
+        "app/Jobs/ProcessZoomTranscriptJob.php",
+        "app/Http/Requests/Admin/UploadTranscriptRequest.php",
+        "app/Http/Controllers/Admin/ConsultationNoteController.php",
+        "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue",
+        "routes/web.php",
+        "tests/Feature/HighTicket/TranscriptUploadTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-4",
       "module": "011-high-ticket",
       "title": "通知新時段與批次郵件",

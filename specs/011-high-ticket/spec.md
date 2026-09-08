@@ -2,6 +2,8 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Http/Requests/Admin/UploadTranscriptRequest.php
+  - tests/Feature/HighTicket/TranscriptUploadTest.php
   - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
   - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
   - database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php
@@ -216,7 +218,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -1109,6 +1111,30 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 - [ ] 計數 MUST 是**單一 groupBy 查詢**，MUST NOT 每位顧問各查一次
 - [ ] 非目標：不做「只看某位顧問」的篩選（使用者決策 —— 排班時看不到同事已開的時間，正是重複開在同一格的原因）；不改任何既有路由；不動時段的建立／收回邏輯
 
+### User Story 34 - 上傳替換逐字稿 (Priority: P2)
+
+抓回來的逐字稿有時候是錯的。最常見的成因是**一場面談錄了兩次**（中途斷線重進、或先開了一段測試錄影），
+Zoom 上於是有兩份錄影，而 `findTranscriptFile()` 挑中的那一份可能是短的那一段 ——
+畫面上看起來一切正常：有逐字稿、有摘要、有追蹤信草稿，只是內容講的是另一場十分鐘的會議。
+現有的兩條路都救不了它：`抓取逐字稿` 按鈕只在還沒有逐字稿時出現，
+`重新產生摘要` 重跑的是**同一份**錯的逐字稿。
+
+因此在面談紀錄列上加一顆「上傳替換」：管理員把手上正確的那份檔案丟進來，
+接受 `.vtt` / `.srt` / `.txt` / `.md`（Zoom 下載的、剪輯軟體輸出的、自己整理的都算），
+**走完全相同的整理管線** —— 講者匿名化為顧問／客戶、分段 LLM 校訂、重新摘要與追蹤信草稿。
+上傳的是原料，不是成品；不會有一份沒經過匿名化的文字混進 `consultation_notes`。
+
+**驗收**：
+- [x] 面談紀錄列在**有無逐字稿都顯示**「上傳替換」（與「抓取逐字稿」不同：後者只在沒有逐字稿時出現）；點擊開啟檔案選擇
+- [x] `POST /admin/consultation-notes/{note}/upload-transcript`（staff 群組、`throttle:10,1`）：接受 `.vtt`/`.srt`/`.txt`/`.md`，單檔 ≤ 2MB，MIME 與副檔名皆驗（FR-182）
+- [x] 上傳內容 MUST 走與 Zoom 路徑**同一組方法**：`toDialogue()` → `normaliseSpeakers()` → `proofread()`，MUST NOT 直接把檔案內容寫進 `transcript`（FR-183）
+- [x] SRT 的序號行與 `00:00:01,000 --> 00:00:02,000` 時間軸 MUST 被濾除；純 txt/md 無時間軸與講者標籤時照常通過，交由校訂步驟依語境補講者（FR-184）
+- [x] 慢的部分（校訂 + 摘要，2–4 分鐘）MUST 進佇列；端點同步回 202 並提示重新整理時間，MUST NOT 讓瀏覽器等待
+- [x] 覆寫是**無條件**的：`transcriptIsSettled()` 與 `summaryIsLocked()` 皆 MUST 被略過，摘要與追蹤信草稿一律重新產生、`summary_edited_at` 清為 null（FR-185 / D130）
+- [x] 空檔案、全是時間軸沒有任何內容行、或解析後對話為空 → 422 且 MUST NOT 覆寫既有逐字稿
+- [x] 上傳的原始檔 MUST NOT 落地保存（不進 storage、不加欄位）；保留的只有整理後的 `transcript`（D131）
+- [x] 測試：SRT 序號與時間軸被濾除、無講者標籤的 txt 仍產出對話、上傳覆寫已鎖定的摘要、空檔與純時間軸檔回 422 且不動既有資料、非 staff 被擋、超過 2MB 被擋
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1606,6 +1632,11 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 
 - **FR-181**: 預約確認頁的 `confirmed` 與 `already` 狀態 MUST 在時段區塊下方列出三點行前提醒：**查收確認信**、**把時段排進行程**（信中附 .ics，見 FR-046）、**看完前置資料**。措辭 MUST 只描述確認信確定含有的東西 —— .ics 是程式碼固定附加的所以可以指名，資料本身則一律以「前置資料」稱之，MUST NOT 指名影片或任何特定形式（見 D129）。`expired` 與 `invalid` MUST NOT 顯示這段。
 
+- **FR-182**: 上傳替換的白名單為 `vtt` / `srt` / `txt` / `md`，單檔 ≤ 2MB（三小時的逐字稿約 200KB，2MB 已是十倍餘裕）。副檔名與 MIME 都驗，但**內容以實際解析結果為準**：副檔名只是提示，一個叫 `.txt` 的 VTT 檔照樣要被正確處理。
+- **FR-183**: 上傳的檔案是**原料不是成品**。寫入 `consultation_notes.transcript` 之前 MUST 經過與 Zoom 路徑完全相同的三步：`toDialogue()` → `normaliseSpeakers()` → `proofread()`。任何繞過匿名化把原始內容直接落庫的路徑都不允許 —— 那張表的不變量是「裡面的每一份逐字稿都已匿名化」，一個例外就等於沒有這條規則。
+- **FR-184**: 對話解析 MUST 是格式中立的：濾除 WEBVTT 檔頭、`NOTE`/`STYLE`/`REGION` 區塊、純數字序號行（VTT cue 編號與 SRT 序號同形）、以及任何含 `-->` 的時間軸行（VTT 的 `.` 與 SRT 的 `,` 毫秒分隔皆是）。沒有時間軸也沒有講者標籤的純文字 MUST 原樣成為對話行，不得報錯 —— 匿名化找不到對應時交給校訂步驟推斷，這是 FR-106 對「未能對應講者」的既定做法。
+- **FR-185**: 上傳替換的覆寫是無條件的：`transcriptIsSettled()`（FR-110 防重抓）與 `summaryIsLocked()`（人工編修保護）皆 MUST 被略過，摘要與追蹤信草稿一律重新產生並把 `summary_edited_at` 清為 null。理由見 D130 —— 這兩道守門防的是「同一份逐字稿被重複處理」，而上傳的前提正是逐字稿換了一份。
+
 ## 設計決策
 
 - **D126**: 顏色**不落庫**，由名冊順序推導（`users.id` 遞增的位置 → 色票序號）。
@@ -1956,6 +1987,10 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 
 - **D129**: 提醒只寫「前置資料」，不寫「影片」，也不寫「附於確認信中」—— 確認信的本文存在 `email_templates` 且後台隨時可改，程式碼這邊看不到正式站現在真正寄出去的那一版。把頁面文案綁死在一段別人改得動的內容上，只會在某次改模板之後變成叫人去信裡找一個不存在的東西，而且沒有任何測試會紅。同理不寫「附件」：.ics 是附件，資料不是。
 
+- **D130**: 上傳替換**無條件覆寫人工編修過的摘要**（使用者決策）。`summaryIsLocked()` 存在的理由是「別讓自動流程蓋掉人寫的字」，但上傳這個動作本身就是管理員在宣告「原本那份逐字稿是錯的」—— 而那份被人工編修過的摘要，正是從錯的逐字稿長出來、再由人在錯的基礎上修過的。留著它，畫面上就會有一份與逐字稿互相矛盾的摘要，而且看不出是哪一份錯。要保存舊版的人可以先用既有的 `transcript.txt` 下載端點存一份。
+- **D131**: 上傳的原始檔**不落地**。不進 storage、不加欄位、不留備份。`consultation_notes` 現在的形狀是「一場面談一列、只存整理後的結果」，塞一份未匿名化的原始檔進來會在同一張表裡製造出兩種資料等級（一種已匿名、一種沒有），而那張表的存取控管是照「已匿名」設計的。真的需要留底的是管理員自己手上的那份檔案。
+- **D132**: `vttToDialogue()` 更名為 `toDialogue()`，不新增第二支解析器。現有實作其實已經是格式中立的 —— 它濾掉的 `-->` 時間軸行與純數字序號行，正好也是 SRT 的形狀；純 txt 沒有這兩種行，會直接通過。所以這裡要做的是把名字改成它實際的行為，而不是再寫一支八成重複的 parser（重複的 parser 意味著兩份 `/u` 修飾子，而那個修飾子在中文逐字稿上是會不會整份壞掉的差別）。舊名不保留別名：呼叫點只有兩處，留一個過時的名字比改兩行貴。
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2176,6 +2211,8 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 
   不變量：`HighTicketLead::STATUS_LABELS` 的鍵 MUST 恰為 `status` enum 的七個合法值（D122，由測試釘住）。
 
+
+- `consultation_notes` — 本次**無 schema 變更**。上傳替換寫的是既有的 `transcript` / `transcript_fetched_at` / `summary` / `summary_generated_at`，並把 `summary_edited_at` 清為 null；原始上傳檔不落地（D131）。
 
 ## Tasks
 
@@ -2954,7 +2991,28 @@ Phase 4 — 驗證
 - [x] T412 `npm run build` exit 0；`php artisan test --filter=SlotHold` 確認確認流程未受影響
 - [x] T413 使用者實測：走一次確認連結看到三點提醒；同一個連結再點一次（`already`）也看得到
 
+### US34 上傳替換逐字稿（FR-182–FR-185 / D130–D132）
+
+- [x] T414 `vttToDialogue()` 更名 `toDialogue()`，補上 SRT 時間軸（`,` 毫秒分隔）的濾除斷言範圍；更新兩處呼叫點 in `app/Services/ConsultationTranscriptService.php`, `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T415 `ProcessZoomTranscriptJob` 加建構子參數 `?string $rawTranscript = null`：非 null 時跳過 Zoom 下載、直接以該內容跑 `toDialogue → normaliseSpeakers → proofread`，且 MUST 忽略 `transcriptIsSettled()`；`writeSummary()` 在此模式下 MUST 忽略 `summaryIsLocked()` 並把 `summary_edited_at` 清為 null（FR-185）in `app/Jobs/ProcessZoomTranscriptJob.php`
+- [x] T416 `UploadTranscriptRequest`：`file` required、`mimes:vtt,srt,txt,md`、`max:2048`；訊息中文（FR-182）in `app/Http/Requests/Admin/UploadTranscriptRequest.php`
+- [x] T417 `ConsultationNoteController::uploadTranscript()`：讀檔內容 → 以 `toDialogue()` 試解析，結果為空則 422 且不動既有資料 → 派 `ProcessZoomTranscriptJob($note->id, [], force: true, rawTranscript: $content)` → 回 202 in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T418 路由 `POST /admin/consultation-notes/{note}/upload-transcript`（staff 群組、`throttle:10,1`）in `routes/web.php`（000 touchpoint）
+- [x] T419 [P] 面談紀錄列加「上傳替換」：隱藏的 `<input type="file">` + 觸發按鈕，有無逐字稿都顯示；上傳中停用並顯示進度文字，成功後提示「已排入處理，約 1–3 分鐘後重新整理」in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [x] T420 測試：SRT 序號與 `,` 毫秒時間軸被濾除、無講者標籤的純 txt 仍產出對話行、上傳覆寫 `summary_edited_at` 非空的場次、空檔與純時間軸檔回 422 且既有 transcript 不變、非 staff 403、>2MB 422 in `tests/Feature/HighTicket/TranscriptUploadTest.php`
+- [x] T421 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T422 使用者實測：拿那場錄了兩次的面談，上傳正確的那份 VTT，確認逐字稿與摘要都換成新的、且逐字稿裡是「顧問／客戶」而非真名
+
+
 ## 進度日誌
+
+- 2026-09-09: US34 上傳替換逐字稿完成（T414–T421，僅剩 T422 使用者實測）— 落地後最值得記的是**沒有寫新的 parser**：`vttToDialogue()` 只是更名為 `toDialogue()`，一行解析邏輯都沒改就吃得下 SRT，因為它濾掉的 `-->` 時間軸行與純數字序號行正好就是 SRT 的形狀（差別只在毫秒前是 `,` 還是 `.`，而那個字元從來沒被檢查過）；純 txt/md 沒有這兩種行，直接成為對話行。測試特地斷言 `/^\d+$/m` 不存在於輸出中 —— SRT 的序號行如果沒被濾掉，會變成一行只有「1」的台詞混進逐字稿裡。
+  兩處寫入 `transcript` 的路徑收斂成一支 private `storeTranscript()`，Zoom 與上傳都經過它（FR-183）。這不只是去重：只要有兩個地方能寫那個欄位，「表裡每份逐字稿都已匿名化」這條不變量就得靠兩處各自守好。端點在派工**之前**先跑一次 `toDialogue()` 當驗證 —— 副檔名只是提示，真正的判準是解析得出東西沒有；先驗再寫，一個壞檔案才不會把好紀錄毀掉。
+  一個測試斷言寫錯而不是程式錯：`StaffMiddleware` 對非 staff 是 `redirect('/')` 而非 403，測試依實際行為改為 `assertRedirect('/')`。`TranscriptUploadTest` 9 passed、`npm run build` exit 0、全站 `php artisan test` **882 passed（3687 assertions）**。
+
+- 2026-09-09: [draft] 規劃 US34 上傳替換逐字稿（FR-182–FR-185 / D130–D132）— 一場面談錄了兩次時，`findTranscriptFile()` 可能挑中十分鐘的那一段，而畫面上看不出異常：有逐字稿、有摘要、有追蹤信草稿，只是講的是另一場會議。現有兩條路都救不了 —— `抓取逐字稿` 只在沒有逐字稿時出現，`重新產生摘要` 重跑的是同一份錯的原料。
+  設計上最重要的一條是 FR-183：**上傳的是原料不是成品**，必須走完 `toDialogue → normaliseSpeakers → proofread` 才落庫。`consultation_notes` 的不變量是「裡面每一份逐字稿都已匿名化」，開一個直接寫入的後門等於取消這條規則。相對地解析器不新寫（D132）：現有 `vttToDialogue()` 濾掉的 `-->` 時間軸與純數字序號行，正好就是 SRT 的形狀，純 txt 沒有這兩種行會直接通過 —— 要做的是把名字改成它實際的行為。再寫一支等於有兩份 `/u` 修飾子，而那個修飾子在中文逐字稿上是「會不會整份壞掉」的差別。
+  兩個守門在這條路徑上要**主動略過**（FR-185）：`transcriptIsSettled()` 與 `summaryIsLocked()` 防的都是「同一份逐字稿被重複處理」，而上傳的前提正是逐字稿換了一份。人工編修過的摘要照樣覆蓋（D130，使用者決策）—— 那份摘要是從錯的逐字稿長出來、再由人在錯的基礎上修過的，留著只會讓畫面上有兩份互相矛盾又分不出誰錯的東西。原始檔不落地（D131）。無 schema 變更。status: draft 待審核。
 
 - 2026-09-08: 正式站實測通過，T413 勾選，本批全數完成。
 

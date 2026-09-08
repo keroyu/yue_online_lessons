@@ -32,20 +32,27 @@ class ConsultationTranscriptService
     public function __construct(private OpenAiService $ai) {}
 
     /**
-     * VTT → `講者: 內容` lines.
+     * Any subtitle or plain-text transcript → `講者: 內容` lines (011 FR-184).
      *
-     * Drops the WEBVTT header, cue numbers, timing lines and blank lines, and
-     * merges consecutive lines from one speaker back into a single turn (the
-     * transcriber breaks a sentence every few seconds).
+     * Deliberately format-neutral rather than a VTT parser with SRT and text
+     * siblings: what it drops — cue timings and the bare sequence numbers that
+     * precede them — is the shape of SRT as much as VTT (the only difference is
+     * `,` versus `.` before the milliseconds, and neither is inspected), while
+     * plain text and Markdown simply have neither and pass straight through as
+     * turns. One parser is also the point: the `/u` below has to be right in
+     * exactly one place.
      *
-     * Every line split here uses `/u` and that modifier is load-bearing, not
-     * decoration: without it `\R` also matches the raw byte 0x85, which occurs
-     * *inside* countless CJK characters, so a Chinese transcript gets sliced
-     * mid-character and every downstream json_encode fails on malformed UTF-8.
+     * That modifier is load-bearing, not decoration: without it `\R` also
+     * matches the raw byte 0x85, which occurs *inside* countless CJK
+     * characters, so a Chinese transcript gets sliced mid-character and every
+     * downstream json_encode fails on malformed UTF-8.
+     *
+     * Consecutive lines from one speaker are merged back into a single turn
+     * (the transcriber breaks a sentence every few seconds).
      */
-    public function vttToDialogue(string $vtt): string
+    public function toDialogue(string $raw): string
     {
-        $lines = preg_split('/\R/u', trim($vtt)) ?: [];
+        $lines = preg_split('/\R/u', trim($raw)) ?: [];
         $turns = [];
 
         foreach ($lines as $line) {

@@ -61,7 +61,8 @@
     "app/Http/Controllers/Admin/ConsultationNoteController.php": [
       "011.us-23",
       "011.us-25",
-      "011.us-29"
+      "011.us-29",
+      "011.us-34"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
       "011.us-10",
@@ -496,6 +497,9 @@
     "app/Http/Requests/Admin/UpdateSocialLinkRequest.php": [
       "002.us-4"
     ],
+    "app/Http/Requests/Admin/UploadTranscriptRequest.php": [
+      "011.us-34"
+    ],
     "app/Http/Requests/Auth/SendVerificationCodeRequest.php": [
       "001.us-1"
     ],
@@ -550,7 +554,8 @@
     "app/Jobs/ProcessZoomTranscriptJob.php": [
       "011.us-23",
       "011.us-25",
-      "011.us-29"
+      "011.us-29",
+      "011.us-34"
     ],
     "app/Jobs/SendBroadcastEmailJob.php": [
       "012.us-5"
@@ -847,7 +852,8 @@
     ],
     "app/Services/ConsultationTranscriptService.php": [
       "011.us-23",
-      "011.us-29"
+      "011.us-29",
+      "011.us-34"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -1405,7 +1411,8 @@
     ],
     "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue": [
       "011.us-23",
-      "011.us-25"
+      "011.us-25",
+      "011.us-34"
     ],
     "resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue": [
       "011.us-23"
@@ -1941,6 +1948,7 @@
       "011.us-25",
       "011.us-27",
       "011.us-31",
+      "011.us-34",
       "011.us-6",
       "011.us-8",
       "012.us-2"
@@ -2082,6 +2090,9 @@
     ],
     "tests/Feature/HighTicket/SupportEmailTest.php": [
       "011.us-11"
+    ],
+    "tests/Feature/HighTicket/TranscriptUploadTest.php": [
+      "011.us-34"
     ],
     "tests/Feature/HighTicket/ZoomMeetingTest.php": [
       "011.us-12"

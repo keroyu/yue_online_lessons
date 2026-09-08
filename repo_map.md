@@ -616,6 +616,7 @@ main_files:
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php
+- app/Http/Requests/Admin/UploadTranscriptRequest.php
 - app/Http/Requests/BookingScreeningRequest.php
 - app/Http/Requests/CheckoutRequest.php
 - app/Http/Requests/HighTicketBookingRequest.php
@@ -738,6 +739,7 @@ main_files:
 - tests/Feature/HighTicket/PlanSwitchTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
 - tests/Feature/HighTicket/SupportEmailTest.php
+- tests/Feature/HighTicket/TranscriptUploadTest.php
 - tests/Feature/HighTicket/ZoomMeetingTest.php
 - tests/Support/BooksHighTicket.php
 

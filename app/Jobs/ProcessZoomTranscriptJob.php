@@ -41,11 +41,16 @@ class ProcessZoomTranscriptJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $payload  Zoom's `payload` object plus `download_token`
+     * @param  ?string  $rawTranscript  An admin-uploaded transcript replacing the
+     *   Zoom download (011 US34). Raw material, not a finished article: it goes
+     *   through the same normalise + proofread pass as anything Zoom sends, so
+     *   no un-anonymised text can reach the table (FR-183).
      */
     public function __construct(
         public int $noteId,
         public array $payload = [],
         public bool $force = false,
+        public ?string $rawTranscript = null,
     ) {
         // Only when we are genuinely queueing. Under `sync` (tests, and the
         // manual artisan command) the work runs inline and there is no lease to
@@ -77,8 +82,19 @@ class ProcessZoomTranscriptJob implements ShouldQueue
         // Already fetched and proofread. Skipping early is what stops the second
         // of Zoom's two recording events from paying for the same tokens twice
         // (FR-110); `--force` is the way to redo one deliberately.
+        //
+        // An upload is always a redo: the guard defends against reprocessing the
+        // same transcript, and the whole premise here is that it changed
+        // (FR-185). $force is set by the endpoint, so this reads as one rule.
         if ($note->transcriptIsSettled() && !$this->force) {
             Log::info('Consultation transcript: skipped, already fetched', ['note_id' => $note->id]);
+
+            return;
+        }
+
+        // The upload path skips Zoom entirely; everything after this is shared.
+        if ($this->rawTranscript !== null) {
+            $this->storeTranscript($note, $transcripts, $this->rawTranscript);
 
             return;
         }
@@ -107,7 +123,19 @@ class ProcessZoomTranscriptJob implements ShouldQueue
             (string) ($this->payload['download_token'] ?? '')
         );
 
-        $dialogue = $transcripts->vttToDialogue($vtt);
+        $this->storeTranscript($note, $transcripts, $vtt);
+    }
+
+    /**
+     * The one path into `consultation_notes.transcript` (FR-183): whatever the
+     * source, it is dialogue-parsed, anonymised and proofread first.
+     */
+    private function storeTranscript(
+        ConsultationNote $note,
+        ConsultationTranscriptService $transcripts,
+        string $raw,
+    ): void {
+        $dialogue = $transcripts->toDialogue($raw);
         $dialogue = $transcripts->normaliseSpeakers($dialogue, $note);
         $transcript = $transcripts->proofread($dialogue, $note);
 
@@ -117,8 +145,9 @@ class ProcessZoomTranscriptJob implements ShouldQueue
         ]);
 
         Log::info('Consultation transcript stored', [
-            'note_id' => $note->id,
-            'chars'   => mb_strlen($transcript),
+            'note_id'  => $note->id,
+            'chars'    => mb_strlen($transcript),
+            'uploaded' => $this->rawTranscript !== null,
         ]);
     }
 
@@ -126,6 +155,9 @@ class ProcessZoomTranscriptJob implements ShouldQueue
     {
         $note->refresh();
 
+        // Same reasoning as the transcript guard above: a lock protects a human
+        // edit from an automatic rerun, but a summary written off a transcript
+        // that has just been replaced is describing a different meeting.
         if ($note->summaryIsLocked() && !$this->force) {
             Log::info('Consultation summary: skipped, human-edited', ['note_id' => $note->id]);
 
