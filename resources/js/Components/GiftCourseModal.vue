@@ -37,6 +37,7 @@ const emit = defineEmits(['close', 'gifted'])
 
 // Form state
 const selectedCourseId = ref('')
+const selectedPlanId = ref('')
 const errors = ref({})
 const sending = ref(false)
 const fetchingIds = ref(false)
@@ -47,10 +48,24 @@ const selectedCourse = computed(() => {
   return props.courses.find(c => c.id === parseInt(selectedCourseId.value))
 })
 
+// A course with plans has no "whole course" option: leaving it unpicked used
+// to gift the top tier for free (008 D9).
+const coursePlans = computed(() => selectedCourse.value?.plans ?? [])
+const planRequired = computed(() => coursePlans.value.length > 0)
+const planMissing = computed(() => planRequired.value && !selectedPlanId.value)
+const selectedPlan = computed(
+  () => coursePlans.value.find(p => p.id === parseInt(selectedPlanId.value)) || null,
+)
+
+watch(selectedCourseId, () => {
+  selectedPlanId.value = ''
+})
+
 // Reset form when modal opens
 watch(() => props.show, (newVal) => {
   if (newVal) {
     selectedCourseId.value = ''
+    selectedPlanId.value = ''
     errors.value = {}
     sending.value = false
   }
@@ -62,6 +77,10 @@ const validate = () => {
 
   if (!selectedCourseId.value) {
     errors.value.course_id = '請選擇要贈送的課程'
+  }
+
+  if (planMissing.value) {
+    errors.value.course_plan_id = '此課程分方案販售，請選擇要贈送的方案'
   }
 
   return Object.keys(errors.value).length === 0
@@ -115,6 +134,7 @@ const giftCourse = async () => {
     const response = await axios.post('/admin/members/gift-course', {
       member_ids: idsToGift,
       course_id: parseInt(selectedCourseId.value),
+      course_plan_id: selectedPlanId.value ? parseInt(selectedPlanId.value) : null,
     })
 
     emit('gifted', {
@@ -286,9 +306,37 @@ const labelClasses = 'block text-sm font-semibold text-gray-900'
                     </p>
                   </div>
 
+                  <!-- Tiered course: the plan is required, no whole-course option -->
+                  <div v-if="planRequired">
+                    <label for="course-plan" :class="labelClasses">
+                      贈送方案 <span class="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="course-plan"
+                      v-model="selectedPlanId"
+                      :disabled="sending"
+                      class="mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-green-500 focus:ring-green-500"
+                      :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': errors.course_plan_id }"
+                    >
+                      <option value="">請選擇方案</option>
+                      <option v-for="plan in coursePlans" :key="plan.id" :value="plan.id">
+                        {{ plan.name }}
+                      </option>
+                    </select>
+                    <p v-if="errors.course_plan_id" class="mt-2 text-sm text-red-600">
+                      {{ errors.course_plan_id }}
+                    </p>
+                    <p v-else class="mt-2 text-sm text-gray-500">
+                      此課程分方案販售，要開放完整課程請於會員詳情調整
+                    </p>
+                  </div>
+
                   <!-- Course preview -->
                   <div v-if="selectedCourse" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h4 class="font-medium text-gray-900 mb-2">{{ selectedCourse.name }}</h4>
+                    <h4 class="font-medium text-gray-900 mb-2">
+                      {{ selectedCourse.name }}
+                      <span v-if="selectedPlan" class="text-sm font-normal text-gray-500">／{{ selectedPlan.name }}</span>
+                    </h4>
                     <p class="text-sm text-gray-600">
                       {{ selectedCourse.description || '（無課程簡介）' }}
                     </p>
@@ -325,7 +373,7 @@ const labelClasses = 'block text-sm font-semibold text-gray-900'
                   type="button"
                   class="px-6 py-2.5 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                   @click="giftCourse"
-                  :disabled="sending || fetchingIds || !selectedCourseId"
+                  :disabled="sending || fetchingIds || !selectedCourseId || planMissing"
                 >
                   <template v-if="sending || fetchingIds">
                     <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

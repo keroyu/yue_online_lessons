@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Papa from 'papaparse'
 
@@ -13,6 +13,26 @@ const emit = defineEmits(['close'])
 
 const activeTab = ref('text')
 const selectedCourseId = ref('')
+const selectedPlanId = ref('')
+
+const selectedCourse = computed(
+  () => props.courses.find((c) => c.id === parseInt(selectedCourseId.value)) || null,
+)
+
+// A course with plans has no "whole course" option: leaving it unpicked used
+// to hand out the top tier for free (008 D9).
+const coursePlans = computed(() => selectedCourse.value?.plans ?? [])
+const planRequired = computed(() => coursePlans.value.length > 0)
+const planMissing = computed(() => planRequired.value && !selectedPlanId.value)
+
+watch(selectedCourseId, () => {
+  selectedPlanId.value = ''
+})
+
+const assignmentPayload = () => ({
+  course_id: selectedCourseId.value || null,
+  course_plan_id: selectedPlanId.value || null,
+})
 
 // Text tab state
 const emailsText = ref('')
@@ -28,7 +48,7 @@ const result = ref(null)
 const error = ref(null)
 
 const handleImport = async () => {
-  if (!emailsText.value.trim()) return
+  if (!emailsText.value.trim() || planMissing.value) return
 
   importing.value = true
   error.value = null
@@ -37,11 +57,13 @@ const handleImport = async () => {
   try {
     const response = await axios.post('/admin/members/import', {
       emails: emailsText.value,
-      course_id: selectedCourseId.value || null,
+      ...assignmentPayload(),
     })
     result.value = response.data
   } catch (err) {
-    if (err.response?.data?.errors?.emails) {
+    if (err.response?.data?.errors?.course_plan_id) {
+      error.value = err.response.data.errors.course_plan_id[0]
+    } else if (err.response?.data?.errors?.emails) {
       error.value = err.response.data.errors.emails[0]
     } else {
       error.value = err.response?.data?.message || '匯入失敗，請稍後再試'
@@ -96,7 +118,7 @@ const handleCsvCancel = () => {
 }
 
 const handleCsvImport = async () => {
-  if (csvRows.value.length === 0) return
+  if (csvRows.value.length === 0 || planMissing.value) return
 
   importing.value = true
   error.value = null
@@ -111,11 +133,13 @@ const handleCsvImport = async () => {
   try {
     const response = await axios.post('/admin/members/import', {
       rows,
-      course_id: selectedCourseId.value || null,
+      ...assignmentPayload(),
     })
     result.value = response.data
   } catch (err) {
-    if (err.response?.data?.errors?.rows) {
+    if (err.response?.data?.errors?.course_plan_id) {
+      error.value = err.response.data.errors.course_plan_id[0]
+    } else if (err.response?.data?.errors?.rows) {
       error.value = err.response.data.errors.rows[0]
     } else {
       error.value = err.response?.data?.message || '匯入失敗，請稍後再試'
@@ -213,6 +237,27 @@ const handleClose = () => {
                 </option>
               </select>
               <p v-if="selectedCourseId" class="text-xs text-gray-400 mt-1">來源將記錄為「顧問轉換」；已持有者自動略過</p>
+
+              <!-- Tiered course: the plan is required, no whole-course option -->
+              <div v-if="planRequired" class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  授權方案 <span class="text-red-600">*</span>
+                </label>
+                <select
+                  v-model="selectedPlanId"
+                  class="block w-full rounded-md shadow-sm sm:text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  :class="planMissing ? 'border-red-300' : 'border-gray-300'"
+                  :disabled="importing"
+                >
+                  <option value="">請選擇方案</option>
+                  <option v-for="plan in coursePlans" :key="plan.id" :value="plan.id">
+                    {{ plan.name }}
+                  </option>
+                </select>
+                <p class="text-xs mt-1" :class="planMissing ? 'text-red-600' : 'text-gray-400'">
+                  此課程分方案販售，請指定要授權的方案；要開放完整課程請於會員詳情調整
+                </p>
+              </div>
             </div>
 
             <!-- Tab buttons -->
@@ -322,7 +367,7 @@ const handleClose = () => {
             v-if="!result && activeTab === 'text'"
             type="button"
             @click="handleImport"
-            :disabled="importing || !emailsText.trim()"
+            :disabled="importing || !emailsText.trim() || planMissing"
             class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <template v-if="importing">匯入中…</template>
@@ -342,7 +387,7 @@ const handleClose = () => {
             <button
               type="button"
               @click="handleCsvImport"
-              :disabled="importing"
+              :disabled="importing || planMissing"
               class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <template v-if="importing">匯入中…</template>

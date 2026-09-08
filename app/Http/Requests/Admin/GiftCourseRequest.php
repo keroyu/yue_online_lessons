@@ -25,6 +25,9 @@ class GiftCourseRequest extends FormRequest
             'member_ids' => ['required', 'array', 'min:1'],
             'member_ids.*' => ['exists:users,id'],
             'course_id' => ['required', 'exists:courses,id'],
+            // Whether it is required, and whether it belongs to the course, is
+            // decided in the controller alongside the import path (008 D11).
+            'course_plan_id' => ['nullable', 'integer', 'exists:course_plans,id'],
         ];
     }
 
@@ -40,6 +43,7 @@ class GiftCourseRequest extends FormRequest
             'member_ids.*.exists' => '選擇的會員不存在',
             'course_id.required' => '請選擇要贈送的課程',
             'course_id.exists' => '選擇的課程不存在',
+            'course_plan_id.exists' => '選擇的方案不存在',
         ];
     }
 }

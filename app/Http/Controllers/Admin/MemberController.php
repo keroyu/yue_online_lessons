@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,7 +83,10 @@ class MemberController extends Controller
             ->withQueryString();
 
         // Get all courses for the filter dropdown and gift course modal
+        // Plans ride along so the gift / import pickers can require a tier
+        // without a second round trip (008 D10). plans() already sorts.
         $courses = Course::select('id', 'name', 'description')
+            ->with('plans:id,course_id,name,sort_order')
             ->orderBy('name')
             ->get();
 
@@ -443,6 +447,10 @@ class MemberController extends Controller
         $memberIds = $request->input('member_ids');
         $courseId = $request->input('course_id');
 
+        // Before the member lookup: an impossible course/plan pair must 422
+        // without gifting anyone (FR-010).
+        $planId = $this->resolveCoursePlanId((int) $courseId, $request->input('course_plan_id'));
+
         // Get valid members (members only)
         $validMembers = User::whereIn('id', $memberIds)
             ->members()
@@ -499,6 +507,7 @@ class MemberController extends Controller
                 Purchase::updateOrCreate(
                     ['user_id' => $member->id, 'course_id' => $courseId],
                     [
+                        'course_plan_id' => $planId,
                         'buyer_email' => $member->email ?? '',
                         'amount' => 0,
                         'currency' => 'TWD',
@@ -623,8 +632,12 @@ class MemberController extends Controller
     {
         $courseId = $request->integer('course_id') ?: null;
 
+        // Guarded before anything is written, so a bad combination leaves no
+        // member accounts behind either (FR-010).
+        $planId = $this->resolveCoursePlanId($courseId, $request->input('course_plan_id'));
+
         if ($request->has('rows')) {
-            return $this->importFromRows($request->input('rows', []), $courseId);
+            return $this->importFromRows($request->input('rows', []), $courseId, $planId);
         }
 
         $request->validate([
@@ -674,7 +687,7 @@ class MemberController extends Controller
                 $createdCount++;
             }
 
-            if ($courseId && $this->grantCourse($user, $courseId)) {
+            if ($courseId && $this->grantCourse($user, $courseId, $planId)) {
                 $assignedCount++;
             }
         }
@@ -706,7 +719,7 @@ class MemberController extends Controller
      * Import members from CSV rows sent as a JSON array.
      * Each row: { email, real_name, phone }
      */
-    private function importFromRows(array $rows, ?int $courseId = null): JsonResponse
+    private function importFromRows(array $rows, ?int $courseId = null, ?int $planId = null): JsonResponse
     {
         if (empty($rows)) {
             return response()->json([
@@ -751,7 +764,7 @@ class MemberController extends Controller
                 $createdCount++;
             }
 
-            if ($courseId && $this->grantCourse($user, $courseId)) {
+            if ($courseId && $this->grantCourse($user, $courseId, $planId)) {
                 $assignedCount++;
             }
         }
@@ -783,9 +796,56 @@ class MemberController extends Controller
     }
 
     /**
+     * Resolve the plan id an admin-granted purchase must carry (FR-010).
+     *
+     * A null course_plan_id on a paid purchase means "the whole course"
+     * (FR-011), so a tiered course with nothing picked is refused rather than
+     * quietly written as null — that silence is exactly what handed out the
+     * top tier for free. A plan on a course that has none is refused too, for
+     * the same reason: ignoring the field is how this bug shipped.
+     *
+     * Lives here rather than in a Form Request because the import endpoint has
+     * none (it splits two payload shapes inline), and one rule in two places
+     * only ever gets fixed in one (008 D11).
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private function resolveCoursePlanId(?int $courseId, mixed $planId): ?int
+    {
+        if (!$courseId) {
+            return null;
+        }
+
+        $planId = ($planId === null || $planId === '') ? null : (int) $planId;
+        $hasPlans = CoursePlan::where('course_id', $courseId)->exists();
+
+        if ($planId === null) {
+            if ($hasPlans) {
+                throw ValidationException::withMessages([
+                    'course_plan_id' => '此課程已設定方案，請選擇要授權的方案',
+                ]);
+            }
+
+            return null;
+        }
+
+        $belongs = CoursePlan::where('id', $planId)
+            ->where('course_id', $courseId)
+            ->exists();
+
+        if (!$belongs) {
+            throw ValidationException::withMessages([
+                'course_plan_id' => $hasPlans ? '所選方案不屬於此課程' : '此課程未設定方案，不可指定方案',
+            ]);
+        }
+
+        return $planId;
+    }
+
+    /**
      * Grant course access to a user as lead_conversion. Returns false if already owned.
      */
-    private function grantCourse(User $user, int $courseId): bool
+    private function grantCourse(User $user, int $courseId, ?int $planId = null): bool
     {
         $alreadyOwns = Purchase::where('user_id', $user->id)
             ->where('course_id', $courseId)
@@ -799,6 +859,7 @@ class MemberController extends Controller
         Purchase::updateOrCreate(
             ['user_id' => $user->id, 'course_id' => $courseId],
             [
+                'course_plan_id' => $planId,
                 'buyer_email' => $user->email ?? '',
                 'amount' => 0,
                 'currency' => 'TWD',
