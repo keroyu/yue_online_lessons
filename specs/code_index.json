@@ -389,7 +389,8 @@
       "011.us-7"
     ],
     "app/Http/Requests/Admin/GiftCourseRequest.php": [
-      "008.us-6"
+      "008.us-6",
+      "008.us-8"
     ],
     "app/Http/Requests/Admin/GrantPointsRequest.php": [
       "007.us-6"
@@ -1952,6 +1953,10 @@
     ],
     "tests/Feature/Admin/CourseTypeTest.php": [
       "004.us-2"
+    ],
+    "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php": [
+      "008.us-6",
+      "008.us-8"
     ],
     "tests/Feature/CheckoutTrafficSourceTest.php": [
       "002.us-10"

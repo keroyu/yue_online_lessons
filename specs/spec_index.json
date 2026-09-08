@@ -2413,7 +2413,7 @@
       "id": "008.us-6",
       "module": "008-members-admin",
       "title": "贈送課程",
-      "summary": "批次贈課建立 type=gift purchase 並寄送通知信，已持有者略過",
+      "summary": "批次贈課建立 type=gift purchase 並寄送通知信，已持有者略過；多方案課程須指定方案",
       "heading": "### User Story 6 - 贈送課程 (Priority: P3)",
       "file": "specs/008-members-admin/spec.md",
       "anchor": "user-story-6---贈送課程-priority-p3",
@@ -2424,14 +2424,18 @@
         "type=gift",
         "updateOrCreate",
         "CourseGiftedMail",
-        "already owned"
+        "already owned",
+        "course_plan_id",
+        "方案",
+        "course plan"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/MemberController.php",
         "app/Http/Requests/Admin/GiftCourseRequest.php",
         "app/Mail/CourseGiftedMail.php",
         "resources/views/emails/course-gifted.blade.php",
-        "resources/js/Components/GiftCourseModal.vue"
+        "resources/js/Components/GiftCourseModal.vue",
+        "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php"
       ],
       "status": "implemented"
     },
@@ -2462,7 +2466,7 @@
       "id": "008.us-8",
       "module": "008-members-admin",
       "title": "匯入會員名單",
-      "summary": "貼上 Email 名單或上傳 CSV 批次建立會員，可選指派課程授權",
+      "summary": "貼上 Email 名單或上傳 CSV 批次建立會員，可選指派課程授權；多方案課程須指定方案",
       "heading": "### User Story 8 - 匯入會員名單 (Priority: P3)",
       "file": "specs/008-members-admin/spec.md",
       "anchor": "user-story-8---匯入會員名單-priority-p3",
@@ -2475,11 +2479,16 @@
         "指派課程",
         "電話驗證",
         "去重",
-        "ImportMembersModal"
+        "ImportMembersModal",
+        "course_plan_id",
+        "方案",
+        "course plan"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/MemberController.php",
-        "resources/js/Components/ImportMembersModal.vue"
+        "resources/js/Components/ImportMembersModal.vue",
+        "app/Http/Requests/Admin/GiftCourseRequest.php",
+        "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php"
       ],
       "status": "implemented"
     },
@@ -3381,7 +3390,11 @@
         "冪等",
         "idempotent",
         "booking confirm",
-        "爽約"
+        "爽約",
+        "行前提醒",
+        "確認頁",
+        "pre-consultation reminder",
+        "前置資料"
       ],
       "code_files": [
         "app/Http/Controllers/BookingConfirmController.php",
@@ -3407,7 +3420,7 @@
         "app/Http/Controllers/Admin/EmailTemplateController.php",
         "resources/js/Pages/Admin/EmailTemplates/Index.vue"
       ],
-      "status": "implemented"
+      "status": "partial"
     },
     {
       "id": "011.us-12",

@@ -477,6 +477,7 @@ main_files:
 - resources/js/Pages/Admin/Members/Index.vue
 - resources/views/emails/batch-email.blade.php
 - resources/views/emails/course-gifted.blade.php
+- tests/Feature/Admin/MemberCoursePlanAssignmentTest.php
 
 related_specs:
 - specs/008-members-admin/spec.md

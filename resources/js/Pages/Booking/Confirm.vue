@@ -18,13 +18,28 @@ const views = {
     icon: '✓',
     tone: 'bg-green-50 border-green-200 text-green-800',
     title: '確認已完成預約',
-    body: '相關資料已寄出，建議在諮詢時間以前看完。',
+    body: '預約確認信已經寄出，我們到時候見。',
+    // Wording stays deliberately generic: the confirmation mail body lives in
+    // email_templates and is editable from the admin, so naming a format here
+    // would eventually point people at something that is no longer in the
+    // mail — and nothing would fail (FR-181 / D129). The .ics is the one thing
+    // the code attaches unconditionally, so that one can be named.
+    reminders: [
+      { label: '查收確認信', text: '信裡有時段、會議連結與行事曆邀請。沒收到請看一下垃圾郵件。' },
+      { label: '把時段排進行程', text: '信中附有行事曆邀請，打開就能加進日曆。' },
+      { label: '看完前置資料', text: '諮詢時間有限，先看完我們才有時間談真正重要的事。' },
+    ],
   },
   already: {
     icon: '✓',
     tone: 'bg-green-50 border-green-200 text-green-800',
     title: '這筆預約已經確認過了',
-    body: '不需要再做任何事，我們到時候見。相關資料先前已寄到你的信箱。',
+    body: '不需要再確認一次，我們到時候見。',
+    reminders: [
+      { label: '查收確認信', text: '先前已寄到你的信箱，裡面有時段、會議連結與行事曆邀請。' },
+      { label: '把時段排進行程', text: '信中附有行事曆邀請，打開就能加進日曆。' },
+      { label: '看完前置資料', text: '諮詢時間有限，先看完我們才有時間談真正重要的事。' },
+    ],
   },
   expired: {
     icon: '!',
@@ -45,6 +60,7 @@ const views = {
 
 const view = computed(() => views[props.state] ?? views.invalid)
 const showSlot = computed(() => props.slotLabel && ['confirmed', 'already'].includes(props.state))
+const reminders = computed(() => view.value.reminders ?? [])
 </script>
 
 <template>
@@ -61,6 +77,24 @@ const showSlot = computed(() => props.slotLabel && ['confirmed', 'already'].incl
       <div v-if="showSlot" class="mt-5 rounded-xl bg-white/70 px-4 py-3 text-sm">
         <p v-if="courseName" class="font-semibold">{{ courseName }}</p>
         <p class="mt-1 tabular-nums">{{ slotLabel }}</p>
+      </div>
+
+      <!-- Three things to do before the consultation (FR-181) -->
+      <div v-if="reminders.length" class="mt-5 rounded-xl bg-white/70 px-4 py-4 text-left">
+        <p class="text-xs font-semibold tracking-wide uppercase opacity-70">諮詢前請完成</p>
+        <ol class="mt-3 space-y-3">
+          <li v-for="(item, i) in reminders" :key="item.label" class="flex gap-3 text-sm leading-relaxed">
+            <span
+              class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full bg-white flex items-center justify-center text-xs font-bold tabular-nums"
+            >
+              {{ i + 1 }}
+            </span>
+            <span>
+              <strong class="font-semibold">{{ item.label }}</strong>
+              <span class="opacity-90">：{{ item.text }}</span>
+            </span>
+          </li>
+        </ol>
       </div>
     </div>
 
