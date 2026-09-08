@@ -4,6 +4,7 @@ import { router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import UserSocialIcons from '@/Components/UserSocialIcons.vue'
 import { marked } from 'marked'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -15,6 +16,12 @@ const props = defineProps({
   filters: Object,
   assignmentsMap: Array,
 })
+
+const goToSubmissionsPage = (page) => {
+  router.get('/admin/homework', { ...props.filters, page }, {
+    only: ['submissions'], preserveState: true, preserveScroll: true,
+  })
+}
 
 const page = usePage()
 
@@ -412,25 +419,11 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
         <!-- Pagination -->
         <div v-if="submissions.last_page > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm">
           <span class="text-gray-500">第 {{ submissions.current_page }} / {{ submissions.last_page }} 頁，共 {{ submissions.total }} 筆</span>
-          <div class="flex gap-1">
-            <button
-              :disabled="submissions.current_page === 1"
-              class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              @click="router.get('/admin/homework', { ...filters, page: submissions.current_page - 1 }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
-            >‹</button>
-            <button
-              v-for="page in submissions.last_page"
-              :key="page"
-              class="px-3 py-1 rounded"
-              :class="page === submissions.current_page ? 'bg-brand-teal text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-              @click="router.get('/admin/homework', { ...filters, page }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
-            >{{ page }}</button>
-            <button
-              :disabled="submissions.current_page === submissions.last_page"
-              class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              @click="router.get('/admin/homework', { ...filters, page: submissions.current_page + 1 }, { only: ['submissions'], preserveState: true, preserveScroll: true })"
-            >›</button>
-          </div>
+          <Pagination
+            :current-page="submissions.current_page"
+            :last-page="submissions.last_page"
+            @change="goToSubmissionsPage"
+          />
         </div>
       </div>
 

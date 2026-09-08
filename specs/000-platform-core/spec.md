@@ -1,6 +1,6 @@
 ---
 id: 000-platform-core
-status: done
+status: building
 owner_files:
   - app/Models/AiPrompt.php
   - app/Services/OpenAiService.php
@@ -10,6 +10,7 @@ owner_files:
   - tests/Feature/Platform/AiSettingsTest.php
   - app/Http/Controllers/Controller.php
   - resources/js/Components/Admin/HintBox.vue
+  - resources/js/Components/Pagination.vue
   - app/Models/EmailSuppression.php
   - app/Services/EmailSuppressionService.php
   - app/Listeners/RecordEmailSuppression.php
@@ -62,6 +63,42 @@ owner_files:
   - resources/views/sitemap.blade.php
   - resources/views/welcome.blade.php
 touchpoints:
+  - file: resources/js/Pages/Admin/Posts/Index.vue
+    owner: 012-newsletter
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/Broadcasts/Index.vue
+    owner: 012-newsletter
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Blog/Index.vue
+    owner: 012-newsletter
+    why: 前台文章列表的上一頁下一頁改用共用 Pagination 元件的 href 模式（FR-030 / FR-031）
+  - file: resources/js/Pages/Blog/Tag.vue
+    owner: 012-newsletter
+    why: tag 頁與 /blog 是各自的檔案，同樣改 href 模式（FR-030 / FR-031）
+  - file: resources/js/Pages/Admin/Homework/Index.vue
+    owner: 003-classroom
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/Members/Index.vue
+    owner: 008-members-admin
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/Transactions/Index.vue
+    owner: 009-transactions-admin
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/Coupons/Index.vue
+    owner: 006-coupons
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/CouponChains/Index.vue
+    owner: 006-coupons
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Components/Admin/Leads/BookingListTab.vue
+    owner: 011-high-ticket
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Components/Admin/Leads/SubscriberListTab.vue
+    owner: 010-drip-email
+    why: 分頁列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Member/Points.vue
+    owner: 007-points-referral
+    why: 積分明細分頁由 Laravel links 陣列改用共用 Pagination 元件（FR-030）
   - file: app/Services/CartService.php
     owner: 005-checkout
     why: HandleInertiaRequests 全域共享 cartCount 時呼叫 CartService::count()
@@ -337,6 +374,10 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - **FR-029**: `OpenAiService::respond()` 為全站唯一的 OpenAI 呼叫點。憑證未設定或指定的 `ai_prompts` 列不存在時 MUST 回 `null` 而非丟例外 —— 呼叫端據此靜默跳過該功能，本機與 CI 永遠不需要真的 API key（沿用 011 D40 對 Zoom 的既有立場）。模型解析順序為 `ai_prompts.model` → `site_settings.openai_default_model` → `config('ai.default_model')`。
   取文字時 MUST **依 `type` 走訪 `output` 陣列找 `message`**，MUST NOT 假設 `output.0` —— 推理模型會先放一個空的 `reasoning` 項、`message` 在其後，讀索引 0 會得到空字串並誤判成「模型沒回話」。另外，200 卻取不到文字 MUST 寫 warning：那是解析錯誤或回應格式變動，不是「未設定」，兩者用同一種靜默的 null 表達就沒有人會發現
 
+- **FR-030**: 全站**每一個**分頁導覽 MUST 使用 `Components/Pagination.vue`，MUST NOT 自行 `v-for="p in last_page"`、自行拼上一頁／下一頁，或直接渲染 Laravel 的 `links` 陣列。元件最多渲染 **10 個頁碼位置**：當前頁置中的滑動視窗，加上恆常可見的第 1 頁與最後一頁，被截掉的區段以不可點的 `…` 表示；當前頁撞到頭尾時視窗往另一側補滿，位置數不因此變少。`last_page <= 10` 時 MUST 完整列出且 MUST NOT 出現 `…`；`last_page <= 1` 時 MUST 不渲染任何東西。
+
+- **FR-031**: 元件有兩種導覽模式，呼叫端二選一：未給 `href` 時渲染 `<button>` 並 `emit('change', page)`（後台各列表用，換頁邏輯留在呼叫端）；給了 `href`（`(page) => string`）時渲染 Inertia `<Link>`。前台 `/blog` 與 tag 頁 MUST 用 href 模式 —— 那裡的分頁是**爬蟲要跟得到的真連結**，換成只有 click handler 的按鈕等於把第 2 頁以後的文章從索引裡拿掉。
+
 ## 設計決策
 
 - **D29**: AI prompt 存**獨立的 `ai_prompts` 表**，不散成 `site_settings` 的一堆 key。使用者要求這頁「方便以後擴展到其他 AI 功能」，而用表的話新增一個功能 = 插一列資料、設定頁自動長出區塊；用 site_settings 的話每加一個功能都要動 controller 與 Vue。這與 D2「新增設定鍵零 migration」不衝突：D2 的前提是設定鍵彼此獨立、UI 各自寫死，而 prompt 是**同構的一組**，同構的東西該用列而不是鍵。
@@ -373,6 +414,11 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
   **實作限制**：`SiteSetting::get()` 無快取，覆寫 `config('resend.webhook.secret')` MUST 只發生在 webhook 那條路徑上，不得放進每個 request 都跑的 boot 流程（否則全站每次請求多一次 DB query）。**掛載點是 `RouteMatched` 事件、不是 `AppServiceProvider::boot()` 本體**：套件的 `WebhookController` 建構子讀 `config('resend.webhook.secret')` 決定要不要掛驗簽 middleware，而建構子是路由比對後、middleware 組裝前才執行；`boot()` 本身每個 process 只跑一次（測試環境甚至整個 test case 只跑一次），無從得知「這次 request 是不是打中 webhook」。改監聽 `RouteMatched` 判斷 `$route->getName() === 'resend.webhook'` 才查 DB，同時滿足「只在 webhook 路徑查」與「per-request 都能正確生效」兩個條件，也讓這段邏輯可以直接用真實 HTTP 測試驗證（不必 mock）。
   **未來工作**：`RESEND_API_KEY` 仍在 env，量販時客戶無法自助設定自己的 Resend 帳號。搬它會動到 mail transport 的憑證來源、風險與本故事不同級（設錯＝整站寄不出信），另開 US 處理。
 - **D28**: 交易信只被 bounce 擋、不被 complaint 擋 — 地址不存在時連驗證碼都送不到（寄了純浪費），但「嫌行銷信煩而按檢舉」的人仍然需要收到自己主動觸發的驗證碼與預約確認信
+
+- **D32**: 頁碼收斂成單一共用元件而不是各頁 inline —— 這段程式碼在專案裡有**三種寫法、十個副本**（三份無上限頁碼、六份上一頁／下一頁、一份直接吐 Laravel `links`），也就是說下一個列表頁會貼上第十一份。元件只吃 `current-page` / `last-page` 兩個數字，不碰 router：呼叫端換頁的方式各不相同（帶篩選的 `router.get`、`preserveState`、`preserveScroll` 各有各的），把導覽塞進元件會逼出一個誰都不合身的 props 介面。
+- **D33**: 元件放 `Components/Pagination.vue` 而非 `Components/Admin/` —— 會員積分頁與前台 `/blog` 也在使用者要求的「全部」範圍內，放進 `Admin/` 會讓每個非後台呼叫端都在說謊。樣式因此不能寫死後台色票：當前頁用 `bg-brand-navy text-white`（現有後台頁碼列的樣式），其餘為中性灰邊框，前後台共用同一組。
+- **D34**: `Member/Points.vue` 原本直接渲染 Laravel 的 `links` 陣列並用 `v-html` 輸出 `label`（`&laquo; Previous` 這類 HTML entity）。改用元件後 `v-html` 一併消失 —— 那是為了顯示 `«` 而開的一個 `v-html`，資料雖然來自 Laravel 而非使用者，但一個純顯示的分頁列不該有這種東西。呼叫端改傳 `current_page` / `last_page` 兩個數字。
+- **D35**: 前台 `/blog` 原本只有上一頁／下一頁兩顆 `<Link>`，這次一併長出頁碼。它是三種寫法裡唯一**沒有**可點頁碼的畫面，而讀者要回到半年前那篇文章時，「一路按下一頁」和「點第 7 頁」的差距就是會不會放棄。href 模式保住原本的爬蟲可跟性（FR-031）。
 
 ## Schema
 
@@ -480,7 +526,31 @@ Phase 4 — 後台可見性：
 Phase 5 — 驗證：
 - [x] T045 Feature 測試：Permanent bounce 建列 / Transient 不建列 / complaint 建列 / 重複事件冪等 / complaint→bounce 升級且不反向 / 行銷信被擋 / 交易信在 complaint 下照寄、在 bounce 下被擋 / drip 跳過已封鎖訂閱 / secret 已設時驗簽失敗回 403 / secret 未設時不掛驗簽（回歸提醒）in `tests/Feature/Platform/EmailSuppressionTest.php`
 
+全站分頁元件（FR-030 / FR-031 / D32–D35）：
+
+- [x] T046 新增 `Pagination.vue`：props `current-page` / `last-page` / `max-visible`（預設 10）/ `href`（可選函式）；未給 href 時渲染 `<button>` 並 emit `change`，給了則渲染 `<Link :href="href(page)">`。視窗演算法為當前頁置中、撞到頭尾往另一側補滿；第 1 頁與最後一頁恆常渲染，斷開處插入不可點的 `…`；`last-page <= 1` 回傳空。當前頁 `bg-brand-navy text-white`，其餘中性灰邊框 + `hover:bg-gray-50` + `cursor-pointer` in `resources/js/Components/Pagination.vue`
+- [x] T047 [P] 文章列表 in `resources/js/Pages/Admin/Posts/Index.vue`（012）
+- [x] T048 [P] 電子報列表 in `resources/js/Pages/Admin/Broadcasts/Index.vue`（012）
+- [x] T049 [P] 作業列表（保留左側「第 N / M 頁，共 X 筆」文字，換掉頁碼與上下頁鈕）in `resources/js/Pages/Admin/Homework/Index.vue`（003）
+- [x] T050 [P] 會員列表（保留左側「顯示第 X - Y 筆，共 Z 筆」，換掉右側 nav）in `resources/js/Pages/Admin/Members/Index.vue`（008）
+- [x] T051 [P] 交易列表（同 T050 的保留方式）in `resources/js/Pages/Admin/Transactions/Index.vue`（009）
+- [x] T052 [P] 折扣碼列表 in `resources/js/Pages/Admin/Coupons/Index.vue`（006）
+- [x] T053 [P] 折扣碼鏈列表 in `resources/js/Pages/Admin/CouponChains/Index.vue`（006）
+- [x] T054 [P] 預約名單 in `resources/js/Components/Admin/Leads/BookingListTab.vue`（011）
+- [x] T055 [P] 訂閱者名單 in `resources/js/Components/Admin/Leads/SubscriberListTab.vue`（010）
+- [x] T056 [P] 會員積分明細：改傳兩個數字，移除 `links` 迴圈與 `v-html`（D34）in `resources/js/Pages/Member/Points.vue`（007）
+- [x] T057 前台 `/blog` 與 tag 頁改 href 模式（`pageHref(page)` 產 `?page=N`，第 1 頁不帶參數）；後端未動 —— 兩支查詢都沒有其他查詢字串要保留（FR-031 / D35）in `resources/js/Pages/Blog/Index.vue`（012）, `resources/js/Pages/Blog/Tag.vue`（012）
+- [x] T058 `npm run build` exit 0；`php artisan test` 全綠
+- [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
+
 ## 進度日誌
+
+- 2026-09-08: 全站分頁收斂成單一元件（T046–T058 完成，僅剩 T059 使用者實測，FR-030 / FR-031）— `Components/Pagination.vue` 上線，**12 個畫面**全數改用它（原規劃 11 個，實作時發現 `/blog` 與 tag 頁是兩個各自的檔案）。視窗演算法先用一支獨立腳本把 11 組 `(current, last)` 跑過一遍才接呼叫端：`cur=1 last=32`、`cur=32 last=32`、`cur=6 last=11` 這幾組正是「置中」寫法最容易只吐半排頁碼的地方，全部確認恰好 10 個頁碼位置、首尾恆在、`last<=10` 不出現 `…`。
+  三個實作上的意外：作業列表把換頁寫在 template 的 `@click` 裡（三處各一份 `router.get`），抽成 `goToSubmissionsPage()` 才有得傳給元件；`Blog/Tag.vue` 的 `defineProps` 原本沒接成 `props`，href 函式要讀 `tag.slug` 才補上；`Blog/Index.vue` 的 `Link` 在換掉分頁後成了沒人用的 import，一併移除。積分頁的 `v-html` 如期消失（D34）。後端一行沒動 —— 兩支 blog 查詢都沒有其他查詢字串要保留，`pageHref` 直接產 `?page=N` 即可。`npm run build` exit 0、全站 `php artisan test` **873 passed（3656 assertions）**。
+
+- 2026-09-08: [draft] 規劃全站分頁元件（FR-030 / FR-031 / D32–D35）— 起點是 `/admin/posts`：每頁 50 筆的分頁一直都在，缺的是頁碼列 `v-for="p in posts.last_page"` **沒有上限**。盤點後發現分頁在這個專案裡有**三種寫法、十個副本**：三份無上限頁碼（文章／電子報／作業）、六份上一頁下一頁（會員／交易／折扣碼／折扣碼鏈／預約名單／訂閱者名單）、一份直接渲染 Laravel `links`（會員積分），前台 `/blog` 則連頁碼都沒有。使用者決定全部收斂成同一個元件。
+  元件只吃兩個數字、不碰 router（D32）：呼叫端換頁方式各不相同（帶篩選的 `router.get`、`preserveState`、`preserveScroll`），把導覽塞進元件會逼出一個誰都不合身的介面。視窗要「置中 + 撞到頭尾往另一側補滿」而不是單純 `slice`，否則停在第 1 頁時頁碼只剩半排。放 `Components/Pagination.vue` 而非 `Components/Admin/`（D33），因為積分頁與 `/blog` 都在範圍內。
+  一個不能省的細節寫成 FR-031：前台 `/blog` MUST 用 href 模式渲染真的 `<Link>`。那裡的分頁是爬蟲跟得到的連結，換成只有 click handler 的按鈕，等於把第 2 頁以後的文章從索引裡拿掉 —— 而這件事在畫面上完全看不出來。積分頁順手拿掉為了顯示 `«` 而開的 `v-html`（D34）。無 schema 變更，後端最多動 `BlogController` 的 `withQueryString()`。status: draft 待審核。
 
 - 2026-08-16: 修 `extractText()` 讀錯位置（FR-029）— 正式站第一次實跑面談摘要，逐字稿存進去了但摘要是空的，且沒有任何錯誤。直接打 API 看回應才發現：請求 `status=completed`、`output_tokens=732`、`message` 裡有 752 字的摘要 —— **東西一直都在，是我們讀錯地方**。`output_text` 在這個回應裡是空的，而備援路徑寫死 `output.0.content.0.text`，但推理模型的 `output[0]` 是空的 `reasoning` 項、`message` 在 `output[1]`。改成依 `type` 走訪找 `message` 並串接其所有文字段。
   連帶的災情比摘要更大：校訂那步用同一支 `respond()`，每個分段都拿到 null 後**靜靜退回機械式原文**，所以那份逐字稿從頭到尾沒被校訂過，未能機械對應的講者標籤也沒被語境判斷補上（實測留下的是「投好壯壯The Must Big」與「Zoom使用者」—— 都不是真實人名，FR-109 未被違反，但也不是該有的「顧問／客戶」）。根因是「未設定」與「解析失敗」共用同一個靜默的 null；現在後者會寫 warning 並記下 `output` 各項的 type。704 passed。

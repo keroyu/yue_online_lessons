@@ -2092,6 +2092,9 @@
     "tests/Feature/Newsletter/AdminPostCrudTest.php": [
       "012.us-1"
     ],
+    "tests/Feature/Newsletter/AdminPostSearchTest.php": [
+      "012.us-1"
+    ],
     "tests/Feature/Newsletter/AdminScreensTest.php": [
       "012.us-1"
     ],

@@ -4666,7 +4666,11 @@
         "scheduled publish",
         "排程發佈",
         "PostForm",
-        "圖片庫"
+        "圖片庫",
+        "內文搜尋",
+        "body_md",
+        "full text search",
+        "關鍵字"
       ],
       "code_files": [
         "app/Models/Post.php",
@@ -4687,7 +4691,8 @@
         "database/migrations/2026_07_10_000003_create_post_tag_table.php",
         "database/migrations/2026_07_10_000004_create_post_images_table.php",
         "tests/Feature/Newsletter/AdminScreensTest.php",
-        "tests/Feature/Newsletter/AdminPostCrudTest.php"
+        "tests/Feature/Newsletter/AdminPostCrudTest.php",
+        "tests/Feature/Newsletter/AdminPostSearchTest.php"
       ],
       "status": "implemented"
     },

@@ -815,6 +815,7 @@ main_files:
 - routes/console.php
 - routes/web.php
 - tests/Feature/Newsletter/AdminPostCrudTest.php
+- tests/Feature/Newsletter/AdminPostSearchTest.php
 - tests/Feature/Newsletter/AdminScreensTest.php
 - tests/Feature/Newsletter/OgImageTest.php
 - tests/Feature/Newsletter/PostServiceTest.php

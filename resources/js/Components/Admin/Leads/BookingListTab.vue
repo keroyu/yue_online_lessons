@@ -5,6 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 import ConsultationNotesPanel from '@/Components/Admin/Leads/ConsultationNotesPanel.vue'
 import ConsultationSummaryModal from '@/Components/Admin/Leads/ConsultationSummaryModal.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 const props = defineProps({
   leads: {
@@ -1335,23 +1336,11 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
       <div class="text-sm text-gray-700">
         顯示第 {{ (leads.current_page - 1) * leads.per_page + 1 }} - {{ Math.min(leads.current_page * leads.per_page, leads.total) }} 筆，共 {{ leads.total }} 筆
       </div>
-      <nav class="flex items-center space-x-2">
-        <button
-          @click="goToPage(leads.current_page - 1)"
-          :disabled="leads.current_page === 1"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          上一頁
-        </button>
-        <span class="text-sm text-gray-700">{{ leads.current_page }} / {{ leads.last_page }}</span>
-        <button
-          @click="goToPage(leads.current_page + 1)"
-          :disabled="leads.current_page === leads.last_page"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          下一頁
-        </button>
-      </nav>
+      <Pagination
+        :current-page="leads.current_page"
+        :last-page="leads.last_page"
+        @change="goToPage"
+      />
     </div>
   </div>
 

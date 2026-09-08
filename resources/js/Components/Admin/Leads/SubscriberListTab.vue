@@ -2,6 +2,7 @@
 import { router } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 import LessonEmailPreviewModal from './LessonEmailPreviewModal.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 const props = defineProps({
   // null when there is no drip course at all — the tab then renders empty state.
@@ -304,25 +305,11 @@ const suppressionLabel = (reason) => {
         <div class="text-sm text-gray-700">
           顯示第 {{ (subscribers.current_page - 1) * subscribers.per_page + 1 }} - {{ Math.min(subscribers.current_page * subscribers.per_page, subscribers.total) }} 筆，共 {{ subscribers.total }} 筆
         </div>
-        <nav class="flex items-center space-x-2">
-          <button
-            @click="goToPage(subscribers.current_page - 1)"
-            :disabled="subscribers.current_page === 1"
-            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            上一頁
-          </button>
-          <span class="text-sm text-gray-700">
-            {{ subscribers.current_page }} / {{ subscribers.last_page }}
-          </span>
-          <button
-            @click="goToPage(subscribers.current_page + 1)"
-            :disabled="subscribers.current_page === subscribers.last_page"
-            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            下一頁
-          </button>
-        </nav>
+        <Pagination
+          :current-page="subscribers.current_page"
+          :last-page="subscribers.last_page"
+          @change="goToPage"
+        />
       </div>
     </template>
 

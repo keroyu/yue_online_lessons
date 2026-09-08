@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 const tabs = [
   { label: '一般折扣碼', href: '/admin/coupons' },
@@ -133,26 +134,11 @@ const destroy = (coupon) => {
     </div>
 
     <!-- Pagination -->
-    <div v-if="coupons.last_page > 1" class="mt-4 flex items-center justify-center">
-      <nav class="flex items-center space-x-2">
-        <button
-          @click="goToPage(coupons.current_page - 1)"
-          :disabled="coupons.current_page === 1"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          上一頁
-        </button>
-        <span class="text-sm text-gray-700">
-          {{ coupons.current_page }} / {{ coupons.last_page }}
-        </span>
-        <button
-          @click="goToPage(coupons.current_page + 1)"
-          :disabled="coupons.current_page === coupons.last_page"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          下一頁
-        </button>
-      </nav>
-    </div>
+    <Pagination
+      class="mt-4"
+      :current-page="coupons.current_page"
+      :last-page="coupons.last_page"
+      @change="goToPage"
+    />
   </div>
 </template>

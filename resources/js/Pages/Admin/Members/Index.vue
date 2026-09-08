@@ -7,6 +7,7 @@ import GiftCourseModal from '@/Components/GiftCourseModal.vue'
 import ImportMembersModal from '@/Components/ImportMembersModal.vue'
 import SalesConsultantModal from '@/Components/SalesConsultantModal.vue'
 import { ref, watch, computed, nextTick } from 'vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -892,25 +893,11 @@ const doExport = (scope) => {
         <div class="text-sm text-gray-700">
           顯示第 {{ (members.current_page - 1) * members.per_page + 1 }} - {{ Math.min(members.current_page * members.per_page, members.total) }} 筆，共 {{ members.total }} 筆
         </div>
-        <nav class="flex items-center space-x-2">
-          <button
-            @click="goToPage(members.current_page - 1)"
-            :disabled="members.current_page === 1"
-            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            上一頁
-          </button>
-          <span class="text-sm text-gray-700">
-            {{ members.current_page }} / {{ members.last_page }}
-          </span>
-          <button
-            @click="goToPage(members.current_page + 1)"
-            :disabled="members.current_page === members.last_page"
-            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            下一頁
-          </button>
-        </nav>
+        <Pagination
+          :current-page="members.current_page"
+          :last-page="members.last_page"
+          @change="goToPage"
+        />
       </div>
     </div>
 

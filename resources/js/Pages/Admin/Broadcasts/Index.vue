@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useForm, Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -169,15 +170,11 @@ const statusLabel = (b) => {
       </table>
     </div>
 
-    <div v-if="broadcasts.last_page > 1" class="flex justify-center gap-2 mt-4">
-      <button
-        v-for="p in broadcasts.last_page"
-        :key="p"
-        type="button"
-        class="px-3 py-1 border text-sm"
-        :class="p === broadcasts.current_page ? 'bg-brand-navy text-white border-brand-navy rounded-md' : 'border-gray-300 hover:bg-gray-50'"
-        @click="goToPage(p)"
-      >{{ p }}</button>
-    </div>
+    <Pagination
+      class="mt-4"
+      :current-page="broadcasts.current_page"
+      :last-page="broadcasts.last_page"
+      @change="goToPage"
+    />
   </div>
 </template>

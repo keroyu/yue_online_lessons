@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import RevenueChart from '@/Components/Admin/RevenueChart.vue'
 import { ref, computed, watch } from 'vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -567,23 +568,11 @@ const submitCreate = () => {
       <div class="text-sm text-gray-700">
         顯示第 {{ (transactions.current_page - 1) * transactions.per_page + 1 }} - {{ Math.min(transactions.current_page * transactions.per_page, transactions.total) }} 筆，共 {{ transactions.total }} 筆
       </div>
-      <nav class="flex items-center space-x-2">
-        <button
-          @click="goToPage(transactions.current_page - 1)"
-          :disabled="transactions.current_page === 1"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          上一頁
-        </button>
-        <span class="text-sm text-gray-700">{{ transactions.current_page }} / {{ transactions.last_page }}</span>
-        <button
-          @click="goToPage(transactions.current_page + 1)"
-          :disabled="transactions.current_page === transactions.last_page"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          下一頁
-        </button>
-      </nav>
+      <Pagination
+        :current-page="transactions.current_page"
+        :last-page="transactions.last_page"
+        @change="goToPage"
+      />
     </div>
 
   </div>

@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '@/Components/Layout/AppLayout.vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
+import Pagination from '@/Components/Pagination.vue'
 import { ref } from 'vue'
 
 defineOptions({ layout: AppLayout })
@@ -12,8 +13,12 @@ const props = defineProps({
   referralActive:  { type: Boolean, default: false },
   thresholdAmount: { type: Number, default: 0 },
   rewardRate:      { type: Number, default: 0 },
-  transactions:    { type: Object, default: () => ({ data: [], links: [] }) },
+  transactions:    { type: Object, default: () => ({ data: [], current_page: 1, last_page: 1 }) },
 })
+
+const goToPage = (page) => {
+  router.get('/member/points', { page }, { preserveState: true, preserveScroll: true })
+}
 
 const TYPE_LABELS = {
   earn_homework:   '作業獎勵',
@@ -109,23 +114,12 @@ const copyCode = async () => {
       </ul>
 
       <!-- Pagination -->
-      <div v-if="transactions.links && transactions.links.length > 3" class="flex flex-wrap gap-1 mt-4 justify-center">
-        <template v-for="(link, i) in transactions.links" :key="i">
-          <Link
-            v-if="link.url"
-            :href="link.url"
-            class="px-3 py-1.5 rounded-md text-sm transition-colors"
-            :class="link.active ? 'bg-brand-navy text-white' : 'text-gray-600 hover:bg-gray-100'"
-            preserve-scroll
-            v-html="link.label"
-          />
-          <span
-            v-else
-            class="px-3 py-1.5 rounded-md text-sm text-gray-300"
-            v-html="link.label"
-          />
-        </template>
-      </div>
+      <Pagination
+        class="mt-4"
+        :current-page="transactions.current_page"
+        :last-page="transactions.last_page"
+        @change="goToPage"
+      />
     </div>
   </div>
 </template>
