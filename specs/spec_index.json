@@ -3420,7 +3420,7 @@
         "app/Http/Controllers/Admin/EmailTemplateController.php",
         "resources/js/Pages/Admin/EmailTemplates/Index.vue"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-12",

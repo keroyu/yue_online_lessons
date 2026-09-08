@@ -241,11 +241,13 @@ UI 改版（2026-07-12 回饋：詳情 modal 開關小題大作）：
 - [x] T016 [P] 匯入 modal：課程下拉下方，當所選課程 `plans.length > 0` 時顯示必填方案下拉（無「完整課程」選項、預設空值）；未選時送出鈕 disabled 並顯示欄位錯誤；`course_id` 改選時重置 `course_plan_id`；兩種匯入模式的送出 payload 皆帶 `course_plan_id` in `resources/js/Components/ImportMembersModal.vue`
 - [x] T017 [P] 贈課 modal：同 T016 的方案下拉與送出守門；`selectedCourse` 摘要區一併顯示已選方案名稱 in `resources/js/Components/GiftCourseModal.vue`
 - [x] T018 Feature 測試：多方案課程未帶方案的贈課／匯入回 422 且**不建立任何 purchase**；帶跨課程方案回 422；帶正確方案時 purchase 的 `course_plan_id` 正確；無方案課程維持 null；無方案課程傳方案回 422 in `tests/Feature/Admin/MemberCoursePlanAssignmentTest.php`
-- [ ] T019 使用者實測：匯入一位新會員並指派多方案課程 → 該會員在教室只看得到所選方案的小節
+- [x] T019 使用者實測：匯入一位新會員並指派多方案課程 → 該會員在教室只看得到所選方案的小節
 
 ## 進度日誌
 
-- 2026-09-07: 贈課與匯入補上方案指派（T011–T018 完成，僅剩 T019 使用者實測，FR-010 / FR-011）— 守門收斂成 `resolveCoursePlanId()` 一個 private helper，贈課與兩種匯入 payload 共用，且都在**寫任何一列之前**執行：測試斷言的不只是 422，還有「purchases 為 0、users 也沒有多出一列」，因為匯入原本會邊建帳號邊授權，中途丟例外會留下一批沒有授權的孤兒帳號。錯誤訊息分兩種寫法 —— 課程有方案但選了別課的方案是「所選方案不屬於此課程」，課程根本沒方案卻傳了值是「此課程未設定方案，不可指定方案」；後者刻意不靜默忽略，靜默忽略正是這條 bug 的出廠設定。
+- 2026-09-08: 正式站實測通過，T019 勾選，本批全數完成。
+
+- 2026-09-07: 贈課與匯入補上方案指派（T011–T018，FR-010 / FR-011）— 守門收斂成 `resolveCoursePlanId()` 一個 private helper，贈課與兩種匯入 payload 共用，且都在**寫任何一列之前**執行：測試斷言的不只是 422，還有「purchases 為 0、users 也沒有多出一列」，因為匯入原本會邊建帳號邊授權，中途丟例外會留下一批沒有授權的孤兒帳號。錯誤訊息分兩種寫法 —— 課程有方案但選了別課的方案是「所選方案不屬於此課程」，課程根本沒方案卻傳了值是「此課程未設定方案，不可指定方案」；後者刻意不靜默忽略，靜默忽略正是這條 bug 的出廠設定。
   前端兩個 modal 各自加必填方案下拉（`plans.length > 0` 才出現、換課程即重置、未選則送出鈕 disabled），並把後端的 `course_plan_id` 錯誤排在既有 `emails` / `rows` 錯誤之前顯示，否則被擋下時畫面只會冒出泛用的「匯入失敗」。方案清單走 `index()` 既有的 `courses` payload 加掛 `with('plans:id,course_id,name,sort_order')`（`plans()` 本身已依 sort_order 排序）。`MemberCoursePlanAssignmentTest` 12 passed、`npm run build` exit 0、全站 `php artisan test` **871 passed（3630 assertions）**。
 
 - 2026-09-07: [draft] 規劃贈課與匯入的方案指派（FR-010 / FR-011）— 匯入 modal 的「指派課程授權」從來只有課程下拉，`grantCourse()` 也沒寫過 `course_plan_id`，而 `Purchase::accessibleLessonIds()` 把 null 讀成「全課程開放」，所以匯入一批人並指派高價課，等於整批免費送出最高方案，而畫面上沒有任何跡象。同一份缺陷在贈課（US6）逐字存在 —— 兩處共用同一個 `updateOrCreate` 寫法 —— 依使用者決策一起修。
