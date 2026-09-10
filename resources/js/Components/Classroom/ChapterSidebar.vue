@@ -23,6 +23,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Admin only (FR-026): members cannot roll a lesson back to unwatched
+  canUncomplete: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Check if lesson is locally completed (optimistic UI state)
@@ -127,6 +132,7 @@ const getChapterProgress = (chapter) => {
             :is-active="lesson.id === currentLessonId"
             :is-locally-completed="isLocallyCompleted(lesson.id)"
             :is-free-preview="isFreePreview"
+            :can-uncomplete="canUncomplete"
             @select="handleSelectLesson"
             @toggle-complete="handleToggleComplete"
           />
@@ -145,6 +151,7 @@ const getChapterProgress = (chapter) => {
           :is-active="lesson.id === currentLessonId"
           :is-locally-completed="isLocallyCompleted(lesson.id)"
           :is-free-preview="isFreePreview"
+          :can-uncomplete="canUncomplete"
           @select="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
         />

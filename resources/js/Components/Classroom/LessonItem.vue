@@ -18,6 +18,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Admin only (FR-026): members cannot roll a lesson back to unwatched
+  canUncomplete: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['select', 'toggleComplete'])
@@ -63,7 +68,7 @@ const handleToggleComplete = (e) => {
 
     <!-- Completion/Play Icon -->
     <button
-      v-else-if="showAsCompleted && !isFreePreview"
+      v-else-if="showAsCompleted && !isFreePreview && canUncomplete"
       type="button"
       class="flex-shrink-0 w-5 h-5 flex items-center justify-center hover:text-green-600"
       :class="isPendingCompletion ? 'text-green-400' : 'text-green-500'"
@@ -74,6 +79,18 @@ const handleToggleComplete = (e) => {
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
       </svg>
     </button>
+    <!-- Members see a static check: completion cannot be undone (FR-026).
+         No click handler, so the click falls through to the row and selects the lesson. -->
+    <div
+      v-else-if="showAsCompleted && !isFreePreview"
+      class="flex-shrink-0 w-5 h-5 flex items-center justify-center"
+      :class="isPendingCompletion ? 'text-green-400' : 'text-green-500'"
+      title="已完成"
+    >
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+      </svg>
+    </div>
     <button
       v-else-if="!isFreePreview"
       type="button"

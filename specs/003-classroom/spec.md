@@ -28,6 +28,7 @@ owner_files:
   - tests/Feature/Classroom/CloudflareStreamTest.php
   - tests/Feature/Classroom/AiGradingTest.php
   - tests/Feature/Classroom/HomeworkCoursesTest.php
+  - tests/Feature/Classroom/LessonProgressTest.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
   - database/migrations/2026_05_10_000003_create_comments_table.php
   - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
@@ -172,7 +173,10 @@ touchpoints:
 - [x] 門檻時間內切換到其他小節：取消原小節計時器並移除樂觀綠勾，不寫入伺服器；刷新頁面後回復伺服器真實狀態
 - [x] 達門檻後前端以 fetch `POST /member/classroom/{course}/progress/{lesson}` 寫入（JSON API，非 Inertia），`LessonProgress::firstOrCreate` 冪等
 - [x] 手動點擊灰色圖示標記完成：立即 POST，不等計時器
-- [x] 點擊綠勾取消完成：立即 `DELETE`，同時取消 pending 計時器
+- [x] 點擊綠勾取消完成：立即 `DELETE`，同時取消 pending 計時器 —— **僅管理員**（FR-026）
+- [x] 一般會員的綠勾（含樂觀淺綠）不可點：渲染為非 button、`title="已完成"`、無 click handler（點擊穿透到整列，照常切換到該小節，游標維持整列的 pointer）；灰色圖示仍可點以手動標記完成
+- [x] 管理員（`auth.user.role === 'admin'`）綠勾維持可點，行為與現行完全一致
+- [x] 後端 `markIncomplete` 對非 admin 回 403，直接打 API 也無法取消
 - [x] 影片播完自動完成：立即 POST（見 US2）
 - [x] 伺服器端驗證：lesson 必須屬於該 course（404）、使用者必須有上課權限（403）
 - [x] 元件 unmount 時清除所有計時器（關頁不誤寫）
@@ -306,6 +310,7 @@ touchpoints:
 - **FR-021**: 端點必須驗證 `comment.assignment_id === assignment.id` 且 `parent_id` 為 null（只能對頂層提交生成）；不符一律 404，防止用別題的 assignment id 拼出跨課程脈絡
 - **FR-024**: AI 批改端點接受選填的 `note`（講師補充指示，`nullable|string|max:2000`）。它是**唯一**的 per-request 脈絡通道，來源為回覆面板獨立的 textarea，**不得**改由「批改內容」欄位推導（D21）。有值時組成第五段 `## 講師補充指示`；空值或全空白時整段省略，input 與追加此功能前逐字相同
 - **FR-025**: 補充指示不落地也不外流 — 不進 DB、不寫進 comment、不隨 `storeComment` 送出，學員端任何位置都看不到它；面板開啟與關閉時一律清空（同 FR-018 的草稿不落地立場）。生成成功後**保留**在欄位裡，讓老師改一句就能重新生成
+- **FR-026**: `lesson_progress` 的刪除（取消完成）為**管理員專屬**：`ClassroomController::markIncomplete` MUST 以 `$user->isAdmin()` 守門，非 admin 一律 403；前台教室對非 admin 一律不渲染可點的綠勾。對一般會員而言，完成是單向的 —— 只能由 75% 門檻、手動標記或影片播完寫入，不能退回未觀看
 
 ## 設計決策
 
@@ -337,6 +342,9 @@ touchpoints:
 - **D22**: 欄位放在「批改內容」**上方**而非摺疊在連結後面 — 這是每次批改都可能用到的東西，藏一層等於多一次點擊；兩行高的 textarea 在 w-96 側邊欄裡不構成壓迫。「AI 輔助批改」按鈕維持在「批改內容」那一列不動（它的作用是把草稿填進下方那格），兩者的關係由欄位說明文字交代
 - **D23**: 補充指示同樣不落地（FR-025）— 不加欄位、不做「常用片語」清單、不記 localStorage。理由與 D19 一致：真正長期固定的批改重點已經有 `handout_md` 可以放（每題一份、後台可編），而臨時指示的價值就在於它是臨時的；先做完最小可用版本，之後真的每次都在打同一句話再說
 - **D24**: 優先級寫在 prompt instructions 而非程式碼 — Service 只負責把第五段組進去，「此段優先於講義與題目、必須採納」這句判斷語意加在 `ai_prompts` 的 instructions（走 000 US10 註冊表），業主要調整補充指示的權重不必發版
+- **D25**: 前端鎖 UI **加上**後端 403，兩層都做 —— 只藏按鈕擋得住誤觸，擋不住手打 `fetch(..., {method:'DELETE'})`；而進度是積分、完課率與（未來）證書的依據，一旦可以自由回退，這些數字就不再可信。反過來只擋後端也不行：按鈕還在、按了沒反應是更糟的體驗。
+- **D26**: 保留 route 與 `markIncomplete`（僅收窄權限），不刪端點 —— admin 在教室裡就是靠它重測某一節的流程（本站 admin 對所有課程恆有存取權，`hasAccessForUser` FR-001）；刪掉等於自己也失去唯一的重置手段。admin 改的是**自己**的 `lesson_progress`，不是代改學員進度；「後台重置某會員某課進度」屬 008-members-admin 的範疇，本次不做
+- **D27**: 樂觀淺綠（`text-green-400`，尚未寫入伺服器）對非 admin 同樣不可點 —— 兩種綠都代表「已完成」，只是持久化程度不同，讓其中一種可以點回去只會製造「為什麼剛才可以、現在不行」的困惑。誤點進某一節仍有解：門檻未到前切換到別的小節，既有邏輯（`cancelLessonTimer` + 移除樂觀狀態）本來就會取消，不會留下紀錄
 
 ## Schema
 
@@ -421,8 +429,19 @@ touchpoints:
 - [x] T035 測試補案：有 note 時 input 含第五段且在最末、無 note 時 input 與舊版逐字相同、note 超過 2000 字回 422、note 不寫入 comments in `tests/Feature/Classroom/AiGradingTest.php`
 - [x] T036 `php artisan test` 全綠、`npm run build` exit 0、`python3 tools/build_spec_index.py` 對帳索引
 
+**Phase K — 進度取消收歸管理員（US3 / FR-026 / D25~D27）**
+
+- [x] T037 `markIncomplete` 在權限檢查後加 `if (!$user->isAdmin()) return response()->json(['error' => '課程進度無法取消'], 403);` in `app/Http/Controllers/Member/ClassroomController.php`
+- [x] T038 `canUncomplete` computed（`usePage().props.auth.user?.role === 'admin'`）；`handleToggleComplete` 在 `!newStatus && !canUncomplete.value` 時直接 return；兩處 `<ChapterSidebar>` 加 `:can-uncomplete="canUncomplete"` in `resources/js/Pages/Member/Classroom.vue`
+- [x] T039 [P] `canUncomplete` prop（Boolean, default false）透傳給兩處 `<LessonItem>` in `resources/js/Components/Classroom/ChapterSidebar.vue`
+- [x] T040 [P] 綠勾分支依 `canUncomplete` 二分：true 維持 `<button>`（現行 title 與 hover 不變）、false 改渲染純 `<div>`（無 `@click`、無 `hover:text-green-600`，`title="已完成"`；不加 `cursor-default`，讓點擊與游標都沿用可點的整列）；灰色圖示分支不動 in `resources/js/Components/Classroom/LessonItem.vue`
+- [x] T041 Feature 測試：會員 DELETE 進度回 403 且 `lesson_progress` 仍在、admin DELETE 回 200 且紀錄消失、會員 POST 標記完成仍為 200 in `tests/Feature/Classroom/LessonProgressTest.php`
+- [x] T042 `php artisan test` 全綠、`npm run build` exit 0、`python3 tools/build_spec_index.py` 對帳索引
+
 ## 進度日誌
 
+- 2026-09-10: 實作 FR-026 完成（T037–T042）— `markIncomplete` 加 `isAdmin()` 守門回 403；教室綠勾對非 admin 改渲染純 `<div>`（無 click handler），`handleToggleComplete` 也在前端擋下取消分支。實作時修正一處規劃細節：靜態綠勾不加 `cursor-default` 也不 `stop` 事件 —— 它位在可點的整列裡，攔下來反而變成死區，現在點它等同點該列（切換小節）。新增 LessonProgressTest 3 案，全 repo 885 passed（3695 assertions）、npm run build exit 0
+- 2026-09-10: 規劃「進度取消收歸管理員」（US3 追加 FR-026 / D25~D27）— 一般會員的完成改為單向，綠勾不可點回未觀看；後端 `markIncomplete` 收窄為 admin 專屬（前端鎖 UI + 後端 403 兩層）。端點保留供 admin 自行重測。status: draft 待審
 - 2026-08-22: 實作「講師補充指示」完成（T031–T036）— 回覆面板獨立欄位（2 行，批改內容上方）→ `note` 經 `max:2000` 驗證 → `HomeworkGradingService` 組成 input 第五段（未填則整段省略）；優先級規則以「缺才追加」方式補進 `ai_prompts` instructions，不覆蓋業主改過的文字。AiGradingTest 補 4 案 + prompt 規則斷言（17 passed），全 repo 779 passed、npm build exit 0
 - 2026-08-22: 規劃「講師補充指示」（US10 追加 FR-024/FR-025）— 回覆面板獨立欄位，把 AI 從講義與提交看不出來的事餵進去，組成 input 第五段且優先級最高；不落地 DB。否決「讀取批改內容既有文字」的作法（D21：語意重載 + 二次生成脈絡崩壞）。status: draft 待審
 - 2026-08-18: US10 上線後修正（FR-022/FR-023）— 業主回報「講義輸入後全部存檔失敗」。查證：正式站 migration 全 Ran、程式碼為最新 commit、laravel.log 無任何例外、DB 全部 assignments 的 updated_at 停在 6/6，代表請求根本沒寫進 DB 也沒丟錯 → 指向「被擋下但畫面不說」。根因是這頁自始就沒有錯誤顯示 UI（`errors` 出現 0 次），加了第二個欄位後才容易踩到。同時修掉 `TEXT` 只裝得下約 21,845 中文字的未爆彈（本機 MySQL 實測 25000 字即 1406）。業主端待確認是否為 session 過期的 419。760 passed

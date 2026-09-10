@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import { useNotifications } from '@/composables/useNotifications'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
@@ -70,6 +70,10 @@ const desktopSidebarOpen = ref(true)
 const notificationOpen = ref(false)
 
 const { notificationCount, notifications, markRead } = useNotifications()
+
+// Completion is one-way for members (FR-026): only an admin may roll a lesson
+// back to unwatched. The endpoint enforces this too — this only hides the affordance.
+const canUncomplete = computed(() => usePage().props.auth.user?.role === 'admin')
 
 const goToNotification = (notification) => {
   notificationOpen.value = false
@@ -250,6 +254,8 @@ const handleToggleComplete = async (lesson) => {
   if (props.isFreePreview) return
   const isCurrentlyCompleted = lesson.is_completed || localCompletedLessons.value.has(lesson.id)
   const newStatus = !isCurrentlyCompleted
+
+  if (!newStatus && !canUncomplete.value) return
 
   if (!newStatus) {
     // Marking as incomplete: immediate, no throttling
@@ -449,6 +455,7 @@ const handleVideoEnded = () => {
           :standalone-lessons="localStandaloneLessons"
           :current-lesson-id="selectedLesson?.id"
           :local-completed-lessons="localCompletedLessons"
+          :can-uncomplete="canUncomplete"
           :is-free-preview="isFreePreview"
           @select-lesson="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
@@ -513,6 +520,7 @@ const handleVideoEnded = () => {
               :standalone-lessons="localStandaloneLessons"
               :current-lesson-id="selectedLesson?.id"
               :local-completed-lessons="localCompletedLessons"
+              :can-uncomplete="canUncomplete"
               :is-free-preview="isFreePreview"
               @select-lesson="handleSelectLesson"
               @toggle-complete="handleToggleComplete"

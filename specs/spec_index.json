@@ -1241,7 +1241,7 @@
       "id": "003.us-3",
       "module": "003-classroom",
       "title": "學習進度紀錄與節流",
-      "summary": "樂觀綠勾 + 停留達影片時長 75%（無時長 fallback 2 分鐘）才寫入完成紀錄；手動標記/取消/播完立即寫入",
+      "summary": "樂觀綠勾 + 停留達影片時長 75%（無時長 fallback 2 分鐘）才寫入完成紀錄；手動標記/播完立即寫入；取消完成為 admin 專屬（會員側單向不可回退）",
       "heading": "### User Story 3 - 學習進度紀錄與節流 (Priority: P1)",
       "file": "specs/003-classroom/spec.md",
       "anchor": "user-story-3---學習進度紀錄與節流-priority-p1",
@@ -1256,14 +1256,23 @@
         "optimistic",
         "75%",
         "completion threshold",
-        "標記完成"
+        "標記完成",
+        "取消完成",
+        "單向進度",
+        "irreversible progress",
+        "admin only",
+        "綠勾不可點",
+        "markIncomplete",
+        "403"
       ],
       "code_files": [
         "app/Http/Controllers/Member/ClassroomController.php",
         "app/Models/LessonProgress.php",
         "database/migrations/2026_01_17_000004_create_lesson_progress_table.php",
         "resources/js/Pages/Member/Classroom.vue",
-        "resources/js/Components/Classroom/LessonItem.vue"
+        "resources/js/Components/Classroom/LessonItem.vue",
+        "resources/js/Components/Classroom/ChapterSidebar.vue",
+        "tests/Feature/Classroom/LessonProgressTest.php"
       ],
       "status": "implemented"
     },

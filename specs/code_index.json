@@ -1472,6 +1472,7 @@
     ],
     "resources/js/Components/Classroom/ChapterSidebar.vue": [
       "003.us-2",
+      "003.us-3",
       "003.us-4"
     ],
     "resources/js/Components/Classroom/CommentThread.vue": [
@@ -1974,6 +1975,9 @@
     ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
+    ],
+    "tests/Feature/Classroom/LessonProgressTest.php": [
+      "003.us-3"
     ],
     "tests/Feature/Drip/ClaimWordingTest.php": [
       "010.us-1"

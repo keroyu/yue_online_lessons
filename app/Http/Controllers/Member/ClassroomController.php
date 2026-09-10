@@ -239,7 +239,8 @@ class ClassroomController extends Controller
     }
 
     /**
-     * Mark a lesson as incomplete.
+     * Mark a lesson as incomplete. Admin only (FR-026): for members completion is
+     * one-way, so progress stays trustworthy as a basis for points and completion rates.
      */
     public function markIncomplete(Request $request, Course $course, Lesson $lesson): JsonResponse
     {
@@ -256,6 +257,10 @@ class ClassroomController extends Controller
 
         if (!$this->isLessonInPlan($course, $user, $lesson)) {
             return response()->json(['error' => '您的方案不包含此小節'], 403);
+        }
+
+        if (!$user->isAdmin()) {
+            return response()->json(['error' => '課程進度無法取消'], 403);
         }
 
         // Delete progress record

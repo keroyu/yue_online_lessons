@@ -272,6 +272,7 @@ main_files:
 - routes/web.php
 - tests/Feature/Classroom/AiGradingTest.php
 - tests/Feature/Classroom/CloudflareStreamTest.php
+- tests/Feature/Classroom/LessonProgressTest.php
 
 related_specs:
 - specs/003-classroom/spec.md
