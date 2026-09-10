@@ -667,11 +667,17 @@ class ConsultationSummaryTest extends TestCase
 
     // ── 011 US29 — the summary learns who it is writing to (FR-148/FR-149) ──
 
-    /** The one OpenAI call that carries the summary context. */
+    /**
+     * The one OpenAI call that carries the summary context.
+     *
+     * Identified by a heading only the summary asks for. It used to look for
+     * 追銷信草稿, which stopped being part of this prompt when the follow-up
+     * email moved to one of its own (011 US35 / FR-187).
+     */
     private function summaryInput(): ?string
     {
         foreach (Http::recorded() as [$request]) {
-            if (str_contains($request->url(), 'openai') && str_contains((string) $request['instructions'], '追銷信草稿')) {
+            if (str_contains($request->url(), 'openai') && str_contains((string) $request['instructions'], '成交機率')) {
                 return (string) $request['input'];
             }
         }
@@ -785,10 +791,25 @@ class ConsultationSummaryTest extends TestCase
         $this->assertStringContainsString('客戶暱稱：Booker', (string) $this->summaryInput());
     }
 
-    public function test_the_summary_prompt_has_room_for_the_extra_section(): void
+    public function test_the_summary_prompt_is_sized_for_seven_internal_sections(): void
     {
-        // 2000 was set when the output was seven internal sections; the draft
-        // email is the longest single block in there now (T353a).
-        $this->assertSame(4000, AiPrompt::for('consultation_summary')->max_output_tokens);
+        // Back to 2000 with the letter gone (011 FR-187). US29 raised it to
+        // 4000 solely to make room for that eighth section, which now has its
+        // own prompt and its own cap.
+        $this->assertSame(2000, AiPrompt::for('consultation_summary')->max_output_tokens);
+        $this->assertStringNotContainsString(
+            '追銷信草稿',
+            (string) AiPrompt::for('consultation_summary')->instructions,
+            '追銷信已搬到 consultation_followup_email，摘要 prompt 不該再產出它'
+        );
+    }
+
+    public function test_the_follow_up_email_prompt_is_installed_under_the_consultation_feature(): void
+    {
+        $prompt = AiPrompt::for('consultation_followup_email');
+
+        $this->assertNotNull($prompt, '追銷 Email prompt 應由 install migration 建立（FR-188）');
+        $this->assertSame('consultation', $prompt->feature, 'AI 設定頁靠 feature 分組，錯了就不會出現在「面談整理」下');
+        $this->assertNull($prompt->model, '預設跟隨站台模型，由使用者在設定頁改');
     }
 }

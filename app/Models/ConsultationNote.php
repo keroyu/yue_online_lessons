@@ -31,15 +31,20 @@ class ConsultationNote extends Model
         'summary',
         'summary_generated_at',
         'summary_edited_at',
+        'followup_email',
+        'followup_email_generated_at',
+        'followup_email_edited_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'met_at'                => 'datetime',
-            'transcript_fetched_at' => 'datetime',
-            'summary_generated_at'  => 'datetime',
-            'summary_edited_at'     => 'datetime',
+            'met_at'                      => 'datetime',
+            'transcript_fetched_at'       => 'datetime',
+            'summary_generated_at'        => 'datetime',
+            'summary_edited_at'           => 'datetime',
+            'followup_email_generated_at' => 'datetime',
+            'followup_email_edited_at'    => 'datetime',
         ];
     }
 

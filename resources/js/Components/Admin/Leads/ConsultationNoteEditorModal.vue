@@ -9,9 +9,62 @@ const props = defineProps({
   // Mutated in place on save so the row behind the modal stays in step; the
   // panel hands us the very object it renders.
   note: { type: Object, default: null },
+  // 'summary' = 顧問自己看的內部判斷；'followup' = 要寄給客戶的那封信（011 US35）。
+  mode: { type: String, default: 'summary' },
 })
 
 const emit = defineEmits(['close'])
+
+/**
+ * 兩個欄位差的只有這張表 —— 標題、綁哪個欄位、兩個端點與按鈕字樣（D135）。
+ *
+ * 複製一份元件比較快，但這支元件的實質不是中間那個 textarea，是圍著它的那一圈：
+ * 背景關閉的 mousedown/mouseup 判定、中文輸入法的 Esc、未存變更攔截、scroll lock。
+ * 那些每一條都是回報過的 bug 修出來的，複製等於把它們複製成兩份，而下一次修正
+ * 只會修好其中一份。
+ */
+const MODES = {
+  summary: {
+    title: '客戶摘要',
+    field: 'summary',
+    generatedAt: 'summary_generated_at',
+    editedAt: 'summary_edited_at',
+    save: (id) => `/admin/consultation-notes/${id}/summary`,
+    generate: (id) => `/admin/consultation-notes/${id}/regenerate-summary`,
+    saveLabel: '儲存摘要',
+    savingLabel: '儲存中…',
+    savedFlash: '摘要已儲存',
+    generateLabel: '重新產生摘要',
+    generatingLabel: '產生中…',
+    generatedFlash: '摘要已重新產生',
+    confirmGenerate: '重新產生摘要會覆寫目前的內容（包含手動修改過的部分），確定嗎？',
+    confirmClose: '摘要還沒儲存，關閉會失去這次的修改。確定關閉嗎？',
+    emptyHint: '尚未產生摘要',
+    noTranscriptHint: '尚無逐字稿，無法產生摘要',
+    placeholder: '面談結束後由 AI 自動填入，也可以直接在這裡寫。',
+  },
+  followup: {
+    title: '追銷 Email',
+    field: 'followup_email',
+    generatedAt: 'followup_email_generated_at',
+    editedAt: 'followup_email_edited_at',
+    save: (id) => `/admin/consultation-notes/${id}/followup-email`,
+    generate: (id) => `/admin/consultation-notes/${id}/generate-followup-email`,
+    saveLabel: '儲存追銷信',
+    savingLabel: '儲存中…',
+    savedFlash: '追銷信已儲存',
+    generateLabel: '產生追銷信',
+    generatingLabel: '產生中…（約 10–40 秒）',
+    generatedFlash: '追銷信已產生',
+    confirmGenerate: '產生追銷信會覆寫目前的內容（包含手動修改過的部分），確定嗎？',
+    confirmClose: '追銷信還沒儲存，關閉會失去這次的修改。確定關閉嗎？',
+    emptyHint: '尚未產生追銷信',
+    noTranscriptHint: '尚無逐字稿，無法產生追銷信',
+    placeholder: '按下「產生追銷信」由 AI 依面談內容判斷購買障礙後撰寫，也可以直接在這裡寫。',
+  },
+}
+
+const config = computed(() => MODES[props.mode] ?? MODES.summary)
 
 const draft = ref('')
 const saving = ref(false)
@@ -19,9 +72,9 @@ const regenerating = ref(false)
 const message = ref('')
 const error = ref('')
 
-watch(() => [props.show, props.note?.id], ([show]) => {
+watch(() => [props.show, props.note?.id, props.mode], ([show]) => {
   if (show && props.note) {
-    draft.value = props.note.summary ?? ''
+    draft.value = props.note[config.value.field] ?? ''
   }
   message.value = ''
   error.value = ''
@@ -36,13 +89,15 @@ const flash = (text) => {
 }
 
 const save = async () => {
+  const { field, editedAt } = config.value
+
   saving.value = true
   error.value = ''
   try {
-    const { data } = await axios.patch(`/admin/consultation-notes/${props.note.id}/summary`, { summary: draft.value })
-    props.note.summary = draft.value
-    props.note.summary_edited_at = data.summary_edited_at
-    flash('摘要已儲存')
+    const { data } = await axios.patch(config.value.save(props.note.id), { [field]: draft.value })
+    props.note[field] = draft.value
+    props.note[editedAt] = data[editedAt]
+    flash(config.value.savedFlash)
   } catch (e) {
     error.value = e.response?.data?.message || '儲存失敗'
   } finally {
@@ -51,19 +106,21 @@ const save = async () => {
 }
 
 const regenerate = async () => {
-  if (!window.confirm('重新產生摘要會覆寫目前的內容（包含手動修改過的部分），確定嗎？')) {
+  const { field, generatedAt, editedAt } = config.value
+
+  if (!window.confirm(config.value.confirmGenerate)) {
     return
   }
 
   regenerating.value = true
   error.value = ''
   try {
-    const { data } = await axios.post(`/admin/consultation-notes/${props.note.id}/regenerate-summary`)
-    draft.value = data.summary
-    props.note.summary = data.summary
-    props.note.summary_generated_at = data.summary_generated_at
-    props.note.summary_edited_at = null
-    flash('摘要已重新產生')
+    const { data } = await axios.post(config.value.generate(props.note.id))
+    draft.value = data[field]
+    props.note[field] = data[field]
+    props.note[generatedAt] = data[generatedAt]
+    props.note[editedAt] = null
+    flash(config.value.generatedFlash)
   } catch (e) {
     error.value = e.response?.data?.message || '產生失敗'
   } finally {
@@ -76,10 +133,10 @@ const regenerate = async () => {
  * admin presses 儲存摘要 and the three ways out (ESC, backdrop, 關閉) all
  * discard it silently.
  */
-const dirty = computed(() => draft.value !== (props.note?.summary ?? ''))
+const dirty = computed(() => draft.value !== (props.note?.[config.value.field] ?? ''))
 
 const requestClose = () => {
-  if (dirty.value && !window.confirm('摘要還沒儲存，關閉會失去這次的修改。確定關閉嗎？')) {
+  if (dirty.value && !window.confirm(config.value.confirmClose)) {
     return
   }
 
@@ -155,7 +212,7 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
             <!-- Header -->
             <div class="border-b border-gray-200 px-6 py-4 flex items-start justify-between gap-4 rounded-t-lg">
               <div class="min-w-0">
-                <h2 class="text-lg font-bold text-gray-900">客戶摘要</h2>
+                <h2 class="text-lg font-bold text-gray-900">{{ config.title }}</h2>
                 <p class="text-sm text-gray-500 truncate">
                   {{ formatDate(note.met_at) || '時間未定' }}
                   <template v-if="note.course"> · {{ note.course.name }}</template>
@@ -177,14 +234,14 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
             <!-- Body -->
             <div class="flex-1 overflow-y-auto px-6 py-4 space-y-2">
               <p class="text-xs text-gray-400">
-                <template v-if="note.summary_edited_at">人工編輯於 {{ formatDate(note.summary_edited_at) }}</template>
-                <template v-else-if="note.summary_generated_at">AI 產生於 {{ formatDate(note.summary_generated_at) }}</template>
-                <template v-else>尚未產生摘要</template>
+                <template v-if="note[config.editedAt]">人工編輯於 {{ formatDate(note[config.editedAt]) }}</template>
+                <template v-else-if="note[config.generatedAt]">AI 產生於 {{ formatDate(note[config.generatedAt]) }}</template>
+                <template v-else>{{ config.emptyHint }}</template>
               </p>
               <textarea
                 v-model="draft"
                 rows="18"
-                placeholder="面談結束後由 AI 自動填入，也可以直接在這裡寫。"
+                :placeholder="config.placeholder"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal"
               />
             </div>
@@ -197,16 +254,16 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
                 :disabled="saving"
                 @click="save"
               >
-                {{ saving ? '儲存中…' : '儲存摘要' }}
+                {{ saving ? config.savingLabel : config.saveLabel }}
               </button>
               <button
                 type="button"
                 :class="[btn, 'border-gray-300 text-gray-700 hover:bg-gray-50']"
                 :disabled="regenerating || !note.transcript_bytes"
-                :title="note.transcript_bytes ? '' : '尚無逐字稿，無法產生摘要'"
+                :title="note.transcript_bytes ? '' : config.noTranscriptHint"
                 @click="regenerate"
               >
-                {{ regenerating ? '產生中…' : '重新產生摘要' }}
+                {{ regenerating ? config.generatingLabel : config.generateLabel }}
               </button>
               <span v-if="message" class="text-xs text-green-600">{{ message }}</span>
               <span v-if="error" class="text-xs text-red-600">{{ error }}</span>

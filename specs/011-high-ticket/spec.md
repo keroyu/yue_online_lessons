@@ -2,6 +2,9 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
+  - database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
+  - tests/Feature/HighTicket/ConsultationFollowupEmailTest.php
   - app/Http/Requests/Admin/UploadTranscriptRequest.php
   - tests/Feature/HighTicket/TranscriptUploadTest.php
   - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
@@ -136,7 +139,7 @@ owner_files:
   - tests/Feature/HighTicket/ConsultationNoteTest.php
   - tests/Feature/HighTicket/LongQueueDrainScheduleTest.php
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
-  - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
+  - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
   - file: app/Services/TransactionService.php
     owner: 009-transactions-admin
@@ -218,7 +221,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -260,7 +263,7 @@ touchpoints:
     why: US23 的校訂與摘要都經由這支通用呼叫發出；本模組不自行組裝 OpenAI 請求，否則第二個 AI 功能上線時會有兩份憑證與錯誤處理
   - file: database/migrations/2026_08_17_000002_create_ai_prompts_table.php
     owner: 000-platform-core
-    why: 本模組的兩支 prompt（`consultation_transcript_proofread` / `consultation_summary`）的預設內文自 US23 起安裝於此；US29 在摘要內文追加「## 追銷信草稿」一節，只改這份安裝來源、不另寫 update migration（FR-149 / D115）
+    why: 本模組的 prompt 預設內文自 US23 起安裝於此；US29 在摘要內文追加「## 追銷信草稿」一節，US35 又把那一節整個移除並新增第三支 `consultation_followup_email`。三次都只改這份安裝來源、不另寫 update migration 去動正式站既有列（FR-149 / D115）；新列另有一支 insert-if-absent 的 install migration 供正式站取得（FR-188）
 ---
 
 # High Ticket（高價課預約：隱藏價格銷售頁 + Leads 後台 + Email 模板系統）
@@ -1135,6 +1138,43 @@ Zoom 上於是有兩份錄影，而 `findTranscriptFile()` 挑中的那一份可
 - [x] 上傳的原始檔 MUST NOT 落地保存（不進 storage、不加欄位）；保留的只有整理後的 `transcript`（D131）
 - [x] 測試：SRT 序號與時間軸被濾除、無講者標籤的 txt 仍產出對話、上傳覆寫已鎖定的摘要、空檔與純時間軸檔回 422 且不動既有資料、非 staff 被擋、超過 2MB 被擋
 
+### User Story 35 - 追銷 Email 獨立成欄 (Priority: P2)
+
+面談結束後真正要交出去的東西有兩份，讀者完全不同：一份是**給顧問自己看的**七節內部判斷
+（成交機率、主要異議、預算與決策權），另一份是**要寄給客戶本人的**那封信。US29 把後者做成
+摘要的第 8 節，理由是不想多跑一次 AI 呼叫 —— 而代價現在看得很清楚：兩份東西共用一組
+instructions、一個模型、一份 `max_output_tokens` 與同一個編輯鎖。
+
+於是每一次想把信寫得更好，都得動到那份同時管著摘要的 prompt。而兩邊要的方向是相反的：
+摘要要精簡條列、不臆測、寫不出來就寫「未提及」；信要展開、要有溫度、要引用對方的原話。
+編輯鎖的衝突更實際 —— 顧問把信改到剛好可以寄，接著覺得摘要哪裡不對按了「重新產生摘要」，
+那封改好的信就跟著沒了，因為它們是同一個欄位。
+
+因此追銷 Email 搬出摘要，成為 `consultation_notes` 上自己的欄位、面談紀錄列上自己的按鈕、
+以及 AI 設定頁上自己的一支 prompt（自己的模型、自己的 instructions）。這支 prompt 的工作
+比摘要更明確：**先從面談紀錄裡判斷這個人到底卡在哪裡**（價格、時機、信任、決策權、
+還是根本不是目標客群），再針對那個障礙寫一封專屬的信 —— 而不是把摘要翻譯成客套話。
+
+它也是唯一**不自動跑**的 AI 步驟：摘要每場都要看，信不是。當場成交的、明確拒絕的、
+沒出席的都不需要一封追銷信，自動產生等於為每場面談固定多付一次 token，其中相當比例
+永遠不會被打開。所以生成綁在按鈕上（D134）。
+
+**驗收**：
+- [x] `consultation_notes` 新增 `followup_email` / `followup_email_generated_at` / `followup_email_edited_at` 三欄，與 `summary` 三兄弟平行（FR-186）
+- [x] 摘要 prompt 的第 8 節「## 追銷信草稿」MUST 自安裝來源移除、`max_output_tokens` 一併改回 2000；MUST NOT 另寫 update migration 去改正式站既有列（沿用 FR-149 / D115），正式站由使用者自行在 `/admin/settings/ai` 刪那一節（FR-187）
+- [x] 新增第三支 prompt `consultation_followup_email`（feature=`consultation`、`sort_order` 3、`model` null 跟隨站台預設），insert-if-absent 且定義**只在**一支獨立的 install migration 裡（比照 003 的 `install_homework_grading_prompt`）—— 寫進建表 migration 只到得了新環境（FR-188）
+- [x] `config/ai.php` MUST NOT 改動：`consultation` 群組已存在，AI 設定頁依資料分組渲染，新列自動出現在「面談整理」底下（000 US10）
+- [x] 生成的輸入依序為「客戶暱稱一行 → `## 面談摘要` 段 → `## 逐字稿` 段」，暱稱候選清單與順序沿用 `customerNameCandidates()`（FR-148），無值則整行省略、摘要為空則整段省略（FR-189）
+- [x] `transcript` 為空時 MUST 回 422 且 MUST NOT 只憑摘要生成 —— 沒有原話可引用的信就是通用範本，而那正是這功能要取代的東西
+- [x] 生成 MUST 只在按下「產生追銷信」時發生：webhook、上傳替換逐字稿、重新產生摘要三條路徑 MUST NOT 連帶產生或覆寫追銷信（D134）
+- [x] 生成為**同步**單次呼叫（比照 `regenerateSummary()`），MUST NOT 進佇列（D136）
+- [x] 生成無條件覆寫既有內容（含人工編修過的），前端以 confirm 攔一次；成功後 `followup_email_edited_at` 清為 null
+- [x] 人工編修走 `PATCH /admin/consultation-notes/{note}/followup-email`，蓋上 `followup_email_edited_at`，與摘要的儲存同形
+- [x] 面談紀錄列在摘要按鈕之後多一顆「查看追銷Email」／「撰寫追銷Email」（依 `followup_email` 有無切換字樣與顏色）（FR-191）
+- [x] 摘要與追銷 Email MUST 共用同一支 modal 組件，MUST NOT 複製一份 —— 背景關閉的 mousedown/mouseup 判定、中文輸入法的 ESC、未存變更攔截都是回報過的 bug 修出來的，複製等於複製成兩份（D135）
+- [x] leads payload 的 `consultationNotes` 帶上 `followup_email` 全文（與 `transcript` 不同、與 `summary` 相同，理由見 FR-192）
+- [x] 測試：輸入三段的組裝與省略規則、無逐字稿回 422、生成覆寫人工編修並清 `edited_at`、上傳替換逐字稿不動追銷信、儲存蓋 `followup_email_edited_at`、非 staff 被擋
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1637,7 +1677,20 @@ Zoom 上於是有兩份錄影，而 `findTranscriptFile()` 挑中的那一份可
 - **FR-184**: 對話解析 MUST 是格式中立的：濾除 WEBVTT 檔頭、`NOTE`/`STYLE`/`REGION` 區塊、純數字序號行（VTT cue 編號與 SRT 序號同形）、以及任何含 `-->` 的時間軸行（VTT 的 `.` 與 SRT 的 `,` 毫秒分隔皆是）。沒有時間軸也沒有講者標籤的純文字 MUST 原樣成為對話行，不得報錯 —— 匿名化找不到對應時交給校訂步驟推斷，這是 FR-106 對「未能對應講者」的既定做法。
 - **FR-185**: 上傳替換的覆寫是無條件的：`transcriptIsSettled()`（FR-110 防重抓）與 `summaryIsLocked()`（人工編修保護）皆 MUST 被略過，摘要與追蹤信草稿一律重新產生並把 `summary_edited_at` 清為 null。理由見 D130 —— 這兩道守門防的是「同一份逐字稿被重複處理」，而上傳的前提正是逐字稿換了一份。
 
+- **FR-186**: 追銷 Email MUST 存在 `consultation_notes` 自己的三個欄位（`followup_email` / `followup_email_generated_at` / `followup_email_edited_at`），MUST NOT 續用摘要的第 8 節。兩者是不同讀者、不同生命週期的東西：摘要是顧問的內部判斷、隨逐字稿更新而重生；信是要寄出去的成品、改到可以寄之後就不該再被任何自動流程碰到。共用一個欄位時，「重新產生摘要」會連帶沖掉那封改好的信，而畫面上完全看不出剛剛失去了什麼。各自的 `*_edited_at` 也才守得住各自的鎖。
+- **FR-187**: 摘要 prompt 的第 8 節「## 追銷信草稿」MUST 自安裝來源（`create_ai_prompts_table` 的 `summaryInstructions()`）整節移除，`consultation_summary` 的 `max_output_tokens` 一併由 4000 改回 2000（US29 調高就是為了容納那一節），`description` 同步改回只描述七節內部摘要。與 US29 相同：MUST NOT 另寫 update migration 去改正式站的既有列（FR-149 / D115，那會吃掉使用者自己改過的內文），正式站由使用者在 `/admin/settings/ai` 手動刪掉那一節並調回 tokens。兩處各生一封信是這次改動要消滅的東西 —— 顧問每次都得先決定看哪一封。
+- **FR-188**: 新增第三支 prompt `consultation_followup_email`（`feature` = `consultation`、`label` =「追銷 Email」、`sort_order` 3、`model` null 跟隨站台預設、`max_output_tokens` 2000），insert-if-absent（000 FR-028）。定義 MUST 只放在一支獨立的 `install_consultation_followup_prompt` migration 裡，MUST NOT 同時寫進 `create_ai_prompts_table`：建表 migration 在正式站早已跑過、不會再跑，寫在那裡只到得了新環境；而獨立的一支兩邊都到得了（`migrate:fresh` 照樣會跑它）。這也是 003 US10 的 `install_homework_grading_prompt` 既有的作法 —— 內文因此只有一份，不必擔心兩處漂移。`config/ai.php` MUST NOT 改動 —— `consultation` 這個 feature 群組已存在，AI 設定頁依資料分組渲染（000 US10），新列自動出現。
+- **FR-189**: `followupEmail()` 的輸入 MUST 依序組成三段：客戶暱稱一行（候選清單與順序沿用 FR-148 的 `customerNameCandidates()`，取第一個非空值；無值則**整行省略**，MUST NOT 送佔位字）、`## 面談摘要` 段（`summary` 為空時整段省略）、`## 逐字稿` 段。兩份都給是刻意的：摘要裡的「主要異議／預算與決策權／成交機率」已經是購買障礙的結論，逐字稿則提供可引用的原話 —— 少了前者信抓不到重點，少了後者信會退化成通用範本。`transcript` 為空 MUST 回 null（端點轉 422），MUST NOT 只憑摘要生成。
+- **FR-190**: 生成 MUST 只由管理員按下「產生追銷信」觸發（`POST /admin/consultation-notes/{note}/generate-followup-email`，staff、`throttle:10,1`），**同步**執行單次呼叫並回 JSON，形狀比照既有的 `regenerateSummary()`。webhook、上傳替換逐字稿（FR-185）、重新產生摘要三條路徑 MUST NOT 連帶產生或覆寫追銷信。生成對既有內容是**無條件覆寫**（含人工編修過的）並把 `followup_email_edited_at` 清為 null；不設後端守門，因為這裡不存在需要被擋的自動流程 —— 攔截在前端的 confirm，與摘要的「重新產生」同形。人工編修走 `PATCH /admin/consultation-notes/{note}/followup-email`（staff），蓋上 `followup_email_edited_at`。
+- **FR-191**: 面談紀錄列在「查看／撰寫摘要」之後 MUST 多一顆「查看追銷Email」／「撰寫追銷Email」，字樣與配色依 `followup_email` 有無切換，沿用摘要那顆的樣式規則。兩顆按鈕 MUST 開同一支 modal 組件（D135），差別只在標題、綁定欄位、兩個端點與按鈕字樣。modal 內的「產生追銷信」在沒有逐字稿時 MUST 停用並附 title 說明，與「重新產生摘要」同一條件。
+- **FR-192**: leads payload 的 `consultationNotes` MUST 帶上 `followup_email` 全文與兩個時間戳。與 `transcript` 的處理相反、與 `summary` 相同：一封 200–300 字的信約 600 bytes，比已經在傳的七節摘要更小，為它另開一支讀取端點只會多一次往返而省不到什麼。
+
 ## 設計決策
+- **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
+- **D134**: 追銷 Email **只在按鈕點下時生成**（使用者決策），不隨逐字稿到位自動產生。摘要是每場都要看的（顧問得知道談了什麼），信不是：當場成交的、明確拒絕的、沒出席的都不需要。自動產生是為每一場面談固定多付一次 token，而其中相當比例的輸出永遠不會被打開。同一條理由讓上傳替換逐字稿（FR-185）也不連帶重生信 —— 那條路徑重生的是摘要，信由顧問自己按；反過來說，逐字稿換過之後那封舊信確實可能過期，而「要不要重寫」正是按鈕存在的意義。
+- **D135**: 摘要與追銷 Email **共用同一支 modal**：`ConsultationSummaryModal.vue` 更名 `ConsultationNoteEditorModal.vue`，收一個 `mode` prop（`summary` / `followup`）決定標題、綁定欄位、兩個端點與按鈕字樣。這支元件的實質不是中間那個 textarea，是圍著它的那一圈：背景關閉必須 mousedown 與 mouseup **都**落在背景上（否則在 textarea 裡拖曳選字、手指滑出面板放開就會誤關）、ESC 要避開中文輸入法的組字狀態（`isComposing` 與 keyCode 229）、未存變更要攔關閉、body scroll lock。那些每一條都是回報過的 bug 修出來的。複製一份等於把它們複製成兩份，而下一次修正只會修好其中一份。
+- **D136**: 生成**同步**而非進佇列。與 US23 的校訂不是同一種工作：那是把一小時的逐字稿切成七段的連續呼叫，分鐘級，因此需要 FR-117 那整套租約論證；這是**單次**呼叫，`config('ai.timeout')` 已設 120 秒上限，與既有的 `regenerateSummary()` 完全同形（那支也是同步且已在正式站跑了一段時間）。為它另開佇列路徑的代價是按完看不到結果、得自己重新整理 —— 而那正是一顆「產生」按鈕最不該有的行為。
+
 
 - **D126**: 顏色**不落庫**，由名冊順序推導（`users.id` 遞增的位置 → 色票序號）。
   存一個 `users.calendar_color` 看起來更「可控」，代價是三件事：新增顧問時有人要記得挑色（沒挑就是沒有顏色）、兩個人可以被設成同一色而系統不會反對、以及一個需要 UI 才能改的欄位。推導出來的顏色沒有這些問題，代價是刪掉一位顧問會讓排在他後面的人整排換色 —— 顧問是極低頻的新增與幾乎不刪除的資料，這個代價一年碰不到一次。
@@ -2213,6 +2266,21 @@ Zoom 上於是有兩份錄影，而 `findTranscriptFile()` 挑中的那一份可
 
 
 - `consultation_notes` — 本次**無 schema 變更**。上傳替換寫的是既有的 `transcript` / `transcript_fetched_at` / `summary` / `summary_generated_at`，並把 `summary_edited_at` 清為 null；原始上傳檔不落地（D131）。
+
+- **US35 schema 變更（一支 migration，動 `consultation_notes`）**：
+
+  `2026_09_10_000001_add_followup_email_to_consultation_notes_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `followup_email` | text nullable，`after('summary_edited_at')` | 追銷信本文。**純文字非 Markdown**（它是要貼進信箱的成品，不是要渲染的文件），因此不套 `*_md` 命名 |
+  | `followup_email_generated_at` | timestamp nullable | AI 產生時間 |
+  | `followup_email_edited_at` | timestamp nullable | 非 null = 人工編修過。與 `summary_edited_at` 不同的是它**不擋生成**（FR-190）—— 這裡沒有會自動覆寫它的流程需要被擋，唯一的覆寫者是主動按下按鈕的人 |
+
+  不變量：三欄與 `summary` 三兄弟平行，`ConsultationNote::$fillable` 與 `casts()` 同步補上；`isEmpty()` **不看**這三欄（那是「這列值不值得保留」的判斷，而沒有逐字稿也沒有摘要卻有一封信的狀態不存在）。
+
+  `2026_09_10_000002_install_consultation_followup_prompt.php` —— 無 schema 變更，只 insert-if-absent 一列 `ai_prompts`（FR-188）。新舊環境**共同**的唯一路徑：正式站的建表 migration 早已跑過，而新環境 `migrate:fresh` 也會跑到這一支。
+
 
 ## Tasks
 
@@ -3004,7 +3072,35 @@ Phase 4 — 驗證
 - [ ] T422 使用者實測：拿那場錄了兩次的面談，上傳正確的那份 VTT，確認逐字稿與摘要都換成新的、且逐字稿裡是「顧問／客戶」而非真名
 
 
+### US35 追銷 Email 獨立成欄（FR-186–FR-192 / D133–D136）
+
+- [x] T423 migration：`consultation_notes` 加 `followup_email`（text nullable）/ `followup_email_generated_at` / `followup_email_edited_at`，皆 `after` 前一欄 in `database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php`
+- [x] T424 [P] `ConsultationNote`：`$fillable` 與 `casts()` 補上三欄；`isEmpty()` 不動 in `app/Models/ConsultationNote.php`
+- [x] T425 `create_ai_prompts_table`：`summaryInstructions()` 刪去「## 追銷信草稿」該節標題與其規則段、把暱稱那句的用途改寫（不再說「供最後一節寫信時使用」）、「前七節」改為「每一節」、`consultation_summary` 的 `max_output_tokens` 改回 2000 且 `description` 同步（FR-187）in `database/migrations/2026_08_17_000002_create_ai_prompts_table.php`（000 touchpoint）
+- [x] T426 install migration：insert-if-absent 寫入 `consultation_followup_email` 一列（feature `consultation`、label「追銷 Email」、`sort_order` 3、`model` null、`max_output_tokens` 2000），instructions 含五類購買障礙的判斷清單與四段信件結構；**定義只在這一支**、不寫進建表 migration（FR-188，比照 003 `install_homework_grading_prompt`）in `database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php`
+- [x] T427 `ConsultationTranscriptService`：加 `public const FOLLOWUP_PROMPT = 'consultation_followup_email'` 與 `followupEmail(ConsultationNote $note): ?string` —— 逐字稿為空回 null；輸入依 FR-189 三段組裝（暱稱行沿用 `customerNameCandidates()[0]`，摘要為空整段省略）in `app/Services/ConsultationTranscriptService.php`
+- [x] T428 `ConsultationNoteController`：`generateFollowupEmail()`（無逐字稿 422、AI 回 null 422、成功寫入並清 `followup_email_edited_at`、回 JSON）與 `updateFollowupEmail()`（inline validate `nullable|string|max:20000`、蓋 `followup_email_edited_at`）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T429 路由兩條（staff 群組）：`POST /admin/consultation-notes/{note}/generate-followup-email`（`throttle:10,1`）與 `PATCH /admin/consultation-notes/{note}/followup-email` in `routes/web.php`（000 touchpoint）
+- [x] T430 leads payload 的 `consultationNotes` select 加 `followup_email` / `followup_email_generated_at` / `followup_email_edited_at`（`transcript` 仍只取 `LENGTH`，不動）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T431 `ConsultationSummaryModal.vue` → `ConsultationNoteEditorModal.vue`（`git mv`）：加 `mode` prop（`summary` / `followup`），標題／欄位／儲存端點／生成端點／按鈕字樣／placeholder 由一張 map 依 mode 取；背景關閉、ESC/IME、dirty 攔截、scroll lock 全數不動（D135）in `resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue`
+- [x] T432 [P] 面談紀錄列：摘要按鈕之後加「查看／撰寫追銷Email」，以 `openNote` + `openMode` 兩個狀態驅動同一支 modal；import 路徑改為新檔名 in `resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue`
+- [x] T433 測試：輸入含暱稱行與 `## 面談摘要` / `## 逐字稿` 兩段、無暱稱時整行不存在、摘要為空時整段不存在、無逐字稿回 422、生成覆寫人工編修過的信並把 `followup_email_edited_at` 清為 null、上傳替換逐字稿後 `followup_email` 不變（FR-185 不連帶）、`PATCH` 蓋上 `followup_email_edited_at`、非 staff 被導回 `/` in `tests/Feature/HighTicket/ConsultationFollowupEmailTest.php`
+- [x] T433a `ConsultationSummaryTest` 對帳：`summaryInput()` 的識別字串由「追銷信草稿」改為「成交機率」（前者已不在摘要 prompt 裡）、token 上限斷言由 4000 改 2000 並加斷言摘要 prompt 不再含追銷信、另加一條斷言新 prompt 以 `feature=consultation` 安裝 in `tests/Feature/HighTicket/ConsultationSummaryTest.php`
+- [x] T434 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T435 使用者實測：正式站 `/admin/settings/ai` 手動刪掉摘要 prompt 的「## 追銷信草稿」整節、`max_output_tokens` 調回 2000，確認「追銷 Email」新列出現在「面談整理」底下；拿一場真面談按「產生追銷信」，確認信裡叫得出名字、講得出對方的具體障礙、且沒有出現成交機率之類的內部判斷
+
+
 ## 進度日誌
+
+- 2026-09-10: US35 追銷 Email 獨立成欄完成（T423–T434，僅剩 T435 使用者實測）— `consultation_notes` 加三欄、`ConsultationTranscriptService::followupEmail()`、兩條 staff 路由、面談紀錄列第二顆按鈕，摘要 prompt 的第 8 節自安裝來源移除、tokens 改回 2000。
+  規劃時錯估了一件事並在實作中修正（FR-188 / T425 / T426 已同步）：原本要求新 prompt「寫進建表 migration **與** install migration 兩處」，但建表 migration 在正式站早就跑完、永遠不會再跑，寫在那裡只到得了新環境；而一支獨立的 install migration **兩邊都到得了**（`migrate:fresh` 照樣會跑它）。003 的 `install_homework_grading_prompt` 早就是這個形狀。所以定義只有一份，放在新的那一支裡，建表 migration 這次只動摘要 prompt 的內文。
+  modal 依 D135 改名 `ConsultationNoteEditorModal.vue` 並收 `mode` prop，差異收斂成一張 `MODES` 表（標題／欄位／兩個端點／按鈕字樣／確認文案）。**第二個呼叫端是規劃時漏掉的**：`BookingListTab.vue` 的摘要徽章也用同一支 modal，import 一併改名；`mode` 預設 `summary`，那條路徑行為不變。
+  三支既有測試因為摘要 prompt 內文改動而紅，且**紅得正確**：`summaryInput()` 靠「追銷信草稿」這個字串辨識是哪一次 OpenAI 呼叫，而那節已經不在了 —— 改以「成交機率」辨識；token 上限的斷言由 4000 改 2000 並加一條「摘要 prompt 不得再含追銷信草稿」。另加一條斷言新 prompt 以 `feature=consultation` 安裝（錯了就不會出現在設定頁的「面談整理」底下，而那是使用者唯一改得到 prompt 的地方）。
+  `ConsultationFollowupEmailTest` 10 passed，全站 `php artisan test` **896 passed（3733 assertions）**、`npm run build` exit 0。
+
+- 2026-09-10: [draft] 規劃 US35 追銷 Email 獨立成欄（FR-186–FR-192 / D133–D136）— 這是對 US29 的一次修正而不是加功能：那封信當初被塞進摘要的第 8 節，於是它與七節內部判斷共用 instructions、模型、`max_output_tokens` 與**同一個編輯鎖**。最後一項是實際會咬人的地方 —— 把信改到剛好可以寄，接著按「重新產生摘要」，那封信就沒了，而畫面上看不出剛剛失去了什麼。
+  三個關鍵決策：（1）D133 拆開之後兩支 prompt 各自可選模型，信可以跑貴的、校訂繼續跑最便宜的；（2）D134 生成只綁按鈕、不隨逐字稿到位自動跑 —— 摘要每場都要看，信不是（成交的、拒絕的、沒出席的都不需要），自動跑等於為每場固定多付一次 token；（3）D135 兩支不複製 modal，`ConsultationSummaryModal.vue` 改名並收 `mode` prop，因為那支元件的實質是背景 mousedown/mouseup 判定、中文 IME 的 ESC、dirty 攔截這些修過的 bug，複製等於複製成兩份。
+  輸入同時餵摘要與逐字稿（FR-189）：摘要裡的主要異議與預算決策權已經是購買障礙的結論，逐字稿提供可引用的原話，少了任一邊信不是抓不到重點就是變成通用範本。摘要 prompt 那一節的移除只改**安裝來源**、不寫 update migration（沿用 FR-149 / D115），正式站的內文要由使用者自己刪 —— 這也是 T435 的一部分。新 prompt 需要兩支安裝路徑（FR-188），因為正式站的建表 migration 早就跑過了。一支 schema migration、一支 install migration。status: draft 待審核。
 
 - 2026-09-09: US34 上傳替換逐字稿完成（T414–T421，僅剩 T422 使用者實測）— 落地後最值得記的是**沒有寫新的 parser**：`vttToDialogue()` 只是更名為 `toDialogue()`，一行解析邏輯都沒改就吃得下 SRT，因為它濾掉的 `-->` 時間軸行與純數字序號行正好就是 SRT 的形狀（差別只在毫秒前是 `,` 還是 `.`，而那個字元從來沒被檢查過）；純 txt/md 沒有這兩種行，直接成為對話行。測試特地斷言 `/^\d+$/m` 不存在於輸出中 —— SRT 的序號行如果沒被濾掉，會變成一行只有「1」的台詞混進逐字稿裡。
   兩處寫入 `transcript` 的路徑收斂成一支 private `storeTranscript()`，Zoom 與上傳都經過它（FR-183）。這不只是去重：只要有兩個地方能寫那個欄位，「表裡每份逐字稿都已匿名化」這條不變量就得靠兩處各自守好。端點在派工**之前**先跑一次 `toDialogue()` 當驗證 —— 副檔名只是提示，真正的判準是解析得出東西沒有；先驗再寫，一個壞檔案才不會把好紀錄毀掉。

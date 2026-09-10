@@ -685,12 +685,15 @@ main_files:
 - database/migrations/2026_08_20_000001_install_booking_declined_template.php
 - database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
 - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
+- database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
+- database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue
 - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
+- resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
 - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
@@ -723,6 +726,7 @@ main_files:
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+- tests/Feature/HighTicket/ConsultationFollowupEmailTest.php
 - tests/Feature/HighTicket/ConsultationNoteTest.php
 - tests/Feature/HighTicket/ConsultationReminderTest.php
 - tests/Feature/HighTicket/ConsultationSlotAdminTest.php

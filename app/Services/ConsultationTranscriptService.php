@@ -15,6 +15,7 @@ class ConsultationTranscriptService
 {
     public const PROOFREAD_PROMPT = 'consultation_transcript_proofread';
     public const SUMMARY_PROMPT = 'consultation_summary';
+    public const FOLLOWUP_PROMPT = 'consultation_followup_email';
 
     public const CONSULTANT_LABEL = '顧問';
     public const CUSTOMER_LABEL = '客戶';
@@ -237,6 +238,52 @@ class ConsultationTranscriptService
             : "客戶暱稱：{$name}\n\n{$transcript}";
 
         return $this->ai->respond(self::SUMMARY_PROMPT, $input);
+    }
+
+    /**
+     * Write the follow-up email for one consultation (011 US35).
+     *
+     * The letter used to be the summary's eighth section (US29). It is its own
+     * call now because the two want opposite things from a prompt — the summary
+     * wants terse bullets that never speculate, the letter wants prose that
+     * quotes the customer back to themselves — and because sharing a column
+     * meant sharing an edit lock: regenerating the summary silently discarded a
+     * letter the consultant had already polished.
+     *
+     * Both the summary and the transcript go in (FR-189). The summary is where
+     * the objection has already been reasoned about — 主要異議, 預算與決策權,
+     * 成交機率 are precisely that conclusion — while the transcript is the only
+     * place the customer's own words survive. Without the first the letter
+     * misses the point; without the second it reads like a template, which is
+     * the thing this feature exists to replace.
+     *
+     * Never runs by itself: no webhook, upload or summary rerun calls this
+     * (D134). Most consultations never need a letter, and the ones that do are
+     * a judgement the consultant makes by pressing the button.
+     */
+    public function followupEmail(ConsultationNote $note): ?string
+    {
+        $transcript = (string) $note->transcript;
+
+        if (trim($transcript) === '') {
+            return null;
+        }
+
+        $name = $this->customerNameCandidates($note)[0] ?? null;
+        $summary = trim((string) $note->summary);
+
+        // Absent, not empty — same reasoning as the summary's nickname line: a
+        // blank heading is something for the model to interpret, and there is
+        // nothing here to interpret.
+        $sections = array_filter([
+            $name === null ? null : "客戶暱稱：{$name}",
+            $summary === '' ? null : "## 面談摘要
+{$summary}",
+            "## 逐字稿
+{$transcript}",
+        ]);
+
+        return $this->ai->respond(self::FOLLOWUP_PROMPT, implode("\n\n", $sections));
     }
 
     /**

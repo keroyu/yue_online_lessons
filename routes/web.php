@@ -247,6 +247,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // Consultation records (011 US23) — edited from the leads page, so staff.
         Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');
         Route::post('/consultation-notes/{note}/regenerate-summary', [ConsultationNoteController::class, 'regenerateSummary'])->name('consultation-notes.regenerate-summary');
+
+        // 011 US35 — the follow-up email is its own field with its own prompt.
+        // Generating is throttled like the other AI buttons; saving is not, it
+        // is an ordinary edit.
+        Route::patch('/consultation-notes/{note}/followup-email', [ConsultationNoteController::class, 'updateFollowupEmail'])->name('consultation-notes.followup-email');
+        Route::post('/consultation-notes/{note}/generate-followup-email', [ConsultationNoteController::class, 'generateFollowupEmail'])
+            ->middleware('throttle:10,1')
+            ->name('consultation-notes.generate-followup-email');
         Route::get('/consultation-notes/{note}/transcript.txt', [ConsultationNoteController::class, 'downloadTranscript'])->name('consultation-notes.transcript-download');
         // Throttled because each press is a live Zoom API call (011 US25).
         Route::post('/consultation-notes/{note}/upload-transcript', [ConsultationNoteController::class, 'uploadTranscript'])

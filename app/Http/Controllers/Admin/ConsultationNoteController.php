@@ -76,6 +76,75 @@ class ConsultationNoteController extends Controller
     }
 
     /**
+     * Save a hand-written or hand-edited follow-up email (011 US35).
+     *
+     * Mirrors `updateSummary()` down to the shape of the response — the two
+     * fields sit side by side in the same modal and there is no reason for the
+     * front end to learn two contracts.
+     */
+    public function updateFollowupEmail(Request $request, ConsultationNote $note): JsonResponse
+    {
+        $validated = $request->validate([
+            'followup_email' => ['nullable', 'string', 'max:20000'],
+        ]);
+
+        $note->update([
+            'followup_email'           => $validated['followup_email'] ?? null,
+            'followup_email_edited_at' => now(),
+        ]);
+
+        return response()->json([
+            'success'                  => true,
+            'followup_email_edited_at' => $note->followup_email_edited_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Write the follow-up email for this consultation (011 US35 / FR-190).
+     *
+     * Synchronous, unlike the transcript pipeline: that one is seven sequential
+     * calls over an hour of dialogue and needs the queue's lease (FR-117), this
+     * is a single call already capped by `config('ai.timeout')` — the same
+     * shape `regenerateSummary()` has been running in production with. Queueing
+     * it would turn "press and read" into "press, refresh, hope".
+     *
+     * No lock is checked. `summaryIsLocked()` exists to stop *automatic* reruns
+     * from overwriting a person's words, and nothing automatic writes this
+     * column (D134); the only caller is the admin pressing the button, and the
+     * confirmation for that lives in the UI.
+     */
+    public function generateFollowupEmail(
+        ConsultationNote $note,
+        ConsultationTranscriptService $transcripts,
+    ): JsonResponse {
+        if (trim((string) $note->transcript) === '') {
+            return response()->json([
+                'message' => '這場面談還沒有逐字稿，無法產生追銷信',
+            ], 422);
+        }
+
+        $email = $transcripts->followupEmail($note);
+
+        if ($email === null) {
+            return response()->json([
+                'message' => 'AI 尚未設定或沒有回傳內容，請確認 AI 設定頁的 API Key',
+            ], 422);
+        }
+
+        $note->update([
+            'followup_email'              => $email,
+            'followup_email_generated_at' => now(),
+            'followup_email_edited_at'    => null,
+        ]);
+
+        return response()->json([
+            'success'                     => true,
+            'followup_email'              => $email,
+            'followup_email_generated_at' => $note->followup_email_generated_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
      * Go and ask Zoom for this session's transcript now (US25 / FR-133).
      *
      * Two-stage on purpose. Asking Zoom what it has takes a second, and that

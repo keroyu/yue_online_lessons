@@ -4,7 +4,7 @@ import axios from 'axios'
 import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 import ConsultationNotesPanel from '@/Components/Admin/Leads/ConsultationNotesPanel.vue'
-import ConsultationSummaryModal from '@/Components/Admin/Leads/ConsultationSummaryModal.vue'
+import ConsultationNoteEditorModal from '@/Components/Admin/Leads/ConsultationNoteEditorModal.vue'
 import Pagination from '@/Components/Pagination.vue'
 
 const props = defineProps({
@@ -1785,5 +1785,5 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
 
   <!-- 姓名旁的場次徽章直接開這一個（FR-121）；展開列裡的面談紀錄面板另有一個實例，
        兩者各自持有狀態，但改動的是同一個 note 物件，所以資料不會分岔 -->
-  <ConsultationSummaryModal :show="!!quickNote" :note="quickNote" @close="quickNote = null" />
+  <ConsultationNoteEditorModal :show="!!quickNote" :note="quickNote" @close="quickNote = null" />
 </template>

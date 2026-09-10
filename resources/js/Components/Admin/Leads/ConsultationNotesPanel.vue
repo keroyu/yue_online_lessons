@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import axios from 'axios'
-import ConsultationSummaryModal from '@/Components/Admin/Leads/ConsultationSummaryModal.vue'
+import ConsultationNoteEditorModal from '@/Components/Admin/Leads/ConsultationNoteEditorModal.vue'
 
 /**
  * Every consultation this customer has had (011 US23 / FR-116).
@@ -9,20 +9,27 @@ import ConsultationSummaryModal from '@/Components/Admin/Leads/ConsultationSumma
  * The list is keyed on email server-side, so a repeat customer's earlier
  * sessions show up here even though they belong to a different lead.
  *
- * One line per session, two links (FR-120). The summary opens in a modal
- * because it is the part anyone actually reads; the transcript only downloads,
- * because a wall of dialogue inside an already-expanded table row was making
- * the sessions above and below it impossible to scan.
+ * One line per session (FR-120). The summary and the follow-up email each open
+ * the same modal in a different mode; the transcript only downloads, because a
+ * wall of dialogue inside an already-expanded table row was making the sessions
+ * above and below it impossible to scan.
  */
 const props = defineProps({
   notes: { type: Array, default: () => [] },
 })
 
 const openNote = ref(null)
+// Which field that modal is editing — 摘要 or 追銷信（011 US35 / D135）。
+const openMode = ref('summary')
 const deleting = ref(null)
 const fetching = ref(null)
 const queued = ref(null)
 const error = ref('')
+
+const open = (note, mode) => {
+  openMode.value = mode
+  openNote.value = note
+}
 
 const formatDate = (iso) => {
   if (!iso) return null
@@ -162,9 +169,22 @@ const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer
         :class="[action, note.summary
           ? 'border-brand-teal/30 bg-brand-teal/5 text-brand-teal hover:bg-brand-teal/10'
           : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800']"
-        @click="openNote = note"
+        @click="open(note, 'summary')"
       >
         {{ note.summary ? '查看摘要' : '撰寫摘要' }}
+      </button>
+
+      <!-- 摘要是寫給顧問看的內部判斷，這封信是要寄給客戶本人的 —— 兩種讀者、
+           兩個欄位、兩支 prompt，所以也是兩顆按鈕（US35 / FR-191） -->
+      <button
+        type="button"
+        :class="[action, note.followup_email
+          ? 'border-brand-teal/30 bg-brand-teal/5 text-brand-teal hover:bg-brand-teal/10'
+          : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800']"
+        title="依面談內容判斷購買障礙後，產生一封專屬的追蹤信"
+        @click="open(note, 'followup')"
+      >
+        {{ note.followup_email ? '查看追銷Email' : '撰寫追銷Email' }}
       </button>
 
       <a
@@ -228,6 +248,6 @@ const action = 'px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer
     <p v-if="queued" class="text-xs text-brand-teal">{{ queued }}</p>
     <p v-if="error" class="text-xs text-red-600">{{ error }}</p>
 
-    <ConsultationSummaryModal :show="!!openNote" :note="openNote" @close="openNote = null" />
+    <ConsultationNoteEditorModal :show="!!openNote" :note="openNote" :mode="openMode" @close="openNote = null" />
   </div>
 </template>

@@ -125,6 +125,11 @@ class HighTicketLeadController extends Controller
                     ->select([
                         'id', 'email', 'source', 'lead_id', 'consultant_id', 'course_id',
                         'met_at', 'summary', 'summary_generated_at', 'summary_edited_at',
+                        // Carried in full, unlike the transcript: a 300-word
+                        // letter is smaller than the seven-section summary
+                        // already on the wire, so a fetch endpoint for it would
+                        // only add a round trip (011 FR-192).
+                        'followup_email', 'followup_email_generated_at', 'followup_email_edited_at',
                         'transcript_fetched_at',
                         DB::raw('LENGTH(transcript) AS transcript_bytes'),
                     ]),
