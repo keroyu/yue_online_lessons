@@ -2,6 +2,7 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php
   - database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
   - database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
   - tests/Feature/HighTicket/ConsultationFollowupEmailTest.php
@@ -1184,6 +1185,42 @@ instructions、一個模型、一份 `max_output_tokens` 與同一個編輯鎖�
 - [x] leads payload 的 `consultationNotes` 帶上 `followup_email` 全文（與 `transcript` 不同、與 `summary` 相同，理由見 FR-192）
 - [x] 測試：輸入三段的組裝與省略規則、無逐字稿回 422、生成覆寫人工編修並清 `edited_at`、上傳替換逐字稿不動追銷信、儲存蓋 `followup_email_edited_at`、非 staff 被擋
 
+### User Story 36 - 追銷信自訂指示與追加生成 (Priority: P2)
+
+US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字稿，產一封完整的信。問題是那封信
+只有一個版本 —— 顧問看完覺得「這段該提一下上次她說的預算分期」「結尾太軟，要給個具體時間」，
+唯一的辦法是自己打字，或是再按一次按鈕拿到另一封同樣不知道這些的信。
+
+而「再按一次」比沒用更糟：它**無條件覆寫**，包含顧問剛剛手改的那幾句。於是實際使用上，
+這顆按鈕只有第一次值得按，之後就退化成一個會吃掉工作成果的地雷。
+
+這條故事改兩件事，一起才成立：
+
+1. **一個選填的自訂指示欄位**（比照 003 US10 作業批改的「補充指示給 AI」）：顧問臨時要交代的
+   事寫在這裡，**優先於 prompt 裡的所有既定規則**。不落地 —— 它是對這一封信的一次性指令，
+   不是這場面談的資料。
+2. **生成改為追加，不再覆寫**（使用者決策，D138）：新產生的內容接在目前已儲存的信後面，
+   人工改過的每一個字都留著。既有內容為空時，追加與覆寫是同一件事，所以第一次按的體驗不變。
+
+追加必須讓 AI 知道前面已經寫了什麼（D139），否則接出來的會是第二個「XXX 您好」與第二個
+「（顧問署名）」—— 一封信兩個開頭，顧問還是得自己剪貼。因此已儲存的信會以 `## 目前的追銷信`
+一段餵回去，prompt 裡教它：這是續寫，不要重複稱呼與署名、不要重述寫過的內容。
+
+**驗收**：
+- [x] modal 在 `mode='followup'` 時 MUST 多一個選填的「補充指示給 AI」textarea；`mode='summary'` MUST NOT 出現（摘要的生成語意不動，仍是覆寫）（FR-195）
+- [x] 自訂指示 MUST NOT 落庫、MUST NOT 隨 `PATCH` 的儲存送出，只在按下「產生追銷信」時隨該次請求送出（FR-195）
+- [x] 生成輸入的段落順序 MUST 為：客戶暱稱行 → `## 面談摘要` → `## 逐字稿` → `## 目前的追銷信`（既有內容為空則整段省略）→ `## 顧問補充指示`（未填則整段省略），自訂指示固定為最後一段（FR-196）
+- [x] 生成 MUST 追加而非覆寫：結果為 `rtrim(既有內容) + "\n\n" + 新內容`，既有為空時即為新內容本身；MUST NOT 插入 `---` 之類的分隔記號（這封信要直接寄出，任何記號都得手動刪）（FR-197）
+- [x] 生成 MUST NOT 再把 `followup_email_edited_at` 清為 null（人工那幾段還在，鎖就還成立）；`followup_email_generated_at` 每次都更新。這一條修訂 FR-190（FR-197）
+- [x] 追加後全文超過 20000 字時 MUST 回 422 且 MUST NOT 寫入 —— 上限與 `PATCH` 的驗證同值，否則會產出一封存不回去的信（FR-197）
+- [x] 自訂指示 MUST 驗 `nullable|string|max:2000`（與 003 作業批改同值）；欄位名為 `instruction`，MUST NOT 叫 `note`（路由模型綁定的參數就叫 `$note`）（FR-195）
+- [x] `consultation_followup_email` 的 instructions MUST 由一支獨立的 update migration 追加兩條規則（續寫規則與自訂指示優先規則），以 marker 守門、MUST NOT 重寫既有內文（沿用 003 `add_note_priority_to_homework_grading_prompt` 的形狀與 FR-149 / D115 的理由）（FR-198）
+- [x] 前端 MUST 在有未儲存修改時擋下生成並提示先儲存 —— 追加的基準是**資料庫裡的內容**，畫面上未存的那幾句不在裡面，不擋就會靜靜被覆蓋（FR-199）
+- [x] 生成的 confirm 文案 MUST 依既有內容有無切換（有內容：接在後面；無內容：直接產生），MUST NOT 再說「會覆寫目前的內容」（FR-199）
+- [x] modal 的時間戳提示 MUST 取 `followup_email_generated_at` 與 `followup_email_edited_at` 較新的那一個顯示 —— 追加之後兩者都成立，只看 `edited_at` 會顯示一個比實際更舊的時間（FR-199）
+- [x] 測試：追加到既有內容（恰一個空行相隔）、既有為空時等同直接寫入、`## 顧問補充指示` 為輸入最後一段、未填時該段不存在、既有信非空時輸入含 `## 目前的追銷信`、合併後超長回 422 且既有內容不變、生成後 `followup_email_edited_at` 維持不變、指示超過 2000 字 422、非 staff 被擋
+
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1690,12 +1727,18 @@ instructions、一個模型、一份 `max_output_tokens` 與同一個編輯鎖�
 - **FR-187**: 摘要 prompt 的第 8 節「## 追銷信草稿」MUST 自安裝來源（`create_ai_prompts_table` 的 `summaryInstructions()`）整節移除，`consultation_summary` 的 `max_output_tokens` 一併由 4000 改回 2000（US29 調高就是為了容納那一節），`description` 同步改回只描述七節內部摘要。與 US29 相同：MUST NOT 另寫 update migration 去改正式站的既有列（FR-149 / D115，那會吃掉使用者自己改過的內文），正式站由使用者在 `/admin/settings/ai` 手動刪掉那一節並調回 tokens。兩處各生一封信是這次改動要消滅的東西 —— 顧問每次都得先決定看哪一封。
 - **FR-188**: 新增第三支 prompt `consultation_followup_email`（`feature` = `consultation`、`label` =「追銷 Email」、`sort_order` 3、`model` null 跟隨站台預設、`max_output_tokens` 2000），insert-if-absent（000 FR-028）。定義 MUST 只放在一支獨立的 `install_consultation_followup_prompt` migration 裡，MUST NOT 同時寫進 `create_ai_prompts_table`：建表 migration 在正式站早已跑過、不會再跑，寫在那裡只到得了新環境；而獨立的一支兩邊都到得了（`migrate:fresh` 照樣會跑它）。這也是 003 US10 的 `install_homework_grading_prompt` 既有的作法 —— 內文因此只有一份，不必擔心兩處漂移。`config/ai.php` MUST NOT 改動 —— `consultation` 這個 feature 群組已存在，AI 設定頁依資料分組渲染（000 US10），新列自動出現。
 - **FR-189**: `followupEmail()` 的輸入 MUST 依序組成三段：客戶暱稱一行（候選清單與順序沿用 FR-148 的 `customerNameCandidates()`，取第一個非空值；無值則**整行省略**，MUST NOT 送佔位字）、`## 面談摘要` 段（`summary` 為空時整段省略）、`## 逐字稿` 段。兩份都給是刻意的：摘要裡的「主要異議／預算與決策權／成交機率」已經是購買障礙的結論，逐字稿則提供可引用的原話 —— 少了前者信抓不到重點，少了後者信會退化成通用範本。`transcript` 為空 MUST 回 null（端點轉 422），MUST NOT 只憑摘要生成。
-- **FR-190**: 生成 MUST 只由管理員按下「產生追銷信」觸發（`POST /admin/consultation-notes/{note}/generate-followup-email`，staff、`throttle:10,1`），**同步**執行單次呼叫並回 JSON，形狀比照既有的 `regenerateSummary()`。webhook、上傳替換逐字稿（FR-185）、重新產生摘要三條路徑 MUST NOT 連帶產生或覆寫追銷信。生成對既有內容是**無條件覆寫**（含人工編修過的）並把 `followup_email_edited_at` 清為 null；不設後端守門，因為這裡不存在需要被擋的自動流程 —— 攔截在前端的 confirm，與摘要的「重新產生」同形。人工編修走 `PATCH /admin/consultation-notes/{note}/followup-email`（staff），蓋上 `followup_email_edited_at`。
+- **FR-190**: 生成 MUST 只由管理員按下「產生追銷信」觸發（`POST /admin/consultation-notes/{note}/generate-followup-email`，staff、`throttle:10,1`），**同步**執行單次呼叫並回 JSON，形狀比照既有的 `regenerateSummary()`。webhook、上傳替換逐字稿（FR-185）、重新產生摘要三條路徑 MUST NOT 連帶產生或覆寫追銷信。生成對既有內容是**無條件覆寫**（含人工編修過的）並把 `followup_email_edited_at` 清為 null；不設後端守門，因為這裡不存在需要被擋的自動流程 —— 攔截在前端的 confirm，與摘要的「重新產生」同形。（**覆寫與清 `edited_at` 兩條於 US36 修訂為追加、不清鎖，見 FR-197**。）人工編修走 `PATCH /admin/consultation-notes/{note}/followup-email`（staff），蓋上 `followup_email_edited_at`。
 - **FR-191**: 面談紀錄列在「查看／撰寫摘要」之後 MUST 多一顆「查看追銷Email」／「撰寫追銷Email」，字樣與配色依 `followup_email` 有無切換，沿用摘要那顆的樣式規則。兩顆按鈕 MUST 開同一支 modal 組件（D135），差別只在標題、綁定欄位、兩個端點與按鈕字樣。modal 內的「產生追銷信」在沒有逐字稿時 MUST 停用並附 title 說明，與「重新產生摘要」同一條件。
 - **FR-192**: leads payload 的 `consultationNotes` MUST 帶上 `followup_email` 全文與兩個時間戳。與 `transcript` 的處理相反、與 `summary` 相同：一封 200–300 字的信約 600 bytes，比已經在傳的七節摘要更小，為它另開一支讀取端點只會多一次往返而省不到什麼。
 
 - **FR-193**: 年度成交摘要 MUST 只對 `role = 'admin'` 計算與傳送。`conversionStats()` 收一個 `bool $includeYear` 參數，為 false 時 MUST 連那兩個 `conversionTotals()` 查詢都不跑、回傳的陣列裡**沒有 `year` 這個 key**（不是 `null`、不是零值）。判定在 controller 以 `$request->user()->isAdmin()` 取得，MUST NOT 由前端傳入。理由：前端隱藏擋得住眼睛擋不住 devtools，而這條要擋的正是「顧問看得到全年業績」這件事本身；順帶省掉兩個對顧問沒有意義的彙總查詢。
 - **FR-194**: 摘要區塊 MUST 以 `conversionStats.year` 是否存在決定渲染年度那半段 —— 包含分隔線 `|`。本月那半段 MUST 無條件渲染（含 `0 人 · NT$ 0`，沿用 FR-097 的空值也是資訊）。tooltip 文案在只有本月時 MUST 拿掉「年度」的描述，MUST NOT 留下說明一個畫面上不存在的數字的提示。
+
+- **FR-195**: 「產生追銷信」MUST 收一個選填的自訂指示（request 欄位 `instruction`，`nullable|string|max:2000`）。它 MUST NOT 落庫、MUST NOT 進 `consultation_notes` 任何欄位、MUST NOT 隨 `PATCH .../followup-email` 送出 —— 這是對「這一次生成」的一次性指令，不是這場面談的資料（D140）。欄位 MUST NOT 命名為 `note`：`generateFollowupEmail(ConsultationNote $note, ...)` 的路由模型綁定已經佔用這個名字，同名會讓驗證後的陣列與 model 在同一個方法裡互相打架。前端只在 `mode='followup'` 渲染此欄位（FR-199），摘要的生成語意完全不動。
+- **FR-196**: `followupEmail()` 的輸入 MUST 依序組成最多五段，任何一段為空即整段省略（沿用 FR-189 的「不送佔位字」原則）：① 客戶暱稱一行 ② `## 面談摘要` ③ `## 逐字稿` ④ `## 目前的追銷信`（`followup_email` 現值）⑤ `## 顧問補充指示`（本次傳入的 `instruction`，MUST 截斷至 2000 字）。自訂指示 MUST 固定為**最後一段**，與 003 `HomeworkGradingService` 的擺法一致 —— 最靠近輸出的指令最不容易被前面的長文稀釋。`transcript` 為空仍 MUST 回 null（FR-189 不變），即使有自訂指示也一樣：沒有原話可引用的信就是通用範本。
+- **FR-197**: 生成 MUST **追加**而非覆寫（D138）。寫入值為 `rtrim(既有 followup_email) . "\n\n" . 新內容`，既有為空（或全為空白）時即為新內容本身；MUST NOT 插入分隔線或任何標記 —— 這封信會被整段複製去寄出，記號都得手動刪。`followup_email_generated_at` MUST 每次更新；`followup_email_edited_at` MUST **維持原值**，MUST NOT 再清為 null（FR-190 的該條款於此修訂）—— 人工編修過的內容在追加後仍然留在信裡，鎖就還成立。追加後全文長度 MUST 以 20000 字為上限，超過時回 422（訊息指出請先精簡或分次產生）且 MUST NOT 寫入任何欄位：上限與 `updateFollowupEmail()` 的 `max:20000` 同值，否則會產出一封顧問存不回去的信。
+- **FR-198**: `consultation_followup_email` 的 instructions MUST 由一支獨立的 update migration 追加兩條規則：（1）輸入若含 `## 目前的追銷信`，本次要寫的是**接在其後的續段**，MUST NOT 重複稱呼語與署名、MUST NOT 重述已寫過的內容，長度與語氣與前文銜接；（2）輸入若含 `## 顧問補充指示`，那是顧問的一次性指令，**優先於 instructions 裡的所有既定規則**（含四段結構、字數、收尾方式），衝突時以它為準，且 MUST NOT 在信裡提到「指示」這類字眼。追加 MUST 以 marker 守門（存在即 return）、MUST NOT 重寫既有 `instructions` —— 正式站的內文此刻可能已是使用者改過的版本（FR-149 / D115），整段覆寫會靜靜吃掉那些修改。形狀完全比照 003 的 `add_note_priority_to_homework_grading_prompt`，`down()` 以字串移除同一段。
+- **FR-199**: modal 的三處前端行為：（a）自訂指示 textarea 只在 `mode='followup'` 出現（由 `MODES` 表的一個旗標決定，MUST NOT 在 template 裡寫 `mode === 'followup'`），開啟與換 note 時清空，成功產生後 MUST NOT 自動清空（顧問常要微調同一句再產一次）；（b）按下生成時若 `dirty` 為真 MUST 擋下並提示先儲存 —— 追加的基準是資料庫現值，畫面上未存的修改不在其中，不擋就會被靜靜蓋掉；（c）confirm 文案依既有內容有無切換，且時間戳提示改取 `generated_at` 與 `edited_at` 中較新者、標籤隨之切換（追加後兩者同時成立）。
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -1705,6 +1748,9 @@ instructions、一個模型、一份 `max_output_tokens` 與同一個編輯鎖�
   兩件事各有理由。年度走伺服器：Inertia 的 props 就是一包 JSON，前端 `v-if` 只是不畫，數字仍然躺在 page payload 裡；一個能被 devtools 讀出來的「權限控制」不是權限控制。
   本月維持跟隨篩選：顧問篩選在這頁一直是**檢視工具而非權限閘**（D70），名單本身也沒有依顧問切分 —— 只把摘要鎖成自己的，會做出「數字是我的、下面的名單是全部人的」這種互相矛盾的畫面。真要做成個人業績，該做的是整頁依顧問切分，那是另一個決定。
 - **D136**: 生成**同步**而非進佇列。與 US23 的校訂不是同一種工作：那是把一小時的逐字稿切成七段的連續呼叫，分鐘級，因此需要 FR-117 那整套租約論證；這是**單次**呼叫，`config('ai.timeout')` 已設 120 秒上限，與既有的 `regenerateSummary()` 完全同形（那支也是同步且已在正式站跑了一段時間）。為它另開佇列路徑的代價是按完看不到結果、得自己重新整理 —— 而那正是一顆「產生」按鈕最不該有的行為。
+- **D138**: 生成一律**追加**，不再覆寫（使用者決策）。原本的覆寫語意配的是「一次產生一封完整的信」，而這條故事要的是「這封信可以一起改」：顧問手改的句子、上一次產生的段落、這一次針對某個異議補的一段，都是同一封信的組成。覆寫會讓前兩者在第三次按下按鈕時消失，而畫面上看不出剛剛失去了什麼 —— 那正是 US35 從摘要第 8 節搬出來要解決的同一個問題（FR-186），只是換了個位置重演。代價是信會越接越長，而那是顧問看得到、也刪得掉的東西，比看不到的遺失便宜得多。既有內容為空時追加與覆寫等價，所以第一次按的體驗零變化。
+- **D139**: 追加時把**已儲存的信餵回去**當上下文（使用者決策）。不餵的實作最省事，代價卻直接寫在輸出裡：prompt 要求信以稱呼開頭、以「（顧問署名）」收尾，模型每次都會照做，於是追加出來的是第二個開頭與第二個署名 —— 顧問還是得自己剪貼，功能等於沒做完。餵回去之後續段才知道自己是續段。多付的 token 是一封 300–400 字的信，相對於整份逐字稿可以忽略。
+- **D140**: 自訂指示**不落地**（沿用 003 FR-025 的理由）。它是對這一次生成的臨時交代（「這次語氣硬一點」「提一下她說的分期」），不是這場面談的屬性；存起來會帶來兩個問題：下一次生成要不要沿用它（兩種答案都會錯一半），以及一個顧問改不到、卻會持續影響輸出的隱形欄位。存下來唯一真正的用途是事後追查「這封信當時是怎麼下的指令」，而那個需求還不存在。
 
 
 - **D126**: 顏色**不落庫**，由名冊順序推導（`users.id` 遞增的位置 → 色票序號）。
@@ -3113,10 +3159,27 @@ Phase 4 — 驗證
 - [x] T440 測試：顧問登入 `/admin/high-ticket-leads` 的 props `conversionStats` 無 `year` key、admin 有；同一批資料下顧問與 admin 的 `month` 完全相同 in `tests/Feature/HighTicket/ConversionStatsTest.php`
 - [x] T441 `php artisan test --filter=ConversionStats` 綠、全套綠、`npm run build` exit 0
 
+### US36 追銷信自訂指示與追加生成（FR-195–FR-199 / D138–D140）
+
+- [x] T442 `ConsultationTranscriptService::followupEmail(ConsultationNote $note, ?string $instruction = null)`：輸入改為 FR-196 的五段組裝（新增 `## 目前的追銷信` 與 `## 顧問補充指示` 兩段、各自為空即省略、指示截斷 2000 字）；逐字稿為空仍回 null in `app/Services/ConsultationTranscriptService.php`
+- [x] T443 `ConsultationNoteController::generateFollowupEmail()`：inline validate `instruction` → 傳入 service → 以 `rtrim(既有) . "\n\n" . 新內容` 合併（既有為空則取新內容）→ 超過 20000 字回 422 且不寫入 → 寫入時只更新 `followup_email` 與 `followup_email_generated_at`，`followup_email_edited_at` **不動**（FR-197）in `app/Http/Controllers/Admin/ConsultationNoteController.php`
+- [x] T444 update migration：`consultation_followup_email` 的 instructions 以 marker 守門追加兩條規則（續寫、自訂指示優先），`down()` 以字串移除；MUST NOT 重寫既有內文（FR-198，比照 003 `add_note_priority_to_homework_grading_prompt`）in `database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php`
+- [x] T445 `ConsultationNoteEditorModal.vue`：`MODES.followup` 加 `customPrompt: true` 與標籤／placeholder／兩句 confirm 文案；`instruction` ref（開啟與換 note 時清空、產生後保留）；`regenerate()` 於 dirty 時擋下提示先儲存、POST 帶 `{ instruction }`；時間戳提示改取兩個時間較新者並切換標籤（FR-199）in `resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue`
+- [x] T446 測試：追加恰以一個空行相隔、既有為空時等同直接寫入、輸入最後一段為 `## 顧問補充指示`、未填時無該段、既有信非空時輸入含 `## 目前的追銷信`、合併後超長回 422 且既有內容不變、生成後 `followup_email_edited_at` 不變、`instruction` 超過 2000 字 422、非 staff 被擋 in `tests/Feature/HighTicket/ConsultationFollowupEmailTest.php`
+- [x] T447 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T448 使用者實測：對一場已有追銷信的面談，填「語氣再硬一點，並提到她說的分期」按產生，確認新段接在後面、沒有第二個稱呼與署名、原本手改的句子還在
+
+
 
 
 ## 進度日誌
 
+- 2026-09-11: US36 追銷信自訂指示與追加生成完成（T442–T447，僅剩 T448 使用者實測）— `followupEmail()` 收 `?string $instruction`，輸入擴為五段（新增 `## 目前的追銷信` 與固定為最後一段的 `## 顧問補充指示`，各自為空即整段省略、指示截斷 2000 字）；`generateFollowupEmail()` 改以 `rtrim(既有) . "\n\n" . 新內容` 追加，`followup_email_edited_at` 不再被清、合併超過 20000 字先回 422 再說（上限抽成 `MAX_FOLLOWUP_CHARS` 常數，與 PATCH 的驗證共用同一個數字，避免產出一封存不回去的信）。
+  request 欄位命名為 `instruction` 而非沿用 003 的 `note`：`generateFollowupEmail(Request, ConsultationNote $note, ...)` 的路由模型綁定已經佔住那個名字。
+  prompt 的兩條規則走獨立的 update migration、以 `## 目前的追銷信` 為 marker 守門（FR-198），正式站已改過的內文不會被覆寫；實際在本機 `php artisan migrate` 跑過一次，確認既有列被接上規則（instructions 1326 字）。
+  前端 `MODES` 的 `confirmGenerate` 由字串改為函式（吃「目前有沒有內容」），追銷信模式多 `customPrompt` 旗標驅動指示欄位、dirty 時擋下生成並提示先儲存，時間戳提示改取 `generated_at` / `edited_at` 較新者 —— 追加之後兩者同時成立，只看 `edited_at` 會顯示一個比實際更舊的時間。
+  `ConsultationFollowupEmailTest` 9 → 18 tests，全套 `php artisan test` **906 passed（3767 assertions）**、`npm run build` exit 0。
+- 2026-09-11: [draft] 規劃 US36 追銷信自訂指示與追加生成（FR-195–FR-199 / D138–D140）— 兩件事一起才成立：一個選填的一次性指示欄位（比照 003 作業批改的「補充指示給 AI」，不落地、固定為輸入最後一段、優先於 prompt 既定規則），以及把生成從覆寫改為追加。三個關鍵決策：（1）D138 一律追加 —— 覆寫讓這顆按鈕只有第一次值得按，之後就是會吃掉手改內容的地雷；既有為空時兩者等價，第一次的體驗不變。（2）D139 追加時把已儲存的信餵回去 —— 不餵的話模型照樣寫稱呼與署名，接出來是一封兩個開頭的信。（3）D140 指示不落地 —— 存了就要回答「下次要不要沿用」，兩種答案都錯一半。連帶修訂 FR-190 的「清為 null」條款：人工內容不再被沖掉，`followup_email_edited_at` 就不該被清。
 - 2026-09-11: US22 補充完成（T436–T441）— 年度成交業績收歸管理員：`conversionStats()` 加 `$includeYear`，非 admin 連年度那兩個彙總查詢都不跑、回傳陣列無 `year` key（FR-193）；`BookingListTab` 年度半段與分隔線包 `v-if="conversionStats.year"`、tooltip 依有無年度切換文案，兩處 prop 預設值一併去掉 `year`（FR-194）。本月維持跟隨篩選不鎖成個人業績（D137）。ConversionStatsTest 12 → 14 tests，全套 898 passed（3740 assertions）、`npm run build` exit 0。
 - 2026-09-10: US35 追銷 Email 獨立成欄完成（T423–T434，僅剩 T435 使用者實測）— `consultation_notes` 加三欄、`ConsultationTranscriptService::followupEmail()`、兩條 staff 路由、面談紀錄列第二顆按鈕，摘要 prompt 的第 8 節自安裝來源移除、tokens 改回 2000。
   規劃時錯估了一件事並在實作中修正（FR-188 / T425 / T426 已同步）：原本要求新 prompt「寫進建表 migration **與** install migration 兩處」，但建表 migration 在正式站早就跑完、永遠不會再跑，寫在那裡只到得了新環境；而一支獨立的 install migration **兩邊都到得了**（`migrate:fresh` 照樣會跑它）。003 的 `install_homework_grading_prompt` 早就是這個形狀。所以定義只有一份，放在新的那一支裡，建表 migration 這次只動摘要 prompt 的內文。

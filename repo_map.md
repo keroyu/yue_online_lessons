@@ -688,6 +688,7 @@ main_files:
 - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
 - database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
 - database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
+- database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php
 - database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue

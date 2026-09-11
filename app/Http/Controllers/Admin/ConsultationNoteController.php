@@ -22,6 +22,9 @@ use Illuminate\Support\Facades\Log;
  */
 class ConsultationNoteController extends Controller
 {
+    /** Shared by the hand-edit validation and the append ceiling (011 FR-197). */
+    private const MAX_FOLLOWUP_CHARS = 20000;
+
     public function updateSummary(Request $request, ConsultationNote $note): JsonResponse
     {
         $validated = $request->validate([
@@ -85,7 +88,7 @@ class ConsultationNoteController extends Controller
     public function updateFollowupEmail(Request $request, ConsultationNote $note): JsonResponse
     {
         $validated = $request->validate([
-            'followup_email' => ['nullable', 'string', 'max:20000'],
+            'followup_email' => ['nullable', 'string', 'max:' . self::MAX_FOLLOWUP_CHARS],
         ]);
 
         $note->update([
@@ -112,35 +115,63 @@ class ConsultationNoteController extends Controller
      * from overwriting a person's words, and nothing automatic writes this
      * column (D134); the only caller is the admin pressing the button, and the
      * confirmation for that lives in the UI.
+     *
+     * Appends rather than replaces since US36 (D138 / FR-197). The letter is
+     * written in passes — one generated paragraph, a hand-edited sentence, then
+     * another paragraph aimed at an objection the consultant thought of
+     * afterwards — and overwriting made every pass after the first destroy the
+     * one before it. `followup_email_edited_at` therefore stays put: the human
+     * sentences are still in there, so the lock still means something.
+     *
+     * The optional `instruction` is a one-off order for this generation and is
+     * never stored (D140): keeping it would raise a question with no right
+     * answer — whether the next generation should still obey it.
      */
     public function generateFollowupEmail(
+        Request $request,
         ConsultationNote $note,
         ConsultationTranscriptService $transcripts,
     ): JsonResponse {
+        // Not `note`: the route model binding already owns that name here.
+        $validated = $request->validate([
+            'instruction' => ['nullable', 'string', 'max:2000'],
+        ]);
+
         if (trim((string) $note->transcript) === '') {
             return response()->json([
                 'message' => '這場面談還沒有逐字稿，無法產生追銷信',
             ], 422);
         }
 
-        $email = $transcripts->followupEmail($note);
+        $generated = $transcripts->followupEmail($note, $validated['instruction'] ?? null);
 
-        if ($email === null) {
+        if ($generated === null) {
             return response()->json([
                 'message' => 'AI 尚未設定或沒有回傳內容，請確認 AI 設定頁的 API Key',
             ], 422);
         }
 
+        $existing = rtrim((string) $note->followup_email);
+        $merged = $existing === '' ? $generated : $existing . "\n\n" . $generated;
+
+        // Same ceiling as updateFollowupEmail()'s validation, checked before the
+        // write: a letter that is too long to save back is worse than no letter.
+        if (mb_strlen($merged) > self::MAX_FOLLOWUP_CHARS) {
+            return response()->json([
+                'message' => '追銷信加上新內容後超過 ' . self::MAX_FOLLOWUP_CHARS . ' 字，請先精簡既有內容再產生',
+            ], 422);
+        }
+
         $note->update([
-            'followup_email'              => $email,
+            'followup_email'              => $merged,
             'followup_email_generated_at' => now(),
-            'followup_email_edited_at'    => null,
         ]);
 
         return response()->json([
             'success'                     => true,
-            'followup_email'              => $email,
+            'followup_email'              => $merged,
             'followup_email_generated_at' => $note->followup_email_generated_at?->toIso8601String(),
+            'followup_email_edited_at'    => $note->followup_email_edited_at?->toIso8601String(),
         ]);
     }
 

@@ -137,28 +137,151 @@ class ConsultationFollowupEmailTest extends TestCase
         Http::assertNothingSent();
     }
 
-    // ── The endpoint ───────────────────────────────────────────────────────
+    // ── Appending, not replacing (US36 / FR-197) ───────────────────────────
 
-    public function test_generating_overwrites_a_hand_edited_letter_and_clears_the_lock(): void
+    public function test_generating_appends_to_a_hand_edited_letter_and_keeps_the_lock(): void
     {
-        $this->fakeAi('陳先生您好，這是新的追銷信');
+        $this->fakeAi('另外補充一點：分期的安排我們可以再談。');
+
+        $editedAt = now()->subDay();
 
         $note = $this->note([
             'followup_email'           => '顧問手改過的舊信',
-            'followup_email_edited_at' => now()->subDay(),
+            'followup_email_edited_at' => $editedAt,
         ]);
 
         $this->actingAs($this->staff())
             ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email")
             ->assertOk()
-            ->assertJsonPath('followup_email', '陳先生您好，這是新的追銷信');
+            ->assertJsonPath('followup_email', "顧問手改過的舊信\n\n另外補充一點：分期的安排我們可以再談。");
 
         $note->refresh();
 
-        $this->assertSame('陳先生您好，這是新的追銷信', $note->followup_email);
-        $this->assertNull($note->followup_email_edited_at);
+        // Exactly one blank line between the two, and no divider of any kind —
+        // this letter gets copied straight into an email client (FR-197).
+        $this->assertSame(
+            "顧問手改過的舊信\n\n另外補充一點：分期的安排我們可以再談。",
+            $note->followup_email
+        );
+        $this->assertStringNotContainsString('---', $note->followup_email);
+
+        // The human sentences are still in there, so the lock still means
+        // something — unlike the pre-US36 behaviour, which cleared it.
+        $this->assertNotNull($note->followup_email_edited_at);
+        $this->assertSame($editedAt->toIso8601String(), $note->followup_email_edited_at->toIso8601String());
         $this->assertNotNull($note->followup_email_generated_at);
     }
+
+    public function test_generating_into_an_empty_column_is_just_a_write(): void
+    {
+        $this->fakeAi('陳先生您好，這是第一封追銷信');
+
+        $note = $this->note();
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email")
+            ->assertOk();
+
+        $this->assertSame('陳先生您好，這是第一封追銷信', $note->fresh()->followup_email);
+        $this->assertStringNotContainsString('## 目前的追銷信', $this->sentInput());
+    }
+
+    public function test_the_stored_letter_goes_back_in_as_context(): void
+    {
+        $this->fakeAi();
+
+        app(ConsultationTranscriptService::class)
+            ->followupEmail($this->note(['followup_email' => '第一段已經寫好的信']));
+
+        $input = $this->sentInput();
+
+        $this->assertStringContainsString('## 目前的追銷信', $input);
+        $this->assertStringContainsString('第一段已經寫好的信', $input);
+    }
+
+    public function test_a_merged_letter_over_the_ceiling_is_refused_and_changes_nothing(): void
+    {
+        $this->fakeAi('新產生的一段');
+
+        $existing = str_repeat('字', 19_999);
+        $note = $this->note(['followup_email' => $existing]);
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email")
+            ->assertStatus(422);
+
+        $note->refresh();
+
+        $this->assertSame($existing, $note->followup_email);
+        $this->assertNull($note->followup_email_generated_at);
+    }
+
+    // ── The one-off instruction (FR-195 / FR-196) ──────────────────────────
+
+    public function test_the_instruction_is_the_last_section_of_the_input(): void
+    {
+        $this->fakeAi();
+
+        $note = $this->note(['summary' => '## 主要異議', 'followup_email' => '既有的信']);
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email", [
+                'instruction' => '語氣再硬一點，並提到她說的分期',
+            ])
+            ->assertOk();
+
+        $input = $this->sentInput();
+
+        $this->assertStringContainsString('## 顧問補充指示', $input);
+        $this->assertStringContainsString('語氣再硬一點', $input);
+        $this->assertStringEndsWith("## 顧問補充指示\n語氣再硬一點，並提到她說的分期", $input);
+    }
+
+    public function test_no_instruction_means_no_such_section(): void
+    {
+        $this->fakeAi();
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$this->note()->id}/generate-followup-email", [
+                'instruction' => '   ',
+            ])
+            ->assertOk();
+
+        $this->assertStringNotContainsString('## 顧問補充指示', $this->sentInput());
+    }
+
+    public function test_an_over_long_instruction_is_refused(): void
+    {
+        $this->fakeAi();
+
+        $note = $this->note(['followup_email' => '既有的信']);
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email", [
+                'instruction' => str_repeat('長', 2001),
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame('既有的信', $note->fresh()->followup_email);
+        Http::assertNothingSent();
+    }
+
+    public function test_the_instruction_is_never_stored(): void
+    {
+        $this->fakeAi('產生的信');
+
+        $note = $this->note();
+
+        $this->actingAs($this->staff())
+            ->postJson("/admin/consultation-notes/{$note->id}/generate-followup-email", [
+                'instruction' => '這次不要提價格',
+            ])
+            ->assertOk();
+
+        $this->assertStringNotContainsString('這次不要提價格', json_encode($note->fresh()->toArray()));
+    }
+
+    // ── The endpoint ───────────────────────────────────────────────────────
 
     public function test_generating_without_a_transcript_is_refused(): void
     {
@@ -214,6 +337,19 @@ class ConsultationFollowupEmailTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertNull($note->fresh()->followup_email);
+    }
+
+    public function test_the_prompt_row_knows_both_new_sections(): void
+    {
+        $instructions = (string) \DB::table('ai_prompts')
+            ->where('key', ConsultationTranscriptService::FOLLOWUP_PROMPT)
+            ->value('instructions');
+
+        // Where the priority of these two sections is decided (FR-198). The
+        // service only puts them in the input; without these rules the model
+        // rewrites the whole letter and ignores the consultant's order.
+        $this->assertStringContainsString('## 目前的追銷信', $instructions);
+        $this->assertStringContainsString(ConsultationTranscriptService::INSTRUCTION_HEADING, $instructions);
     }
 
     // ── Nothing automatic may touch this column (D134) ─────────────────────

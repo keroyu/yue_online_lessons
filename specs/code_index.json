@@ -63,7 +63,8 @@
       "011.us-25",
       "011.us-29",
       "011.us-34",
-      "011.us-35"
+      "011.us-35",
+      "011.us-36"
     ],
     "app/Http/Controllers/Admin/ConsultationSlotController.php": [
       "011.us-10",
@@ -857,7 +858,8 @@
       "011.us-23",
       "011.us-29",
       "011.us-34",
-      "011.us-35"
+      "011.us-35",
+      "011.us-36"
     ],
     "app/Services/CouponChainService.php": [
       "006.us-5"
@@ -1335,7 +1337,11 @@
       "011.us-35"
     ],
     "database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php": [
-      "011.us-35"
+      "011.us-35",
+      "011.us-36"
+    ],
+    "database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php": [
+      "011.us-36"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
@@ -1423,7 +1429,8 @@
       "011.us-9"
     ],
     "resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue": [
-      "011.us-35"
+      "011.us-35",
+      "011.us-36"
     ],
     "resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue": [
       "011.us-23",
@@ -2051,7 +2058,8 @@
       "011.us-15"
     ],
     "tests/Feature/HighTicket/ConsultationFollowupEmailTest.php": [
-      "011.us-35"
+      "011.us-35",
+      "011.us-36"
     ],
     "tests/Feature/HighTicket/ConsultationNoteTest.php": [
       "011.us-23"

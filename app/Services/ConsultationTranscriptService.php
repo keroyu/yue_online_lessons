@@ -17,6 +17,12 @@ class ConsultationTranscriptService
     public const SUMMARY_PROMPT = 'consultation_summary';
     public const FOLLOWUP_PROMPT = 'consultation_followup_email';
 
+    /** Last section of the follow-up input, so nothing after it can dilute it (011 FR-196). */
+    public const INSTRUCTION_HEADING = '## 顧問補充指示';
+
+    /** Matches the endpoint's `max:2000`; the service truncates rather than trusting it. */
+    private const MAX_INSTRUCTION_CHARS = 2000;
+
     public const CONSULTANT_LABEL = '顧問';
     public const CUSTOMER_LABEL = '客戶';
 
@@ -260,8 +266,16 @@ class ConsultationTranscriptService
      * Never runs by itself: no webhook, upload or summary rerun calls this
      * (D134). Most consultations never need a letter, and the ones that do are
      * a judgement the consultant makes by pressing the button.
+     *
+     * Two of the five sections arrived with US36. The letter as already stored
+     * goes back in because generating now appends rather than replaces (D138):
+     * without it the model writes a second salutation and a second signature,
+     * and the consultant is back to cutting and pasting (D139). The optional
+     * instruction goes last, closest to the output, for the same reason it does
+     * in HomeworkGradingService — the nearest instruction is the one a long
+     * transcript cannot dilute.
      */
-    public function followupEmail(ConsultationNote $note): ?string
+    public function followupEmail(ConsultationNote $note, ?string $instruction = null): ?string
     {
         $transcript = (string) $note->transcript;
 
@@ -271,6 +285,8 @@ class ConsultationTranscriptService
 
         $name = $this->customerNameCandidates($note)[0] ?? null;
         $summary = trim((string) $note->summary);
+        $existing = trim((string) $note->followup_email);
+        $instruction = trim((string) $instruction);
 
         // Absent, not empty — same reasoning as the summary's nickname line: a
         // blank heading is something for the model to interpret, and there is
@@ -281,9 +297,20 @@ class ConsultationTranscriptService
 {$summary}",
             "## 逐字稿
 {$transcript}",
+            $existing === '' ? null : "## 目前的追銷信
+{$existing}",
+            $instruction === '' ? null : self::INSTRUCTION_HEADING . "
+" . $this->truncateInstruction($instruction),
         ]);
 
         return $this->ai->respond(self::FOLLOWUP_PROMPT, implode("\n\n", $sections));
+    }
+
+    private function truncateInstruction(string $text): string
+    {
+        return mb_strlen($text) <= self::MAX_INSTRUCTION_CHARS
+            ? $text
+            : mb_substr($text, 0, self::MAX_INSTRUCTION_CHARS);
     }
 
     /**

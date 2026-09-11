@@ -37,7 +37,8 @@ const MODES = {
     generateLabel: '重新產生摘要',
     generatingLabel: '產生中…',
     generatedFlash: '摘要已重新產生',
-    confirmGenerate: '重新產生摘要會覆寫目前的內容（包含手動修改過的部分），確定嗎？',
+    // 摘要仍是覆寫；US36 的追加語意只套用在追銷信上。
+    confirmGenerate: () => '重新產生摘要會覆寫目前的內容（包含手動修改過的部分），確定嗎？',
     confirmClose: '摘要還沒儲存，關閉會失去這次的修改。確定關閉嗎？',
     emptyHint: '尚未產生摘要',
     noTranscriptHint: '尚無逐字稿，無法產生摘要',
@@ -56,7 +57,16 @@ const MODES = {
     generateLabel: '產生追銷信',
     generatingLabel: '產生中…（約 10–40 秒）',
     generatedFlash: '追銷信已產生',
-    confirmGenerate: '產生追銷信會覆寫目前的內容（包含手動修改過的部分），確定嗎？',
+    // 追加而非覆寫（FR-197），文案依有沒有既有內容分岔 —— 對空白欄位說「接在
+    // 後面」跟對已寫好的信說「會覆寫」一樣，都是在描述不會發生的事。
+    confirmGenerate: (hasContent) => hasContent
+      ? '將依面談內容（與下方的補充指示）產生新的段落，接在目前追銷信的後面。原有內容不會被覆寫，確定嗎？'
+      : '將依面談內容（與下方的補充指示）產生一封追銷信，確定嗎？',
+    // 一次性指示：只跟著這次的產生送出，不落地（D140）。
+    customPrompt: true,
+    instructionLabel: '補充指示給 AI（選填）',
+    instructionPlaceholder: '這次想特別交代的事，例如：語氣再堅定一點、提一下她說的分期、不要再提價格。會優先於預設的寫信規則。',
+    dirtyHint: '請先儲存目前的修改，再產生 —— 新內容會接在「已儲存」的追銷信之後。',
     confirmClose: '追銷信還沒儲存，關閉會失去這次的修改。確定關閉嗎？',
     emptyHint: '尚未產生追銷信',
     noTranscriptHint: '尚無逐字稿，無法產生追銷信',
@@ -67,6 +77,8 @@ const MODES = {
 const config = computed(() => MODES[props.mode] ?? MODES.summary)
 
 const draft = ref('')
+// 只餵給模型，不落地、不隨儲存送出（FR-195）。
+const instruction = ref('')
 const saving = ref(false)
 const regenerating = ref(false)
 const message = ref('')
@@ -76,9 +88,25 @@ watch(() => [props.show, props.note?.id, props.mode], ([show]) => {
   if (show && props.note) {
     draft.value = props.note[config.value.field] ?? ''
   }
+  instruction.value = ''
   message.value = ''
   error.value = ''
 }, { immediate: true })
+
+// 追加之後兩個時間戳會同時成立，只看 edited_at 會顯示一個比實際更舊的時間。
+const stamp = computed(() => {
+  const generated = props.note?.[config.value.generatedAt]
+  const edited = props.note?.[config.value.editedAt]
+
+  if (!generated && !edited) return null
+  if (generated && edited) {
+    return new Date(edited) >= new Date(generated)
+      ? { label: '人工編輯於', at: edited }
+      : { label: 'AI 產生於', at: generated }
+  }
+
+  return edited ? { label: '人工編輯於', at: edited } : { label: 'AI 產生於', at: generated }
+})
 
 const formatDate = (iso) => (iso ? new Date(iso).toLocaleString('zh-TW', { dateStyle: 'medium', timeStyle: 'short' }) : null)
 
@@ -106,20 +134,29 @@ const save = async () => {
 }
 
 const regenerate = async () => {
-  const { field, generatedAt, editedAt } = config.value
+  const { field, generatedAt, editedAt, customPrompt } = config.value
 
-  if (!window.confirm(config.value.confirmGenerate)) {
+  // 追加的基準是資料庫裡的內容，畫面上未存的那幾句不在裡面 —— 不擋就會被
+  // 靜靜蓋掉，而那正是這次改動要消滅的事（FR-199）。
+  if (customPrompt && dirty.value) {
+    error.value = config.value.dirtyHint
+    return
+  }
+
+  if (!window.confirm(config.value.confirmGenerate(!!props.note[field]))) {
     return
   }
 
   regenerating.value = true
   error.value = ''
   try {
-    const { data } = await axios.post(config.value.generate(props.note.id))
+    const payload = customPrompt ? { instruction: instruction.value } : {}
+    const { data } = await axios.post(config.value.generate(props.note.id), payload)
     draft.value = data[field]
     props.note[field] = data[field]
     props.note[generatedAt] = data[generatedAt]
-    props.note[editedAt] = null
+    // 摘要仍然釋放編輯鎖；追銷信是追加，人工那幾段還在，鎖照舊（FR-197）。
+    props.note[editedAt] = customPrompt ? (data[editedAt] ?? props.note[editedAt]) : null
     flash(config.value.generatedFlash)
   } catch (e) {
     error.value = e.response?.data?.message || '產生失敗'
@@ -234,8 +271,7 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
             <!-- Body -->
             <div class="flex-1 overflow-y-auto px-6 py-4 space-y-2">
               <p class="text-xs text-gray-400">
-                <template v-if="note[config.editedAt]">人工編輯於 {{ formatDate(note[config.editedAt]) }}</template>
-                <template v-else-if="note[config.generatedAt]">AI 產生於 {{ formatDate(note[config.generatedAt]) }}</template>
+                <template v-if="stamp">{{ stamp.label }} {{ formatDate(stamp.at) }}</template>
                 <template v-else>{{ config.emptyHint }}</template>
               </p>
               <textarea
@@ -244,6 +280,19 @@ const btn = 'px-4 py-2 text-sm font-medium rounded-lg border transition-colors c
                 :placeholder="config.placeholder"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal"
               />
+
+              <!-- 一次性指示：只餵給 AI，不會被儲存，也不會出現在寄給客戶的信裡 -->
+              <div v-if="config.customPrompt" class="pt-2 space-y-1">
+                <label class="block text-xs font-medium text-gray-700">{{ config.instructionLabel }}</label>
+                <textarea
+                  v-model="instruction"
+                  rows="2"
+                  maxlength="2000"
+                  :placeholder="config.instructionPlaceholder"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal"
+                />
+                <p class="text-xs text-gray-400">新產生的內容會接在上方追銷信的後面，不會覆寫既有內容。</p>
+              </div>
             </div>
 
             <!-- Footer -->
