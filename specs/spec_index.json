@@ -866,6 +866,47 @@
       "status": "partial"
     },
     {
+      "id": "002.us-19",
+      "module": "002-storefront",
+      "title": "精選課程逐筆顯示／隱藏",
+      "summary": "首頁設定的「精選課程」每一列多一個顯示/隱藏開關：homepage_featured_courses 加 is_visible（default true、不回填、不加索引），前台唯一過濾點在 SidebarService 的 ordered()->visible()，後台清單仍列出全部並以降透明度與「隱藏中」標籤標示；切換走獨立的 PATCH .../visibility 端點、傳明確布林、不觸碰 blurb 草稿與 sort_order",
+      "heading": "### User Story 19 - 精選課程逐筆顯示／隱藏 (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-19---精選課程逐筆顯示／隱藏-priority-p2",
+      "keywords": [
+        "精選課程",
+        "featured course",
+        "homepage_featured_courses",
+        "首頁設定",
+        "側欄",
+        "sidebar",
+        "顯示",
+        "隱藏",
+        "is_visible",
+        "上下架",
+        "暫時下檔",
+        "scopeVisible",
+        "SidebarService",
+        "HomepageFeaturedCourseController",
+        "toggle",
+        "visibility",
+        "blurb",
+        "sort_order",
+        "後台開關"
+      ],
+      "code_files": [
+        "database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php",
+        "app/Models/HomepageFeaturedCourse.php",
+        "app/Services/SidebarService.php",
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "routes/web.php",
+        "tests/Feature/Storefront/FeaturedCourseVisibilityTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "002.us-2",
       "module": "002-storefront",
       "title": "課程銷售頁",

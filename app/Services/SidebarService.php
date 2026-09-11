@@ -55,7 +55,7 @@ class SidebarService
                 'published_at' => $post->published_at?->toDateString(),
             ])->values()->all();
 
-        $featuredCourses = HomepageFeaturedCourse::ordered()->with('course:id,slug,name,thumbnail,course_type')->get()
+        $featuredCourses = HomepageFeaturedCourse::ordered()->visible()->with('course:id,slug,name,thumbnail,course_type')->get()
             ->filter(fn ($item) => $item->course !== null)
             ->map(fn ($item) => [
                 'id'          => $item->course->id,

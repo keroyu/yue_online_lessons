@@ -379,6 +379,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Featured courses (right sidebar) CRUD + reorder
     Route::post('/homepage/featured-courses', [HomepageFeaturedCourseController::class, 'store'])->name('featured-courses.store');
     Route::put('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'update'])->name('featured-courses.update');
+    Route::patch('/homepage/featured-courses/{featuredCourse}/visibility', [HomepageFeaturedCourseController::class, 'toggleVisibility'])->name('featured-courses.visibility');
     Route::delete('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'destroy'])->name('featured-courses.destroy');
     Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseController::class, 'reorder'])->name('featured-courses.reorder');
 

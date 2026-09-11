@@ -139,9 +139,11 @@
       "011.us-9"
     ],
     "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php": [
+      "002.us-19",
       "002.us-6"
     ],
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
+      "002.us-19",
       "002.us-3",
       "002.us-5",
       "002.us-7",
@@ -727,6 +729,7 @@
       "011.us-9"
     ],
     "app/Models/HomepageFeaturedCourse.php": [
+      "002.us-19",
       "002.us-6"
     ],
     "app/Models/HomeworkNotification.php": [
@@ -984,6 +987,7 @@
       "007.us-8"
     ],
     "app/Services/SidebarService.php": [
+      "002.us-19",
       "002.us-6",
       "012.us-2"
     ],
@@ -1342,6 +1346,9 @@
     ],
     "database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php": [
       "011.us-36"
+    ],
+    "database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php": [
+      "002.us-19"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
@@ -1736,6 +1743,7 @@
       "011.us-8"
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
+      "002.us-19",
       "002.us-3",
       "002.us-4",
       "002.us-6",
@@ -1956,6 +1964,7 @@
       "000.us-8",
       "001.us-3",
       "002.us-15",
+      "002.us-19",
       "002.us-9",
       "003.us-10",
       "006.us-1",
@@ -2167,6 +2176,9 @@
     ],
     "tests/Feature/Storefront/EmailLinkTaggerTest.php": [
       "002.us-14"
+    ],
+    "tests/Feature/Storefront/FeaturedCourseVisibilityTest.php": [
+      "002.us-19"
     ],
     "tests/Feature/Storefront/FreeClaimTrafficTest.php": [
       "002.us-17",

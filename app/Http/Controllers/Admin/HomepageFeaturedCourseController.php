@@ -29,6 +29,35 @@ class HomepageFeaturedCourseController extends Controller
         return redirect()->back()->with('success', '介紹文字已更新');
     }
 
+    /**
+     * Show or hide one featured course (002 US19 / FR-051).
+     *
+     * Deliberately not folded into `update()`: that one writes `blurb`, and the
+     * blurb in the admin panel is a draft until 儲存介紹 is pressed — sharing an
+     * endpoint would let a visibility toggle decide the fate of a half-written
+     * sentence (D53).
+     *
+     * Takes an explicit value rather than flipping the stored one, so a double
+     * click or a second tab cannot settle on a state nobody asked for. Inline
+     * validation matches `reorder()` below; a single boolean does not need a
+     * third Form Request class.
+     */
+    public function toggleVisibility(Request $request, HomepageFeaturedCourse $featuredCourse): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_visible' => ['required', 'boolean'],
+        ], [
+            'is_visible.required' => '請指定顯示或隱藏',
+        ]);
+
+        $featuredCourse->update(['is_visible' => $validated['is_visible']]);
+
+        return redirect()->back()->with(
+            'success',
+            $validated['is_visible'] ? '已顯示於首頁右欄' : '已從首頁右欄隱藏'
+        );
+    }
+
     public function destroy(HomepageFeaturedCourse $featuredCourse): RedirectResponse
     {
         $featuredCourse->delete();

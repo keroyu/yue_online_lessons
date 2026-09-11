@@ -226,6 +226,17 @@ function saveFeaturedBlurb(item) {
   })
 }
 
+// 顯示/隱藏：點下即生效，傳明確的布林值而非讓伺服器翻轉（D53）。
+function toggleFeaturedVisibility(item) {
+  const next = !item.is_visible
+
+  router.patch(`/admin/homepage/featured-courses/${item.id}/visibility`, { is_visible: next }, {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => { item.is_visible = next },
+  })
+}
+
 function removeFeatured(item) {
   if (!confirm(`確定要將「${item.name}」從精選中移除嗎？`)) return
   router.delete(`/admin/homepage/featured-courses/${item.id}`, {
@@ -531,7 +542,10 @@ function saveCategories() {
         @end="onFeaturedReorder"
       >
         <template #item="{ element: item }">
-          <div class="flex items-start gap-3 border border-gray-200 rounded-lg p-3">
+          <div
+            class="flex items-start gap-3 border rounded-lg p-3"
+            :class="item.is_visible ? 'border-gray-200' : 'border-gray-200 bg-gray-50'"
+          >
             <span class="drag-handle mt-1 cursor-move select-none text-gray-400 hover:text-gray-600" title="拖曳排序">⠿</span>
             <div class="flex-1 min-w-0 space-y-2">
               <div class="flex items-center gap-3">
@@ -540,11 +554,32 @@ function saveCategories() {
                   :src="item.thumbnail"
                   :alt="item.name"
                   class="w-24 h-14 shrink-0 object-cover rounded border border-gray-200"
+                  :class="{ 'opacity-40': !item.is_visible }"
                 />
                 <div v-else class="w-24 h-14 shrink-0 rounded border border-gray-200 bg-gray-100" />
-                <p class="flex-1 text-sm font-medium text-gray-800 truncate">{{ item.name }}</p>
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                  <p class="text-sm font-medium truncate" :class="item.is_visible ? 'text-gray-800' : 'text-gray-400'">
+                    {{ item.name }}
+                  </p>
+                  <span
+                    v-if="!item.is_visible"
+                    class="shrink-0 px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 text-xs"
+                  >
+                    隱藏中
+                  </span>
+                </div>
+                <!-- 隱藏只是不顯示在前台，介紹文字與排序都留著 -->
                 <button
-                  class="text-sm text-red-500 hover:underline shrink-0"
+                  type="button"
+                  class="shrink-0 text-sm cursor-pointer transition-colors"
+                  :class="item.is_visible ? 'text-gray-500 hover:text-gray-800 hover:underline' : 'text-brand-navy font-medium hover:underline'"
+                  :title="item.is_visible ? '從首頁右欄隱藏（介紹與排序都會保留）' : '重新顯示於首頁右欄'"
+                  @click="toggleFeaturedVisibility(item)"
+                >
+                  {{ item.is_visible ? '隱藏' : '顯示' }}
+                </button>
+                <button
+                  class="text-sm text-red-500 hover:underline shrink-0 cursor-pointer"
                   @click="removeFeatured(item)"
                 >
                   移除

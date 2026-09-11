@@ -118,6 +118,9 @@ class HomepageSettingController extends Controller
                     'name'      => $item->course->name,
                     'thumbnail' => $item->course->thumbnail_url,
                     'blurb'     => $item->blurb,
+                    // Hidden rows stay in this list — the admin needs to see
+                    // what is off before it can be switched back on (FR-051).
+                    'is_visible' => $item->is_visible,
                 ])->values(),
             'availableCourses' => Course::orderBy('id', 'desc')->get(['id', 'name'])->map(fn ($c) => [
                 'id'   => $c->id,

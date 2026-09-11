@@ -180,6 +180,7 @@ main_files:
 - database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
 - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
 - database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
+- database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
@@ -207,6 +208,7 @@ main_files:
 - tests/Feature/Storefront/CampaignTrafficTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/EmailLinkTaggerTest.php
+- tests/Feature/Storefront/FeaturedCourseVisibilityTest.php
 - tests/Feature/Storefront/FreeClaimTrafficTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php

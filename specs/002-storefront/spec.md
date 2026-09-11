@@ -2,6 +2,8 @@
 id: 002-storefront
 status: building
 owner_files:
+  - database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
+  - tests/Feature/Storefront/FeaturedCourseVisibilityTest.php
   - database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
   - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
   - tests/Feature/Storefront/FreeClaimTrafficTest.php
@@ -106,7 +108,7 @@ touchpoints:
     why: content_category 欄位屬 courses 表；首頁分類篩選只讀取此欄位
   - file: routes/web.php
     owner: 000-platform-core
-    why: US9 新增 DELETE /admin/homepage/sns-profile-image 路由（移除站長形象圖，鏡射 deleteBanner）；US10 新增 /go/post/{post}/course/{course}、POST /api/track/add-to-cart、GET /admin/analytics
+    why: US9 新增 DELETE /admin/homepage/sns-profile-image 路由（移除站長形象圖，鏡射 deleteBanner）；US10 新增 /go/post/{post}/course/{course}、POST /api/track/add-to-cart、GET /admin/analytics；US19 新增 PATCH /admin/homepage/featured-courses/{featuredCourse}/visibility
   - file: bootstrap/app.php
     owner: 000-platform-core
     why: US10 — 註冊 TrackTrafficSource 全站 web middleware
@@ -458,6 +460,28 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 既有資料 MUST NOT 回填：`utm_campaign` 上線前的瀏覽一律落 `''`，不猜測歸屬
 - [x] 測試：新維度寫入與去重、campaign 大小寫收斂為同一列、零成交列出現在報表、瀏覽為 0 時轉換率顯示「—」、免費領取併入不雙重計數、行銷分析頁數字不受影響
 
+### User Story 19 - 精選課程逐筆顯示／隱藏 (Priority: P2)
+
+「精選課程（首頁右欄）」目前只有兩種狀態：在清單裡，或者被移除。於是每次想讓一門課先
+下檔一陣子（檔期結束、內容改版中、暫時不推），唯一的做法是按「移除」，連同那段寫了很久的
+自訂介紹與它在排序中的位置一起丟掉；要再上架時得重新加、重新寫、重新拖回原來的位置。
+
+這條故事把「要不要顯示」從「在不在清單裡」分出來：每一列多一個開關，關掉的課從前台側欄
+消失，但介紹文字、排序位置、以及它在後台清單裡的位置都原封不動。
+
+**驗收**：
+- [x] `homepage_featured_courses` 新增 `is_visible` boolean、default `true`；既有列 MUST 因 default 一律視為顯示，MUST NOT 另寫回填（FR-049）
+- [x] 前台側欄 MUST 只取 `is_visible = true` 的列。過濾 MUST 收在 `SidebarService::build()` 的那一次查詢裡（`->visible()` scope），MUST NOT 在 `Home.vue` / `Sidebar.vue` / `FeaturedCourses.vue` 任何一處用前端條件過濾 —— 隱藏的課連同它的 blurb 都不該進 page payload（FR-050）
+- [x] 首頁與部落格文章頁共用同一份側欄資料，因此 MUST 只改這一個讀取點就同時生效；MUST NOT 在兩處各寫一次條件
+- [x] 全部隱藏（或清單為空）時「精選推薦」整個區塊 MUST NOT 出現 —— `FeaturedCourses.vue` 既有的 `v-if="courses.length > 0"` 已經涵蓋，本 US MUST NOT 改動該元件，但 MUST 有測試釘住這個結果（FR-050）
+- [x] 後台清單 MUST 顯示全部列（含隱藏的），payload 多帶 `is_visible`；隱藏中的列 MUST 有可辨識的視覺（降透明度 + 「隱藏中」標籤），且 MUST 仍可拖曳排序與編輯介紹（FR-051）
+- [x] 切換走獨立端點 `PATCH /admin/homepage/featured-courses/{featuredCourse}/visibility`，body 帶明確的 `is_visible` 布林值（非伺服器端翻轉），點下即生效、`preserveScroll`（FR-051 / D53）
+- [x] 切換 MUST NOT 觸碰 `blurb`：textarea 裡未按「儲存介紹」的草稿不因切換而被存進資料庫，也不因切換而被伺服器回傳值蓋掉（D53）
+- [x] 新增精選課程時 MUST 預設為顯示（靠 DB default，`store()` 不傳值）
+- [x] 隱藏的列 MUST 保留 `sort_order`：重新開啟後回到原來的位置，MUST NOT 被推到清單尾端
+- [x] 測試：隱藏的課不在首頁 props 也不在文章頁 props、後台 payload 仍帶該列且 `is_visible=false`、切換端點翻轉兩個方向、全部隱藏時 `featuredCourses` 為空陣列、切換不動 `blurb` 與 `sort_order`、非管理員被擋
+
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -519,6 +543,10 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-046**: 每一列的 `channel` MUST 由後端 `resolveSource()` 決定並隨資料回傳；`Traffic.vue` 內鏡射 `PLATFORM_MAP` / `PAID_MEDIUM_PATTERN` 的 `CHANNEL_RULES` + `classifyChannel()` MUST 整段刪除。同一套規則在前後端各寫一次已經漂移過兩次（D16、D34），而這次後端本來就要為了 join key 算出 channel，前端那份只是純粹多餘
 - **FR-047**: 追蹤連結產生器 MUST 只保留 `utm_source` 與 `utm_campaign` 兩個輸入，加一個「這是付費廣告連結」勾選框產生 `utm_medium`（社群平台 `paid_social`、搜尋／影音平台 `cpc`、未選平台時 `paid`）。平台快速選擇 MUST NOT 再自動填 `utm_medium` —— `social`/`video`/`email` 這些值不進 `PAID_MEDIUM_PATTERN`、也不影響 channel（channel 由 `utm_source` 比對 `PLATFORM_MAP` 決定），填了只會讓人以為自己標記過了
 - **FR-048**: `utm_content` **不進**日彙總維度（僅移除產生器欄位，仍逐筆存在 `orders` 並出現在 CSV）。廣告平台常自動帶 `utm_content={{ad.id}}`，把它變成彙總維度等於讓列數隨 creative 數量無上限增長，而那個粒度用 CSV 逐筆看就夠（D51）
+
+- **FR-049**: `homepage_featured_courses` 新增 `is_visible` boolean NOT NULL default `true`（位置在 `blurb` 之後）。既有列由 default 直接承接「顯示」，MUST NOT 寫回填語句 —— 新增一個預設值等於舊行為的欄位時，回填只是把同一件事做兩次。**MUST NOT 加索引**：這張表是後台手工維護的清單（個位數列），前台查詢本來就是全表掃描後排序，一個索引在這裡只增加寫入成本與一行不會有人讀的 schema。
+- **FR-050**: 前台的過濾點 MUST 唯一，且 MUST 在查詢層：`SidebarService::build()` 的 `HomepageFeaturedCourse::ordered()` 改為 `ordered()->visible()`（`scopeVisible()` 定義在 model 上）。首頁與 `/blog/{post}` 共用這一份資料，所以這是唯一要改的讀取點；在 Vue 層過濾會讓隱藏課程的名稱、縮圖與 blurb 仍然出現在 page payload 裡，任何人 view-source 都看得到，而「暫時不推」有時正是因為那門課的文案還不能見人。全部隱藏時回傳空陣列，`FeaturedCourses.vue` 既有的 `v-if="courses.length > 0"` 使整個「精選推薦」區塊消失 —— 本 US MUST NOT 改動該元件，但 MUST 有測試釘住，否則之後有人拿掉那個 `v-if` 就會在側欄留下一個空白標題框。
+- **FR-051**: 切換 MUST 走獨立端點 `PATCH /admin/homepage/featured-courses/{featuredCourse}/visibility`（admin 群組），body `is_visible` 為 `required|boolean`，驗證以 inline `validate()` 處理（比照同一個 controller 既有的 `reorder()`，為單一布林另開第三個 Form Request 只是多一個檔案）。MUST NOT 併進既有的 `PUT .../{featuredCourse}`：那條路徑寫的是 `blurb`，而後台的 blurb 是一塊要按「儲存介紹」才落地的草稿 —— 合併後切換開關會順手把半句話存進去，或反過來被伺服器回傳值蓋掉。伺服器 MUST 依傳入值設定而非自行翻轉（連點兩下、或兩個分頁同時操作時，翻轉會得到一個沒人預期的結果）。後台清單 MUST 顯示全部列並多帶 `is_visible`；隱藏中的列以降透明度 + 「隱藏中」標籤標示，仍可拖曳排序與編輯介紹。
 - **FR-036**: 併入 MUST 只發生在 `funnelReport()` 的回傳組裝階段。`channelReport()`、`ctaReport()`、`course_daily_stats` 與 `bump()` 一律不動 —— 管道報表的加總必須繼續等於各管道實際事件數，塞入一個沒有管道的數字會讓那張表自相矛盾
 
 ## 設計決策
@@ -604,7 +632,23 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 
 - **D39**: 短網址併成行銷分析的分頁、而非在側欄改排序 —— 兩者都是「這個行銷動作帶來多少點擊」，分開兩個入口只是因為它們先後被做出來，不是因為使用時會分開想。短網址的**擁有權仍留在 000**（表、寫入端點、元件），002 只提供承載它的頁面與 `?tab=` 分派；否則會變成把別人的功能整組搬進自己模組。
 - **D40**: 舊路徑保留為 302 轉址而非刪除 —— 這個網址進過側欄也可能進過書籤與交接文件，回 404 會被讀成「功能被拿掉了」，而轉址的成本只有一個方法。
+- **D53**: 切換**獨立端點、傳明確值、點下即生效**（三件事是同一個決定的三面）。獨立端點的理由是 blurb 是草稿：後台那個 textarea 要按「儲存介紹」才落地，把 `is_visible` 併進同一條 `PUT` 會讓一次純粹的顯示切換順手決定那段半成品文案的命運 —— 存進去或被蓋掉都不是使用者按那個開關時想要的。傳明確布林而非伺服器翻轉，是因為翻轉在「連點兩下」與「兩個分頁各開一個」時會收斂到一個沒人預期的狀態，而顯示與否是看得到的東西，錯了就是前台錯。點下即生效而非跟著某顆儲存鈕，是因為這個操作的成本與後果都極小（一個布林、隨時可以再按回來），中間插一次「儲存」只會讓人懷疑自己到底按了沒有。
+- **D54**: 隱藏用 `is_visible` 欄位，**不用軟刪除**（`deleted_at`）。兩者都能達成「先拿下來、之後放回去」，但語意不同：軟刪除是「刪掉但保留殘骸」，隱藏是「還在清單裡、只是這陣子不推」—— 後者要能在後台看到、排序、編輯介紹，而軟刪除的列照定義不該出現在任何一般查詢裡。用 `deleted_at` 表達隱藏，代價是每一個後台查詢都得記得加 `withTrashed()`，而漏加的地方會安靜地少一列。
+
 ## Schema
+
+- **US19 schema 變更（一支 migration）**：
+
+  `2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php`
+
+  | 欄位 | 型別 |
+  |------|------|
+  | `is_visible` | `boolean` NOT NULL default `true`，位置在 `blurb` 之後 |
+
+  **不變量**：
+  - 不加索引（FR-049）：後台手工維護的清單，列數個位數
+  - 不回填：default 即舊行為，既有列一律顯示
+  - `sort_order` 與 `is_visible` **互不影響** —— 隱藏不重排，重新顯示時回到原位
 
 - **US18 schema 變更（一支 migration）**：
 
@@ -862,8 +906,38 @@ Phase 5 — 驗證
 - [x] T015 `php artisan test` 全綠 ＋ `npm run build` exit 0
 - [ ] T016 使用者實測：用產生器產兩條同 source 不同 campaign 的連結各點一次 → Traffic 頁出現兩列各 1 瀏覽 0 訂單；勾選付費後產的連結進站 → 管道歸「付費廣告」；確認行銷分析頁數字沒變
 
+
+## Tasks（精選課程顯示/隱藏 / US19）
+
+Phase 1 — Schema 與 Model
+
+- [x] T001 migration：`homepage_featured_courses` 加 `is_visible` boolean default true（`after('blurb')`），無索引、無回填（FR-049）in `database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php`
+- [x] T002 [P] `$fillable` 加 `is_visible`、`casts()` 加 `'is_visible' => 'boolean'`、新增 `scopeVisible()` in `app/Models/HomepageFeaturedCourse.php`
+
+Phase 2 — 前台（相依 Phase 1）
+
+- [x] T003 `build()` 的精選課程查詢改為 `ordered()->visible()`（FR-050）；`FeaturedCourses.vue` / `Sidebar.vue` / `Home.vue` 一行都不改 in `app/Services/SidebarService.php`
+
+Phase 3 — 後台（相依 Phase 1，可與 Phase 2 平行）
+
+- [x] T004 [P] `edit()` 的 `featuredCourses` payload 多帶 `is_visible`（清單仍取全部列，不加 `visible()`）in `app/Http/Controllers/Admin/HomepageSettingController.php`
+- [x] T005 `toggleVisibility()`：inline validate `is_visible` 為 `required|boolean` → `$featuredCourse->update(['is_visible' => ...])` → `redirect()->back()->with('success', ...)`；MUST NOT 觸碰 `blurb`（FR-051）in `app/Http/Controllers/Admin/HomepageFeaturedCourseController.php`
+- [x] T006 路由 `PATCH /admin/homepage/featured-courses/{featuredCourse}/visibility`（admin 群組，接在既有三條之後）in `routes/web.php`（000 touchpoint）
+- [x] T007 精選課程列加顯示／隱藏開關：標題列右側、移除鈕之前；`router.patch(..., { is_visible: !item.is_visible }, { preserveScroll: true })` 成功後就地更新該列；隱藏中的列縮圖與標題降透明度並附「隱藏中」灰標籤；開關 MUST 有 `cursor-pointer` 與 hover 樣式 in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+Phase 4 — 驗證
+
+- [x] T008 測試：隱藏的課不出現在 `/` 的 `featuredCourses` props、也不出現在 `/blog/{post}`；後台 `/admin/homepage` 仍帶該列且 `is_visible=false`；切換端點兩個方向都成立且不動 `blurb` 與 `sort_order`；全部隱藏時 props 為空陣列；非管理員被擋 in `tests/Feature/Storefront/FeaturedCourseVisibilityTest.php`
+- [x] T009 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T010 使用者實測：後台關掉其中一門課 → 重新整理首頁與任一篇文章頁，確認該課消失、其餘順序不變；打開後回到原位置
+
+
 ## 進度日誌
 
+- 2026-09-11: US19 精選課程逐筆顯示／隱藏完成（T001–T009，僅剩 T010 使用者實測）— `homepage_featured_courses` 加 `is_visible`（default true、無索引、無回填），model 補 cast 與 `scopeVisible()`，前台唯一過濾點落在 `SidebarService` 的 `ordered()->visible()`，首頁與 `/blog/{post}` 一起生效。切換走新的 `PATCH /admin/homepage/featured-courses/{id}/visibility`，傳明確布林、inline validate、只寫 `is_visible`；後台清單仍取全部列並多帶 `is_visible`，隱藏中的列灰底 + 縮圖降透明度 + 「隱藏中」標籤，拖曳與編輯介紹都照舊。
+  **規劃時寫錯一個方法名**：spec 說的是 `SidebarService::build()`，實際的方法是 `widgets()`（`HomeController` 與 `BlogController` 各 spread 一次）—— 改的是同一個查詢，FR-050 的意思不變。
+  測試 `FeaturedCourseVisibilityTest` 9 tests，先紅後綠（欄位與路由都不存在時 8 紅）；本機 `php artisan migrate` 已跑過。全套 `php artisan test` **915 passed（3818 assertions）**、`npm run build` exit 0。
+- 2026-09-11: [draft] 規劃 US19 精選課程逐筆顯示／隱藏 — 現在要讓一門課暫時下檔只能按「移除」，自訂介紹與排序位置一起沒了，要回來得重寫重拖。加一個 `is_visible` 欄位把「要不要顯示」從「在不在清單裡」分開。三個關鍵決策：（1）FR-050 過濾唯一且在查詢層（`SidebarService` 的 `->visible()`），前端過濾會讓隱藏課程的文案仍然躺在 page payload 裡，而「暫時不推」有時正是因為文案還不能見人；首頁與文章頁共用這份資料，所以只有一個讀取點要改。（2）D53 切換走獨立端點、傳明確布林、點下即生效 —— 併進既有的 `PUT` 會讓開關順手決定 blurb 草稿的命運，伺服器翻轉則在連點與多分頁時收斂到沒人預期的狀態。（3）D54 用欄位不用軟刪除：隱藏的列還要能在後台看到、排序、編輯介紹，而軟刪除的列照定義不該出現在一般查詢裡。全部隱藏時整個「精選推薦」區塊自動消失（`FeaturedCourses.vue` 既有的 `v-if`），本次不改該元件但加測試釘住。status: draft 待審核。
 - 2026-08-31: US18 課程流量細分到活動層完成（T001–T015，僅剩 T016 使用者實測）— `course_daily_stats` 加 `utm_campaign` 維度（unique 擴五欄，三段式建索引避開 errno 150）；`bump()` 簽名改收 `array $dims`，維度的產生收斂到一個 private `dims()`，`utm_campaign` 的正規化則收斂到 `TrafficSourceService::normaliseCampaign()`（static，因為報表讀 `orders` 時要套同一條規則，兩份就會讓 `Summer` 與 `summer` 分成兩列）。`traffic()` 改為兩側 outer join：訂單／領取側在 `resolveSource()` **之後**於 PHP 折疊（key 是衍生值，先在 SQL group 就會把 `ig` 與 `instagram` 拆開），日彙總側依 `(channel, source, utm_campaign)` 取 `SUM(views)`，任一側有值就出列 —— 「300 次瀏覽、0 成交」那一列因此第一次看得見。前端 `CHANNEL_RULES` + `classifyChannel()` 整段刪除，只留 label 對照表。產生器四欄縮成兩欄加付費勾選框，`utm.term` 死碼一併清掉。
   **兩個實作中補的東西**：(1) `orderSource()` 加帶 `utm_campaign` 才能讓成交也落在正確的 campaign 列——它不參與 channel/source 判斷，所以行銷分析頁的數字一個都沒動（有測試釘住）；(2) 驗收條款寫的「可依任一數值欄排序」原本漏做，補了前端點擊表頭排序，未測得的轉換率（null）在兩個方向都排最後，因為它不是 0%。
   既有 `FreeClaimTrafficTest` 有一條斷在新的列形狀（斷言 `utm_source`，現在是解析後的 `source`），已改為斷言 `source` + `campaign`。新增 CampaignTrafficTest（12 tests）。
