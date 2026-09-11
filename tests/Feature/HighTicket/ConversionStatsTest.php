@@ -269,4 +269,47 @@ class ConversionStatsTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    // ── who gets to see the year (FR-193) ───────────────────────────────────
+
+    private function consultant(): User
+    {
+        return User::firstOrCreate(
+            ['email' => 'consultant-stats@example.com'],
+            ['role' => 'member', 'is_sales_consultant' => true],
+        );
+    }
+
+    /** The raw props, so a missing key is distinguishable from a zeroed one. */
+    private function statsFor(User $user, array $query = []): array
+    {
+        return $this->actingAs($user)
+            ->get('/admin/high-ticket-leads?' . http_build_query($query))
+            ->assertOk()
+            ->viewData('page')['props']['conversionStats'];
+    }
+
+    /**
+     * Absent rather than zeroed: the year total must not reach a consultant's
+     * page payload at all, which a `null` or a `0` would not demonstrate.
+     */
+    public function test_consultant_payload_carries_no_year_total(): void
+    {
+        $this->converted('a@example.com', 30000);
+
+        $this->assertArrayNotHasKey('year', $this->statsFor($this->consultant()));
+        $this->assertArrayHasKey('year', $this->statsFor($this->admin()));
+    }
+
+    /** Hiding the year must not quietly change what the month says (D137). */
+    public function test_consultant_month_matches_the_admin_month(): void
+    {
+        $this->converted('a@example.com', 30000);
+        $this->converted('b@example.com', 50000);
+
+        $this->assertSame(
+            $this->statsFor($this->admin())['month'],
+            $this->statsFor($this->consultant())['month'],
+        );
+    }
 }

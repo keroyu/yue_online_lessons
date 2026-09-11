@@ -763,6 +763,15 @@ US14 的改期只有一條路徑：進入改期模式，然後**在格線上點�
 - [x] 手機寬度下摘要換行到色塊列下方，不擠壓色塊
 - [x] 測試：篩選連動（顧問／課程）、狀態 tab 不影響、同人多課去重、退款不計、跨月邊界以台北時間切分
 
+**補充（年度只給管理員看）**：年度數字是整條銷售線的全年業績，那是經營層的數字，不該因為顧問進得去 Leads 頁就順帶看到。
+本月留著 —— 顧問要靠它知道自己這個月談到哪裡。
+
+- [x] 顧問（`is_sales_consultant` 且非 admin）看到的摘要 MUST 只有「本月」那一段，年度的人數、金額與中間的分隔線 MUST NOT 出現
+- [x] 年度數字 MUST NOT 出現在顧問的頁面 payload 裡 —— 不是 CSS 隱藏、不是 `v-if` 擋在有資料的前面，而是伺服器就不算也不傳（FR-193）
+- [x] 管理員看到的摘要 MUST 與現況逐字相同（本月 + 年度）
+- [x] 顧問的「本月」範圍 MUST 維持現況：跟隨上方課程／顧問／關鍵字／面談時間篩選，MUST NOT 自動鎖成自己的業績（D137）
+- [x] 測試：顧問取得的 props 無 `year`、admin 有；顧問的 month 數字與 admin 同條件下相同
+
 ### User Story 23 - 面談逐字稿自動摘要 (Priority: P2)
 
 這條銷售線在「面談之後」是斷的。`high_ticket_leads` 記了誰、什麼時候、哪位顧問、Zoom 連結，
@@ -1685,10 +1694,16 @@ instructions、一個模型、一份 `max_output_tokens` 與同一個編輯鎖�
 - **FR-191**: 面談紀錄列在「查看／撰寫摘要」之後 MUST 多一顆「查看追銷Email」／「撰寫追銷Email」，字樣與配色依 `followup_email` 有無切換，沿用摘要那顆的樣式規則。兩顆按鈕 MUST 開同一支 modal 組件（D135），差別只在標題、綁定欄位、兩個端點與按鈕字樣。modal 內的「產生追銷信」在沒有逐字稿時 MUST 停用並附 title 說明，與「重新產生摘要」同一條件。
 - **FR-192**: leads payload 的 `consultationNotes` MUST 帶上 `followup_email` 全文與兩個時間戳。與 `transcript` 的處理相反、與 `summary` 相同：一封 200–300 字的信約 600 bytes，比已經在傳的七節摘要更小，為它另開一支讀取端點只會多一次往返而省不到什麼。
 
+- **FR-193**: 年度成交摘要 MUST 只對 `role = 'admin'` 計算與傳送。`conversionStats()` 收一個 `bool $includeYear` 參數，為 false 時 MUST 連那兩個 `conversionTotals()` 查詢都不跑、回傳的陣列裡**沒有 `year` 這個 key**（不是 `null`、不是零值）。判定在 controller 以 `$request->user()->isAdmin()` 取得，MUST NOT 由前端傳入。理由：前端隱藏擋得住眼睛擋不住 devtools，而這條要擋的正是「顧問看得到全年業績」這件事本身；順帶省掉兩個對顧問沒有意義的彙總查詢。
+- **FR-194**: 摘要區塊 MUST 以 `conversionStats.year` 是否存在決定渲染年度那半段 —— 包含分隔線 `|`。本月那半段 MUST 無條件渲染（含 `0 人 · NT$ 0`，沿用 FR-097 的空值也是資訊）。tooltip 文案在只有本月時 MUST 拿掉「年度」的描述，MUST NOT 留下說明一個畫面上不存在的數字的提示。
+
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
 - **D134**: 追銷 Email **只在按鈕點下時生成**（使用者決策），不隨逐字稿到位自動產生。摘要是每場都要看的（顧問得知道談了什麼），信不是：當場成交的、明確拒絕的、沒出席的都不需要。自動產生是為每一場面談固定多付一次 token，而其中相當比例的輸出永遠不會被打開。同一條理由讓上傳替換逐字稿（FR-185）也不連帶重生信 —— 那條路徑重生的是摘要，信由顧問自己按；反過來說，逐字稿換過之後那封舊信確實可能過期，而「要不要重寫」正是按鈕存在的意義。
 - **D135**: 摘要與追銷 Email **共用同一支 modal**：`ConsultationSummaryModal.vue` 更名 `ConsultationNoteEditorModal.vue`，收一個 `mode` prop（`summary` / `followup`）決定標題、綁定欄位、兩個端點與按鈕字樣。這支元件的實質不是中間那個 textarea，是圍著它的那一圈：背景關閉必須 mousedown 與 mouseup **都**落在背景上（否則在 textarea 裡拖曳選字、手指滑出面板放開就會誤關）、ESC 要避開中文輸入法的組字狀態（`isComposing` 與 keyCode 229）、未存變更要攔關閉、body scroll lock。那些每一條都是回報過的 bug 修出來的。複製一份等於把它們複製成兩份，而下一次修正只會修好其中一份。
+- **D137**: 年度隱藏做在**伺服器**，且顧問的本月**不自動鎖成自己的**（使用者決策）。
+  兩件事各有理由。年度走伺服器：Inertia 的 props 就是一包 JSON，前端 `v-if` 只是不畫，數字仍然躺在 page payload 裡；一個能被 devtools 讀出來的「權限控制」不是權限控制。
+  本月維持跟隨篩選：顧問篩選在這頁一直是**檢視工具而非權限閘**（D70），名單本身也沒有依顧問切分 —— 只把摘要鎖成自己的，會做出「數字是我的、下面的名單是全部人的」這種互相矛盾的畫面。真要做成個人業績，該做的是整頁依顧問切分，那是另一個決定。
 - **D136**: 生成**同步**而非進佇列。與 US23 的校訂不是同一種工作：那是把一小時的逐字稿切成七段的連續呼叫，分鐘級，因此需要 FR-117 那整套租約論證；這是**單次**呼叫，`config('ai.timeout')` 已設 120 秒上限，與既有的 `regenerateSummary()` 完全同形（那支也是同步且已在正式站跑了一段時間）。為它另開佇列路徑的代價是按完看不到結果、得自己重新整理 —— 而那正是一顆「產生」按鈕最不該有的行為。
 
 
@@ -3089,9 +3104,20 @@ Phase 4 — 驗證
 - [x] T434 `php artisan test` 全綠、`npm run build` exit 0
 - [ ] T435 使用者實測：正式站 `/admin/settings/ai` 手動刪掉摘要 prompt 的「## 追銷信草稿」整節、`max_output_tokens` 調回 2000，確認「追銷 Email」新列出現在「面談整理」底下；拿一場真面談按「產生追銷信」，確認信裡叫得出名字、講得出對方的具體障礙、且沒有出現成交機率之類的內部判斷
 
+### Phase — 年度業績只給管理員（US22 補充 / FR-193–FR-194）
+
+- [x] T436 `conversionStats(Builder $leadsQuery, bool $includeYear = true): array` — `$includeYear` 為 false 時跳過年度的 `conversionTotals()` 並在回傳陣列中省略 `year` key；docblock 的回傳型別同步改為 `array{month: ..., year?: ...}`（FR-193）in `app/Services/HighTicketLeadService.php`
+- [x] T437 `index()` 呼叫端傳入 `$request->user()->isAdmin()`（FR-193）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T438 [P] 摘要區塊：年度人數／金額與中間的 `|` 包在 `v-if="conversionStats.year"`；本月無條件渲染；tooltip 依有無年度切換文案（FR-194）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T439 [P] `conversionStats` prop 預設值去掉 `year`（改為 `{ month: { people: 0, amount: 0 } }`），避免顧問頁面被預設值補出一個假的年度 0 in `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+- [x] T440 測試：顧問登入 `/admin/high-ticket-leads` 的 props `conversionStats` 無 `year` key、admin 有；同一批資料下顧問與 admin 的 `month` 完全相同 in `tests/Feature/HighTicket/ConversionStatsTest.php`
+- [x] T441 `php artisan test --filter=ConversionStats` 綠、全套綠、`npm run build` exit 0
+
+
 
 ## 進度日誌
 
+- 2026-09-11: US22 補充完成（T436–T441）— 年度成交業績收歸管理員：`conversionStats()` 加 `$includeYear`，非 admin 連年度那兩個彙總查詢都不跑、回傳陣列無 `year` key（FR-193）；`BookingListTab` 年度半段與分隔線包 `v-if="conversionStats.year"`、tooltip 依有無年度切換文案，兩處 prop 預設值一併去掉 `year`（FR-194）。本月維持跟隨篩選不鎖成個人業績（D137）。ConversionStatsTest 12 → 14 tests，全套 898 passed（3740 assertions）、`npm run build` exit 0。
 - 2026-09-10: US35 追銷 Email 獨立成欄完成（T423–T434，僅剩 T435 使用者實測）— `consultation_notes` 加三欄、`ConsultationTranscriptService::followupEmail()`、兩條 staff 路由、面談紀錄列第二顆按鈕，摘要 prompt 的第 8 節自安裝來源移除、tokens 改回 2000。
   規劃時錯估了一件事並在實作中修正（FR-188 / T425 / T426 已同步）：原本要求新 prompt「寫進建表 migration **與** install migration 兩處」，但建表 migration 在正式站早就跑完、永遠不會再跑，寫在那裡只到得了新環境；而一支獨立的 install migration **兩邊都到得了**（`migrate:fresh` 照樣會跑它）。003 的 `install_homework_grading_prompt` 早就是這個形狀。所以定義只有一份，放在新的那一支裡，建表 migration 這次只動摘要 prompt 的內文。
   modal 依 D135 改名 `ConsultationNoteEditorModal.vue` 並收 `mode` prop，差異收斂成一張 `MODES` 表（標題／欄位／兩個端點／按鈕字樣／確認文案）。**第二個呼叫端是規劃時漏掉的**：`BookingListTab.vue` 的摘要徽章也用同一支 modal，import 一併改名；`mode` 預設 `summary`，那條路徑行為不變。

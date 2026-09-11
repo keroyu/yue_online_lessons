@@ -24,7 +24,9 @@ const props = defineProps({
   suppressionsByEmail: { type: Object, default: () => ({}) },
   grantableCourses: { type: Array, default: () => [] },
   statusCounts: { type: Object, default: () => ({}) },
-  conversionStats: { type: Object, default: () => ({ month: { people: 0, amount: 0 }, year: { people: 0, amount: 0 } }) },
+  // No `year` in the default: it is admin-only (011 FR-193), and a default
+  // would draw a fabricated 年度 0 on a consultant's page.
+  conversionStats: { type: Object, default: () => ({ month: { people: 0, amount: 0 } }) },
 
   // Subscriber tab
   dripCourseOptions: { type: Array, default: () => [] },

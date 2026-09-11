@@ -156,8 +156,11 @@ class HighTicketLeadController extends Controller
         // Deals closed, on the same scope as the pills above and deliberately
         // without the status filter — clicking into a status must not move the
         // money (FR-097, mirrors the funnel-share rule).
+        // Admins only for the year total (FR-193): consultants get the month,
+        // which is the number they work against, and nothing wider.
         $conversionStats = $this->leadService->conversionStats(
-            $this->bookingLeadsQuery($search, $courseId, $consultant, $met)
+            $this->bookingLeadsQuery($search, $courseId, $consultant, $met),
+            $request->user()->isAdmin(),
         );
 
         // Same definition of "who is a consultant" as the week grid's owner

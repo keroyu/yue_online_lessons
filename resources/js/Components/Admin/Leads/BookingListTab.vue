@@ -54,9 +54,11 @@ const props = defineProps({
   },
   // { status: count } over the whole search/course/consultant-filtered set,
   // status filter excluded — see the funnel share on the pills below.
+  // Year absent from the default on purpose: it is admin-only (011 FR-193),
+  // and a default would draw a fabricated 年度 0 on a consultant's page.
   conversionStats: {
     type: Object,
-    default: () => ({ month: { people: 0, amount: 0 }, year: { people: 0, amount: 0 } }),
+    default: () => ({ month: { people: 0, amount: 0 } }),
   },
   statusCounts: {
     type: Object,
@@ -831,6 +833,13 @@ const exportCount = computed(() =>
   selectAllMatching.value ? props.leads.total : selectedIds.value.length
 )
 
+// The hint must not describe a number that is not on screen: consultants see
+// the month alone (011 FR-194).
+const dealSummaryHint = computed(() => {
+  const period = props.conversionStats.year ? '本月與年度' : '本月'
+  return `${period}成交：人數依 Email 去重，金額只計顧問開通（已退款不計）。跟隨上方時間／顧問篩選，不受狀態色塊影響`
+})
+
 // A download cannot go through an Inertia visit — it expects a page component
 // back, and the browser never gets the file. Same reasoning as the transactions
 // export, whose shape this follows (D119).
@@ -936,15 +945,19 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
            One line, and shorter than a pill, so the row keeps its height. -->
       <div
         class="lg:ml-auto text-xs text-gray-500 tabular-nums whitespace-nowrap"
-        title="成交人數依 Email 去重；金額只計顧問開通（已退款不計）。跟隨上方時間／顧問篩選，不受狀態色塊影響"
+        :title="dealSummaryHint"
       >
         本月
         <span class="font-medium text-gray-900">{{ conversionStats.month.people }}</span> 人
         <span class="font-medium text-gray-900">NT$ {{ Number(conversionStats.month.amount).toLocaleString() }}</span>
-        <span class="mx-1.5 text-gray-300">|</span>
-        年度
-        <span class="font-medium text-gray-900">{{ conversionStats.year.people }}</span> 人
-        <span class="font-medium text-gray-900">NT$ {{ Number(conversionStats.year.amount).toLocaleString() }}</span>
+        <!-- Year is admin-only and arrives absent, not zeroed, for everyone
+             else (011 FR-193) — so the separator goes with it. -->
+        <template v-if="conversionStats.year">
+          <span class="mx-1.5 text-gray-300">|</span>
+          年度
+          <span class="font-medium text-gray-900">{{ conversionStats.year.people }}</span> 人
+          <span class="font-medium text-gray-900">NT$ {{ Number(conversionStats.year.amount).toLocaleString() }}</span>
+        </template>
       </div>
     </div>
 

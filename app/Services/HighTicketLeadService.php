@@ -100,10 +100,17 @@ class HighTicketLeadService
      * (FR-097). `purchases` has no consultant_id and no back-reference to the
      * lead it came from — email is the only join available.
      *
+     * The year total is the whole sales line's annual figure — a management
+     * number, which a consultant reaching this page should not pick up on the
+     * way past (FR-193). It is dropped server-side rather than hidden in the
+     * component: Inertia props are a JSON blob on the page, so a `v-if` stops
+     * it being drawn and nothing else.
+     *
      * @param Builder $leadsQuery the filtered lead scope, WITHOUT the status filter
-     * @return array{month: array{people: int, amount: int}, year: array{people: int, amount: int}}
+     * @param bool $includeYear admins only; false omits the key entirely
+     * @return array{month: array{people: int, amount: int}, year?: array{people: int, amount: int}}
      */
-    public function conversionStats(Builder $leadsQuery): array
+    public function conversionStats(Builder $leadsQuery, bool $includeYear = true): array
     {
         $emails = (clone $leadsQuery)->pluck('email')
             ->filter()
@@ -111,10 +118,11 @@ class HighTicketLeadService
             ->values();
 
         if ($emails->isEmpty()) {
-            return [
-                'month' => ['people' => 0, 'amount' => 0],
-                'year'  => ['people' => 0, 'amount' => 0],
-            ];
+            $zero = ['month' => ['people' => 0, 'amount' => 0]];
+
+            return $includeYear
+                ? $zero + ['year' => ['people' => 0, 'amount' => 0]]
+                : $zero;
         }
 
         // Boundaries are Taipei's, not the server's: a deal closed at 07:00
@@ -122,10 +130,15 @@ class HighTicketLeadService
         // whereMonth() on the stored column would file it there (FR-098).
         $now = now(ConsultationSlotService::DISPLAY_TZ);
 
-        return [
+        $stats = [
             'month' => $this->conversionTotals($emails, $now->copy()->startOfMonth(), $now->copy()->startOfMonth()->addMonth()),
-            'year'  => $this->conversionTotals($emails, $now->copy()->startOfYear(), $now->copy()->startOfYear()->addYear()),
         ];
+
+        if ($includeYear) {
+            $stats['year'] = $this->conversionTotals($emails, $now->copy()->startOfYear(), $now->copy()->startOfYear()->addYear());
+        }
+
+        return $stats;
     }
 
     /**
