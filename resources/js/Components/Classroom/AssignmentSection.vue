@@ -159,7 +159,7 @@ const deleteItem = (commentId, hasReplies) => {
           <template v-for="reply in comment.replies" :key="reply.id">
 
             <!-- Instructor reply (teal) -->
-            <div v-if="isAdmin(reply.user)" class="rounded-lg overflow-hidden ml-[100px] border" style="background-color:rgba(63,131,163,0.08);border-color:rgba(63,131,163,0.2)">
+            <div v-if="isAdmin(reply.user)" class="rounded-lg overflow-hidden ml-[100px] border" style="background-color:rgba(63,131,163,0.04);border-color:rgba(63,131,163,0.18)">
               <div class="px-4 pt-3 pb-1 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
                   <span class="text-xs font-semibold text-brand-teal">{{ reply.user?.nickname }}</span>
