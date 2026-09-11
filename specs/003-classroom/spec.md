@@ -48,6 +48,9 @@ owner_files:
   - resources/js/Pages/Member/Learning.vue
   - resources/js/Pages/Admin/Homework/Index.vue
 touchpoints:
+  - file: resources/css/app.css
+    owner: 000-platform-core
+    why: 作業區 Markdown 的 `.assignment-content` 樣式，以別名形式併進 `.course-content` 的每一條規則（FR-027）
   - file: app/Services/PointService.php
     owner: 007-points-referral
     why: AssignmentService 標記作業完成時經積分帳本發放（type=earn_homework），PointService 為 users.points 唯一寫入點
@@ -206,6 +209,7 @@ touchpoints:
 - [x] 學員可編輯（顯示「已編輯」標記）/刪除自己的留言；刪除頂層連同子回覆 cascade 刪除，僅本人可操作（`Comment::isOwnedBy` 403 防護）
 - [x] 提交防護：無課程權限 403、assignment 不屬於該課程 404、題目已下架 403「不接受新提交」
 - [x] 試閱模式與未購買者看不到作業區；輸入框 placeholder 提示 Markdown 寫法（### 起頭、# 後加空格）
+- [x] 作業區的 Markdown（題目、學員提交、講師批改）MUST 與課程小節內文**同一套樣式**：`.assignment-content` 為 `.course-content` 的別名，不維護第二套（FR-027）
 
 ### User Story 6 - 管理員作業題目管理與批改 (Priority: P1)
 
@@ -311,6 +315,7 @@ touchpoints:
 - **FR-024**: AI 批改端點接受選填的 `note`（講師補充指示，`nullable|string|max:2000`）。它是**唯一**的 per-request 脈絡通道，來源為回覆面板獨立的 textarea，**不得**改由「批改內容」欄位推導（D21）。有值時組成第五段 `## 講師補充指示`；空值或全空白時整段省略，input 與追加此功能前逐字相同
 - **FR-025**: 補充指示不落地也不外流 — 不進 DB、不寫進 comment、不隨 `storeComment` 送出，學員端任何位置都看不到它；面板開啟與關閉時一律清空（同 FR-018 的草稿不落地立場）。生成成功後**保留**在欄位裡，讓老師改一句就能重新生成
 - **FR-026**: `lesson_progress` 的刪除（取消完成）為**管理員專屬**：`ClassroomController::markIncomplete` MUST 以 `$user->isAdmin()` 守門，非 admin 一律 403；前台教室對非 admin 一律不渲染可點的綠勾。對一般會員而言，完成是單向的 —— 只能由 75% 門檻、手動標記或影片播完寫入，不能退回未觀看
+- **FR-027**: 作業區的 Markdown 樣式 MUST 由 `.course-content` 的規則直接承接 —— `app.css` 裡每一條 `.course-content` 選擇器後面並列一條同內容的 `.assignment-content`，MUST NOT 另寫一套宣告。原本獨立的那套只定義到 `code` 為止，沒有 `table` / `pre` / `img` / `iframe` / `hr`，於是作業裡的表格在教室中完全沒有框線與表頭 —— 而同一份 Markdown 貼進小節內文是有的。兩套並存的問題不是重複，是**會分岔**：小節樣式後來補的每一條，作業區都收不到。`h1` 一併補進 `h2` 那條規則（`.course-content` 原本沒有 h1，Tailwind preflight 會讓它退成純文字）。唯一的例外是 `h1` / `h2`：小節的橫幅（teal 漸層底 + 5px 左邊條 + navy 下底線 + 2.5em 上距）是**整頁欄寬**的尺度，搬進只有幾行高的留言氣泡會壓過內容本身，因此作業區另寫一條輕量版 —— 同樣的 navy 字與 teal 左邊條，去掉底色與下底線、邊條收成 3px、字級 1.125rem、上距 1.5em。**除此之外不得再有第二條例外**：每多一條，兩邊就多一個會分岔的地方
 
 ## 設計決策
 
@@ -440,6 +445,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-09-11: 作業區樣式併入課程小節（FR-027）— 業主回報教室作業區的表格沒有任何樣式。根因是 `.assignment-content` 是另寫的一套、只到 `code` 為止，`table`/`pre`/`img`/`iframe`/`hr` 全缺。改為別名：刪掉整塊獨立宣告，`app.css` 的每條 `.course-content` 規則並列 `.assignment-content`，另補 h1（原本兩邊都沒有）。唯一保留的差異是 h1/h2 —— 小節的橫幅式標題在留言氣泡裡太重，作業區改用去底色的輕量版（同色系、邊條收細）。順手拿掉 `AssignmentSection.vue` 兩處被蓋掉的 `text-sm` / `text-gray-800`。`npm run build` exit 0；實際外觀待業主在教室確認
 - 2026-09-10: 實作 FR-026 完成（T037–T042）— `markIncomplete` 加 `isAdmin()` 守門回 403；教室綠勾對非 admin 改渲染純 `<div>`（無 click handler），`handleToggleComplete` 也在前端擋下取消分支。實作時修正一處規劃細節：靜態綠勾不加 `cursor-default` 也不 `stop` 事件 —— 它位在可點的整列裡，攔下來反而變成死區，現在點它等同點該列（切換小節）。新增 LessonProgressTest 3 案，全 repo 885 passed（3695 assertions）、npm run build exit 0
 - 2026-09-10: 規劃「進度取消收歸管理員」（US3 追加 FR-026 / D25~D27）— 一般會員的完成改為單向，綠勾不可點回未觀看；後端 `markIncomplete` 收窄為 admin 專屬（前端鎖 UI + 後端 403 兩層）。端點保留供 admin 自行重測。status: draft 待審
 - 2026-08-22: 實作「講師補充指示」完成（T031–T036）— 回覆面板獨立欄位（2 行，批改內容上方）→ `note` 經 `max:2000` 驗證 → `HomeworkGradingService` 組成 input 第五段（未填則整段省略）；優先級規則以「缺才追加」方式補進 `ai_prompts` instructions，不覆蓋業主改過的文字。AiGradingTest 補 4 案 + prompt 規則斷言（17 passed），全 repo 779 passed、npm build exit 0

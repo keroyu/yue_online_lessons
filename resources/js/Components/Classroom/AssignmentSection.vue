@@ -140,7 +140,7 @@ const deleteItem = (commentId, hasReplies) => {
               </div>
             </div>
             <div v-if="editingId !== comment.id" class="px-4 pb-4">
-              <div class="assignment-content text-gray-800" v-html="renderMd(comment.content)" />
+              <div class="assignment-content" v-html="renderMd(comment.content)" />
               <div v-if="isOwn(comment)" class="mt-2 flex gap-1">
                 <button class="text-xs text-gray-400 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="openEdit(comment)">編輯</button>
                 <button class="text-xs text-red-400 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteItem(comment.id, comment.replies?.length > 0)">刪除</button>
@@ -181,7 +181,7 @@ const deleteItem = (commentId, hasReplies) => {
                 </div>
               </div>
               <div v-if="editingId !== reply.id" class="px-4 pb-4">
-                <div class="assignment-content text-sm text-gray-800" v-html="renderMd(reply.content)" />
+                <div class="assignment-content" v-html="renderMd(reply.content)" />
                 <div v-if="isOwn(reply)" class="mt-2 flex gap-1">
                   <button class="text-xs text-gray-400 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="openEdit(reply)">編輯</button>
                   <button class="text-xs text-red-400 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteItem(reply.id, false)">刪除</button>

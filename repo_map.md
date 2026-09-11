@@ -256,6 +256,7 @@ main_files:
 - database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
 - database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
 - database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php
+- resources/css/app.css
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Classroom/AssignmentSection.vue
 - resources/js/Components/Classroom/ChapterSidebar.vue

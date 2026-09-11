@@ -1350,7 +1350,8 @@
       "000.us-8"
     ],
     "resources/css/app.css": [
-      "002.us-2"
+      "002.us-2",
+      "003.us-5"
     ],
     "resources/fonts/NotoSansTC.ttf": [
       "012.us-2"

@@ -1306,7 +1306,7 @@
       "id": "003.us-5",
       "module": "003-classroom",
       "title": "學員提交與管理作業留言",
-      "summary": "作業卡片顯示於影片正下方，學員 Markdown 提交（頂層留言）、編輯/刪除自己的留言，兩層巢狀上限，僅見本人提交",
+      "summary": "作業卡片顯示於影片正下方，學員 Markdown 提交（頂層留言）、編輯/刪除自己的留言，兩層巢狀上限，僅見本人提交；作業區 Markdown 樣式與課程小節內文共用同一套（`.assignment-content` 為 `.course-content` 別名）。",
       "heading": "### User Story 5 - 學員提交與管理作業留言 (Priority: P1)",
       "file": "specs/003-classroom/spec.md",
       "anchor": "user-story-5---學員提交與管理作業留言-priority-p1",
@@ -1320,7 +1320,12 @@
         "兩層巢狀",
         "nested reply",
         "學員隔離",
-        "作業卡片"
+        "作業卡片",
+        "assignment-content",
+        "course-content",
+        "作業區樣式",
+        "Markdown 表格",
+        "table 樣式"
       ],
       "code_files": [
         "app/Http/Controllers/Member/AssignmentCommentController.php",
@@ -1329,7 +1334,8 @@
         "app/Models/Comment.php",
         "database/migrations/2026_05_10_000003_create_comments_table.php",
         "resources/js/Components/Classroom/AssignmentSection.vue",
-        "resources/js/Components/Classroom/CommentThread.vue"
+        "resources/js/Components/Classroom/CommentThread.vue",
+        "resources/css/app.css"
       ],
       "status": "implemented"
     },
@@ -3898,7 +3904,7 @@
       "id": "011.us-22",
       "module": "011-high-ticket",
       "title": "預約名單成交業績摘要",
-      "summary": "Leads 狀態色塊列右側顯示本月／年度的成交人數與總金額，範圍共用 bookingLeadsQuery（課程／顧問篩選連動、狀態 tab 不影響），只計 lead_conversion 且 paid 的購買，人數以 email 去重，期間以台北時間切分",
+      "summary": "Leads 狀態色塊列右側顯示本月／年度的成交人數與總金額，範圍共用 bookingLeadsQuery（課程／顧問篩選連動、狀態 tab 不影響），只計 lead_conversion 且 paid 的購買，人數以 email 去重，期間以台北時間切分；年度數字只給管理員，顧問只拿得到本月（伺服器就不算不傳）。",
       "heading": "### User Story 22 - 預約名單成交業績摘要 (Priority: P3)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-22---預約名單成交業績摘要-priority-p3",
@@ -3920,7 +3926,15 @@
         "台北時間",
         "timezone",
         "去重",
-        "distinct"
+        "distinct",
+        "年度業績",
+        "本月業績",
+        "權限分級",
+        "admin only",
+        "顧問可見範圍",
+        "conversionStats",
+        "includeYear",
+        "payload 不外洩"
       ],
       "code_files": [
         "app/Services/HighTicketLeadService.php",
