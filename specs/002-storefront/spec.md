@@ -63,6 +63,16 @@ owner_files:
   - tests/Feature/Storefront/CourseUrlSlugTest.php
   - database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
   - tests/Feature/Storefront/CampaignTrafficTest.php
+  - resources/js/Components/Home/HeroUnit.vue
+  - resources/js/Components/Home/HeroClaimForm.vue
+  - database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php
+  - tests/Feature/Storefront/HomeHeroTest.php
+  - tests/Feature/Storefront/HeroSubscribeTest.php
+  - database/seeders/HomepageSettingsSeeder.php
+  - tests/Feature/Storefront/SnsProfileTest.php
+  - resources/js/Components/Home/HeroSubscribeForm.vue
+  - database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php
+  - tests/Feature/Storefront/HeroSubscribeTest.php
 touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
@@ -148,6 +158,24 @@ touchpoints:
   - file: resources/js/Components/Admin/Analytics/ShortLinkTab.vue
     owner: 000-platform-core
     why: US15 由行銷分析頁的 shell 依 ?tab= 渲染，元件本身仍歸短網址功能
+  - file: app/Http/Controllers/NewsletterSubscriptionController.php
+    owner: 012-newsletter
+    why: US21 新增 quickSubscribe()（hero 免 OTP 訂閱路徑）；US20 的 /drip/subscribe 依賴已解除
+  - file: app/Services/NewsletterService.php
+    owner: 012-newsletter
+    why: US21 訂閱寫入抽成共用私有方法，新增 subscribeUnverified()（不寫 email_verified_at）
+  - file: app/Http/Requests/StoreQuickSubscriptionRequest.php
+    owner: 012-newsletter
+    why: US21 hero 訂閱的驗證（email:rfc、nickname、honeypot），與既有 OTP 路徑的 Request 分開
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: US21 新增 POST /newsletter/quick-subscribe（throttle:5,1）
+  - file: resources/js/composables/useDelayedConfirm.js
+    owner: 010-drip-email
+    why: US20 hero 領取表單沿用兩段式送出（Email 覆核防呆），與銷售頁同一份規則（FR-058）
+  - file: resources/js/Components/EmailReviewNotice.vue
+    owner: 010-drip-email
+    why: US20 hero 表單在覆核階段沿用同一個提示元件，避免第二個領取入口自己長出一套說法
 ---
 
 # Storefront（門市前台）
@@ -204,6 +232,8 @@ touchpoints:
 - [x] 標題/說明留空則不渲染空元素；按鈕 label 或 URL 任一為空則整顆按鈕不渲染
 - [x] 前台呈現：標題為 navy 半透明色塊＋gold 左側 accent bar、說明白字帶陰影、CTA 右下角白框按鈕；hover 時整區加深、按鈕反白
 - [x] 設定頁顯示目前橫幅預覽；CTA 按鈕連結一律新分頁開啟
+
+> **US20 取代本故事的版型與 CTA 部分**：hero 改為白底左右兩欄的領取型 landing，`hero_button_label` / `hero_button_url` 兩個設定連同前台按鈕一併廢除，橫幅圖改作右側形象圖（寬度下限驗證移除）。本段保留作為版型沿革記錄，實際行為以 US20 為準。
 
 ### User Story 4 - 社群連結管理與顯示 (Priority: P1)
 
@@ -482,6 +512,71 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - [x] 測試：隱藏的課不在首頁 props 也不在文章頁 props、後台 payload 仍帶該列且 `is_visible=false`、切換端點翻轉兩個方向、全部隱藏時 `featuredCourses` 為空陣列、切換不動 `blurb` 與 `sort_order`、非管理員被擋
 
 
+### User Story 20 - 首頁 Hero 改版為領取型 landing (Priority: P1)
+
+現在的首頁 hero 是一張寬幅橫幅壓著半透明標題色塊，底下一顆外連按鈕 —— 它是一張「招牌」，
+說明這是誰的站，然後就結束了。訪客從廣告、社群或搜尋落到首頁的第一個畫面上，沒有任何一件
+可以現在就做的事；唯一的動線是那顆按鈕，而它指向站外。
+
+這條故事把 nav bar 下方那塊改成一個高 600px 的白底區塊：左欄由上而下是大標、副標、網站介紹，
+再接一個「暱稱 + Email + 免費領取」的單行表單與一行 `📌 立刻領取「商品名」`；右欄是一張
+可上傳的形象圖。領取表單綁定後台指定的某一門 drip 連鎖課 —— 訪客在首頁第一屏就能留下 Email
+並拿到東西，而不是被送去站外。
+
+領取區（表單與 📌 行）只在後台指定了課程時才出現；沒指定時 hero 就退回「大標 + 副標 + 介紹 + 圖」
+的純敘事版型。
+
+**驗收**：
+- [x] Hero MUST 是 nav bar 正下方的第一個區塊、白底、滿版寬，內容收在既有的 `max-w-7xl` 容器內；`lg` 以上固定高 `600px`，`lg` 以下 MUST 改為自動高度單欄直排（MUST NOT 在手機上鎖死 600px）（FR-052）
+- [x] 文字分為三塊：大標（`hero_title`）、副標（`hero_subtitle`，新增設定）、網站介紹（`hero_description`），三者皆可後台自訂、皆「有值才渲染」，留空 MUST NOT 留下空元素或空白間距；三塊皆 MUST 保留輸入的換行（`whitespace-pre-line`）（FR-053）
+- [x] Hero 形象圖沿用既有的 `hero_banner_path`（同一個 `hero-banner/` 目錄、同一套換圖刪舊檔規則）；`dimensions:min_width=1200` 驗證 MUST 移除 —— 新版是右欄的人物／插圖，不再是寬幅橫幅（FR-054 / D55）
+- [x] 無圖時 MUST 無錯誤降級：左欄文字撐滿整個寬度，MUST NOT 留一塊空白或 fallback 色塊（FR-002 / FR-054）
+- [x] `hero_button_label` / `hero_button_url` MUST 從前台渲染、後台表單、Form Request 規則、controller 寫入四處一併移除，並由 data migration 刪除這兩個 site_settings 列（FR-055 / D57）
+- [x] 後台新增「首頁領取商品」下拉，選項為 `course_type = 'drip'` 的課程，可留空；留空時首頁 hero 的**表單與 📌 行兩者皆 MUST NOT 渲染**（FR-056）
+- [x] 讀取時 MUST 再驗一次該課仍存在、仍是 drip、仍已發布且非 draft；任一不成立即整個領取區降級隱藏，MUST NOT 讓首頁出錯或渲染一個送不出去的表單。`is_visible = false`（不列在首頁清單）MUST NOT 影響領取區 —— 那是 drip 誘餌商品的常態（FR-002 / FR-056）
+- [x] Hero 表單 MUST POST 既有的 `/drip/subscribe`，欄位與銷售頁完全相同（`course_id` / `email` / `nickname` / honeypot `website`），MUST NOT 為首頁另開端點或另寫一份驗證（FR-057 / D56）
+- [x] 表單版面為單行三格（暱稱 / Email / 送出鈕），送出鈕文案為「免費領取」（非「免費訂閱」）；`sm` 以下 MUST 改為直排全寬（FR-052）
+- [x] 010 US15 的 Email 覆核兩段式送出（`useDelayedConfirm` + `EmailReviewNotice`）與 010 US16 的 `ClaimConsentNotice` MUST 一併沿用；覆核階段的提示以精簡樣式出現在表單下方，MUST NOT 把 600px 撐破（FR-058）
+- [x] 領取成功 MUST 就地替換表單位置顯示成功訊息（FR-017），MUST NOT 導頁、MUST NOT 整頁捲動跳動；重複領取（`drip_already_claimed`）以一行提示指向該信箱（FR-059）
+- [x] 表單下方一行 `📌 立刻領取「{商品名}」`，商品名 MUST 取自該課的 `name`（後台不另設文案），整行連到該課銷售頁 `/course/{slug}`，同分頁開啟，MUST 有 `cursor-pointer` 與可見的 hover 樣式（FR-060 / D59）
+- [x] 「追蹤站長」側欄的**形象圖**功能 MUST 整個移除：後台上傳欄與預覽、`DELETE /admin/homepage/sns-profile-image` 路由與 controller 方法、`SidebarService` 的 `image_url`、`SocialLinks.vue` 的圓形頭像，並由同一支 data migration 刪除 storage 檔與 KV 列；**`sns_profile_intro` 保留不動**，側欄仍顯示文字介紹（FR-061）
+- [x] 測試：未設定領取課程時首頁 props 不含領取區、設定後含課名與 slug；指定的課被刪除／改成非 drip／下架時領取區消失且頁面仍 200；三塊文字各自留空時對應 key 為 null；舊的 `hero_button_*` 與 `sns_profile_image_path` 不再出現在任何 payload
+
+> **US21 取代本故事的表單部分**：hero 表單改為訂閱網站電子報（非領取 drip 商品），表單與 📌 行從此是兩件獨立的事（FR-063 推翻 FR-056 的「共用一個設定」）。三塊文字、形象圖、600px 版型、廢除的舊設定皆維持 US20 的結論不變。
+
+
+### User Story 21 - Hero 表單改為訂閱電子報 (Priority: P1)
+
+US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換一份特定的免費商品。
+實際用起來問題是它把「加入名單」與「拿某個東西」綁成同一個動作 —— 想換推的商品就得
+連帶換掉唯一的名單入口，而首頁第一屏該收的其實是**電子報訂閱**：一個不隨檔期改變、
+長期有效的關係。
+
+這條故事把兩件事拆開：
+
+- **表單**改為訂閱網站電子報（按鈕「免費訂閱」），與任何商品無關，一律顯示。
+- **📌 那行**保留 US20 已經做好的行為（後台指定一門課 → 連到它的銷售頁），但既然表單
+  不再綁 drip，候選範圍放寬到全部上架課程。
+
+訂閱不走現有的 6 碼驗證碼：第一次點「免費訂閱」先請訪客確認 Email 沒打錯（沿用站內
+既有的兩段式覆核），第二次點才真的完成訂閱並寄出歡迎信。
+
+**驗收**：
+- [x] 表單送出鈕文案為「免費訂閱」；欄位維持「怎麼稱呼你 / 你的Email」兩格 + honeypot，`sm` 以下直排全寬（FR-063）
+- [x] 表單 MUST 一律顯示，MUST NOT 受 📌 商品設定影響 —— 兩者從此是兩件獨立的事（FR-063，推翻 US20 FR-056 的「共用一個設定」）
+- [x] 送出 MUST 走新端點 `POST /newsletter/quick-subscribe`；MUST NOT 在既有的 `/newsletter/subscribe` 上加一個參數來關掉 OTP（FR-064 / D60）
+- [x] Email MUST 前後端雙重格式驗證：前端 `type="email"` + `required`，後端 `required|email:rfc|max:255`；honeypot `website` 為 `nullable|prohibited`；路由 MUST 有 `throttle:5,1`（FR-065）
+- [x] 第一次點擊 MUST NOT 送出：顯示 `EmailReviewNotice`（放大顯示填入的地址 + 倒數），倒數結束後第二次點擊才完成訂閱；改動 Email MUST 重置整個確認狀態（FR-066，沿用 `useDelayedConfirm`）
+- [x] 未驗證訂閱 MUST NOT 寫入 `email_verified_at`、MUST NOT `Auth::login()` —— 沒有人證明過任何事，這條路徑只加名單不給身分（FR-067 / D61）
+- [x] 新使用者寫入 `nickname`；既有使用者 MUST 只在 `nickname` 為空時補上，MUST NOT 覆寫（FR-068）
+- [x] 既有訂閱者重複送出 MUST 是 idempotent：回「你已在訂閱清單中」，MUST NOT 重複寄歡迎信、MUST NOT 改動 `newsletter_subscribed_at`（FR-069）
+- [x] 訂閱成功 MUST 就地替換表單位置顯示成功訊息（不導頁、不整頁捲動），文案為「訂閱成功，歡迎信已寄出」（FR-017 既有規則）
+- [x] 同意告知文案 MUST 改為電子報語意（訂閱即同意接收電子報、可隨時退訂），MUST NOT 再沿用 `ClaimConsentNotice`（那段寫的是免費資源與申請資格）（FR-071）
+- [x] 後台「首頁領取商品」改名為「首頁推薦商品」，下拉候選放寬為全部 `is_published` 且非 draft 的課程（不限 drip）；留空時 📌 行不渲染，但表單仍在（FR-070）
+- [x] 設定鍵 `hero_claim_course_id` MUST 改名為 `hero_promo_course_id`，並由 data migration 搬移既有值（FR-070 / D63）
+- [x] 測試：未訂閱 email 送出後 `newsletter_status = subscribed`、`email_verified_at` 仍為 null、未登入；既有訂閱者不重寄歡迎信；既有使用者的 nickname 不被覆寫；honeypot 有值即被擋；格式錯誤的 email 被擋；📌 行可指向非 drip 課程；舊鍵的值有搬到新鍵
+
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -548,6 +643,30 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **FR-050**: 前台的過濾點 MUST 唯一，且 MUST 在查詢層：`SidebarService::build()` 的 `HomepageFeaturedCourse::ordered()` 改為 `ordered()->visible()`（`scopeVisible()` 定義在 model 上）。首頁與 `/blog/{post}` 共用這一份資料，所以這是唯一要改的讀取點；在 Vue 層過濾會讓隱藏課程的名稱、縮圖與 blurb 仍然出現在 page payload 裡，任何人 view-source 都看得到，而「暫時不推」有時正是因為那門課的文案還不能見人。全部隱藏時回傳空陣列，`FeaturedCourses.vue` 既有的 `v-if="courses.length > 0"` 使整個「精選推薦」區塊消失 —— 本 US MUST NOT 改動該元件，但 MUST 有測試釘住，否則之後有人拿掉那個 `v-if` 就會在側欄留下一個空白標題框。
 - **FR-051**: 切換 MUST 走獨立端點 `PATCH /admin/homepage/featured-courses/{featuredCourse}/visibility`（admin 群組），body `is_visible` 為 `required|boolean`，驗證以 inline `validate()` 處理（比照同一個 controller 既有的 `reorder()`，為單一布林另開第三個 Form Request 只是多一個檔案）。MUST NOT 併進既有的 `PUT .../{featuredCourse}`：那條路徑寫的是 `blurb`，而後台的 blurb 是一塊要按「儲存介紹」才落地的草稿 —— 合併後切換開關會順手把半句話存進去，或反過來被伺服器回傳值蓋掉。伺服器 MUST 依傳入值設定而非自行翻轉（連點兩下、或兩個分頁同時操作時，翻轉會得到一個沒人預期的結果）。後台清單 MUST 顯示全部列並多帶 `is_visible`；隱藏中的列以降透明度 + 「隱藏中」標籤標示，仍可拖曳排序與編輯介紹。
 - **FR-036**: 併入 MUST 只發生在 `funnelReport()` 的回傳組裝階段。`channelReport()`、`ctaReport()`、`course_daily_stats` 與 `bump()` 一律不動 —— 管道報表的加總必須繼續等於各管道實際事件數，塞入一個沒有管道的數字會讓那張表自相矛盾
+
+- **FR-052**: Hero MUST 脫離 `Home.vue` 既有的 `py-8 sm:py-12` 外層包裝，成為 nav bar 正下方的獨立滿版白底區塊（內部內容仍用 `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` 對齊站內其他區塊）。固定高 `600px` MUST 只套在 `lg` 以上（`lg:h-[600px]`），`lg` 以下改為自動高度的單欄直排、圖片排在文字之後並限高（約 `max-h-[280px]`）。把 600px 一路套到手機會讓中文長標題與三格表單在 390px 寬度下直接溢位，而這一屏正是行動流量第一個看到的東西。
+- **FR-053**: 文字為三個獨立設定鍵 `hero_title`（大標）／`hero_subtitle`（副標，本 US 新增）／`hero_description`（網站介紹），彼此 MUST NOT 互相依賴顯示條件 —— 任一為空只是那一塊不渲染，其餘照常。三塊皆 MUST `whitespace-pre-line`：附圖的大標本身就是刻意斷成兩行的，而換行是管理員在 textarea 裡按的，不該在前台被吃掉。
+- **FR-054**: Hero 形象圖沿用既有的 `hero_banner_path` 與 `hero-banner/` 目錄，`UpdateHomepageSettingRequest` 的 `dimensions:min_width=1200` MUST 移除、`max:5120` 與 mimes 白名單保留。舊版是滿版橫幅所以寬度下限成立；新版是右欄的人物或插圖，常見的直式去背圖寬度只有 800px 上下，留著這條規則會讓正確的圖被拒絕而錯誤訊息說的是另一件事。圖為 nullable，無圖時左欄 MUST 擴滿整個寬度（不是留一塊空白，也不是舊版的 `bg-brand-navy` fallback 色塊 —— 白底版型上那塊色塊沒有意義）。
+- **FR-055**: `hero_button_label` / `hero_button_url` MUST 從四處一併移除：`Home.vue` 的 `<a>`、`Admin/HomepageSettings/Edit.vue` 的兩個輸入框與表單欄位、`UpdateHomepageSettingRequest` 的規則、`HomepageSettingController::update()` 的兩行 `SiteSetting::set()`；`HomeController` 與 `edit()` 的 `getMany()` 鍵一併刪。新版 hero 的主要動線是領取表單，留一顆位置未定的外連按鈕只會跟它搶點擊。
+- **FR-056**: 領取區由單一設定 `hero_claim_course_id` 控制（存 course id 的字串，空字串或 null = 停用）。`HomeController` MUST 在讀取時**再驗一次**該課存在、`course_type === 'drip'`、`is_published = true` 且 `status !== 'draft'`；任一不成立 MUST 回傳 `heroClaim = null` 讓整個領取區（表單 + 📌 行）不渲染。門檻 MUST 與銷售頁自己的門檻一致（`CourseController::show()` 只對 draft／未發布 404），**MUST NOT 使用 `visibleToUser()`**：那個 scope 折入了 `is_visible`，而 `is_visible` 的語意是「列不列在首頁課程清單」，不是「這門課還在不在」—— drip 誘餌商品照定義就是從清單隱藏的（它靠廣告與連結進站），用那個 scope 會讓本功能最典型的使用情境永遠回 null（2026-09-12 實測修正，見進度日誌）。KV 存的是一個可能失效的外部參照 —— 課程被刪、改型態、下架都不會回來改這個鍵，而首頁是全站最不能出錯的一頁（FR-002）。**MUST NOT** 用兩個獨立開關分別控制表單與 📌 行：它們說的是同一件事（要領這個商品），拆成兩個設定只會生出「有按鈕沒說明」「有說明沒按鈕」兩種沒人想要的狀態。
+- **FR-057**: Hero 領取表單 MUST POST 既有的 `POST /drip/subscribe`（`DripSubscriptionController::subscribe` + `StoreDripClaimRequest`），MUST NOT 新增端點、Form Request 或 service 方法。那條路徑上已經掛著：honeypot、throttle、既有訂閱與退訂者的判斷、使用者建立規則（不覆寫既有暱稱、不寫假的 `email_verified_at`）、以及 US17 的來源落庫（`TrafficSourceService::claimAttributes()`）。複製一份到首頁，等於把這串規則複製一份然後讓它們開始各自漂移。
+- **FR-058**: 010 US15 的兩段式送出（`useDelayedConfirm` + `EmailReviewNotice`）與 010 US16 的 `ClaimConsentNotice` MUST 在 hero 表單一併沿用。這兩件事是**領取流程的規則**不是某個元件的裝飾：領取不再發驗證碼，打錯的 Email 沒有任何人會被通知，而首頁這個入口的填寫速度只會比銷售頁更快。覆核階段的提示 MUST 以精簡樣式渲染在表單下方（`lg` 版型上不得把 600px 撐破，必要時該區塊內部捲動）。
+- **FR-059**: 領取結果 MUST 就地呈現（FR-017 既有規則在首頁同樣成立）：成功時以成功訊息替換表單所在的位置，MUST NOT 導頁、MUST NOT 觸發整頁捲動。重複領取由既有的 `drip_already_claimed` flash 承接，在 hero 以**一行**提示呈現（「這個 Email 已經領過了，內容寄到 xxx」），MUST NOT 搬銷售頁那張完整說明卡 —— 那張卡在 600px 的第一屏裡會把版面整個推垮。
+- **FR-060**: `📌 立刻領取「{商品名}」` 的商品名 MUST 直接取該課的 `courses.name`，MUST NOT 另開一個後台文案欄位。這行字的作用是把上面那顆通用的「免費領取」按鈕接上一個具體的東西；另設文案等於允許它與商品實際的名字不一致，而那個不一致沒有人會發現。整行連到 `/course/{slug}`（slug 為空時 fallback id，比照 `SidebarService` 既有作法），同分頁開啟。
+- **FR-061**: `sns_profile_image_path` 整個功能 MUST 移除（後台上傳欄與預覽、`deleteSnsProfileImage()`、`DELETE /admin/homepage/sns-profile-image` 路由、`UpdateHomepageSettingRequest` 的兩條規則與 `withValidator` 的 `$_FILES` 檢查、`SidebarService` 的 `image_url`、`SocialLinks.vue` 的圓形頭像區塊）。**`sns_profile_intro` MUST 原封保留** —— 側欄「追蹤站長」仍顯示文字介紹，只是不再有頭像。站長的形象圖從此只有 hero 一個位置，兩個入口上傳兩張不同的臉是使用者明確要避免的事。
+- **FR-062**: 廢除的三個 KV 鍵（`hero_button_label`、`hero_button_url`、`sns_profile_image_path`）MUST 由一支 data migration 真的刪除資料列，且 `sns_profile_image_path` 的 storage 檔案 MUST 在刪列**之前**先刪（順序反了就只剩一個沒有人知道路徑的孤兒檔）。`down()` MUST 是 no-op 並註明理由：被刪的是使用者填的內容，migration 造不回來，寫一個假裝能還原的 `down()` 比沒有更危險。
+
+
+- **FR-063**: Hero 表單改為訂閱網站電子報，按鈕文案「免費訂閱」，且 MUST 一律顯示。這條**推翻 FR-056 的合併結論**：US20 把表單與 📌 行綁在同一個設定上，理由是「它們說的是同一件事」；表單改訂閱電子報之後那個前提不成立了 —— 訂閱名單是長期關係、📌 是當期推的商品，兩者的更換節奏完全不同，綁在一起會變成「想換推的商品就得先拿掉唯一的名單入口」。
+- **FR-064**: 送出 MUST 走新端點 `POST /newsletter/quick-subscribe`（012 擁有，`throttle:5,1`）。MUST NOT 在既有的 `/newsletter/subscribe` 加一個 `skip_otp` 之類的參數 —— 那等於讓**呼叫端**決定要不要驗證，任何人都能對既有的訂閱框送一個加了旗標的請求把 OTP 關掉。驗證強度是伺服器的決定，不是 request body 的欄位（D60）。
+- **FR-065**: Email 格式 MUST 前後端雙重驗證：前端 `type="email"` + `required`（瀏覽器原生擋明顯畸形），後端 `required|email:rfc|max:255`。honeypot `website` 為 `nullable|prohibited`，比照既有兩個免登入入口。**MUST NOT 使用 `email:rfc,dns`**：`dns` 規則會在請求中同步做 DNS 查詢，慢、在網路不穩時偽陰性、且讓測試依賴外網 —— 它要解決的「網域打錯」問題由 FR-066 的覆核步驟正面處理（把地址放大給人看），那是更誠實的作法（D62）。
+- **FR-066**: 第一次點擊 MUST NOT 送出，而是進入覆核狀態（沿用 `useDelayedConfirm` + `EmailReviewNotice`，與銷售頁領取、高價課預約同一套）；倒數歸零後第二次點擊才送出。Email 欄位被改動 MUST 重置整個狀態（`watch(email, reset)`）—— 否則改完地址後那顆按鈕會直接送出使用者還沒看過的新值。
+- **FR-067**: 未驗證訂閱 MUST NOT 寫入 `email_verified_at`、MUST NOT 呼叫 `Auth::login()`。這是這條路徑能夠免 OTP 的**前提**而不是附註：既有的 `subscribeVerified()` 之所以敢蓋 `email_verified_at`，是因為它只在 OTP 通過後被呼叫；沿用它就會在資料庫裡留下一個「這個信箱驗證過了」的謊，而登入流程讀的正是這類欄位的語意。新路徑只加名單、不給身分（D61）。
+- **FR-068**: `nickname` 在新使用者建立時寫入；既有使用者 MUST 只在 `nickname` 為空時補上，MUST NOT 覆寫 —— 未經驗證的表單不得改動一個它沒有證明自己擁有的帳號（與 010 FR-025 同一條規則，理由也相同）。
+- **FR-069**: 既有訂閱者重複送出 MUST 是 idempotent：回「你已在訂閱清單中」，不重寄歡迎信、不改 `newsletter_subscribed_at`。這條同時是 subscribe-bombing 的主要減災手段之一 —— 對同一個地址重複送出，最多只會產生一封信（D61）。
+- **FR-070**: 📌 行與表單解耦後，後台下拉的候選 MUST 放寬為全部 `is_published` 且 `status !== 'draft'` 的課程（不限 drip）：「只能選 drip」原本的理由是表單要對它送出領取請求，那個理由沒有了，而 📌 只是一條指向銷售頁的連結。設定鍵 MUST 由 `hero_claim_course_id` 改名為 `hero_promo_course_id`，並以 data migration 搬移既有值 —— 留著舊名會讓下一個人以為表單仍然綁著那門課（D63）。前台的重驗條件維持 US20 修正後的門檻（`is_published` 且非 draft，不看 `is_visible`）。
+- **FR-071**: 同意告知 MUST 改寫為電子報語意（訂閱即同意接收電子報、可隨時退訂），MUST NOT 沿用 `ClaimConsentNotice` —— 那段文案寫的是「免費資源」與「停止接收後失去申請資格」，對電子報訂閱是錯的陳述，而同意文案錯誤不是樣式問題。
+
 
 ## 設計決策
 
@@ -635,6 +754,26 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - **D53**: 切換**獨立端點、傳明確值、點下即生效**（三件事是同一個決定的三面）。獨立端點的理由是 blurb 是草稿：後台那個 textarea 要按「儲存介紹」才落地，把 `is_visible` 併進同一條 `PUT` 會讓一次純粹的顯示切換順手決定那段半成品文案的命運 —— 存進去或被蓋掉都不是使用者按那個開關時想要的。傳明確布林而非伺服器翻轉，是因為翻轉在「連點兩下」與「兩個分頁各開一個」時會收斂到一個沒人預期的狀態，而顯示與否是看得到的東西，錯了就是前台錯。點下即生效而非跟著某顆儲存鈕，是因為這個操作的成本與後果都極小（一個布林、隨時可以再按回來），中間插一次「儲存」只會讓人懷疑自己到底按了沒有。
 - **D54**: 隱藏用 `is_visible` 欄位，**不用軟刪除**（`deleted_at`）。兩者都能達成「先拿下來、之後放回去」，但語意不同：軟刪除是「刪掉但保留殘骸」，隱藏是「還在清單裡、只是這陣子不推」—— 後者要能在後台看到、排序、編輯介紹，而軟刪除的列照定義不該出現在任何一般查詢裡。用 `deleted_at` 表達隱藏，代價是每一個後台查詢都得記得加 `withTrashed()`，而漏加的地方會安靜地少一列。
 
+- **D55**: Hero 形象圖**沿用** `hero_banner_path`，不另開 `hero_image_path`（FR-054）。兩個鍵的差別只在「舊版型是否還能回得去」，而舊版型是這次要淘汰的東西 —— 留一個誰都不會再讀的 KV 鍵與一份平行的上傳／刪除邏輯，換來的是一個沒有人打算執行的回復計畫。沿用的代價是正式站上那張現有的寬幅橫幅會直接變成右欄的圖（比例不對），這由管理員上線後換一張圖解決，不需要程式處理。
+
+- **D56**: 首頁領取走既有的 `/drip/subscribe`，不開 hero 專用端點（FR-057）。專用端點的吸引力在於「首頁的回應可以長得不一樣」，但真正不一樣的只有前端怎麼呈現 flash，而那在元件裡就能決定。後端那條路徑上疊著五、六條各有理由的規則（honeypot、throttle、退訂者不得再領、不覆寫既有暱稱、來源落庫），複製一份的結果是它們開始各自演化 —— 這個模組已經因為前後端各寫一份管道判斷付出過兩次代價（D16、D34）。
+
+- **D57**: 廢除的設定用 data migration **真的刪掉**，而不是留著 KV 列不讀（FR-062）。留著的版本更省事，代價是 `site_settings` 從此有三列沒有任何程式碼會讀的資料，而下一個人查「這個鍵還有沒有用」要把整個 repo grep 一遍才敢下結論。同時 `sns_profile_image_path` 指向的是一個實體檔案，不刪就是一個永遠不會被清掉的孤兒。
+
+- **D58**: 600px 是 `lg` 以上的**設計高度**，不是所有斷點的規格（FR-052）。使用者說的是「高度 600px 的區塊」，而附圖是桌機版；在 390px 寬的手機上，大標兩行加副標加三行介紹加直排的三格表單，內容本身就超過 600px —— 鎖死高度的結果是溢位或被裁掉，而被裁掉的通常正是那顆「免費領取」。
+
+- **D59**: 📌 那行連到該 drip 課的**銷售頁**，而不是同頁錨點捲回表單（FR-060）。兩種都合理，差別在於這行字承擔的任務：它是唯一說出「你會拿到什麼」的地方，而那個問題的完整答案在銷售頁上（課程介紹、內容大綱、誰適合）。捲回三公分外的表單則假設訪客已經想領了，只是找不到按鈕 —— 但按鈕就在這行字的正上方。
+
+- **D60**: 免 OTP 走**新端點**而不是既有端點加參數（FR-064）。加參數省一個路由，代價是驗證強度變成 request body 的一個欄位 —— 任何人都能對既有訂閱框送一個帶旗標的請求把 OTP 關掉，而那個框的整個存在理由就是 OTP。兩條路徑分開之後，各自的保護是各自路由上看得見的事實（一條要驗證碼、一條要 honeypot + 5/min throttle），不必讀 controller 才知道。
+
+- **D61**: Hero 訂閱不做 OTP —— 這**修訂 012 D10 的適用範圍**，必須明講。012 D10 當初選 OTP 兩步、並明確否決 single opt-in，理由是防 subscribe-bombing（幫別人亂訂）。那個顧慮在 hero 依然成立，只是權衡不同：hero 第一屏塞一個 6 格驗證碼輸入區，掉率明顯高於它擋掉的濫用量，而濫用的上限是**每個受害地址一封歡迎信**（FR-069 的 idempotent + `throttle:5,1` + honeypot），信裡帶一鍵退訂。決定性的一點是 `email_verified_at` 維持 null、不 `Auth::login()`（FR-067）：亂訂別人的地址不會產生任何可用的身分，登入仍然要走 OTP —— D10 真正在保護的是「驗證後才建帳號」，而這條路徑建的是名單列不是帳號。012 的既有訂閱框 **MUST 維持 OTP 不變**，本決策只涵蓋 hero 這一個入口。
+
+- **D62**: 不用 `email:rfc,dns`（FR-065）。它確實能擋 `gmail.con`，代價是每次送出在請求裡同步做一次 DNS 查詢：慢、網路不穩時把正確地址判成錯的、測試依賴外網。而「網域打錯」這件事本故事已經有一個正面手段 —— 覆核步驟把地址放大給人看。用一個會偽陰性的網路查詢去做人眼一秒能做的事，是把可靠的步驟換成不可靠的。
+
+- **D63**: 設定鍵改名 `hero_claim_course_id` → `hero_promo_course_id`，付一支 data migration 的成本（FR-070）。留著舊名零成本，但這個名字現在會**主動誤導**：`claim` 說的是「表單領取這門課」，而那正是本故事拆掉的關係。搬一個 KV 值是三行程式，一個說謊的欄位名會活很多年。
+
+- **D64**: 表單一律顯示，不另做開關（FR-063）。加一個 `hero_subscribe_enabled` 可以讓 hero 退回純敘事版型，但電子報是站上長期存在的東西，沒有「這陣子不收訂閱」的使用情境；一個永遠開著的開關只是多一個要維護的狀態與一條要測的分支。真要暫停，把三塊文字清空比關掉表單更少見也更明確。
+
 ## Schema
 
 - **US19 schema 變更（一支 migration）**：
@@ -699,6 +838,12 @@ UTM 只在課程銷售頁捕捉（導到首頁/部落格的廣告來源直接丟
 - `homepage_featured_courses` — 首頁精選課程；`course_id` FK cascadeOnDelete、`blurb` varchar(500) nullable（空則前台 fallback 課程名）、`sort_order` 拖曳重排時整批改寫。
 - site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
 - **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
+- **US20 無結構變更，一支 data migration**：`2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php` —— 先以 `Storage::disk('public')->delete()` 清掉 `sns_profile_image_path` 指向的檔案，再 `SiteSetting::whereIn('key', [...])->delete()` 刪除 `hero_button_label` / `hero_button_url` / `sns_profile_image_path` 三列；`down()` 為 no-op（FR-062 / D57）。
+  **US20 後的 hero 相關 KV 鍵**：`hero_title`、`hero_subtitle`（新增）、`hero_description`、`hero_banner_path`（改作右欄形象圖，寬度下限驗證移除）、`hero_claim_course_id`（新增，drip 課 id 字串，空 = 停用領取區）。
+  **不變量**：`hero_claim_course_id` 是一個**可能失效的外部參照** —— 它不隨課程刪除或改型態而更新，所以每一個讀取點都 MUST 自行驗證（FR-056），MUST NOT 假設它指向一門有效的 drip 課。
+- **US21 無結構變更，一支 data migration**：`2026_09_13_000001_rename_hero_claim_course_id_setting.php` —— 把 `hero_claim_course_id` 的值搬到 `hero_promo_course_id` 後刪除舊列；`down()` 反向搬回（這支與 US20 那支不同，搬的是值不是刪內容，反向是無損的）。
+  **US21 後的 hero 相關 KV 鍵**：`hero_title`、`hero_subtitle`、`hero_description`、`hero_banner_path`、`hero_promo_course_id`（📌 行指向的課程，空 = 該行不渲染；**不再控制表單**）。
+  **不變量**：`hero_promo_course_id` 仍是一個可能失效的外部參照，每個讀取點 MUST 自行驗證（`is_published` 且非 draft，不看 `is_visible`）。訂閱表單不讀這個鍵。
 - 來源欄位（`orders` 表，屬 005-checkout）：`utm_source/medium/campaign/term/content`、`gclid/fbclid/ttclid`、`referrer_domain` — 語意 = 最後觸點；US10 起由 cookie（TrafficSourceService）提供、middleware 捕捉。
 - `course_daily_stats`（US10 新表，US13 / US18 各加一個維度）— `course_id` FK cascadeOnDelete、`date`、`channel` varchar(20)、`source` varchar(100) default `''`（US13 新欄）、`utm_campaign` varchar(100) default `''`（US18 新欄）、`views/add_to_cart/checkouts/purchases` unsigned int default 0、`revenue` unsigned int default 0；unique(`course_id`,`date`,`channel`,`source`,`utm_campaign`)（US10 三欄 → US13 四欄 → US18 五欄）、index(`date`)。不變量：只增不改（原子 increment）；channel 值域 = paid/social/search/email/video/referral/direct；source 為平台 slug（instagram/threads/facebook/line/twitter/google/bing/yahoo/duckduckgo/youtube/tiktok/vimeo/newsletter/direct）或比對不到時的 referrer 網域／utm_source 原值（FR-023），`''` 專指 US13 上線前的舊資料；`utm_campaign` 一律小寫（FR-042），`''` 兼指「無 campaign」與 US18 上線前的舊資料。
 - `post_cta_clicks`（US10 新表）— `post_id` FK cascadeOnDelete、`course_id` FK cascadeOnDelete、`date`、`clicks` unsigned int；unique(`post_id`,`course_id`,`date`)。
@@ -932,8 +1077,85 @@ Phase 4 — 驗證
 - [ ] T010 使用者實測：後台關掉其中一門課 → 重新整理首頁與任一篇文章頁，確認該課消失、其餘順序不變；打開後回到原位置
 
 
+
+## Tasks（首頁 Hero 改版 / US20）
+
+Phase 1 — 後端設定與 payload
+
+- [x] T001 `UpdateHomepageSettingRequest`：新增 `hero_subtitle`（nullable string max:255）與 `hero_claim_course_id`（`nullable`、`integer`、`exists:courses,id`）規則；移除 `hero_button_label` / `hero_button_url` / `sns_profile_image` 三條規則、對應 messages 與 `withValidator` 裡的 `sns_profile_image` `$_FILES` 檢查；`hero_banner` 規則移除 `dimensions:min_width=1200`（FR-054 / FR-055 / FR-061）in `app/Http/Requests/Admin/UpdateHomepageSettingRequest.php`
+- [x] T002 `HomepageSettingController`：`update()` 改寫 `hero_subtitle` 與 `hero_claim_course_id`、刪掉 `hero_button_*` 與 `sns_profile_image` 三段寫入；`edit()` 的 `getMany()` 鍵同步增刪，payload 加 `hero_subtitle` / `hero_claim_course_id` 與 `dripCourses`（`course_type='drip'` 的 id+name 清單）、移除 `sns_profile_image_url`；刪除 `deleteSnsProfileImage()` 整個方法（FR-055 / FR-056 / FR-061）in `app/Http/Controllers/Admin/HomepageSettingController.php`
+- [x] T003 路由移除 `DELETE /admin/homepage/sns-profile-image`（FR-061）in `routes/web.php`（000 touchpoint）
+- [x] T004 `HomeController::index()`：`getMany()` 改取 `hero_title` / `hero_subtitle` / `hero_description` / `hero_banner_path` / `hero_claim_course_id`；`$hero` 去掉 `button_label` / `button_url`、加 `subtitle`；新增 `heroClaim` 組裝 —— 依 `hero_claim_course_id` 查課並驗 `course_type === 'drip'` 且 `visibleToUser(null)`，通過才回 `['course_id','name','url']`，否則 `null`（FR-056 / FR-060）in `app/Http/Controllers/HomeController.php`
+- [x] T005 [P] data migration：先刪 `sns_profile_image_path` 指向的 storage 檔，再刪三個 KV 列；`down()` no-op 並註明理由（FR-062）in `database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php`
+- [x] T006 [P] `SidebarService::widgets()`：`getMany()` 去掉 `sns_profile_image_path`，`$snsProfile` 只剩 `intro`（`sns_profile_intro` 完全不動）（FR-061）in `app/Services/SidebarService.php`
+
+Phase 2 — 前台 hero（相依 Phase 1）
+
+- [x] T007 新元件 `HeroClaimForm.vue`：nickname / email / honeypot + `useDelayedConfirm` 兩段式送出 + `EmailReviewNotice` + `ClaimConsentNotice`，POST `/drip/subscribe` 帶 `course_id`；`sm` 以上單行三格、以下直排全寬；成功就地替換為成功訊息，`drip_already_claimed` 以一行提示呈現（FR-057 / FR-058 / FR-059）in `resources/js/Components/Home/HeroClaimForm.vue`
+- [x] T008 新元件 `HeroUnit.vue`：白底滿版、內含 `max-w-7xl` 容器、`lg:h-[600px]` / `lg` 以下自動高度單欄；左欄大標（`text-4xl sm:text-5xl font-bold text-brand-navy`）→ 副標（`text-brand-teal`）→ 介紹（`text-gray-600`）→ `HeroClaimForm`（`heroClaim` 有值才渲染）→ 📌 行連 `heroClaim.url`（`cursor-pointer` + hover 底線／變色）；右欄形象圖，無圖時左欄擴滿；三塊文字皆 `whitespace-pre-line` 且各自 `v-if`（FR-052 / FR-053 / FR-054 / FR-060）in `resources/js/Components/Home/HeroUnit.vue`
+- [x] T009 `Home.vue`：既有 hero 整段（橫幅、hover overlay、漸層、標題色塊、CTA `<a>`）刪除，改在 `py-8` 包裝**之外**渲染 `<HeroUnit>`；props 加 `heroClaim`，`hero` 預設物件同步增刪鍵（FR-052 / FR-055）in `resources/js/Pages/Home.vue`
+- [x] T010 [P] `SocialLinks.vue`：刪除圓形頭像 `<img>` 與其外層條件，`v-if` 條件改為 `links.length > 0 || profile?.intro`（FR-061）in `resources/js/Components/SocialLinks.vue`
+
+Phase 3 — 後台表單（相依 Phase 1，可與 Phase 2 平行）
+
+- [x] T011 `Admin/HomepageSettings/Edit.vue`：hero 卡片移除「按鈕文字 / 按鈕連結」兩欄與 `formData.append`，新增「副標」input 與「首頁領取商品」下拉（選項 `dripCourses`，第一項為「不顯示領取區」空值）；橫幅圖欄位說明改為「右欄形象圖，建議直式去背 PNG」並拿掉寬度下限提示；站長形象圖上傳區、預覽、`onSnsProfileChange`、`deleteSnsProfileImage` 相關 state 與函式整段刪除，站長介紹 textarea 保留（FR-055 / FR-056 / FR-061）in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+Phase 4 — 驗證
+
+- [x] T012 測試 `HomeHeroTest`：未設定 `hero_claim_course_id` → `heroClaim` 為 null；設定有效 drip 課 → 帶 `name` 與 `/course/{slug}`；指定課被刪／改成非 drip／下架 → `heroClaim` 為 null 且頁面 200；三塊文字留空時對應 key 為 null；`hero_button_label` / `hero_button_url` / `sns_profile_image_url` 不再出現在首頁與 `/admin/homepage` 的 payload；`sns_profile_intro` 仍在側欄 payload 內；後台儲存 `hero_claim_course_id` 指向非 drip 課時被 `exists` 以外的規則擋下或於讀取時降級（擇一釘住）in `tests/Feature/Storefront/HomeHeroTest.php`
+- [x] T013 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T014 使用者實測：後台設定大標／副標／介紹／形象圖／領取商品 → 首頁 hero 呈現正確；用一個新 Email 從首頁領取 → 收到第一封連鎖信、後台訂閱者名單出現該筆且來源欄有值；同一個 Email 再領一次 → 出現一行已領取提示；把領取商品設回空 → 表單與 📌 行同時消失；手機寬度檢查不溢位；側欄「追蹤站長」只剩文字介紹與 icon
+
+
+
+## Tasks（Hero 表單改訂閱電子報 / US21）
+
+Phase 1 — 012 的訂閱寫入路徑（本模組以 touchpoint 改動）
+
+- [x] T001 `NewsletterService`：把 `subscribeVerified()` 的寫入主體抽成私有 `attach(string $email, bool $verified, ?string $nickname)`（含既有的建立使用者、狀態翻轉、unsubscribe token、Meta CompleteRegistration）；`subscribeVerified()` 改為薄包裝；新增 `subscribeUnverified(string $email, ?string $nickname = null): array` —— MUST NOT 寫 `email_verified_at`，nickname 只在空白時補（FR-067 / FR-068）in `app/Services/NewsletterService.php`（012 touchpoint）
+- [x] T002 [P] `StoreQuickSubscriptionRequest`：`email` = `required|email:rfc|max:255`、`nickname` = `required|string|max:50|regex:/\p{L}/u`、`website` = `nullable|prohibited`，中文錯誤訊息（FR-065）in `app/Http/Requests/StoreQuickSubscriptionRequest.php`（012 owner_files）
+- [x] T003 `NewsletterSubscriptionController::quickSubscribe()`：已訂閱者回 `newsletter_info`（不重寄、不改時間）；否則 `subscribeUnverified()` → `sendWelcome()` → `newsletter_subscribed` flash；MUST NOT `Auth::login()`（FR-067 / FR-069）in `app/Http/Controllers/NewsletterSubscriptionController.php`（012 touchpoint）
+- [x] T004 路由 `POST /newsletter/quick-subscribe`（`throttle:5,1`，接在既有兩條 newsletter 路由之後）in `routes/web.php`（000 touchpoint）
+
+Phase 2 — 後台與設定鍵（可與 Phase 1 平行）
+
+- [x] T005 [P] data migration：`hero_claim_course_id` 的值搬到 `hero_promo_course_id` 後刪舊列，`down()` 反向搬回（FR-070 / D63）in `database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php`
+- [x] T006 `UpdateHomepageSettingRequest`：`hero_claim_course_id` 規則改名為 `hero_promo_course_id`（規則內容不變）in `app/Http/Requests/Admin/UpdateHomepageSettingRequest.php`
+- [x] T007 `HomepageSettingController`：`edit()` 的 `getMany()` 與 payload 鍵改名；`dripCourses` 改為 `promoCourses`（`is_published` 且 `status != 'draft'`，不限 drip）；`update()` 寫入鍵改名（FR-070）in `app/Http/Controllers/Admin/HomepageSettingController.php`
+- [x] T008 `Admin/HomepageSettings/Edit.vue`：欄位標籤改「首頁推薦商品」、說明改為「指定 Hero 下方『📌 立刻領取』那行要連到哪個商品；留空則該行不顯示（訂閱表單不受影響）」，`dripCourses` → `promoCourses`（FR-070）in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+Phase 3 — 前台（相依 Phase 1、2）
+
+- [x] T009 新元件 `HeroSubscribeForm.vue`：暱稱 / Email / honeypot 三欄 + `useDelayedConfirm` 兩段式 + `EmailReviewNotice`，POST `/newsletter/quick-subscribe`；成功就地替換為「訂閱成功，歡迎信已寄出」；`newsletter_info` 以一行提示呈現；底部電子報版同意告知（FR-063 / FR-065 / FR-066 / FR-071）in `resources/js/Components/Home/HeroSubscribeForm.vue`
+- [x] T010 刪除 `HeroClaimForm.vue`（US20 的領取版，已無呼叫端）in `resources/js/Components/Home/HeroClaimForm.vue`
+- [x] T011 `HeroUnit.vue`：改掛 `HeroSubscribeForm`（無條件渲染）；`heroClaim` prop 改名 `heroPromo` 且只控制 📌 那一行（FR-063 / FR-070）in `resources/js/Components/Home/HeroUnit.vue`
+- [x] T012 `HomeController`：`heroClaim()` 改名 `heroPromo()`、讀 `hero_promo_course_id`、拿掉 `course_type = 'drip'` 條件；Inertia prop 改名 `heroPromo`（FR-070）in `app/Http/Controllers/HomeController.php`
+- [x] T013 `Home.vue`：prop `heroClaim` → `heroPromo` 並往下傳 in `resources/js/Pages/Home.vue`
+
+Phase 4 — 驗證
+
+- [x] T014 測試 `HeroSubscribeTest`：新 email 送出 → `newsletter_status=subscribed`、`email_verified_at` 為 null、未登入、歡迎信寄出一封；既有訂閱者重送 → 不重寄、`newsletter_subscribed_at` 不變；既有使用者 nickname 不被覆寫、空白才補；honeypot 有值被擋；格式錯誤 email 被擋；throttle 生效 in `tests/Feature/Storefront/HeroSubscribeTest.php`
+- [x] T015 更新 `HomeHeroTest`：`heroClaim` → `heroPromo`；補「📌 可指向非 drip 課程」與「舊鍵值已搬到新鍵」兩條 in `tests/Feature/Storefront/HomeHeroTest.php`
+- [x] T016 `php artisan test` 全綠 ＋ `npm run build` exit 0 ＋ 本機 `php artisan migrate` DONE
+- [ ] T017 使用者實測：首頁用新 Email 訂閱（第一次點出現覆核、第二次完成）→ 收到歡迎信、後台會員名單出現該筆且 email 未驗證；同一個 Email 再送 → 顯示已在訂閱清單中且沒有第二封信；後台把推薦商品改成一般課 → 📌 行連到該課銷售頁；設回空 → 📌 行消失但表單仍在
+
+
 ## 進度日誌
 
+- 2026-09-12: US21 Hero 表單改為訂閱電子報完成（T001–T016，僅剩 T017 使用者實測）— 表單改打新的 `POST /newsletter/quick-subscribe`（`throttle:5,1` + honeypot + `email:rfc`），兩段式覆核沿用 `useDelayedConfirm` + `EmailReviewNotice`，成功就地替換。`NewsletterService` 的訂閱寫入抽成單一私有 `attach($email, $verified, $nickname)`，`subscribeVerified()` 變薄包裝、新增 `subscribeUnverified()` —— **兩者唯一的差別就是 `email_verified_at`**，而那正是免 OTP 能成立的前提（D61）。📌 那行與表單徹底解耦：`hero_claim_course_id` 由 data migration 搬成 `hero_promo_course_id`（`down()` 可反向），候選放寬到全部已發布非草稿課程，`heroClaim` prop 全面改名 `heroPromo`，`HeroClaimForm.vue` 刪除、換成 `HeroSubscribeForm.vue`（同意告知改電子報語意，不再沿用 `ClaimConsentNotice`）。
+  **兩個實作中修正的判斷**：(1) `HomepageSettingsSeeder` **又一次**是規劃時漏掉的 —— 它還在播種 `hero_claim_course_id`，migration 改完的鍵會被下一次 `migrate:fresh --seed` 種回舊名。這是連續第二個故事踩同一個坑（US20 是 `hero_button_*`），往後凡是動 site_settings 鍵就要先 grep 一次 seeder。(2) 測試裡原本斷言非管理員得到 403，實際上 `AdminMiddleware` 是 302 導回首頁 —— 改為斷言導向 + 設定未被改動，因為要釘住的是「沒寫進去」而不是狀態碼。
+  新增 `HeroSubscribeTest` 9 tests、改寫 `HomeHeroTest`（19 tests，`heroClaim`→`heroPromo`、「非 drip 課不能當目標」翻面成「任何上架商品都可以」）。全套 **951 passed（4047 assertions）**、`npm run build` exit 0、本機 MySQL `migrate` DONE。
+
+- 2026-09-12: [draft] 規劃 US21 Hero 表單改為訂閱電子報 — US20 把表單綁在一門 drip 課上，等於「加入名單」與「拿某個東西」是同一個動作，想換推的商品就得先拿掉唯一的名單入口。本故事把兩件事拆開：表單改訂閱電子報且一律顯示，📌 那行保留 US20 已做好的行為但候選放寬到全部上架課程。**明確推翻自己上一條故事的一個決定**：FR-056 曾主張表單與 📌 共用一個設定「因為它們說的是同一件事」，那個前提在表單改訂閱之後不成立。四個關鍵決策：（1）D60 免 OTP 走**新端點**而不是既有端點加參數 —— 加參數等於讓呼叫端決定驗證強度，任何人都能對既有訂閱框送一個帶旗標的請求把 OTP 關掉。（2）D61 **這條決策修訂 012 D10 的適用範圍**，必須明講：D10 當初選 OTP、明確否決 single opt-in 以防 subscribe-bombing；hero 這個入口改採 single opt-in，減災是 idempotent（同一地址最多一封信）+ `throttle:5,1` + honeypot，而決定性的一點是 `email_verified_at` 維持 null 且不 `Auth::login()` —— 亂訂別人的地址不會產生任何可用身分，D10 真正保護的「驗證後才建帳號」沒有被動到；012 既有訂閱框維持 OTP 不變。（3）D62 拒絕 `email:rfc,dns`：它會在請求裡同步做 DNS 查詢，慢、偽陰性、測試依賴外網，而網域打錯這件事覆核步驟已經正面處理。（4）D63 設定鍵改名 `hero_claim_course_id` → `hero_promo_course_id` 並付一支 data migration —— `claim` 這個名字現在會主動誤導，而一個說謊的欄位名會活很多年。status: draft 待審核。
+
+- 2026-09-12: 修正 US20 的領取區驗證條件（使用者實測回報「首頁領取商品選取後沒有顯示」）— 設定本身存得好好的（`hero_claim_course_id = "2"`），是 FR-056 原本寫的 `visibleToUser(null)` 把它擋掉：那個 scope 折入 `is_visible`，而正式資料裡那門 drip 課正是 `is_visible = 0`。根因是我把兩件事混為一談 —— `is_visible` 的語意是「列不列在首頁課程清單」，不是「這門課還在不在」；`CourseController::show()` 根本沒讀它（只對 draft／未發布 404），而 drip 誘餌商品**照定義**就是從清單隱藏的，它靠廣告與連結進站不靠瀏覽。等於原本的檢查對這個功能最典型的使用情境永遠回 null。改為與銷售頁同一道門檻（`is_published = true` 且 `status !== 'draft'`），FR-056 與驗收條款同步改寫。原本釘住錯誤規則的那條測試（`..._does_not_see_a_claim_block_for_a_hidden_course`）翻面成「不列在清單的課仍可作為領取商品」，並補一條 draft 的守門，`HomeHeroTest` 17 → 18 tests。
+
+- 2026-09-12: US20 首頁 Hero 改版為領取型 landing 完成（T001–T013，僅剩 T014 使用者實測）— nav bar 下方換成 `HeroUnit.vue`：白底滿版、`lg:h-[600px]`、左欄大標／副標／網站介紹三塊各自 `v-if` + `whitespace-pre-line`，右欄形象圖沿用 `hero_banner_path`（`dimensions:min_width=1200` 移除），無圖時左欄自動撐滿。領取區由單一 `hero_claim_course_id` 控制，`HomeController::heroClaim()` 每次讀取都重驗「存在 + 是 drip + 對訪客可見」才回傳 `{course_id, name, url}`，否則 null 讓表單與 📌 行一起消失。`HeroClaimForm.vue` 直接 POST 既有的 `/drip/subscribe`，`useDelayedConfirm` + `EmailReviewNotice` + `ClaimConsentNotice` 全部沿用，成功就地替換、重複領取以一行提示呈現（不搬銷售頁那張大卡）。廢除的 `hero_button_label` / `hero_button_url` / `sns_profile_image_path` 由 data migration 刪列（先刪 storage 檔），`down()` 為 no-op。
+  **兩個規劃時沒列進 Tasks、實作中才浮出來的收尾**：(1) `HomepageSettingsSeeder` 仍在播種 `hero_button_label` / `hero_button_url` 兩個空字串鍵 —— migration 刪掉的列會被下一次 `migrate:fresh --seed` 原封種回來，等於這支 migration 只在正式站有效；seeder 同步改掉並補 `hero_subtitle` / `hero_claim_course_id`。(2) 既有的 `SnsProfileTest` 有三條測試釘著形象圖的上傳／替換／刪除，功能退役後它們是紅的 —— 連同 `UploadedFile` / `Storage` 兩個 import 一起移除，介紹文字的四條測試原封保留（US20 只拿掉圖）。
+  新增 `HomeHeroTest` 17 tests（先紅後綠，功能全缺時 17 紅）。全套 **930 passed（3972 assertions）**、`npm run build` exit 0、本機 MySQL `php artisan migrate` DONE。
+
+- 2026-09-12: [draft] 規劃 US20 首頁 Hero 改版為領取型 landing — 現在的 hero 是一張招牌：寬幅橫幅壓半透明標題，底下一顆指向站外的按鈕，訪客在第一屏沒有任何可以現在就做的事。改成 600px 白底左右兩欄，左欄大標／副標／介紹三塊可自訂文字 + 單行領取表單 + `📌 立刻領取「商品名」`，右欄形象圖。三個關鍵決策：（1）D56 領取直接打既有的 `/drip/subscribe`，不開 hero 專用端點 —— 那條路徑上疊著 honeypot、throttle、退訂者不得再領、不覆寫既有暱稱、US17 來源落庫五六條各有理由的規則，複製一份就是讓它們開始各自漂移（本模組為了前後端各寫一份管道判斷已經付過兩次代價）；同理 FR-058 把 010 的 Email 覆核防呆與同意告知一併沿用，那是領取流程的規則不是某個元件的裝飾。（2）FR-056 領取區只用一個 `hero_claim_course_id` 控制，且每次讀取都要重驗課程仍存在／仍是 drip／仍對訪客可見 —— KV 存的是一個沒有外鍵保護的參照，課程被刪不會回來改它，而首頁是全站最不能出錯的一頁。（3）D55 + D57 形象圖沿用 `hero_banner_path`（只移除 `min_width=1200`，新版是直式人物圖）、廢掉的 `hero_button_*` 與 `sns_profile_image_path` 用 data migration 真的刪列並先清 storage 檔，不留三個沒人會讀的 KV。
+  **一個延伸使用者說法的地方**：使用者說「高度 600px」，但那是桌機附圖的規格；390px 手機上大標兩行 + 副標 + 三行介紹 + 直排三格表單本身就超過 600px，鎖死會裁掉的通常正是那顆「免費領取」，所以 D58 把 600px 限定在 `lg` 以上。另依使用者決定：站長形象**圖**移除但 `sns_profile_intro` 文字保留，側欄「追蹤站長」仍有文字介紹。status: draft 待審核。
 - 2026-09-11: US19 精選課程逐筆顯示／隱藏完成（T001–T009，僅剩 T010 使用者實測）— `homepage_featured_courses` 加 `is_visible`（default true、無索引、無回填），model 補 cast 與 `scopeVisible()`，前台唯一過濾點落在 `SidebarService` 的 `ordered()->visible()`，首頁與 `/blog/{post}` 一起生效。切換走新的 `PATCH /admin/homepage/featured-courses/{id}/visibility`，傳明確布林、inline validate、只寫 `is_visible`；後台清單仍取全部列並多帶 `is_visible`，隱藏中的列灰底 + 縮圖降透明度 + 「隱藏中」標籤，拖曳與編輯介紹都照舊。
   **規劃時寫錯一個方法名**：spec 說的是 `SidebarService::build()`，實際的方法是 `widgets()`（`HomeController` 與 `BlogController` 各 spread 一次）—— 改的是同一個查詢，FR-050 的意思不變。
   測試 `FeaturedCourseVisibilityTest` 9 tests，先紅後綠（欄位與路由都不存在時 8 紅）；本機 `php artisan migrate` 已跑過。全套 `php artisan test` **915 passed（3818 assertions）**、`npm run build` exit 0。

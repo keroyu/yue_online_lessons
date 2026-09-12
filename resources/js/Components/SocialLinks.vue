@@ -7,7 +7,8 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  // { image_url, intro } — avatar + intro shown above the links. Null hides them.
+  // { intro } — owner intro shown above the links. Null hides it. The avatar
+  // retired with 002 US20: the owner's picture lives in the hero now (FR-061).
   profile: {
     type: Object,
     default: null,
@@ -17,19 +18,11 @@ const props = defineProps({
 </script>
 
 <template>
-  <div v-if="links.length > 0 || profile?.image_url || profile?.intro" class="bg-white border border-gray-200 p-4">
+  <div v-if="links.length > 0 || profile?.intro" class="bg-white border border-gray-200 p-4">
     <SectionHeader title="追蹤站長" />
 
-    <!-- 站長形象＋介紹（各自有才顯示） -->
-    <div v-if="profile?.image_url || profile?.intro" class="mb-4">
-      <img
-        v-if="profile.image_url"
-        :src="profile.image_url"
-        alt="站長形象"
-        class="w-full h-auto rounded-xl object-cover"
-      />
-      <p v-if="profile.intro" class="mt-3 text-sm text-gray-600 leading-relaxed whitespace-pre-line text-center">{{ profile.intro }}</p>
-    </div>
+    <!-- 站長介紹（有才顯示） -->
+    <p v-if="profile?.intro" class="mb-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line text-center">{{ profile.intro }}</p>
 
     <div v-if="links.length > 0" class="grid grid-cols-2 gap-2">
       <a

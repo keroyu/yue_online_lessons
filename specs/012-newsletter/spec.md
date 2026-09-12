@@ -1,7 +1,9 @@
 ---
 id: 012-newsletter
-status: done
+status: building
 owner_files:
+  - app/Http/Requests/StoreQuickSubscriptionRequest.php
+  - tests/Feature/Newsletter/WelcomePostTest.php
   # Models
   - app/Models/Post.php
   - app/Models/Tag.php
@@ -245,6 +247,29 @@ touchpoints:
 - [ ] 後台 `Admin/Posts/Index` 每列顯示 view_count（可作為排序欄）
 - [ ] 計數失敗不影響文章頁正常顯示（try/catch 或 fire-and-forget）
 
+### User Story 9 - 歡迎信改寄一篇指定文章 (Priority: P2)
+
+現在的歡迎信是一份寫死在 blade 裡的短文案（「感謝訂閱、之後會不定期寄送…」）。它不難維護，
+但它也不做任何事：新訂閱者的第一封信本該是站上最好的一篇內容，而那篇內容早就寫好了、
+就在部落格裡，只是歡迎信不會用它。
+
+這條故事把歡迎信改成「寄出一篇你指定的既有文章」：在 `/admin/broadcasts` 既有的文章搜尋／
+最近 5 篇清單上，每一列多一顆「設為歡迎信」；沒有指定過的話，預設寄**發布時間最早**的那篇。
+信件版型直接沿用電子報既有的兩個模板，不必再寫也不必再維護第二套文案。
+
+**驗收**：
+- [x] 歡迎信 MUST 寄出既有文章，主旨為文章標題；MUST NOT 新增第二份行銷文案模板（FR-016 / FR-018）
+- [x] 指定文章存 site_settings `newsletter_welcome_post_id`；未指定 MUST 取 `published_at` 最早的已發布文章（FR-016）
+- [x] 寄信前 MUST 重驗指定文章仍存在且已發布；三層降級依序為 指定文章 → 最早發布文章 → 既有簡短模板，且 MUST NOT 讓訂閱本身失敗（FR-017）
+- [x] 既有的 `newsletter-welcome.blade.php` MUST 保留為最後一層降級（新站一篇文章都沒有時仍要有歡迎信）（FR-017）
+- [x] 文章版歡迎信 MUST 沿用 `newsletter-broadcast(.text).blade.php`；開信像素 MUST 省略（無 broadcast 可掛），blade 的像素那行以 `@if($openPixelUrl)` 包起（FR-018）
+- [x] 連結戳章 `utm_campaign` MUST 為 `welcome`（與 broadcast 的 `broadcast-{id}` 分開），`utm_content` 為 post slug（FR-018）
+- [x] `/admin/broadcasts` 的文章清單（搜尋結果與最近 5 篇共用同一段渲染）每列 MUST 多一顆「設為歡迎信」；目前被指定的那篇 MUST 有可辨識標示且該顆按鈕改為停用態（FR-019）
+- [x] 該清單目前每列是一顆 `<button>`（點擊 = 選為寄送目標）；加第二顆按鈕 MUST 先把外層改為 `<div>`，MUST NOT 巢狀 `<button>`（無效 HTML，且點擊行為在瀏覽器間不一致）。兩顆按鈕皆 MUST 有 `cursor-pointer` 與可見 hover（FR-019）
+- [x] 設定 MUST 走獨立端點 `PATCH /admin/broadcasts/welcome-post`，body `post_id` 為 `required|exists:posts,id`，點下即生效、`preserveScroll`；MUST NOT 併進寄送流程（那條路徑會真的寄信給所有訂閱者）（FR-019）
+- [x] 測試：未指定時取最早發布那篇；指定後取指定那篇；指定的文章被刪除或退回草稿時退回最早那篇；一篇已發布文章都沒有時退回簡短模板且訂閱仍成功；歡迎信不寫入 `newsletter_email_events`；戳章 campaign 為 `welcome`；OTP 路徑與 hero 路徑寄出的是同一封
+
+
 ## Requirements
 
 - **FR-001**: Post slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、全站唯一；不自動由標題生成（中文標題 `Str::slug` 會產空字串）。前台一律 `/blog/{slug}`，與 `/course/{slug}` 不同命名空間。slug 變更不做自動 301（MVP）。
@@ -262,6 +287,11 @@ touchpoints:
 - **FR-013**: 電子報信件（`newsletter-broadcast.blade.php`、`newsletter-broadcast-text.blade.php`、`newsletter-welcome.blade.php`）頁尾提及的站名 MUST 讀 `SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))`，不得直接用 `config('app.name')`（2026-08-08 修正）。`hero_title` 是後台「首頁設定」頁「標題」欄位（002 owned，見 touchpoint），業主已在用它當對外品牌名稱；`APP_NAME` 是系統層級識別字串，兩者一直各自維護，正式站上已經是不同值（`APP_NAME="YUE Lessons"` vs `hero_title="經營者時間銀行"`），電子報頁尾原本讀錯了那一個。`config('app.name')` 字串本身留作 `SiteSetting::get()` 的第二層 fallback，不刪除。
 
 - **FR-014**: `/admin/posts` 的關鍵字搜尋 MUST 同時比對 `title`、`slug`、tag 名稱與**內文 `body_md`**，四者為 OR 且必須包在同一個 `where(fn ($w) => ...)` 群組內 —— 拆到群組外會讓 OR 吃掉狀態與 tag 篩選，變成「搜尋時篩選條件默默失效」。搜尋框 placeholder MUST 明示涵蓋內文，因為列表只顯示標題／slug／狀態，命中內文的那一列在畫面上看不出理由。
+- **FR-015**（2026-09-12，002 US21）: 訂閱寫入 MUST 收斂在 `NewsletterService` 的單一私有方法，由 `subscribeVerified()`（OTP 路徑）與 `subscribeUnverified()`（hero 路徑）兩個薄包裝呼叫。兩者唯一的差別是 `email_verified_at`：**只有 OTP 路徑可以寫它**。MUST NOT 讓 hero 路徑沿用 `subscribeVerified()` —— 那會在資料庫留下一個「這個信箱驗證過了」的謊，而登入流程讀的正是這類欄位的語意。`nickname` 在既有使用者身上 MUST 只補空白、不覆寫。
+- **FR-016**: 歡迎信 MUST 寄出一篇**既有文章**，MUST NOT 另寫一份行銷文案模板。指定的文章存於 site_settings 的 `newsletter_welcome_post_id`；未指定時 MUST fallback 為**發布時間最早**的已發布文章（`published_at` asc）。選最早而不是最新，是因為歡迎信的內容不該隨著每次發文而改變 —— 站主要能預期新訂閱者第一封信看到的是什麼，而那通常也正是「從這裡開始」那一篇（D14）。
+- **FR-017**: `newsletter_welcome_post_id` 是沒有外鍵保護的參照，寄信前 MUST 重驗（文章存在且 `status = 'published'`）。三層降級且 MUST 依序：指定文章 → 最早發布的文章 → 既有的 `newsletter-welcome.blade.php` 簡短模板（**MUST NOT 刪除該模板**，一篇文章都還沒發布的新站正是最需要歡迎信的時候）。任何一層失敗 MUST NOT 讓訂閱本身失敗 —— 寄信已經包在 try/catch 裡只記 log，這條規則只是要求降級寫在寄信之前而不是靠例外。
+- **FR-018**: 文章版歡迎信 MUST 沿用既有的 `newsletter-broadcast.blade.php` / `newsletter-broadcast-text.blade.php` 兩個模板（它們只吃 `$post` / `$postUrl` / `$unsubscribeUrl` / `$openPixelUrl` / `$videoThumbUrl`，沒有任何一處讀 `$broadcast`），主旨 = 文章標題。開信像素 MUST 省略（`$openPixelUrl` 傳 null、blade 以 `@if` 包起來）：`newsletter_email_events` 的 unique 是 `(broadcast_id, user_id, event_type)`，歡迎信沒有 broadcast 可掛，硬塞一個假 id 會讓那張表的語意崩掉，而歡迎信開信率不是任何一張報表在問的問題（D15）。連結戳章 `utm_campaign` MUST 為 `welcome`（`utm_content` 仍為 post slug），與 broadcast 的 `broadcast-{id}` 分得開。
+- **FR-019**: 設定入口 MUST 長在 `/admin/broadcasts` 既有的文章清單上（搜尋結果與最近 5 篇是同一段渲染，因此只要改一處），每列加一顆「設為歡迎信」。MUST NOT 用下拉選單 —— 文章會一直長，下拉在第三十篇之後就是一個要捲的清單，而那頁本來就已經有搜尋。切換走獨立端點 `PATCH /admin/broadcasts/welcome-post`，MUST NOT 併進寄送表單：那條路徑按下去會真的寄信給所有訂閱者，兩個後果差這麼遠的動作不該共用一個提交。
 
 ## 設計決策
 
@@ -275,10 +305,15 @@ touchpoints:
 - **D8**: 分享按鈕用原生 share-intent / Web Share API，不掛第三方 JS — 保 SEO 與載入速度（比照全站不引入外部追蹤腳本的取向）。
 - **D9**: SEO 沿用既有 `view()->share('og', …)` + app.blade.php `$og` 機制擴充，不另造系統 — 文章頁只需補 article 專屬欄位與 JSON-LD slot。
 - **D10**: 訂閱採 OTP 兩步（email→驗證碼→建會員），沿用 VerificationCodeService/VerificationCodeMail/VerificationCodeInput — 與全站「驗證後才建帳號」一致，杜絕幫他人亂訂（subscribe-bombing），且比自建 double opt-in 確認連結更省事。（否決 single opt-in 直接建帳號。）
+  **2026-09-12 範圍修訂（002 US21 / D61）**：本決策自即日起**只涵蓋本模組的訂閱框**（`SubscribeForm.vue` → `/newsletter/subscribe` → `/newsletter/verify`），那條路徑維持 OTP 兩步不變。首頁 hero 另開一條免 OTP 的 `POST /newsletter/quick-subscribe`：hero 第一屏塞一個 6 格驗證碼輸入區的掉率高於它擋掉的濫用量，而濫用的上限是每個受害地址一封歡迎信（idempotent + `throttle:5,1` + honeypot），信裡帶一鍵退訂。**D10 真正在保護的東西沒有被動到** —— 那條路徑 `email_verified_at` 維持 null、不 `Auth::login()`，建的是名單列不是帳號，登入仍然只能走 OTP。完整論證見 `specs/002-storefront/spec.md` 的 D61。
 - **D11**: 瀏覽數用 posts.view_count 單一計數欄 + session 去重，不建 post_views 事件表 — 比照 drip 的 emails_sent 單欄取向與「不過度設計」原則；代價是無時間序列/UV 分析，未來要趨勢再升級成事件表。（否決事件表 MVP。）
 
 - **D12**: 內文搜尋用 `LIKE %keyword%`，不建 FULLTEXT 索引也不接搜尋引擎。`body_md` 是 `longText`，前綴萬用字元讓任何索引都用不上，所以這確實是一次全表掃描 —— 但這是一個 mini-blog 的後台列表，文章是幾十到幾百的量級，由一個管理員偶爾按一次。在那個量級上 FULLTEXT 的維護成本（中文斷詞、ngram parser 設定、migration 與 sqlite 測試環境的差異）遠大於它省下的毫秒。真正該換掉的訊號是文章數上千或這頁開始明顯變慢，不是現在。
 - **D13**: 只搜 `body_md`，不把 `excerpt`、`seo_title`、`meta_description` 一起加進去。它們的內容幾乎都是內文或標題的重述，加進 OR 鏈只是讓每一筆多掃三個欄位換來重複的命中；真的要找 SEO 欄位裡的字時，那是另一種需求（SEO 稽核），該有自己的入口而不是混進主搜尋框。
+
+- **D14**: 未指定時取**最早發布**的文章，不是最新（FR-016）。取最新的吸引力是「新訂閱者總是收到最近的內容」，但歡迎信是一封會寄很多年的信：內容隨每次發文而變，等於站主永遠不知道新訂閱者的第一印象是什麼，也沒辦法為它寫任何東西。最早那篇是固定的、通常也是「從這裡開始」那一類，而真的想換就指定一篇 —— 這正是這條故事提供的東西。否決「精選文章優先」是因為 `is_featured` 已經有另一個用途（首頁熱門文章排序，FR-031 才剛把兩個列表的排序責任分乾淨），再疊一個意思上去會讓那個欄位同時代表兩件事。
+
+- **D15**: 歡迎信不記開信追蹤（FR-018）。`newsletter_email_events` 的 unique 是 `(broadcast_id, user_id, event_type)`，歡迎信沒有 broadcast 可掛；要記就得放寬那個鍵或塞一個假 id，兩者都會讓「開信數」這個欄位的語意從「這次群發有多少人開」變成「某種信有多少人開」，而所有讀它的報表都是照前者寫的。歡迎信的開信率也不是任何一張報表在問的問題 —— 它問的是群發成效。連結戳章仍然照做（`utm_campaign=welcome`），所以歡迎信帶回站上的流量在課程／文章的來源報表裡看得見，那才是實際會被拿來決策的數字。
 
 ## Schema
 
@@ -291,6 +326,8 @@ touchpoints:
 - `broadcasts` — 一次寄送事件。`post_id` FK、`subject`（快照）、`status`(draft/scheduled/sending/sent，字串非 enum)、`scheduled_at`(nullable，排程寄送時間)、`recipients_count`、`sent_count`、`sent_at`(nullable)。排程 broadcast 的 recipients 在實際寄出時（`newsletter:send-scheduled` 每分鐘）才快照。index：status、post_id、scheduled_at。
 - `newsletter_email_events` — 開信事件（未來可擴 clicked）。`broadcast_id` FK、`user_id` FK、`event_type`(opened)、`ip`、`user_agent`、`created_at`。unique(broadcast_id, user_id, event_type)；只有 created_at。
 - `users` 增欄（本模組 migration，User model 屬 001 為 touchpoint）— `newsletter_status`(enum none/subscribed/unsubscribed/dormant, default none)、`newsletter_subscribed_at`(nullable)、`newsletter_unsubscribe_token`(uuid, nullable, unique)、`newsletter_last_opened_at`(nullable)、`newsletter_status_changed_at`(nullable)。index：newsletter_status。
+- site_settings 使用鍵（表屬 000-platform-core）：`newsletter_welcome_post_id`（US9 新增，post id 字串，空／失效 = 走 FR-017 的降級鏈）。**不變量**：這是一個沒有外鍵保護的參照，寄信前每次 MUST 重驗，MUST NOT 假設它指向一篇已發布文章。
+- **US9 無 migration、無結構變更** —— 只多一個 KV 鍵，信件沿用既有兩個 blade，`newsletter_email_events` 一個位元組不動（D15）。
 
 ## Tasks
 
@@ -354,7 +391,38 @@ touchpoints:
 - [x] T041 測試：關鍵字只出現在內文時該篇被搜到；同時驗證搜尋與狀態篩選並用時 OR 不外溢（搜到的內文命中若狀態不符 MUST 被排除）in `tests/Feature/Newsletter/AdminPostSearchTest.php`
 - [x] T042 `php artisan test --filter=AdminPostSearch` 全綠、`npm run build` exit 0
 
+
+## Tasks（歡迎信改寄指定文章 / US9）
+
+Phase 1 — 選文與寄送
+
+- [x] T001 `NewsletterService::welcomePost(): ?Post` —— 讀 `newsletter_welcome_post_id` 並重驗（存在 + `status='published'`），不成立則取 `published()->orderBy('published_at')->first()`，仍無則回 null（FR-016 / FR-017）in `app/Services/NewsletterService.php`
+- [x] T002 `NewsletterWelcomeMail` 建構子加選填 `?Post $post`：有文章時主旨 = 文章標題、`content()` 回 broadcast 的兩個 view、`$postUrl` 以 `EmailLinkTagger` 戳 `utm_campaign=welcome`／`utm_content={slug}`、`$openPixelUrl` 為 null、沿用既有的 YouTube 縮圖擷取；無文章時維持既有簡短模板（FR-017 / FR-018）in `app/Mail/NewsletterWelcomeMail.php`
+- [x] T003 [P] `newsletter-broadcast.blade.php` 的像素那行以 `@if($openPixelUrl)` 包起（broadcast 路徑行為不變）in `resources/views/emails/newsletter-broadcast.blade.php`
+- [x] T004 `NewsletterSubscriptionController::sendWelcome()` 改為 `new NewsletterWelcomeMail($user, $this->newsletterService->welcomePost())`；OTP 與 hero 兩條路徑共用這一個方法，不各寫一次（FR-017）in `app/Http/Controllers/NewsletterSubscriptionController.php`
+
+Phase 2 — 後台設定入口（相依 Phase 1）
+
+- [x] T005 `BroadcastController`：`index()` 的 `postPayload()` 不變，另下發 `welcomePostId`；新增 `setWelcomePost(Request $request)` —— inline validate `post_id` 為 `required|exists:posts,id`，寫 `SiteSetting::set('newsletter_welcome_post_id', ...)`，回 `back()->with('success', ...)`（FR-019）in `app/Http/Controllers/Admin/BroadcastController.php`
+- [x] T006 路由 `PATCH /admin/broadcasts/welcome-post`（admin 群組，接在既有 broadcasts 路由之後）in `routes/web.php`（000 touchpoint）
+- [x] T007 `Admin/Broadcasts/Index.vue`：文章清單每列外層由 `<button>` 改為 `<div>`（避免巢狀 button），左側選取區維持 button、右側新增「設為歡迎信」button；目前指定的那篇顯示「歡迎信」標籤且該鈕停用；`router.patch(..., { post_id }, { preserveScroll: true })`；兩顆按鈕皆有 `cursor-pointer` 與 hover（FR-019）in `resources/js/Pages/Admin/Broadcasts/Index.vue`
+
+Phase 3 — 驗證
+
+- [x] T008 測試 `WelcomePostTest`：未指定 → 取最早發布那篇；指定後 → 取指定那篇；指定的被刪除／退回草稿 → 退回最早那篇；零已發布文章 → 走簡短模板且訂閱仍成功；歡迎信不寫 `newsletter_email_events`；信中連結帶 `utm_campaign=welcome`；設定端點非管理員被擋 in `tests/Feature/Newsletter/WelcomePostTest.php`
+- [x] T009 `php artisan test` 全綠 ＋ `npm run build` exit 0
+- [ ] T010 使用者實測：後台在文章清單按「設為歡迎信」→ 用新 Email 訂閱 → 收到的信就是那篇文章（主旨為標題、有封面／YouTube 縮圖、底部有退訂連結）；把那篇退回草稿 → 再訂閱一次會收到最早那篇
+
+
 ## 進度日誌
+
+- 2026-09-12: US9 歡迎信改寄指定文章完成（T001–T009，僅剩 T010 使用者實測）＋ FR-015 的 `subscribeUnverified()` 一併落地（隨 002 US21）— `NewsletterService::welcomePost()` 實作三層降級（指定 → 最早發布 → null），`NewsletterWelcomeMail` 建構子加選填 `?Post`：有文章時主旨＝標題、改吃 broadcast 的兩個 blade、連結戳 `utm_campaign=welcome`／`utm_content={slug}`、`openPixelUrl` 為 null（blade 的像素那行加 `@if` 包起，broadcast 路徑行為不變）；無文章時維持既有簡短模板。`sendWelcome()` 是 OTP 與 hero 兩條路徑的唯一出口，所以選文只解析一次。後台在 `/admin/broadcasts` 既有的文章清單每列加「設為歡迎信」，`PATCH /admin/broadcasts/welcome-post` 獨立端點 —— 那頁另一顆按鈕按下去會真的寄給所有訂閱者，兩者不共用提交。
+  **一個實作中才看清的 HTML 問題**：那些列本身就是 `<button>`（點擊＝選為寄送目標），要加第二顆按鈕得先把外層 `<li>` 改成 flex 容器並把選取區縮成內層 button —— 巢狀 `<button>` 是無效 HTML，spec 有預先記下這點，實作照做。
+  新增 `WelcomePostTest` 10 tests（含刪除／退回草稿／零已發布文章三種降級，與「歡迎信不寫 `newsletter_email_events`」）。全套 951 passed（4047 assertions）、`npm run build` exit 0。
+
+- 2026-09-12: [draft] 規劃 US9 歡迎信改寄一篇指定文章 —— 現在的歡迎信是寫死在 blade 裡的一段短文案，它不難維護但也不做任何事；站上最好的內容早就寫好了，只是歡迎信不會用它。改法是在 `/admin/broadcasts` 既有的文章搜尋／最近 5 篇清單每列加一顆「設為歡迎信」（使用者明確要求不要用下拉 —— 文章會一直長，而那頁本來就有搜尋），信件版型直接沿用 broadcast 既有的兩個模板。三個關鍵決策：（1）D14 未指定時取**最早發布**而非最新 —— 歡迎信會寄很多年，內容隨每次發文而變等於站主永遠不知道新訂閱者的第一印象是什麼；否決「精選優先」是因為 `is_featured` 已經有另一個用途（FR-031 才剛把兩個列表的排序責任分乾淨）。（2）D15 歡迎信不記開信追蹤 —— `newsletter_email_events` 的 unique 綁 `broadcast_id`，硬塞假 id 會讓「開信數」的語意從「這次群發多少人開」變成別的東西，而所有讀它的報表都照前者寫；連結戳章照做（`utm_campaign=welcome`），流量在來源報表裡仍看得見。（3）FR-017 三層降級（指定 → 最早 → 簡短模板）且既有 blade **不刪** —— 一篇文章都還沒發的新站正是最需要歡迎信的時候；同時修掉上一輪自己寫出來的 FR 編號衝突（我加的 FR-010 與既有 FR-010 撞號，改為 FR-015）。status: draft 待審核。
+
+- 2026-09-12: [draft] D10 範圍修訂 + 新增 FR-015（隨 002 US21 規劃）— 首頁 hero 的訂閱入口改走免 OTP 的 `/newsletter/quick-subscribe`，本模組的訂閱框維持 OTP 兩步不變。訂閱寫入抽成單一私有方法、兩個薄包裝，`email_verified_at` 只有 OTP 路徑能寫。待 002 US21 審核通過後一併實作。
 
 - 2026-09-08: 文章列表搜尋涵蓋內文（T039–T042，FR-014）— controller 一條 `orWhere('body_md', 'like', ...)`、placeholder 補「內文」。測試兩條先紅後綠：一條驗內文命中，一條釘住「OR 不外溢」—— 建一篇 published 一篇 draft、內文都含關鍵字，帶 `status=published` 搜尋 MUST 只回一筆。那條是這次唯一會真的出錯的地方，而它出錯時畫面上的狀態下拉看起來還是選著的。`AdminPostSearchTest` 6 passed。
 

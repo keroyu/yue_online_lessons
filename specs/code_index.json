@@ -50,7 +50,8 @@
     ],
     "app/Http/Controllers/Admin/BroadcastController.php": [
       "012.us-5",
-      "012.us-6"
+      "012.us-6",
+      "012.us-9"
     ],
     "app/Http/Controllers/Admin/ChapterController.php": [
       "003.us-10",
@@ -144,6 +145,8 @@
     ],
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
       "002.us-19",
+      "002.us-20",
+      "002.us-21",
       "002.us-3",
       "002.us-5",
       "002.us-7",
@@ -282,6 +285,8 @@
     ],
     "app/Http/Controllers/HomeController.php": [
       "002.us-1",
+      "002.us-20",
+      "002.us-21",
       "002.us-5",
       "002.us-9",
       "012.us-2",
@@ -322,7 +327,9 @@
       "001.us-3"
     ],
     "app/Http/Controllers/NewsletterSubscriptionController.php": [
-      "012.us-4"
+      "002.us-21",
+      "012.us-4",
+      "012.us-9"
     ],
     "app/Http/Controllers/NewsletterTrackingController.php": [
       "012.us-6"
@@ -483,6 +490,8 @@
       "002.us-6"
     ],
     "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
+      "002.us-20",
+      "002.us-21",
       "002.us-3",
       "002.us-9"
     ],
@@ -545,6 +554,9 @@
     ],
     "app/Http/Requests/StoreNewsletterSubscriptionRequest.php": [
       "012.us-4"
+    ],
+    "app/Http/Requests/StoreQuickSubscriptionRequest.php": [
+      "002.us-21"
     ],
     "app/Http/Requests/ValidateReferralRequest.php": [
       "007.us-2"
@@ -620,7 +632,8 @@
     ],
     "app/Mail/NewsletterWelcomeMail.php": [
       "000.us-9",
-      "012.us-4"
+      "012.us-4",
+      "012.us-9"
     ],
     "app/Mail/TemplatedMail.php": [
       "011.us-14",
@@ -946,8 +959,10 @@
     ],
     "app/Services/NewsletterService.php": [
       "000.us-7",
+      "002.us-21",
       "012.us-4",
-      "012.us-7"
+      "012.us-7",
+      "012.us-9"
     ],
     "app/Services/OgImageService.php": [
       "012.us-2"
@@ -988,6 +1003,7 @@
     ],
     "app/Services/SidebarService.php": [
       "002.us-19",
+      "002.us-20",
       "002.us-6",
       "012.us-2"
     ],
@@ -1350,6 +1366,12 @@
     "database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php": [
       "002.us-19"
     ],
+    "database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php": [
+      "002.us-20"
+    ],
+    "database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php": [
+      "002.us-21"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1358,6 +1380,10 @@
       "011.us-26",
       "011.us-27",
       "011.us-6"
+    ],
+    "database/seeders/HomepageSettingsSeeder.php": [
+      "002.us-20",
+      "002.us-21"
     ],
     "database/seeders/ShortLinkSeeder.php": [
       "000.us-8"
@@ -1572,6 +1598,16 @@
     "resources/js/Components/GiftCourseModal.vue": [
       "008.us-6"
     ],
+    "resources/js/Components/Home/HeroClaimForm.vue": [
+      "002.us-20"
+    ],
+    "resources/js/Components/Home/HeroSubscribeForm.vue": [
+      "002.us-21"
+    ],
+    "resources/js/Components/Home/HeroUnit.vue": [
+      "002.us-20",
+      "002.us-21"
+    ],
     "resources/js/Components/ImportMembersModal.vue": [
       "008.us-8"
     ],
@@ -1631,6 +1667,7 @@
     ],
     "resources/js/Components/SocialLinks.vue": [
       "001.us-3",
+      "002.us-20",
       "002.us-4",
       "002.us-9"
     ],
@@ -1657,7 +1694,8 @@
       "002.us-15"
     ],
     "resources/js/Pages/Admin/Broadcasts/Index.vue": [
-      "012.us-5"
+      "012.us-5",
+      "012.us-9"
     ],
     "resources/js/Pages/Admin/Broadcasts/Show.vue": [
       "012.us-6"
@@ -1744,6 +1782,8 @@
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
       "002.us-19",
+      "002.us-20",
+      "002.us-21",
       "002.us-3",
       "002.us-4",
       "002.us-6",
@@ -1844,6 +1884,8 @@
     ],
     "resources/js/Pages/Home.vue": [
       "002.us-1",
+      "002.us-20",
+      "002.us-21",
       "002.us-3",
       "002.us-9",
       "004.us-2",
@@ -1928,7 +1970,8 @@
       "004.us-6"
     ],
     "resources/views/emails/newsletter-broadcast.blade.php": [
-      "012.us-5"
+      "012.us-5",
+      "012.us-9"
     ],
     "resources/views/emails/newsletter-welcome.blade.php": [
       "012.us-4"
@@ -1965,6 +2008,8 @@
       "001.us-3",
       "002.us-15",
       "002.us-19",
+      "002.us-20",
+      "002.us-21",
       "002.us-9",
       "003.us-10",
       "006.us-1",
@@ -1986,7 +2031,8 @@
       "011.us-35",
       "011.us-6",
       "011.us-8",
-      "012.us-2"
+      "012.us-2",
+      "012.us-9"
     ],
     "tests/Feature/Admin/CourseCreateFieldsTest.php": [
       "004.us-2"
@@ -2158,6 +2204,9 @@
     "tests/Feature/Newsletter/PostServiceTest.php": [
       "012.us-2"
     ],
+    "tests/Feature/Newsletter/WelcomePostTest.php": [
+      "012.us-9"
+    ],
     "tests/Feature/Platform/AiSettingsTest.php": [
       "000.us-10"
     ],
@@ -2188,6 +2237,13 @@
       "002.us-11",
       "002.us-12"
     ],
+    "tests/Feature/Storefront/HeroSubscribeTest.php": [
+      "002.us-21"
+    ],
+    "tests/Feature/Storefront/HomeHeroTest.php": [
+      "002.us-20",
+      "002.us-21"
+    ],
     "tests/Feature/Storefront/SalesPromoCouponChainTest.php": [
       "002.us-12",
       "006.us-5"
@@ -2197,6 +2253,9 @@
       "002.us-13",
       "002.us-16",
       "002.us-18"
+    ],
+    "tests/Feature/Storefront/SnsProfileTest.php": [
+      "002.us-20"
     ],
     "tests/Support/BooksHighTicket.php": [
       "011.us-11",

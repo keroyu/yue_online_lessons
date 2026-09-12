@@ -23,6 +23,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  promoCourses: {
+    type: Array,
+    default: () => [],
+  },
   sidebarOrder: {
     type: Array,
     default: () => [],
@@ -40,19 +44,17 @@ const props = defineProps({
 // ─── Section 1: Hero + RSS ───────────────────────────────────────────────────
 
 const heroForm = ref({
-  hero_title:          props.settings.hero_title ?? '',
-  hero_description:    props.settings.hero_description ?? '',
-  hero_button_label:   props.settings.hero_button_label ?? '',
-  hero_button_url:     props.settings.hero_button_url ?? '',
-  blog_rss_url:        props.settings.blog_rss_url ?? '',
-  sns_section_enabled: props.settings.sns_section_enabled ? '1' : '0',
-  sns_profile_intro:   props.settings.sns_profile_intro ?? '',
-  sns_profile_image:   null,
-  hero_banner:         null,
+  hero_title:           props.settings.hero_title ?? '',
+  hero_subtitle:        props.settings.hero_subtitle ?? '',
+  hero_description:     props.settings.hero_description ?? '',
+  hero_promo_course_id: props.settings.hero_promo_course_id ?? '',
+  blog_rss_url:         props.settings.blog_rss_url ?? '',
+  sns_section_enabled:  props.settings.sns_section_enabled ? '1' : '0',
+  sns_profile_intro:    props.settings.sns_profile_intro ?? '',
+  hero_banner:          null,
 })
 
 const bannerPreviewUrl = ref(props.settings.hero_banner_url ?? null)
-const snsProfilePreviewUrl = ref(props.settings.sns_profile_image_url ?? null)
 const heroErrors = ref({})
 const heroSaving = ref(false)
 
@@ -72,39 +74,20 @@ function onBannerSelected(event) {
   bannerPreviewUrl.value = URL.createObjectURL(file)
 }
 
-function onSnsProfileSelected(event) {
-  const file = event.target.files[0]
-  if (!file) return
-
-  const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
-  if (file.size > MAX_BYTES) {
-    heroErrors.value = { ...heroErrors.value, sns_profile_image: '圖片檔案過大，請壓縮後再上傳（上限 2MB）' }
-    event.target.value = ''
-    return
-  }
-
-  delete heroErrors.value.sns_profile_image
-  heroForm.value.sns_profile_image = file
-  snsProfilePreviewUrl.value = URL.createObjectURL(file)
-}
-
 function saveHeroSettings() {
   heroSaving.value = true
   heroErrors.value = {}
 
   const formData = new FormData()
-  formData.append('hero_title',          heroForm.value.hero_title)
-  formData.append('hero_description',    heroForm.value.hero_description)
-  formData.append('hero_button_label',   heroForm.value.hero_button_label)
-  formData.append('hero_button_url',     heroForm.value.hero_button_url)
-  formData.append('blog_rss_url',        heroForm.value.blog_rss_url)
-  formData.append('sns_section_enabled', heroForm.value.sns_section_enabled)
-  formData.append('sns_profile_intro',   heroForm.value.sns_profile_intro)
+  formData.append('hero_title',           heroForm.value.hero_title)
+  formData.append('hero_subtitle',        heroForm.value.hero_subtitle)
+  formData.append('hero_description',     heroForm.value.hero_description)
+  formData.append('hero_promo_course_id', heroForm.value.hero_promo_course_id ?? '')
+  formData.append('blog_rss_url',         heroForm.value.blog_rss_url)
+  formData.append('sns_section_enabled',  heroForm.value.sns_section_enabled)
+  formData.append('sns_profile_intro',    heroForm.value.sns_profile_intro)
   if (heroForm.value.hero_banner) {
     formData.append('hero_banner', heroForm.value.hero_banner)
-  }
-  if (heroForm.value.sns_profile_image) {
-    formData.append('sns_profile_image', heroForm.value.sns_profile_image)
   }
 
   router.post('/admin/homepage', formData, {
@@ -120,17 +103,6 @@ function deleteBanner() {
   router.delete('/admin/homepage/banner', {
     preserveScroll: true,
     onSuccess: () => { bannerPreviewUrl.value = null },
-  })
-}
-
-function deleteSnsProfileImage() {
-  if (!confirm('確定要刪除站長形象圖嗎？')) return
-  router.delete('/admin/homepage/sns-profile-image', {
-    preserveScroll: true,
-    onSuccess: () => {
-      snsProfilePreviewUrl.value = null
-      heroForm.value.sns_profile_image = null
-    },
   })
 }
 
@@ -303,15 +275,15 @@ function saveCategories() {
 
       <!-- Banner preview -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">橫幅圖片</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Hero 形象圖</label>
         <div v-if="bannerPreviewUrl" class="mb-3">
-          <img :src="bannerPreviewUrl" alt="Banner preview" class="w-full max-h-48 object-cover rounded-lg border border-gray-200" />
+          <img :src="bannerPreviewUrl" alt="Hero image preview" class="max-h-48 w-auto object-contain rounded-lg border border-gray-200" />
           <button
             type="button"
             class="mt-2 text-sm text-red-600 hover:text-red-800"
             @click="deleteBanner"
           >
-            刪除橫幅圖片
+            刪除形象圖
           </button>
         </div>
         <input
@@ -321,24 +293,37 @@ function saveCategories() {
           @change="onBannerSelected"
         />
         <p v-if="heroErrors.hero_banner" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_banner }}</p>
-        <p class="mt-1 text-xs text-gray-400">JPG / PNG / WebP，最大 5MB，寬度至少 1200px</p>
+        <p class="mt-1 text-xs text-gray-400">顯示於 Hero 右欄，建議直式去背 PNG。JPG / PNG / WebP，最大 5MB</p>
       </div>
 
       <!-- Title -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">標題</label>
-        <input
+        <label class="block text-sm font-medium text-gray-700 mb-1">大標</label>
+        <textarea
           v-model="heroForm.hero_title"
+          rows="2"
+          maxlength="255"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
+        ></textarea>
+        <p class="mt-1 text-xs text-gray-400">換行會原樣顯示在前台</p>
+        <p v-if="heroErrors.hero_title" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_title }}</p>
+      </div>
+
+      <!-- Subtitle -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">副標</label>
+        <input
+          v-model="heroForm.hero_subtitle"
           type="text"
           maxlength="255"
           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
         />
-        <p v-if="heroErrors.hero_title" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_title }}</p>
+        <p v-if="heroErrors.hero_subtitle" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_subtitle }}</p>
       </div>
 
       <!-- Description -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">說明文字</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">網站介紹</label>
         <textarea
           v-model="heroForm.hero_description"
           rows="4"
@@ -348,29 +333,18 @@ function saveCategories() {
         <p v-if="heroErrors.hero_description" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_description }}</p>
       </div>
 
-      <!-- Button label + URL -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">按鈕文字</label>
-          <input
-            v-model="heroForm.hero_button_label"
-            type="text"
-            maxlength="100"
-            placeholder="例：EXPLORE"
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">按鈕連結</label>
-          <input
-            v-model="heroForm.hero_button_url"
-            type="url"
-            maxlength="500"
-            placeholder="https://"
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
-          />
-          <p v-if="heroErrors.hero_button_url" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_button_url }}</p>
-        </div>
+      <!-- 推薦商品：只控制「📌 立刻領取」那行，訂閱表單不受影響 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">首頁推薦商品</label>
+        <select
+          v-model="heroForm.hero_promo_course_id"
+          class="w-full cursor-pointer rounded-lg border border-gray-300 px-3 py-2 text-sm hover:border-brand-navy focus:outline-none focus:ring-2 focus:ring-brand-navy"
+        >
+          <option value="">不顯示推薦那行</option>
+          <option v-for="c in promoCourses" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+        </select>
+        <p class="mt-1 text-xs text-gray-400">指定 Hero 下方「📌 立刻領取」那行要連到哪個商品；留空則該行不顯示（訂閱表單不受影響）。</p>
+        <p v-if="heroErrors.hero_promo_course_id" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_promo_course_id }}</p>
       </div>
 
       <!-- SNS toggle -->
@@ -392,35 +366,6 @@ function saveCategories() {
 
       <!-- 站長形象與介紹（顯示於 SNS 連結上方） -->
       <div v-if="heroForm.sns_section_enabled === '1'" class="ml-1 pl-4 border-l-2 border-gray-100 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">站長形象圖片</label>
-          <!-- 前台以側欄滿版大圖顯示，預覽同款（限寬避免後台過大） -->
-          <div class="w-full max-w-xs">
-            <div class="rounded-xl overflow-hidden bg-gray-100 ring-1 ring-gray-200">
-              <img v-if="snsProfilePreviewUrl" :src="snsProfilePreviewUrl" class="w-full h-auto" />
-              <div v-else class="h-32 w-full flex items-center justify-center text-gray-300">
-                <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M18 6.75h.008v.008H18V6.75z" />
-                </svg>
-              </div>
-            </div>
-            <div class="mt-2 flex items-center gap-2">
-              <label class="cursor-pointer inline-flex items-center gap-2 bg-white px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                選擇圖片
-                <input type="file" class="sr-only" accept="image/*" @change="onSnsProfileSelected" />
-              </label>
-              <button
-                v-if="snsProfilePreviewUrl"
-                type="button"
-                class="text-sm text-red-500 hover:text-red-700"
-                @click="deleteSnsProfileImage"
-              >移除</button>
-            </div>
-            <p class="mt-1.5 text-xs text-gray-400">將以側欄滿版大圖顯示（非頭貼）。建議寬度 ≥ 800px，橫式或正方皆可。JPG／PNG／WebP，≤2MB</p>
-            <p v-if="heroErrors.sns_profile_image" class="mt-1 text-sm text-red-600">{{ heroErrors.sns_profile_image }}</p>
-          </div>
-        </div>
-
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">站長介紹</label>
           <textarea

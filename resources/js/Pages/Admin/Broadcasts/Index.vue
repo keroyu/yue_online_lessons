@@ -9,12 +9,23 @@ defineOptions({ layout: AdminLayout })
 const props = defineProps({
   broadcasts: { type: Object, required: true },
   recentPosts: { type: Array, default: () => [] },
+  welcomePostId: { type: Number, default: null },
   subscriberCount: { type: Number, default: 0 },
 })
 
 const form = useForm({ post_id: null, scheduled_at: '' })
 
 const selectedPost = ref(null)
+// Mirrors the server value so the marker moves on click; PATCH still persists it.
+const currentWelcomePostId = ref(props.welcomePostId)
+
+function setWelcomePost(post) {
+  router.patch('/admin/broadcasts/welcome-post', { post_id: post.id }, {
+    preserveScroll: true,
+    onSuccess: () => { currentWelcomePostId.value = post.id },
+  })
+}
+
 const searchQuery = ref('')
 const searchResults = ref([])
 const searching = ref(false)
@@ -92,11 +103,13 @@ const statusLabel = (b) => {
       <!-- Selectable post list -->
       <p class="text-xs text-gray-400 mb-2">{{ searchQuery.trim() ? (searching ? '搜尋中…' : '搜尋結果') : '最近 5 篇' }}</p>
       <ul class="border border-gray-200 divide-y divide-gray-100 mb-4 max-h-72 overflow-y-auto">
-        <li v-for="post in displayedPosts" :key="post.id">
+        <!-- The row was a single <button>; the welcome action needs a second
+             one, and nesting buttons is invalid HTML (012 FR-019) -->
+        <li v-for="post in displayedPosts" :key="post.id" class="flex items-center gap-2 pr-2"
+            :class="form.post_id === post.id ? 'bg-brand-teal/10' : ''">
           <button
             type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 cursor-pointer"
-            :class="form.post_id === post.id ? 'bg-brand-teal/10' : ''"
+            class="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 cursor-pointer"
             @click="selectPost(post)"
           >
             <span class="w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center"
@@ -106,6 +119,16 @@ const statusLabel = (b) => {
             <span class="flex-1 min-w-0 truncate text-sm text-gray-900">{{ post.title }}</span>
             <span class="shrink-0 text-xs text-gray-400">{{ post.published_at }}</span>
           </button>
+          <span
+            v-if="currentWelcomePostId === post.id"
+            class="shrink-0 rounded bg-brand-gold/20 px-2 py-1 text-xs font-medium text-brand-navy"
+          >歡迎信</span>
+          <button
+            v-else
+            type="button"
+            class="shrink-0 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 cursor-pointer hover:border-brand-navy hover:text-brand-navy transition-colors"
+            @click="setWelcomePost(post)"
+          >設為歡迎信</button>
         </li>
         <li v-if="!displayedPosts.length" class="px-3 py-6 text-center text-sm text-gray-400">
           {{ searchQuery.trim() ? '找不到符合的文章' : '尚無已發佈文章' }}

@@ -5,6 +5,7 @@ import CourseCard from '@/Components/CourseCard.vue'
 import HomePostList from '@/Components/Newsletter/HomePostList.vue'
 import SectionHeader from '@/Components/SectionHeader.vue'
 import Sidebar from '@/Components/Layout/Sidebar.vue'
+import HeroUnit from '@/Components/Home/HeroUnit.vue'
 
 const props = defineProps({
   courses: {
@@ -27,11 +28,14 @@ const props = defineProps({
     type: Object,
     default: () => ({
       title: null,
+      subtitle: null,
       description: null,
-      button_label: null,
-      button_url: null,
       banner_url: null,
     }),
+  },
+  heroPromo: {
+    type: Object,
+    default: null,
   },
   socialLinks: {
     type: Array,
@@ -93,56 +97,12 @@ const filteredCourses = computed(() =>
 <template>
   <Head title="首頁" />
 
+  <!-- Hero sits outside the padded wrapper: it is the first block under the
+       nav bar and runs the full width on its own white ground (FR-052) -->
+  <HeroUnit :hero="hero" :hero-promo="heroPromo" />
+
   <div class="py-8 sm:py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-      <!-- Hero section -->
-      <div class="relative mb-10 sm:mb-16 rounded-xl overflow-hidden group">
-        <!-- Hover overlay: darkens image on hover -->
-        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 z-10 pointer-events-none" />
-
-        <!-- Banner image -->
-        <img
-          v-if="hero.banner_url"
-          :src="hero.banner_url"
-          alt=""
-          class="w-full h-[200px] sm:h-[300px] lg:h-[400px] object-cover"
-        />
-        <!-- Fallback: solid colour when no image -->
-        <div v-else class="h-[160px] sm:h-[240px] bg-brand-navy" />
-
-        <!-- Gradient shadow: bottom 60px, transparent → subtle black -->
-        <div class="absolute inset-x-0 bottom-0 h-[60px] z-10 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-
-        <!-- Text block: bottom-left -->
-        <div class="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-6 space-y-2">
-          <!-- Title: navy panel with a gold accent bar on the left -->
-          <h1
-            v-if="hero.title"
-            class="inline-flex items-center bg-brand-navy/85 backdrop-blur-sm border-l-4 border-brand-gold pl-3 pr-4 py-2 text-2xl sm:text-4xl font-bold text-white leading-snug tracking-wide"
-          >
-            {{ hero.title }}
-          </h1>
-          <!-- Description: white with drop shadow -->
-          <p
-            v-if="hero.description"
-            class="text-sm sm:text-base text-white max-w-2xl whitespace-pre-line drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
-          >
-            {{ hero.description }}
-          </p>
-        </div>
-
-        <!-- CTA button: bottom-right, only when both label and URL are set -->
-        <a
-          v-if="hero.button_url && hero.button_label"
-          :href="hero.button_url"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 px-6 py-2 border border-white bg-transparent hover:bg-white text-white hover:text-brand-navy text-sm font-semibold tracking-widest uppercase transition-all duration-300"
-        >
-          {{ hero.button_label }}
-        </a>
-      </div>
 
       <!-- Main content with sidebar layout -->
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_365px] gap-6">

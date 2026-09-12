@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreNewsletterSubscriptionRequest;
+use App\Http\Requests\StoreQuickSubscriptionRequest;
 use App\Mail\NewsletterWelcomeMail;
 use App\Mail\VerificationCodeMail;
 use App\Models\User;
@@ -68,6 +69,33 @@ class NewsletterSubscriptionController extends Controller
     }
 
     /**
+     * Homepage hero subscription — one step, no verification code (002 US21).
+     *
+     * A route of its own rather than a flag on `subscribe()`: verification
+     * strength is the server's decision, not a field in the request body, and a
+     * parameter would let anyone turn the OTP off on the form that exists to
+     * have one (002 D60).
+     *
+     * What keeps this from being a subscribe-bombing tool is that it grants
+     * nothing — `email_verified_at` stays null, nobody is logged in, and a
+     * repeat submit for the same address sends no second mail (002 D61).
+     */
+    public function quickSubscribe(StoreQuickSubscriptionRequest $request): RedirectResponse
+    {
+        $email = $request->input('email');
+
+        $existing = User::where('email', $email)->first();
+        if ($existing && $existing->newsletter_status === 'subscribed') {
+            return back()->with('newsletter_info', '你已在訂閱清單中');
+        }
+
+        $outcome = $this->newsletterService->subscribeUnverified($email, $request->input('nickname'));
+        $this->sendWelcome($outcome['user']);
+
+        return back()->with('newsletter_subscribed', true);
+    }
+
+    /**
      * Step 2: verify the code, create/attach the member, subscribe, send welcome mail.
      */
     public function verify(Request $request): RedirectResponse
@@ -101,10 +129,16 @@ class NewsletterSubscriptionController extends Controller
         return back()->with('newsletter_subscribed', true);
     }
 
+    /**
+     * Both subscribe paths come through here, so the article choice (012 US9)
+     * is resolved once rather than at each call site.
+     */
     private function sendWelcome(User $user): void
     {
         try {
-            Mail::to($user->email)->send(new NewsletterWelcomeMail($user));
+            Mail::to($user->email)->send(
+                new NewsletterWelcomeMail($user, $this->newsletterService->welcomePost())
+            );
         } catch (\Throwable $e) {
             Log::warning('Newsletter welcome mail failed', ['user' => $user->id, 'error' => $e->getMessage()]);
         }

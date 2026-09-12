@@ -7,7 +7,6 @@ use App\Models\HomepageFeaturedCourse;
 use App\Models\Post;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Builds the shared right-hand sidebar widgets (featured courses / SNS / 近期文章)
@@ -21,7 +20,7 @@ class SidebarService
     public function widgets(): array
     {
         $settings = SiteSetting::getMany([
-            'sns_section_enabled', 'sns_profile_image_path', 'sns_profile_intro',
+            'sns_section_enabled', 'sns_profile_intro',
         ]);
 
         // Cast explicitly: stored as "0"/"1" text — (bool)"0" is true in PHP
@@ -34,11 +33,11 @@ class SidebarService
             ])->values()->toArray()
             : [];
 
-        // Owner profile (avatar + intro) shown above the SNS links; null when section is off.
-        $snsProfilePath = $settings->get('sns_profile_image_path');
+        // Owner intro shown above the SNS links; null when section is off.
+        // The avatar that used to live here retired with 002 US20 — the owner's
+        // picture now has exactly one home, the homepage hero (FR-061).
         $snsProfile = $snsEnabled ? [
-            'image_url' => $snsProfilePath ? Storage::url($snsProfilePath) : null,
-            'intro'     => $settings->get('sns_profile_intro'),
+            'intro' => $settings->get('sns_profile_intro'),
         ] : null;
 
         // "近期文章" widget: pure chronology — "featured" belongs to the

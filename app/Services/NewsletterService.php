@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Broadcast;
+use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -10,11 +12,36 @@ class NewsletterService
 {
     /**
      * Complete a subscription after the email has been OTP-verified.
-     * Finds or creates the member, flips status to subscribed, mints an unsubscribe token.
      *
      * @return array{user: User, already: bool, created: bool}
      */
     public function subscribeVerified(string $email): array
+    {
+        return $this->attach($email, verified: true);
+    }
+
+    /**
+     * Subscribe without proof of ownership — the homepage hero (002 US21).
+     *
+     * The single difference from the OTP path is that `email_verified_at` stays
+     * null (012 FR-015): nobody has proved anything here, and writing the column
+     * anyway would store a claim the login flow reads as true. This path adds a
+     * list row, never an identity — which is the whole reason it is allowed to
+     * skip the code (002 D61).
+     *
+     * @return array{user: User, already: bool, created: bool}
+     */
+    public function subscribeUnverified(string $email, ?string $nickname = null): array
+    {
+        return $this->attach($email, verified: false, nickname: $nickname);
+    }
+
+    /**
+     * The single write point for both subscribe paths (012 FR-015).
+     *
+     * @return array{user: User, already: bool, created: bool}
+     */
+    private function attach(string $email, bool $verified, ?string $nickname = null): array
     {
         $user = User::where('email', $email)->first();
         $created = $user === null;
@@ -26,8 +53,15 @@ class NewsletterService
             ]);
         }
 
-        // email_verified_at is not fillable — set directly (verified via OTP).
-        if (empty($user->email_verified_at)) {
+        // Never rename someone on the strength of an unverified form — fill the
+        // blank only (012 FR-015, same rule as the drip claim in 010 FR-025).
+        if (filled($nickname) && blank($user->nickname)) {
+            $user->nickname = trim($nickname);
+        }
+
+        // email_verified_at is not fillable — set directly, and only when the
+        // caller actually verified the address.
+        if ($verified && empty($user->email_verified_at)) {
             $user->email_verified_at = now();
         }
 
@@ -57,6 +91,31 @@ class NewsletterService
         }
 
         return ['user' => $user, 'already' => $already, 'created' => $created];
+    }
+
+    /**
+     * The article the welcome mail sends (012 FR-016 / FR-017).
+     *
+     * `newsletter_welcome_post_id` is a setting value with no foreign key behind
+     * it, so the choice is re-checked rather than trusted; the descent is
+     * chosen → earliest published → null (caller falls back to the short
+     * template). Earliest, not latest, because the welcome mail is sent for
+     * years and its content should not change every time something is published
+     * (D14).
+     */
+    public function welcomePost(): ?Post
+    {
+        $chosenId = SiteSetting::get('newsletter_welcome_post_id');
+
+        if (filled($chosenId)) {
+            $chosen = Post::published()->find((int) $chosenId);
+
+            if ($chosen) {
+                return $chosen;
+            }
+        }
+
+        return Post::published()->orderBy('published_at')->first();
     }
 
     /**

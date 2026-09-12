@@ -7,8 +7,10 @@ use App\Http\Requests\Admin\SendBroadcastRequest;
 use App\Models\Broadcast;
 use App\Models\NewsletterEmailEvent;
 use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\BroadcastService;
+use App\Services\NewsletterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +20,10 @@ use Inertia\Response;
 
 class BroadcastController extends Controller
 {
-    public function __construct(private BroadcastService $broadcastService) {}
+    public function __construct(
+        private BroadcastService $broadcastService,
+        private NewsletterService $newsletterService,
+    ) {}
 
     public function index(): Response
     {
@@ -45,7 +50,30 @@ class BroadcastController extends Controller
             'broadcasts' => $broadcasts,
             'recentPosts' => $this->postPayload(Post::published()->orderByDesc('published_at')->take(5)->get()),
             'subscriberCount' => User::newsletterSubscribed()->count(),
+            // Which article new subscribers currently receive (012 US9).
+            'welcomePostId' => $this->newsletterService->welcomePost()?->id,
         ]);
+    }
+
+    /**
+     * Point the welcome mail at an article (012 FR-019).
+     *
+     * Its own endpoint rather than part of the send form: pressing that one
+     * mails every subscriber, and two actions whose consequences differ this
+     * much should not share a submit.
+     */
+    public function setWelcomePost(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'post_id' => ['required', 'exists:posts,id'],
+        ], [
+            'post_id.required' => '請選擇文章',
+            'post_id.exists'   => '文章不存在',
+        ]);
+
+        SiteSetting::set('newsletter_welcome_post_id', (string) $validated['post_id']);
+
+        return redirect()->back()->with('success', '歡迎信文章已更新');
     }
 
     /**

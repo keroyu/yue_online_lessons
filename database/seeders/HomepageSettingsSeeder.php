@@ -11,13 +11,15 @@ class HomepageSettingsSeeder extends Seeder
     public function run(): void
     {
         $settings = [
-            'hero_title'          => '經營者時間銀行',
-            'hero_description'    => '省去摸索、試錯，高效經營你的人生，朝著健康、快樂、富足前進。',
-            'hero_button_label'   => '',
-            'hero_button_url'     => '',
-            'hero_banner_path'    => null,
-            'blog_rss_url'        => 'https://getwhealthy.substack.com/feed',
-            'sns_section_enabled' => '1',
+            'hero_title'           => '經營者時間銀行',
+            'hero_subtitle'        => '',
+            'hero_description'     => '省去摸索、試錯，高效經營你的人生，朝著健康、快樂、富足前進。',
+            'hero_banner_path'     => null,
+            // Empty = no 📌 line; pointing it at a course is an editorial
+            // decision, not something a fresh install should guess (FR-070).
+            'hero_promo_course_id' => '',
+            'blog_rss_url'         => 'https://getwhealthy.substack.com/feed',
+            'sns_section_enabled'  => '1',
         ];
 
         foreach ($settings as $key => $value) {

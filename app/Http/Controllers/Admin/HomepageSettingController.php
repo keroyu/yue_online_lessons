@@ -83,27 +83,24 @@ class HomepageSettingController extends Controller
     public function edit(): Response
     {
         $settings = SiteSetting::getMany([
-            'hero_title', 'hero_description', 'hero_button_label',
-            'hero_button_url', 'hero_banner_path',
-            'blog_rss_url', 'sns_section_enabled',
-            'sns_profile_image_path', 'sns_profile_intro',
+            'hero_title', 'hero_subtitle', 'hero_description',
+            'hero_banner_path', 'hero_promo_course_id',
+            'blog_rss_url', 'sns_section_enabled', 'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
-        $snsProfilePath = $settings->get('sns_profile_image_path');
 
         return Inertia::render('Admin/HomepageSettings/Edit', [
             'settings' => [
                 'hero_title'          => $settings->get('hero_title'),
+                'hero_subtitle'       => $settings->get('hero_subtitle'),
                 'hero_description'    => $settings->get('hero_description'),
-                'hero_button_label'   => $settings->get('hero_button_label'),
-                'hero_button_url'     => $settings->get('hero_button_url'),
                 'hero_banner_url'     => $bannerPath ? Storage::url($bannerPath) : null,
+                'hero_promo_course_id' => $settings->get('hero_promo_course_id') ?: null,
                 'blog_rss_url'        => $settings->get('blog_rss_url'),
                 // Cast to bool: stored as "0"/"1" text — (bool)"0" is true in PHP
                 'sns_section_enabled' => (bool) (int) $settings->get('sns_section_enabled', '0'),
-                'sns_profile_image_url' => $snsProfilePath ? Storage::url($snsProfilePath) : null,
-                'sns_profile_intro'     => $settings->get('sns_profile_intro'),
+                'sns_profile_intro'   => $settings->get('sns_profile_intro'),
             ],
             'socialLinks' => SocialLink::ordered()->get()->map(fn ($link) => [
                 'id'       => $link->id,
@@ -126,6 +123,17 @@ class HomepageSettingController extends Controller
                 'id'   => $c->id,
                 'name' => $c->name,
             ])->values(),
+            // Targets for the hero's 📌 line. Any live product qualifies now
+            // that the form subscribes to the newsletter instead of claiming a
+            // chained course (FR-070) — the line is just a link to a sales page.
+            'promoCourses' => Course::where('is_published', true)
+                ->where('status', '!=', 'draft')
+                ->orderBy('id', 'desc')
+                ->get(['id', 'name'])
+                ->map(fn ($c) => [
+                    'id'   => $c->id,
+                    'name' => $c->name,
+                ])->values(),
             'sidebarOrder' => self::sidebarWidgetOrder(),
             'contentCategorySlots' => self::contentCategorySlots(),
             'contentFilterEnabled' => self::contentFilterEnabled(),
@@ -215,37 +223,16 @@ class HomepageSettingController extends Controller
         }
 
         SiteSetting::set('hero_title', $request->input('hero_title'));
+        SiteSetting::set('hero_subtitle', $request->input('hero_subtitle'));
         SiteSetting::set('hero_description', $request->input('hero_description'));
-        SiteSetting::set('hero_button_label', $request->input('hero_button_label'));
-        SiteSetting::set('hero_button_url', $request->input('hero_button_url'));
+        // Empty string, not null: the 📌 line is off when this is blank, and a
+        // stored '' reads back the same on every driver.
+        SiteSetting::set('hero_promo_course_id', (string) $request->input('hero_promo_course_id', ''));
         SiteSetting::set('blog_rss_url', $newRssUrl);
         SiteSetting::set('sns_section_enabled', $request->boolean('sns_section_enabled') ? '1' : '0');
-
-        // SNS 站長形象圖（比照 hero banner：替換時刪舊檔）
-        if ($request->hasFile('sns_profile_image')) {
-            $oldPath = SiteSetting::get('sns_profile_image_path');
-            if ($oldPath) {
-                Storage::disk('public')->delete($oldPath);
-            }
-            $path = $request->file('sns_profile_image')->store('sns-profile', 'public');
-            SiteSetting::set('sns_profile_image_path', $path);
-        }
-
         SiteSetting::set('sns_profile_intro', $request->input('sns_profile_intro'));
 
         return redirect()->back()->with('success', '首頁設定已儲存');
-    }
-
-    public function deleteSnsProfileImage(): RedirectResponse
-    {
-        $path = SiteSetting::get('sns_profile_image_path');
-
-        if ($path) {
-            Storage::disk('public')->delete($path);
-            SiteSetting::set('sns_profile_image_path', null);
-        }
-
-        return redirect()->back()->with('success', '站長形象圖已刪除');
     }
 
     public function deleteBanner(): RedirectResponse

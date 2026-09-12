@@ -97,6 +97,10 @@ Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, '
     ->middleware('throttle:10,1')->name('newsletter.subscribe');
 Route::post('/newsletter/verify', [NewsletterSubscriptionController::class, 'verify'])
     ->middleware('throttle:10,1')->name('newsletter.verify');
+// Homepage hero: one-step subscribe, no OTP (002 US21). A separate route so the
+// verified path above cannot be downgraded by anything a caller sends (D60).
+Route::post('/newsletter/quick-subscribe', [NewsletterSubscriptionController::class, 'quickSubscribe'])
+    ->middleware('throttle:5,1')->name('newsletter.quick-subscribe');
 Route::get('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'showUnsubscribe'])->name('newsletter.unsubscribe.show');
 Route::post('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 
@@ -322,6 +326,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Newsletter broadcasts (send a post as email)
     Route::get('/broadcasts', [AdminBroadcastController::class, 'index'])->name('broadcasts.index');
     Route::get('/broadcasts/search-posts', [AdminBroadcastController::class, 'searchPosts'])->name('broadcasts.search-posts');
+    Route::patch('/broadcasts/welcome-post', [AdminBroadcastController::class, 'setWelcomePost'])->name('broadcasts.welcome-post');
     Route::post('/broadcasts', [AdminBroadcastController::class, 'store'])->middleware('throttle:10,1')->name('broadcasts.store');
     Route::get('/broadcasts/{broadcast}', [AdminBroadcastController::class, 'show'])->whereNumber('broadcast')->name('broadcasts.show');
 
@@ -369,7 +374,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/homepage', [HomepageSettingController::class, 'edit'])->name('homepage.edit');
     Route::post('/homepage', [HomepageSettingController::class, 'update'])->name('homepage.update');
     Route::delete('/homepage/banner', [HomepageSettingController::class, 'deleteBanner'])->name('homepage.banner.destroy');
-    Route::delete('/homepage/sns-profile-image', [HomepageSettingController::class, 'deleteSnsProfileImage'])->name('homepage.sns-profile-image.destroy');
 
     // Social links CRUD
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');

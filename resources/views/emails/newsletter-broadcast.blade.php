@@ -35,6 +35,9 @@
         </p>
     </div>
 
+    {{-- Welcome mail has no broadcast to hang an open event on (012 D15) --}}
+    @if($openPixelUrl)
     <img src="{{ $openPixelUrl }}" alt="" width="1" height="1" style="display:none;border:0;">
+    @endif
 </body>
 </html>

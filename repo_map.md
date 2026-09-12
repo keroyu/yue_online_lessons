@@ -140,6 +140,7 @@ main_files:
 - app/Http/Controllers/CourseController.php
 - app/Http/Controllers/DripSubscriptionController.php
 - app/Http/Controllers/HomeController.php
+- app/Http/Controllers/NewsletterSubscriptionController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/TrackController.php
 - app/Http/Middleware/TrackTrafficSource.php
@@ -150,6 +151,7 @@ main_files:
 - app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php
 - app/Http/Requests/Admin/UpdateHomepageSettingRequest.php
 - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
+- app/Http/Requests/StoreQuickSubscriptionRequest.php
 - app/Jobs/SendDripEmailJob.php
 - app/Mail/NewsletterBroadcastMail.php
 - app/Models/Course.php
@@ -165,6 +167,7 @@ main_files:
 - app/Services/CheckoutService.php
 - app/Services/DripService.php
 - app/Services/EmailLinkTagger.php
+- app/Services/NewsletterService.php
 - app/Services/SidebarService.php
 - app/Services/SiteAnalyticsService.php
 - app/Services/TrafficSourceService.php
@@ -181,6 +184,9 @@ main_files:
 - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
 - database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
 - database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
+- database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php
+- database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php
+- database/seeders/HomepageSettingsSeeder.php
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
@@ -192,6 +198,9 @@ main_files:
 - resources/js/Components/Course/SalesPromoBlock.vue
 - resources/js/Components/CourseCard.vue
 - resources/js/Components/FeaturedCourses.vue
+- resources/js/Components/Home/HeroClaimForm.vue
+- resources/js/Components/Home/HeroSubscribeForm.vue
+- resources/js/Components/Home/HeroUnit.vue
 - resources/js/Components/Layout/Sidebar.vue
 - resources/js/Components/SectionHeader.vue
 - resources/js/Components/SocialLinks.vue
@@ -211,8 +220,11 @@ main_files:
 - tests/Feature/Storefront/FeaturedCourseVisibilityTest.php
 - tests/Feature/Storefront/FreeClaimTrafficTest.php
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
+- tests/Feature/Storefront/HeroSubscribeTest.php
+- tests/Feature/Storefront/HomeHeroTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php
+- tests/Feature/Storefront/SnsProfileTest.php
 
 related_specs:
 - specs/002-storefront/spec.md
@@ -830,6 +842,7 @@ main_files:
 - tests/Feature/Newsletter/AdminScreensTest.php
 - tests/Feature/Newsletter/OgImageTest.php
 - tests/Feature/Newsletter/PostServiceTest.php
+- tests/Feature/Newsletter/WelcomePostTest.php
 
 related_specs:
 - specs/012-newsletter/spec.md

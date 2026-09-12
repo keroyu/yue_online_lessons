@@ -42,18 +42,17 @@ class HomeController extends Controller
             ]);
 
         $settings = SiteSetting::getMany([
-            'hero_title', 'hero_description', 'hero_button_label',
-            'hero_button_url', 'hero_banner_path',
+            'hero_title', 'hero_subtitle', 'hero_description',
+            'hero_banner_path', 'hero_promo_course_id',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
 
         $hero = [
-            'title'        => $settings->get('hero_title'),
-            'description'  => $settings->get('hero_description'),
-            'button_label' => $settings->get('hero_button_label') ?: null,
-            'button_url'   => $settings->get('hero_button_url') ?: null,
-            'banner_url'   => $bannerPath ? Storage::url($bannerPath) : null,
+            'title'       => $settings->get('hero_title') ?: null,
+            'subtitle'    => $settings->get('hero_subtitle') ?: null,
+            'description' => $settings->get('hero_description') ?: null,
+            'banner_url'  => $bannerPath ? Storage::url($bannerPath) : null,
         ];
 
         // Main-column list block: featured posts first (editorial call), then
@@ -76,6 +75,7 @@ class HomeController extends Controller
         return Inertia::render('Home', [
             'courses'         => $courses,
             'hero'            => $hero,
+            'heroPromo'       => $this->heroPromo($settings->get('hero_promo_course_id')),
             'popularPosts'    => $popularPosts,
             'contentCategories' => HomepageSettingController::contentFilterEnabled()
                 ? HomepageSettingController::contentCategories()
@@ -83,6 +83,40 @@ class HomeController extends Controller
             'isAdmin'         => $isAdmin,
             ...app(SidebarService::class)->widgets(),
         ]);
+    }
+
+    /**
+     * The product behind the hero's 📌 line (002 FR-070), or null to hide it.
+     *
+     * `hero_promo_course_id` is a bare setting value with no foreign key behind
+     * it: deleting the course or pulling it back to draft never comes back to
+     * clear the key, so the reference is re-checked on every read.
+     *
+     * The bar is the same one the sales page enforces (`CourseController::show`
+     * 404s on draft or unpublished, nothing else) — deliberately NOT
+     * `visibleToUser()`. That scope folds in `is_visible`, which means "list
+     * this on the homepage", and a funnel product is routinely off that list
+     * precisely because it is reached from an ad rather than from browsing.
+     */
+    private function heroPromo(?string $courseId): ?array
+    {
+        if (blank($courseId)) {
+            return null;
+        }
+
+        $course = Course::where('is_published', true)
+            ->where('status', '!=', 'draft')
+            ->find((int) $courseId, ['id', 'slug', 'name']);
+
+        if (! $course) {
+            return null;
+        }
+
+        return [
+            'course_id' => $course->id,
+            'name'      => $course->name,
+            'url'       => '/course/' . ($course->slug ?: $course->id),
+        ];
     }
 
     /**
