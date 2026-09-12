@@ -67,12 +67,20 @@ defineProps({
         </div>
 
         <!-- Right column: portrait image. Absent entirely when unset — no
-             placeholder block, no fallback colour panel (FR-054). -->
-        <div v-if="hero.banner_url" class="flex shrink-0 justify-center lg:w-[45%]">
+             placeholder block, no fallback colour panel (FR-054).
+
+             Fixed pixel width, not a percentage: the box has to be the same on
+             every page load so the headline's line breaks are decided by the
+             copy alone. A % column made the text column's width a function of
+             the viewport, and the uploaded image's own aspect ratio decided how
+             much of it was used — which is how a 13-character line ended up
+             orphaning its last character. object-contain keeps any aspect ratio
+             inside the box instead of widening it. -->
+        <div v-if="hero.banner_url" class="flex shrink-0 justify-center lg:w-[420px]">
           <img
             :src="hero.banner_url"
             alt=""
-            class="max-h-[280px] w-auto object-contain lg:max-h-[520px]"
+            class="max-h-[280px] w-auto max-w-full object-contain lg:h-[520px] lg:max-h-none lg:w-full lg:object-bottom"
           />
         </div>
       </div>
