@@ -71,7 +71,7 @@ const verifyCode = () => {
 
     <template v-else>
       <h3 class="font-semibold text-gray-900">訂閱電子報，同時成為會員</h3>
-      <p class="text-sm text-gray-500 mt-1">用 Email 接收最新教學分享。注意：過久不開信將被取消訂閱。</p>
+      <p class="text-sm text-gray-500 mt-1">用 Email 接收最新教學分享。注意：超過 30 天不開信可能被取消訂閱。</p>
 
       <p v-if="info" class="text-sm text-gray-600 mt-2">{{ info }}</p>
 
