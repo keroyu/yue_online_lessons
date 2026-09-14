@@ -146,6 +146,25 @@ class PostController extends Controller
     }
 
     /**
+     * Quick featured on/off from the admin list, without opening the edit form.
+     */
+    public function toggleFeatured(Request $request, Post $post): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_featured' => ['required', 'boolean'],
+        ], [
+            'is_featured.required' => '請指定設為或取消精選',
+        ]);
+
+        $post->update(['is_featured' => $validated['is_featured']]);
+
+        return redirect()->back()->with(
+            'success',
+            $validated['is_featured'] ? '已設為精選' : '已取消精選'
+        );
+    }
+
+    /**
      * Normalize validated data: handle uploads, author, publish time.
      */
     private function prepare(StorePostRequest|UpdatePostRequest $request, ?Post $post = null): array

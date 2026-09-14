@@ -4986,7 +4986,8 @@
         "database/migrations/2026_07_10_000004_create_post_images_table.php",
         "tests/Feature/Newsletter/AdminScreensTest.php",
         "tests/Feature/Newsletter/AdminPostCrudTest.php",
-        "tests/Feature/Newsletter/AdminPostSearchTest.php"
+        "tests/Feature/Newsletter/AdminPostSearchTest.php",
+        "routes/web.php"
       ],
       "status": "implemented"
     },

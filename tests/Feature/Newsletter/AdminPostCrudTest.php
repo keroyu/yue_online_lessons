@@ -110,4 +110,32 @@ class AdminPostCrudTest extends TestCase
         // AdminMiddleware redirects non-admins to home rather than 403.
         $this->actingAs($member)->get('/admin/posts')->assertRedirect('/');
     }
+
+    public function test_admin_can_toggle_featured_from_list(): void
+    {
+        $post = Post::create(['slug' => 'star', 'title' => 'x', 'body_md' => 'x', 'status' => 'published', 'published_at' => now()]);
+
+        $this->actingAs($this->admin())
+            ->from('/admin/posts')
+            ->patch(route('admin.posts.featured', $post), ['is_featured' => true])
+            ->assertRedirect('/admin/posts');
+        $this->assertTrue($post->fresh()->is_featured);
+
+        $this->actingAs($this->admin())
+            ->patch(route('admin.posts.featured', $post), ['is_featured' => false]);
+        $this->assertFalse($post->fresh()->is_featured);
+
+        $this->actingAs($this->admin())
+            ->patch(route('admin.posts.featured', $post), [])
+            ->assertSessionHasErrors('is_featured');
+    }
+
+    public function test_non_admin_cannot_toggle_featured(): void
+    {
+        $post = Post::create(['slug' => 'star', 'title' => 'x', 'body_md' => 'x', 'status' => 'draft']);
+        $member = User::create(['email' => 'm@example.com', 'role' => 'member']);
+
+        $this->actingAs($member)->patch(route('admin.posts.featured', $post), ['is_featured' => true])->assertRedirect('/');
+        $this->assertFalse((bool) $post->fresh()->is_featured);
+    }
 }

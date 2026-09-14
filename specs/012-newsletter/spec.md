@@ -152,6 +152,7 @@ touchpoints:
 
 **驗收**：
 - [x] 文章列表分頁 + 狀態篩選（draft/scheduled/published）+ 關鍵字搜尋（title / slug / tag 名稱 / 內文 `body_md`，FR-014）
+- [x] 文章列表每列「設為精選 / 取消精選」按鈕，免進編輯頁即可切換 `is_featured`（`PATCH /admin/posts/{post}/featured`，body `is_featured` 必填 boolean，成功導回列表並保留捲動位置）
 - [ ] PostForm：Markdown textarea + 現有圖片庫 Modal 多選插入、貼上 YouTube 連結存原文（前台才 render embed）
 - [ ] slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、unique；與 course slug 不同命名空間（前台前綴 `/blog/`）故不互撞
 - [ ] tags 以逗號/多選輸入，firstOrCreate Tag 並同步 pivot
@@ -456,3 +457,5 @@ Phase 3 — 驗證
 - 2026-07-20: 後台文章列表每頁筆數 20→50（PostController@index paginate）。純參數調整，前端 page nav 沿用。
 - 2026-07-20: 部落格文章頁 Blog/Show 加上右側欄（與首頁相同 widget）— 版面改 `lg:grid-cols-[1fr_365px]`，BlogController@show 注入共用 `SidebarService::widgets()`（touchpoint 002），前端用共用 `Layout/Sidebar.vue`。手機仍堆疊於文章下方。
 - 2026-07-20: OG 卡片視覺調整（cache v3）— (1) 換乾淨去背 logo；(2) 標題 faux-bold 加粗（drawBold 以 offset grid 疊印，補償變數字型只能渲染 Light 預設實例）；(3) 品牌 lockup 由左下移到右下（依 imagettfbbox 量測寬度右對齊）；(4) 標題行距 1.45→1.5x。維持 1200×630 標準 OG 尺寸（低於建議尺寸部分平台會退小縮圖）。~70KB、全 Newsletter 54 綠。
+- 2026-09-13: 文章訂閱框提示文案「過久不開信將被取消訂閱」改為明確數字「超過 30 天不開信可能被取消訂閱」（SubscribeForm.vue，純文案；僅為警示，與 `CleanDormantSubscribers` 實際門檻無綁定）。
+- 2026-09-13: 後台文章列表新增每列「設為精選 / 取消精選」按鈕 — `PostController::toggleFeatured`（比照 002 精選課程 `toggleVisibility` 的顯式 boolean 寫法，不做盲目反轉，避免雙擊或舊頁面狀態造成錯切）+ 路由 `admin.posts.featured`；Index.vue 操作欄加按鈕（精選中灰字、未精選琥珀字，皆有 hover + pointer）。AdminPostCrudTest +2（切換/缺參數驗證、非 admin 被擋），Newsletter 73 passed、build exit 0。

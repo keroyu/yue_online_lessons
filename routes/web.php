@@ -319,6 +319,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Newsletter posts (mini-blog)
     Route::get('/posts/search', [AdminPostController::class, 'search'])->name('posts.search');
     Route::resource('posts', AdminPostController::class)->except(['show']);
+    Route::patch('/posts/{post}/featured', [AdminPostController::class, 'toggleFeatured'])->name('posts.featured');
     Route::post('/posts/{post}/images', [PostImageController::class, 'store'])->name('posts.images.store');
     Route::get('/posts/{post}/images', [PostImageController::class, 'index'])->name('posts.images.index');
     Route::delete('/post-images/{image}', [PostImageController::class, 'destroy'])->name('posts.images.destroy');

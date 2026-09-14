@@ -46,6 +46,10 @@ const destroy = (post) => {
   router.delete(`/admin/posts/${post.id}`, { preserveScroll: true })
 }
 
+const toggleFeatured = (post) => {
+  router.patch(`/admin/posts/${post.id}/featured`, { is_featured: !post.is_featured }, { preserveScroll: true, preserveState: true })
+}
+
 const goToPage = (page) => {
   router.get('/admin/posts', { ...props.filters, page }, { preserveState: true, preserveScroll: true })
 }
@@ -117,6 +121,12 @@ const goToPage = (page) => {
             <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ post.view_count }}</td>
             <td class="px-4 py-3 text-gray-500">{{ post.published_at ?? '—' }}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button
+                type="button"
+                class="mr-3 cursor-pointer hover:underline"
+                :class="post.is_featured ? 'text-gray-500 hover:text-gray-700' : 'text-amber-600 hover:text-amber-700'"
+                @click="toggleFeatured(post)"
+              >{{ post.is_featured ? '取消精選' : '設為精選' }}</button>
               <Link :href="`/admin/posts/${post.id}/edit`" class="text-brand-teal hover:underline">編輯</Link>
               <button type="button" class="ml-3 text-red-600 hover:underline cursor-pointer" @click="destroy(post)">刪除</button>
             </td>
