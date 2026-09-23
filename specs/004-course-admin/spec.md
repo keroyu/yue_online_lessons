@@ -117,6 +117,8 @@ touchpoints:
 - [x] 有付費/贈送購買紀錄（status=paid 且 type≠system_assigned）的課程不可刪除，顯示「此課程已有學員購買，無法刪除」
 - [x] 可刪除時，同 transaction 先刪 system_assigned 購買紀錄、再軟刪除課程
 - [x] 列表每列提供章節、相簿、來源（僅非 Portaly 課程）、預覽等入口，按鈕語意配色統一
+- [x] 列表第一欄的課程名稱本身即銷售頁連結（新分頁開啟），滑鼠移入有 hover 變色
+- [x] 操作欄原本的「銷售頁」連結改名為「教室預覽」，指向 `/classroom/{id}`（新分頁開啟）
 
 ### User Story 2 - 課程表單欄位與定價設定 (Priority: P1)
 
@@ -211,6 +213,8 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-016**: drip 課程沒有定價概念（免費領取，靠 `target_course_ids` 導購），`price` 對 drip MUST 非必填並以 0 落庫；standard 維持必填。此規則同時適用 Store 與 Update
 - **FR-017**: 驗證錯誤 MUST 永遠可見。錯誤欄位若被條件渲染隱藏（drip 隱藏定價卡、standard 隱藏 drip 卡），`[data-field]` 錨點不存在，捲動與 focus 都會失效——此時 MUST 退回文字清單呈現（欄位中文名 + 訊息），不得只留一個數字讓使用者猜。**任何新增的條件渲染區塊都受此規則約束**
 
+- **FR-018**: 後台課程列表提供兩個前台入口，語意不重複：**課程名稱**（第一欄）連到銷售頁 `/course/{id}`，**操作欄「教室預覽」**連到教室 `/classroom/{id}`。兩者皆 `target="_blank" rel="noopener noreferrer"`，避免管理員離開列表後遺失搜尋/篩選狀態。admin 進入 `/classroom/{id}` 靠 `Course::hasAccessForUser()` 的 admin bypass（FR 不依賴 D7 的 `system_assigned` 購買紀錄），不需任何後端改動
+
 ## 設計決策
 
 - **D1**: `status` + `is_published` 雙欄位而非單一狀態欄 — 下架回草稿後仍可由 `sale_at` 重新推斷發佈狀態；發佈邏輯（未來 sale_at → preorder）collapse 在 `publish()` 一處
@@ -231,6 +235,10 @@ SEO、點數兌換、金流與顯示設定。
 - **D14**: `create()` 的 `availableCourses` 查詢與 `edit()` 相同但不排除自身（新課還沒有 id）— 兩處共用一個 private helper `availableTargetCourses(?Course $exclude = null)`，避免日後條件（如「排除 drip」「僅已發布」）在兩處漂移
 
 - **D15**: `Course` 覆寫 `getRouteKey()` 回傳 `slug ?: id`，而不是覆寫 `getRouteKeyName()` — 後者會讓尚未設定 slug 的課程產生 `/course/`（正式站確實有 slug 空白的課），前者只影響**產生**網址、解析仍走既有的 `resolveRouteBinding`（slug 或 id 皆可）。修正前所有由模型產生的連結（OG url、後台追蹤連結、領取後導向、教室 sales_url）都是 id 版；改在模型單點修，勝過在五個呼叫點各自傳 slug
+
+- **D16**: 「教室預覽」指向 `/classroom/{id}`（會員教室本體）而非 `/course/{id}/preview`（免費試閱頁）— 管理員要檢查的是學員買完後看到的完整教室（章節樹、影片、進度、作業），試閱頁只露出 `is_preview` 的小節，看不出交付內容是否正確。admin 的存取由 `hasAccessForUser()` 既有 bypass 提供（否決：新開一條 admin-only 預覽路由 — 教室頁已對 admin 全開，多一條路由只會多一份會漂移的渲染邏輯）
+- **D17**: 網址沿用 payload 既有的 `course.id` 硬串，不為了 slug 改 index payload — `resolveRouteBinding` 同時吃 slug 與 id，後台連結不吃 SEO，加 slug 只是多一個要同步的欄位（D15 修的是**對外**產生的網址，後台內部入口不在其列）
+- **D18**: 軟刪除課程的兩個連結維持與現狀相同（照常渲染）— 不為這個 case 加條件分支；點進去得到 404 與今天「銷售頁」連結的行為一致，屬既有行為不在本次範圍
 
 ## Schema
 
@@ -276,8 +284,16 @@ Phase 3 — 驗證
 - [x] T00F7 測試：(a) POST 建立 drip 課程不帶 price → 201/redirect 且 `course_type=drip`、`price=0`、`drip_interval_days` 與 `drip_conversion_targets` 正確落庫；(b) POST 建立 high_ticket 且 `high_ticket_hide_price=true` → 該欄位為 true；(c) standard 不帶 price 仍擋下並回 `price` 錯誤 in tests/Feature/Admin/CourseCreateFieldsTest.php
 - [x] T00F8 `php artisan test` 全綠 + `npm run build` exit 0；手動確認新增頁選「連鎖課程」時目標商品清單有選項
 
+### 後台課程列表前台入口調整（US1 追加，FR-018）
+
+- [x] T00G1 課程名稱欄（`<div class="font-medium text-gray-900">{{ course.name }}</div>`）改為 `<a :href="`/course/${course.id}`" target="_blank" rel="noopener noreferrer" class="font-medium text-gray-900 hover:text-brand-teal">`，保留其下 `開賣:` 副標不變 in resources/js/Pages/Admin/Courses/Index.vue
+- [x] T00G2 操作欄第一個連結：文字「銷售頁」→「教室預覽」，`:href` 由 `/course/${course.id}` 改為 `/classroom/${course.id}`，其餘 class 與 `target`/`rel` 不動 in resources/js/Pages/Admin/Courses/Index.vue
+- [x] T00G3 驗證：`npm run build` exit 0；手動確認 admin 點課程名開銷售頁、點「教室預覽」直接進教室不被導到 ClassroomUnauthorized
+
 ## 進度日誌
 
+- 2026-09-23: 實作 T00G1~T00G3 — 後台課程列表的課程名稱改為銷售頁連結（新分頁 + hover 變色），操作欄「銷售頁」改名「教室預覽」並改指 `/classroom/{id}`（admin 走 hasAccessForUser bypass，無後端改動）。npm run build exit 0、php artisan test 953 passed。
+- 2026-09-23: /spec 規劃「後台課程列表前台入口調整」（FR-018、D16~D18、T00G1~T00G3）— 課程名稱加銷售頁連結、原「銷售頁」改為「教室預覽」指向 `/classroom/{id}`。純前端單檔變更。2026-09-23 使用者確認「教室預覽」走 /classroom/{id}（D16 A 案），status: building。
 - 2026-08-04: 移除 `CourseController@subscribers` 與課程編輯頁的「訂閱者」按鈕（011 US8 touchpoint）— drip 訂閱者名單改由 Leads 名單頁的 tab 承載，本模組不再持有 drip 的資料組裝邏輯。
 - 2026-08-02: `Course::getRouteKey()` 改回傳 slug（無 slug 才用 id），修正全站由模型產生的課程網址；Gallery 頁麵包屑課程名補連結（D15）。
 - 2026-08-02: 課程表單「銷售頁促銷區塊」新增輪換折扣碼插入器、`Admin\CourseController`／`ChapterController` 改注入 `CouponChainService` 取清單、Create/Edit 下傳 `couponChains`；插入 UI 抽成 006 owner 的 `CouponChainInserter.vue`，`LessonForm`／`CourseForm` 共用 — 由 006-coupons 以 touchpoint 身分修改，規則見 006 US5／D9。

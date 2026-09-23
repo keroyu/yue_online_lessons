@@ -186,7 +186,14 @@ const formatPrice = (price) => {
                           </div>
                         </div>
                         <div class="ml-4">
-                          <div class="font-medium text-gray-900">{{ course.name }}</div>
+                          <a
+                            :href="`/course/${course.id}`"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-medium text-gray-900 hover:text-brand-teal"
+                          >
+                            {{ course.name }}
+                          </a>
                           <div v-if="course.sale_at" class="text-sm text-gray-500">
                             開賣: {{ course.sale_at }}
                           </div>
@@ -229,12 +236,12 @@ const formatPrice = (price) => {
                       <div class="flex items-center justify-end space-x-3">
                         <!-- 瀏覽 -->
                         <a
-                          :href="`/course/${course.id}`"
+                          :href="`/classroom/${course.id}`"
                           target="_blank"
                           rel="noopener noreferrer"
                           class="text-gray-500 hover:text-gray-800"
                         >
-                          銷售頁
+                          教室預覽
                         </a>
                         <!-- 內容管理 -->
                         <Link
