@@ -309,7 +309,7 @@ touchpoints:
 互動回饋要「有感」：勾選當下有顏色變化與動畫，階段完成時整張卡有慶祝式的脈衝。
 
 **驗收**：
-- [x] 側欄第一列為 Roadmap 入口（在第一個章節之上），顯示 Roadmap 標題與「已完成 / 總數」；課程沒有 Roadmap 時整列不渲染
+- [x] 側欄第一列為 Roadmap 入口（在第一個章節之上），顯示「{Roadmap 標題} 階段檢核表」與「已完成 / 總數」；課程沒有 Roadmap 時整列不渲染
 - [x] 點擊後右側主欄切換為 Roadmap 視圖（不換頁、不發 Inertia 請求）；點任一小節即切回原本的上課視圖
 - [x] Roadmap 為縱向佈局：左側一條貫穿的主軸線，已完成區段填滿品牌色、未完成為淺灰；每階段一個節點（未開始 ○／進行中 ◕／完成 ✓）
 - [x] 每張階段卡顯示：序號、標題、Markdown 說明（以教室既有的 `.course-content` 樣式渲染）、該階段進度條與 `n/m`
@@ -528,6 +528,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-09-24: 教室 Roadmap 標題後綴「階段檢核表」— 側欄入口與主欄標題兩處同步（後台唯讀 modal 共用 RoadmapBoard，一併帶到）。純文案，行為未變。
 - 2026-09-23: 實作 US11 T00R1~T00R14 — roadmap_checkpoint_completions 表與 model、RoadmapProgressService::boardFor、Member\RoadmapController（會員可勾可取消，FR-028）、Admin\StudentRoadmapController（唯讀）、RoadmapBoard.vue（縱向主軸線 + 階段卡 + 純 CSS 勾選 pop／節點光暈／進度條過渡，prefers-reduced-motion 全關）、ChapterSidebar 入口、Classroom.vue activeView 切換、作業批改列表 Roadmap 按鈕 + StudentRoadmapModal。RoadmapProgressTest 6 例綠，php artisan test 966 passed、npm run build exit 0。
 - 2026-09-23: /spec 規劃「教室 Roadmap 與自我檢核」US11（FR-028~033、D28~D35、T00R1~T00R14）— 側欄入口 + 主欄縱向路徑圖、學員可勾可取消（刻意與 FR-026 相反）、純 CSS 遊戲感回饋、作業批改列表可開 modal 看學員進度。Roadmap 定義側見 004 US7。status: draft 待審。
 - 2026-09-11: 作業區樣式併入課程小節（FR-027）— 業主回報教室作業區的表格沒有任何樣式。根因是 `.assignment-content` 是另寫的一套、只到 `code` 為止，`table`/`pre`/`img`/`iframe`/`hr` 全缺。改為別名：刪掉整塊獨立宣告，`app.css` 的每條 `.course-content` 規則並列 `.assignment-content`，另補 h1（原本兩邊都沒有）。唯一保留的差異是 h1/h2 —— 小節的橫幅式標題在留言氣泡裡太重，作業區改用去底色的輕量版（同色系、邊條收細）。順手拿掉 `AssignmentSection.vue` 兩處被蓋掉的 `text-sm` / `text-gray-800`。`npm run build` exit 0；實際外觀待業主在教室確認

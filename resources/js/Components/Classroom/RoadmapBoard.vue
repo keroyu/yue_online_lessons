@@ -131,7 +131,7 @@ const toggle = async (stage, checkpoint) => {
     >
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-xl lg:text-2xl font-bold text-brand-navy">
-          {{ board.title }}
+          {{ board.title }} 階段檢核表
         </h2>
         <span class="text-sm font-medium text-gray-500">
           {{ completedCount }} / {{ totalCount }}
