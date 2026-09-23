@@ -103,6 +103,9 @@
     "app/Http/Controllers/Admin/CoursePlanController.php": [
       "011.us-21"
     ],
+    "app/Http/Controllers/Admin/CourseRoadmapController.php": [
+      "004.us-7"
+    ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7"
     ],
@@ -155,6 +158,7 @@
     "app/Http/Controllers/Admin/HomeworkController.php": [
       "001.us-3",
       "003.us-10",
+      "003.us-11",
       "003.us-6",
       "003.us-7"
     ],
@@ -207,6 +211,9 @@
     ],
     "app/Http/Controllers/Admin/SocialLinkController.php": [
       "002.us-4"
+    ],
+    "app/Http/Controllers/Admin/StudentRoadmapController.php": [
+      "003.us-11"
     ],
     "app/Http/Controllers/Admin/TransactionController.php": [
       "009.us-1",
@@ -297,6 +304,7 @@
     ],
     "app/Http/Controllers/Member/ClassroomController.php": [
       "003.us-10",
+      "003.us-11",
       "003.us-2",
       "003.us-3",
       "003.us-4",
@@ -318,6 +326,9 @@
     ],
     "app/Http/Controllers/Member/PointController.php": [
       "007.us-3"
+    ],
+    "app/Http/Controllers/Member/RoadmapController.php": [
+      "003.us-11"
     ],
     "app/Http/Controllers/Member/SettingsController.php": [
       "001.us-2",
@@ -393,6 +404,9 @@
     "app/Http/Requests/Admin/AssignmentRequest.php": [
       "003.us-10",
       "003.us-6"
+    ],
+    "app/Http/Requests/Admin/CourseRoadmapRequest.php": [
+      "004.us-7"
     ],
     "app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php": [
       "011.us-13"
@@ -692,6 +706,7 @@
       "004.us-1",
       "004.us-2",
       "004.us-5",
+      "004.us-7",
       "011.us-21"
     ],
     "app/Models/CourseDailyStat.php": [
@@ -704,6 +719,12 @@
     ],
     "app/Models/CoursePlan.php": [
       "011.us-21"
+    ],
+    "app/Models/CourseRoadmapCheckpoint.php": [
+      "004.us-7"
+    ],
+    "app/Models/CourseRoadmapStage.php": [
+      "004.us-7"
     ],
     "app/Models/DripConversionTarget.php": [
       "010.us-5"
@@ -791,6 +812,9 @@
       "005.us-7",
       "011.us-21",
       "011.us-5"
+    ],
+    "app/Models/RoadmapCheckpointCompletion.php": [
+      "003.us-11"
     ],
     "app/Models/ShortLink.php": [
       "000.us-8",
@@ -885,6 +909,9 @@
       "006.us-3",
       "006.us-4",
       "006.us-5"
+    ],
+    "app/Services/CourseRoadmapService.php": [
+      "004.us-7"
     ],
     "app/Services/DripService.php": [
       "000.us-9",
@@ -1000,6 +1027,9 @@
       "007.us-5",
       "007.us-7",
       "007.us-8"
+    ],
+    "app/Services/RoadmapProgressService.php": [
+      "003.us-11"
     ],
     "app/Services/SidebarService.php": [
       "002.us-19",
@@ -1504,6 +1534,12 @@
     "resources/js/Components/Admin/RevenueChart.vue": [
       "009.us-6"
     ],
+    "resources/js/Components/Admin/RoadmapStageCard.vue": [
+      "004.us-7"
+    ],
+    "resources/js/Components/Admin/StudentRoadmapModal.vue": [
+      "003.us-11"
+    ],
     "resources/js/Components/Admin/TransactionRefundModal.vue": [
       "009.us-4"
     ],
@@ -1528,6 +1564,7 @@
       "003.us-7"
     ],
     "resources/js/Components/Classroom/ChapterSidebar.vue": [
+      "003.us-11",
       "003.us-2",
       "003.us-3",
       "003.us-4"
@@ -1545,6 +1582,9 @@
     ],
     "resources/js/Components/Classroom/LessonPromoBlock.vue": [
       "010.us-9"
+    ],
+    "resources/js/Components/Classroom/RoadmapBoard.vue": [
+      "003.us-11"
     ],
     "resources/js/Components/Classroom/VideoAccessNotice.vue": [
       "010.us-10"
@@ -1748,7 +1788,11 @@
     ],
     "resources/js/Pages/Admin/Courses/Index.vue": [
       "004.us-1",
-      "004.us-2"
+      "004.us-2",
+      "004.us-7"
+    ],
+    "resources/js/Pages/Admin/Courses/Roadmap.vue": [
+      "004.us-7"
     ],
     "resources/js/Pages/Admin/Courses/Traffic.vue": [
       "002.us-13",
@@ -1793,6 +1837,7 @@
     "resources/js/Pages/Admin/Homework/Index.vue": [
       "001.us-3",
       "003.us-10",
+      "003.us-11",
       "003.us-6"
     ],
     "resources/js/Pages/Admin/Members/Index.vue": [
@@ -1893,6 +1938,7 @@
     ],
     "resources/js/Pages/Member/Classroom.vue": [
       "003.us-10",
+      "003.us-11",
       "003.us-2",
       "003.us-3",
       "003.us-4",
@@ -2012,6 +2058,8 @@
       "002.us-21",
       "002.us-9",
       "003.us-10",
+      "003.us-11",
+      "004.us-7",
       "006.us-1",
       "010.us-15",
       "010.us-17",
@@ -2041,6 +2089,9 @@
     "tests/Feature/Admin/CourseImageBatchUploadTest.php": [
       "004.us-4"
     ],
+    "tests/Feature/Admin/CourseRoadmapTest.php": [
+      "004.us-7"
+    ],
     "tests/Feature/Admin/CourseTypeTest.php": [
       "004.us-2"
     ],
@@ -2059,6 +2110,9 @@
     ],
     "tests/Feature/Classroom/LessonProgressTest.php": [
       "003.us-3"
+    ],
+    "tests/Feature/Classroom/RoadmapProgressTest.php": [
+      "003.us-11"
     ],
     "tests/Feature/Drip/ClaimWordingTest.php": [
       "010.us-1"

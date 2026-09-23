@@ -194,6 +194,10 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
     Route::post('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markComplete'])->name('progress.store');
     Route::delete('/classroom/{course}/progress/{lesson}', [ClassroomController::class, 'markIncomplete'])->name('progress.destroy');
 
+    // Roadmap self-check (003 US11). Unlike lesson progress, members may untick.
+    Route::post('/classroom/{course}/roadmap/{checkpoint}', [\App\Http\Controllers\Member\RoadmapController::class, 'complete'])->name('roadmap.complete');
+    Route::delete('/classroom/{course}/roadmap/{checkpoint}', [\App\Http\Controllers\Member\RoadmapController::class, 'uncomplete'])->name('roadmap.uncomplete');
+
     // Drip subscription (logged-in member one-click subscribe)
     Route::post('/drip/subscribe/{course}', [DripSubscriptionController::class, 'memberSubscribe'])->name('drip.subscribe');
 
@@ -304,6 +308,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/plans/{plan}', [CoursePlanController::class, 'destroy'])->name('plans.destroy');
     Route::put('/lessons/{lesson}/plans', [CoursePlanController::class, 'syncLessons'])->name('lessons.plans.sync');
     Route::put('/plans/{plan}/lessons', [CoursePlanController::class, 'syncPlanLessons'])->name('plans.lessons.sync');
+
+    // A learner's roadmap progress, opened from the homework grading list (003 US11)
+    Route::get('/homework/roadmap/{course}/{user}', [\App\Http\Controllers\Admin\StudentRoadmapController::class, 'show'])->name('homework.roadmap');
+
+    // Course Roadmap (004 US7)
+    Route::get('/courses/{course}/roadmap', [\App\Http\Controllers\Admin\CourseRoadmapController::class, 'edit'])->name('courses.roadmap.edit');
+    Route::put('/courses/{course}/roadmap', [\App\Http\Controllers\Admin\CourseRoadmapController::class, 'update'])->name('courses.roadmap.update');
 
     // Course Images
     Route::get('/courses/{course}/images', [CourseImageController::class, 'index'])->name('images.index');

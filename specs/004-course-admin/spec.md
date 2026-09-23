@@ -6,15 +6,20 @@ owner_files:
   - app/Http/Controllers/Admin/ChapterController.php
   - app/Http/Controllers/Admin/LessonController.php
   - app/Http/Controllers/Admin/CourseImageController.php
+  - app/Http/Controllers/Admin/CourseRoadmapController.php
   - tests/Feature/Admin/CourseImageBatchUploadTest.php
   - app/Http/Requests/Admin/StoreCourseRequest.php
   - app/Http/Requests/Admin/UpdateCourseRequest.php
   - app/Http/Requests/Admin/StoreChapterRequest.php
+  - app/Http/Requests/Admin/CourseRoadmapRequest.php
   - app/Http/Requests/Admin/StoreLessonRequest.php
   - app/Models/Course.php
   - app/Models/Chapter.php
   - app/Models/Lesson.php
   - app/Models/CourseImage.php
+  - app/Models/CourseRoadmapStage.php
+  - app/Models/CourseRoadmapCheckpoint.php
+  - app/Services/CourseRoadmapService.php
   - app/Policies/CoursePolicy.php
   - app/Console/Commands/UpdateCourseStatus.php
   - app/Mail/LessonAddedNotification.php
@@ -28,6 +33,12 @@ owner_files:
   - resources/js/Pages/Admin/Courses/Edit.vue
   - resources/js/Pages/Admin/Courses/Chapters.vue
   - resources/js/Pages/Admin/Courses/Gallery.vue
+  - resources/js/Pages/Admin/Courses/Roadmap.vue
+  - resources/js/Components/Admin/RoadmapStageCard.vue
+  - database/migrations/2026_09_23_000001_create_course_roadmap_stages_table.php
+  - database/migrations/2026_09_23_000002_create_course_roadmap_checkpoints_table.php
+  - database/migrations/2026_09_23_000003_add_roadmap_title_to_courses_table.php
+  - tests/Feature/Admin/CourseRoadmapTest.php
   - database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
   - tests/Feature/Admin/CourseTypeTest.php
   - tests/Feature/Admin/CourseCreateFieldsTest.php
@@ -192,6 +203,22 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 信件優先使用 `EmailTemplate::forEvent('lesson_added')` 模板（變數：course_name / lesson_title / classroom_url，CommonMark 轉 HTML）；無模板時 fallback 至純文字 blade（`emails/lesson-added.blade.php`），主旨依課程 type 顯示 課程/迷你課/講座
 - [x] 逐封同步發送；單封失敗僅記 log，不中斷後續發送、不影響小節儲存成功
 
+### User Story 7 - 課程 Roadmap 編輯 (Priority: P2)
+
+管理員在 `/admin/courses/{course}/roadmap` 為單一課程自訂一份 Roadmap：一串**縱向排列的階段里程碑**，
+每個階段有標題、一段 Markdown 說明，以及一組供學員自我檢核的項目。Roadmap 是**選配**的 —
+沒有建立任何階段的課程，教室頁完全不出現 Roadmap 入口。
+
+**驗收**：
+- [x] 課程列表每列新增「Roadmap」入口（比照章節／相簿），進入本頁
+- [x] 頁面為單一「整份文件」表單：頂部可設定 Roadmap 標題（留空則顯示「Roadmap」），下方為階段卡片清單
+- [x] 階段卡片可新增／刪除／拖曳排序（vuedraggable），每張卡含標題、Markdown 說明、檢核項目清單
+- [x] 檢核項目可在卡片內新增／刪除／拖曳排序；Enter 直接新增下一項
+- [x] 提供「從 Markdown 匯入」貼上框：解析 `## 標題` 為階段、其下 `- [ ]` 行為檢核項目，其餘文字為該階段說明；匯入為**覆蓋草稿**（按儲存才生效），並顯示「將取代目前 N 個階段」警告
+- [x] 儲存為單次 PUT 整份文件；既有階段／檢核項目**以 id 保留**，只有真的被刪掉的項目才連同學員完成紀錄一起消失
+- [x] 刪除階段或檢核項目時，若已有學員勾選，MUST 明確提示「N 位學員的 M 筆完成紀錄會一併刪除」再確認
+- [x] 驗證錯誤以中文顯示於對應欄位；RWD 手機可用
+
 ## Requirements
 
 - **FR-001**: 後台路由統一掛 `auth` + `admin` middleware（只認 `role=admin`）。`CoursePolicy` 雖有 editor 條款（create/update 允許 editor），但 editor 目前被 middleware 擋在後台外，Policy 的 editor 條款僅在前台 `view`（草稿可見性）生效——修改權限模型時須同時考慮兩層
@@ -215,6 +242,12 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-017**: 驗證錯誤 MUST 永遠可見。錯誤欄位若被條件渲染隱藏（drip 隱藏定價卡、standard 隱藏 drip 卡），`[data-field]` 錨點不存在，捲動與 focus 都會失效——此時 MUST 退回文字清單呈現（欄位中文名 + 訊息），不得只留一個數字讓使用者猜。**任何新增的條件渲染區塊都受此規則約束**
 
 - **FR-018**: 後台課程列表提供兩個前台入口，語意不重複：**課程名稱**（第一欄）連到銷售頁 `/course/{id}`，**操作欄「教室預覽」**連到教室 `/member/classroom/{id}`。兩者皆 `target="_blank" rel="noopener noreferrer"`，避免管理員離開列表後遺失搜尋/篩選狀態。admin 進入 `/member/classroom/{id}` 靠 `Course::hasAccessForUser()` 的 admin bypass（FR 不依賴 D7 的 `system_assigned` 購買紀錄），不需任何後端改動
+
+- **FR-019**: Roadmap 為**選配**且**逐課程獨立**：`courses.roadmap_title`（nullable）只決定顯示名稱，「這門課有沒有 Roadmap」的唯一真相是 `course_roadmap_stages` 底下有沒有列。沒有階段 = 沒有 Roadmap，教室端不得出現任何入口或空殼區塊
+- **FR-020**: 儲存是**整份文件覆寫**（單次 PUT），但 **id 必須守住**。payload 裡帶 `id` 的階段／檢核項目走 update、不帶 `id` 的走 insert、payload 裡沒出現的既有列才刪除。**絕對不可以「全刪再全建」** — 學員的完成紀錄掛在 `course_roadmap_checkpoints.id` 上，重建一次等於全站學員的 Roadmap 進度歸零
+- **FR-021**: payload 帶進來的既有 `id` MUST 驗證歸屬（階段屬於本 course、檢核項目屬於該階段），不符一律 422。否則可用別門課的 id 拼出跨課程改寫
+- **FR-022**: `sort_order` 由**陣列位置**決定，後端於儲存時整批重寫（0..n-1），不信任前端送來的 sort_order 值 — 前例 FR-009 的 reorder 防線
+- **FR-023**: Markdown 匯入只是**前端的草稿產生器**，不是 import API：解析後填進表單狀態，使用者仍要按儲存。因此匯入產生的階段一律無 `id`（= 全新），使用者若在既有 Roadmap 上匯入，等同整份取代、既有完成紀錄消失 —— 這就是驗收要求必須先跳警告的原因
 
 ## 設計決策
 
@@ -241,9 +274,23 @@ SEO、點數兌換、金流與顯示設定。
 - **D17**: 網址沿用 payload 既有的 `course.id` 硬串，不為了 slug 改 index payload — `resolveRouteBinding` 同時吃 slug 與 id，後台連結不吃 SEO，加 slug 只是多一個要同步的欄位（D15 修的是**對外**產生的網址，後台內部入口不在其列）
 - **D18**: 軟刪除課程的兩個連結維持與現狀相同（照常渲染）— 不為這個 case 加條件分支；點進去得到 404 與今天「銷售頁」連結的行為一致，屬既有行為不在本次範圍
 
+- **D19**: Roadmap 拆成 `course_roadmap_stages` + `course_roadmap_checkpoints` 兩張正規化表，而不是 `courses.roadmap_json` 單一 JSON 欄位 — 學員的完成紀錄必須指向一個**穩定的識別子**。JSON 只能用陣列索引或自行維護的 uuid：前者在管理員插入／刪除／拖曳任一項時全部錯位（學員勾的「發布 30 篇內容」會變成別項），後者等於在 JSON 裡手刻一套 id 機制，還失去 FK cascade。代價是編輯要做 diff 儲存（FR-020），但那是一次性的 Service 邏輯（否決：JSON 欄位 — 編輯簡單、進度不可靠；否決：三張表全展平成單表 — 階段與檢核項目的欄位與排序語意不同）
+- **D20**: 階段與檢核項目的所有權在 **004**（課程內容的一部分，比照 chapters/lessons），學員的完成紀錄 `roadmap_checkpoint_completions` 歸 **003**（學習行為，比照 `lesson_progress` / `assignment_completions`）。這條線與既有的模組分工完全一致：004 定義「課程長什麼樣」，003 記錄「學員做了什麼」
+- **D21**: 編輯介面是**結構化表單**（卡片 + 兩層 vuedraggable），不是「一個大 Markdown 框存成文字」 — 存純文字就回到 D19 否決掉的位置（沒有穩定 id）。但業主的原始素材就是一份 Markdown 草稿，所以另外提供**一次性的匯入貼上框**（`## 標題` → 階段、`- [ ]` → 檢核項目、其餘行 → 說明），讓第一次建置不用手打 70 幾個項目。匯入產物一律當成全新資料（FR-023），解析器只是前端的字串處理，不落任何後端端點
+- **D22**: `CourseRoadmapService::sync(Course $course, array $data): void` 封裝整段 diff 儲存（單一 transaction：驗歸屬 → upsert 階段 → upsert 各階段檢核項目 → 刪除缺席列 → 重寫 sort_order），controller 只做 `$this->service->sync($course, $request->validated())` + redirect。刪除交給 FK `cascadeOnDelete` 連動清完成紀錄，不在 Service 手動刪第三張表
+- **D23**: `CourseRoadmapRequest` 另提供 `affectedCompletions(Course $course): int` 供刪除警告使用？**否決** — 警告是**前端**的事：頁面載入時每個檢核項目已帶著 `completed_count`，刪除時直接加總即可，不必為了一句提示多一個往返
+
 ## Schema
 
 - 本次新增 migration `2026_08_01_000001_add_ebook_to_courses_type.php` — `courses.type` enum 由 4 值擴為 5 值（加 `ebook`）；以 `Schema::change()` 同時作用於 MySQL 與 sqlite（D10）。down() 還原為 4 值前須確保無 ebook 資料列
+
+**Roadmap（US7 新增，2026-09-23）**：
+
+- `2026_09_23_000001_create_course_roadmap_stages_table.php` — `course_id`（FK cascade）、`title` string(200)、`description_md` text nullable、`sort_order` unsignedInteger default 0、timestamps；index `(course_id, sort_order)`
+- `2026_09_23_000002_create_course_roadmap_checkpoints_table.php` — `course_roadmap_stage_id`（FK cascade）、`label` string(500)、`sort_order` unsignedInteger default 0、timestamps；index `(course_roadmap_stage_id, sort_order)`
+- `2026_09_23_000003_add_roadmap_title_to_courses_table.php` — `courses.roadmap_title` string(100) nullable
+
+關鍵不變量：**checkpoint 的 id 是學員完成紀錄的唯一錨點**（見 FR-020／D19）。刪除階段 → cascade 刪其檢核項目 → cascade 刪學員完成紀錄，這條鏈是刻意的，但也因此任何「重建式儲存」都會靜默清空全站進度。完成紀錄表本身（`roadmap_checkpoint_completions`）歸 003 擁有，見 003 US11 Schema 段。
 
 本模組擁有的資料表（細節見 migrations）：
 
@@ -291,8 +338,33 @@ Phase 3 — 驗證
 - [x] T00G2 操作欄第一個連結：文字「銷售頁」→「教室預覽」，`:href` 由 `/course/${course.id}` 改為 `/member/classroom/${course.id}`，其餘 class 與 `target`/`rel` 不動 in resources/js/Pages/Admin/Courses/Index.vue
 - [x] T00G3 驗證：`npm run build` exit 0；手動確認 admin 點課程名開銷售頁、點「教室預覽」直接進教室不被導到 ClassroomUnauthorized
 
+### 課程 Roadmap 編輯（US7，FR-019~FR-023）
+
+**Phase A — 後端**
+
+- [x] T00H1 三支 migration：`course_roadmap_stages`、`course_roadmap_checkpoints`（皆 FK cascade + (parent, sort_order) index）、`courses.roadmap_title` in database/migrations/2026_09_23_00000{1,2,3}_*.php
+- [x] T00H2 [P] `CourseRoadmapStage`（belongsTo Course、hasMany checkpoints、`$fillable`、預設 orderBy sort_order 的 relation）與 `CourseRoadmapCheckpoint`（belongsTo stage、hasMany completions〔003 model〕）in app/Models/CourseRoadmapStage.php, app/Models/CourseRoadmapCheckpoint.php
+- [x] T00H3 [P] `Course::roadmapStages()` hasMany + orderBy sort_order；`Course::hasRoadmap()` = `roadmapStages()->exists()` in app/Models/Course.php
+- [x] T00H4 `CourseRoadmapRequest`：`roadmap_title` nullable|string|max:100；`stages` array；`stages.*.id` nullable|integer；`stages.*.title` required|string|max:200；`stages.*.description_md` nullable|string|max:5000；`stages.*.checkpoints` array；`stages.*.checkpoints.*.id` nullable|integer；`stages.*.checkpoints.*.label` required|string|max:500；全部附中文 messages（FR-023 比照 003 FR-023 的要求：錯誤必須看得見）in app/Http/Requests/Admin/CourseRoadmapRequest.php
+- [x] T00H5 `CourseRoadmapService::sync(Course $course, array $data): void` — 單一 transaction：(1) 驗所有帶 id 的階段屬於本 course、檢核項目屬於該階段，不符丟 ValidationException（FR-021）；(2) 依陣列位置 upsert 階段與檢核項目並重寫 sort_order（FR-022）；(3) 刪除 payload 中缺席的既有列（cascade 帶走完成紀錄）；(4) 更新 `courses.roadmap_title` in app/Services/CourseRoadmapService.php
+- [x] T00H6 `Admin\CourseRoadmapController`：`edit(Course)` 回 Inertia `Admin/Courses/Roadmap`（帶 course 基本資料 + 階段樹，每個 checkpoint 附 `completed_count` 供 D23 的刪除警告）、`update(CourseRoadmapRequest, Course)` 呼叫 Service 後 redirect back with flash；兩條路由掛既有 admin 群組 in app/Http/Controllers/Admin/CourseRoadmapController.php, routes/web.php〔touchpoint 000〕
+
+**Phase B — 前端**（T00H6 完成後）
+
+- [x] T00H7 `Admin/Courses/Roadmap.vue`：Roadmap 標題輸入、階段卡片清單（vuedraggable）、sticky 儲存列、錯誤清單（比照 CourseForm 的 D12 作法）、刪除前的完成紀錄警告 in resources/js/Pages/Admin/Courses/Roadmap.vue
+- [x] T00H8 [P] `RoadmapStageCard.vue`：單張階段卡（標題、Markdown 說明 textarea、檢核項目 vuedraggable 清單、Enter 新增下一項、逐項刪除）in resources/js/Components/Admin/RoadmapStageCard.vue
+- [x] T00H9 [P] Markdown 匯入貼上框與解析器（`## ` → 階段標題、`- [ ]`／`- [x]` → 檢核項目、其餘非空行 → 該階段 description_md；忽略 `↓` 之類的分隔符），匯入前跳「將取代目前 N 個階段、M 筆學員完成紀錄」確認 in resources/js/Pages/Admin/Courses/Roadmap.vue
+- [x] T00H10 [P] 課程列表操作欄加「Roadmap」連結（比照「章節」配色）in resources/js/Pages/Admin/Courses/Index.vue
+
+**Phase C — 驗證**
+
+- [x] T00H11 測試（TDD，先紅）：(a) 儲存既有階段時 id 保留、學員完成紀錄存活；(b) payload 移除某檢核項目 → 該列與其完成紀錄一起消失；(c) 帶別門課的 stage id → 422；(d) sort_order 由陣列位置重寫、不信前端值 in tests/Feature/Admin/CourseRoadmapTest.php
+- [x] T00H12 `php artisan test` 全綠 + `npm run build` exit 0
+
 ## 進度日誌
 
+- 2026-09-23: 實作 US7 T00H1~T00H12 — 三張 migration（stages / checkpoints / courses.roadmap_title）、CourseRoadmapStage/Checkpoint model、Course::roadmapStages + hasRoadmap、CourseRoadmapRequest、CourseRoadmapService::sync（id 保留式 diff 儲存，sort_order 由陣列位置重寫）、Admin\CourseRoadmapController、Roadmap.vue 編輯頁（拖曳排序 + Markdown 匯入 + 刪除前完成紀錄警告）、課程列表 Roadmap 入口。CourseRoadmapTest 4 例綠（含「編輯不得清空學員進度」的防線），php artisan test 966 passed、npm run build exit 0。
+- 2026-09-23: /spec 規劃「課程 Roadmap 編輯」US7（FR-019~023、D19~D23、T00H1~T00H12）— 後台逐課程自訂縱向階段里程碑與自我檢核清單，正規化兩張表 + id 保留式整份儲存，附 Markdown 匯入。教室端顯示與學員勾選見 003 US11。status: draft 待審。
 - 2026-09-23: 修正「教室預覽」連結 404 — 教室路由掛在 `Route::prefix('member')` 群組下，實際路徑是 `/member/classroom/{id}`，原本寫成 `/classroom/{id}`。與 slug 無關（`resolveRouteBinding` 同時吃 slug 與 id）。新增 AdminCourseListLinksTest 3 例鎖住兩個入口網址可達。
 - 2026-09-23: 實作 T00G1~T00G3 — 後台課程列表的課程名稱改為銷售頁連結（新分頁 + hover 變色），操作欄「銷售頁」改名「教室預覽」並改指 `/classroom/{id}`（admin 走 hasAccessForUser bypass，無後端改動）。npm run build exit 0、php artisan test 953 passed。
 - 2026-09-23: /spec 規劃「後台課程列表前台入口調整」（FR-018、D16~D18、T00G1~T00G3）— 課程名稱加銷售頁連結、原「銷售頁」改為「教室預覽」指向 `/classroom/{id}`。純前端單檔變更。2026-09-23 使用者確認「教室預覽」走 /classroom/{id}（D16 A 案），status: building。

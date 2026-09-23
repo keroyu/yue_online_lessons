@@ -28,6 +28,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Null when the course has no roadmap; the entry then never renders (FR-019)
+  roadmap: {
+    type: Object,
+    default: null,
+  },
+  roadmapActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Check if lesson is locally completed (optimistic UI state)
@@ -35,7 +44,7 @@ const isLocallyCompleted = (lessonId) => {
   return props.localCompletedLessons.has(lessonId)
 }
 
-const emit = defineEmits(['selectLesson', 'toggleComplete'])
+const emit = defineEmits(['selectLesson', 'toggleComplete', 'selectRoadmap'])
 
 // Which chapter holds a given lesson id (null if none / standalone).
 const chapterIdOfLesson = (lessonId) => {
@@ -95,6 +104,27 @@ const getChapterProgress = (chapter) => {
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto">
+      <!-- Roadmap entry, above every chapter (003 US11) -->
+      <button
+        v-if="roadmap && !isFreePreview"
+        type="button"
+        class="w-full flex items-center justify-between gap-2 px-4 py-3 text-left border-b border-gray-100 transition-colors"
+        :class="roadmapActive ? 'bg-brand-cream' : 'hover:bg-gray-50'"
+        @click="emit('selectRoadmap')"
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="w-4 h-4 flex-shrink-0" :class="roadmapActive ? 'text-brand-teal' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <span class="font-medium truncate" :class="roadmapActive ? 'text-brand-navy' : 'text-gray-900'">
+            {{ roadmap.title }}
+          </span>
+        </div>
+        <span class="text-xs text-gray-500 whitespace-nowrap">
+          {{ roadmap.completed_count }}/{{ roadmap.total }}
+        </span>
+      </button>
+
       <!-- Chapters -->
       <div v-for="chapter in chapters" :key="chapter.id" class="border-b border-gray-100">
         <!-- Chapter Header -->

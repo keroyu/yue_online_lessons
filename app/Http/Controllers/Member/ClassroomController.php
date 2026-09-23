@@ -11,6 +11,7 @@ use App\Models\LessonProgress;
 use App\Services\CloudflareStreamService;
 use App\Services\CouponChainService;
 use App\Services\DripService;
+use App\Services\RoadmapProgressService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class ClassroomController extends Controller
         protected DripService $dripService,
         protected CouponChainService $couponChainService,
         protected CloudflareStreamService $cloudflareStreamService,
+        protected RoadmapProgressService $roadmapProgressService,
     ) {}
 
     /**
@@ -179,6 +181,9 @@ class ClassroomController extends Controller
             'standaloneLessons' => $standaloneLessons,
             'currentLesson' => $currentLesson ? $this->formatLessonFull($currentLesson, $completedLessonIds, $lessonUnlockMap, $dripSubscription, $assignment, $assignmentComments, $isAssignmentCompleted, $currentLessonSentAt) : null,
             'hasContent' => $allLessons->count() > 0,
+            // Ships with the page so switching to the roadmap view costs no
+            // round trip and never interrupts a playing video (003 FR-031).
+            'roadmap' => $this->roadmapProgressService->boardFor($course, $user),
         ];
 
         // Add drip subscription info

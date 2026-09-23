@@ -16,6 +16,7 @@ class Course extends Model
     protected $fillable = [
         'name',
         'slug',
+        'roadmap_title',
         'tagline',
         'meta_description',
         'description',
@@ -96,6 +97,19 @@ class Course extends Model
     public function chapters(): HasMany
     {
         return $this->hasMany(Chapter::class)->orderBy('sort_order');
+    }
+
+    public function roadmapStages(): HasMany
+    {
+        return $this->hasMany(CourseRoadmapStage::class)->orderBy('sort_order');
+    }
+
+    /**
+     * A roadmap is optional: owning at least one stage is what turns it on (FR-019).
+     */
+    public function hasRoadmap(): bool
+    {
+        return $this->roadmapStages()->exists();
     }
 
     public function plans(): HasMany

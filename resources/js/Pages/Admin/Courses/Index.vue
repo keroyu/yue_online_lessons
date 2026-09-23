@@ -262,6 +262,12 @@ const formatPrice = (price) => {
                         >
                           相簿
                         </Link>
+                        <Link
+                          :href="`/admin/courses/${course.id}/roadmap`"
+                          class="text-brand-teal hover:text-brand-navy"
+                        >
+                          Roadmap
+                        </Link>
                         <!-- 數據分析 -->
                         <Link
                           v-if="!course.portaly_product_id"

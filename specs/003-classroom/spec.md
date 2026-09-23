@@ -6,15 +6,19 @@ owner_files:
   - app/Http/Controllers/Member/LearningController.php
   - app/Http/Controllers/Member/AssignmentCommentController.php
   - app/Http/Controllers/Member/NotificationController.php
+  - app/Http/Controllers/Member/RoadmapController.php
+  - app/Http/Controllers/Admin/StudentRoadmapController.php
   - app/Http/Controllers/Admin/HomeworkController.php
   - app/Http/Requests/Member/StoreCommentRequest.php
   - app/Http/Requests/Admin/AssignmentRequest.php
   - app/Models/LessonProgress.php
+  - app/Models/RoadmapCheckpointCompletion.php
   - app/Models/Assignment.php
   - app/Models/AssignmentCompletion.php
   - app/Models/Comment.php
   - app/Models/HomeworkNotification.php
   - app/Services/AssignmentService.php
+  - app/Services/RoadmapProgressService.php
   - app/Services/VideoEmbedService.php
   - app/Services/CloudflareStreamService.php
   - app/Services/HomeworkGradingService.php
@@ -29,6 +33,8 @@ owner_files:
   - tests/Feature/Classroom/AiGradingTest.php
   - tests/Feature/Classroom/HomeworkCoursesTest.php
   - tests/Feature/Classroom/LessonProgressTest.php
+  - tests/Feature/Classroom/RoadmapProgressTest.php
+  - database/migrations/2026_09_23_000004_create_roadmap_checkpoint_completions_table.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
   - database/migrations/2026_05_10_000003_create_comments_table.php
   - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
@@ -36,6 +42,8 @@ owner_files:
   - resources/js/composables/useNotifications.js
   - resources/js/Components/Classroom/AssignmentSection.vue
   - resources/js/Components/Classroom/ChapterSidebar.vue
+  - resources/js/Components/Classroom/RoadmapBoard.vue
+  - resources/js/Components/Admin/StudentRoadmapModal.vue
   - resources/js/Components/Classroom/CommentThread.vue
   - resources/js/Components/Classroom/HtmlContent.vue
   - resources/js/Components/Classroom/LessonItem.vue
@@ -57,6 +65,12 @@ touchpoints:
   - file: app/Models/Course.php
     owner: 004-course-admin
     why: hasAccessForUser() 為上課權限唯一判斷入口（admin / 付費購買 / drip 訂閱）；教室讀取章節結構
+  - file: app/Models/CourseRoadmapStage.php
+    owner: 004-course-admin
+    why: 教室 Roadmap 讀取階段與其檢核項目（US11）；定義歸 004、學員完成紀錄歸 003
+  - file: app/Models/CourseRoadmapCheckpoint.php
+    owner: 004-course-admin
+    why: 學員完成紀錄的外鍵目標；`hasMany(RoadmapCheckpointCompletion)` 關聯宣告在 004 的 model 上（US11）
   - file: app/Models/Chapter.php
     owner: 004-course-admin
     why: 教室側欄以 Chapter sort_order 分組顯示小節
@@ -287,6 +301,26 @@ touchpoints:
 - [x] 有填時 input 多第五段 `## 講師補充指示`（上限 2000 字），prompt instructions 明示此段優先於其他脈絡且必須採納；未填時該段整段省略，行為與現況完全相同
 - [x] Feature 測試：有填／未填兩種 input 組裝、超長截斷、補充指示不寫入 comments
 
+### User Story 11 - 教室 Roadmap 與自我檢核 (Priority: P2)
+
+課程若設有 Roadmap（004 US7），教室側欄**所有章節與小節的最上方**多一個「Roadmap」入口。
+點下去，右側主欄（平常顯示小節內容的那一塊）換成一張**縱向的里程碑路徑圖**：階段由上而下串成一條主軸線，
+每個階段是一張卡，卡裡是該階段的自我檢核清單。學員自己勾、自己取消，純粹自我督促 —— 不給積分、不解鎖、不擋任何東西。
+互動回饋要「有感」：勾選當下有顏色變化與動畫，階段完成時整張卡有慶祝式的脈衝。
+
+**驗收**：
+- [x] 側欄第一列為 Roadmap 入口（在第一個章節之上），顯示 Roadmap 標題與「已完成 / 總數」；課程沒有 Roadmap 時整列不渲染
+- [x] 點擊後右側主欄切換為 Roadmap 視圖（不換頁、不發 Inertia 請求）；點任一小節即切回原本的上課視圖
+- [x] Roadmap 為縱向佈局：左側一條貫穿的主軸線，已完成區段填滿品牌色、未完成為淺灰；每階段一個節點（未開始 ○／進行中 ◕／完成 ✓）
+- [x] 每張階段卡顯示：序號、標題、Markdown 說明（以教室既有的 `.course-content` 樣式渲染）、該階段進度條與 `n/m`
+- [x] 檢核項目可點擊勾選與取消；勾選後文字轉灰加刪除線，方框以品牌色填入並有 pop 動畫
+- [x] 一個階段最後一項被勾完時，該卡節點觸發一次脈衝/光暈動畫並升級為完成態；整份 Roadmap 全部完成時頂部總進度條有一次完成回饋
+- [x] 所有可點元素有 `cursor-pointer` 與 hover 樣式；動畫在 `prefers-reduced-motion: reduce` 下全部關閉
+- [x] 勾選為樂觀更新 + 背景 JSON 請求；失敗時回滾該項並顯示錯誤提示，不重整頁面
+- [x] 試閱教室（`isFreePreview`）不顯示 Roadmap
+- [x] 後台「作業批改」列表每則提交的學員名字旁多一顆按鈕，點開 modal 顯示該學員在**該提交所屬課程**的 Roadmap 進度（唯讀、同一張路徑圖的精簡版）；該課程沒有 Roadmap 時按鈕不出現
+- [x] 手機（單欄）下 Roadmap 卡片可正常閱讀與勾選
+
 ## Requirements
 
 - **FR-001**: 上課權限唯一判斷入口為 `Course::hasAccessForUser()`：admin 恆通過、付費購買（paidStatus）通過、drip 訂閱通過；退款（refunded）即失去權限
@@ -316,6 +350,13 @@ touchpoints:
 - **FR-025**: 補充指示不落地也不外流 — 不進 DB、不寫進 comment、不隨 `storeComment` 送出，學員端任何位置都看不到它；面板開啟與關閉時一律清空（同 FR-018 的草稿不落地立場）。生成成功後**保留**在欄位裡，讓老師改一句就能重新生成
 - **FR-026**: `lesson_progress` 的刪除（取消完成）為**管理員專屬**：`ClassroomController::markIncomplete` MUST 以 `$user->isAdmin()` 守門，非 admin 一律 403；前台教室對非 admin 一律不渲染可點的綠勾。對一般會員而言，完成是單向的 —— 只能由 75% 門檻、手動標記或影片播完寫入，不能退回未觀看
 - **FR-027**: 作業區的 Markdown 樣式 MUST 由 `.course-content` 的規則直接承接 —— `app.css` 裡每一條 `.course-content` 選擇器後面並列一條同內容的 `.assignment-content`，MUST NOT 另寫一套宣告。原本獨立的那套只定義到 `code` 為止，沒有 `table` / `pre` / `img` / `iframe` / `hr`，於是作業裡的表格在教室中完全沒有框線與表頭 —— 而同一份 Markdown 貼進小節內文是有的。兩套並存的問題不是重複，是**會分岔**：小節樣式後來補的每一條，作業區都收不到。`h1` 一併補進 `h2` 那條規則（`.course-content` 原本沒有 h1，Tailwind preflight 會讓它退成純文字）。唯一的例外是 `h1` / `h2`：小節的橫幅（teal 漸層底 + 5px 左邊條 + navy 下底線 + 2.5em 上距）是**整頁欄寬**的尺度，搬進只有幾行高的留言氣泡會壓過內容本身，因此作業區另寫一條輕量版 —— 同樣的 navy 字與 teal 左邊條，去掉底色與下底線、邊條收成 3px、字級 1.125rem、上距 1.5em。**除此之外不得再有第二條例外**：每多一條，兩邊就多一個會分岔的地方
+
+- **FR-028**: Roadmap 的完成紀錄與 `lesson_progress` 的**單向規則（FR-026）相反**：學員 MUST 能自行取消勾選。理由是語意不同 —— `lesson_progress` 是「看過了」的事實紀錄，是積分與完課率的依據；Roadmap 是學員對自己工作的**自我宣稱**，本來就會改。它不發積分、不影響完課率、不進任何報表，因此沒有防退回的理由。後端 `RoadmapController::uncomplete` 對一般會員開放，**不得**複製 FR-026 的 admin 守門
+- **FR-029**: 勾選端點 MUST 驗證 checkpoint 經 `stage.course_id` 回推等於路由上的 `{course}`，不符一律 404；並且一律以 `$request->user()` 寫入，**不接受**任何 user_id 參數 —— 否則可代勾他人進度
+- **FR-030**: 寫入冪等：完成走 `firstOrCreate`、取消走 `delete`，重送同一請求不產生第二列也不報錯（比照 FR-003）
+- **FR-031**: Roadmap 視圖與小節視圖的切換是**純前端狀態**，不打 Inertia、不改網址。Roadmap 的全部資料（階段、檢核項目、本人已完成的 id 集合）在 `ClassroomController::show` 一次隨頁面送出。理由同 D2：教室頁的切換不該打斷正在播放的影片，也不值得為一張靜態清單多一次 round trip
+- **FR-032**: 後台查看學員 Roadmap 的端點 MUST 以 `(course, user)` 為輸入並驗證該 user 對該 course 有存取權；回傳唯讀 JSON，**不得**提供任何寫入路徑 —— 講師看得到、改不動，避免「老師幫我勾掉」變成另一種資料來源
+- **FR-033**: Roadmap 為 admin-authored 內容，`description_md` 以 marked 渲染且維持站內慣例 `breaks: true`（FR-014／D13）。檢核項目的 `label` 一律當**純文字**輸出，不過 Markdown —— 它是一行清單文字，過 Markdown 只會讓 `-`、`*`、`#` 之類的字元行為變得難以預期
 
 ## 設計決策
 
@@ -351,6 +392,15 @@ touchpoints:
 - **D26**: 保留 route 與 `markIncomplete`（僅收窄權限），不刪端點 —— admin 在教室裡就是靠它重測某一節的流程（本站 admin 對所有課程恆有存取權，`hasAccessForUser` FR-001）；刪掉等於自己也失去唯一的重置手段。admin 改的是**自己**的 `lesson_progress`，不是代改學員進度；「後台重置某會員某課進度」屬 008-members-admin 的範疇，本次不做
 - **D27**: 樂觀淺綠（`text-green-400`，尚未寫入伺服器）對非 admin 同樣不可點 —— 兩種綠都代表「已完成」，只是持久化程度不同，讓其中一種可以點回去只會製造「為什麼剛才可以、現在不行」的困惑。誤點進某一節仍有解：門檻未到前切換到別的小節，既有邏輯（`cancelLessonTimer` + 移除樂觀狀態）本來就會取消，不會留下紀錄
 
+- **D28**: 完成紀錄表 `roadmap_checkpoint_completions` 歸 003、Roadmap 定義（stages/checkpoints）歸 004 —— 與既有分工一致：004 定義課程內容，003 記錄學員行為（前例：`lessons` 歸 004、`lesson_progress` 歸 003）。跨模組的關聯宣告寫在各自的 model 上，`CourseRoadmapCheckpoint::completions()` 以 touchpoint 身分加在 004 的檔案裡
+- **D29**: Roadmap 是**側欄的一個入口 + 主欄的一個視圖**，不是浮在影片上方的常駐橫幅 —— 業主的 Roadmap 有 8 個階段、70 幾個檢核項，任何常駐形式都會把影片推到摺線以下。放進主欄則直接沿用既有的內容區寬度、捲動與 Markdown 樣式，Roadmap 得到整頁高度可用（否決：頂部橫向關卡條 — 業主明確要求縱向；否決：全螢幕 modal — 與教室其餘內容的操作模型不一致，且無法邊看 Roadmap 邊點側欄小節）
+- **D30**: 切換用 `activeView` ref（`'lesson' | 'roadmap'`）的純前端狀態，不做成 `?view=roadmap` 或假的 lesson id —— 前者要處理瀏覽器前進後退與 Inertia 局部重載的交互，後者會污染 `currentLesson` 的語意（進度計時器、完成判定、作業區全都掛在它上面）。代價是重新整理會回到小節視圖，可接受
+- **D31**: 動畫全部用 **CSS transition / keyframes**，不引入任何動畫或粒子套件 —— 需要的效果（勾選 pop、方框填色、刪除線淡入、節點脈衝光暈、進度條寬度過渡）都是單一元素的 transform / opacity / width，`@keyframes` 十幾行就夠。整段以 `@media (prefers-reduced-motion: reduce)` 收斂為無動畫（否決：canvas-confetti — 為一個一年用不到幾次的慶祝效果多一個 bundle 依賴）
+- **D32**: 配色沿用既有品牌 token，不為 Roadmap 另開色票：主軸線與完成態 `brand-teal`、標題與正文 `brand-navy`、階段完成徽章與光暈 `brand-gold`、卡片底 `brand-cream`/白、未完成灰階。遊戲感來自**動態與層次**（節點狀態、進度填充、脈衝），不是來自新的顏色
+- **D33**: 主欄 Roadmap 與後台 modal 共用同一個 `RoadmapBoard.vue`，以 `readonly` prop 區分 —— 講師看到的必須跟學員看到的是同一張圖，否則兩套渲染邏輯遲早分岔（前例：FR-027 講的正是「兩套樣式並存的問題不是重複，是會分岔」）。`readonly` 時不綁點擊、不渲染 hover 態、不發任何請求
+- **D34**: `RoadmapProgressService` 只封裝**讀取端的組裝**（`boardFor(Course $course, User $user): array` — 階段樹 + 該使用者已完成的 checkpoint id 集合 + 各階段與總進度），寫入端（firstOrCreate / delete 兩行）留在 controller。理由：寫入沒有可封裝的邏輯，硬包一層 Service 只是多一個檔案；而讀取端有三個呼叫點（教室頁、後台 modal、未來可能的會員中心），組裝邏輯必須單一來源
+- **D35**: 後台入口放在「作業批改」列表的**學員名字旁**（業主指定）而非另開一個「學員 Roadmap」後台頁 —— 老師會想看 Roadmap 的時機，正是他讀到這位學員的作業、想知道對方走到哪裡的那一刻。做成獨立頁就得先選課程再搜學員，多兩步而且脫離脈絡
+
 ## Schema
 
 - `lesson_progress` — (user_id, lesson_id) 存在即代表該小節已完成；unique 複合鍵，無其他欄位（完成時間即 created_at）
@@ -365,6 +415,12 @@ touchpoints:
 **AI prompt 列（非本模組資料表，寫入 000 擁有的 `ai_prompts`）**：`key = homework_grading_draft`、`feature = homework`、`label = 作業批改草稿`、`model = gpt-5.6-terra`、`max_output_tokens = 2000`；migration 以「不存在才插入」寫法（比照 `create_ai_prompts_table`，避免覆蓋業主改過的 instructions）
 
 **Config（非資料表）**：`ai.features` 加 `'homework' => '作業批改'`；`services.cloudflare_stream` = `customer_code`（iframe 子網域 customer-{code}.cloudflarestream.com）、`key_id` + `private_key`（base64 PEM，簽 JWT 用）、`token_ttl`（秒，預設 43200）；對應 env `CLOUDFLARE_STREAM_CUSTOMER_CODE` / `CLOUDFLARE_STREAM_KEY_ID` / `CLOUDFLARE_STREAM_PRIVATE_KEY` / `CLOUDFLARE_STREAM_TOKEN_TTL`
+
+**Roadmap 完成紀錄（US11 新增，2026-09-23）**：
+
+- `2026_09_23_000004_create_roadmap_checkpoint_completions_table.php` — `user_id`（FK cascade）、`course_roadmap_checkpoint_id`（FK cascade）、timestamps；**unique `(user_id, course_roadmap_checkpoint_id)`**
+- 與 `lesson_progress` 的差別：存在即完成、完成時間即 `created_at`（同）；但**可刪除**（FR-028），且不觸發積分、不計入完課率、不進任何統計
+- 定義側的 `course_roadmap_stages` / `course_roadmap_checkpoints` 歸 004 擁有，見 004 US7 Schema 段；checkpoint 被刪除時 cascade 帶走這裡的完成紀錄
 
 ## Tasks
 
@@ -443,8 +499,37 @@ touchpoints:
 - [x] T041 Feature 測試：會員 DELETE 進度回 403 且 `lesson_progress` 仍在、admin DELETE 回 200 且紀錄消失、會員 POST 標記完成仍為 200 in `tests/Feature/Classroom/LessonProgressTest.php`
 - [x] T042 `php artisan test` 全綠、`npm run build` exit 0、`python3 tools/build_spec_index.py` 對帳索引
 
+### 教室 Roadmap 與自我檢核（US11，FR-028~FR-033）
+
+> 相依：004 US7 的 T00H1~T00H3（資料表與 model）必須先完成。
+
+**Phase A — 後端**
+
+- [x] T00R1 migration `roadmap_checkpoint_completions`（user_id / course_roadmap_checkpoint_id 皆 FK cascade，unique 複合鍵）in database/migrations/2026_09_23_000004_create_roadmap_checkpoint_completions_table.php
+- [x] T00R2 [P] `RoadmapCheckpointCompletion` model；並於 004 的 `CourseRoadmapCheckpoint` 補 `completions()` hasMany〔touchpoint 004〕in app/Models/RoadmapCheckpointCompletion.php, app/Models/CourseRoadmapCheckpoint.php
+- [x] T00R3 `RoadmapProgressService::boardFor(Course $course, User $user): ?array` — 無階段回 null；有則回 `{title, stages: [{id, title, description_md, checkpoints: [{id, label, completed}], completed_count, total}], completed_count, total}`，以 eager load 避免 N+1 in app/Services/RoadmapProgressService.php
+- [x] T00R4 `Member\RoadmapController@complete` / `@uncomplete`：JSON 端點，驗 checkpoint 經 stage 回推屬於 `{course}`（FR-029）、以 `$request->user()` firstOrCreate / delete（FR-030），**不加 admin 守門**（FR-028）；路由掛 member 群組 in app/Http/Controllers/Member/RoadmapController.php, routes/web.php〔touchpoint 000〕
+- [x] T00R5 `ClassroomController::show` 注入 `RoadmapProgressService`，payload 加 `roadmap`（試閱路徑 `preview()` 不帶）in app/Http/Controllers/Member/ClassroomController.php
+- [x] T00R6 `Admin\StudentRoadmapController@show(Course $course, User $user)`：驗 `hasAccessForUser` 後回 `boardFor()` JSON（唯讀，FR-032）；路由掛 admin 群組 in app/Http/Controllers/Admin/StudentRoadmapController.php, routes/web.php〔touchpoint 000〕
+
+**Phase B — 前端**（T00R5 完成後）
+
+- [x] T00R7 `RoadmapBoard.vue`：縱向主軸線 + 階段卡 + 檢核清單；props `board` / `courseId` / `readonly`；勾選樂觀更新 + fetch 失敗回滾；Markdown 說明以既有 `.course-content` 樣式渲染（`marked` + `breaks: true`），checkpoint label 純文字（FR-033）in resources/js/Components/Classroom/RoadmapBoard.vue
+- [x] T00R8 遊戲感互動（D31）：勾選 pop + 方框填色 + 刪除線淡入、節點狀態轉場、進度條寬度過渡、階段完成脈衝光暈、全數完成的總進度回饋；全部包在 `@media (prefers-reduced-motion: reduce)` 的關閉規則裡 in resources/js/Components/Classroom/RoadmapBoard.vue
+- [x] T00R9 `ChapterSidebar.vue` 新增 Roadmap 入口列（置於所有章節之上，顯示標題與 n/m，active 態同小節），emit `selectRoadmap`；`isFreePreview` 或無 roadmap 時不渲染 in resources/js/Components/Classroom/ChapterSidebar.vue
+- [x] T00R10 `Classroom.vue` 加 `activeView` ref（D30）：`selectRoadmap` → `'roadmap'`、`selectLesson` → `'lesson'`；主欄依 activeView 切換渲染 `RoadmapBoard` 或既有小節區塊；兩處 ChapterSidebar（桌機/手機）都要接 in resources/js/Pages/Member/Classroom.vue
+- [x] T00R11 [P] `StudentRoadmapModal.vue` + 作業批改列表學員名旁的按鈕：點擊 fetch `StudentRoadmapController` 後以 `readonly` 模式渲染同一個 `RoadmapBoard`；課程無 Roadmap 時不顯示按鈕（D33 / D35）in resources/js/Components/Admin/StudentRoadmapModal.vue, resources/js/Pages/Admin/Homework/Index.vue
+- [x] T00R12 [P] `HomeworkController::index` 的 submission payload 補 `course.has_roadmap` 與 `user.id`，供按鈕顯示判斷 in app/Http/Controllers/Admin/HomeworkController.php
+
+**Phase C — 驗證**
+
+- [x] T00R13 測試（TDD，先紅）：(a) 會員可勾選並可**自行取消**（FR-028，明確與 LessonProgressTest 的 admin-only 相反）；(b) 拿別門課的 checkpoint id → 404（FR-029）；(c) 重複 POST 同一 checkpoint 只產生一列（FR-030）；(d) 無 Roadmap 的課程 `boardFor` 回 null 且教室 payload 的 `roadmap` 為 null；(e) 後台端點對無存取權的 user 回 403/404 且無任何寫入路徑 in tests/Feature/Classroom/RoadmapProgressTest.php
+- [x] T00R14 `php artisan test` 全綠 + `npm run build` exit 0；手動檢查：教室側欄入口 → 主欄切換 → 勾選動畫 → 階段完成脈衝 → 手機 RWD → 作業批改 modal
+
 ## 進度日誌
 
+- 2026-09-23: 實作 US11 T00R1~T00R14 — roadmap_checkpoint_completions 表與 model、RoadmapProgressService::boardFor、Member\RoadmapController（會員可勾可取消，FR-028）、Admin\StudentRoadmapController（唯讀）、RoadmapBoard.vue（縱向主軸線 + 階段卡 + 純 CSS 勾選 pop／節點光暈／進度條過渡，prefers-reduced-motion 全關）、ChapterSidebar 入口、Classroom.vue activeView 切換、作業批改列表 Roadmap 按鈕 + StudentRoadmapModal。RoadmapProgressTest 6 例綠，php artisan test 966 passed、npm run build exit 0。
+- 2026-09-23: /spec 規劃「教室 Roadmap 與自我檢核」US11（FR-028~033、D28~D35、T00R1~T00R14）— 側欄入口 + 主欄縱向路徑圖、學員可勾可取消（刻意與 FR-026 相反）、純 CSS 遊戲感回饋、作業批改列表可開 modal 看學員進度。Roadmap 定義側見 004 US7。status: draft 待審。
 - 2026-09-11: 作業區樣式併入課程小節（FR-027）— 業主回報教室作業區的表格沒有任何樣式。根因是 `.assignment-content` 是另寫的一套、只到 `code` 為止，`table`/`pre`/`img`/`iframe`/`hr` 全缺。改為別名：刪掉整塊獨立宣告，`app.css` 的每條 `.course-content` 規則並列 `.assignment-content`，另補 h1（原本兩邊都沒有）。唯一保留的差異是 h1/h2 —— 小節的橫幅式標題在留言氣泡裡太重，作業區改用去底色的輕量版（同色系、邊條收細）。順手拿掉 `AssignmentSection.vue` 兩處被蓋掉的 `text-sm` / `text-gray-800`。`npm run build` exit 0；實際外觀待業主在教室確認
 - 2026-09-10: 實作 FR-026 完成（T037–T042）— `markIncomplete` 加 `isAdmin()` 守門回 403；教室綠勾對非 admin 改渲染純 `<div>`（無 click handler），`handleToggleComplete` 也在前端擋下取消分支。實作時修正一處規劃細節：靜態綠勾不加 `cursor-default` 也不 `stop` 事件 —— 它位在可點的整列裡，攔下來反而變成死區，現在點它等同點該列（切換小節）。新增 LessonProgressTest 3 案，全 repo 885 passed（3695 assertions）、npm run build exit 0
 - 2026-09-10: 規劃「進度取消收歸管理員」（US3 追加 FR-026 / D25~D27）— 一般會員的完成改為單向，綠勾不可點回未觀看；後端 `markIncomplete` 收窄為 admin 專屬（前端鎖 UI + 後端 403 兩層）。端點保留供 admin 自行重測。status: draft 待審

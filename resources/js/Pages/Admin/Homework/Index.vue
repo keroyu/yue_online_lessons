@@ -3,6 +3,7 @@ import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import UserSocialIcons from '@/Components/UserSocialIcons.vue'
+import StudentRoadmapModal from '@/Components/Admin/StudentRoadmapModal.vue'
 import { marked } from 'marked'
 import Pagination from '@/Components/Pagination.vue'
 
@@ -160,6 +161,17 @@ watch(() => props.submissions.current_page, () => {
 })
 
 // Reply panel
+const roadmapModal = ref({ open: false, courseId: null, userId: null, userName: '' })
+
+const openRoadmap = (submission) => {
+  roadmapModal.value = {
+    open: true,
+    courseId: submission.assignment.lesson.course.id,
+    userId: submission.user.id,
+    userName: submission.user.nickname,
+  }
+}
+
 const replyPanel = ref({ open: false, submission: null })
 const replyContent = ref('')
 const replyTextarea = ref(null)
@@ -320,6 +332,21 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                 <div class="flex items-center gap-2">
                   <span class="text-sm font-medium text-gray-900">{{ sub.user.nickname }}</span>
                   <UserSocialIcons :links="sub.user.social_links ?? []" />
+                  <!-- Roadmap progress (003 US11 / D35): the moment a teacher
+                       reads a submission is when they want to know where the
+                       student stands. .stop so it does not also toggle the row. -->
+                  <button
+                    v-if="sub.assignment.lesson.course.has_roadmap"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-md border border-brand-teal/40 px-1.5 py-0.5 text-xs font-medium text-brand-teal hover:bg-brand-teal hover:text-white transition-colors cursor-pointer"
+                    title="查看此學員的 Roadmap 進度"
+                    @click.stop="openRoadmap(sub)"
+                  >
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    Roadmap
+                  </button>
                   <span class="text-xs text-gray-400">{{ sub.user.email }}</span>
                   <span v-if="sub.is_edited" class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
                   <span v-if="sub.replies?.length > 0" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">已回覆</span>
@@ -684,6 +711,13 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
       </div>
     </div>
   </Transition>
+  <StudentRoadmapModal
+    :open="roadmapModal.open"
+    :course-id="roadmapModal.courseId"
+    :user-id="roadmapModal.userId"
+    :user-name="roadmapModal.userName"
+    @close="roadmapModal.open = false"
+  />
 </template>
 
 <style scoped>

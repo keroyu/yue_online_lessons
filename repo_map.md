@@ -240,10 +240,12 @@ main_files:
 - app/Console/Commands/ConvertHtmlToMarkdown.php
 - app/Http/Controllers/Admin/ChapterController.php
 - app/Http/Controllers/Admin/HomeworkController.php
+- app/Http/Controllers/Admin/StudentRoadmapController.php
 - app/Http/Controllers/Member/AssignmentCommentController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/LearningController.php
 - app/Http/Controllers/Member/NotificationController.php
+- app/Http/Controllers/Member/RoadmapController.php
 - app/Http/Requests/Admin/AssignmentRequest.php
 - app/Http/Requests/Admin/StoreLessonRequest.php
 - app/Http/Requests/Member/StoreCommentRequest.php
@@ -253,10 +255,12 @@ main_files:
 - app/Models/HomeworkNotification.php
 - app/Models/Lesson.php
 - app/Models/LessonProgress.php
+- app/Models/RoadmapCheckpointCompletion.php
 - app/Services/AssignmentService.php
 - app/Services/CloudflareStreamService.php
 - app/Services/DripService.php
 - app/Services/HomeworkGradingService.php
+- app/Services/RoadmapProgressService.php
 - app/Services/VideoEmbedService.php
 - config/ai.php
 - config/services.php
@@ -272,11 +276,13 @@ main_files:
 - database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php
 - resources/css/app.css
 - resources/js/Components/Admin/LessonForm.vue
+- resources/js/Components/Admin/StudentRoadmapModal.vue
 - resources/js/Components/Classroom/AssignmentSection.vue
 - resources/js/Components/Classroom/ChapterSidebar.vue
 - resources/js/Components/Classroom/CommentThread.vue
 - resources/js/Components/Classroom/HtmlContent.vue
 - resources/js/Components/Classroom/LessonItem.vue
+- resources/js/Components/Classroom/RoadmapBoard.vue
 - resources/js/Components/Classroom/VideoPlayer.vue
 - resources/js/Components/MyCourseCard.vue
 - resources/js/Pages/Admin/Homework/Index.vue
@@ -288,6 +294,7 @@ main_files:
 - tests/Feature/Classroom/AiGradingTest.php
 - tests/Feature/Classroom/CloudflareStreamTest.php
 - tests/Feature/Classroom/LessonProgressTest.php
+- tests/Feature/Classroom/RoadmapProgressTest.php
 
 related_specs:
 - specs/003-classroom/spec.md
@@ -303,7 +310,9 @@ main_files:
 - app/Http/Controllers/Admin/ChapterController.php
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/CourseImageController.php
+- app/Http/Controllers/Admin/CourseRoadmapController.php
 - app/Http/Controllers/Admin/LessonController.php
+- app/Http/Requests/Admin/CourseRoadmapRequest.php
 - app/Http/Requests/Admin/StoreChapterRequest.php
 - app/Http/Requests/Admin/StoreCourseRequest.php
 - app/Http/Requests/Admin/StoreLessonRequest.php
@@ -312,8 +321,11 @@ main_files:
 - app/Models/Chapter.php
 - app/Models/Course.php
 - app/Models/CourseImage.php
+- app/Models/CourseRoadmapCheckpoint.php
+- app/Models/CourseRoadmapStage.php
 - app/Models/Lesson.php
 - app/Policies/CoursePolicy.php
+- app/Services/CourseRoadmapService.php
 - database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php
 - database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
 - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
@@ -323,17 +335,21 @@ main_files:
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/ImageGalleryModal.vue
 - resources/js/Components/Admin/LessonForm.vue
+- resources/js/Components/Admin/RoadmapStageCard.vue
 - resources/js/Components/CourseCard.vue
 - resources/js/Pages/Admin/Courses/Chapters.vue
 - resources/js/Pages/Admin/Courses/Create.vue
 - resources/js/Pages/Admin/Courses/Edit.vue
 - resources/js/Pages/Admin/Courses/Gallery.vue
 - resources/js/Pages/Admin/Courses/Index.vue
+- resources/js/Pages/Admin/Courses/Roadmap.vue
 - resources/js/Pages/Home.vue
 - resources/views/emails/lesson-added.blade.php
 - routes/console.php
+- routes/web.php
 - tests/Feature/Admin/CourseCreateFieldsTest.php
 - tests/Feature/Admin/CourseImageBatchUploadTest.php
+- tests/Feature/Admin/CourseRoadmapTest.php
 - tests/Feature/Admin/CourseTypeTest.php
 
 related_specs:

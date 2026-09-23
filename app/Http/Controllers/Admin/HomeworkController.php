@@ -31,7 +31,7 @@ class HomeworkController extends Controller
         $manageCourseId = $request->input('manage_course_id');
 
         $query = Comment::topLevel()
-            ->with(['assignment.lesson.course', 'user.socialLinks', 'replies.user', 'assignment.completions'])
+            ->with(['assignment.lesson.course.roadmapStages:id,course_id', 'user.socialLinks', 'replies.user', 'assignment.completions'])
             ->whereHas('assignment');
 
         if ($courseId) {
@@ -69,6 +69,8 @@ class HomeworkController extends Controller
                         'course' => [
                             'id' => $comment->assignment->lesson->course->id,
                             'name' => $comment->assignment->lesson->course->name,
+                            // Drives the roadmap button next to the learner's name (003 US11)
+                            'has_roadmap' => $comment->assignment->lesson->course->roadmapStages->isNotEmpty(),
                         ],
                     ],
                 ],

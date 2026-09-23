@@ -3,6 +3,7 @@ import { ref, computed, onUnmounted, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { useNotifications } from '@/composables/useNotifications'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
+import RoadmapBoard from '@/Components/Classroom/RoadmapBoard.vue'
 import VideoPlayer from '@/Components/Classroom/VideoPlayer.vue'
 import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
@@ -53,6 +54,11 @@ const props = defineProps({
   isFreePreview: {
     type: Boolean,
     default: false,
+  },
+  // Null when this course has no roadmap (004 FR-019)
+  roadmap: {
+    type: Object,
+    default: null,
   },
 })
 
@@ -167,7 +173,19 @@ onUnmounted(() => {
 })
 
 // Handle lesson selection with throttling
+// Which pane the main column shows. Kept as local state rather than a route or
+// a fake lesson id (003 D30): the progress timer, completion rules and the
+// assignment block all hang off currentLesson and must not see a roadmap.
+const activeView = ref('lesson')
+
+const handleSelectRoadmap = () => {
+  activeView.value = 'roadmap'
+  sidebarOpen.value = false
+}
+
 const handleSelectLesson = async (lesson) => {
+  activeView.value = 'lesson'
+
   // Skip if already selected
   if (selectedLesson.value?.id === lesson.id) {
     sidebarOpen.value = false
@@ -457,8 +475,11 @@ const handleVideoEnded = () => {
           :local-completed-lessons="localCompletedLessons"
           :can-uncomplete="canUncomplete"
           :is-free-preview="isFreePreview"
+          :roadmap="roadmap"
+          :roadmap-active="activeView === 'roadmap'"
           @select-lesson="handleSelectLesson"
           @toggle-complete="handleToggleComplete"
+          @select-roadmap="handleSelectRoadmap"
         />
         <p
           v-if="course.is_drip && localChapters.length === 0 && localStandaloneLessons.length === 0"
@@ -522,8 +543,11 @@ const handleVideoEnded = () => {
               :local-completed-lessons="localCompletedLessons"
               :can-uncomplete="canUncomplete"
               :is-free-preview="isFreePreview"
+              :roadmap="roadmap"
+              :roadmap-active="activeView === 'roadmap'"
               @select-lesson="handleSelectLesson"
               @toggle-complete="handleToggleComplete"
+              @select-roadmap="handleSelectRoadmap"
             />
             <p
               v-if="course.is_drip && localChapters.length === 0 && localStandaloneLessons.length === 0"
@@ -538,9 +562,16 @@ const handleVideoEnded = () => {
       <!-- Main Content -->
       <main class="flex-1 overflow-y-auto">
         <div class="max-w-5xl mx-auto p-4 lg:p-8">
+          <!-- Roadmap view (003 US11) -->
+          <RoadmapBoard
+            v-if="activeView === 'roadmap' && roadmap"
+            :board="roadmap"
+            :course-id="course.id"
+          />
+
           <!-- No content state -->
           <div
-            v-if="!hasContent"
+            v-else-if="!hasContent"
             class="flex flex-col items-center justify-center py-16 text-center"
           >
             <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
