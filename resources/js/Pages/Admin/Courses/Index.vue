@@ -236,7 +236,7 @@ const formatPrice = (price) => {
                       <div class="flex items-center justify-end space-x-3">
                         <!-- 瀏覽 -->
                         <a
-                          :href="`/classroom/${course.id}`"
+                          :href="`/member/classroom/${course.id}`"
                           target="_blank"
                           rel="noopener noreferrer"
                           class="text-gray-500 hover:text-gray-800"
