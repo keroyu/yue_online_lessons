@@ -77,7 +77,6 @@ class CourseController extends Controller
                 'is_published' => $course->is_published,
                 'duration_formatted' => $course->duration_formatted,
                 'lessons_count' => $course->lessons()->count(),
-                'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
                 'payment_gateway' => $course->payment_gateway,
                 'use_payuni' => !$course->portaly_product_id && $course->price > 0,

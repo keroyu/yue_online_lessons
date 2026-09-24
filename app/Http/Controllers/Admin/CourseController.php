@@ -200,7 +200,6 @@ class CourseController extends Controller
                 'sale_at' => $course->sale_at?->format('Y-m-d\TH:i'),
                 'duration_minutes' => $course->duration_minutes,
                 'duration_formatted' => $course->duration_formatted,
-                'portaly_url' => $course->portaly_url,
                 'portaly_product_id' => $course->portaly_product_id,
                 'is_visible' => $course->is_visible,
                 'delivery_mode' => $course->course_type ?? 'standard',

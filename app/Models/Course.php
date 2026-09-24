@@ -308,22 +308,6 @@ class Course extends Model
     }
 
     /**
-     * Generate Portaly URL from product_id
-     */
-    protected function portalyUrl(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                if (!$this->portaly_product_id) {
-                    return null;
-                }
-
-                return "https://portaly.cc/kyontw/product/{$this->portaly_product_id}";
-            }
-        );
-    }
-
-    /**
      * Check if promo is currently active
      */
     protected function isPromoActive(): Attribute
