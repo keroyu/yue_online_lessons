@@ -52,13 +52,19 @@ class ColorSchemeTest extends TestCase
      * [label, foreground role, background role, minimum ratio] (FR-121).
      *
      * Prices are `text-xl`–`text-3xl` bold, which WCAG counts as large text at
-     * 3:1; everything else is normal text at 4.5:1, and body ink on the page
-     * canvas is held to AAA because it is most of what anyone reads.
+     * 3:1; everything else is normal text at 4.5:1.
+     *
+     * Body ink was held to AAA 7:1 at first. That turned out to be the reason
+     * three schemes came out heavy: `navy` is both the body ink AND the navbar
+     * fill, so pushing it to 7:1 drove it to near-black, and with the primary
+     * button also a dark fill the page read as two black slabs. AA 4.5 is the
+     * standard the rest of the palette is held to, and it leaves `navy` room to
+     * be a mid-tone.
      */
     private static function gates(): array
     {
         return [
-            ['內文對頁面底色', 'navy', 'cream', 7.0],
+            ['內文對頁面底色', 'navy', 'cream', 4.5],
             ['導覽列與後台側欄', '#FFFFFF', 'navy', 4.5],
             ['主要按鈕', '#FFFFFF', 'teal', 4.5],
             ['連結', 'teal', 'cream', 4.5],
@@ -67,6 +73,9 @@ class ColorSchemeTest extends TestCase
             ['促銷徽章', '#FFFFFF', 'red', 4.5],
             ['售價（大型粗體）', 'red', 'cream', 3.0],
             ['分期價（大型粗體）', 'orange', 'cream', 3.0],
+            // The navbar fill and the primary button fill must not read as the
+            // same slab — the complaint that prompted the relaxation above.
+            ['導覽列與主要按鈕的區辨', 'navy', 'teal', 1.35],
         ];
     }
 

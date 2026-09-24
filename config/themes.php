@@ -67,17 +67,19 @@ return [
             ],
         ],
 
+        // Rice paper and diluted ink rather than ink-black: the chrome is a
+        // warm grey the colour of a worn brush stroke, not a solid block.
         'ink-bamboo' => [
             'name'     => '墨竹',
             'industry' => '東方人文 — 書法、茶道、國學、古典樂',
             'colors'   => [
-                'cream'     => '#F5F2EA',
-                'navy'      => '#262521',
-                'teal'      => '#3F5E56',
-                'gold'      => '#C9A96B',
-                'gold_dark' => '#B0935A',
-                'orange'    => '#BE7C39',
-                'red'       => '#B33A2B',
+                'cream'     => '#FBF8F2',
+                'navy'      => '#585149',
+                'teal'      => '#557159',
+                'gold'      => '#EBD9B0',
+                'gold_dark' => '#DAC38F',
+                'orange'    => '#B9743C',
+                'red'       => '#A8433A',
             ],
         ],
 
@@ -95,17 +97,19 @@ return [
             ],
         ],
 
+        // Linen and limestone with moss as the accent — the chrome is the
+        // stone, not the moss, so the green stays a small bright note.
         'moss-field' => [
             'name'     => '苔原',
             'industry' => '健康永續 — 瑜珈、營養、園藝、戶外',
             'colors'   => [
-                'cream'     => '#F3F2E8',
-                'navy'      => '#262E21',
-                'teal'      => '#4A7A3E',
-                'gold'      => '#D9A441',
-                'gold_dark' => '#BE8F38',
-                'orange'    => '#C27A26',
-                'red'       => '#BF4332',
+                'cream'     => '#F8F8F1',
+                'navy'      => '#525948',
+                'teal'      => '#537645',
+                'gold'      => '#EBE3BB',
+                'gold_dark' => '#D8CD96',
+                'orange'    => '#B2763A',
+                'red'       => '#AC4638',
             ],
         ],
 
@@ -140,17 +144,20 @@ return [
             ],
         ],
 
+        // The old plum chrome made the whole page read as bruised. Chrome is
+        // a mauve taupe now and the accent is a pale peach, so the rose reads
+        // as one note in a light room rather than the room itself.
         'rose-quartz' => [
             'name'     => '玫瑰石英',
             'industry' => '美感生活 — 美妝、香氛、婚顧、花藝',
             'colors'   => [
-                'cream'     => '#FBF3F1',
-                'navy'      => '#3A2430',
-                'teal'      => '#9B4A68',
-                'gold'      => '#E8B07A',
-                'gold_dark' => '#BE8652',
-                'orange'    => '#D96E48',
-                'red'       => '#C02B4E',
+                'cream'     => '#FDF8F6',
+                'navy'      => '#63505A',
+                'teal'      => '#9A5570',
+                'gold'      => '#F6DCC6',
+                'gold_dark' => '#E6C4A9',
+                'orange'    => '#BF7050',
+                'red'       => '#B04B64',
             ],
         ],
 
