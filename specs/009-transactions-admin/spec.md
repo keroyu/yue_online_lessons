@@ -168,4 +168,6 @@ Dashboard 統計卡片快速掌握營運狀況。
 
 ## 進度日誌
 
+- 2026-09-25: 營收圖表軸線錯位修正 — SQL 已用 `CONVERT_TZ` 按台北日分桶，但查詢區間與 X 軸（`CarbonPeriod`）建在 UTC 日上，桶與軸線對不起來、頭尾各錯 8 小時；區間改以台北建、再轉 UTC 下查詢條件。交易 CSV 匯出的 `created_at` 一併補 `->timezone('Asia/Taipei')`（000 US11）
+
 - 2026-07-06: 領域重組 — 自 006-transactions-management 重寫（含 Admin Dashboard），依實際 codebase 校正

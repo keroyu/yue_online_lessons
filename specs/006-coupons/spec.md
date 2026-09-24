@@ -68,6 +68,9 @@ touchpoints:
   - file: app/Http/Controllers/Admin/ChapterController.php
     owner: 004-course-admin
     why: 以 CouponChainService::editorOptions() 傳 couponChains 給小節編輯表單
+  - file: app/Http/Requests/Concerns/NormalizesTaipeiInput.php
+    owner: 000-platform-core
+    why: expires_at 的 FormRequest 用它在 prepareForValidation() 把 datetime-local 的台北牆鐘轉成 UTC（000 US11）
   - file: resources/js/Components/Admin/LessonForm.vue
     owner: 004-course-admin
     why: 促銷內容區掛載 CouponChainInserter（傳 chains / v-model / textarea ref）
@@ -99,6 +102,7 @@ touchpoints:
 
 **驗收**：
 - [x] 建立欄位：代碼（1–6 位英數、全域唯一、含軟刪列不可重複）、類型 fixed（值 ≥ NT$10）/ ratio（0.50–0.95）、適用課程（null = 全站）、到期日（可空，建立時須晚於現在）、名額 max_uses（可空 = 無限）、備註
+- [x] 到期日的輸入與顯示皆為**台北時間**：`{Store,Update}CouponRequest::prepareForValidation()` 轉成 UTC 存，編輯頁與列表 `expires_label` 轉回台北（000 US11）。「建立時須晚於現在」的 `after:now` 因此比對的是台北的現在
 - [x] 編輯不可修改 code（永久唯一）；其餘欄位可改，僅影響之後的新訂單
 - [x] toggle 啟用/停用立即生效（前台驗證即時反映）
 - [x] 刪除為軟刪除：列表消失、代碼字串永久佔用不可重建、歷史訂單與統計不受影響
@@ -187,6 +191,8 @@ touchpoints:
 - `purchases`（沿用既有欄位，無 migration）— 每筆寫 `coupon_code`；`discount_amount` 僅首筆記總折抵額，其餘 0。
 
 ## 進度日誌
+
+- 2026-09-25: 修 `expires_at` 的 8 小時偏差 — 折扣碼原本晚 8 小時才過期，且 `after:now` 比對的是 UTC 的現在（台北 07:00 建立、設當天 09:00 到期會被誤判為未來）。改走 000 的 `NormalizesTaipeiInput`，編輯頁與 `expires_label` 輸出補 `->timezone('Asia/Taipei')`
 
 - 2026-08-02: 去除銷售頁接線帶進來的重複 — chain 清單查詢上移到 `CouponChainService::editorOptions()`（ChapterController 與 Admin\CourseController 共用）、插入器抽成 `CouponChainInserter.vue`（LessonForm 與 CourseForm 共用），記為 D5。行為不變，212 passed、npm build 綠。
 - 2026-08-02: 輪換折扣碼延伸到銷售頁促銷區塊 — `CourseController::show()` 展開 `courses.promo_html` 的 {alias}；後台課程表單加同一組插入器（`Admin\CourseController::couponChainOptions()` + CourseForm 下拉/按鈕，資料形狀比照 ChapterController）。既有機制不變，只是多一個使用點。新增 SalesPromoCouponChainTest（5 tests）。

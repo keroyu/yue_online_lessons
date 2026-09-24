@@ -3174,6 +3174,8 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-09-25: 逐字稿下載的標頭「面談時間」原本寫 `timezone(config('app.timezone'))`，那是 UTC 等於沒轉，改為 `ConsultationSlotService::DISPLAY_TZ`（000 US11）
+
 - 2026-09-11: US36 追銷信自訂指示與追加生成完成（T442–T447，僅剩 T448 使用者實測）— `followupEmail()` 收 `?string $instruction`，輸入擴為五段（新增 `## 目前的追銷信` 與固定為最後一段的 `## 顧問補充指示`，各自為空即整段省略、指示截斷 2000 字）；`generateFollowupEmail()` 改以 `rtrim(既有) . "\n\n" . 新內容` 追加，`followup_email_edited_at` 不再被清、合併超過 20000 字先回 422 再說（上限抽成 `MAX_FOLLOWUP_CHARS` 常數，與 PATCH 的驗證共用同一個數字，避免產出一封存不回去的信）。
   request 欄位命名為 `instruction` 而非沿用 003 的 `note`：`generateFollowupEmail(Request, ConsultationNote $note, ...)` 的路由模型綁定已經佔住那個名字。
   prompt 的兩條規則走獨立的 update migration、以 `## 目前的追銷信` 為 marker 守門（FR-198），正式站已改過的內文不會被覆寫；實際在本機 `php artisan migrate` 跑過一次，確認既有列被接上規則（instructions 1326 字）。

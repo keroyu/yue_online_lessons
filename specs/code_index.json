@@ -545,6 +545,12 @@
       "005.us-3",
       "011.us-9"
     ],
+    "app/Http/Requests/Concerns/NormalizesTaipeiInput.php": [
+      "000.us-11",
+      "004.us-2",
+      "006.us-2",
+      "012.us-5"
+    ],
     "app/Http/Requests/HighTicketBookingRequest.php": [
       "011.us-11",
       "011.us-16",
@@ -1099,6 +1105,12 @@
     "config/ai.php": [
       "000.us-10",
       "003.us-10"
+    ],
+    "config/app.php": [
+      "000.us-11"
+    ],
+    "config/database.php": [
+      "000.us-11"
     ],
     "config/drip.php": [
       "010.us-10"
@@ -2100,6 +2112,11 @@
       "012.us-2",
       "012.us-9"
     ],
+    "tests/Feature/Admin/AdminDateInputTimezoneTest.php": [
+      "000.us-11",
+      "004.us-2",
+      "006.us-2"
+    ],
     "tests/Feature/Admin/CourseCreateFieldsTest.php": [
       "004.us-2"
     ],
@@ -2274,6 +2291,9 @@
     ],
     "tests/Feature/Newsletter/AdminScreensTest.php": [
       "012.us-1"
+    ],
+    "tests/Feature/Newsletter/BroadcastTest.php": [
+      "012.us-5"
     ],
     "tests/Feature/Newsletter/OgImageTest.php": [
       "012.us-2"

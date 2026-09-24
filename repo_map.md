@@ -26,6 +26,7 @@ main_files:
 - app/Http/Middleware/StaffMiddleware.php
 - app/Http/Requests/Admin/StoreShortLinkRequest.php
 - app/Http/Requests/Admin/UpdateShortLinkRequest.php
+- app/Http/Requests/Concerns/NormalizesTaipeiInput.php
 - app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/SendMetaConversionJob.php
 - app/Listeners/BlockSuppressedRecipients.php
@@ -50,6 +51,8 @@ main_files:
 - app/Services/PortalyWebhookService.php
 - bootstrap/app.php
 - config/ai.php
+- config/app.php
+- config/database.php
 - config/services.php
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
@@ -76,6 +79,7 @@ main_files:
 - resources/views/app.blade.php
 - resources/views/sitemap.blade.php
 - routes/web.php
+- tests/Feature/Admin/AdminDateInputTimezoneTest.php
 - tests/Feature/Platform/AiSettingsTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/ShortLinkTest.php
@@ -322,6 +326,7 @@ main_files:
 - app/Http/Requests/Admin/StoreCourseRequest.php
 - app/Http/Requests/Admin/StoreLessonRequest.php
 - app/Http/Requests/Admin/UpdateCourseRequest.php
+- app/Http/Requests/Concerns/NormalizesTaipeiInput.php
 - app/Mail/LessonAddedNotification.php
 - app/Models/Chapter.php
 - app/Models/Course.php
@@ -352,6 +357,7 @@ main_files:
 - resources/views/emails/lesson-added.blade.php
 - routes/console.php
 - routes/web.php
+- tests/Feature/Admin/AdminDateInputTimezoneTest.php
 - tests/Feature/Admin/CourseCreateFieldsTest.php
 - tests/Feature/Admin/CourseImageBatchUploadTest.php
 - tests/Feature/Admin/CourseRoadmapTest.php
@@ -419,6 +425,7 @@ main_files:
 - app/Http/Requests/Admin/StoreCouponRequest.php
 - app/Http/Requests/Admin/UpdateCouponChainRequest.php
 - app/Http/Requests/Admin/UpdateCouponRequest.php
+- app/Http/Requests/Concerns/NormalizesTaipeiInput.php
 - app/Models/CouponChain.php
 - app/Models/CouponCode.php
 - app/Models/Order.php
@@ -445,6 +452,7 @@ main_files:
 - resources/js/Pages/Cart/Index.vue
 - resources/js/Pages/Checkout/Index.vue
 - routes/web.php
+- tests/Feature/Admin/AdminDateInputTimezoneTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 
 related_specs:
@@ -809,6 +817,7 @@ main_files:
 - app/Http/Requests/Admin/SendBroadcastRequest.php
 - app/Http/Requests/Admin/StorePostRequest.php
 - app/Http/Requests/Admin/UpdatePostRequest.php
+- app/Http/Requests/Concerns/NormalizesTaipeiInput.php
 - app/Http/Requests/StoreNewsletterSubscriptionRequest.php
 - app/Jobs/SendBroadcastEmailJob.php
 - app/Mail/NewsletterBroadcastMail.php
@@ -861,6 +870,7 @@ main_files:
 - tests/Feature/Newsletter/AdminPostCrudTest.php
 - tests/Feature/Newsletter/AdminPostSearchTest.php
 - tests/Feature/Newsletter/AdminScreensTest.php
+- tests/Feature/Newsletter/BroadcastTest.php
 - tests/Feature/Newsletter/OgImageTest.php
 - tests/Feature/Newsletter/PostServiceTest.php
 - tests/Feature/Newsletter/WelcomePostTest.php

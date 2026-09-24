@@ -6,6 +6,8 @@ owner_files:
   - app/Http/Controllers/Admin/ChapterController.php
   - app/Http/Controllers/Admin/LessonController.php
   - app/Http/Controllers/Admin/CourseImageController.php
+  - database/seeders/CourseSeeder.php
+  - database/seeders/LessonSeeder.php
   - app/Http/Controllers/Admin/CourseRoadmapController.php
   - tests/Feature/Admin/CourseImageBatchUploadTest.php
   - app/Http/Requests/Admin/StoreCourseRequest.php
@@ -101,6 +103,9 @@ touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
     why: 建課自動指派 system_assigned 購買紀錄、刪課防呆與通知信收件人名單皆查詢此 model
+  - file: app/Http/Requests/Concerns/NormalizesTaipeiInput.php
+    owner: 000-platform-core
+    why: sale_at / promo_ends_at 的 FormRequest 用它在 prepareForValidation() 把 datetime-local 的台北牆鐘轉成 UTC（000 US11）
   - file: app/Models/HighTicketLead.php
     owner: 011-high-ticket
     why: type=high_ticket 的預約行為（leads/隱藏價格前台呈現）歸 011，本模組僅擁有表單欄位
@@ -141,6 +146,7 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 產品類別 `type` 四選一：lecture / mini / full / high_ticket；選 high_ticket 時顯示「隱藏價格（改為預約模式）」開關（`high_ticket_hide_price`）
 - [x] 內容分類 `content_category` 下拉由「首頁設定 → 內容分類」動態帶入（`contentCategories` prop）；後端以 `Rule::in(已設定 slugs)` 驗證，無設定時退回 `regex:^[a-z-]+$`
 - [x] 定價：`price`（優惠價=實際售價）、`original_price`（原價，選填）、`promo_ends_at`（優惠到期）；建立時填了原價但未填到期日 → 自動預設 30 天後
+- [x] `sale_at` 與 `promo_ends_at` 的輸入與顯示皆為**台北時間**：表單送出的裸牆鐘字串在 `{Store,Update}CourseRequest::prepareForValidation()` 轉成 UTC 存，列表與編輯頁回填時轉回台北（000 US11）。編輯頁回填值必須與輸入值逐字相同，否則每存一次就走 8 小時
 - [x] SEO：`slug`（全域唯一、小寫英數連字號、≤200 字）與 `meta_description`（≤160 字）；前台 `/course/{slug}` 與 `/course/{id}` 皆可存取（`resolveRouteBinding` slug 優先）
 - [x] `redeem_points`（nullable 正整數）僅為表單欄位；>0 即前台可兌換（`isRedeemable`），兌換流程歸 007
 - [x] `is_visible` 顯示開關（隱藏課程仍可直接 URL 購買）；`payment_gateway`（payuni/newebpay）選項依 `site_settings` 憑證是否齊全（`gatewayConfigured`）啟用
@@ -362,6 +368,8 @@ Phase 3 — 驗證
 - [x] T00H12 `php artisan test` 全綠 + `npm run build` exit 0
 
 ## 進度日誌
+
+- 2026-09-25: 修 `sale_at` / `promo_ends_at` 的 8 小時偏差 — 原本 datetime-local 的裸字串被當 UTC 直接存，admin 設 09:00 開賣實際是台北 17:00；改走 000 的 `NormalizesTaipeiInput`，列表/編輯頁輸出補 `->timezone('Asia/Taipei')`。另修 `CourseSeeder`（portaly_url 已 drop）與 `LessonSeeder`（html_content → content_md，範例內容改寫為 Markdown），`migrate:fresh --seed` 自今年一月起即無法執行。移除沒人讀的 `portalyUrl` accessor 與 prop（前端自行以 portaly_product_id 組網址）
 
 - 2026-09-23: 實作 US7 T00H1~T00H12 — 三張 migration（stages / checkpoints / courses.roadmap_title）、CourseRoadmapStage/Checkpoint model、Course::roadmapStages + hasRoadmap、CourseRoadmapRequest、CourseRoadmapService::sync（id 保留式 diff 儲存，sort_order 由陣列位置重寫）、Admin\CourseRoadmapController、Roadmap.vue 編輯頁（拖曳排序 + Markdown 匯入 + 刪除前完成紀錄警告）、課程列表 Roadmap 入口。CourseRoadmapTest 4 例綠（含「編輯不得清空學員進度」的防線），php artisan test 966 passed、npm run build exit 0。
 - 2026-09-23: /spec 規劃「課程 Roadmap 編輯」US7（FR-019~023、D19~D23、T00H1~T00H12）— 後台逐課程自訂縱向階段里程碑與自我檢核清單，正規化兩張表 + id 保留式整份儲存，附 Markdown 匯入。教室端顯示與學員勾選見 003 US11。status: draft 待審。

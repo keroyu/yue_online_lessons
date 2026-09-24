@@ -64,7 +64,6 @@ owner_files:
   - database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php
   - tests/Feature/Storefront/CampaignTrafficTest.php
   - resources/js/Components/Home/HeroUnit.vue
-  - resources/js/Components/Home/HeroClaimForm.vue
   - database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php
   - tests/Feature/Storefront/HomeHeroTest.php
   - tests/Feature/Storefront/HeroSubscribeTest.php
@@ -72,7 +71,6 @@ owner_files:
   - tests/Feature/Storefront/SnsProfileTest.php
   - resources/js/Components/Home/HeroSubscribeForm.vue
   - database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php
-  - tests/Feature/Storefront/HeroSubscribeTest.php
 touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
@@ -1141,6 +1139,8 @@ Phase 4 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: `SidebarService` 側欄文章 `published_at` 原本直接對 UTC datetime 取 `toDateString()`，跨午夜會差一天，補 `->timezone('Asia/Taipei')`（000 US11）。另移除 `CourseController` 送出但前端沒讀的 `portaly_url` prop（Show.vue 自行以 portaly_product_id 組網址）
 
 - 2026-09-12: hero 圖片欄改固定像素寬（FR-054 追加）— 業主回報上傳的人物圖會影響左欄大標的斷行（一行 13 字的標題把最後一個「業」擠到第三行）。根因是圖片欄用 `lg:w-[45%]`：文字欄的寬度因此是視窗寬度的函數，而圖片自身的長寬比又決定那塊空間實際用掉多少 —— 斷行位置變成由「這次上傳了什麼圖」決定。改為 `lg:w-[420px]` + `shrink-0`，圖片 `object-contain` 收在固定框內（`lg:h-[520px] lg:w-full lg:object-bottom`），任何長寬比都不會把框撐寬；文字欄因此穩定拿到約 750px，13 字標題不再折第三行。純樣式改動，略過 TDD；`npm run build` exit 0。
 

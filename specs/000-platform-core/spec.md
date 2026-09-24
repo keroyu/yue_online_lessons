@@ -28,6 +28,9 @@ owner_files:
   - database/seeders/ShortLinkSeeder.php
   - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
   - tests/Feature/Platform/ShortLinkTest.php
+  - app/Http/Requests/Concerns/NormalizesTaipeiInput.php
+  - config/database.php
+  - tests/Feature/Admin/AdminDateInputTimezoneTest.php
   - app/Http/Middleware/AdminMiddleware.php
   - app/Http/Middleware/StaffMiddleware.php
   - app/Http/Middleware/HandleInertiaRequests.php
@@ -340,6 +343,20 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 - [x] 側欄設定區加入口，與既有的積分／金流設定並列
 - [x] 測試：admin 可讀寫、staff 被擋、送進來的 `key` / `feature` / `label` 被忽略、`model` 覆寫生效
 
+### User Story 11 - 全站時區約定 (Priority: P1)
+
+DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表單送進來的那一刻、
+資料送出去給人看的那一刻。中間層一律不碰時區。
+
+**驗收**：
+- [x] `config/app.php` 的 `timezone` 維持 `UTC`；`config/database.php` 兩個連線的 `timezone` 釘死 `+00:00`（可用 `DB_TIMEZONE` 覆寫），MUST NOT 留給主機的 `SYSTEM` 決定
+- [x] `datetime-local` 送來的裸牆鐘字串 MUST 在 FormRequest 的 `prepareForValidation()` 用 `NormalizesTaipeiInput::readAsTaipei()` 轉一次，MUST NOT 在 controller 轉
+- [x] `readAsTaipei()` 產出的是 **UTC instance**（`->utc()->toIso8601String()`），不是帶 `+08:00` offset 的字串
+- [x] 送給人看的值（Inertia prop、CSV、信件內文、flash 訊息）在 `format()` / `toDateString()` 前 MUST 有 `->timezone('Asia/Taipei')`；序列化成 ISO 的不必轉（offset 已在字串裡）
+- [x] `course_daily_stats` 與 `post_cta_clicks` 的日期桶**刻意維持 UTC 日**，為既有歷史資料的連續性；此例外 MUST 寫在 CLAUDE.md，避免被當 bug 修掉
+- [x] 對外 API（Zoom、ICS）與 `date` 型欄位（`birth_date` 等）維持原樣，不套用上述轉換
+- [x] 測試涵蓋「台北已過去但 UTC 讀起來像未來」的邊界（`AdminDateInputTimezoneTest`）
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -378,7 +395,14 @@ Resend 在硬退信 / 垃圾信投訴發生時通知本站，系統把該 email 
 
 - **FR-031**: 元件有兩種導覽模式，呼叫端二選一：未給 `href` 時渲染 `<button>` 並 `emit('change', page)`（後台各列表用，換頁邏輯留在呼叫端）；給了 `href`（`(page) => string`）時渲染 Inertia `<Link>`。前台 `/blog` 與 tag 頁 MUST 用 href 模式 —— 那裡的分頁是**爬蟲要跟得到的真連結**，換成只有 click handler 的按鈕等於把第 2 頁以後的文章從索引裡拿掉。
 
+- **FR-110**: Eloquent 寫入 DB 時**用 Carbon 自帶的時區直接 format，不做任何轉換**，讀取時才用 `app.timezone` 解析；query binding（`where('x', '>=', $carbon)`）同樣不轉換。因此送進持久層或查詢條件的 Carbon MUST 已經是 UTC —— 一個帶 `+08:00` 的實例會被原樣寫成台北牆鐘，再被當成 UTC 讀回來，差的還是那 8 小時，只是移到了下一步才發作
+- **FR-111**: 時區轉換 MUST 發生在 `prepareForValidation()` 而非 controller。`after:now` / `before:` 這類規則在驗證階段就會比對時刻，晚一步轉換等於讓驗證拿錯誤的時刻去比 —— 具體後果是放行一個其實已經過去 8 小時的時間（台北 07:00 是 UTC 前一天的 23:00，「未來」的判斷會反過來）
+- **FR-112**: 有 `useCurrent()` 的欄位由 MySQL 自己填（`cart_items` / `order_items` / `lesson_progress` / `course_images` / `post_images`，皆為 `$timestamps = false` 的 model），走的是 **MySQL 的 session 時區**而非 PHP 的。連線時區若留 `SYSTEM`，同一張表裡 PHP 寫的列與 MySQL 寫的列會差 8 小時，而且開發機（macOS 預設 Asia/Taipei）與正式站（UTC）的行為不一致 —— 這是 FR-109 之外另一個「不會有任何錯誤訊息」的靜默分歧
+
 ## 設計決策
+
+- **D36**: 基準時區維持 **UTC**，不改成 `Asia/Taipei`（使用者發現正式站主機是 UTC 時提出，經評估後否決切換）。切換要位移 121 個 datetime 欄位、44 張表，單向不可逆且需停機停 worker，換來的只有「4 個表單順手修好 + DB 直接看比較順眼」；而對外整合（Zoom、ICS、金流 webhook）全講 UTC，改成本地時區只是把轉換從入口搬到出口。真正的病是「轉換寫得不一致」不是「基準選錯」，所以補齊邊界轉換、把約定寫進 CLAUDE.md，零 migration 零停機。另兩個理由：正式站的 nginx / PHP-FPM log 是 UTC，app log 改台北會在查線上問題時差 8 小時；`consultation_notes.consultant_id` 已預留多顧問，境外顧問只有 UTC 撐得住
+- **D37**: 入口轉換做成 **trait**（`NormalizesTaipeiInput`）而非各 FormRequest 自己寫。這次一口氣有 5 個 FormRequest 要同樣的處理，而漏掉的代價是靜默的 8 小時偏差 —— 沒有例外噴出來，只有使用者事後發現課程在半夜開賣。共用一個入口也讓「UTC instance 而非 offset 字串」這個容易寫錯的細節只需正確一次
 
 - **D29**: AI prompt 存**獨立的 `ai_prompts` 表**，不散成 `site_settings` 的一堆 key。使用者要求這頁「方便以後擴展到其他 AI 功能」，而用表的話新增一個功能 = 插一列資料、設定頁自動長出區塊；用 site_settings 的話每加一個功能都要動 controller 與 Vue。這與 D2「新增設定鍵零 migration」不衝突：D2 的前提是設定鍵彼此獨立、UI 各自寫死，而 prompt 是**同構的一組**，同構的東西該用列而不是鍵。
 - **D30**: 每個 prompt 各自可指定 `model`，而不是全站一個模型設定（使用者決策）。同一個功能裡的不同步驟對智慧的需求差很多 —— 逐字稿校訂是機械活、摘要要判斷力，兩者用同一個模型不是浪費就是將就。`null` 表示「跟隨全站預設」，讓大多數 prompt 不必操心這件事。
@@ -544,6 +568,8 @@ Phase 5 — 驗證：
 - [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
 
 ## 進度日誌
+
+- 2026-09-25: 新增 US11 全站時區約定 — 釘死 DB 連線時區 `+00:00`（原為 `SYSTEM`，開發機 Asia/Taipei、正式站 UTC，`useCurrent()` 欄位在兩邊差 8 小時）、新增 `NormalizesTaipeiInput` trait 供 004/006/012 的 FormRequest 做入口轉換、`AdminDateInputTimezoneTest` 覆蓋「台北已過去但 UTC 看似未來」邊界。經評估否決「主機改 Asia/Taipei」方案（見 D36）。CLAUDE.md 新增 `## Timezone` 段。985 passed
 
 - 2026-09-08: 全站分頁收斂成單一元件（T046–T058 完成，僅剩 T059 使用者實測，FR-030 / FR-031）— `Components/Pagination.vue` 上線，**12 個畫面**全數改用它（原規劃 11 個，實作時發現 `/blog` 與 tag 頁是兩個各自的檔案）。視窗演算法先用一支獨立腳本把 11 組 `(current, last)` 跑過一遍才接呼叫端：`cur=1 last=32`、`cur=32 last=32`、`cur=6 last=11` 這幾組正是「置中」寫法最容易只吐半排頁碼的地方，全部確認恰好 10 個頁碼位置、首尾恆在、`last<=10` 不出現 `…`。
   三個實作上的意外：作業列表把換頁寫在 template 的 `@click` 裡（三處各一份 `router.get`），抽成 `goToSubmissionsPage()` 才有得傳給元件；`Blog/Tag.vue` 的 `defineProps` 原本沒接成 `props`，href 函式要讀 `tag.slug` 才補上；`Blog/Index.vue` 的 `Link` 在換掉分頁後成了沒人用的 import，一併移除。積分頁的 `v-html` 如期消失（D34）。後端一行沒動 —— 兩支 blog 查詢都沒有其他查詢字串要保留，`pageHref` 直接產 `?page=N` 即可。`npm run build` exit 0、全站 `php artisan test` **873 passed（3656 assertions）**。

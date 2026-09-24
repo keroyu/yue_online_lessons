@@ -595,6 +595,8 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-09-25: 教室頁 drip 訂閱的 `subscribed_at` 原本直接對 UTC datetime 取 `toDateString()`，跨午夜會差一天，補 `->timezone('Asia/Taipei')`（000 US11）
+
 - 2026-09-24: 實作 US12 作業草稿與正式提交（T00D1~T00D14）— `comments.submitted_at`（NULL=草稿）+ 既有留言 backfill、`homework_notifications.type` enum→string(20)；`AssignmentService` 四個狀態轉移（saveDraft / submit / revertToDraft / returnToDraft）、學員端 submit / revert 兩條路由、後台 `/return` 打回草稿、後台列表 `submitted()` 過濾並改依 submitted_at 排序、AI 批改對草稿回 404、教室 payload 補 is_draft / can_revert、鈴鐺 returned 文案；前端兩顆按鈕 + hint 小字 + amber 草稿卡 + 後台「打回草稿」。規劃時寫「後端回 422」，實作改為 Inertia 慣例的 `withErrors`（裸 422 在 Inertia 表單請求下訊息顯示不出來），FR-038 已同步修正。AssignmentDraftTest 13 例綠、全 repo 979 passed（4200 assertions）、npm run build exit 0；本機 MySQL 實跑 migration 確認 6 筆既有留言全部 backfill 成已提交、type 欄位為 varchar(20)。附帶修正：AiGradingTest 與 UserSocialLinkTest 的 comment fixture 補 submitted_at。
 - 2026-09-24: /spec 規劃「作業草稿與正式提交」US12（FR-034~043、D36~D42、T00D1~T00D14）— `comments.submitted_at` 單欄位表達狀態，一題一草稿、草稿轉正沿用同一筆；學員在無回覆且未標記完成前可自行改回草稿，講師另有「打回草稿」並發 `returned` 通知。status: draft 待審。
 - 2026-09-24: 教室 Roadmap 標題後綴「階段檢核表」— 側欄入口與主欄標題兩處同步（後台唯讀 modal 共用 RoadmapBoard，一併帶到）。純文案，行為未變。

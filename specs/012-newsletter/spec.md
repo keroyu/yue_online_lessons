@@ -18,6 +18,7 @@ owner_files:
   - app/Http/Controllers/Admin/PostController.php
   - app/Http/Controllers/Admin/PostImageController.php
   - app/Http/Controllers/Admin/BroadcastController.php
+  - tests/Feature/Newsletter/BroadcastTest.php
   # Requests
   - app/Http/Requests/Admin/StorePostRequest.php
   - app/Http/Requests/Admin/UpdatePostRequest.php
@@ -133,6 +134,9 @@ touchpoints:
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
     why: 電子報信件頁尾站名改讀 site_settings.hero_title（後台首頁設定「標題」），不再用 config('app.name')（FR-013）
+  - file: app/Http/Requests/Concerns/NormalizesTaipeiInput.php
+    owner: 000-platform-core
+    why: scheduled_at 的 FormRequest 用它在 prepareForValidation() 把 datetime-local 的台北牆鐘轉成 UTC（000 US11）
   - file: database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
     owner: 004-course-admin
     why: 既有 bug 修復 — 原生 `ALTER TABLE ... MODIFY` 在 sqlite 測試庫報錯，導致全 repo RefreshDatabase 測試無法執行；加 driver guard（sqlite 跳過）以便驗證本模組
@@ -212,6 +216,7 @@ touchpoints:
 - [ ] 信件含 text/plain 備援、`List-Unsubscribe` + `List-Unsubscribe-Post`（RFC 8058 一鍵退訂）header、tracking pixel
 - [ ] Job 發送前檢查收件者仍為 subscribed（退訂者不寄）；失敗重試 3 次（backoff 60/300/900）
 - [ ] 全部寄完更新 sent_count 與 status=sent、sent_at；重寄同一文章允許（建立新 Broadcast，不覆蓋歷史）
+- [x] 排程時間 `scheduled_at` 的輸入與顯示皆為**台北時間**：`SendBroadcastRequest::prepareForValidation()` 轉成 UTC 存，列表、寄送成功 flash 訊息與 `sent_at` / 開信時間輸出轉回台北（000 US11）
 
 ### User Story 6 - 開信追蹤與後台成效 (Priority: P2)
 
@@ -416,6 +421,8 @@ Phase 3 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 修 `scheduled_at` 的 8 小時偏差 — 電子報原本晚 8 小時才寄出；改走 000 的 `NormalizesTaipeiInput`。同一批修掉列表 `sent_at`、開信名單 `opened_at`、文章 `published_at` 與排程 flash 訊息的輸出轉換。`BroadcastTest` 既有兩個案例原本以 UTC 牆鐘送值（等於編碼了錯誤假設），改為台北牆鐘並新增 `test_schedule_time_is_read_as_taipei_and_stored_as_utc`
 
 - 2026-09-12: US9 歡迎信改寄指定文章完成（T001–T009，僅剩 T010 使用者實測）＋ FR-015 的 `subscribeUnverified()` 一併落地（隨 002 US21）— `NewsletterService::welcomePost()` 實作三層降級（指定 → 最早發布 → null），`NewsletterWelcomeMail` 建構子加選填 `?Post`：有文章時主旨＝標題、改吃 broadcast 的兩個 blade、連結戳 `utm_campaign=welcome`／`utm_content={slug}`、`openPixelUrl` 為 null（blade 的像素那行加 `@if` 包起，broadcast 路徑行為不變）；無文章時維持既有簡短模板。`sendWelcome()` 是 OTP 與 hero 兩條路徑的唯一出口，所以選文只解析一次。後台在 `/admin/broadcasts` 既有的文章清單每列加「設為歡迎信」，`PATCH /admin/broadcasts/welcome-post` 獨立端點 —— 那頁另一顆按鈕按下去會真的寄給所有訂閱者，兩者不共用提交。
   **一個實作中才看清的 HTML 問題**：那些列本身就是 `<button>`（點擊＝選為寄送目標），要加第二顆按鈕得先把外層 `<li>` 改成 flex 容器並把選取區縮成內層 button —— 巢狀 `<button>` 是無效 HTML，spec 有預先記下這點，實作照做。

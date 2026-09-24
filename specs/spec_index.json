@@ -71,6 +71,36 @@
       "status": "implemented"
     },
     {
+      "id": "000.us-11",
+      "module": "000-platform-core",
+      "title": "全站時區約定",
+      "summary": "DB 存 UTC、顯示台北；轉換只發生在 FormRequest 入口與輸出邊界，中間層不碰時區",
+      "heading": "### User Story 11 - 全站時區約定 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-11---全站時區約定-priority-p1",
+      "keywords": [
+        "timezone",
+        "時區",
+        "Asia/Taipei",
+        "UTC",
+        "datetime-local",
+        "prepareForValidation",
+        "NormalizesTaipeiInput",
+        "DB_TIMEZONE",
+        "useCurrent",
+        "日曆邊界",
+        "Carbon",
+        "8 小時"
+      ],
+      "code_files": [
+        "app/Http/Requests/Concerns/NormalizesTaipeiInput.php",
+        "config/database.php",
+        "config/app.php",
+        "tests/Feature/Admin/AdminDateInputTimezoneTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "000.us-2",
       "module": "000-platform-core",
       "title": "管理後台版面與權限",
@@ -1787,7 +1817,9 @@
         "app/Mail/LessonAddedNotification.php",
         "tests/Feature/Admin/CourseTypeTest.php",
         "tests/Feature/Admin/CourseCreateFieldsTest.php",
-        "resources/js/Pages/Admin/Courses/Create.vue"
+        "resources/js/Pages/Admin/Courses/Create.vue",
+        "app/Http/Requests/Concerns/NormalizesTaipeiInput.php",
+        "tests/Feature/Admin/AdminDateInputTimezoneTest.php"
       ],
       "status": "implemented"
     },
@@ -2211,7 +2243,9 @@
         "resources/js/Pages/Admin/Coupons/Index.vue",
         "resources/js/Pages/Admin/Coupons/Create.vue",
         "resources/js/Pages/Admin/Coupons/Edit.vue",
-        "database/migrations/2026_06_09_000001_create_coupon_codes_table.php"
+        "database/migrations/2026_06_09_000001_create_coupon_codes_table.php",
+        "app/Http/Requests/Concerns/NormalizesTaipeiInput.php",
+        "tests/Feature/Admin/AdminDateInputTimezoneTest.php"
       ],
       "status": "implemented"
     },
@@ -5278,7 +5312,9 @@
         "app/Http/Requests/Admin/SendBroadcastRequest.php",
         "resources/views/emails/newsletter-broadcast.blade.php",
         "resources/js/Pages/Admin/Broadcasts/Index.vue",
-        "database/migrations/2026_07_10_000005_create_broadcasts_table.php"
+        "database/migrations/2026_07_10_000005_create_broadcasts_table.php",
+        "app/Http/Requests/Concerns/NormalizesTaipeiInput.php",
+        "tests/Feature/Newsletter/BroadcastTest.php"
       ],
       "status": "implemented"
     },
