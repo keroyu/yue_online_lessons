@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { h, ref, computed, onUnmounted, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import AppLayout from '@/Components/Layout/AppLayout.vue'
 import { useNotifications } from '@/composables/useNotifications'
 import ChapterSidebar from '@/Components/Classroom/ChapterSidebar.vue'
 import RoadmapBoard from '@/Components/Classroom/RoadmapBoard.vue'
@@ -9,6 +10,14 @@ import HtmlContent from '@/Components/Classroom/HtmlContent.vue'
 import LessonPromoBlock from '@/Components/Classroom/LessonPromoBlock.vue'
 import VideoAccessNotice from '@/Components/Classroom/VideoAccessNotice.vue'
 import AssignmentSection from '@/Components/Classroom/AssignmentSection.vue'
+
+// The classroom is a full-screen player: its own sticky header already carries the
+// back link, course title, sidebar toggle and the notification bell, so the global
+// nav would only stack a second bell on top of it (003 US8). Free preview keeps the
+// nav — visitors there have no bell and still need the storefront's own links.
+defineOptions({
+  layout: (_h, page) => h(AppLayout, { hideNav: !page.props?.isFreePreview }, () => page),
+})
 
 // Completion threshold: 75% of lesson duration; fallback 2 min for lessons with no duration set
 const getCompletionThresholdMs = (lesson) => {
