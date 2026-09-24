@@ -594,7 +594,7 @@ class MemberController extends Controller
             }
         }
 
-        $filename = 'members-' . now()->format('Y-m-d') . '.csv';
+        $filename = 'members-' . now()->timezone('Asia/Taipei')->format('Y-m-d') . '.csv';
 
         return response()->streamDownload(function () use ($query) {
             $handle = fopen('php://output', 'w');
@@ -613,8 +613,8 @@ class MemberController extends Controller
                             $member->nickname ?? '',
                             $member->real_name ?? '',
                             $member->email ?? '',
-                            $member->created_at ? $member->created_at->format('Y-m-d') : '',
-                            $member->last_login_at ? $member->last_login_at->format('Y-m-d H:i') : '',
+                            $member->created_at ? $member->created_at->timezone('Asia/Taipei')->format('Y-m-d') : '',
+                            $member->last_login_at ? $member->last_login_at->timezone('Asia/Taipei')->format('Y-m-d H:i') : '',
                         ]);
                     }
                 });

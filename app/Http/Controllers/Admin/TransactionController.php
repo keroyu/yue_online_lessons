@@ -102,20 +102,28 @@ class TransactionController extends Controller
         $courses = Course::select('id', 'name')->orderBy('name')->get();
 
         // --- Chart data ---
+        // Days are Taipei calendar days, not the server's. The buckets below
+        // already group on CONVERT_TZ, so the window and the axis have to be
+        // built in Taipei too — a UTC "today" starts at 08:00 Taipei and would
+        // slice the first and last bar off by eight hours.
+        $tz = 'Asia/Taipei';
         $chartRange = $request->input('chart_range', '30d');
         [$chartStart, $chartEnd] = match ($chartRange) {
-            '7d'     => [now()->subDays(6)->startOfDay(), now()->endOfDay()],
-            '90d'    => [now()->subDays(89)->startOfDay(), now()->endOfDay()],
+            '7d'     => [now($tz)->subDays(6)->startOfDay(), now($tz)->endOfDay()],
+            '90d'    => [now($tz)->subDays(89)->startOfDay(), now($tz)->endOfDay()],
             'custom' => [
-                Carbon::parse($request->input('chart_start'))->startOfDay(),
-                Carbon::parse($request->input('chart_end'))->endOfDay(),
+                Carbon::parse($request->input('chart_start'), $tz)->startOfDay(),
+                Carbon::parse($request->input('chart_end'), $tz)->endOfDay(),
             ],
-            default  => [now()->subDays(29)->startOfDay(), now()->endOfDay()], // '30d'
+            default  => [now($tz)->subDays(29)->startOfDay(), now($tz)->endOfDay()], // '30d'
         };
 
         $dailyRows = Purchase::query()
             ->paidStatus()
-            ->whereBetween('created_at', [$chartStart, $chartEnd])
+            ->whereBetween('created_at', [
+                $chartStart->copy()->utc(),
+                $chartEnd->copy()->utc(),
+            ])
             ->selectRaw('DATE(CONVERT_TZ(created_at, "+00:00", "+08:00")) as date')
             ->selectRaw('SUM(amount) as amount')
             ->selectRaw('COUNT(*) as count')
@@ -323,7 +331,7 @@ class TransactionController extends Controller
                         $purchase->status,
                         $purchase->source ?? '',
                         $purchase->type,
-                        $purchase->created_at->format('Y-m-d H:i:s'),
+                        $purchase->created_at->timezone('Asia/Taipei')->format('Y-m-d H:i:s'),
                     ]);
                 }
             });

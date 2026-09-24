@@ -3,11 +3,14 @@
 namespace App\Http\Requests\Admin;
 
 use App\Http\Controllers\Admin\HomepageSettingController;
+use App\Http\Requests\Concerns\NormalizesTaipeiInput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreCourseRequest extends FormRequest
 {
+    use NormalizesTaipeiInput;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -35,6 +38,8 @@ class StoreCourseRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $this->readAsTaipei('sale_at', 'promo_ends_at');
+
         if ($this->input('course_type') === 'drip') {
             $this->merge(['price' => 0]);
         }

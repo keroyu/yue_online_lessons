@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UploadTranscriptRequest;
 use App\Jobs\ProcessZoomTranscriptJob;
 use App\Models\ConsultationNote;
+use App\Services\ConsultationSlotService;
 use App\Services\ConsultationTranscriptService;
 use App\Services\ZoomMeetingService;
 use App\Services\ZoomTranscriptService;
@@ -291,7 +292,7 @@ class ConsultationNoteController extends Controller
             abort(404, '這場面談還沒有逐字稿');
         }
 
-        $met = $note->met_at?->timezone(config('app.timezone'));
+        $met = $note->met_at?->timezone(ConsultationSlotService::DISPLAY_TZ);
 
         $header = implode("\n", array_filter([
             '面談時間：' . ($met?->format('Y-m-d H:i') ?? '未定'),

@@ -87,6 +87,17 @@ Need more search: yes/no
 - 敏感資料不進 git
 - **所有可點擊元素必須有 hover 回饋**：滑鼠游標變 pointer + 可見的 hover 樣式（`hover:bg-*`/`hover:text-*`）。`<button>` 的 pointer 已由 `app.css` 全域修正（Tailwind v4 preflight 預設是 `cursor: default`）；非 button 的可點元素（`<div>`/`<span>` 掛 `@click`）仍須手動加 `cursor-pointer`
 
+## Timezone
+
+DB 一律存 UTC（`config/app.php` 的 `timezone` 是 `UTC`，`config/database.php` 的連線 `timezone` 釘死 `+00:00`，不吃主機設定）。**轉換一律發生在邊界，中間層不碰時區。** 讀者永遠在台北，所以「顯示用時區」是 `Asia/Taipei`。
+
+- **入口**（`<input type="datetime-local">` 送來的裸牆鐘字串）：在 FormRequest 的 `prepareForValidation()` 用 `NormalizesTaipeiInput::readAsTaipei()` 轉一次。不要在 controller 轉——`after:now` / `before:` 這類規則在驗證階段就會比對到錯的時刻。
+- **出口**（送進 Inertia、寫進 CSV、組進信件或 flash 訊息）：任何 `format()` / `toDateString()` 前面都要有 `->timezone('Asia/Taipei')`。序列化成 ISO（`toIso8601String()` 或 model 預設）不用轉，offset 已經帶在字串裡，前端 `new Date()` 會處理。
+- **寫入 DB 前必須是 UTC instance**。Eloquent 是「用 Carbon 自帶的時區直接 format，不做轉換」，所以帶 `+08:00` 的 Carbon 會被原樣寫成台北牆鐘再被當 UTC 讀回來。同理，query binding（`where('x', '>=', $carbon)`）也不轉換。
+- **日曆邊界算台北的**：`whereDate`、月報表、營收圖表的「今天」用 `now('Asia/Taipei')`。
+- **唯一例外：`course_daily_stats` 與 `post_cta_clicks` 的日期桶刻意維持 UTC 日**（`now()->toDateString()`）。歷史資料是這樣累積的，改成台北日會讓交界那幾天的數字不連續且無法回補。寫入與讀取的篩選條件必須一起改，不要只動一邊。
+- **例外，維持 UTC**：對外 API（Zoom `Y-m-d\TH:i:s\Z`、ICS `Ymd\THis\Z`）、`date` 型欄位（`birth_date` 等，無時區可言）、`jobs`/`sessions` 的 int timestamp。
+
 ## Key Dependencies
 
 PHP 8.2 / Laravel 12、Inertia.js v2、Vue 3（`<script setup>`）、Tailwind CSS v4、`league/commonmark` + `marked`（Markdown）、`chart.js` + `vue-chartjs`（後台圖表）、vuedraggable（拖曳排序）、Resend（email）。各模組的資料表與 schema 細節見所屬 `specs/NNN-*/spec.md` 的 Schema 段。

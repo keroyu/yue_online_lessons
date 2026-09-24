@@ -68,8 +68,10 @@ class BroadcastTest extends TestCase
         $this->subscriber('s@example.com');
 
         // Schedule for the future → creates a scheduled broadcast, nothing sent yet.
+        // The wall-clock string is Taipei's, because that is what the admin's
+        // datetime-local input posts.
         $this->actingAs($this->admin())
-            ->post('/admin/broadcasts', ['post_id' => $post->id, 'scheduled_at' => now()->addHour()->format('Y-m-d\TH:i')])
+            ->post('/admin/broadcasts', ['post_id' => $post->id, 'scheduled_at' => now('Asia/Taipei')->addHour()->format('Y-m-d\TH:i')])
             ->assertRedirect();
 
         $broadcast = Broadcast::first();
@@ -95,8 +97,33 @@ class BroadcastTest extends TestCase
         $post = $this->publishedPost();
 
         $this->actingAs($this->admin())
-            ->post('/admin/broadcasts', ['post_id' => $post->id, 'scheduled_at' => now()->subHour()->format('Y-m-d\TH:i')])
+            ->post('/admin/broadcasts', ['post_id' => $post->id, 'scheduled_at' => now('Asia/Taipei')->subHour()->format('Y-m-d\TH:i')])
             ->assertSessionHasErrors('scheduled_at');
+    }
+
+    /**
+     * The form posts a bare wall-clock string with no offset. The admin means
+     * Taipei; the column stores UTC. Without the conversion a broadcast set for
+     * 09:00 would go out at 17:00 Taipei.
+     */
+    public function test_schedule_time_is_read_as_taipei_and_stored_as_utc(): void
+    {
+        Mail::fake();
+        $post = $this->publishedPost();
+
+        $wallClock = now('Asia/Taipei')->addDay()->setTime(9, 0);
+
+        $this->actingAs($this->admin())
+            ->post('/admin/broadcasts', [
+                'post_id'      => $post->id,
+                'scheduled_at' => $wallClock->format('Y-m-d\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            $wallClock->copy()->utc()->format('Y-m-d H:i'),
+            Broadcast::first()->scheduled_at->utc()->format('Y-m-d H:i'),
+        );
     }
 
     public function test_search_posts_endpoint_filters_published(): void

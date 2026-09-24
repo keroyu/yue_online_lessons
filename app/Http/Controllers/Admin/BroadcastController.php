@@ -42,8 +42,8 @@ class BroadcastController extends Controller
                 'open_rate' => $b->recipients_count > 0
                     ? round($b->opened_count / $b->recipients_count * 100, 1)
                     : null,
-                'scheduled_at' => $b->scheduled_at?->format('Y-m-d H:i'),
-                'sent_at' => $b->sent_at?->format('Y-m-d H:i'),
+                'scheduled_at' => $b->scheduled_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
+                'sent_at' => $b->sent_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
             ]);
 
         return Inertia::render('Admin/Broadcasts/Index', [
@@ -99,7 +99,7 @@ class BroadcastController extends Controller
         return $posts->map(fn (Post $p) => [
             'id' => $p->id,
             'title' => $p->title,
-            'published_at' => $p->published_at?->format('Y-m-d'),
+            'published_at' => $p->published_at?->timezone('Asia/Taipei')->format('Y-m-d'),
         ])->all();
     }
 
@@ -118,7 +118,7 @@ class BroadcastController extends Controller
 
             return redirect()
                 ->route('admin.broadcasts.index')
-                ->with('success', '電子報已排程於 ' . $broadcast->scheduled_at->format('Y-m-d H:i') . ' 寄送');
+                ->with('success', '電子報已排程於 ' . $broadcast->scheduled_at->timezone('Asia/Taipei')->format('Y-m-d H:i') . ' 寄送');
         }
 
         $broadcast = $this->broadcastService->createImmediate($post);
@@ -141,7 +141,7 @@ class BroadcastController extends Controller
             ->paginate(30)
             ->through(fn (User $u) => [
                 'email' => $u->email,
-                'opened_at' => optional($openedUserIds->get($u->id))->format('Y-m-d H:i'),
+                'opened_at' => optional($openedUserIds->get($u->id))?->timezone('Asia/Taipei')?->format('Y-m-d H:i'),
             ]);
 
         $openedCount = $openedUserIds->count();
@@ -159,7 +159,7 @@ class BroadcastController extends Controller
                 'open_rate' => $broadcast->recipients_count > 0
                     ? round($openedCount / $broadcast->recipients_count * 100, 1)
                     : null,
-                'sent_at' => $broadcast->sent_at?->format('Y-m-d H:i'),
+                'sent_at' => $broadcast->sent_at?->timezone('Asia/Taipei')->format('Y-m-d H:i'),
             ],
             'openedRecipients' => $recipients,
         ]);

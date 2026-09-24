@@ -2,16 +2,24 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\NormalizesTaipeiInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCouponRequest extends FormRequest
 {
+    use NormalizesTaipeiInput;
+
     /**
      * Admin middleware handles authorization.
      */
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->readAsTaipei('expires_at');
     }
 
     /**

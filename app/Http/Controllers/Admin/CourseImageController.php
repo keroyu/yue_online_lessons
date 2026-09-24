@@ -27,7 +27,7 @@ class CourseImageController extends Controller
                 'url' => $image->url,
                 'width' => $image->width,
                 'height' => $image->height,
-                'created_at' => $image->created_at->format('Y-m-d H:i'),
+                'created_at' => $image->created_at->timezone('Asia/Taipei')->format('Y-m-d H:i'),
             ]);
 
         return Inertia::render('Admin/Courses/Gallery', [

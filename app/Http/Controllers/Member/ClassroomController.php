@@ -193,7 +193,7 @@ class ClassroomController extends Controller
         if ($isDrip && $dripSubscription) {
             $pageProps['dripSubscription'] = [
                 'status' => $dripSubscription->status,
-                'subscribed_at' => $dripSubscription->subscribed_at->toDateString(),
+                'subscribed_at' => $dripSubscription->subscribed_at->timezone('Asia/Taipei')->toDateString(),
                 'emails_sent' => $dripSubscription->emails_sent,
             ];
 

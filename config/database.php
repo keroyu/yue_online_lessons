@@ -54,6 +54,13 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            // Pinned, never left to the host. MySQL fills the `useCurrent()`
+            // columns itself (cart_items, order_items, lesson_progress,
+            // course_images, post_images: models with $timestamps = false), so
+            // on a SYSTEM timezone those rows follow the machine while every
+            // PHP-written row follows app.timezone — a dev Mac on Asia/Taipei
+            // and a UTC server then disagree by 8 hours inside one table.
+            'timezone' => env('DB_TIMEZONE', '+00:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
@@ -74,6 +81,8 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            // Kept in step with the mysql connection above.
+            'timezone' => env('DB_TIMEZONE', '+00:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,

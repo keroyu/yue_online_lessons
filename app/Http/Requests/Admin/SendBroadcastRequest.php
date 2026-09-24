@@ -2,13 +2,21 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\NormalizesTaipeiInput;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SendBroadcastRequest extends FormRequest
 {
+    use NormalizesTaipeiInput;
+
     public function authorize(): bool
     {
         return true; // Authorization handled by admin middleware
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->readAsTaipei('scheduled_at');
     }
 
     public function rules(): array

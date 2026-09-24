@@ -51,7 +51,7 @@ class SidebarService
                 'excerpt' => $post->excerpt,
                 'url' => "/blog/{$post->slug}",
                 'cover' => $post->cover_url,
-                'published_at' => $post->published_at?->toDateString(),
+                'published_at' => $post->published_at?->timezone('Asia/Taipei')->toDateString(),
             ])->values()->all();
 
         $featuredCourses = HomepageFeaturedCourse::ordered()->visible()->with('course:id,slug,name,thumbnail,course_type')->get()
