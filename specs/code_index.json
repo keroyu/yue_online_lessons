@@ -159,6 +159,7 @@
       "001.us-3",
       "003.us-10",
       "003.us-11",
+      "003.us-12",
       "003.us-6",
       "003.us-7"
     ],
@@ -300,11 +301,13 @@
       "012.us-3"
     ],
     "app/Http/Controllers/Member/AssignmentCommentController.php": [
+      "003.us-12",
       "003.us-5"
     ],
     "app/Http/Controllers/Member/ClassroomController.php": [
       "003.us-10",
       "003.us-11",
+      "003.us-12",
       "003.us-2",
       "003.us-3",
       "003.us-4",
@@ -390,6 +393,7 @@
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "000.us-1",
       "000.us-6",
+      "003.us-12",
       "010.us-1"
     ],
     "app/Http/Middleware/StaffMiddleware.php": [
@@ -548,6 +552,7 @@
       "011.us-9"
     ],
     "app/Http/Requests/Member/StoreCommentRequest.php": [
+      "003.us-12",
       "003.us-5"
     ],
     "app/Http/Requests/Member/StoreUserSocialLinkRequest.php": [
@@ -681,6 +686,7 @@
       "004.us-3"
     ],
     "app/Models/Comment.php": [
+      "003.us-12",
       "003.us-5",
       "003.us-6"
     ],
@@ -854,6 +860,7 @@
       "000.us-9"
     ],
     "app/Services/AssignmentService.php": [
+      "003.us-12",
       "003.us-7"
     ],
     "app/Services/BlogRssService.php": [
@@ -975,7 +982,8 @@
       "011.us-9"
     ],
     "app/Services/HomeworkGradingService.php": [
-      "003.us-10"
+      "003.us-10",
+      "003.us-12"
     ],
     "app/Services/MetaConversionsService.php": [
       "000.us-7"
@@ -1402,6 +1410,12 @@
     "database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php": [
       "002.us-21"
     ],
+    "database/migrations/2026_09_24_000001_add_submitted_at_to_comments_table.php": [
+      "003.us-12"
+    ],
+    "database/migrations/2026_09_24_000002_change_homework_notification_type_to_string.php": [
+      "003.us-12"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1560,6 +1574,7 @@
     ],
     "resources/js/Components/Classroom/AssignmentSection.vue": [
       "003.us-10",
+      "003.us-12",
       "003.us-5",
       "003.us-7"
     ],
@@ -1838,6 +1853,7 @@
       "001.us-3",
       "003.us-10",
       "003.us-11",
+      "003.us-12",
       "003.us-6"
     ],
     "resources/js/Pages/Admin/Members/Index.vue": [
@@ -2059,6 +2075,7 @@
       "002.us-9",
       "003.us-10",
       "003.us-11",
+      "003.us-12",
       "004.us-7",
       "006.us-1",
       "010.us-15",
@@ -2103,7 +2120,11 @@
       "002.us-10"
     ],
     "tests/Feature/Classroom/AiGradingTest.php": [
-      "003.us-10"
+      "003.us-10",
+      "003.us-12"
+    ],
+    "tests/Feature/Classroom/AssignmentDraftTest.php": [
+      "003.us-12"
     ],
     "tests/Feature/Classroom/CloudflareStreamTest.php": [
       "003.us-9"
@@ -2242,7 +2263,8 @@
       "011.us-12"
     ],
     "tests/Feature/Member/UserSocialLinkTest.php": [
-      "001.us-3"
+      "001.us-3",
+      "003.us-12"
     ],
     "tests/Feature/Newsletter/AdminPostCrudTest.php": [
       "012.us-1"

@@ -66,14 +66,28 @@ const followUpPlaceholder = `追加補充或提問，支援 Markdown 格式
 
 - 列點（- 後面記得加空格）　> 引用　[連結](https://example.com)`
 
-const handleSubmit = () => {
+// Two buttons, one endpoint — they differ only by status (003 US12 / D37).
+const send = (status) => {
   if (!inputContent.value.trim() || submitting.value) return
   submitting.value = true
-  router.post(baseUrl(), { content: inputContent.value, parent_id: null }, {
+  router.post(baseUrl(), { content: inputContent.value, parent_id: null, status }, {
     ...partialOpts,
     onSuccess: () => { inputContent.value = '' },
     onFinish:  () => { submitting.value = false },
   })
+}
+
+const handleSaveDraft = () => send('draft')
+const handleSubmit    = () => send('submitted')
+
+// ── Draft ↔ submitted ─────────────────────────────────────────────────────
+const submitDraft = (commentId) => {
+  router.post(`${baseUrl()}/${commentId}/submit`, {}, partialOpts)
+}
+
+const revertToDraft = (commentId) => {
+  if (!confirm('改回草稿？老師就看不到這份作業了，補完後記得再按「提交答案」。')) return
+  router.post(`${baseUrl()}/${commentId}/revert`, {}, partialOpts)
 }
 
 // ── Edit / Delete ─────────────────────────────────────────────────────────
@@ -130,10 +144,16 @@ const deleteItem = (commentId, hasReplies) => {
       <div v-if="comments.length > 0 && showThread" class="bg-indigo-50 px-6 pt-[10px] pb-4 space-y-3">
         <template v-for="comment in comments" :key="comment.id">
 
-          <!-- Student top-level submission -->
-          <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <!-- Student top-level submission (amber = draft, white = submitted) -->
+          <div class="rounded-lg shadow-sm overflow-hidden" :class="comment.is_draft ? 'bg-amber-50 border border-amber-200' : 'bg-white'">
             <div class="px-4 pt-3 pb-1 flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-700">{{ comment.user?.nickname }}</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-semibold text-gray-700">{{ comment.user?.nickname }}</span>
+                <span
+                  v-if="comment.is_draft"
+                  class="text-xs font-medium text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded"
+                >草稿・僅你看得到</span>
+              </div>
               <div class="flex items-center gap-2 text-xs text-gray-400">
                 <span v-if="comment.is_edited" class="bg-gray-100 px-1.5 py-0.5 rounded">已編輯</span>
                 <span>{{ formatDate(comment.created_at) }}</span>
@@ -141,9 +161,19 @@ const deleteItem = (commentId, hasReplies) => {
             </div>
             <div v-if="editingId !== comment.id" class="px-4 pb-4">
               <div class="assignment-content" v-html="renderMd(comment.content)" />
-              <div v-if="isOwn(comment)" class="mt-2 flex gap-1">
+              <div v-if="isOwn(comment)" class="mt-2 flex flex-wrap items-center gap-1">
                 <button class="text-xs text-gray-400 px-2 py-0.5 rounded hover:bg-gray-100 transition-colors" @click="openEdit(comment)">編輯</button>
                 <button class="text-xs text-red-400 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteItem(comment.id, comment.replies?.length > 0)">刪除</button>
+                <button
+                  v-if="comment.is_draft"
+                  class="ml-1 text-xs font-semibold text-white bg-[#3F83A3] px-3 py-1 rounded-full hover:bg-[#336d8a] transition-colors"
+                  @click="submitDraft(comment.id)"
+                >提交答案</button>
+                <button
+                  v-else-if="comment.can_revert"
+                  class="ml-1 text-xs text-amber-700 border border-amber-300 bg-amber-50 px-2.5 py-1 rounded-full hover:bg-amber-100 transition-colors"
+                  @click="revertToDraft(comment.id)"
+                >改回草稿</button>
               </div>
             </div>
             <div v-else class="px-4 pb-4">
@@ -208,14 +238,26 @@ const deleteItem = (commentId, hasReplies) => {
           :placeholder="comments.length === 0 ? placeholder : followUpPlaceholder"
           class="w-full bg-white border border-indigo-100 px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
         />
-        <div class="mt-3 flex justify-end">
-          <button
-            :disabled="!inputContent.trim() || submitting"
-            class="px-6 py-2 bg-[#3F83A3] hover:bg-[#336d8a] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-full transition-colors"
-            @click="handleSubmit"
-          >
-            {{ submitting ? '送出中...' : '送出' }}
-          </button>
+        <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p class="text-xs text-gray-500 leading-relaxed">
+            還沒寫完？先按「存為草稿」，只有你看得到。按「提交答案」老師才會看到。
+          </p>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              :disabled="!inputContent.trim() || submitting"
+              class="px-4 py-2 border border-[#3F83A3]/40 bg-white text-[#3F83A3] text-sm font-medium rounded-full hover:bg-[#3F83A3]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              @click="handleSaveDraft"
+            >
+              存為草稿
+            </button>
+            <button
+              :disabled="!inputContent.trim() || submitting"
+              class="px-6 py-2 bg-[#3F83A3] hover:bg-[#336d8a] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-full transition-colors"
+              @click="handleSubmit"
+            >
+              {{ submitting ? '送出中...' : '提交答案' }}
+            </button>
+          </div>
         </div>
       </div>
 

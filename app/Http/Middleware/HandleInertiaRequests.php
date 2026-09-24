@@ -85,9 +85,11 @@ class HandleInertiaRequests extends Middleware
                         'course_id'   => $n->course_id,
                         'lesson_id'   => $n->lesson_id,
                         'is_read'     => $n->is_read,
-                        'message'     => $n->type === 'reply'
-                            ? "老師已批改《{$n->course_name}》的作業"
-                            : "《{$n->course_name}》作業已完成，積分 +100",
+                        'message'     => match ($n->type) {
+                            'reply'    => "老師已批改《{$n->course_name}》的作業",
+                            'returned' => "老師認為《{$n->course_name}》的作業尚未完成，請補完後再提交",
+                            default    => "《{$n->course_name}》作業已完成，積分 +100",
+                        },
                         'created_at'  => $n->created_at,
                     ])
                     ->toArray()

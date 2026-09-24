@@ -156,6 +156,9 @@ class ClassroomController extends Controller
             if ($assignment && !$isFreePreview) {
                 $assignmentComments = $assignment->comments()
                     ->where('user_id', $assignmentTargetUserId)
+                    // Viewing someone else's classroom (admin preview) never shows
+                    // their drafts — those belong to the learner alone (003 FR-035).
+                    ->when($assignmentTargetUserId !== $user->id, fn ($q) => $q->submitted())
                     ->with('replies.user')
                     ->get();
                 $isAssignmentCompleted = $assignment->completions()
@@ -471,6 +474,12 @@ class ClassroomController extends Controller
                 'content' => $comment->content,
                 'is_edited' => $comment->is_edited,
                 'created_at' => $comment->created_at,
+                'is_draft' => $comment->isDraft(),
+                'submitted_at' => $comment->submitted_at,
+                // FR-038's three conditions are decided here; the UI only reads the flag.
+                'can_revert' => !$comment->isDraft()
+                    && !$isAssignmentCompleted
+                    && $comment->replies->isEmpty(),
                 'user' => [
                     'id' => $comment->user_id,
                     'nickname' => $comment->user?->nickname,
@@ -481,6 +490,8 @@ class ClassroomController extends Controller
                     'content' => $reply->content,
                     'is_edited' => $reply->is_edited,
                     'created_at' => $reply->created_at,
+                    'is_draft' => $reply->isDraft(),
+                    'can_revert' => false,
                     'user' => [
                         'id' => $reply->user_id,
                         'nickname' => $reply->user?->nickname,

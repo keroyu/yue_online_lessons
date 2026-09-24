@@ -12,11 +12,11 @@ class Comment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['assignment_id', 'user_id', 'parent_id', 'content', 'is_edited'];
+    protected $fillable = ['assignment_id', 'user_id', 'parent_id', 'content', 'is_edited', 'submitted_at'];
 
     protected function casts(): array
     {
-        return ['is_edited' => 'boolean'];
+        return ['is_edited' => 'boolean', 'submitted_at' => 'datetime'];
     }
 
     public function user(): BelongsTo
@@ -42,6 +42,22 @@ class Comment extends Model
     public function scopeTopLevel(Builder $query): Builder
     {
         return $query->whereNull('parent_id');
+    }
+
+    /** Formally submitted work — the only thing the instructor ever sees (FR-035). */
+    public function scopeSubmitted(Builder $query): Builder
+    {
+        return $query->whereNotNull('submitted_at');
+    }
+
+    public function scopeDrafts(Builder $query): Builder
+    {
+        return $query->whereNull('submitted_at');
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->submitted_at === null;
     }
 
     public function isOwnedBy(User $user): bool

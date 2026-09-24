@@ -16,6 +16,8 @@ class StoreCommentRequest extends FormRequest
     {
         return [
             'content' => ['required', 'string', 'max:5000'],
+            // Draft or formal submission (003 US12 / D37) — one endpoint, one set of rules.
+            'status' => ['required', 'in:draft,submitted'],
             'parent_id' => [
                 'nullable',
                 'exists:comments,id',

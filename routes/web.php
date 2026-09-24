@@ -203,6 +203,9 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
 
     // Assignment comments
     Route::post('/classroom/{course}/assignment/{assignment}/comments', [AssignmentCommentController::class, 'store'])->name('comments.store');
+    // Draft ↔ submitted transitions (003 US12)
+    Route::post('/classroom/{course}/assignment/{assignment}/comments/{comment}/submit', [AssignmentCommentController::class, 'submit'])->name('comments.submit');
+    Route::post('/classroom/{course}/assignment/{assignment}/comments/{comment}/revert', [AssignmentCommentController::class, 'revertToDraft'])->name('comments.revert');
     Route::put('/classroom/{course}/assignment/{assignment}/comments/{comment}', [AssignmentCommentController::class, 'update'])->name('comments.update');
     Route::delete('/classroom/{course}/assignment/{assignment}/comments/{comment}', [AssignmentCommentController::class, 'destroy'])->name('comments.destroy');
 
@@ -432,6 +435,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/homework/{assignment}/unpublish', [HomeworkController::class, 'unpublish'])->name('homework.unpublish');
     Route::post('/homework/{assignment}/comments', [HomeworkController::class, 'storeComment'])->name('homework.comments.store');
     Route::post('/homework/{assignment}/comments/{comment}/ai-draft', [HomeworkController::class, 'aiDraft'])->name('homework.comments.ai-draft');
+    // Push a submission back to draft so the learner can finish it (003 US12)
+    Route::post('/homework/{assignment}/comments/{comment}/return', [HomeworkController::class, 'returnToDraft'])->name('homework.comments.return');
     Route::put('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'updateComment'])->name('homework.comments.update');
     Route::delete('/homework/{assignment}/comments/{comment}', [HomeworkController::class, 'destroyComment'])->name('homework.comments.destroy');
     Route::post('/homework/{assignment}/completions/{user}', [HomeworkController::class, 'markComplete'])->name('homework.completions.store');

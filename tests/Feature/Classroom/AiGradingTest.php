@@ -65,6 +65,8 @@ class AiGradingTest extends TestCase
             'user_id'       => $student->id,
             'parent_id'     => null,
             'content'       => $content,
+            // Formally submitted work — drafts never reach the grading side (003 FR-035)
+            'submitted_at'  => now(),
         ]);
     }
 
@@ -178,12 +180,14 @@ class AiGradingTest extends TestCase
             'user_id'       => $admin->id,
             'parent_id'     => $comment->id,
             'content'       => '第一段可以再具體一點',
+            'submitted_at'  => now(),
         ]);
         Comment::create([
             'assignment_id' => $assignment->id,
             'user_id'       => $student->id,
             'parent_id'     => $comment->id,
             'content'       => '我補上了案例',
+            'submitted_at'  => now(),
         ]);
 
         $this->fakeOpenAi();
@@ -372,6 +376,7 @@ class AiGradingTest extends TestCase
             'user_id'       => $admin->id,
             'parent_id'     => $comment->id,
             'content'       => '批改',
+            'submitted_at'  => now(),
         ]);
 
         $this->fakeOpenAi();

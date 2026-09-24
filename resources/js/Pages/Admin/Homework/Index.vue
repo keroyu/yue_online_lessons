@@ -184,6 +184,16 @@ const aiError = ref('')
 // 補充指示：只送給模型，不落地、不隨批改送出（FR-025）
 const aiNote = ref('')
 
+// Back to draft: the learner keeps their text and gets a notification (003 US12).
+const returnToDraft = (sub) => {
+  if (!confirm('打回草稿？學員會收到「作業尚未完成」的通知，這筆會暫時離開提交列表。')) return
+  router.post(`/admin/homework/${sub.assignment.id}/comments/${sub.id}/return`, {}, {
+    only: ['submissions', 'assignmentsMap', 'flash', 'errors'],
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
 const openReplyPanel = (sub) => {
   replyContent.value = ''
   aiNote.value = ''
@@ -369,8 +379,14 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-TW') : ''
                 <span v-if="sub.completion" class="text-xs text-green-600 font-medium">
                   ✓ 已完成 {{ formatDate(sub.completion.created_at) }}
                 </span>
+                <!-- Push unfinished work back to the learner (003 US12 / FR-039) -->
                 <button
-                  v-else
+                  v-if="!sub.completion"
+                  class="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                  @click="returnToDraft(sub)"
+                >打回草稿</button>
+                <button
+                  v-if="!sub.completion"
                   class="text-xs bg-green-50 border border-green-200 text-green-700 px-2 py-1 rounded hover:bg-green-100 hover:border-green-300 transition-colors"
                   @click="router.post(`/admin/homework/${sub.assignment.id}/completions/${sub.user.id}`, {}, { only: ['submissions', 'assignmentsMap', 'flash'], preserveState: true, preserveScroll: true })"
                 >標記已完成</button>

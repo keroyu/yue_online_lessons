@@ -30,7 +30,9 @@ class HomeworkController extends Controller
         $search   = trim($request->input('search', ''));
         $manageCourseId = $request->input('manage_course_id');
 
+        // Drafts are invisible to the instructor, everywhere (003 FR-035).
         $query = Comment::topLevel()
+            ->submitted()
             ->with(['assignment.lesson.course.roadmapStages:id,course_id', 'user.socialLinks', 'replies.user', 'assignment.completions'])
             ->whereHas('assignment');
 
@@ -49,7 +51,9 @@ class HomeworkController extends Controller
             );
         }
 
-        $submissions = $query->latest()->paginate(10)->through(function ($comment) {
+        // Ordered by submission time, not creation time (FR-042): work that was
+        // returned and handed in again has to come back to the top of the list.
+        $submissions = $query->orderByDesc('submitted_at')->orderByDesc('id')->paginate(10)->through(function ($comment) {
             $completion = $comment->assignment->completions
                 ->where('user_id', $comment->user_id)
                 ->first();
@@ -59,6 +63,7 @@ class HomeworkController extends Controller
                 'content' => $comment->content,
                 'is_edited' => $comment->is_edited,
                 'created_at' => $comment->created_at,
+                'submitted_at' => $comment->submitted_at,
                 'assignment' => [
                     'id' => $comment->assignment->id,
                     'question_md' => $comment->assignment->question_md,
@@ -209,6 +214,8 @@ class HomeworkController extends Controller
             'user_id' => $admin->id,
             'parent_id' => $request->parent_id,
             'content' => $request->content,
+            // Instructor replies have no draft state (003 FR-034).
+            'submitted_at' => now(),
         ]);
 
         $parentComment = Comment::find($request->parent_id);
@@ -244,7 +251,8 @@ class HomeworkController extends Controller
         // Only this assignment's own top-level submissions (FR-021). Otherwise a
         // stitched-together id pair would hand back another course's context.
         // Checked before validation so a probe never learns the ids were wrong.
-        abort_if($comment->assignment_id !== $assignment->id || $comment->parent_id !== null, 404);
+        // A draft does not exist as far as the instructor side is concerned (FR-035).
+        abort_if($comment->assignment_id !== $assignment->id || $comment->parent_id !== null || $comment->isDraft(), 404);
 
         // The teacher's own steer for this one submission — what the handout and
         // the submission cannot show the model (FR-024). Prompt context only: it
@@ -283,6 +291,23 @@ class HomeworkController extends Controller
         $comment->delete();
 
         return redirect()->back()->with('success', '已刪除');
+    }
+
+    /**
+     * Push a submission back to draft (003 US12 / FR-039). The learner gets a
+     * notification and keeps their text — nothing is deleted (D41).
+     */
+    public function returnToDraft(Assignment $assignment, Comment $comment): RedirectResponse
+    {
+        abort_if($comment->assignment_id !== $assignment->id || $comment->parent_id !== null, 404);
+
+        $result = $this->assignmentService->returnToDraft($comment);
+
+        if (!$result['success']) {
+            return redirect()->back()->withErrors(['draft' => $result['error']]);
+        }
+
+        return redirect()->back()->with('success', '已打回草稿，學員已收到通知');
     }
 
     public function markComplete(Assignment $assignment, User $user): RedirectResponse

@@ -77,6 +77,8 @@ class HomeworkGradingService
     private function exchange(Comment $submission): string
     {
         $replies = $submission->replies()
+            // A learner's unsent draft follow-up is not part of the exchange (003 FR-035).
+            ->submitted()
             ->with('user')
             ->get()
             ->take(self::MAX_EXCHANGE_REPLIES);

@@ -246,6 +246,7 @@ main_files:
 - app/Http/Controllers/Member/LearningController.php
 - app/Http/Controllers/Member/NotificationController.php
 - app/Http/Controllers/Member/RoadmapController.php
+- app/Http/Middleware/HandleInertiaRequests.php
 - app/Http/Requests/Admin/AssignmentRequest.php
 - app/Http/Requests/Admin/StoreLessonRequest.php
 - app/Http/Requests/Member/StoreCommentRequest.php
@@ -274,6 +275,8 @@ main_files:
 - database/migrations/2026_08_18_000006_add_handout_md_to_assignments_table.php
 - database/migrations/2026_08_18_000007_install_homework_grading_prompt.php
 - database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php
+- database/migrations/2026_09_24_000001_add_submitted_at_to_comments_table.php
+- database/migrations/2026_09_24_000002_change_homework_notification_type_to_string.php
 - resources/css/app.css
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Admin/StudentRoadmapModal.vue
@@ -292,9 +295,11 @@ main_files:
 - resources/js/composables/useNotifications.js
 - routes/web.php
 - tests/Feature/Classroom/AiGradingTest.php
+- tests/Feature/Classroom/AssignmentDraftTest.php
 - tests/Feature/Classroom/CloudflareStreamTest.php
 - tests/Feature/Classroom/LessonProgressTest.php
 - tests/Feature/Classroom/RoadmapProgressTest.php
+- tests/Feature/Member/UserSocialLinkTest.php
 
 related_specs:
 - specs/003-classroom/spec.md

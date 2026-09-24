@@ -34,11 +34,14 @@ owner_files:
   - tests/Feature/Classroom/HomeworkCoursesTest.php
   - tests/Feature/Classroom/LessonProgressTest.php
   - tests/Feature/Classroom/RoadmapProgressTest.php
+  - tests/Feature/Classroom/AssignmentDraftTest.php
   - database/migrations/2026_09_23_000004_create_roadmap_checkpoint_completions_table.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
   - database/migrations/2026_05_10_000003_create_comments_table.php
   - database/migrations/2026_05_10_000004_create_assignment_completions_table.php
   - database/migrations/2026_05_10_000005_create_homework_notifications_table.php
+  - database/migrations/2026_09_24_000001_add_submitted_at_to_comments_table.php
+  - database/migrations/2026_09_24_000002_change_homework_notification_type_to_string.php
   - resources/js/composables/useNotifications.js
   - resources/js/Components/Classroom/AssignmentSection.vue
   - resources/js/Components/Classroom/ChapterSidebar.vue
@@ -88,7 +91,7 @@ touchpoints:
     why: drip 課程在教室內的小節解鎖判斷與影片限時觀看（isLessonUnlocked / isVideoAccessExpired）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
-    why: 全站 Inertia shared props 提供通知鈴鐺資料（notificationCount、notifications 最新 5 則與文案）
+    why: 全站 Inertia shared props 提供通知鈴鐺資料（notificationCount、notifications 最新 5 則與文案）；US12 新增 `returned`（作業被打回草稿）文案分支
   - file: app/Http/Requests/Admin/StoreLessonRequest.php
     owner: 004-course-admin
     why: video_url 驗證需接受 Cloudflare Stream 連結/UID（url 規則放寬為 string + VideoEmbedService::isValid）；US10 欄位改名 md_content → content_md
@@ -118,7 +121,7 @@ touchpoints:
     why: 行為接點（不改碼）— HomeworkGradingService 經 respond() 呼叫，維持全站唯一 OpenAI 呼叫點
   - file: routes/web.php
     owner: 000-platform-core
-    why: admin 群組新增 AI 批改草稿端點（homework.comments.ai-draft）
+    why: admin 群組新增 AI 批改草稿端點（homework.comments.ai-draft）；US12 新增學員端 comments.submit / comments.revert 與後台 homework.comments.return 三條路由
   - file: tests/Feature/Drip/GuestClaimTest.php
     owner: 010-drip-email
     why: US10 欄位改名 — 測試 factory 欄位名
@@ -133,7 +136,7 @@ touchpoints:
     why: US10 欄位改名 — 測試 factory 欄位名
   - file: tests/Feature/Member/UserSocialLinkTest.php
     owner: 001-auth-account
-    why: US10 欄位改名 — 測試建立作業題目時的欄位名
+    why: US10 欄位改名 — 測試建立作業題目時的欄位名；US12 該檔的提交 fixture 需補 `submitted_at`（否則被當草稿、後台列表看不到）
   - file: tests/Feature/Points/SettingsEffectTest.php
     owner: 007-points-referral
     why: US10 欄位改名 — 測試建立作業題目時的欄位名（該檔未登記於 code_index）
@@ -321,6 +324,20 @@ touchpoints:
 - [x] 後台「作業批改」列表每則提交的學員名字旁多一顆按鈕，點開 modal 顯示該學員在**該提交所屬課程**的 Roadmap 進度（唯讀、同一張路徑圖的精簡版）；該課程沒有 Roadmap 時按鈕不出現
 - [x] 手機（單欄）下 Roadmap 卡片可正常閱讀與勾選
 
+### User Story 12 - 作業草稿與正式提交 (Priority: P1)
+
+學員在教室寫作業時可選「存為草稿」或「提交答案」：草稿只有自己看得到，只有正式提交才進後台批改列表。題目被標記完成前，尚未被批改的提交可自行改回草稿；講師也能把提交打回草稿並通知學員補完。
+
+**驗收**：
+- [x] 輸入框下方兩顆按鈕：「存為草稿」（次要外框樣式）＋「提交答案」（主按鈕），旁邊小字 hint「還沒寫完？先存為草稿，只有你看得到。按「提交答案」老師才會看到」
+- [x] 一題最多一筆草稿：再按「存為草稿」覆蓋同一筆（不累積）；草稿卡片以 amber 系標記「草稿・僅你看得到」，並附「提交答案」按鈕
+- [x] 「提交答案」把既有草稿**轉正同一筆**（保留 created_at、寫入 submitted_at，輸入框有新內容則一併更新）；無草稿時直接建立已提交留言
+- [x] 講師端完全看不到草稿：後台提交列表、AI 批改脈絡（含批改往返）、`preview_user_id` 學員視角三處一律過濾
+- [x] 已提交且**尚無講師回覆**、且該題未對該學員標記完成時，卡片顯示「改回草稿」；條件不成立則不顯示，後端同步回 422
+- [x] 後台每筆提交可「打回草稿」（二次確認）：該筆離開提交列表，並發 `returned` 通知「老師認為《課程名》的作業尚未完成，請補完後再提交」
+- [x] 任何轉回草稿的動作，若該學員在該題已有草稿 → 擋下並回可讀訊息（維持一題一草稿不變量）
+- [x] 既有留言全部視為已提交（migration backfill `submitted_at = created_at`），行為與本功能上線前逐字相同
+
 ## Requirements
 
 - **FR-001**: 上課權限唯一判斷入口為 `Course::hasAccessForUser()`：admin 恆通過、付費購買（paidStatus）通過、drip 訂閱通過；退款（refunded）即失去權限
@@ -357,6 +374,16 @@ touchpoints:
 - **FR-031**: Roadmap 視圖與小節視圖的切換是**純前端狀態**，不打 Inertia、不改網址。Roadmap 的全部資料（階段、檢核項目、本人已完成的 id 集合）在 `ClassroomController::show` 一次隨頁面送出。理由同 D2：教室頁的切換不該打斷正在播放的影片，也不值得為一張靜態清單多一次 round trip
 - **FR-032**: 後台查看學員 Roadmap 的端點 MUST 以 `(course, user)` 為輸入並驗證該 user 對該 course 有存取權；回傳唯讀 JSON，**不得**提供任何寫入路徑 —— 講師看得到、改不動，避免「老師幫我勾掉」變成另一種資料來源
 - **FR-033**: Roadmap 為 admin-authored 內容，`description_md` 以 marked 渲染且維持站內慣例 `breaks: true`（FR-014／D13）。檢核項目的 `label` 一律當**純文字**輸出，不過 Markdown —— 它是一行清單文字，過 Markdown 只會讓 `-`、`*`、`#` 之類的字元行為變得難以預期
+- **FR-034**: 提交狀態的唯一真相是 `comments.submitted_at`：NULL = 草稿、有值 = 已提交（值為最近一次轉正時間）。MUST NOT 另加 `is_draft` 布林或 `status` enum —— 兩個欄位表達同一件事遲早互相矛盾
+- **FR-035**: 草稿僅本人可見。講師端**每一個**讀取點都 MUST 過 `submitted()` scope：後台提交列表、`HomeworkGradingService` 的學員提交與批改往返、`preview_user_id` 學員視角。後台不提供任何「顯示草稿」開關 —— 草稿對講師不存在
+- **FR-036**: 每 (assignment, user) 最多一筆草稿。MySQL unique 對 NULL 不生效，因此不變量由 `AssignmentService` 單點守門：存草稿走 updateOrCreate；任何「轉回草稿」的動作（學員自行 / 講師打回）先檢查該學員該題是否已有草稿，有則回可讀中文訊息、不寫入
+- **FR-037**: 草稿轉正是**同一筆 comment 寫入 submitted_at**，不是刪掉重建 —— created_at（開始寫的時間）保留，也不會留下一筆舊草稿加一筆內容相同的新提交
+- **FR-038**: 學員自行「改回草稿」需三個前提同時成立：本人、該筆尚無任何 reply、該學員該題未被標記完成。任一不成立則前端不渲染按鈕、後端以 `withErrors(['draft' => …])` 擋下並回中文訊息（兩層都做，理由同 D25）。**不是**裸 422 —— 這兩個端點都是 Inertia 表單請求，422 會被前端當成未預期錯誤，訊息反而顯示不出來
+- **FR-039**: 講師「打回草稿」不受「已有回覆」限制（回覆本來就是他寫的），但同樣被「已標記完成」阻擋 —— 完成會發積分且不可撤銷（FR-007），完成後再動提交狀態會讓兩者失去一致
+- **FR-040**: 講師打回草稿 MUST 建立 `type = returned` 通知；學員自行改回草稿**不發**任何通知（那是他自己的動作）
+- **FR-041**: 草稿不參與任何統計與獎勵：不影響 `assignment_completions`、不進 AI 脈絡、不觸發 reply 通知，也不出現在任何後台計數。但仍受一般留言規則約束（`max:5000`、一律頂層 FR-004）
+- **FR-042**: 後台提交列表排序 MUST 改依 `submitted_at` 降序（原為 created_at）—— 被打回後補完重新提交的作業必須回到列表最前面，否則老師要翻到第 3 頁才看得到剛補好的那筆
+- **FR-043**: `homework_notifications.type` 由 enum 改 `string(20)`（同 D10 `video_platform` 前例）；合法值真相回到程式碼，日後新增通知種類不再動 schema
 
 ## 設計決策
 
@@ -401,6 +428,14 @@ touchpoints:
 - **D34**: `RoadmapProgressService` 只封裝**讀取端的組裝**（`boardFor(Course $course, User $user): array` — 階段樹 + 該使用者已完成的 checkpoint id 集合 + 各階段與總進度），寫入端（firstOrCreate / delete 兩行）留在 controller。理由：寫入沒有可封裝的邏輯，硬包一層 Service 只是多一個檔案；而讀取端有三個呼叫點（教室頁、後台 modal、未來可能的會員中心），組裝邏輯必須單一來源
 - **D35**: 後台入口放在「作業批改」列表的**學員名字旁**（業主指定）而非另開一個「學員 Roadmap」後台頁 —— 老師會想看 Roadmap 的時機，正是他讀到這位學員的作業、想知道對方走到哪裡的那一刻。做成獨立頁就得先選課程再搜學員，多兩步而且脫離脈絡
 
+- **D36**: 狀態用 nullable `submitted_at` timestamp，而非 `is_draft` boolean 或 `status` enum —— 一個欄位同時回答「是不是草稿」與「什麼時候提交的」，而 FR-042 的排序正需要後者；boolean 還得再加一個時間欄位才能排序，enum 則每多一個狀態就動一次 schema
+- **D37**: 兩顆按鈕打**同一個** `store` 端點、以 `status`（`draft|submitted`）參數區分，不開第二條路由 —— 驗證規則（content 上限、parent_id 巢狀守衛）完全相同，拆兩個 method 只會把那段驗證複製一次
+- **D38**: 按「提交答案」時若輸入框有內容，語意是「更新草稿內容再轉正」而非另建一筆（FR-037）—— 否則「我把草稿改完按提交」會同時留下舊草稿與新提交，學員看到兩筆幾乎一樣的東西
+- **D39**: 四個狀態轉移（存草稿 / 轉正 / 學員改回 / 講師打回）集中在 `AssignmentService`，controller 只轉呼叫 —— 這裡有真正的規則（一題一草稿、有回覆不可退、已完成不可退、打回要發通知），屬於 D34「沒有邏輯的寫入留在 controller」判準的另一側
+- **D40**: 學員側的不可退條件用「有沒有 reply」而不是「講師有沒有看過」—— 站上沒有已讀機制，回覆是講師已投入時間的唯一可觀測證據。代價是「只讀不回」的提交仍可被學員收回，可接受：講師要攔就用「打回草稿」，或先回一句
+- **D41**: 講師端做「打回草稿」而不是「退回並刪除」—— 學員寫過的內容是資產（同 D4：題目只下架不刪除）。打回後那筆留在原地，學員接著改就好，不必重打一遍；也因此打回**不改內容**，只改狀態
+- **D42**: 草稿在教室以 amber 系呈現並明寫「僅你看得到」—— 草稿唯一的嚴重誤解是「我以為我交了」，顏色與文字都必須與已提交的白色氣泡一眼分辨。amber 是站內尚未用於狀態的中性警示色，不與 teal（講師）、green（已完成）撞
+
 ## Schema
 
 - `lesson_progress` — (user_id, lesson_id) 存在即代表該小節已完成；unique 複合鍵，無其他欄位（完成時間即 created_at）
@@ -421,6 +456,12 @@ touchpoints:
 - `2026_09_23_000004_create_roadmap_checkpoint_completions_table.php` — `user_id`（FK cascade）、`course_roadmap_checkpoint_id`（FK cascade）、timestamps；**unique `(user_id, course_roadmap_checkpoint_id)`**
 - 與 `lesson_progress` 的差別：存在即完成、完成時間即 `created_at`（同）；但**可刪除**（FR-028），且不觸發積分、不計入完課率、不進任何統計
 - 定義側的 `course_roadmap_stages` / `course_roadmap_checkpoints` 歸 004 擁有，見 004 US7 Schema 段；checkpoint 被刪除時 cascade 帶走這裡的完成紀錄
+
+**作業草稿與提交狀態（US12 新增，2026-09-24）**：
+
+- `2026_09_24_000001_add_submitted_at_to_comments_table.php` — `comments.submitted_at` nullable timestamp（置於 `is_edited` 之後）+ index `(assignment_id, user_id, submitted_at)`；up 內 backfill `submitted_at = created_at`（既有留言一律視為已提交）
+- `2026_09_24_000002_change_homework_notification_type_to_string.php` — `homework_notifications.type` enum → `string(20)`；合法值 `reply` / `completion` / `returned`（FR-043）
+- 不變量：`submitted_at IS NULL` 即草稿；每 (assignment_id, user_id) 最多一筆 NULL（應用層守門，FR-036）；講師的第二層回覆一律帶 `submitted_at`（回覆沒有草稿概念）
 
 ## Tasks
 
@@ -526,8 +567,36 @@ touchpoints:
 - [x] T00R13 測試（TDD，先紅）：(a) 會員可勾選並可**自行取消**（FR-028，明確與 LessonProgressTest 的 admin-only 相反）；(b) 拿別門課的 checkpoint id → 404（FR-029）；(c) 重複 POST 同一 checkpoint 只產生一列（FR-030）；(d) 無 Roadmap 的課程 `boardFor` 回 null 且教室 payload 的 `roadmap` 為 null；(e) 後台端點對無存取權的 user 回 403/404 且無任何寫入路徑 in tests/Feature/Classroom/RoadmapProgressTest.php
 - [x] T00R14 `php artisan test` 全綠 + `npm run build` exit 0；手動檢查：教室側欄入口 → 主欄切換 → 勾選動畫 → 階段完成脈衝 → 手機 RWD → 作業批改 modal
 
+### 作業草稿與正式提交（US12，FR-034~FR-043）
+
+**Phase A — 後端**（T00D1–T00D4 完成後前端才能接）
+
+- [x] T00D1 migration：`comments.submitted_at` nullable timestamp + index `(assignment_id, user_id, submitted_at)`，up 內 `update comments set submitted_at = created_at` in database/migrations/2026_09_24_000001_add_submitted_at_to_comments_table.php
+- [x] T00D2 [P] migration：`homework_notifications.type` enum → string(20)（FR-043）in database/migrations/2026_09_24_000002_change_homework_notification_type_to_string.php
+- [x] T00D3 [P] `Comment`：`submitted_at` 進 fillable + datetime cast；`scopeSubmitted`（whereNotNull）/ `scopeDrafts`（whereNull）/ `isDraft()` in app/Models/Comment.php
+- [x] T00D4 `AssignmentService` 四個狀態轉移（D39）：`saveDraft(User, Assignment, string $content): Comment`（updateOrCreate 該學員該題的唯一草稿）、`submit(User, Assignment, ?string $content): Comment`（有草稿則更新內容並寫 submitted_at，無則建立已提交）、`revertToDraft(Comment, User $actor): array`（本人 + 無 reply + 未標記完成 + 無既有草稿，任一不符回 `['success'=>false,'error'=>…]`）、`returnToDraft(Comment): array`（未標記完成 + 無既有草稿，成功後建 `type=returned` 通知）in app/Services/AssignmentService.php
+- [x] T00D5 [P] `StoreCommentRequest` 加 `status` 規則（`required|in:draft,submitted`）in app/Http/Requests/Member/StoreCommentRequest.php
+- [x] T00D6 `AssignmentCommentController`：`store` 依 `status` 轉呼叫 `saveDraft`/`submit`（既有 403/404 守衛不動）；新增 `submit(Course, Assignment, Comment)`（草稿卡按「提交答案」）與 `revertToDraft(Course, Assignment, Comment)`，失敗以 `withErrors` 回中文訊息；三條路由掛 member 群組〔touchpoint 000〕in app/Http/Controllers/Member/AssignmentCommentController.php, routes/web.php
+- [x] T00D7 `HomeworkController::index`：query 加 `->submitted()`、`latest()` 改 `orderByDesc('submitted_at')`（FR-042），payload 補 `submitted_at`；新增 `returnToDraft(Assignment, Comment)` 端點 + 路由〔touchpoint 000〕in app/Http/Controllers/Admin/HomeworkController.php, routes/web.php
+- [x] T00D8 [P] AI 批改：`aiDraft` 的 `abort_if` 追加 `$comment->isDraft()`（FR-035/FR-021）；`exchange()` 的 replies 查詢加 `submitted()` in app/Http/Controllers/Admin/HomeworkController.php, app/Services/HomeworkGradingService.php
+- [x] T00D9 `ClassroomController::show`：作業留言 payload 每筆補 `is_draft` / `submitted_at` / `can_revert`（FR-038 三條件在後端算，前端只讀）；`preview_user_id` 路徑（admin 看學員視角）加 `submitted()` 過濾 in app/Http/Controllers/Member/ClassroomController.php
+- [x] T00D10 [P] 通知文案加 `returned` 分支：「老師認為《{course_name}》的作業尚未完成，請補完後再提交」（原 `$n->type === 'reply' ? … : …` 三元改 match）〔touchpoint 000〕in app/Http/Middleware/HandleInertiaRequests.php
+
+**Phase B — 前端**（T00D9 完成後）
+
+- [x] T00D11 `AssignmentSection.vue`：輸入區改兩顆按鈕（「存為草稿」外框次要樣式 /「提交答案」主按鈕）+ 左側小字 hint；草稿卡片 amber 系（`bg-amber-50 border-amber-200`）+「草稿・僅你看得到」標記 +「提交答案」按鈕；已提交卡片在 `can_revert` 為 true 時顯示「改回草稿」（與編輯/刪除同列）in resources/js/Components/Classroom/AssignmentSection.vue
+- [x] T00D12 [P] 後台提交列「打回草稿」按鈕（置於「標記已完成」左側、`@click.stop` 內，`confirm('打回草稿？學員會收到通知，該筆將暫時離開此列表')`），已完成的提交不顯示 in resources/js/Pages/Admin/Homework/Index.vue
+
+**Phase C — 驗證**
+
+- [x] T00D13 測試（TDD，先紅）：(a) `status=draft` 建立的留言不出現在後台列表、AI 脈絡與 admin preview；(b) 連存兩次草稿只有一筆（FR-036）；(c) 草稿轉正沿用同一 comment id 且 created_at 不變（FR-037）；(d) 有 reply 的提交學員改回草稿回 422、無 reply 可成功（FR-038）；(e) 已標記完成後學員與講師兩條路徑都回 422（FR-039）；(f) 講師打回產生 `returned` 通知、學員自行改回不產生通知（FR-040）；(g) 已有草稿時打回被擋；(h) 後台列表依 submitted_at 排序（FR-042）in tests/Feature/Classroom/AssignmentDraftTest.php
+- [x] T00D14 `php artisan test` 全綠 + `npm run build` exit 0 + `python3 tools/build_spec_index.py`；手動檢查：教室存草稿→覆蓋→轉正→改回草稿→後台打回→鈴鐺通知→手機 RWD
+
+
 ## 進度日誌
 
+- 2026-09-24: 實作 US12 作業草稿與正式提交（T00D1~T00D14）— `comments.submitted_at`（NULL=草稿）+ 既有留言 backfill、`homework_notifications.type` enum→string(20)；`AssignmentService` 四個狀態轉移（saveDraft / submit / revertToDraft / returnToDraft）、學員端 submit / revert 兩條路由、後台 `/return` 打回草稿、後台列表 `submitted()` 過濾並改依 submitted_at 排序、AI 批改對草稿回 404、教室 payload 補 is_draft / can_revert、鈴鐺 returned 文案；前端兩顆按鈕 + hint 小字 + amber 草稿卡 + 後台「打回草稿」。規劃時寫「後端回 422」，實作改為 Inertia 慣例的 `withErrors`（裸 422 在 Inertia 表單請求下訊息顯示不出來），FR-038 已同步修正。AssignmentDraftTest 13 例綠、全 repo 979 passed（4200 assertions）、npm run build exit 0；本機 MySQL 實跑 migration 確認 6 筆既有留言全部 backfill 成已提交、type 欄位為 varchar(20)。附帶修正：AiGradingTest 與 UserSocialLinkTest 的 comment fixture 補 submitted_at。
+- 2026-09-24: /spec 規劃「作業草稿與正式提交」US12（FR-034~043、D36~D42、T00D1~T00D14）— `comments.submitted_at` 單欄位表達狀態，一題一草稿、草稿轉正沿用同一筆；學員在無回覆且未標記完成前可自行改回草稿，講師另有「打回草稿」並發 `returned` 通知。status: draft 待審。
 - 2026-09-24: 教室 Roadmap 標題後綴「階段檢核表」— 側欄入口與主欄標題兩處同步（後台唯讀 modal 共用 RoadmapBoard，一併帶到）。純文案，行為未變。
 - 2026-09-23: 實作 US11 T00R1~T00R14 — roadmap_checkpoint_completions 表與 model、RoadmapProgressService::boardFor、Member\RoadmapController（會員可勾可取消，FR-028）、Admin\StudentRoadmapController（唯讀）、RoadmapBoard.vue（縱向主軸線 + 階段卡 + 純 CSS 勾選 pop／節點光暈／進度條過渡，prefers-reduced-motion 全關）、ChapterSidebar 入口、Classroom.vue activeView 切換、作業批改列表 Roadmap 按鈕 + StudentRoadmapModal。RoadmapProgressTest 6 例綠，php artisan test 966 passed、npm run build exit 0。
 - 2026-09-23: /spec 規劃「教室 Roadmap 與自我檢核」US11（FR-028~033、D28~D35、T00R1~T00R14）— 側欄入口 + 主欄縱向路徑圖、學員可勾可取消（刻意與 FR-026 相反）、純 CSS 遊戲感回饋、作業批改列表可開 modal 看學員進度。Roadmap 定義側見 004 US7。status: draft 待審。
