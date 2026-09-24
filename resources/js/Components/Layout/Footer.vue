@@ -1,6 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import LegalPolicyModal from '../Legal/LegalPolicyModal.vue'
+
+const siteName = computed(() => usePage().props.site?.name ?? '')
 
 const showModal = ref(false)
 const modalType = ref('terms')
@@ -21,7 +24,7 @@ const closeModal = () => {
       <div class="flex flex-col md:flex-row md:justify-between md:items-center">
         <div class="text-center md:text-left mb-4 md:mb-0">
           <p class="text-brand-cream/80 text-sm">
-            &copy; {{ new Date().getFullYear() }} 經營者時間銀行. All rights reserved.
+            &copy; {{ new Date().getFullYear() }} {{ siteName }}. All rights reserved.
           </p>
         </div>
         <div class="flex justify-center md:justify-end space-x-6">

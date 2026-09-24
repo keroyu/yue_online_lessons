@@ -245,6 +245,8 @@ UI 改版（2026-07-12 回饋：詳情 modal 開關小題大作）：
 
 ## 進度日誌
 
+- 2026-09-25: `course-gifted.blade.php` 的署名改讀 `SiteSetting::siteName()`，不再寫死品牌字串（000 US12）。
+
 - 2026-09-25: 會員 CSV 匯出的 `created_at` / `last_login_at` 與檔名日期原本輸出 UTC，差 8 小時，補 `->timezone('Asia/Taipei')`（000 US11）
 
 - 2026-09-08: 正式站實測通過，T019 勾選，本批全數完成。

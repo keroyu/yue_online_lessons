@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CartItem;
 use App\Models\Course;
 use App\Models\Purchase;
+use App\Models\SiteSetting;
 use App\Services\CouponChainService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -47,7 +48,7 @@ class CourseController extends Controller
         $canSubscribe = $course->canUserSubscribe($user);
 
         view()->share('og', [
-            'title' => $course->name . ' - Your Time Bank',
+            'title' => $course->name . ' - ' . SiteSetting::siteName(),
             'description' => $course->meta_description ?: $course->tagline ?: $course->name,
             'image' => $course->thumbnail_url,
             'url' => route('course.show', $course),

@@ -369,6 +369,8 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-09-25: `lesson-added.blade.php` 的署名改讀 `SiteSetting::siteName()`，不再寫死品牌字串（000 US12）。
+
 - 2026-09-25: 修 `sale_at` / `promo_ends_at` 的 8 小時偏差 — 原本 datetime-local 的裸字串被當 UTC 直接存，admin 設 09:00 開賣實際是台北 17:00；改走 000 的 `NormalizesTaipeiInput`，列表/編輯頁輸出補 `->timezone('Asia/Taipei')`。另修 `CourseSeeder`（portaly_url 已 drop）與 `LessonSeeder`（html_content → content_md，範例內容改寫為 Markdown），`migrate:fresh --seed` 自今年一月起即無法執行。移除沒人讀的 `portalyUrl` accessor 與 prop（前端自行以 portaly_product_id 組網址）
 
 - 2026-09-23: 實作 US7 T00H1~T00H12 — 三張 migration（stages / checkpoints / courses.roadmap_title）、CourseRoadmapStage/Checkpoint model、Course::roadmapStages + hasRoadmap、CourseRoadmapRequest、CourseRoadmapService::sync（id 保留式 diff 儲存，sort_order 由陣列位置重寫）、Admin\CourseRoadmapController、Roadmap.vue 編輯頁（拖曳排序 + Markdown 匯入 + 刪除前完成紀錄警告）、課程列表 Roadmap 入口。CourseRoadmapTest 4 例綠（含「編輯不得清空學員進度」的防線），php artisan test 966 passed、npm run build exit 0。

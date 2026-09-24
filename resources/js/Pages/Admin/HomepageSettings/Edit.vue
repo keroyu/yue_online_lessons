@@ -27,6 +27,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  siteIdentity: {
+    type: Object,
+    required: true,
+  },
   sidebarOrder: {
     type: Array,
     default: () => [],
@@ -40,6 +44,27 @@ const props = defineProps({
     default: false,
   },
 })
+
+// ─── Section 0: Site identity ────────────────────────────────────────────────
+
+const identityForm = ref({
+  site_name:     props.siteIdentity.name ?? '',
+  site_operator: props.siteIdentity.operator ?? '',
+  site_address:  props.siteIdentity.address ?? '',
+})
+const identityErrors = ref({})
+const identitySaving = ref(false)
+
+function saveSiteIdentity() {
+  identitySaving.value = true
+  identityErrors.value = {}
+
+  router.post('/admin/homepage/site-identity', { ...identityForm.value }, {
+    preserveScroll: true,
+    onError: (errors) => { identityErrors.value = errors },
+    onFinish: () => { identitySaving.value = false },
+  })
+}
 
 // ─── Section 1: Hero + RSS ───────────────────────────────────────────────────
 
@@ -268,6 +293,68 @@ function saveCategories() {
 <template>
   <div class="max-w-3xl mx-auto px-4 py-8 space-y-10">
     <h1 class="text-2xl font-bold text-gray-900">首頁設定</h1>
+
+    <!-- Section 0: 站台資訊 -->
+    <section class="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">站台資訊</h2>
+        <p class="mt-1 text-sm text-gray-500">
+          站名會顯示在導航列、頁尾、瀏覽器分頁標題與系統信；經營者與地址會顯示在服務條款與購買須知。
+        </p>
+      </div>
+
+      <!-- 站名 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">站名</label>
+        <input
+          v-model="identityForm.site_name"
+          type="text"
+          maxlength="100"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent"
+          placeholder="例：線上課程學院"
+        />
+        <p v-if="identityErrors.site_name" class="mt-1 text-sm text-red-600">{{ identityErrors.site_name }}</p>
+      </div>
+
+      <!-- 經營者 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">經營者</label>
+        <input
+          v-model="identityForm.site_operator"
+          type="text"
+          maxlength="255"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent"
+          placeholder="例：某某有限公司"
+        />
+        <p v-if="identityErrors.site_operator" class="mt-1 text-sm text-red-600">{{ identityErrors.site_operator }}</p>
+        <p class="mt-1 text-xs text-gray-400">留空則條款頁不顯示這一行</p>
+      </div>
+
+      <!-- 地址 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">地址</label>
+        <input
+          v-model="identityForm.site_address"
+          type="text"
+          maxlength="255"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-transparent"
+          placeholder="例：臺北市中正區某某路 1 號"
+        />
+        <p v-if="identityErrors.site_address" class="mt-1 text-sm text-red-600">{{ identityErrors.site_address }}</p>
+        <p class="mt-1 text-xs text-gray-400">留空則條款頁不顯示這一行</p>
+      </div>
+
+      <div class="pt-2">
+        <button
+          type="button"
+          :disabled="identitySaving"
+          class="px-5 py-2 bg-brand-navy text-white text-sm font-semibold rounded-lg hover:bg-opacity-90 disabled:opacity-50"
+          @click="saveSiteIdentity"
+        >
+          {{ identitySaving ? '儲存中…' : '儲存站台資訊' }}
+        </button>
+      </div>
+    </section>
 
     <!-- Section 1: Hero 設定 -->
     <section class="bg-white rounded-xl border border-gray-200 p-6 space-y-6">

@@ -133,7 +133,7 @@ touchpoints:
     why: 排程 posts:publish-scheduled（每分鐘）與 newsletter:clean-dormant（每月 1 號）
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
-    why: 電子報信件頁尾站名改讀 site_settings.hero_title（後台首頁設定「標題」），不再用 config('app.name')（FR-013）
+    why: 電子報信件頁尾、RSS 標題與 OG 卡片的站名一律走 SiteSetting::siteName()，不再用 config('app.name')（FR-013 / 000 US12）
   - file: app/Http/Requests/Concerns/NormalizesTaipeiInput.php
     owner: 000-platform-core
     why: scheduled_at 的 FormRequest 用它在 prepareForValidation() 把 datetime-local 的台北牆鐘轉成 UTC（000 US11）
@@ -172,7 +172,7 @@ touchpoints:
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
 - [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
-- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo `resources/images/og-logo.png` + 「經營者時間銀行」＋teal 底線），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo `resources/images/og-logo.png` + 站名 `SiteSetting::siteName()`＋teal 底線；站名為快取 key 的一部分，改站名會重生所有卡片），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -290,7 +290,7 @@ touchpoints:
 - **FR-010**: Broadcast 發送以每收件者一個 queued Job 進行，逐封夾帶個人化 pixel 與退訂連結；不在單封信合併多人（追蹤與一鍵退訂需要個別 token）。
 - **FR-011**: view_count 為近似計數（每 session 每篇去重、admin/draft/bot 不計），只作內容成效與排序參考，非精確分析；以 `increment()` 原子更新避免併發競態，計數失敗不得影響文章頁回應。
 - **FR-012**: `BlogController::show` 的 `related_course` payload MUST 帶 `is_high_ticket`（`$post->relatedCourse->is_high_ticket`），供 `Blog/Show.vue` 判斷 CTA 文案：高價課顯示「申請 1v1 諮詢了解詳情 →」，其餘課型維持「了解課程 →」。連結本身（`/go/post/...` 帶 UTM）不因課型改變。
-- **FR-013**: 電子報信件（`newsletter-broadcast.blade.php`、`newsletter-broadcast-text.blade.php`、`newsletter-welcome.blade.php`）頁尾提及的站名 MUST 讀 `SiteSetting::get('hero_title', config('app.name', '經營者時間銀行'))`，不得直接用 `config('app.name')`（2026-08-08 修正）。`hero_title` 是後台「首頁設定」頁「標題」欄位（002 owned，見 touchpoint），業主已在用它當對外品牌名稱；`APP_NAME` 是系統層級識別字串，兩者一直各自維護，正式站上已經是不同值（`APP_NAME="YUE Lessons"` vs `hero_title="經營者時間銀行"`），電子報頁尾原本讀錯了那一個。`config('app.name')` 字串本身留作 `SiteSetting::get()` 的第二層 fallback，不刪除。
+- **FR-013**: 電子報信件（`newsletter-broadcast.blade.php`、`newsletter-broadcast-text.blade.php`、`newsletter-welcome.blade.php`）頁尾提及的站名 MUST 讀 `SiteSetting::siteName()`，MUST NOT 直接用 `config('app.name')`。`APP_NAME` 是系統層級識別字串（正式站為 `"YUE Lessons"`），業主對外維護的品牌名是另一回事，兩者一直各自維護、早已是不同值，頁尾原本讀錯了那一個（2026-08-08 修正）。取值來源自 000 US12 起改為 `site_settings.site_name`（後台「首頁設定 → 站台資訊」）；在那之前這個角色由 `hero_title` 兼任，因此 `siteName()` 內部的 fallback 鏈仍是 `site_name` → `hero_title` → `config('app.name')`，升級的站不會在某一天突然改名。
 
 - **FR-014**: `/admin/posts` 的關鍵字搜尋 MUST 同時比對 `title`、`slug`、tag 名稱與**內文 `body_md`**，四者為 OR 且必須包在同一個 `where(fn ($w) => ...)` 群組內 —— 拆到群組外會讓 OR 吃掉狀態與 tag 篩選，變成「搜尋時篩選條件默默失效」。搜尋框 placeholder MUST 明示涵蓋內文，因為列表只顯示標題／slug／狀態，命中內文的那一列在畫面上看不出理由。
 - **FR-015**（2026-09-12，002 US21）: 訂閱寫入 MUST 收斂在 `NewsletterService` 的單一私有方法，由 `subscribeVerified()`（OTP 路徑）與 `subscribeUnverified()`（hero 路徑）兩個薄包裝呼叫。兩者唯一的差別是 `email_verified_at`：**只有 OTP 路徑可以寫它**。MUST NOT 讓 hero 路徑沿用 `subscribeVerified()` —— 那會在資料庫留下一個「這個信箱驗證過了」的謊，而登入流程讀的正是這類欄位的語意。`nickname` 在既有使用者身上 MUST 只補空白、不覆寫。
@@ -421,6 +421,8 @@ Phase 3 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 站名來源改為 `site_settings.site_name`（000 US12）— FR-013 原本規定電子報頁尾讀 `hero_title`，那是「站名」在還沒有自己的欄位時的暫代；三支電子報 blade、`BlogFeedController` 的 RSS 標題、`OgImageService` 的品牌 lockup 一律改讀 `SiteSetting::siteName()`（`hero_title` 留作 fallback，升級的站不會突然改名）。站名進了 OG 卡片的快取 key，改名才會重生舊卡片，`OgImageTest` 的檔名斷言與 `EmailBrandNameTest` 釘的規則同步改掉。
 
 - 2026-09-25: 修 `scheduled_at` 的 8 小時偏差 — 電子報原本晚 8 小時才寄出；改走 000 的 `NormalizesTaipeiInput`。同一批修掉列表 `sent_at`、開信名單 `opened_at`、文章 `published_at` 與排程 flash 訊息的輸出轉換。`BroadcastTest` 既有兩個案例原本以 UTC 牆鐘送值（等於編碼了錯誤假設），改為台北牆鐘並新增 `test_schedule_time_is_read_as_taipei_and_stored_as_utc`
 

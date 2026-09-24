@@ -37,6 +37,7 @@ main_files:
 - app/Mail/NewsletterWelcomeMail.php
 - app/Models/AiPrompt.php
 - app/Models/EmailSuppression.php
+- app/Models/EmailTemplate.php
 - app/Models/Order.php
 - app/Models/ShortLink.php
 - app/Models/SiteSetting.php
@@ -47,6 +48,7 @@ main_files:
 - app/Services/HighTicketBookingService.php
 - app/Services/MetaConversionsService.php
 - app/Services/NewsletterService.php
+- app/Services/OgImageService.php
 - app/Services/OpenAiService.php
 - app/Services/PortalyWebhookService.php
 - bootstrap/app.php
@@ -60,6 +62,7 @@ main_files:
 - database/migrations/2026_07_31_000001_create_short_links_table.php
 - database/migrations/2026_08_09_000001_create_email_suppressions_table.php
 - database/migrations/2026_08_17_000002_create_ai_prompts_table.php
+- database/migrations/2026_09_25_000001_install_site_identity_settings.php
 - database/seeders/ShortLinkSeeder.php
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/HintBox.vue
@@ -83,6 +86,7 @@ main_files:
 - tests/Feature/Platform/AiSettingsTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/ShortLinkTest.php
+- tests/Feature/Storefront/SiteIdentityTest.php
 
 related_specs:
 - specs/000-platform-core/spec.md
@@ -228,6 +232,7 @@ main_files:
 - tests/Feature/Storefront/HomeHeroTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php
+- tests/Feature/Storefront/SiteIdentityTest.php
 - tests/Feature/Storefront/SnsProfileTest.php
 
 related_specs:
@@ -862,6 +867,7 @@ main_files:
 - resources/js/Pages/Home.vue
 - resources/js/Pages/Newsletter/Unsubscribe.vue
 - resources/views/app.blade.php
+- resources/views/emails/newsletter-broadcast-text.blade.php
 - resources/views/emails/newsletter-broadcast.blade.php
 - resources/views/emails/newsletter-welcome.blade.php
 - resources/views/sitemap.blade.php
@@ -871,6 +877,7 @@ main_files:
 - tests/Feature/Newsletter/AdminPostSearchTest.php
 - tests/Feature/Newsletter/AdminScreensTest.php
 - tests/Feature/Newsletter/BroadcastTest.php
+- tests/Feature/Newsletter/EmailBrandNameTest.php
 - tests/Feature/Newsletter/OgImageTest.php
 - tests/Feature/Newsletter/PostServiceTest.php
 - tests/Feature/Newsletter/WelcomePostTest.php

@@ -16,8 +16,14 @@ router.on('navigate', () => {
   if (window.fbq) window.fbq('track', 'PageView')
 })
 
+// The site name comes from site_settings, so it is only known once the server
+// has sent the first page. `setup` runs before anything renders a <Head>, which
+// is the only thing that reads this callback — so one assignment there covers
+// every title, including the first.
+let siteName = ''
+
 createInertiaApp({
-  title: (title) => title ? `${title} - Your Time Bank` : 'Your Time Bank',
+  title: (title) => [title, siteName].filter(Boolean).join(' - '),
   resolve: (name) => {
     const pages = import.meta.glob('./Pages/**/*.vue', { eager: true })
     const page = pages[`./Pages/${name}.vue`]
@@ -28,6 +34,8 @@ createInertiaApp({
     return page
   },
   setup({ el, App, props, plugin }) {
+    siteName = props.initialPage.props.site?.name ?? ''
+
     createApp({ render: () => h(App, props) })
       .use(plugin)
       .mount(el)

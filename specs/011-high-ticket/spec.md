@@ -1363,7 +1363,7 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
   **MUST NOT 改動 DB 值**（指的是欄位語彙本身）：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
 
 - **FR-057**: 對外客服信箱 MUST 收在 `site_settings.support_email`，由「Email 模板管理」頁維護；未設定或留空時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。取值一律走 `SiteSetting::supportEmail()`。
-  **`{{support_email}}` 與 `{{app_url}}` MUST 對所有模板自動可用**：注入點在 `EmailTemplate::renderSubject()` / `substitute()`，不是各呼叫端 —— 呼叫端有六個，漏一個的症狀是收件人信箱裡出現字面的 `{{support_email}}`。呼叫端明確傳入的值 MUST 覆蓋全域值。編輯頁的變數清單以 `GLOBAL_VARIABLES` 附加於每個 event_type 之後。
+  **`{{support_email}}`、`{{site_name}}` 與 `{{app_url}}` MUST 對所有模板自動可用**：注入點在 `EmailTemplate::renderSubject()` / `substitute()`，不是各呼叫端 —— 呼叫端有六個，漏一個的症狀是收件人信箱裡出現字面的 `{{support_email}}`。呼叫端明確傳入的值 MUST 覆蓋全域值。編輯頁的變數清單以 `GLOBAL_VARIABLES` 附加於每個 event_type 之後。
   **與 `high_ticket_lead_notify_cc` 是不同角色**（沿用 FR-014 的區分）：那是「誰接手這條 lead」，這是「訪客有問題寫給誰」；兩者共用同一頁但文案 MUST 說明差別。
   **全站唯一真相**：`app/` 與 `resources/` MUST NOT 出現硬寫的客服地址，唯一例外是 `SiteSetting::DEFAULT_SUPPORT_EMAIL` 常數本身；前台以 Inertia shared prop `supportEmail` 取用（法律條款 modal 掛在 footer，沒有單一 controller 可傳），後端一律 `SiteSetting::supportEmail()`。此條 MUST 由測試掃描原始碼把關 —— 一個只有一半應用程式遵守的設定，比沒有設定更糟
 
@@ -3173,6 +3173,8 @@ Phase 4 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 信件模板新增全域變數 `{{site_name}}`（000 US12）— 注入點與 `{{support_email}}` / `{{app_url}}` 同一處，編輯頁變數清單同步列出。`EmailTemplateSeeder` 與 `2026_08_06_000003_insert_booking_change_email_templates` 裡九處＋二處署名的「經營者時間銀行」改成該變數，`booking-verify` 的 HTML / 純文字版署名改讀 `SiteSetting::siteName()` —— 這些文字只在乾淨 DB 上會被寫進去，正式站既有的模板列一個字都沒動（兩支安裝 migration 本來就「缺才插、永不 update」）。
 
 - 2026-09-25: 逐字稿下載的標頭「面談時間」原本寫 `timezone(config('app.timezone'))`，那是 UTC 等於沒轉，改為 `ConsultationSlotService::DISPLAY_TZ`（000 US11）
 

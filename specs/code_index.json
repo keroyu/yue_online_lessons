@@ -150,6 +150,7 @@
       "002.us-19",
       "002.us-20",
       "002.us-21",
+      "002.us-22",
       "002.us-3",
       "002.us-5",
       "002.us-7",
@@ -392,6 +393,7 @@
     ],
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "000.us-1",
+      "000.us-12",
       "000.us-6",
       "003.us-12",
       "010.us-1"
@@ -755,6 +757,7 @@
       "000.us-9"
     ],
     "app/Models/EmailTemplate.php": [
+      "000.us-12",
       "011.us-11",
       "011.us-2",
       "011.us-6",
@@ -833,6 +836,7 @@
       "002.us-15"
     ],
     "app/Models/SiteSetting.php": [
+      "000.us-12",
       "000.us-5",
       "000.us-9",
       "007.us-4",
@@ -1006,6 +1010,7 @@
       "012.us-9"
     ],
     "app/Services/OgImageService.php": [
+      "000.us-12",
       "012.us-2"
     ],
     "app/Services/OpenAiService.php": [
@@ -1428,6 +1433,9 @@
     "database/migrations/2026_09_24_000002_change_homework_notification_type_to_string.php": [
       "003.us-12"
     ],
+    "database/migrations/2026_09_25_000001_install_site_identity_settings.php": [
+      "000.us-12"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1683,10 +1691,12 @@
     ],
     "resources/js/Components/Layout/Footer.vue": [
       "000.us-1",
+      "000.us-12",
       "000.us-3"
     ],
     "resources/js/Components/Layout/Navigation.vue": [
       "000.us-1",
+      "000.us-12",
       "000.us-6"
     ],
     "resources/js/Components/Layout/Sidebar.vue": [
@@ -1697,12 +1707,15 @@
       "000.us-3"
     ],
     "resources/js/Components/Legal/PrivacyContent.vue": [
+      "000.us-12",
       "000.us-3"
     ],
     "resources/js/Components/Legal/PurchaseContent.vue": [
+      "000.us-12",
       "000.us-3"
     ],
     "resources/js/Components/Legal/TermsContent.vue": [
+      "000.us-12",
       "000.us-3"
     ],
     "resources/js/Components/MemberDetailModal.vue": [
@@ -1855,6 +1868,7 @@
       "002.us-19",
       "002.us-20",
       "002.us-21",
+      "002.us-22",
       "002.us-3",
       "002.us-4",
       "002.us-6",
@@ -1995,6 +2009,7 @@
     ],
     "resources/js/app.js": [
       "000.us-1",
+      "000.us-12",
       "000.us-4"
     ],
     "resources/js/composables/useCart.js": [
@@ -2012,6 +2027,7 @@
       "001.us-3"
     ],
     "resources/views/app.blade.php": [
+      "000.us-12",
       "000.us-4",
       "000.us-7",
       "012.us-2"
@@ -2042,6 +2058,9 @@
     ],
     "resources/views/emails/lesson-added.blade.php": [
       "004.us-6"
+    ],
+    "resources/views/emails/newsletter-broadcast-text.blade.php": [
+      "012.us-5"
     ],
     "resources/views/emails/newsletter-broadcast.blade.php": [
       "012.us-5",
@@ -2084,6 +2103,7 @@
       "002.us-19",
       "002.us-20",
       "002.us-21",
+      "002.us-22",
       "002.us-9",
       "003.us-10",
       "003.us-11",
@@ -2295,6 +2315,9 @@
     "tests/Feature/Newsletter/BroadcastTest.php": [
       "012.us-5"
     ],
+    "tests/Feature/Newsletter/EmailBrandNameTest.php": [
+      "012.us-5"
+    ],
     "tests/Feature/Newsletter/OgImageTest.php": [
       "012.us-2"
     ],
@@ -2350,6 +2373,10 @@
       "002.us-13",
       "002.us-16",
       "002.us-18"
+    ],
+    "tests/Feature/Storefront/SiteIdentityTest.php": [
+      "000.us-12",
+      "002.us-22"
     ],
     "tests/Feature/Storefront/SnsProfileTest.php": [
       "002.us-20"

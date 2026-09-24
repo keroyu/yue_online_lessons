@@ -713,6 +713,8 @@ Phase 6 — 驗證
 
 ## 進度日誌
 
+- 2026-09-25: drip 訂閱表單的「來信者為「…」」文案改讀共享的 `site.name`，不再寫死品牌字串（000 US12）。
+
 - 2026-08-17: 序列信可讀性與 multipart（FR-041/FR-042、D34/D35）— 業主問「能不能套上驗證信那個框，字會不會太多 HTML 被歸促銷」。查 8/2 事件記錄後回覆：促銷分頁的成因是缺 `List-Unsubscribe` 與內文沒有退訂字樣，不是 HTML 的量；同網域的電子報有容器＋彩色按鈕＋封面圖反而沒事。業主選擇「只調字級不加框」，因此只在 blade 加 wrapper div（16px / 1.75 / 無襯線）與 `p` 的 20px 間距，卡片外框與 `max-width` 都不加。同批補上純文字替代版（新 `drip-lesson-text.blade.php`，內容由最終 HTML 經 `league/html-to-markdown` 轉回，保住 UTM 戳章）—— 這才是實質的投遞率收益。後台預覽 modal **不需任何改動**：它本來就渲染真正的 `DripLessonMail`（FR-030/FR-031），新字級自動生效，另加一條斷言把「字級確實經 blade 傳到預覽」釘住，防止日後有人改成前端重繪。`php artisan test` 747 passed / 3131 assertions。
 - 2026-08-17: 修正一般課程存不了檔 —— `CourseForm` 不分課程類型都送出 `drip_days`，有章節的一般課程（sort_order 每章從 1 起算）因此被遞增檢查擋下；改為前端 transform 剔除 + 後端 `prepareForValidation()` 清空（FR-040），補有章節的回歸測試；`php artisan test` 705 passed
 - 2026-08-16: US18 可變發信頻率 — 新增 `lessons.drip_day`（null 走舊等距公式，既有課程零遷移），解鎖日收斂為 `DripService::unlockDay()` 單一入口（應寄數／daysUntilUnlock／觀看期 fallback 三處改吃它），CourseForm 排程預覽改為可編輯表格並預帶現行天數，遞增驗證擋在 `UpdateCourseRequest`，新增 Lesson 自動接續天數；`php artisan test` 702 passed / 2933 assertions、`npm run build` exit 0

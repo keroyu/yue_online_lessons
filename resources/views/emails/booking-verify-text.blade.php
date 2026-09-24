@@ -18,4 +18,4 @@
 
 有任何問題請勿直接回覆此信，請寄信到 {{ $supportEmail }} 詢問。
 
-經營者時間銀行
+{{ \App\Models\SiteSetting::siteName() }}

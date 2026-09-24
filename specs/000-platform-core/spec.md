@@ -49,6 +49,7 @@ owner_files:
   - database/migrations/0001_01_01_000001_create_cache_table.php
   - database/migrations/0001_01_01_000002_create_jobs_table.php
   - database/migrations/2026_03_25_000001_create_site_settings_table.php
+  - database/migrations/2026_09_25_000001_install_site_identity_settings.php
   - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
   - database/seeders/DemoDataSeeder.php
   - resources/js/app.js
@@ -183,6 +184,66 @@ touchpoints:
   - file: resources/images/og-logo.png
     owner: 012-newsletter
     why: 前台 Navigation 左上角品牌 logo（Vite import，與 OG 卡片共用同一支品牌圖）
+  - file: app/Http/Controllers/Admin/HomepageSettingController.php
+    owner: 002-storefront
+    why: US12 站台資訊的後台編輯端點放在「首頁設定」頁（見 002 US22）
+  - file: resources/js/Pages/Admin/HomepageSettings/Edit.vue
+    owner: 002-storefront
+    why: US12 站台資訊的編輯欄位（見 002 US22）
+  - file: app/Models/EmailTemplate.php
+    owner: 011-high-ticket
+    why: US12 新增全域變數 {{site_name}}（比照既有的 {{support_email}} / {{app_url}}）
+  - file: app/Http/Controllers/Admin/EmailTemplateController.php
+    owner: 011-high-ticket
+    why: US12 編輯頁的變數清單列出 {{site_name}}
+  - file: database/seeders/EmailTemplateSeeder.php
+    owner: 011-high-ticket
+    why: US12 模板署名改用 {{site_name}}，新安裝不再帶入本站品牌字串
+  - file: database/migrations/2026_08_06_000003_insert_booking_change_email_templates.php
+    owner: 011-high-ticket
+    why: US12 同上（該 migration 自帶模板本文，乾淨 DB 會吃到）
+  - file: resources/views/emails/booking-verify.blade.php
+    owner: 011-high-ticket
+    why: US12 署名改讀 SiteSetting::siteName()
+  - file: resources/views/emails/booking-verify-text.blade.php
+    owner: 011-high-ticket
+    why: US12 署名改讀 SiteSetting::siteName()
+  - file: app/Services/OgImageService.php
+    owner: 012-newsletter
+    why: US12 OG 卡片的品牌 lockup 改讀站名（見 012 FR-013）
+  - file: app/Http/Controllers/BlogFeedController.php
+    owner: 012-newsletter
+    why: US12 RSS 標題改讀站名
+  - file: resources/views/emails/newsletter-broadcast.blade.php
+    owner: 012-newsletter
+    why: US12 頁尾站名改讀 SiteSetting::siteName()
+  - file: resources/views/emails/newsletter-broadcast-text.blade.php
+    owner: 012-newsletter
+    why: US12 頁尾站名改讀 SiteSetting::siteName()
+  - file: resources/views/emails/newsletter-welcome.blade.php
+    owner: 012-newsletter
+    why: US12 頁尾站名改讀 SiteSetting::siteName()
+  - file: tests/Feature/Newsletter/OgImageTest.php
+    owner: 012-newsletter
+    why: US12 OG 卡片快取 key 含站名，斷言改為先設定再推算檔名
+  - file: tests/Feature/Newsletter/EmailBrandNameTest.php
+    owner: 012-newsletter
+    why: US12 站名來源由 hero_title 改為 site_name（hero_title 降為 fallback）
+  - file: resources/js/Components/Course/DripSubscribeForm.vue
+    owner: 010-drip-email
+    why: US12 「來信者為…」文案改讀共享的 site.name
+  - file: resources/js/Pages/Auth/Login.vue
+    owner: 001-auth-account
+    why: US12 「來信者為…」文案改讀共享的 site.name
+  - file: resources/views/emails/verification-code.blade.php
+    owner: 001-auth-account
+    why: US12 信頭與頁尾署名改讀 SiteSetting::siteName()
+  - file: resources/views/emails/course-gifted.blade.php
+    owner: 008-members-admin
+    why: US12 署名改讀 SiteSetting::siteName()
+  - file: resources/views/emails/lesson-added.blade.php
+    owner: 004-course-admin
+    why: US12 署名改讀 SiteSetting::siteName()
 ---
 
 # Platform Core（全站基礎設施）
@@ -207,7 +268,8 @@ touchpoints:
 - [x] 登入者顯示通知鈴（未讀數角標 + 最近 5 筆下拉），點擊通知標記已讀並跳轉教室對應單元
 - [x] 行動版收合為漢堡選單，含購物車與通知清單（RWD mobile-first）
 - [x] flash `success` / `error` 以右上角浮動訊息顯示，5 秒後自動消失（AppLayout 與 AdminLayout 皆同）
-- [x] `HandleInertiaRequests` 全域共享：`auth.user`（id/email/nickname/real_name/phone/role）、`flash`（含 drip_* 鍵）、`cartCount`、`notificationCount`、`notifications`
+- [x] `HandleInertiaRequests` 全域共享：`auth.user`（id/email/nickname/real_name/phone/role）、`flash`（含 drip_* 鍵）、`cartCount`、`notificationCount`、`notifications`、`supportEmail`、`site`（站名/經營者/地址，見 US12）
+- [x] Navigation 左上角站名與 logo alt、Footer copyright 的站名一律讀共享的 `site.name`，不得寫死品牌字串（US12）
 - [x] `bootstrap/app.php` 對 `drip/unsubscribe/*` 與 `newsletter/unsubscribe/*` 豁免 CSRF —— RFC 8058 一鍵退訂由郵件用戶端直接 POST、無 session，不豁免會回 419（授權來源是網址中的 per-recipient token）。**注意**：`withMiddleware` 的 closure 只在 HTTP Kernel 被解析時執行，console/tinker 讀 `getExcludedPaths()` 永遠是空的
 
 ### User Story 2 - 管理後台版面與權限 (Priority: P1)
@@ -229,18 +291,19 @@ touchpoints:
 **驗收**：
 - [x] Footer 三個按鈕開啟 `LegalPolicyModal`，依 `type`（terms/purchase/privacy）切換靜態內容組件
 - [x] 彈窗支援 ESC 關閉、點背景關閉、開啟時鎖定 body scroll（關閉/卸載時還原）
-- [x] 條款內容為前端靜態 Vue 組件（TermsContent / PurchaseContent / PrivacyContent），無後端資料
+- [x] 條款內容為前端靜態 Vue 組件（TermsContent / PurchaseContent / PrivacyContent）；條文本文寫死，但**站名、經營者、地址、客服信箱這四個識別資訊 MUST 讀共享 prop**（`site.name` / `site.operator` / `site.address` / `supportEmail`），不得寫死（US12 / 011 FR-057）
+- [x] 經營者與地址留空時，服務條款與購買須知末尾 MUST 整行不渲染（不留「經營者：」這種空標籤）
 
 ### User Story 4 - SEO、Sitemap 與 Meta Pixel (Priority: P2)
 
 搜尋引擎與社群分享能正確抓到頁面標題、描述、OG 圖；行銷可透過 Meta Pixel 追蹤全站瀏覽。
 
 **驗收**：
-- [x] `app.blade.php` 輸出 meta description、canonical、OG、Twitter Card；有 `$og` view 變數時用頁面專屬值（課程頁由 CourseController `view()->share('og', ...)` 提供），否則用全站預設文案
+- [x] `app.blade.php` 輸出 meta description、canonical、OG、Twitter Card；有 `$og` view 變數時用頁面專屬值（課程頁由 CourseController `view()->share('og', ...)` 提供），否則用以站名組出的預設文案。站名以 `@php $siteName = …; @endphp` 區塊取得——**不可用 `@php(...)` 行內形式**：帶命名空間靜態呼叫時 Blade 會編譯壞掉，症狀是同檔後面的變數（`$pixelId`）變成 undefined
 - [x] `GET /sitemap.xml` 輸出已發佈課程清單（`is_published=true`），URL 優先用 `slug`、無 slug 退回 id，含 `lastmod`
 - [x] Meta Pixel ID 取自 `SiteSetting::get('meta_pixel_id')`（fallback `config('services.meta.pixel_id')` ← env `META_PIXEL_ID`；不可在 blade 直接呼叫 `env()`，config:cache 後會失效）；有值才注入 Pixel script 並送 PageView
 - [x] SPA 導航時 `app.js` 監聽 `router.on('navigate')` 補送 `fbq('track', 'PageView')`；初始整頁載入的第一次 navigate 事件跳過（blade 注入的 snippet 已送過，避免重複計數）
-- [x] 頁面標題格式：`{title} - Your Time Bank`，無標題時 `Your Time Bank`
+- [x] 頁面標題格式：`{title} - {站名}`，無標題時只有站名（站名來自 `site.name`，見 US12）。`app.js` 在 `setup()` 取一次 `initialPage.props.site.name` 存進模組變數——`title` callback 只有 `<Head>` 會呼叫，而那發生在 setup 之後，所以一次賦值涵蓋首屏與後續所有 SPA 導航
 
 ### User Story 5 - site_settings 全站設定機制 (Priority: P1)
 
@@ -248,7 +311,7 @@ touchpoints:
 其他模組以 key-value API 讀寫。
 
 **驗收**：
-- [x] `SiteSetting` 提供靜態 API：`get(key, default)`、`getMany(keys)`、`set(key, value)`（upsert）
+- [x] `SiteSetting` 提供靜態 API：`get(key, default)`、`getMany(keys)`、`set(key, value)`（upsert）、`supportEmail()`、`identity()` 與 `siteName()` / `siteOperator()` / `siteAddress()`（見 US12）
 - [x] `Admin/SettingsController::showPayment/updatePayment` 管理金流憑證（PayUni / NewebPay / Portaly webhook key / meta_pixel_id）
 - [x] 機密欄位（hash_key/hash_iv/webhook_key）表單只回傳遮罩預覽（前 5 碼 + `*`），送出留空 = 不覆蓋原值
 - [x] 非機密欄位（merchant_id、newebpay_env、meta_pixel_id）送出即覆蓋；`newebpay_env` 限 sandbox/production
@@ -357,6 +420,28 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] 對外 API（Zoom、ICS）與 `date` 型欄位（`birth_date` 等）維持原樣，不套用上述轉換
 - [x] 測試涵蓋「台北已過去但 UTC 讀起來像未來」的邊界（`AdminDateInputTimezoneTest`）
 
+### User Story 12 - 站台資訊（站名 / 經營者 / 地址）(Priority: P1)
+
+這份程式碼要能開第二個站。擋路的不是架構，是散落各處的字面字串：「經營者時間銀行」
+寫死在導航列、頁尾、頁面標題、OG 卡片、八支信件模板裡，公司名與登記地址寫死在服務條款
+與購買須知的結尾。換一個客戶就要在十幾個檔案裡改文字，而且改完兩份程式碼就開始各自漂移。
+
+這條故事把三個識別資訊搬進 `site_settings`（沿用 US5 的機制，不新增資料表），
+由後台「首頁設定」頁維護（編輯器本身屬 002，見 002 US22），全站顯示端一律讀設定。
+
+**驗收**：
+- [x] 三個鍵：`site_name`（站名）、`site_operator`（經營者）、`site_address`（地址）
+- [x] `SiteSetting::identity()` 一次讀出三個值並回 `['name','operator','address']`；`siteName()` / `siteOperator()` / `siteAddress()` 為其薄包裝。MUST NOT 為此加 request 級快取 —— queue worker 的靜態狀態會跨 job 存活，後台改了值要等重啟才生效（`supportEmail()` 至今每次重查，同一理由）
+- [x] 站名的 fallback 順序：`site_name` → `hero_title` → `config('app.name')`。`hero_title` 在這個鍵存在之前就是業主對外維護的品牌名（見 012 FR-013），升級的站 MUST 繼續顯示它本來顯示的東西
+- [x] `HandleInertiaRequests` 以 `site` 這個 prop 全域共享三個值（一次 query）；MUST NOT 逐頁由 controller 傳 —— 條款彈窗掛在 footer，每一頁都可能印，逐頁傳一定會漏（沿用 011 FR-057 對客服信箱的同一判斷）
+- [x] 前台顯示端全部改讀設定：Navigation（站名 + logo alt）、Footer（copyright）、法務條款三組件、登入頁與 drip 訂閱表單的「來信者為…」、`app.js` 的頁面標題、`app.blade.php` 的 title / OG / JSON-LD publisher / 預設 description
+- [x] 後端顯示端全部改讀設定：`CourseController` 的 OG title、`BlogFeedController` 的 RSS 標題、`OgImageService` 的品牌 lockup（站名 MUST 進快取 key，改名才會重生舊卡片）、八支信件 blade 的署名
+- [x] 信件模板新增全域變數 `{{site_name}}`（注入點同 `{{support_email}}` / `{{app_url}}`，見 011 FR-057）；`EmailTemplateSeeder` 與自帶模板本文的 migration 的署名改用該變數，乾淨 DB 不再帶入本站品牌字串
+- [x] 資料遷移 `2026_09_25_000001_install_site_identity_settings`：**只有既有安裝**（判斷依據是 `site_settings` 已有 `hero_title` 列）才把現行的站名／公司／地址寫進去；乾淨 DB MUST 什麼都不插 —— 條款頁的法定資訊不能在升級時無聲消失，但也不能把本站的公司帶到別人的站上。既有列一律不覆寫（後台從此是唯一權威）
+- [x] 站名必填（`max:100`）；經營者與地址可留空，留空時條款頁整行不渲染
+- [x] 測試：`SiteIdentityTest`（儲存三值、站名必填、經營者/地址可空、訪客不得改、`site` prop 出現在每一頁、站名 fallback 到 hero_title）
+
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -397,6 +482,9 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 
 - **FR-110**: Eloquent 寫入 DB 時**用 Carbon 自帶的時區直接 format，不做任何轉換**，讀取時才用 `app.timezone` 解析；query binding（`where('x', '>=', $carbon)`）同樣不轉換。因此送進持久層或查詢條件的 Carbon MUST 已經是 UTC —— 一個帶 `+08:00` 的實例會被原樣寫成台北牆鐘，再被當成 UTC 讀回來，差的還是那 8 小時，只是移到了下一步才發作
 - **FR-111**: 時區轉換 MUST 發生在 `prepareForValidation()` 而非 controller。`after:now` / `before:` 這類規則在驗證階段就會比對時刻，晚一步轉換等於讓驗證拿錯誤的時刻去比 —— 具體後果是放行一個其實已經過去 8 小時的時間（台北 07:00 是 UTC 前一天的 23:00，「未來」的判斷會反過來）
+- **FR-113**: 對外顯示的站台識別（站名、經營者、地址）MUST 讀 `site_settings`，MUST NOT 以字面字串寫在任何 Vue／Blade／PHP 檔。這條規則的存在理由不是「可設定比較好」，而是這份程式碼要同時跑在多個客戶的站上：一個寫死的品牌字串會讓第二個安裝從第一天就是錯的，而且錯得很安靜（沒有人會收到「頁尾印著別人的公司名」的錯誤）。
+- **FR-114**: Blade 取站名 MUST 用 `@php … @endphp` 區塊形式。`@php(\App\Models\SiteSetting::siteName())` 這種行內形式在 `app.blade.php` 會編譯壞掉，症狀出現在**同檔後面**的變數（`$pixelId` undefined），與站名本身無關，除錯時幾乎不會往這裡看。
+
 - **FR-112**: 有 `useCurrent()` 的欄位由 MySQL 自己填（`cart_items` / `order_items` / `lesson_progress` / `course_images` / `post_images`，皆為 `$timestamps = false` 的 model），走的是 **MySQL 的 session 時區**而非 PHP 的。連線時區若留 `SYSTEM`，同一張表裡 PHP 寫的列與 MySQL 寫的列會差 8 小時，而且開發機（macOS 預設 Asia/Taipei）與正式站（UTC）的行為不一致 —— 這是 FR-109 之外另一個「不會有任何錯誤訊息」的靜默分歧
 
 ## 設計決策
@@ -460,6 +548,7 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - `ai_prompts`（US10 新表）— 全站 AI 功能的 prompt 與模型設定；`key` varchar(50) unique（程式對接鍵，比照 `email_templates.event_type` 的角色）、`feature` varchar(50)（功能分組，後台依此分區）、`label` varchar(100)、`description` varchar(255) nullable、`instructions` text、`model` varchar(50) nullable（null = 用 `openai_default_model`）、`max_output_tokens` unsigned int nullable、`sort_order` int default 0、timestamps。
   不變量：列由 migration 建立，**後台不得新增、刪除或改 `key` / `feature` / `label`**（FR-027）；一個 `key` 對應程式裡恰好一個呼叫點，沒有呼叫點的列即為孤兒；安裝 migration 永不 update 既有列（FR-028）。
 - `site_settings` 新鍵（US10）：`openai_api_key`（機密、遮罩、留空不覆蓋）、`openai_default_model`（非機密，空 = 用 `config('ai.default_model')`）。
+- `site_settings` 新鍵（US12）：`site_name`（站名，必填、`max:100`；空值時讀取端 fallback `hero_title` → `config('app.name')`）、`site_operator`（經營者，可空）、`site_address`（地址，可空）。三者皆非機密、送出即覆蓋。安裝 migration 只對既有安裝（已有 `hero_title` 列）補值，乾淨 DB 留空。
 
 US 10（AI 設定與 Prompt 管理）：
 
@@ -568,6 +657,10 @@ Phase 5 — 驗證：
 - [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
 
 ## 進度日誌
+
+- 2026-09-25: 新增 US12 站台資訊（站名 / 經營者 / 地址）— 起因是要把同一份程式碼開在 Forge 同機的第二個站給客戶用，盤點後真正擋路的不是架構而是散在十幾個檔案裡的字面字串：「經營者時間銀行」寫死在導航列、頁尾、頁面標題、OG 卡片與八支信件模板，公司名與登記地址寫死在服務條款與購買須知的結尾。三個鍵進 `site_settings`（沿用 US5 機制，不開新表），`SiteSetting::identity()` 一次讀出、`HandleInertiaRequests` 以 `site` prop 全域共享（比照 `supportEmail` 的理由：條款彈窗掛在 footer，逐頁傳 prop 一定會漏）。信件端新增全域變數 `{{site_name}}`，seeder 與自帶模板本文的 migration 的署名一併改掉，乾淨 DB 不再帶入本站品牌。
+  **兩個實作中才浮出來的判斷**：(1) 安裝 migration 的難處是它要同時滿足兩個相反的需求 —— 既有站升級後條款頁不能無聲少掉法定資訊，但乾淨 DB 又絕不能被寫進本站的公司名。折衷是以「`site_settings` 已有 `hero_title` 列」當既有安裝的判準，只有既有站補值。(2) `@php($siteName = \App\Models\SiteSetting::siteName())` 這種行內形式讓 `app.blade.php` 編譯壞掉，而症狀是**同檔後面**的 `$pixelId` undefined，五個 admin 測試同時轉紅，看起來完全不像站名造成的；改 `@php … @endphp` 區塊形式即正常，已寫成 FR-114。
+  另修正兩處既有測試的前提：`OgImageTest` 把品牌字串寫死在快取 key 的斷言裡（站名進了 key，改名才會重生舊卡片），`EmailBrandNameTest` 釘的是 012 FR-013 的舊規則（站名來源由 `hero_title` 改為 `site_name`，`hero_title` 降為 fallback）。新增 `SiteIdentityTest` 6 tests，全套 **991 passed（4257 assertions）**、`npm run build` exit 0、本機 MySQL `migrate` DONE。
 
 - 2026-09-25: 新增 US11 全站時區約定 — 釘死 DB 連線時區 `+00:00`（原為 `SYSTEM`，開發機 Asia/Taipei、正式站 UTC，`useCurrent()` 欄位在兩邊差 8 小時）、新增 `NormalizesTaipeiInput` trait 供 004/006/012 的 FormRequest 做入口轉換、`AdminDateInputTimezoneTest` 覆蓋「台北已過去但 UTC 看似未來」邊界。經評估否決「主機改 Asia/Taipei」方案（見 D36）。CLAUDE.md 新增 `## Timezone` 段。985 passed
 

@@ -4,7 +4,11 @@ import { usePage } from '@inertiajs/vue3'
 
 // Shared from HandleInertiaRequests — this component is rendered inside the
 // footer's legal modal, so there is no page controller to prop it in from.
-const supportEmail = computed(() => usePage().props.supportEmail)
+const page = usePage()
+const supportEmail = computed(() => page.props.supportEmail)
+const siteName = computed(() => page.props.site?.name ?? '')
+const operator = computed(() => page.props.site?.operator ?? '')
+const address = computed(() => page.props.site?.address ?? '')
 </script>
 
 <template>
@@ -12,7 +16,7 @@ const supportEmail = computed(() => usePage().props.supportEmail)
     <h3 class="text-lg font-semibold text-gray-900 mb-4">購買須知</h3>
 
     <p class="text-gray-600 mb-4">
-      感謝您選擇「經營者時間銀行」線上課程。請在購買前詳細閱讀以下須知。
+      感謝您選擇「{{ siteName }}」線上課程。請在購買前詳細閱讀以下須知。
     </p>
 
     <h4 class="text-base font-medium text-gray-800 mt-6 mb-3">一、課程類型說明</h4>
@@ -85,8 +89,8 @@ const supportEmail = computed(() => usePage().props.supportEmail)
     </ul>
 
     <p class="text-gray-500 text-sm mt-8">
-      經營者：投好壯壯有限公司<br />
-      地址：臺北市文山區辛亥路4段128之1號1樓<br />
+      <template v-if="operator">經營者：{{ operator }}<br /></template>
+      <template v-if="address">地址：{{ address }}<br /></template>
       最後更新日期：2026 年 1 月
     </p>
   </div>

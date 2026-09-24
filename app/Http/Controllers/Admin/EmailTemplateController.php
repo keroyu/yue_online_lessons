@@ -87,6 +87,7 @@ class EmailTemplateController extends Controller
      */
     private const GLOBAL_VARIABLES = [
         ['key' => '{{support_email}}', 'label' => '客服信箱（在本頁設定，改一次全部更新）'],
+        ['key' => '{{site_name}}', 'label' => '站名（在「首頁設定 → 站台資訊」設定）'],
         ['key' => '{{app_url}}', 'label' => '網站網址'],
     ];
 

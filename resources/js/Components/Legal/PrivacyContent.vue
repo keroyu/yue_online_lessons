@@ -4,7 +4,9 @@ import { usePage } from '@inertiajs/vue3'
 
 // Shared from HandleInertiaRequests — this component is rendered inside the
 // footer's legal modal, so there is no page controller to prop it in from.
-const supportEmail = computed(() => usePage().props.supportEmail)
+const page = usePage()
+const supportEmail = computed(() => page.props.supportEmail)
+const siteName = computed(() => page.props.site?.name ?? '')
 </script>
 
 <template>
@@ -12,7 +14,7 @@ const supportEmail = computed(() => usePage().props.supportEmail)
     <h3 class="text-lg font-semibold text-gray-900 mb-4">隱私政策</h3>
 
     <p class="text-gray-600 mb-4">
-      「經營者時間銀行」（以下簡稱「本平台」）重視您的隱私權。本隱私政策說明我們如何蒐集、使用、保護您的個人資料。
+      「{{ siteName }}」（以下簡稱「本平台」）重視您的隱私權。本隱私政策說明我們如何蒐集、使用、保護您的個人資料。
     </p>
 
     <h4 class="text-base font-medium text-gray-800 mt-6 mb-3">一、蒐集的資料</h4>

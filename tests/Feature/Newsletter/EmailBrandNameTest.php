@@ -12,10 +12,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * 012 FR-013 — the newsletter footer's brand name must come from the admin's
- * homepage "標題" (site_settings.hero_title), not config('app.name'). The two
- * have drifted apart in production (APP_NAME vs the owner-facing hero title),
- * and the footer was reading the wrong one.
+ * 012 FR-013 — the newsletter footer's brand name comes from the site name the
+ * admin maintains (site_settings.site_name), never from config('app.name'):
+ * APP_NAME is a system identifier and the two have long been different values
+ * in production. `hero_title` stays as the fallback because it was where the
+ * outward-facing name lived before 000 US12 gave it a field of its own.
  */
 class EmailBrandNameTest extends TestCase
 {
@@ -41,9 +42,9 @@ class EmailBrandNameTest extends TestCase
         ]);
     }
 
-    public function test_broadcast_html_and_text_use_hero_title(): void
+    public function test_broadcast_html_and_text_use_the_site_name(): void
     {
-        SiteSetting::set('hero_title', '測試品牌名');
+        SiteSetting::set('site_name', '測試品牌名');
         $post = $this->makePost();
         $user = $this->makeUser();
         $broadcast = tap(new Broadcast(['post_id' => $post->id, 'subject' => 'S']), fn ($b) => $b->id = 1);
@@ -59,9 +60,9 @@ class EmailBrandNameTest extends TestCase
         $this->assertStringContainsString('測試品牌名', $text);
     }
 
-    public function test_welcome_mail_uses_hero_title(): void
+    public function test_welcome_mail_uses_the_site_name(): void
     {
-        SiteSetting::set('hero_title', '測試品牌名');
+        SiteSetting::set('site_name', '測試品牌名');
         $user = $this->makeUser();
 
         $html = (new NewsletterWelcomeMail($user))->render();
@@ -69,12 +70,15 @@ class EmailBrandNameTest extends TestCase
         $this->assertStringContainsString('測試品牌名', $html);
     }
 
-    public function test_falls_back_to_app_name_when_hero_title_is_unset(): void
+    public function test_falls_back_to_the_hero_title_then_to_app_name(): void
     {
+        SiteSetting::set('hero_title', '舊的品牌名');
         $user = $this->makeUser();
 
-        $html = (new NewsletterWelcomeMail($user))->render();
+        $this->assertStringContainsString('舊的品牌名', (new NewsletterWelcomeMail($user))->render());
 
-        $this->assertStringContainsString(config('app.name', '經營者時間銀行'), $html);
+        SiteSetting::set('hero_title', '');
+
+        $this->assertStringContainsString(config('app.name'), (new NewsletterWelcomeMail($user))->render());
     }
 }

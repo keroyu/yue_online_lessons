@@ -8,6 +8,7 @@ import logoUrl from '../../../images/og-logo.png'
 const page = usePage()
 const auth = computed(() => page.props.auth)
 const user = computed(() => auth.value?.user)
+const siteName = computed(() => page.props.site?.name ?? '')
 const mobileMenuOpen = ref(false)
 const notificationOpen = ref(false)
 
@@ -51,8 +52,8 @@ const formatNotificationTime = (d) => {
         <!-- Logo -->
         <div class="flex items-center">
           <Link href="/" class="flex items-center gap-2.5 text-xl font-bold text-white tracking-wide">
-            <img :src="logoUrl" alt="經營者時間銀行" class="h-9 w-9 object-contain" />
-            經營者時間銀行
+            <img :src="logoUrl" :alt="siteName" class="h-9 w-9 object-contain" />
+            {{ siteName }}
           </Link>
         </div>
 

@@ -37,6 +37,7 @@ class EmailTemplate extends Model
     {
         return array_merge([
             '{{support_email}}' => SiteSetting::supportEmail(),
+            '{{site_name}}'     => SiteSetting::siteName(),
             '{{app_url}}'       => rtrim((string) config('app.url'), '/'),
         ], $vars);
     }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Post;
+use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -16,7 +17,6 @@ class OgImageService
     private const W = 1200;
     private const H = 630;
     private const MARGIN = 90;
-    private const BRAND = '經營者時間銀行';
     private const CACHE_VERSION = 'v3'; // bump to invalidate every cached card
 
     private string $font;
@@ -58,9 +58,19 @@ class OgImageService
         return $path;
     }
 
+    /**
+     * The brand lockup at the bottom of the card. Part of the cache key below,
+     * so renaming the site in 後台 regenerates every card rather than leaving
+     * the old name burned into PNGs nobody thinks to delete.
+     */
+    private function brand(): string
+    {
+        return SiteSetting::siteName();
+    }
+
     private function hash(Post $post): string
     {
-        return substr(sha1($post->title.'|'.self::BRAND.'|'.self::CACHE_VERSION), 0, 10);
+        return substr(sha1($post->title.'|'.$this->brand().'|'.self::CACHE_VERSION), 0, 10);
     }
 
     /**
@@ -96,7 +106,8 @@ class OgImageService
         // Brand lockup (logo + name + teal underline), anchored bottom-right.
         $brandSize = 30;
         $gap = 24;
-        $box = imagettfbbox($brandSize, 0, $this->font, self::BRAND);
+        $brand = $this->brand();
+        $box = imagettfbbox($brandSize, 0, $this->font, $brand);
         $textWidth = abs($box[2] - $box[0]);
 
         $logoImg = @imagecreatefrompng($this->logo);
@@ -117,7 +128,7 @@ class OgImageService
         }
 
         $brandY = $logoTop + (int) ($logoSize / 2) + (int) ($brandSize / 2) + 2;
-        $this->drawBold($im, $brandSize, $textX, $brandY, $white, self::BRAND);
+        $this->drawBold($im, $brandSize, $textX, $brandY, $white, $brand);
         // Teal underline accent beneath the brand name.
         imagefilledrectangle($im, $textX, $brandY + 12, $textX + $textWidth, $brandY + 16, $teal);
 

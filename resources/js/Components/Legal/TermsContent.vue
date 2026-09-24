@@ -1,4 +1,13 @@
 <script setup>
+import { computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
+
+// Shared from HandleInertiaRequests — this component is rendered inside the
+// footer's legal modal, so there is no page controller to prop it in from.
+const page = usePage()
+const siteName = computed(() => page.props.site?.name ?? '')
+const operator = computed(() => page.props.site?.operator ?? '')
+const address = computed(() => page.props.site?.address ?? '')
 </script>
 
 <template>
@@ -6,7 +15,7 @@
     <h3 class="text-lg font-semibold text-gray-900 mb-4">服務條款</h3>
 
     <p class="text-gray-600 mb-4">
-      歡迎使用「經營者時間銀行」線上課程平台（以下簡稱「本平台」）。在使用本平台服務前，請您詳細閱讀以下服務條款。
+      歡迎使用「{{ siteName }}」線上課程平台（以下簡稱「本平台」）。在使用本平台服務前，請您詳細閱讀以下服務條款。
     </p>
 
     <h4 class="text-base font-medium text-gray-800 mt-6 mb-3">一、服務內容</h4>
@@ -52,8 +61,8 @@
     </p>
 
     <p class="text-gray-500 text-sm mt-8">
-      經營者：投好壯壯有限公司<br />
-      地址：臺北市文山區辛亥路4段128之1號1樓<br />
+      <template v-if="operator">經營者：{{ operator }}<br /></template>
+      <template v-if="address">地址：{{ address }}<br /></template>
       最後更新日期：2026 年 1 月
     </p>
   </div>

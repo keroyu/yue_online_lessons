@@ -3,6 +3,7 @@
 namespace Tests\Feature\Newsletter;
 
 use App\Models\Post;
+use App\Models\SiteSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -42,12 +43,16 @@ class OgImageTest extends TestCase
             'body_md' => 'x', 'status' => 'published', 'published_at' => now(),
         ]);
 
+        // The brand lockup is a setting now, and it is part of the cache key —
+        // pinning it here keeps the expected filename derivable.
+        SiteSetting::set(SiteSetting::SITE_NAME_KEY, '測試站台');
+
         $res = $this->get(route('blog.og', $post));
 
         $res->assertOk();
         $res->assertHeader('Content-Type', 'image/png');
         // PNG magic bytes.
         $this->assertStringStartsWith("\x89PNG", $res->getContent());
-        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($post->title.'|經營者時間銀行|v3'), 0, 10).'.png');
+        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($post->title.'|測試站台|v3'), 0, 10).'.png');
     }
 }

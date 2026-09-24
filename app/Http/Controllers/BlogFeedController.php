@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\SiteSetting;
 use Illuminate\Http\Response;
 
 class BlogFeedController extends Controller
@@ -17,7 +18,7 @@ class BlogFeedController extends Controller
             ->take(20)
             ->get();
 
-        $siteName = config('app.name', 'Your Time Bank');
+        $siteName = SiteSetting::siteName();
         $self = url('/blog/feed');
         $blogUrl = url('/blog');
 

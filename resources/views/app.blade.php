@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title inertia>{{ config('app.name', 'Your Time Bank') }}</title>
+@php $siteName = \App\Models\SiteSetting::siteName(); @endphp
+
+    <title inertia>{{ $siteName }}</title>
 
     <!-- SEO: Meta Description -->
 @isset($og)
     <meta name="description" content="{{ $og['description'] }}">
 @else
-    <meta name="description" content="經營者時間銀行 — 投資理財、創業實戰、自我成長線上課程平台。">
+    <meta name="description" content="{{ $siteName }} — 線上課程平台">
 @endisset
 
     <!-- SEO: Canonical URL -->
@@ -37,13 +39,13 @@
         'image' => $og['image'] ?: null,
         'url' => $og['url'],
         'mainEntityOfPage' => $og['url'],
-        'publisher' => ['@type' => 'Organization', 'name' => config('app.name', 'Your Time Bank')],
+        'publisher' => ['@type' => 'Organization', 'name' => $siteName],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
     @endif
 @else
     <meta property="og:type" content="website">
-    <meta property="og:title" content="{{ config('app.name', 'Your Time Bank') }}">
-    <meta property="og:description" content="經營者時間銀行 — 投資理財、創業實戰、自我成長線上課程平台。">
+    <meta property="og:title" content="{{ $siteName }}">
+    <meta property="og:description" content="{{ $siteName }} — 線上課程平台">
     <meta property="og:url" content="{{ url('/') }}">
 @endisset
 

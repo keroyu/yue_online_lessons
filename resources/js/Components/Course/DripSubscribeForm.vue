@@ -17,6 +17,7 @@ const props = defineProps({
 })
 
 const page = usePage()
+const siteName = computed(() => page.props.site?.name ?? '')
 
 const email = ref('')
 const nickname = ref('')
@@ -136,7 +137,7 @@ const requestSubmit = () => {
 
       <EmailReviewNotice v-if="confirming" :email="email" @edit="resetReview">
         電子書會寄到這個地址，打錯的話你不會收到任何通知。
-        來信者為「經營者時間銀行」，找不到時請檢查垃圾郵件與「促銷」「廣告」分頁。
+        來信者為「{{ siteName }}」，找不到時請檢查垃圾郵件與「促銷」「廣告」分頁。
       </EmailReviewNotice>
 
       <button

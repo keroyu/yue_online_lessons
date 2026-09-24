@@ -4,6 +4,7 @@ status: building
 owner_files:
   - database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
   - tests/Feature/Storefront/FeaturedCourseVisibilityTest.php
+  - tests/Feature/Storefront/SiteIdentityTest.php
   - database/migrations/2026_08_16_000001_add_traffic_source_to_purchases_table.php
   - database/migrations/2026_08_16_000002_add_traffic_source_to_drip_subscriptions_table.php
   - tests/Feature/Storefront/FreeClaimTrafficTest.php
@@ -575,6 +576,21 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 - [x] 測試：未訂閱 email 送出後 `newsletter_status = subscribed`、`email_verified_at` 仍為 null、未登入；既有訂閱者不重寄歡迎信；既有使用者的 nickname 不被覆寫；honeypot 有值即被擋；格式錯誤的 email 被擋；📌 行可指向非 drip 課程；舊鍵的值有搬到新鍵
 
 
+### User Story 22 - 站台資訊設定（站名 / 經營者 / 地址）(Priority: P1)
+
+000 US12 把站名、經營者、地址搬進 `site_settings`；這條故事是它的編輯介面。
+放在「首頁設定」頁而不是另開一頁：這三個值與 hero 標題、社群連結一樣，都是業主
+自己維護的「這個站對外長什麼樣」，而後台已經有一頁在做這件事。
+
+**驗收**：
+- [x] 「首頁設定」頁最上方新增「站台資訊」區塊，三個欄位（站名 / 經營者 / 地址）+ 獨立儲存鈕
+- [x] 端點為 `POST /admin/homepage/site-identity`，**MUST NOT 併進既有的 `POST /admin/homepage`** —— 後者是繞著 hero 圖建的 multipart 請求，識別資訊沒有理由在每次換橫幅時被重送一次
+- [x] 站名 `required|max:100`；經營者與地址 `nullable|max:255`，錯誤訊息為中文
+- [x] `edit()` 以 `siteIdentity` prop 帶出目前值（`SiteSetting::identity()`）
+- [x] 欄位 placeholder MUST 為中性示例，不得放本站的品牌／公司名 —— 這一頁會出現在客戶的後台
+- [x] 非管理員送出 MUST 被 `AdminMiddleware` 導回首頁且設定不變（本模組既有慣例：斷言導向與「沒寫進去」，不是狀態碼）
+
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -1139,6 +1155,8 @@ Phase 4 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 新增 US22 站台資訊設定 —「首頁設定」頁最上方加一塊站名 / 經營者 / 地址，走自己的 `POST /admin/homepage/site-identity`（既有的 `POST /admin/homepage` 是繞 hero 圖建的 multipart，識別資訊沒理由跟著每次換橫幅重送）。同批把 `CourseController` 的 OG title 從寫死的 `- Your Time Bank` 改讀站名。機制側見 000 US12。
 
 - 2026-09-25: `SidebarService` 側欄文章 `published_at` 原本直接對 UTC datetime 取 `toDateString()`，跨午夜會差一天，補 `->timezone('Asia/Taipei')`（000 US11）。另移除 `CourseController` 送出但前端沒讀的 `portaly_url` prop（Show.vue 自行以 portaly_product_id 組網址）
 

@@ -166,5 +166,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-09-25: 登入頁的「來信者為「…」」提示與 `verification-code.blade.php` 的信頭／頁尾署名改讀站名設定，不再寫死品牌字串（000 US12）。
+
 - 2026-07-15: US3 會員個人資料社群連結 — 實作完成（migration/model/request/controller、共用 socialPlatforms.js、設定頁 UI、批改列表+側欄與會員詳情 icons、9 項 feature 測試全過）
 - 2026-07-06: 領域重組 — 自 001-course-platform-mvp (US2/US4) 重寫，依實際 codebase 校正

@@ -8,4 +8,4 @@
 歡迎回來繼續學習：
 {{ config('app.url') }}/member/classroom/{{ $course->id }}
 
-經營者時間銀行
+{{ \App\Models\SiteSetting::siteName() }}

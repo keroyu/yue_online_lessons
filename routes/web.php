@@ -402,6 +402,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'destroy'])->name('featured-courses.destroy');
     Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseController::class, 'reorder'])->name('featured-courses.reorder');
 
+    // Site identity (站名 / 經營者 / 地址)
+    Route::post('/homepage/site-identity', [HomepageSettingController::class, 'updateSiteIdentity'])->name('homepage.site-identity');
+
     // Sidebar widget ordering
     Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
 

@@ -43,6 +43,10 @@ class HandleInertiaRequests extends Middleware
             // there is no single controller to pass it from. Costs one indexed
             // read per request on a tiny table.
             'supportEmail' => fn () => SiteSetting::supportEmail(),
+            // Same reasoning as supportEmail: the navbar, the footer and the
+            // legal modal all print these, and none of them has a controller.
+            // One query for the three values.
+            'site' => fn () => SiteSetting::identity(),
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,

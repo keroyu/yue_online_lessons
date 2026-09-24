@@ -7,4 +7,4 @@
 請登入帳號後，至「我的課程」查看：
 {{ config('app.url') }}/member/learning
 
-經營者時間銀行
+{{ \App\Models\SiteSetting::siteName() }}

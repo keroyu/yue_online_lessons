@@ -134,10 +134,40 @@ class HomepageSettingController extends Controller
                     'id'   => $c->id,
                     'name' => $c->name,
                 ])->values(),
+            'siteIdentity' => SiteSetting::identity(),
             'sidebarOrder' => self::sidebarWidgetOrder(),
             'contentCategorySlots' => self::contentCategorySlots(),
             'contentFilterEnabled' => self::contentFilterEnabled(),
         ]);
+    }
+
+    /**
+     * 站台資訊 — the name printed in the navbar, the footer, page titles, system
+     * mail and the OG card, plus the operator and address that the legal modal
+     * is required to show.
+     *
+     * Its own endpoint rather than a few more fields on `update()`: that one is
+     * a multipart request built around the hero image, and identity has no
+     * reason to be re-posted every time somebody swaps the banner.
+     */
+    public function updateSiteIdentity(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'site_name'     => ['required', 'string', 'max:100'],
+            'site_operator' => ['nullable', 'string', 'max:255'],
+            'site_address'  => ['nullable', 'string', 'max:255'],
+        ], [
+            'site_name.required' => '請填寫站名',
+            'site_name.max'      => '站名不能超過 100 字',
+            'site_operator.max'  => '經營者不能超過 255 字',
+            'site_address.max'   => '地址不能超過 255 字',
+        ]);
+
+        SiteSetting::set(SiteSetting::SITE_NAME_KEY, trim($validated['site_name']));
+        SiteSetting::set(SiteSetting::SITE_OPERATOR_KEY, trim((string) ($validated['site_operator'] ?? '')));
+        SiteSetting::set(SiteSetting::SITE_ADDRESS_KEY, trim((string) ($validated['site_address'] ?? '')));
+
+        return redirect()->back()->with('success', '站台資訊已更新');
     }
 
     public function updateContentCategories(Request $request): RedirectResponse
