@@ -22,10 +22,10 @@ class LessonSeeder extends Seeder
             ['platform' => 'youtube', 'id' => 'dQw4w9WgXcQ', 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'],
         ];
 
-        $sampleHtmlContent = [
-            '<h2>本單元學習目標</h2><p>在這個單元中，你將學習到以下重點：</p><ul><li>核心概念理解</li><li>實際操作技巧</li><li>常見問題解決</li></ul>',
-            '<h2>補充教材</h2><p>以下是本單元的補充資料：</p><ol><li>延伸閱讀文章</li><li>練習題目</li><li>參考資源連結</li></ol>',
-            '<h2>重點整理</h2><p>本章節的重點如下：</p><blockquote>學習的關鍵在於持續練習與反覆複習。</blockquote>',
+        $sampleContentMd = [
+            "## 本單元學習目標\n\n在這個單元中，你將學習到以下重點：\n\n- 核心概念理解\n- 實際操作技巧\n- 常見問題解決",
+            "## 補充教材\n\n以下是本單元的補充資料：\n\n1. 延伸閱讀文章\n2. 練習題目\n3. 參考資源連結",
+            "## 重點整理\n\n本章節的重點如下：\n\n> 學習的關鍵在於持續練習與反覆複習。",
         ];
 
         $lessonTitles = [
@@ -66,7 +66,7 @@ class LessonSeeder extends Seeder
                             'course_id' => $course->id,
                             'chapter_id' => $chapter->id,
                             'title' => $lessonTitles[array_rand($lessonTitles)],
-                            'html_content' => $sampleHtmlContent[array_rand($sampleHtmlContent)],
+                            'content_md' => $sampleContentMd[array_rand($sampleContentMd)],
                             'duration_seconds' => rand(60, 300), // 1-5 minutes reading time
                             'sort_order' => $sortOrder++,
                         ]);

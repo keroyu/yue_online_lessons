@@ -22,7 +22,6 @@ class CourseSeeder extends Seeder
             'type' => 'lecture',
             'is_published' => true,
             'sort_order' => 1,
-            'portaly_url' => 'https://portaly.cc/yueyuknows/products/1',
             'portaly_product_id' => 'prod_001',
         ]);
 
@@ -36,7 +35,6 @@ class CourseSeeder extends Seeder
             'type' => 'mini',
             'is_published' => true,
             'sort_order' => 2,
-            'portaly_url' => 'https://portaly.cc/yueyuknows/products/2',
             'portaly_product_id' => 'prod_002',
         ]);
 
@@ -50,7 +48,6 @@ class CourseSeeder extends Seeder
             'type' => 'full',
             'is_published' => true,
             'sort_order' => 3,
-            'portaly_url' => 'https://portaly.cc/yueyuknows/products/3',
             'portaly_product_id' => 'prod_003',
         ]);
 
@@ -64,7 +61,6 @@ class CourseSeeder extends Seeder
             'type' => 'lecture',
             'is_published' => true,
             'sort_order' => 4,
-            'portaly_url' => 'https://portaly.cc/yueyuknows/products/4',
             'portaly_product_id' => 'prod_004',
         ]);
 
@@ -78,7 +74,6 @@ class CourseSeeder extends Seeder
             'type' => 'mini',
             'is_published' => true,
             'sort_order' => 5,
-            'portaly_url' => 'https://portaly.cc/yueyuknows/products/5',
             'portaly_product_id' => 'prod_005',
         ]);
     }
