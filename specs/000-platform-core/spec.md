@@ -663,6 +663,8 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-09-25: `html, body { overscroll-behavior: none }`（`resources/css/app.css`）— 業主回報前後台頂端出現一條米色橫條。查證後確認不是版面問題：正式站伺服器送出的 HTML 裡 `<body>` 底下只有 `#app`（沒有多餘元素、沒有文字節點、`<style>` 數為 0），瀏覽器實際渲染時 `nav` 與 `#app` 的 `top` 都是 0。那個顏色是 `body` 的底色 `#F6F1E9`，只有在捲動回彈把頁面推離視窗上緣時，瀏覽器才會用它畫外露的畫布。關掉回彈就沒有露出的機會。**症狀在部署完成後自行消失，無法證明是這條規則修好的**（也可能只是業主瀏覽器還拿著部署前的快取）；規則本身無害且合理，所以留著。副作用：手機瀏覽器的下拉重新整理會失效。
+
 - 2026-09-25: 拿掉後台桌機版的置頂橫條（000 US2）— 業主回報「後台的 header 又多出來了」，實際看是 `AdminLayout` 自己的 `sticky top-0` white bar：桌機上它只裝了一顆登出，內容從它下面穿過去，每一頁都一樣。先排除了舊的懷疑方向（教室那次是頁面沒宣告 layout、吃到預設 `AppLayout` 的導覽列疊成兩層）—— 所有後台頁都有 `defineOptions({ layout: AdminLayout })`，沒有第二層，問題出在 layout 自己。桌機版整條移除，手機保留一條 `lg:hidden` 的漢堡列（抽屜沒有別的開法），登出移進側欄底部並在手機抽屜補一份；側欄改成只有連結清單捲動，底部那排在矮視窗不會被推出畫面。
   **這次補了防回歸的把關**，因為這條橫條已經回來過一次：`AdminLayoutChromeTest` 掃 `AdminLayout.vue` 的原始碼，任何 `sticky top-0` 元素沒帶 `lg:hidden` 就紅，`/logout` 少於兩份也紅（少一份代表某個斷點根本登不出去）。故意把 `lg:hidden` 拿掉跑過一次確認它會失敗。同一支保險也補給 US12 的品牌字串（`SiteIdentityTest::test_no_source_file_hardcodes_the_brand`）。本機瀏覽器實測：桌機 `/admin/homepage` 捲動無白帶、側欄底部登出恆在；DOM 檢查確認手機漢堡列在桌機為 `display:none`。
 
