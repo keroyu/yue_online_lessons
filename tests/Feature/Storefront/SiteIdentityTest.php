@@ -76,6 +76,39 @@ class SiteIdentityTest extends TestCase
             ->where('site.address', '臺北市中正區測試路 1 號'));
     }
 
+    /**
+     * Guards the sweep. The brand name used to be a literal in fifteen files;
+     * a setting that only half the app respects is worse than no setting,
+     * because the half that ignores it is the half nobody thinks to check.
+     */
+    public function test_no_source_file_hardcodes_the_brand(): void
+    {
+        $legacy = ['經營者時間銀行', '投好壯壯有限公司', '臺北市文山區辛亥路4段128之1號1樓'];
+        $offenders = [];
+
+        foreach ([base_path('app'), base_path('resources')] as $root) {
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root)) as $file) {
+                if (! $file->isFile() || ! in_array($file->getExtension(), ['php', 'vue', 'blade'], true)) {
+                    continue;
+                }
+
+                $path = $file->getPathname();
+                $body = (string) file_get_contents($path);
+
+                foreach ($legacy as $needle) {
+                    // A placeholder in the admin form would be the one excusable
+                    // copy — there is none, and there should not be one.
+                    if (str_contains($body, $needle)) {
+                        $offenders[] = str_replace(base_path() . '/', '', $path);
+                        break;
+                    }
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, '站名／經營者／地址應改讀 site_settings（SiteSetting::siteName() 或共享的 site prop）');
+    }
+
     public function test_site_name_falls_back_to_the_homepage_hero_title(): void
     {
         // Installs that predate the setting keep the name their hero already

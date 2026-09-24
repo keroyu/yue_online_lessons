@@ -58,6 +58,7 @@ owner_files:
   - resources/js/Components/Layout/Navigation.vue
   - resources/js/Components/Layout/Footer.vue
   - resources/js/Layouts/AdminLayout.vue
+  - tests/Feature/Platform/AdminLayoutChromeTest.php
   - resources/js/Components/Legal/LegalPolicyModal.vue
   - resources/js/Components/Legal/PrivacyContent.vue
   - resources/js/Components/Legal/TermsContent.vue
@@ -280,6 +281,9 @@ touchpoints:
 - [x] `admin` middleware alias（`AdminMiddleware`）：未登入或 `!isAdmin()` 重導首頁並 flash「您沒有權限存取此頁面」
 - [x] 所有 `/admin/*` 路由套 `['auth', 'admin']` middleware 群組（見 `routes/web.php`）
 - [x] `AdminLayout` 固定側欄（桌機）/ 抽屜側欄（行動版），選單涵蓋 Dashboard、首頁設定、課程、會員、交易、折扣碼、推薦成效、Email 模板、Leads、金流設定、積分設定、作業批改
+- [x] **後台桌機版 MUST NOT 有置頂橫條**。原本的白色 `sticky top-0` top bar 裡只有一顆登出與手機漢堡鈕，桌機上是一條空白帶，而且每一頁的內容都會從它下面穿過去。唯一允許置頂的是手機版的漢堡列（`lg:hidden`，抽屜側欄沒有別的開啟方式）
+- [x] 登出 MUST 放在側欄底部（與「返回前台」同一排），桌機與手機抽屜各一份；側欄只讓**連結清單**捲動（`overflow-y-auto` 在 `<nav>` 上），底部那排在矮視窗也不會被推出畫面
+- [x] 以 `AdminLayoutChromeTest` 掃原始碼把關：任何 `sticky top-0` 的元素都必須帶 `lg:hidden`，且 `/logout` 連結恰好兩份 —— 這條橫條已經回來過一次
 - [x] 側欄 active 判斷用路徑前綴；`/admin/coupons` 同時涵蓋 `/admin/coupon-chains`
 - [x] 側欄底部顯示管理員暱稱首字頭像與「返回前台」連結
 - [x] `AppServiceProvider` 註冊 `CoursePolicy`、`PurchasePolicy`（授權基礎）
@@ -440,6 +444,7 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] 資料遷移 `2026_09_25_000001_install_site_identity_settings`：**只有既有安裝**（判斷依據是 `site_settings` 已有 `hero_title` 列）才把現行的站名／公司／地址寫進去；乾淨 DB MUST 什麼都不插 —— 條款頁的法定資訊不能在升級時無聲消失，但也不能把本站的公司帶到別人的站上。既有列一律不覆寫（後台從此是唯一權威）
 - [x] 站名必填（`max:100`）；經營者與地址可留空，留空時條款頁整行不渲染
 - [x] 測試：`SiteIdentityTest`（儲存三值、站名必填、經營者/地址可空、訪客不得改、`site` prop 出現在每一頁、站名 fallback 到 hero_title）
+- [x] 原始碼掃描把關：`app/` 與 `resources/` 底下 MUST NOT 出現舊的品牌字串（站名／公司名／地址），比照 011 FR-057 對客服信箱的作法 —— 只被一半的程式碼尊重的設定，比沒有設定更糟
 
 
 ## Requirements
@@ -657,6 +662,9 @@ Phase 5 — 驗證：
 - [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
 
 ## 進度日誌
+
+- 2026-09-25: 拿掉後台桌機版的置頂橫條（000 US2）— 業主回報「後台的 header 又多出來了」，實際看是 `AdminLayout` 自己的 `sticky top-0` white bar：桌機上它只裝了一顆登出，內容從它下面穿過去，每一頁都一樣。先排除了舊的懷疑方向（教室那次是頁面沒宣告 layout、吃到預設 `AppLayout` 的導覽列疊成兩層）—— 所有後台頁都有 `defineOptions({ layout: AdminLayout })`，沒有第二層，問題出在 layout 自己。桌機版整條移除，手機保留一條 `lg:hidden` 的漢堡列（抽屜沒有別的開法），登出移進側欄底部並在手機抽屜補一份；側欄改成只有連結清單捲動，底部那排在矮視窗不會被推出畫面。
+  **這次補了防回歸的把關**，因為這條橫條已經回來過一次：`AdminLayoutChromeTest` 掃 `AdminLayout.vue` 的原始碼，任何 `sticky top-0` 元素沒帶 `lg:hidden` 就紅，`/logout` 少於兩份也紅（少一份代表某個斷點根本登不出去）。故意把 `lg:hidden` 拿掉跑過一次確認它會失敗。同一支保險也補給 US12 的品牌字串（`SiteIdentityTest::test_no_source_file_hardcodes_the_brand`）。本機瀏覽器實測：桌機 `/admin/homepage` 捲動無白帶、側欄底部登出恆在；DOM 檢查確認手機漢堡列在桌機為 `display:none`。
 
 - 2026-09-25: 新增 US12 站台資訊（站名 / 經營者 / 地址）— 起因是要把同一份程式碼開在 Forge 同機的第二個站給客戶用，盤點後真正擋路的不是架構而是散在十幾個檔案裡的字面字串：「經營者時間銀行」寫死在導航列、頁尾、頁面標題、OG 卡片與八支信件模板，公司名與登記地址寫死在服務條款與購買須知的結尾。三個鍵進 `site_settings`（沿用 US5 機制，不開新表），`SiteSetting::identity()` 一次讀出、`HandleInertiaRequests` 以 `site` prop 全域共享（比照 `supportEmail` 的理由：條款彈窗掛在 footer，逐頁傳 prop 一定會漏）。信件端新增全域變數 `{{site_name}}`，seeder 與自帶模板本文的 migration 的署名一併改掉，乾淨 DB 不再帶入本站品牌。
   **兩個實作中才浮出來的判斷**：(1) 安裝 migration 的難處是它要同時滿足兩個相反的需求 —— 既有站升級後條款頁不能無聲少掉法定資訊，但乾淨 DB 又絕不能被寫進本站的公司名。折衷是以「`site_settings` 已有 `hero_title` 列」當既有安裝的判準，只有既有站補值。(2) `@php($siteName = \App\Models\SiteSetting::siteName())` 這種行內形式讓 `app.blade.php` 編譯壞掉，而症狀是**同檔後面**的 `$pixelId` undefined，五個 admin 測試同時轉紅，看起來完全不像站名造成的；改 `@php … @endphp` 區塊形式即正常，已寫成 FR-114。

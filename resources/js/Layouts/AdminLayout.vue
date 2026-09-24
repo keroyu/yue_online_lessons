@@ -57,7 +57,7 @@ const isActive = (href) => {
 
     <!-- Mobile sidebar -->
     <div
-      class="fixed inset-y-0 left-0 z-50 w-64 bg-brand-navy transform transition-transform duration-300 ease-in-out lg:hidden"
+      class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-brand-navy transform transition-transform duration-300 ease-in-out lg:hidden"
       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
     >
       <div class="flex items-center justify-between h-16 px-4 bg-brand-teal">
@@ -72,7 +72,7 @@ const isActive = (href) => {
           </svg>
         </button>
       </div>
-      <nav class="mt-5 px-2 space-y-1">
+      <nav class="mt-5 flex-1 overflow-y-auto px-2 space-y-1">
         <Link
           v-for="item in navigation"
           :key="item.name"
@@ -88,15 +88,27 @@ const isActive = (href) => {
           {{ item.name }}
         </Link>
       </nav>
+      <div class="flex-shrink-0 border-t border-white/10 p-4">
+        <p class="text-sm font-medium text-white">{{ user?.nickname || 'Admin' }}</p>
+        <div class="mt-1 flex items-center gap-3 text-xs font-medium">
+          <Link href="/" class="text-white/70 hover:text-white">返回前台</Link>
+          <span class="text-white/30">|</span>
+          <Link href="/logout" method="post" as="button" class="cursor-pointer text-white/70 hover:text-white">
+            登出
+          </Link>
+        </div>
+      </div>
     </div>
 
     <!-- Desktop sidebar -->
     <div class="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
-      <div class="flex flex-col flex-grow bg-brand-navy pt-5 pb-4 overflow-y-auto">
+      <div class="flex flex-col flex-grow overflow-hidden bg-brand-navy pt-5 pb-4">
         <div class="flex items-center flex-shrink-0 px-4">
           <span class="text-xl font-semibold text-white">Admin</span>
         </div>
-        <nav class="mt-8 flex-1 px-2 space-y-1">
+        <!-- Only the link list scrolls: the footer holds 登出, and a short viewport
+             used to push it (and 返回前台) below the fold with no way back. -->
+        <nav class="mt-8 flex-1 overflow-y-auto px-2 space-y-1">
           <Link
             v-for="item in navigation"
             :key="item.name"
@@ -121,9 +133,13 @@ const isActive = (href) => {
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium text-white">{{ user?.nickname || 'Admin' }}</p>
-              <Link href="/" class="text-xs font-medium text-white/70 hover:text-white">
-                返回前台
-              </Link>
+              <div class="flex items-center gap-2 text-xs font-medium">
+                <Link href="/" class="text-white/70 hover:text-white">返回前台</Link>
+                <span class="text-white/30">|</span>
+                <Link href="/logout" method="post" as="button" class="cursor-pointer text-white/70 hover:text-white">
+                  登出
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -132,37 +148,29 @@ const isActive = (href) => {
 
     <!-- Main content -->
     <div class="lg:pl-64 flex flex-col flex-1">
-      <!-- Top bar -->
-      <div class="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
+      <!-- Mobile-only top strip: the drawer has no other way to open. On lg the
+           sidebar is always visible, so there is no bar at all — the old one was
+           a full-width sticky white band holding nothing but 登出, and content
+           scrolled underneath it on every admin page. 登出 lives in the sidebar
+           footer next to 返回前台 now, on both breakpoints. -->
+      <div class="sticky top-0 z-10 flex h-14 flex-shrink-0 items-center bg-white shadow lg:hidden">
         <button
           type="button"
-          class="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-teal lg:hidden"
+          class="cursor-pointer px-4 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-teal"
           @click="sidebarOpen = true"
         >
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
           </svg>
         </button>
-        <div class="flex-1 px-4 flex justify-between items-center">
-          <div class="flex-1" />
-          <div class="ml-4 flex items-center">
-            <Link
-              href="/logout"
-              method="post"
-              as="button"
-              class="text-gray-500 hover:text-gray-700 text-sm"
-            >
-              登出
-            </Link>
-          </div>
-        </div>
+        <span class="text-sm font-semibold text-gray-700">Admin</span>
       </div>
 
       <!-- Flash Messages -->
-      <div v-if="flash?.success" class="fixed top-20 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+      <div v-if="flash?.success" class="fixed top-20 lg:top-6 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
         {{ flash.success }}
       </div>
-      <div v-if="flash?.error" class="fixed top-20 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
+      <div v-if="flash?.error" class="fixed top-20 lg:top-6 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
         {{ flash.error }}
       </div>
 

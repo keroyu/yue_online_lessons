@@ -167,7 +167,8 @@
         "app/Http/Middleware/AdminMiddleware.php",
         "resources/js/Layouts/AdminLayout.vue",
         "app/Providers/AppServiceProvider.php",
-        "routes/web.php"
+        "routes/web.php",
+        "tests/Feature/Platform/AdminLayoutChromeTest.php"
       ],
       "status": "implemented"
     },

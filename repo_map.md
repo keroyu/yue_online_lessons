@@ -83,6 +83,7 @@ main_files:
 - resources/views/sitemap.blade.php
 - routes/web.php
 - tests/Feature/Admin/AdminDateInputTimezoneTest.php
+- tests/Feature/Platform/AdminLayoutChromeTest.php
 - tests/Feature/Platform/AiSettingsTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/ShortLinkTest.php

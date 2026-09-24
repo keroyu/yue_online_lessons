@@ -2327,6 +2327,9 @@
     "tests/Feature/Newsletter/WelcomePostTest.php": [
       "012.us-9"
     ],
+    "tests/Feature/Platform/AdminLayoutChromeTest.php": [
+      "000.us-2"
+    ],
     "tests/Feature/Platform/AiSettingsTest.php": [
       "000.us-10"
     ],
