@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import draggable from 'vuedraggable'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import ColorSchemePicker from '@/Components/Admin/ColorSchemePicker.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -34,6 +35,14 @@ const props = defineProps({
   siteIcons: {
     type: Object,
     default: () => ({}),
+  },
+  colorSchemes: {
+    type: Array,
+    default: () => [],
+  },
+  activeColorScheme: {
+    type: String,
+    default: '',
   },
   sidebarOrder: {
     type: Array,
@@ -453,6 +462,18 @@ function saveCategories() {
         </button>
       </div>
     </section>
+
+    <!-- Section 0.5: 配色方案 (000 US14).
+
+         Sits here, not further down, because this page splits in two: 站台資訊
+         and 配色 apply to every page on the site, while Hero and everything
+         below it only affect the homepage. Keeping the two site-wide cards
+         together is what makes that boundary visible (000 D47). -->
+    <ColorSchemePicker
+      v-if="colorSchemes.length"
+      :schemes="colorSchemes"
+      :active="activeColorScheme"
+    />
 
     <!-- Section 1: Hero 設定 -->
     <section class="bg-white rounded-xl border border-gray-200 p-6 space-y-6">

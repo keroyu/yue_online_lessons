@@ -129,7 +129,7 @@ const deleteItem = (commentId, hasReplies) => {
         </div>
         <div class="flex justify-end">
           <button
-            class="inline-flex items-center gap-1.5 text-xs font-medium text-[#3F83A3] border border-[#3F83A3]/30 bg-white px-3 py-1.5 rounded-full hover:bg-[#3F83A3]/10 transition-colors"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-brand-teal border border-brand-teal/30 bg-white px-3 py-1.5 rounded-full hover:bg-brand-teal/10 transition-colors"
             @click="showThread = !showThread"
           >
             <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="showThread ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -166,7 +166,7 @@ const deleteItem = (commentId, hasReplies) => {
                 <button class="text-xs text-red-400 px-2 py-0.5 rounded hover:bg-red-50 transition-colors" @click="deleteItem(comment.id, comment.replies?.length > 0)">刪除</button>
                 <button
                   v-if="comment.is_draft"
-                  class="ml-1 text-xs font-semibold text-white bg-[#3F83A3] px-3 py-1 rounded-full hover:bg-[#336d8a] transition-colors"
+                  class="ml-1 text-xs font-semibold text-white bg-brand-teal px-3 py-1 rounded-full hover:bg-brand-teal/85 transition-colors"
                   @click="submitDraft(comment.id)"
                 >提交答案</button>
                 <button
@@ -189,7 +189,7 @@ const deleteItem = (commentId, hasReplies) => {
           <template v-for="reply in comment.replies" :key="reply.id">
 
             <!-- Instructor reply (teal) -->
-            <div v-if="isAdmin(reply.user)" class="rounded-lg overflow-hidden ml-[100px] border" style="background-color:#F4FBFE;border-color:rgba(63,131,163,0.28)">
+            <div v-if="isAdmin(reply.user)" class="rounded-lg overflow-hidden ml-[100px] border" style="background-color:color-mix(in oklab, var(--color-brand-teal) 6%, white);border-color:color-mix(in oklab, var(--color-brand-teal) 28%, transparent)">
               <div class="px-4 pt-3 pb-1 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
                   <span class="text-xs font-semibold text-brand-teal">{{ reply.user?.nickname }}</span>
@@ -245,14 +245,14 @@ const deleteItem = (commentId, hasReplies) => {
           <div class="flex items-center gap-2 shrink-0">
             <button
               :disabled="!inputContent.trim() || submitting"
-              class="px-4 py-2 border border-[#3F83A3]/40 bg-white text-[#3F83A3] text-sm font-medium rounded-full hover:bg-[#3F83A3]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-4 py-2 border border-brand-teal/40 bg-white text-brand-teal text-sm font-medium rounded-full hover:bg-brand-teal/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               @click="handleSaveDraft"
             >
               存為草稿
             </button>
             <button
               :disabled="!inputContent.trim() || submitting"
-              class="px-6 py-2 bg-[#3F83A3] hover:bg-[#336d8a] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-full transition-colors"
+              class="px-6 py-2 bg-brand-teal hover:bg-brand-teal/85 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-full transition-colors"
               @click="handleSubmit"
             >
               {{ submitting ? '送出中...' : '提交答案' }}

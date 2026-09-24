@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\SiteSetting;
 use App\Services\CartService;
 use App\Services\SiteIconService;
+use App\Services\ThemeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -50,6 +51,14 @@ class HandleInertiaRequests extends Middleware
             'site' => fn () => [
                 ...SiteSetting::identity(),
                 'logoUrl' => app(SiteIconService::class)->urls()['logo'],
+            ],
+            // The active palette, for the handful of places that need the
+            // literal values rather than the CSS variables — currently only
+            // the lesson CTA generator, whose output is inline-styled HTML
+            // saved into lesson bodies and mailed out (000 FR-122).
+            'theme' => fn () => [
+                'key'    => app(ThemeService::class)->activeKey(),
+                'colors' => app(ThemeService::class)->active()['colors'],
             ],
             'auth' => [
                 'user' => $request->user() ? [

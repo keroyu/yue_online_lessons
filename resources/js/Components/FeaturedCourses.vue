@@ -68,11 +68,11 @@ defineProps({
 @keyframes ctaBreathe {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(240, 193, 75, 0.45);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand-gold) 45%, transparent);
   }
   50% {
     transform: scale(1.03);
-    box-shadow: 0 0 0 6px rgba(240, 193, 75, 0);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-brand-gold) 0%, transparent);
   }
 }
 </style>

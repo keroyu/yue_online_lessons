@@ -530,7 +530,7 @@ const isFunnelLanding = computed(() =>
     <!-- ============================================================ -->
     <!-- 1. Title (above video, navy bg)                              -->
     <!-- ============================================================ -->
-    <div class="bg-[#373557] px-6 pt-8 pb-6 text-center">
+    <div class="bg-brand-navy px-6 pt-8 pb-6 text-center">
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white max-w-3xl mx-auto leading-tight">
         {{ course.name }}
       </h1>
@@ -565,7 +565,7 @@ const isFunnelLanding = computed(() =>
           </svg>
         </div>
         <!-- Bottom gradient: image fades into cream background -->
-        <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F6F1E9] to-transparent pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-brand-cream to-transparent pointer-events-none"></div>
       </div>
     </div>
 

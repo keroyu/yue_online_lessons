@@ -51,6 +51,10 @@ owner_files:
   - database/migrations/2026_03_25_000001_create_site_settings_table.php
   - database/migrations/2026_09_25_000001_install_site_identity_settings.php
   - app/Services/SiteIconService.php
+  - config/themes.php
+  - app/Services/ThemeService.php
+  - resources/js/Components/Admin/ColorSchemePicker.vue
+  - tests/Feature/Platform/ColorSchemeTest.php
   - app/Services/FirstAdminService.php
   - config/auth.php
   - .env.example
@@ -111,6 +115,33 @@ touchpoints:
   - file: resources/js/Pages/Member/Points.vue
     owner: 007-points-referral
     why: 積分明細分頁由 Laravel links 陣列改用共用 Pagination 元件（FR-030）
+  - file: resources/js/Pages/Admin/HomepageSettings/Edit.vue
+    owner: 002-storefront
+    why: US14 配色選擇器掛進「首頁設定」頁成為一個區塊（D47）
+  - file: app/Http/Controllers/Admin/HomepageSettingController.php
+    owner: 002-storefront
+    why: US14 edit() 多傳配色清單、新增 updateColorScheme()（D47）
+  - file: tests/Feature/Newsletter/OgImageTest.php
+    owner: 012-newsletter
+    why: US14 配色 key 進 OG 卡片快取 key，該測試自行推導檔名故需同步（FR-124）
+  - file: resources/js/Components/Classroom/RoadmapBoard.vue
+    owner: 003-classroom
+    why: keyframe 裡以 rgba() 寫死的 teal/gold 改 color-mix（US14 FR-122）
+  - file: resources/js/Components/FeaturedCourses.vue
+    owner: 002-storefront
+    why: keyframe 裡以 rgba() 寫死的 gold 改 color-mix（US14 FR-122）
+  - file: resources/js/Components/Classroom/AssignmentSection.vue
+    owner: 003-classroom
+    why: 寫死的 brand hex 改讀 CSS 變數，#336d8a 改 hover:bg-brand-teal/85（US14 FR-122）
+  - file: resources/js/Components/Classroom/LessonPromoBlock.vue
+    owner: 003-classroom
+    why: <style> 內寫死的 gold / navy 改讀 CSS 變數（US14 FR-122）
+  - file: resources/js/Pages/Course/Show.vue
+    owner: 002-storefront
+    why: bg-[#373557] 與漸層的 from-[#F6F1E9] 改回 brand utility（US14 FR-122）
+  - file: resources/js/Components/Admin/LessonForm.vue
+    owner: 004-course-admin
+    why: CTA 產生器改由 theme prop 取當下配色的字面 hex（US14 FR-122 的唯一豁免）
   - file: app/Services/CartService.php
     owner: 005-checkout
     why: HandleInertiaRequests 全域共享 cartCount 時呼叫 CartService::count()
@@ -218,7 +249,7 @@ touchpoints:
     why: US12 署名改讀 SiteSetting::siteName()
   - file: app/Services/OgImageService.php
     owner: 012-newsletter
-    why: US12 OG 卡片的品牌 lockup 改讀站名（見 012 FR-013）
+    why: US12 OG 卡片的品牌 lockup 改讀站名（見 012 FR-013）；US14 卡片的 navy/teal 改讀作用中配色，配色 key 一併進快取 key（FR-124）
   - file: app/Http/Controllers/BlogFeedController.php
     owner: 012-newsletter
     why: US12 RSS 標題改讀站名
@@ -491,6 +522,53 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] 測試：第一位 OTP 註冊者成為 admin 且 support_email 被填上；第二位不會；已存在 admin 時不會；`FIRST_ADMIN_EMAIL` 有值時只有相符者升權、不相符者即使是第一個帳號也維持 member；電子報訂閱/結帳建立的帳號不會升權（即使是第一列）；`support_email` 已有值時不被覆蓋
 
 
+### User Story 14 - 全站配色方案切換 (Priority: P2)
+
+US12 把站名、經營者、logo 搬進設定，讓這份程式碼開得了第二個站。剩下的最後一件識別
+資訊是**顏色**：全站 90 個檔案、1,099 處 utility 都引用那七個 `--color-brand-*` token，
+但 token 的值寫死在 `app.css` 的 `@theme` 裡，另有 37 處連 token 都不走、直接寫 hex。
+換一個客戶的品牌色 = 改原始碼 + 重新 build + 重新部署，非工程師做不到。
+
+這條故事把配色抽成**八組具名方案**（含現行這組），在既有的後台「首頁設定」頁一鍵切換，
+前台與後台同時換色、不必 rebuild。不開放自訂色票 —— 八組通過對比驗算的方案，
+比一個讓業主調出「白底淺黃字」的色票選擇器有用，而且那種畫面沒有人看得出是自己弄壞的。
+
+**八組配色**（色值全部通過 FR-121 的九條對比門檻，逐組數字見 FR-121 下方）：
+
+| key | 名稱 | 產業定位 | cream | navy | teal | gold | gold-dark | orange | red |
+|---|---|---|---|---|---|---|---|---|---|
+| `cream-indigo` | 奶油靛藍 | 知識型／生活風格（現行配色，預設） | `#F6F1E9` | `#373557` | `#33697F` | `#F0C14B` | `#C7A33B` | `#DF6807` | `#D92B1F` |
+| `ink-bamboo` | 墨竹 | 東方人文 — 書法、茶道、國學、古典樂 | `#F5F2EA` | `#262521` | `#3F5E56` | `#C9A96B` | `#B0935A` | `#BE7C39` | `#B33A2B` |
+| `deep-harbor` | 深港 | 商務財經 — 顧問、B2B、投資理財 | `#F2F5F7` | `#1B2A38` | `#2E5F8A` | `#C9A227` | `#B08F2A` | `#CA7827` | `#C93B3B` |
+| `moss-field` | 苔原 | 健康永續 — 瑜珈、營養、園藝、戶外 | `#F3F2E8` | `#262E21` | `#4A7A3E` | `#D9A441` | `#BE8F38` | `#C27A26` | `#BF4332` |
+| `terracotta` | 赤陶 | 手作職人 — 烘焙、料理、陶藝、木工 | `#F7F0E8` | `#3A2A22` | `#A34A32` | `#D4A24C` | `#BB8C3F` | `#D17031` | `#9B1B3F` |
+| `electric-slate` | 電光石板 | 科技數位 — 程式、AI、SaaS、UI 設計 | `#FAFBFC` | `#14161C` | `#2563EB` | `#D9E84B` | `#A9B82C` | `#CD7F09` | `#E11D48` |
+| `rose-quartz` | 玫瑰石英 | 美感生活 — 美妝、香氛、婚顧、花藝 | `#FBF3F1` | `#3A2430` | `#9B4A68` | `#E8B07A` | `#BE8652` | `#D96E48` | `#C02B4E` |
+| `midnight-violet` | 夜航紫 | 身心靈創作 — 占星、冥想、音樂、寫作 | `#F4F1F8` | `#26203B` | `#6B4FA8` | `#D9C08A` | `#AE9662` | `#CD6C8D` | `#D13D5C` |
+
+**驗收**：
+- [ ] 八組配色（key / 中文名 / 產業定位 / 七個色票）全部定義在 `config/themes.php`；DB 只存選了哪一組（`site_settings.color_scheme`，沿用 US5 機制，零 migration）
+- [ ] 切換 MUST NOT 需要 rebuild：主題就是那七個 CSS 變數的重新定義。Tailwind v4 把 `@theme` 的值放進 `:root` 並把 utility 編成 `var(--color-brand-*)`（實測 `.border-brand-teal{border-color:var(--color-brand-teal)}`），所以覆寫變數就等於全站換色
+- [ ] 注入點是 `app.blade.php` 的 `<head>`、**`@vite(...)` 之後**的一段 `<style>`。順序不可調動：我們的 `:root` 與 Tailwind 的 `:root,:host` 特異性相同（0,1,0），靠原始碼順序取勝
+- [ ] MUST NOT 改走 Inertia prop + JS 套用。那會在第一個 paint 先閃一次預設配色，而且 SSR／爬蟲／OG 預覽拿到的是預設色
+- [ ] 七個 token 是**角色別名**、不是色相承諾（`teal` 在赤陶裡是燒赭、在玫瑰石英裡是深莓）：`cream` 頁面畫布、`navy` 墨色與後台側欄、`teal` 主要行動、`gold` 強調 CTA 填色、`gold-dark` gold 的 hover 與邊框、`orange` 次要強調數字、`red` 促銷與急迫。名稱維持舊名不重構（改名要動 90 個檔案 1,099 處，每一處都是無聲的錯誤風險）
+- [ ] 每一組 MUST 通過九條對比門檻（FR-121 的表），由 `ColorSchemeTest` 逐組以 WCAG 相對亮度公式**算出來**驗證，不是人工目測。未通過的配色不得收錄
+- [ ] 現行配色「奶油靛藍」原本有四條未達標（白字/teal 4.21、teal/cream 3.75、白字/red 3.42、orange/cream 1.77），依使用者決策一併修到過關：`teal #3F83A3 → #33697F`、`red #FF4438 → #D92B1F`、`orange #FAA45E → #DF6807`。**這是本次唯一一處會改變既有外觀的地方**，前台的主按鈕、連結、售價與分期價顏色會肉眼可辨地變深
+- [ ] 八組 MUST 全為淺底（cream 亮、navy 暗）。深色模式**不在本故事範圍**：`cream` 是 `body` 底色、`navy` 是後台側欄底色配白字，這兩個角色反向鎖死，做深色等於把兩者對調，後台側欄會變成白底白字
+- [ ] `app.css` 的 23 處與四支 Vue 的 14 處寫死 brand hex MUST 全部改讀 `var(--color-brand-*)`；`.section-dots` 的 `rgba(55,53,87,.22)` 改 `color-mix(in oklab, var(--color-brand-navy) 22%, transparent)`；`AssignmentSection.vue` 的兩處 `#336d8a` 改 `hover:bg-brand-teal/85`（全站既有慣例是用透明度做 hover，共 91 處，不另開深色 token）
+- [ ] **唯一豁免 `LessonForm.vue` 的 CTA 產生器**：那段 HTML 帶 inline style 寫進課程內文存進 DB，會被 drip 信件原樣寄出，而 email client 不解析 CSS 變數。該處 MUST 插入「插入當下」的字面 hex（從共享的 `theme` prop 取），且已插入的內容日後換主題**不會**跟著變 —— 那是定稿的內容，不是樣式
+- [ ] 切換介面 MUST 是既有「首頁設定」頁（`/admin/homepage`）的一個新區塊，**MUST NOT 另開後台分頁、MUST NOT 加側欄項目**。那頁已經是全站識別的維護處（站名、logo、favicon、Hero 主視覺都在那裡），配色是同一件事的最後一塊
+- [ ] 區塊沿用該頁既有慣例：自成一張 `<section>` 卡片、自己的儲存端點（`POST /admin/homepage/color-scheme`），與其他五個區塊互不牽動。權限由 `/admin/homepage` 所在的 `admin` middleware 群組自然涵蓋，不必另外判斷
+- [ ] 位置 MUST 是**第二張卡片**：緊接在「站台資訊」之後、「Hero 主視覺」**之前**。那頁有一條隱含的分界線 —— 站台資訊與配色是**全站**識別（每一頁都吃得到），Hero 以下五個區塊全是**首頁專屬**內容；兩張全站卡片並排壓在首頁內容之上，分界線才讀得出來。次要理由：即時預覽會把整個後台框架換色，放在不必捲動就看得到的位置才用得上
+- [ ] 選擇器本身 MUST 抽成 `Components/Admin/ColorSchemePicker.vue`，不寫進 `Edit.vue` 的模板。那個檔案已經 877 行六個區塊，八張配色卡片攤進去會超過一千行；抽成元件後 `Edit.vue` 只多掛一個標籤，而元件歸 000（配色是本模組的資產，頁面才是 002 的）
+- [ ] MUST 有即時預覽：點一張卡片就把該組七個變數寫上 `document.documentElement.style`，後台自己的側欄、按鈕、連結當場換色（後台本來就吃同一組 token）；「儲存」才寫 DB，「取消」移除 inline 變數還原。八張卡片各自顯示名稱、產業定位、七個色票與一塊縮小的版面示意（navy 導覽列 + teal 按鈕 + gold CTA + cream 底上的內文）
+- [ ] `color_scheme` 驗證 MUST 用 `Rule::in(array_keys(config('themes.schemes')))`；`ThemeService::active()` 讀到不存在的 key 時 MUST 退回預設而非丟例外 —— 配色可能在日後改版被移除，DB 裡留下的舊值不該讓全站 500
+- [ ] `OgImageService` 寫死的 navy/teal MUST 改讀作用中配色，且**配色 key MUST 進快取 key**，否則換了配色、舊的分享卡片會帶著上一組顏色留在 disk 上（比照 US12 對 logo 檔名的同一判斷）
+- [ ] MUST NOT 為 `ThemeService` 加靜態快取（同 FR-113 對 `identity()` 的理由：queue worker 的靜態狀態跨 job 存活，後台改了要等重啟才生效）。每次請求兩筆索引讀（blade 一次、Inertia share 一次）是可接受的代價
+- [ ] 原始碼掃描把關：`resources/css/` 與 `resources/js/` 底下 MUST NOT 再出現任何 brand 色的字面 hex（唯一豁免 `LessonForm.vue`）—— 比照 FR-117 對品牌字串的作法，只被一半程式碼尊重的設定比沒有設定更糟
+- [ ] 測試：`ColorSchemeTest`（八組結構完整且皆為合法 6 位 hex、九條對比門檻逐組驗算、預設與未設定時皆為 `cream-indigo`、切換後首頁 HTML 含新 hex 且不含舊 teal、`<style>` 出現在 vite 的 CSS link 之後、非法 key 被擋、DB 存未知 key 時退回預設而非 500、訪客與銷售顧問不得打 `POST /admin/homepage/color-scheme`、儲存配色不會動到同頁其他五個區塊的設定值、原始碼掃描無漏網 hex）
+
+
 ## Requirements
 
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
@@ -540,6 +618,42 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 
 - **FR-112**: 有 `useCurrent()` 的欄位由 MySQL 自己填（`cart_items` / `order_items` / `lesson_progress` / `course_images` / `post_images`，皆為 `$timestamps = false` 的 model），走的是 **MySQL 的 session 時區**而非 PHP 的。連線時區若留 `SYSTEM`，同一張表裡 PHP 寫的列與 MySQL 寫的列會差 8 小時，而且開發機（macOS 預設 Asia/Taipei）與正式站（UTC）的行為不一致 —— 這是 FR-109 之外另一個「不會有任何錯誤訊息」的靜默分歧
 
+- **FR-118**: 配色切換 MUST 以「重新定義 `--color-brand-*` 七個變數」實現，MUST NOT 以切換 class、切換 stylesheet 或重新 build 實現。已知限制：帶透明度的 utility（`bg-brand-teal/20` 這類，全站 91 處）被 Tailwind 編成 `color-mix(in oklab, var(--color-brand-teal) 20%, transparent)` 並在 `@supports` 外留了一份寫死的 hex 備援，所以不支援 `color-mix()` 的瀏覽器（Safari < 16.2 / Chrome < 111）在**那些半透明的邊框與底色**上會停在預設配色。不透明的 utility（1,008 處）是純 `var()`，所有瀏覽器都跟著換
+- **FR-119**: 配色定義 MUST 放 `config/themes.php`，MUST NOT 進 DB。八組色票是**程式碼資產**不是使用者資料：要跟著 git 走、要能在測試裡直接斷言、要能被 `config:cache` 快取；而「新增第九組」= 改一個 array，不必 migration 也不必資料搬遷。DB 只存作用中的 key 一個字串
+- **FR-120**: 所有配色 MUST 為淺底。`cream` 是 `body` 底色、`navy` 是後台側欄底色配白字，這兩個角色反向鎖死；深色主題必須同時把兩者對調，那是另一條故事而不是多一組色票
+- **FR-121**: 收錄門檻（WCAG 2.1 相對亮度，全部由測試算出，非目測）。價格與分期價是 `text-xl`～`text-3xl` 的粗體，適用大型文字的 3:1；其餘一律 4.5:1，內文對底色取 7:1：
+
+  | 組合 | 用途 | 門檻 |
+  |---|---|---|
+  | navy / cream | 內文對頁面底色 | 7.0 |
+  | white / navy | 導覽列與後台側欄 | 4.5 |
+  | white / teal | 主要按鈕 | 4.5 |
+  | teal / cream | 連結 | 4.5 |
+  | navy / gold | 強調 CTA | 4.5 |
+  | navy / gold-dark | 強調 CTA 的 hover 狀態 | 4.5 |
+  | white / red | 促銷徽章 | 4.5 |
+  | red / cream | 售價（大型粗體） | 3.0 |
+  | orange / cream | 分期價（大型粗體） | 3.0 |
+
+  八組實測值（`ColorSchemeTest` 的斷言即這張表）：
+
+  | 組合 | 門檻 | 奶油靛藍 | 墨竹 | 深港 | 苔原 | 赤陶 | 電光石板 | 玫瑰石英 | 夜航紫 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | navy/cream | 7.0 | 10.32 | 13.71 | 13.37 | 12.49 | 12.11 | 17.45 | 13.01 | 13.89 |
+  | white/navy | 4.5 | 11.61 | 15.34 | 14.64 | 14.05 | 13.69 | 18.08 | 14.24 | 15.53 |
+  | white/teal | 4.5 | 6.06 | 7.13 | 6.73 | 5.07 | 5.86 | 5.17 | 5.88 | 6.35 |
+  | teal/cream | 4.5 | 5.39 | 6.37 | 6.15 | 4.51 | 5.19 | 4.99 | 5.37 | 5.68 |
+  | navy/gold | 4.5 | 6.87 | 6.85 | 6.05 | 6.24 | 5.91 | 13.43 | 7.41 | 8.77 |
+  | navy/goldD | 4.5 | 4.83 | 5.24 | 4.74 | 4.80 | 4.52 | 8.25 | 4.56 | 5.43 |
+  | white/red | 4.5 | 4.87 | 5.90 | 5.03 | 5.17 | 8.01 | 4.70 | 5.68 | 4.63 |
+  | red/cream | 3.0 | 4.33 | 5.28 | 4.60 | 4.60 | 7.09 | 4.53 | 5.19 | 4.14 |
+  | orng/cream | 3.0 | 3.05 | 3.06 | 3.08 | 3.06 | 3.06 | 3.05 | 3.06 | 3.07 |
+
+- **FR-122**: brand 色 MUST NOT 以字面值出現在 `resources/css/` 或 `resources/js/`，**`#RRGGBB` 與 `rgb()`／`rgba()` 十進位形式都算**（實作時 hex-only 的掃描漏掉五處寫成 `rgba(63,131,163,…)` 與 `rgba(240,193,75,…)` 的 teal 與 gold，正是這條規則要防的「安靜的半套設定」）。唯一豁免是 `LessonForm.vue` 產生的 CTA HTML —— 那段 inline style 存進 DB 的課程內文、被 drip 信件原樣寄出，email client 不解析 CSS 變數，用 `var()` 會得到一顆沒有底色的按鈕
+- **FR-123**: 注入的 `<style>` MUST 在 `@vite(...)` **之後**。我們的 `:root` 與 Tailwind preflight 的 `:root,:host` 特異性相同，勝負只由原始碼順序決定；放前面的症狀是「換了配色但畫面完全沒變」，而那看起來會像是儲存沒成功
+- **FR-124**: 任何以品牌色繪製並快取到磁碟的產物（目前只有 `OgImageService` 的 OG 卡片）MUST 把配色 key 放進快取 key。否則換配色之後，舊卡片帶著上一組顏色永遠留在 disk 上，而且只有在別人分享連結時才看得出來（與 US12 對 logo 檔名的判斷同源）
+
+
 ## 設計決策
 
 - **D36**: 基準時區維持 **UTC**，不改成 `Asia/Taipei`（使用者發現正式站主機是 UTC 時提出，經評估後否決切換）。切換要位移 121 個 datetime 欄位、44 張表，單向不可逆且需停機停 worker，換來的只有「4 個表單順手修好 + DB 直接看比較順眼」；而對外整合（Zoom、ICS、金流 webhook）全講 UTC，改成本地時區只是把轉換從入口搬到出口。真正的病是「轉換寫得不一致」不是「基準選錯」，所以補齊邊界轉換、把約定寫進 CLAUDE.md，零 migration 零停機。另兩個理由：正式站的 nginx / PHP-FPM log 是 UTC，app log 改台北會在查線上問題時差 8 小時；`consultation_notes.consultant_id` 已預留多顧問，境外顧問只有 UTC 撐得住
@@ -584,6 +698,15 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - **D33**: 元件放 `Components/Pagination.vue` 而非 `Components/Admin/` —— 會員積分頁與前台 `/blog` 也在使用者要求的「全部」範圍內，放進 `Admin/` 會讓每個非後台呼叫端都在說謊。樣式因此不能寫死後台色票：當前頁用 `bg-brand-navy text-white`（現有後台頁碼列的樣式），其餘為中性灰邊框，前後台共用同一組。
 - **D34**: `Member/Points.vue` 原本直接渲染 Laravel 的 `links` 陣列並用 `v-html` 輸出 `label`（`&laquo; Previous` 這類 HTML entity）。改用元件後 `v-html` 一併消失 —— 那是為了顯示 `«` 而開的一個 `v-html`，資料雖然來自 Laravel 而非使用者，但一個純顯示的分頁列不該有這種東西。呼叫端改傳 `current_page` / `last_page` 兩個數字。
 - **D35**: 前台 `/blog` 原本只有上一頁／下一頁兩顆 `<Link>`，這次一併長出頁碼。它是三種寫法裡唯一**沒有**可點頁碼的畫面，而讀者要回到半年前那篇文章時，「一路按下一頁」和「點第 7 頁」的差距就是會不會放棄。href 模式保住原本的爬蟲可跟性（FR-031）。
+
+- **D41**: 主題做成「token 重新定義」而不是「多套 class」或「多份 stylesheet」。全站已經有 1,099 處 utility 引用那七個 token，而 Tailwind v4 把它們全部編成 `var(--color-brand-*)` —— 也就是說**換色的能力早就在編譯結果裡了**，我們只是沒有去用。覆寫七行 CSS 變數，比起產生八份 stylesheet（八倍的 CSS、快取失效、還要決定怎麼選檔）或在 90 個檔案上掛 `theme-x:` 變體（每一處都要改、每一處都可能漏）便宜兩個數量級。
+- **D42**: 注入在 blade 的 `<head>`，不走 Inertia prop 讓前端套用。配色必須在**第一個 paint 之前**就位：走 prop 的話首載會先閃一次預設配色（尤其是滿版的 cream 底色與 navy 導覽列，閃動非常明顯），而且爬蟲與 OG 預覽器根本不執行 JS，拿到的永遠是預設色。代價是 blade 要多讀一筆 `site_settings`，與 `siteName()`／`supportEmail()` 已經在做的事情一樣。
+- **D43**: 配色存 `config/themes.php` 而非 DB（承 D2 的分界線）。D2 說的是「設定鍵進 site_settings 以免 migration」，但那指的是**使用者的選擇**；八組色票本身是設計成果、是程式碼，進了 DB 就變成「改個色票要下 SQL」「測試要先 seed」「兩個安裝的色票會各自漂移」。分界線是：**選了哪一組**進 DB，**有哪些組**進 git。
+- **D44**: 維持 `cream`/`navy`/`teal`/`gold`/`gold-dark`/`orange`/`red` 這組舊名，不重構成 `canvas`/`ink`/`primary`/`accent` 之類的語意名。語意名確實比較誠實（赤陶的 `teal` 是燒赭），但改名要動 90 個檔案、1,099 處字串，而漏掉一處的症狀是那一個元素留在舊配色——不會報錯、不會壞版、只會在某個角落一直錯下去。把「token 名是角色別名」寫進文件的成本是零，改名的成本是一次高風險全域取代，換來的只有可讀性。
+- **D45**: 八組全部淺底，深色模式明確排除在外。`navy` 同時是「內文顏色」與「後台側欄底色（配白字）」，`cream` 同時是「頁面底色」與「導覽列上的淺色文字」——要做深色主題就得讓這兩個角色互換，那不是換七個值，那是把每一處 `text-brand-navy` 與 `bg-brand-navy` 重新判斷一次。夾帶進這條故事會讓一個低風險的變更變成高風險的。
+- **D47**: 配色選擇器塞進既有的「首頁設定」頁，不另開 `/admin/settings/appearance`（使用者決策）。理由站得住腳：那一頁已經是**全站識別的維護處** —— 站名、經營者、logo、favicon（US12）、Hero 主視覺都在那裡，配色是同一件事剩下的最後一塊，拆成兩頁等於要業主記住「文字在這裡、顏色在那裡」。側欄也因此不必再長一項（目前 16 項，已經是滿的）。代價是 `Edit.vue` 會變大，所以選擇器抽成 `Components/Admin/ColorSchemePicker.vue`：元件歸 000（配色是本模組的資產），頁面留在 002，`Edit.vue` 只多掛一個標籤。儲存走自己的端點 `POST /admin/homepage/color-scheme`，與該頁既有的五個區塊一致（每區塊各自送出、互不牽動）。位置定在**第二張**（站台資訊之後、Hero 主視覺之前）：那頁其實分成「全站識別」與「首頁內容」兩段，只是從來沒有寫下來 —— 站台資訊與配色每一頁都吃得到，Hero 以下只影響首頁。把兩張全站卡片並排放在最上面，這條分界線才對維護的人可見。
+- **D46**: 對比是**收錄條件**而不是建議，且由測試算出來而不是設計時目測。理由來自抽取現行配色時的實測結果：這組用了一年多的配色有四項未達 AA，其中「分期價的橘字在米色底上」只有 1.77:1 —— 那是實際上讀不了的東西，而它一直在線上。人工目測抓不到這種事（橘色在白底上「看起來很清楚」是因為飽和度高，不是因為亮度差夠），所以門檻必須是九行可執行的斷言。使用者決定連現行配色一起修到過關（`teal`／`red`／`orange` 三個值改動），這是本次唯一會改變既有外觀的地方。
+
 
 ## Schema
 
@@ -710,6 +833,8 @@ Phase 5 — 驗證：
 - [x] T057 前台 `/blog` 與 tag 頁改 href 模式（`pageHref(page)` 產 `?page=N`，第 1 頁不帶參數）；後端未動 —— 兩支查詢都沒有其他查詢字串要保留（FR-031 / D35）in `resources/js/Pages/Blog/Index.vue`（012）, `resources/js/Pages/Blog/Tag.vue`（012）
 - [x] T058 `npm run build` exit 0；`php artisan test` 全綠
 - [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
+- `site_settings` 新鍵：`color_scheme`（US14）— 作用中的配色 key，例如 `cream-indigo`。未設定或指向 `config('themes.schemes')` 不存在的 key 時一律退回 `config('themes.default')`。可選值只存在於程式碼（`config/themes.php`），DB 端無約束也無 migration（見 D43）。
+
 
 ## Tasks（首次安裝的第一位管理員 / US13）
 
@@ -719,7 +844,48 @@ Phase 5 — 驗證：
 - [x] T0C4 [P] `FirstAdminTest`：第一位升權且 support_email 被填；第二位不升；已有 admin 不升；`FIRST_ADMIN_EMAIL` 相符/不相符；電子報與結帳建的帳號不升；support_email 已有值不被覆蓋 in `tests/Feature/Platform/FirstAdminTest.php`
 - [ ] T0C5 使用者實測：乾淨 DB 跑 `migrate --force`，用自己的 email 走一次 `/login`，確認進得去 `/admin` 且「Email 模板」頁的客服信箱已是該 email
 
+## Tasks（全站配色方案切換 / US14）
+
+**Phase 1 — 配色資產與服務**
+
+- [x] T0D1 `config/themes.php`：`default` = `cream-indigo`，`schemes` 為八組 `key => ['name','industry','colors' => [cream, navy, teal, gold, gold_dark, orange, red]]`（色值見 US14 的配色表）in `config/themes.php`
+- [x] T0D2 `ThemeService::all(): array` / `active(): array` — 讀 `site_settings.color_scheme`，未知或空值退回 `config('themes.default')`；回 `['key','name','industry','colors']`；**MUST NOT 加靜態快取**（FR-113 同一理由）in `app/Services/ThemeService.php`
+- [x] T0D3 [P] `ColorSchemeTest` 先寫兩組斷言並確認會紅：八組結構完整且皆為合法 6 位 hex、九條對比門檻以 WCAG 相對亮度逐組算出（FR-121 的表）in `tests/Feature/Platform/ColorSchemeTest.php`
+
+**Phase 2 — 注入與收編寫死的 hex**（相依 Phase 1）
+
+- [x] T0D4 `app.blade.php` 在 `@vite(...)` **之後**輸出 `<style>:root{--color-brand-…}</style>`（順序即正確性，FR-123）in `resources/views/app.blade.php`
+- [x] T0D5 `app.css`：`@theme` 的七個值換成修正後的 `cream-indigo`（teal `#33697F`、red `#D92B1F`、orange `#DF6807`）；`body` 底色改 `var(--color-brand-cream)`；`.section-dots` 改 `color-mix(in oklab, var(--color-brand-navy) 22%, transparent)`；`.course-content` / `.assignment-content` 的 23 處 hex 全改 `var()` in `resources/css/app.css`
+- [x] T0D6 [P] 三支 Vue 的寫死 hex 改回 brand utility；`AssignmentSection.vue` 兩處 `#336d8a` 改 `hover:bg-brand-teal/85`（FR-122）in `resources/js/Components/Classroom/AssignmentSection.vue`, `resources/js/Components/Classroom/LessonPromoBlock.vue`, `resources/js/Pages/Course/Show.vue`
+- [x] T0D7 `HandleInertiaRequests` 共享 `theme`（`key` + `colors`）；`LessonForm.vue` 的 CTA 產生器改讀 `page.props.theme.colors` 產出字面 hex（FR-122 的唯一豁免）in `app/Http/Middleware/HandleInertiaRequests.php`, `resources/js/Components/Admin/LessonForm.vue`
+- [x] T0D8 `OgImageService` 的 navy/teal 改讀作用中配色，並把配色 key 放進快取 key（FR-124）in `app/Services/OgImageService.php`
+
+**Phase 3 — 「首頁設定」頁的配色區塊**（相依 Phase 1）
+
+- [x] T0D9 `HomepageSettingController::edit()` 多傳 `colorSchemes`（`ThemeService::all()`）與 `activeColorScheme`；新增 `updateColorScheme()`，`color_scheme` 以 `Rule::in(array_keys(config('themes.schemes')))` 驗證；路由 `POST /admin/homepage/color-scheme` 加在既有 homepage 群組內（權限由所在的 `admin` middleware 群組涵蓋，不另外判斷）in `app/Http/Controllers/Admin/HomepageSettingController.php`, `routes/web.php`
+- [x] T0D10 `ColorSchemePicker.vue`：八張卡片（名稱、產業定位、七個色票、縮小版面示意）；點卡片即把七個變數寫上 `document.documentElement.style` 做即時預覽，「儲存」送 `POST /admin/homepage/color-scheme`、「取消」移除 inline 變數還原。卡片是非 button 的可點元素時 MUST 自行加 `cursor-pointer` in `resources/js/Components/Admin/ColorSchemePicker.vue`
+- [x] T0D11 「首頁設定」頁掛上該元件，自成一張 `<section>` 卡片，沿用該頁既有的卡片樣式；插在**「站台資訊」與「Hero 主視覺」之間**（全站識別在上、首頁內容在下，D47）in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+**Phase 4 — 把關與驗收**
+
+- [x] T0D12 [P] `ColorSchemeTest` 其餘斷言：預設與未設定皆為 `cream-indigo`、切換後首頁 HTML 含新 hex 且不含舊 `#3F83A3`、`<style>` 出現在 vite CSS link 之後、非法 key 被擋、DB 存未知 key 時退回預設而非 500、訪客與銷售顧問不得打 `POST /admin/homepage/color-scheme`、儲存配色不動到同頁其他五個區塊的設定值、原始碼掃描 `resources/css` 與 `resources/js` 無漏網 brand hex（豁免 `LessonForm.vue`）in `tests/Feature/Platform/ColorSchemeTest.php`
+- [x] T0D13 `npm run build` exit 0；`php artisan test` 全綠
+- [ ] T0D14 使用者實測：在「首頁設定」頁逐組切過一輪，每組都看首頁、課程銷售頁、教室內文與後台側欄；確認主按鈕、gold CTA、售價、分期價、課程內文的標題橫幅與引用區塊都跟著換；最後換一次配色並重新分享一則文章連結，確認 OG 卡片是新配色（驗 FR-124）
+
+
 ## 進度日誌
+
+- 2026-09-25: US14 全站配色方案切換完成（T0D1–T0D13，僅剩 T0D14 使用者實測）— 八組配色進 `config/themes.php`、`ThemeService` 解析作用中配色、`app.blade.php` 在 `@vite` **之後**注入 `:root` 覆寫，前後台同時換色且不必 rebuild。切換介面照審核時的決定做成「首頁設定」頁的第二張卡片（站台資訊之後、Hero 主視覺之前），選擇器抽成 `ColorSchemePicker.vue` 歸 000、頁面留在 002。
+  TDD：先寫 `ColorSchemeTest` 15 條跑出 **11 紅 4 綠** —— 綠的四條是純資料（九條對比門檻、淺底、gold-dark 暗於 gold、預設存在），確認色票本身站得住；紅的十一條全部紅在「功能不存在」。
+  **三個實作中才浮出來的東西**：(1) 用正規表示式把 brand hex 換成 `var()` 時連 `@theme` 區塊自己也換掉了，產出 `--color-brand-cream: var(--color-brand-cream)` 這種循環定義 —— 定義處必須留字面值，測試的掃描因此要先剝掉 `@theme` 區塊再驗。(2) 我的測試原本斷言顧問存取回 403，實際上 `AdminMiddleware` 是導回 `/` 帶 flash（`SalesConsultantTest` 早就釘住這個慣例），改的是測試不是程式。(3) **hex-only 的掃描不夠**：`AssignmentSection` 與 `RoadmapBoard` 的 teal、`FeaturedCourses` 與 `RoadmapBoard` 的 gold 共五處寫成 `rgba(63,131,163,…)` / `rgba(240,193,75,…)`，十進位形式完全躲過第一版把關。把掃描擴充到 `rgb()/rgba()` 後當場又抓到兩處，FR-122 也跟著改寫 —— 這正是「只被一半程式碼尊重的設定比沒有設定更糟」的實例。
+  現行配色依使用者決策修到通過 AA：`teal #3F83A3 → #33697F`、`red #FF4438 → #D92B1F`、`orange #FAA45E → #DF6807`（第三項是使用者回答之後才量到的第四個未達標，1.77:1）。連帶更新 `OgImageTest` 的前提（配色 key 進了 OG 卡片快取 key，該測試自行推導檔名）。
+  全套 **1026 passed（4490 assertions）**、`npm run build` exit 0。註記：`php artisan test` 會以預設 128M 記憶體上限中途 fatal —— 測試套件本身峰值 128.50 MB，本次新增 16 條把它推過線，改用 `php -d memory_limit=2G vendor/bin/phpunit` 才跑得完，屬環境餘裕問題非測試失敗。
+
+- 2026-09-25: [draft] 規劃 US14 全站配色方案切換 — 起點是把現行配色抽出來當成「一組方案」，再設計七組給業主選。抽取時量了對比才發現現行這組有四項未達 WCAG AA，最糟的是分期價的橘字在米色底上只有 **1.77:1**（`#FAA45E` on `#F6F1E9`）——那是實際上讀不了的東西，而它已經在線上一年多。使用者決定連現行配色一併修到過關（`teal #3F83A3 → #33697F`、`red #FF4438 → #D92B1F`、`orange #FAA45E → #DF6807`），所以這次不只是「加能力」，預設外觀也會變。
+  實作路徑比預期便宜很多：全站 90 個檔案、1,099 處 utility 全部引用那七個 `--color-brand-*` token，而 Tailwind v4 已經把它們編成 `var(--color-brand-*)`（查了 `public/build/assets/*.css` 確認，不是照文件推論）——**換色的能力早就在編譯結果裡**，只要在執行期覆寫七行變數就行，不必 rebuild、不必動那 90 個檔案（D41）。注入點必須是 blade 的 `<head>` 且在 `@vite` 之後：走 Inertia prop 會先閃一次預設配色、爬蟲也拿不到（D42）；放在 `@vite` 前面則因為 `:root` 與 `:root,:host` 特異性相同而完全不生效，症狀看起來會像「儲存沒成功」（FR-123）。
+  三個劃界的決定：八組色票進 `config/themes.php` 而 DB 只存選了哪一組（D43——「有哪些組」是設計成果屬程式碼，「選了哪一組」才是使用者資料）；token 維持 `teal`/`navy` 這種色相名不重構成 `primary`/`ink`（D44——改名要動 1,099 處，漏一處的症狀是那個元素無聲地留在舊配色）；八組全為淺底、深色模式明確排除（D45——`navy` 同時是內文色與後台側欄底色配白字，做深色等於把兩個角色對調，那是另一條故事）。
+  **審核時使用者決定不另開後台分頁**，配色選擇器改塞進既有的「首頁設定」頁（D47）—— 那一頁已經是全站識別的維護處（站名、經營者、logo、favicon、Hero 主視覺都在那裡），配色是同一件事剩下的最後一塊，拆兩頁等於要業主記住「文字在這裡、顏色在那裡」；側欄也不必再長第 17 項。選擇器抽成 `Components/Admin/ColorSchemePicker.vue` 歸 000，頁面留在 002（`Edit.vue` 已經 877 行六個區塊，八張卡片攤進去會破千行）。
+  對比定為**收錄條件**而非建議，由 `ColorSchemeTest` 以 WCAG 相對亮度算出九條門檻（D46/FR-121）；八組全部通過，數字列在 US14 裡。另外把 `app.css` 的 23 處與四支 Vue 的 14 處寫死 hex 一併收編（FR-122），唯一豁免是 `LessonForm.vue` 產生的 CTA——那段 inline style 會被 drip 信件原樣寄出，email client 不解析 CSS 變數。status: draft 待審核。
 
 - 2026-09-25: US13 首次安裝的第一位管理員完成（T0C1–T0C4，僅剩 T0C5 使用者實測）— `FirstAdminService::bootstrap()` 是唯一判斷點，由 `LoginController::verify()` 在建帳後於**同一個 transaction** 內呼叫。判斷式照 FR-115 的兩半：先確認沒有任何 `role = admin`，再看 `FIRST_ADMIN_EMAIL` 是否指名（相符才升，比對前 trim + 轉小寫）或這是 `users` 表唯一的一列。升權時一併把 email 寫進 `support_email`（**僅在空值時**）並寫 `first_admin.bootstrapped` info log。`config/auth.php` 新增 `first_admin_email`、`.env.example` 補上該鍵與留空行為說明。
   TDD：先寫 `FirstAdminTest` 7 條，跑出 **5 紅**（紅在「期望 admin、實際 member」，確認是功能不存在而不是測試寫錯），實作後全綠。其中兩條是反向守門——電子報訂閱建的第一個帳號不得升權（`NewsletterService` 路徑）、已設定的 `support_email` 不得被覆蓋。全套 **1010 passed（4341 assertions）**。

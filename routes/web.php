@@ -393,6 +393,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/homepage', [HomepageSettingController::class, 'edit'])->name('homepage.edit');
     Route::post('/homepage', [HomepageSettingController::class, 'update'])->name('homepage.update');
     Route::delete('/homepage/banner', [HomepageSettingController::class, 'deleteBanner'])->name('homepage.banner.destroy');
+    // 000 US14 — the colour scheme card on the same page. Admin-only comes from
+    // the group this sits in; no extra check needed.
+    Route::post('/homepage/color-scheme', [HomepageSettingController::class, 'updateColorScheme'])->name('homepage.color-scheme');
 
     // Social links CRUD
     Route::post('/homepage/social-links', [SocialLinkController::class, 'store'])->name('social-links.store');

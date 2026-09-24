@@ -287,9 +287,9 @@ const toggle = async (stage, checkpoint) => {
 }
 
 @keyframes roadmap-halo {
-  0%   { box-shadow: 0 0 0 0 rgba(240, 193, 75, 0.85); }
-  70%  { box-shadow: 0 0 0 16px rgba(240, 193, 75, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(240, 193, 75, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand-gold) 85%, transparent); }
+  70%  { box-shadow: 0 0 0 16px color-mix(in oklab, var(--color-brand-gold) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand-gold) 0%, transparent); }
 }
 
 /* Whole roadmap finished. */
@@ -298,9 +298,9 @@ const toggle = async (stage, checkpoint) => {
 }
 
 @keyframes roadmap-board-glow {
-  0%   { box-shadow: 0 0 0 0 rgba(63, 131, 163, 0.5); }
-  60%  { box-shadow: 0 0 0 14px rgba(63, 131, 163, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(63, 131, 163, 0); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand-teal) 50%, transparent); }
+  60%  { box-shadow: 0 0 0 14px color-mix(in oklab, var(--color-brand-teal) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-brand-teal) 0%, transparent); }
 }
 
 @media (prefers-reduced-motion: reduce) {

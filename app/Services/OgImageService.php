@@ -23,7 +23,7 @@ class OgImageService
 
     private string $logo;
 
-    public function __construct(private SiteIconService $icons)
+    public function __construct(private SiteIconService $icons, private ThemeService $theme)
     {
         $this->font = resource_path('fonts/NotoSansTC.ttf');
         // The uploaded logo wins; the bundled file only covers installs that
@@ -72,7 +72,25 @@ class OgImageService
 
     private function hash(Post $post): string
     {
-        return substr(sha1($post->title.'|'.$this->brand().'|'.basename($this->logo).'|'.self::CACHE_VERSION), 0, 10);
+        // The colour scheme belongs in the key for the same reason the site
+        // name does (000 FR-124): switch schemes and every card already on disk
+        // would otherwise keep the previous palette, which only ever shows up
+        // when somebody shares a link.
+        return substr(sha1(implode('|', [
+            $post->title,
+            $this->brand(),
+            basename($this->logo),
+            $this->theme->activeKey(),
+            self::CACHE_VERSION,
+        ])), 0, 10);
+    }
+
+    /** Allocate an #RRGGBB string on the given image. */
+    private function allocate(\GdImage $im, string $hex): int
+    {
+        [$r, $g, $b] = sscanf(ltrim($hex, '#'), '%2x%2x%2x');
+
+        return imagecolorallocate($im, $r, $g, $b);
     }
 
     /**
@@ -80,10 +98,12 @@ class OgImageService
      */
     public function png(Post $post): string
     {
+        $palette = $this->theme->active()['colors'];
+
         $im = imagecreatetruecolor(self::W, self::H);
-        $navy = imagecolorallocate($im, 0x37, 0x35, 0x57);
+        $navy = $this->allocate($im, $palette['navy']);
         $white = imagecolorallocate($im, 0xFF, 0xFF, 0xFF);
-        $teal = imagecolorallocate($im, 0x3F, 0x83, 0xA3);
+        $teal = $this->allocate($im, $palette['teal']);
         imagefill($im, 0, 0, $navy);
 
         // Brand lockup (logo + name) anchored bottom-left.

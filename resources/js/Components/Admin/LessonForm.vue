@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import CouponChainInserter from './CouponChainInserter.vue'
 
 const props = defineProps({
@@ -95,10 +96,23 @@ const promoHtmlRef = ref(null)
 const ctaUrl = ref('')
 const ctaText = ref('')
 
+const page = usePage()
+
+/**
+ * The one place FR-122 exempts from the no-literal-hex rule.
+ *
+ * This markup is inline-styled HTML saved into the lesson body and mailed out
+ * verbatim by the drip sequence, and mail clients do not resolve CSS variables
+ * — var() here produces a button with no fill. So the colours are baked in at
+ * insertion time from the palette in force. Buttons already inserted keep the
+ * colours they were written with when the scheme later changes: they are
+ * finished content, not styling.
+ */
 const insertCtaButton = () => {
   if (!ctaUrl.value || !ctaText.value) return
   const text = ctaText.value || '立即瞭解'
-  const html = `<div style="text-align:center;margin:24px 0"><a href="${ctaUrl.value}" style="display:inline-block;background:#F0C14B;color:#373557;padding:12px 40px;border-radius:9999px;border:1px solid rgba(199,163,59,0.5);text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">${text}</a></div>`
+  const c = page.props.theme.colors
+  const html = `<div style="text-align:center;margin:24px 0"><a href="${ctaUrl.value}" style="display:inline-block;background:${c.gold};color:${c.navy};padding:12px 40px;border-radius:9999px;border:1px solid ${c.gold_dark};text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">${text}</a></div>`
   form.value.promo_html = (form.value.promo_html || '') + '\n' + html
   ctaUrl.value = ''
   ctaText.value = ''

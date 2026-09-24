@@ -9,10 +9,12 @@ use App\Models\HomepageFeaturedCourse;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
 use App\Services\SiteIconService;
+use App\Services\ThemeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -136,6 +138,11 @@ class HomepageSettingController extends Controller
                     'name' => $c->name,
                 ])->values(),
             'siteIdentity' => SiteSetting::identity(),
+            // 000 US14 — the palette card sits between 站台資訊 and Hero 主視覺,
+            // because those two are the only site-wide cards on this page and
+            // everything below them only affects the homepage (000 D47).
+            'colorSchemes' => app(ThemeService::class)->all(),
+            'activeColorScheme' => app(ThemeService::class)->activeKey(),
             'siteIcons' => app(SiteIconService::class)->urls(),
             'sidebarOrder' => self::sidebarWidgetOrder(),
             'contentCategorySlots' => self::contentCategorySlots(),
@@ -255,6 +262,29 @@ class HomepageSettingController extends Controller
         SiteSetting::set('content_filter_enabled', $request->boolean('enabled') ? '1' : '0');
 
         return redirect()->back()->with('success', '內容分類已更新');
+    }
+
+    /**
+     * 配色方案 — the seven `--color-brand-*` values the whole site is drawn
+     * with (000 US14).
+     *
+     * Only the key is stored; the schemes themselves live in `config/themes.php`
+     * (000 D43). `Rule::in` over that config means a retired scheme cannot be
+     * selected, while `ThemeService` separately tolerates one already sitting
+     * in the database.
+     *
+     * Its own endpoint, like every other card on this page, so choosing a
+     * palette cannot disturb the site name in the card above it.
+     */
+    public function updateColorScheme(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'color_scheme' => ['required', 'string', Rule::in(array_keys(config('themes.schemes')))],
+        ]);
+
+        SiteSetting::set(ThemeService::SETTING_KEY, $validated['color_scheme']);
+
+        return redirect()->back()->with('success', '配色方案已更新');
     }
 
     public function updateWidgetOrder(Request $request): RedirectResponse

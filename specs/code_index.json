@@ -148,6 +148,7 @@
       "002.us-6"
     ],
     "app/Http/Controllers/Admin/HomepageSettingController.php": [
+      "000.us-14",
       "002.us-19",
       "002.us-20",
       "002.us-21",
@@ -399,6 +400,7 @@
     "app/Http/Middleware/HandleInertiaRequests.php": [
       "000.us-1",
       "000.us-12",
+      "000.us-14",
       "000.us-6",
       "003.us-12",
       "010.us-1"
@@ -1019,6 +1021,7 @@
     ],
     "app/Services/OgImageService.php": [
       "000.us-12",
+      "000.us-14",
       "012.us-2"
     ],
     "app/Services/OpenAiService.php": [
@@ -1072,6 +1075,9 @@
     ],
     "app/Services/SiteIconService.php": [
       "000.us-12"
+    ],
+    "app/Services/ThemeService.php": [
+      "000.us-14"
     ],
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
@@ -1137,6 +1143,9 @@
     "config/services.php": [
       "000.us-4",
       "003.us-9"
+    ],
+    "config/themes.php": [
+      "000.us-14"
     ],
     "database/migrations/0001_01_01_000000_create_users_table.php": [
       "001.us-1"
@@ -1467,6 +1476,7 @@
       "000.us-8"
     ],
     "resources/css/app.css": [
+      "000.us-14",
       "002.us-2",
       "003.us-5"
     ],
@@ -1487,6 +1497,9 @@
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3",
       "011.us-21"
+    ],
+    "resources/js/Components/Admin/ColorSchemePicker.vue": [
+      "000.us-14"
     ],
     "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
       "011.us-13",
@@ -1564,6 +1577,7 @@
       "011.us-8"
     ],
     "resources/js/Components/Admin/LessonForm.vue": [
+      "000.us-14",
       "002.us-14",
       "003.us-10",
       "003.us-9",
@@ -1607,6 +1621,7 @@
       "007.us-7"
     ],
     "resources/js/Components/Classroom/AssignmentSection.vue": [
+      "000.us-14",
       "003.us-10",
       "003.us-12",
       "003.us-5",
@@ -1630,9 +1645,11 @@
       "003.us-4"
     ],
     "resources/js/Components/Classroom/LessonPromoBlock.vue": [
+      "000.us-14",
       "010.us-9"
     ],
     "resources/js/Components/Classroom/RoadmapBoard.vue": [
+      "000.us-14",
       "003.us-11"
     ],
     "resources/js/Components/Classroom/VideoAccessNotice.vue": [
@@ -1682,6 +1699,7 @@
       "010.us-15"
     ],
     "resources/js/Components/FeaturedCourses.vue": [
+      "000.us-14",
       "002.us-6"
     ],
     "resources/js/Components/GiftCourseModal.vue": [
@@ -1879,6 +1897,7 @@
       "011.us-8"
     ],
     "resources/js/Pages/Admin/HomepageSettings/Edit.vue": [
+      "000.us-14",
       "002.us-19",
       "002.us-20",
       "002.us-21",
@@ -1966,6 +1985,7 @@
       "007.us-7"
     ],
     "resources/js/Pages/Course/Show.vue": [
+      "000.us-14",
       "002.us-11",
       "002.us-12",
       "002.us-2",
@@ -2042,6 +2062,7 @@
     ],
     "resources/views/app.blade.php": [
       "000.us-12",
+      "000.us-14",
       "000.us-4",
       "000.us-7",
       "012.us-2"
@@ -2109,6 +2130,7 @@
     ],
     "routes/web.php": [
       "000.us-10",
+      "000.us-14",
       "000.us-2",
       "000.us-6",
       "000.us-8",
@@ -2333,6 +2355,7 @@
       "012.us-5"
     ],
     "tests/Feature/Newsletter/OgImageTest.php": [
+      "000.us-14",
       "012.us-2"
     ],
     "tests/Feature/Newsletter/PostServiceTest.php": [
@@ -2346,6 +2369,9 @@
     ],
     "tests/Feature/Platform/AiSettingsTest.php": [
       "000.us-10"
+    ],
+    "tests/Feature/Platform/ColorSchemeTest.php": [
+      "000.us-14"
     ],
     "tests/Feature/Platform/EmailSuppressionTest.php": [
       "000.us-9"

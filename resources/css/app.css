@@ -9,11 +9,20 @@
 @theme {
     --font-sans: 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Default palette — "奶油靛藍" in config/themes.php, which is the source
+       of truth. These values are what ships when nothing is selected; the
+       active scheme overrides them from a <style> block in app.blade.php, so
+       switching schemes never needs a rebuild (000 US14 / D41).
+
+       orange, red and teal were darkened in US14: the originals missed WCAG AA
+       (instalment prices sat at 1.77:1 — unreadable, and shipped for over a
+       year because a saturated orange *looks* clear on cream). ColorSchemeTest
+       computes all nine gates, so a value changed here fails there. */
     --color-brand-cream: #F6F1E9;
-    --color-brand-orange: #FAA45E;
-    --color-brand-red: #FF4438;
+    --color-brand-orange: #DF6807;
+    --color-brand-red: #D92B1F;
     --color-brand-navy: #373557;
-    --color-brand-teal: #3F83A3;
+    --color-brand-teal: #33697F;
     --color-brand-gold: #F0C14B;
     --color-brand-gold-dark: #C7A33B;
 
@@ -43,7 +52,7 @@ body {
 }
 
 body {
-    background-color: #F6F1E9;
+    background-color: var(--color-brand-cream);
 }
 
 /* Tailwind v4 preflight sets `button { cursor: default }` (v3 was pointer),
@@ -58,7 +67,7 @@ body {
 
 /* Dotted fill used in SectionHeader (brand-navy dots, low opacity) */
 .section-dots {
-    background-image: radial-gradient(circle, rgba(55, 53, 87, 0.22) 1.3px, transparent 1.3px);
+    background-image: radial-gradient(circle, color-mix(in oklab, var(--color-brand-navy) 22%, transparent) 1.3px, transparent 1.3px);
     background-size: 10px 10px;
     background-position: left center;
 }
@@ -98,16 +107,16 @@ body {
 .course-content h2 {
     font-size: 1.35rem;
     font-weight: 700;
-    color: #373557;
+    color: var(--color-brand-navy);
     /* Lighter than a solid block: subtle teal tint fading out to the right */
-    background: linear-gradient(to right, rgba(63, 131, 163, 0.10), transparent 55%);
+    background: linear-gradient(to right, color-mix(in oklab, var(--color-brand-teal) 10%, transparent), transparent 55%);
     margin-top: 2.5em;
     margin-bottom: 1.1em;
     padding: 0.5em 1em 0.5em 0.9em;
     text-align: left;
     /* teal accent bar + navy underline — echoes the site SectionHeader */
-    border-left: 5px solid #3F83A3;
-    border-bottom: 2px solid #373557;
+    border-left: 5px solid var(--color-brand-teal);
+    border-bottom: 2px solid var(--color-brand-navy);
 }
 
 /* The one place the assignment area parts from the lesson body (003 FR-027):
@@ -118,12 +127,12 @@ body {
 .assignment-content h2 {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #373557;
+    color: var(--color-brand-navy);
     margin-top: 1.5em;
     margin-bottom: 0.6em;
     padding-left: 0.7em;
     text-align: left;
-    border-left: 3px solid #3F83A3;
+    border-left: 3px solid var(--color-brand-teal);
 }
 
 .course-content h3,
@@ -185,7 +194,7 @@ body {
 
 .course-content li::marker,
 .assignment-content li::marker {
-    color: #3F83A3;
+    color: var(--color-brand-teal);
 }
 
 .course-content strong,
@@ -198,7 +207,7 @@ body {
 
 .course-content a,
 .assignment-content a {
-    color: #3F83A3;
+    color: var(--color-brand-teal);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.15s;
@@ -206,17 +215,17 @@ body {
 
 .course-content a:hover,
 .assignment-content a:hover {
-    border-bottom-color: #3F83A3;
+    border-bottom-color: var(--color-brand-teal);
 }
 
 .course-content blockquote,
 .assignment-content blockquote {
     margin: 1.5em 0;
     padding: 1em 1.25em;
-    border-left: 4px solid #3F83A3;
-    background-color: #F6F1E9;
+    border-left: 4px solid var(--color-brand-teal);
+    background-color: var(--color-brand-cream);
     border-radius: 0 0.5rem 0.5rem 0;
-    color: #373557;
+    color: var(--color-brand-navy);
 }
 
 .course-content code,
@@ -225,7 +234,7 @@ body {
     padding: 0.2em 0.4em;
     border-radius: 0.25rem;
     font-size: 0.9em;
-    color: #3F83A3;
+    color: var(--color-brand-teal);
 }
 
 .course-content pre,
@@ -274,7 +283,7 @@ body {
 
 .course-content th,
 .assignment-content th {
-    background-color: #373557;
+    background-color: var(--color-brand-navy);
     color: #ffffff;
     font-weight: 600;
     text-align: center;
@@ -291,7 +300,7 @@ body {
 
 .course-content tbody tr:nth-child(even),
 .assignment-content tbody tr:nth-child(even) {
-    background-color: #F6F1E9;
+    background-color: var(--color-brand-cream);
 }
 
 .course-content tbody tr:hover,

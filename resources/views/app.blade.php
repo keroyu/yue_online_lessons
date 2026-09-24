@@ -102,6 +102,17 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- Active colour scheme (000 US14).
+
+         MUST stay after @vite. This `:root` and the one Tailwind emits have
+         identical specificity, so source order alone decides the winner —
+         moved above the bundle the override silently does nothing, and on
+         screen that is indistinguishable from a save that did not go through
+         (FR-123). Inlined rather than applied from JS so the palette is in
+         place before the first paint and crawlers see it too (D42). --}}
+    <style>{!! app(\App\Services\ThemeService::class)->cssVariables() !!}</style>
+
     @inertiaHead
 </head>
 <body class="font-sans antialiased bg-gray-50 text-gray-900">

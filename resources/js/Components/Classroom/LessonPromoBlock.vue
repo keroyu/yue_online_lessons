@@ -74,11 +74,11 @@ const formattedTime = computed(() => {
 <style scoped>
 .promo-btn {
   display: inline-block;
-  background: #F0C14B;
-  color: #373557;
+  background: var(--color-brand-gold);
+  color: var(--color-brand-navy);
   padding: 12px 40px;
   border-radius: 9999px;
-  border: 1px solid rgba(199, 163, 59, 0.5);
+  border: 1px solid color-mix(in oklab, var(--color-brand-gold-dark) 50%, transparent);
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
@@ -87,7 +87,7 @@ const formattedTime = computed(() => {
 }
 
 .promo-btn:hover {
-  background: #e8b33a;
+  background: var(--color-brand-gold-dark);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
