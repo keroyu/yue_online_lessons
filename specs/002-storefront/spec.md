@@ -584,6 +584,8 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 
 **驗收**：
 - [x] 「首頁設定」頁最上方新增「站台資訊」區塊，三個欄位（站名 / 經營者 / 地址）+ 獨立儲存鈕
+- [x] 同一區塊另含兩個圖片上傳：網站圖示（導覽列左上角）與 favicon，各自有預覽與刪除鈕（`DELETE /admin/homepage/site-logo`、`/site-favicon`）；表單因此改以 `FormData` 送出（機制見 000 US12）
+- [x] favicon 的說明文字 MUST 講清楚「上傳一張正方形 PNG 就好，系統會自動縮出各尺寸並轉 .ico」—— 否則使用者會去外面找工具自己產一包
 - [x] 端點為 `POST /admin/homepage/site-identity`，**MUST NOT 併進既有的 `POST /admin/homepage`** —— 後者是繞著 hero 圖建的 multipart 請求，識別資訊沒有理由在每次換橫幅時被重送一次
 - [x] 站名 `required|max:100`；經營者與地址 `nullable|max:255`，錯誤訊息為中文
 - [x] `edit()` 以 `siteIdentity` prop 帶出目前值（`SiteSetting::identity()`）
@@ -1155,6 +1157,8 @@ Phase 4 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 「站台資訊」區塊加上網站圖示與 favicon 上傳（US22 / 000 US12）— 兩個檔案欄位掛在同一個儲存鈕上，表單改送 `FormData`；各自有預覽與刪除。favicon 的 hint 特別寫明只要一張正方形 PNG，其餘尺寸與 `.ico` 由系統產生。
 
 - 2026-09-25: 新增 US22 站台資訊設定 —「首頁設定」頁最上方加一塊站名 / 經營者 / 地址，走自己的 `POST /admin/homepage/site-identity`（既有的 `POST /admin/homepage` 是繞 hero 圖建的 multipart，識別資訊沒理由跟著每次換橫幅重送）。同批把 `CourseController` 的 OG title 從寫死的 `- Your Time Bank` 改讀站名。機制側見 000 US12。
 

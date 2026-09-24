@@ -172,7 +172,7 @@ touchpoints:
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
 - [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
-- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo `resources/images/og-logo.png` + 站名 `SiteSetting::siteName()`＋teal 底線；站名為快取 key 的一部分，改站名會重生所有卡片），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo 取後台上傳的網站圖示，未上傳才用內建的 `resources/images/og-logo.png` + 站名 `SiteSetting::siteName()`＋teal 底線；站名與 logo 檔名都是快取 key 的一部分，換任一個都會重生所有卡片），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -421,6 +421,8 @@ Phase 3 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: OG 卡片的品牌 logo 改讀後台上傳的網站圖示（000 US12），內建檔降為 fallback；logo 檔名一併進快取 key，換 logo 會重生舊卡片。
 
 - 2026-09-25: 站名來源改為 `site_settings.site_name`（000 US12）— FR-013 原本規定電子報頁尾讀 `hero_title`，那是「站名」在還沒有自己的欄位時的暫代；三支電子報 blade、`BlogFeedController` 的 RSS 標題、`OgImageService` 的品牌 lockup 一律改讀 `SiteSetting::siteName()`（`hero_title` 留作 fallback，升級的站不會突然改名）。站名進了 OG 卡片的快取 key，改名才會重生舊卡片，`OgImageTest` 的檔名斷言與 `EmailBrandNameTest` 釘的規則同步改掉。
 

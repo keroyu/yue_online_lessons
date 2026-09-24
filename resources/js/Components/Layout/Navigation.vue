@@ -3,12 +3,15 @@ import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { useCart } from '@/composables/useCart'
 import { useNotifications } from '@/composables/useNotifications'
-import logoUrl from '../../../images/og-logo.png'
+import bundledLogoUrl from '../../../images/og-logo.png'
 
 const page = usePage()
 const auth = computed(() => page.props.auth)
 const user = computed(() => auth.value?.user)
 const siteName = computed(() => page.props.site?.name ?? '')
+// The bundled file is the fallback, not the default: a second install replaces
+// the logo from 後台 and must never fall back to this one's mark.
+const logoUrl = computed(() => page.props.site?.logoUrl || bundledLogoUrl)
 const mobileMenuOpen = ref(false)
 const notificationOpen = ref(false)
 

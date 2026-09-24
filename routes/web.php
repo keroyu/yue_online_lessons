@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\FaviconController;
 use App\Http\Controllers\RedemptionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
@@ -84,6 +85,9 @@ Route::post('/courses/{course}/redeem', [RedemptionController::class, 'store'])
     ->middleware('auth')
     ->name('courses.redeem');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+// Served by Laravel because public/favicon.ico was removed: the file is
+// generated from the uploaded PNG and lives on the public disk (000 US12).
+Route::get('/favicon.ico', FaviconController::class)->name('favicon');
 
 // Blog (mini-blog / newsletter posts) — literal segments before the slug catch-all
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
@@ -402,8 +406,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/homepage/featured-courses/{featuredCourse}', [HomepageFeaturedCourseController::class, 'destroy'])->name('featured-courses.destroy');
     Route::post('/homepage/featured-courses/reorder', [HomepageFeaturedCourseController::class, 'reorder'])->name('featured-courses.reorder');
 
-    // Site identity (站名 / 經營者 / 地址)
+    // Site identity (站名 / 經營者 / 地址 / 圖示)
     Route::post('/homepage/site-identity', [HomepageSettingController::class, 'updateSiteIdentity'])->name('homepage.site-identity');
+    Route::delete('/homepage/site-logo', [HomepageSettingController::class, 'deleteSiteLogo'])->name('homepage.site-logo.destroy');
+    Route::delete('/homepage/site-favicon', [HomepageSettingController::class, 'deleteSiteFavicon'])->name('homepage.site-favicon.destroy');
 
     // Sidebar widget ordering
     Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');

@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-@php $siteName = \App\Models\SiteSetting::siteName(); @endphp
+@php
+    $siteName = \App\Models\SiteSetting::siteName();
+    $siteIcons = app(\App\Services\SiteIconService::class)->urls();
+@endphp
+
+@if($siteIcons['faviconIco'])
+    <link rel="icon" href="{{ $siteIcons['faviconIco'] }}" sizes="32x32">
+@endif
+@if($siteIcons['favicon'])
+    <link rel="icon" type="image/png" href="{{ $siteIcons['favicon'] }}" sizes="32x32">
+@endif
+@if($siteIcons['appleIcon'])
+    <link rel="apple-touch-icon" href="{{ $siteIcons['appleIcon'] }}">
+@endif
 
     <title inertia>{{ $siteName }}</title>
 

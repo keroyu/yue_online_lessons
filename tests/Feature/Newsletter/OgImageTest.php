@@ -53,6 +53,10 @@ class OgImageTest extends TestCase
         $res->assertHeader('Content-Type', 'image/png');
         // PNG magic bytes.
         $this->assertStringStartsWith("\x89PNG", $res->getContent());
-        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($post->title.'|測試站台|v3'), 0, 10).'.png');
+        // The cache key carries the brand name and the logo file, so that either
+        // one changing regenerates the cards rather than leaving the old mark
+        // burned into PNGs nobody thinks to delete.
+        $key = $post->title.'|測試站台|og-logo.png|v3';
+        Storage::disk('public')->assertExists("og/{$post->id}-".substr(sha1($key), 0, 10).'.png');
     }
 }

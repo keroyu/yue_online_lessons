@@ -23,10 +23,12 @@ class OgImageService
 
     private string $logo;
 
-    public function __construct()
+    public function __construct(private SiteIconService $icons)
     {
         $this->font = resource_path('fonts/NotoSansTC.ttf');
-        $this->logo = resource_path('images/og-logo.png');
+        // The uploaded logo wins; the bundled file only covers installs that
+        // have not set one (000 US12).
+        $this->logo = $this->icons->logoPath() ?: resource_path('images/og-logo.png');
     }
 
     /**
@@ -70,7 +72,7 @@ class OgImageService
 
     private function hash(Post $post): string
     {
-        return substr(sha1($post->title.'|'.$this->brand().'|'.self::CACHE_VERSION), 0, 10);
+        return substr(sha1($post->title.'|'.$this->brand().'|'.basename($this->logo).'|'.self::CACHE_VERSION), 0, 10);
     }
 
     /**

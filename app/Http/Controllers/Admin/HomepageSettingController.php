@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\HomepageFeaturedCourse;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
+use App\Services\SiteIconService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -135,6 +136,7 @@ class HomepageSettingController extends Controller
                     'name' => $c->name,
                 ])->values(),
             'siteIdentity' => SiteSetting::identity(),
+            'siteIcons' => app(SiteIconService::class)->urls(),
             'sidebarOrder' => self::sidebarWidgetOrder(),
             'contentCategorySlots' => self::contentCategorySlots(),
             'contentFilterEnabled' => self::contentFilterEnabled(),
@@ -150,24 +152,56 @@ class HomepageSettingController extends Controller
      * a multipart request built around the hero image, and identity has no
      * reason to be re-posted every time somebody swaps the banner.
      */
-    public function updateSiteIdentity(Request $request): RedirectResponse
+    public function updateSiteIdentity(Request $request, SiteIconService $icons): RedirectResponse
     {
         $validated = $request->validate([
             'site_name'     => ['required', 'string', 'max:100'],
             'site_operator' => ['nullable', 'string', 'max:255'],
             'site_address'  => ['nullable', 'string', 'max:255'],
+            // PNG first in the list because it is the only one that carries
+            // transparency, which both the navy navbar and a browser tab need.
+            'site_logo'     => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'site_favicon'  => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ], [
             'site_name.required' => '請填寫站名',
             'site_name.max'      => '站名不能超過 100 字',
             'site_operator.max'  => '經營者不能超過 255 字',
             'site_address.max'   => '地址不能超過 255 字',
+            'site_logo.image'    => '網站圖示請上傳圖片檔',
+            'site_logo.mimes'    => '網站圖示格式限 PNG / JPG / WebP',
+            'site_logo.max'      => '網站圖示不能超過 2MB',
+            'site_favicon.image' => 'Favicon 請上傳圖片檔',
+            'site_favicon.mimes' => 'Favicon 格式限 PNG / JPG / WebP',
+            'site_favicon.max'   => 'Favicon 不能超過 2MB',
         ]);
 
         SiteSetting::set(SiteSetting::SITE_NAME_KEY, trim($validated['site_name']));
         SiteSetting::set(SiteSetting::SITE_OPERATOR_KEY, trim((string) ($validated['site_operator'] ?? '')));
         SiteSetting::set(SiteSetting::SITE_ADDRESS_KEY, trim((string) ($validated['site_address'] ?? '')));
 
+        if ($request->hasFile('site_logo')) {
+            $icons->storeLogo($request->file('site_logo'));
+        }
+
+        if ($request->hasFile('site_favicon')) {
+            $icons->storeFavicon($request->file('site_favicon'));
+        }
+
         return redirect()->back()->with('success', '站台資訊已更新');
+    }
+
+    public function deleteSiteLogo(SiteIconService $icons): RedirectResponse
+    {
+        $icons->deleteLogo();
+
+        return redirect()->back()->with('success', '網站圖示已刪除');
+    }
+
+    public function deleteSiteFavicon(SiteIconService $icons): RedirectResponse
+    {
+        $icons->deleteFavicon();
+
+        return redirect()->back()->with('success', 'Favicon 已刪除');
     }
 
     public function updateContentCategories(Request $request): RedirectResponse

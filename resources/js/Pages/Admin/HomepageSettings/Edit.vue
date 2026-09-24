@@ -31,6 +31,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  siteIcons: {
+    type: Object,
+    default: () => ({}),
+  },
   sidebarOrder: {
     type: Array,
     default: () => [],
@@ -55,14 +59,68 @@ const identityForm = ref({
 const identityErrors = ref({})
 const identitySaving = ref(false)
 
+const logoFile = ref(null)
+const faviconFile = ref(null)
+const logoPreviewUrl = ref(props.siteIcons.logo ?? null)
+const faviconPreviewUrl = ref(props.siteIcons.favicon ?? null)
+
+const MAX_ICON_BYTES = 2 * 1024 * 1024 // 2 MB
+
+function onIconSelected(event, which) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const field = which === 'logo' ? 'site_logo' : 'site_favicon'
+  if (file.size > MAX_ICON_BYTES) {
+    identityErrors.value = { ...identityErrors.value, [field]: '圖片檔案過大（上限 2MB）' }
+    event.target.value = ''
+    return
+  }
+
+  delete identityErrors.value[field]
+  if (which === 'logo') {
+    logoFile.value = file
+    logoPreviewUrl.value = URL.createObjectURL(file)
+  } else {
+    faviconFile.value = file
+    faviconPreviewUrl.value = URL.createObjectURL(file)
+  }
+}
+
 function saveSiteIdentity() {
   identitySaving.value = true
   identityErrors.value = {}
 
-  router.post('/admin/homepage/site-identity', { ...identityForm.value }, {
+  // multipart because the two icons ride along with the text fields
+  const formData = new FormData()
+  formData.append('site_name', identityForm.value.site_name)
+  formData.append('site_operator', identityForm.value.site_operator)
+  formData.append('site_address', identityForm.value.site_address)
+  if (logoFile.value) formData.append('site_logo', logoFile.value)
+  if (faviconFile.value) formData.append('site_favicon', faviconFile.value)
+
+  router.post('/admin/homepage/site-identity', formData, {
+    forceFormData: true,
     preserveScroll: true,
     onError: (errors) => { identityErrors.value = errors },
+    onSuccess: () => { logoFile.value = null; faviconFile.value = null },
     onFinish: () => { identitySaving.value = false },
+  })
+}
+
+function deleteLogo() {
+  if (!confirm('確定要刪除網站圖示嗎？導覽列會改回預設圖。')) return
+  router.delete('/admin/homepage/site-logo', {
+    preserveScroll: true,
+    onSuccess: () => { logoPreviewUrl.value = null; logoFile.value = null },
+  })
+}
+
+function deleteFavicon() {
+  if (!confirm('確定要刪除 Favicon 嗎？瀏覽器分頁會改回預設圖示。')) return
+  router.delete('/admin/homepage/site-favicon', {
+    preserveScroll: true,
+    onSuccess: () => { faviconPreviewUrl.value = null; faviconFile.value = null },
   })
 }
 
@@ -342,6 +400,46 @@ function saveCategories() {
         />
         <p v-if="identityErrors.site_address" class="mt-1 text-sm text-red-600">{{ identityErrors.site_address }}</p>
         <p class="mt-1 text-xs text-gray-400">留空則條款頁不顯示這一行</p>
+      </div>
+
+      <!-- 網站圖示（導覽列左上角） -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">網站圖示（導覽列左上角）</label>
+        <div v-if="logoPreviewUrl" class="mb-3 flex items-center gap-3">
+          <img :src="logoPreviewUrl" alt="網站圖示預覽" class="h-12 w-12 rounded bg-brand-navy object-contain p-1" />
+          <button type="button" class="cursor-pointer text-sm text-red-600 hover:text-red-800" @click="deleteLogo">
+            刪除
+          </button>
+        </div>
+        <input
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp"
+          class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+          @change="onIconSelected($event, 'logo')"
+        />
+        <p v-if="identityErrors.site_logo" class="mt-1 text-sm text-red-600">{{ identityErrors.site_logo }}</p>
+        <p class="mt-1 text-xs text-gray-400">建議正方形去背 PNG（導覽列是深色底）。未上傳時使用預設圖。最大 2MB</p>
+      </div>
+
+      <!-- Favicon -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Favicon（瀏覽器分頁圖示）</label>
+        <div v-if="faviconPreviewUrl" class="mb-3 flex items-center gap-3">
+          <img :src="faviconPreviewUrl" alt="Favicon 預覽" class="h-8 w-8 rounded border border-gray-200 object-contain" />
+          <button type="button" class="cursor-pointer text-sm text-red-600 hover:text-red-800" @click="deleteFavicon">
+            刪除
+          </button>
+        </div>
+        <input
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp"
+          class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+          @change="onIconSelected($event, 'favicon')"
+        />
+        <p v-if="identityErrors.site_favicon" class="mt-1 text-sm text-red-600">{{ identityErrors.site_favicon }}</p>
+        <p class="mt-1 text-xs text-gray-400">
+          上傳一張正方形 PNG 就好，系統會自動縮成 32×32、180×180，並轉出 .ico，不必自己準備多個尺寸。最大 2MB
+        </p>
       </div>
 
       <div class="pt-2">

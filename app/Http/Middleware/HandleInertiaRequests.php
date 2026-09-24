@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\SiteSetting;
 use App\Services\CartService;
+use App\Services\SiteIconService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -46,7 +47,10 @@ class HandleInertiaRequests extends Middleware
             // Same reasoning as supportEmail: the navbar, the footer and the
             // legal modal all print these, and none of them has a controller.
             // One query for the three values.
-            'site' => fn () => SiteSetting::identity(),
+            'site' => fn () => [
+                ...SiteSetting::identity(),
+                'logoUrl' => app(SiteIconService::class)->urls()['logo'],
+            ],
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
