@@ -29,7 +29,19 @@
     --radius-3xl: 8px;
 }
 
-/* Page background */
+/* Page background.
+
+   overscroll-behavior on both html and body kills the rubber-band bounce.
+   Without it, pulling past the top detaches the page from the viewport edge
+   and the canvas shows through as a cream band above the navy navbar — and
+   above the admin sidebar, where cream is not even the right colour. There is
+   nothing in the markup at that position; it is the browser painting this
+   background in the overscroll area. */
+html,
+body {
+    overscroll-behavior: none;
+}
+
 body {
     background-color: #F6F1E9;
 }
