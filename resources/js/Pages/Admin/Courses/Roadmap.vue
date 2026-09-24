@@ -185,7 +185,7 @@ const submit = () => {
 </script>
 
 <template>
-  <div class="px-4 sm:px-6 lg:px-8 pb-28">
+  <div class="px-4 sm:px-6 lg:px-8 pb-6">
     <div class="mb-8">
       <nav class="flex" aria-label="Breadcrumb">
         <ol class="flex items-center space-x-4">
@@ -295,7 +295,9 @@ const submit = () => {
     </button>
 
     <!-- Sticky save bar -->
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-3 sm:px-6 lg:px-8">
+    <!-- sticky (not fixed): a fixed full-width bar spans the viewport and paints
+         over the bottom of AdminLayout's navy sidebar. Same shape as CourseForm. -->
+    <div class="sticky bottom-0 z-10 mt-4 -mx-4 sm:mx-0 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-3 sm:px-6 lg:px-8">
       <div v-if="errorList.length" class="mb-2 rounded-md bg-red-50 px-3 py-2">
         <p class="text-sm font-medium text-red-800">有 {{ errorList.length }} 個欄位需要修正</p>
         <ul class="mt-1 space-y-0.5">
