@@ -139,9 +139,42 @@
         "resources/views/app.blade.php",
         "app/Models/EmailTemplate.php",
         "app/Services/OgImageService.php",
-        "tests/Feature/Storefront/SiteIdentityTest.php"
+        "tests/Feature/Storefront/SiteIdentityTest.php",
+        "app/Services/SiteIconService.php",
+        "app/Http/Controllers/FaviconController.php",
+        "tests/Feature/Platform/SiteIconTest.php"
       ],
       "status": "implemented"
+    },
+    {
+      "id": "000.us-13",
+      "module": "000-platform-core",
+      "title": "首次安裝的第一位管理員",
+      "summary": "乾淨 DB 上第一位以 OTP 註冊者自動成為 admin，並把其 email 寫入客服信箱設定；可用 FIRST_ADMIN_EMAIL 釘死對象",
+      "heading": "### User Story 13 - 首次安裝的第一位管理員 (Priority: P1)",
+      "file": "specs/000-platform-core/spec.md",
+      "anchor": "user-story-13---首次安裝的第一位管理員-priority-p1",
+      "keywords": [
+        "第一個管理員",
+        "first admin",
+        "bootstrap",
+        "安裝",
+        "install",
+        "OTP 註冊",
+        "role admin",
+        "support_email",
+        "客服信箱",
+        "FIRST_ADMIN_EMAIL",
+        "權限升級"
+      ],
+      "code_files": [
+        "app/Services/FirstAdminService.php",
+        "app/Http/Controllers/Auth/LoginController.php",
+        "config/auth.php",
+        "tests/Feature/Platform/FirstAdminTest.php",
+        ".env.example"
+      ],
+      "status": "partial"
     },
     {
       "id": "000.us-2",
@@ -1136,7 +1169,8 @@
         "app/Http/Controllers/Admin/HomepageSettingController.php",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
         "routes/web.php",
-        "tests/Feature/Storefront/SiteIdentityTest.php"
+        "tests/Feature/Storefront/SiteIdentityTest.php",
+        "tests/Feature/Platform/SiteIconTest.php"
       ],
       "status": "implemented"
     },

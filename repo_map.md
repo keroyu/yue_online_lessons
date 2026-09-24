@@ -12,12 +12,14 @@ purpose: 全站基礎設施 — 前台/後台 Layout 與導航、admin 權限 mi
 specs: specs/000-platform-core/
 
 main_files:
+- .env.example
 - app/Http/Controllers/Admin/AnalyticsController.php
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/Admin/ShortLinkController.php
 - app/Http/Controllers/Auth/LoginController.php
 - app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/FaviconController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/ShortLinkRedirectController.php
 - app/Http/Controllers/SitemapController.php
@@ -45,15 +47,18 @@ main_files:
 - app/Services/CheckoutService.php
 - app/Services/DripService.php
 - app/Services/EmailSuppressionService.php
+- app/Services/FirstAdminService.php
 - app/Services/HighTicketBookingService.php
 - app/Services/MetaConversionsService.php
 - app/Services/NewsletterService.php
 - app/Services/OgImageService.php
 - app/Services/OpenAiService.php
 - app/Services/PortalyWebhookService.php
+- app/Services/SiteIconService.php
 - bootstrap/app.php
 - config/ai.php
 - config/app.php
+- config/auth.php
 - config/database.php
 - config/services.php
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
@@ -86,7 +91,9 @@ main_files:
 - tests/Feature/Platform/AdminLayoutChromeTest.php
 - tests/Feature/Platform/AiSettingsTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
+- tests/Feature/Platform/FirstAdminTest.php
 - tests/Feature/Platform/ShortLinkTest.php
+- tests/Feature/Platform/SiteIconTest.php
 - tests/Feature/Storefront/SiteIdentityTest.php
 
 related_specs:
@@ -223,6 +230,7 @@ main_files:
 - routes/web.php
 - tests/Feature/CheckoutTrafficSourceTest.php
 - tests/Feature/Platform/ShortLinkTest.php
+- tests/Feature/Platform/SiteIconTest.php
 - tests/Feature/Storefront/CampaignTrafficTest.php
 - tests/Feature/Storefront/CourseUrlSlugTest.php
 - tests/Feature/Storefront/EmailLinkTaggerTest.php

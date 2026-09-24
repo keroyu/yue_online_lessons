@@ -1,6 +1,7 @@
 {
   "files": {
     ".env.example": [
+      "000.us-13",
       "003.us-9"
     ],
     "app/Console/Commands/BackfillConsultationNotes.php": [
@@ -226,6 +227,7 @@
       "009.us-6"
     ],
     "app/Http/Controllers/Auth/LoginController.php": [
+      "000.us-13",
       "000.us-7",
       "001.us-1"
     ],
@@ -283,6 +285,9 @@
     "app/Http/Controllers/DripTrackingController.php": [
       "010.us-11",
       "010.us-9"
+    ],
+    "app/Http/Controllers/FaviconController.php": [
+      "000.us-12"
     ],
     "app/Http/Controllers/HighTicketBookingController.php": [
       "011.us-1",
@@ -959,6 +964,9 @@
     "app/Services/EmailSuppressionService.php": [
       "000.us-9"
     ],
+    "app/Services/FirstAdminService.php": [
+      "000.us-13"
+    ],
     "app/Services/HighTicketBookingService.php": [
       "000.us-7",
       "010.us-13",
@@ -1062,6 +1070,9 @@
       "002.us-16",
       "002.us-18"
     ],
+    "app/Services/SiteIconService.php": [
+      "000.us-12"
+    ],
     "app/Services/TrafficSourceService.php": [
       "002.us-10",
       "002.us-13",
@@ -1113,6 +1124,9 @@
     ],
     "config/app.php": [
       "000.us-11"
+    ],
+    "config/auth.php": [
+      "000.us-13"
     ],
     "config/database.php": [
       "000.us-11"
@@ -2336,9 +2350,16 @@
     "tests/Feature/Platform/EmailSuppressionTest.php": [
       "000.us-9"
     ],
+    "tests/Feature/Platform/FirstAdminTest.php": [
+      "000.us-13"
+    ],
     "tests/Feature/Platform/ShortLinkTest.php": [
       "000.us-8",
       "002.us-15"
+    ],
+    "tests/Feature/Platform/SiteIconTest.php": [
+      "000.us-12",
+      "002.us-22"
     ],
     "tests/Feature/Storefront/CampaignTrafficTest.php": [
       "002.us-18"

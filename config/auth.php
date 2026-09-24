@@ -112,4 +112,22 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | First Administrator
+    |--------------------------------------------------------------------------
+    |
+    | A fresh database has no administrator, and the admin panel is the only
+    | place to configure the site — so the first person to register through the
+    | OTP login is promoted automatically (000 US13).
+    |
+    | Set this to the owner's address to name that person in advance: only a
+    | matching email is ever promoted, which closes the window between the site
+    | going live and the owner registering. Left empty, the first account in the
+    | database gets it instead.
+    |
+    */
+
+    'first_admin_email' => env('FIRST_ADMIN_EMAIL'),
+
 ];

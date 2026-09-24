@@ -50,6 +50,13 @@ owner_files:
   - database/migrations/0001_01_01_000002_create_jobs_table.php
   - database/migrations/2026_03_25_000001_create_site_settings_table.php
   - database/migrations/2026_09_25_000001_install_site_identity_settings.php
+  - app/Services/SiteIconService.php
+  - app/Services/FirstAdminService.php
+  - config/auth.php
+  - .env.example
+  - tests/Feature/Platform/FirstAdminTest.php
+  - app/Http/Controllers/FaviconController.php
+  - tests/Feature/Platform/SiteIconTest.php
   - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
   - database/seeders/DemoDataSeeder.php
   - resources/js/app.js
@@ -245,6 +252,9 @@ touchpoints:
   - file: resources/views/emails/lesson-added.blade.php
     owner: 004-course-admin
     why: US12 署名改讀 SiteSetting::siteName()
+  - file: app/Http/Controllers/Auth/LoginController.php
+    owner: 001-auth-account
+    why: US13 OTP 首次註冊後呼叫 FirstAdminService::bootstrap()（唯一的呼叫點）
 ---
 
 # Platform Core（全站基礎設施）
@@ -443,8 +453,42 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] 信件模板新增全域變數 `{{site_name}}`（注入點同 `{{support_email}}` / `{{app_url}}`，見 011 FR-057）；`EmailTemplateSeeder` 與自帶模板本文的 migration 的署名改用該變數，乾淨 DB 不再帶入本站品牌字串
 - [x] 資料遷移 `2026_09_25_000001_install_site_identity_settings`：**只有既有安裝**（判斷依據是 `site_settings` 已有 `hero_title` 列）才把現行的站名／公司／地址寫進去；乾淨 DB MUST 什麼都不插 —— 條款頁的法定資訊不能在升級時無聲消失，但也不能把本站的公司帶到別人的站上。既有列一律不覆寫（後台從此是唯一權威）
 - [x] 站名必填（`max:100`）；經營者與地址可留空，留空時條款頁整行不渲染
+- [x] **網站圖示（導覽列左上角）與 favicon 皆為後台上傳**，存在 public disk 的 `site-icons/`；限 `png,jpg,jpeg,webp`、2MB。導覽列的 `resources/images/og-logo.png` 降為 fallback —— 第二個安裝不可能替換打包進 JS bundle 的檔案
+- [x] favicon **只上傳一張 PNG**，由 `SiteIconService` 自動派生 32×32、180×180（apple-touch-icon）與 `.ico`。縮圖前 MUST 先 `imagealphablending(false)` + `imagesavealpha(true)` + 填透明底，否則 GD 會把 alpha 壓在黑底上，淺色分頁上就是一塊黑
+- [x] `.ico` 由 PHP 自行組出（GD 不會寫 ICO、本機也沒有 Imagick）：ICO 容器允許整包 PNG，所以檔案就是 6 bytes 檔頭 + 16 bytes 目錄項 + PNG 本體，Vista 之後的所有瀏覽器都讀得懂
+- [x] `GET /favicon.ico` 由 `FaviconController` 提供，`public/favicon.ico`（Laravel 預設的 0 bytes 空檔）MUST 刪除，否則 nginx 會先命中它。沒上傳時回 404（瀏覽器自行退回預設圖示）
+- [x] 產生的檔名帶內容 hash，換圖即換網址；舊檔在替換與刪除時 MUST 一併從 disk 移除（比照 002 FR-008 hero banner）
+- [x] OG 卡片的 logo 改用上傳的圖（沒有才退回內建檔），且 logo 檔名 MUST 進快取 key，換 logo 才會重生舊卡片
 - [x] 測試：`SiteIdentityTest`（儲存三值、站名必填、經營者/地址可空、訪客不得改、`site` prop 出現在每一頁、站名 fallback 到 hero_title）
+- [x] 測試：`SiteIconTest`（logo 上傳後出現在 `site.logoUrl`、一張 PNG 派生三個檔且尺寸正確、`.ico` 的檔頭/目錄項/PNG 本體逐欄位驗證、`/favicon.ico` 有無圖各自回 200/404、layout 未上傳時不輸出 icon link、替換與刪除都清掉舊檔、訪客不得上傳、非圖片被擋）
 - [x] 原始碼掃描把關：`app/` 與 `resources/` 底下 MUST NOT 出現舊的品牌字串（站名／公司名／地址），比照 011 FR-057 對客服信箱的作法 —— 只被一半的程式碼尊重的設定，比沒有設定更糟
+
+
+### User Story 13 - 首次安裝的第一位管理員 (Priority: P1)
+
+一份乾淨的資料庫沒有任何管理員，而後台是唯一能設定站名、金流、Email 模板的地方——
+等於新裝好的站沒有入口。目前唯一的辦法是連進伺服器開 tinker 改 `users.role`，
+那對「客戶自己裝一份」這個情境來說不成立（US12 的同一個問題，換一個面向）。
+
+這條故事讓第一位以 OTP 註冊的人自動成為管理員，並把他的 email 寫進客服信箱設定
+——後者同時修掉另一個跨站問題：`SiteSetting::DEFAULT_SUPPORT_EMAIL` 是本站的地址，
+在別人的站上是錯的，只要這裡寫進真實值，那個 fallback 就不會再有機會出場。
+
+**只認 `/login` 的 OTP 註冊**。訪客結帳、電子報訂閱、免費領取、Portaly webhook 也會
+建 user，但那些路徑沒有任何人證明過自己收得到那個信箱的信；在新站首頁輸入一個 email
+訂閱電子報就拿到整個後台，是不能接受的。
+
+**驗收**：
+- [x] `FirstAdminService::bootstrap(User $user): bool` 為唯一判斷點，呼叫點只有 `LoginController::verify()` 建立新帳號之後
+- [x] 前提條件（兩者皆須成立才升權）：`users` 表**目前沒有任何 `role = admin`**，且下列其一成立
+  - `config('auth.first_admin_email')`（env `FIRST_ADMIN_EMAIL`）有值 → 新帳號的 email 與它相符（不分大小寫、前後空白 trim）
+  - 該設定留空 → 這個新帳號是 `users` 表裡**唯一**的一列（`count() === 1`）
+- [x] 升權時 MUST 同時：`role = 'admin'`、把該 email 寫進 `site_settings.support_email`（**僅在該設定目前為空時**，已設定的值不覆蓋）、寫一行 `info` log（`first_admin.bootstrapped`，帶 user id 與 email）——權限升級不可以是無聲的
+- [x] 前提不成立時 MUST 什麼都不做並回 `false`，且 MUST NOT 影響註冊流程本身（登入照常完成）
+- [x] `FIRST_ADMIN_EMAIL` 有值但不相符時，即使那是全站第一個帳號也 MUST NOT 升權 —— 設了這個變數就表示「只有這個人」
+- [x] 判斷與寫入 MUST 在同一個 transaction 內完成（與建立帳號同一筆），避免兩個同時進來的註冊各自讀到「還沒有 admin」
+- [x] `.env.example` 補上 `FIRST_ADMIN_EMAIL=`，並在註解說明留空的行為
+- [x] 測試：第一位 OTP 註冊者成為 admin 且 support_email 被填上；第二位不會；已存在 admin 時不會；`FIRST_ADMIN_EMAIL` 有值時只有相符者升權、不相符者即使是第一個帳號也維持 member；電子報訂閱/結帳建立的帳號不會升權（即使是第一列）；`support_email` 已有值時不被覆蓋
 
 
 ## Requirements
@@ -487,6 +531,10 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 
 - **FR-110**: Eloquent 寫入 DB 時**用 Carbon 自帶的時區直接 format，不做任何轉換**，讀取時才用 `app.timezone` 解析；query binding（`where('x', '>=', $carbon)`）同樣不轉換。因此送進持久層或查詢條件的 Carbon MUST 已經是 UTC —— 一個帶 `+08:00` 的實例會被原樣寫成台北牆鐘，再被當成 UTC 讀回來，差的還是那 8 小時，只是移到了下一步才發作
 - **FR-111**: 時區轉換 MUST 發生在 `prepareForValidation()` 而非 controller。`after:now` / `before:` 這類規則在驗證階段就會比對時刻，晚一步轉換等於讓驗證拿錯誤的時刻去比 —— 具體後果是放行一個其實已經過去 8 小時的時間（台北 07:00 是 UTC 前一天的 23:00，「未來」的判斷會反過來）
+- **FR-115**: 自動升權的判斷 MUST 同時看「目前沒有 admin」與「是第一個帳號或符合 `FIRST_ADMIN_EMAIL`」。只看「沒有 admin」是不夠的：一個已上線的站如果管理員被停用或刪掉，下一個註冊的陌生人就會接手整個後台。只看「users 是空的」也不夠，因為 webhook 與電子報訂閱會先建出 member。
+- **FR-116**: 自動升權 MUST 只由 `/login` 的 OTP 註冊觸發。其餘建帳路徑（`CheckoutService::findOrCreateUser`、`NewsletterService`、`DripSubscriptionController`、`PortalyWebhookService`、後台匯入）MUST NOT 觸發 —— 只有 OTP 這條路徑上的人證明過自己收得到那個信箱的信。
+- **FR-117**: 升權 MUST 寫 log。這是全站唯一一處會在沒有人操作後台的情況下產生管理員的程式碼，出事時要查得到是誰、什麼時候拿到的。
+
 - **FR-113**: 對外顯示的站台識別（站名、經營者、地址）MUST 讀 `site_settings`，MUST NOT 以字面字串寫在任何 Vue／Blade／PHP 檔。這條規則的存在理由不是「可設定比較好」，而是這份程式碼要同時跑在多個客戶的站上：一個寫死的品牌字串會讓第二個安裝從第一天就是錯的，而且錯得很安靜（沒有人會收到「頁尾印著別人的公司名」的錯誤）。
 - **FR-114**: Blade 取站名 MUST 用 `@php … @endphp` 區塊形式。`@php(\App\Models\SiteSetting::siteName())` 這種行內形式在 `app.blade.php` 會編譯壞掉，症狀出現在**同檔後面**的變數（`$pixelId` undefined），與站名本身無關，除錯時幾乎不會往這裡看。
 
@@ -554,6 +602,8 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
   不變量：列由 migration 建立，**後台不得新增、刪除或改 `key` / `feature` / `label`**（FR-027）；一個 `key` 對應程式裡恰好一個呼叫點，沒有呼叫點的列即為孤兒；安裝 migration 永不 update 既有列（FR-028）。
 - `site_settings` 新鍵（US10）：`openai_api_key`（機密、遮罩、留空不覆蓋）、`openai_default_model`（非機密，空 = 用 `config('ai.default_model')`）。
 - `site_settings` 新鍵（US12）：`site_name`（站名，必填、`max:100`；空值時讀取端 fallback `hero_title` → `config('app.name')`）、`site_operator`（經營者，可空）、`site_address`（地址，可空）。三者皆非機密、送出即覆蓋。安裝 migration 只對既有安裝（已有 `hero_title` 列）補值，乾淨 DB 留空。
+- US13 **沒有 migration**：沿用既有的 `users.role` enum 與 `site_settings.support_email`，只是第一次有程式會自動寫它們。不變量：全站只有 `FirstAdminService` 會在無人操作後台的情況下寫入 `role = 'admin'`。
+- `site_settings` 新鍵（US12 圖示）：`site_logo_path`（導覽列圖示）、`site_favicon_path`（32×32 PNG）、`site_favicon_apple_path`（180×180 PNG）、`site_favicon_ico_path`（`.ico`）。四者皆存 public disk 的相對路徑，後三個由上傳的單張 PNG 派生、不可手動設定；刪除時值設為空字串並同步刪檔。
 
 US 10（AI 設定與 Prompt 管理）：
 
@@ -661,7 +711,22 @@ Phase 5 — 驗證：
 - [x] T058 `npm run build` exit 0；`php artisan test` 全綠
 - [ ] T059 使用者實測：後台任一 > 10 頁的列表頁碼恰 10 個、首尾頁可直接點、停在第 1 頁與最後一頁時視窗仍是滿的；`/blog` 第 2 頁的頁碼是真連結（右鍵可在新分頁開啟）且篩選條件不掉
 
+## Tasks（首次安裝的第一位管理員 / US13）
+
+- [x] T0C1 `config/auth.php` 加 `first_admin_email`（`env('FIRST_ADMIN_EMAIL')`），`.env.example` 補上該鍵與留空行為的註解 in `config/auth.php` + `.env.example`
+- [x] T0C2 `FirstAdminService::bootstrap(User $user): bool` — 前提判斷（無 admin + 相符 email 或唯一帳號）、升權、寫 support_email（僅在空值時）、`Log::info('first_admin.bootstrapped', …)` in `app/Services/FirstAdminService.php`
+- [x] T0C3 `LoginController::verify()` 在建立新帳號後呼叫 bootstrap，並與建帳包在同一個 transaction in `app/Http/Controllers/Auth/LoginController.php`
+- [x] T0C4 [P] `FirstAdminTest`：第一位升權且 support_email 被填；第二位不升；已有 admin 不升；`FIRST_ADMIN_EMAIL` 相符/不相符；電子報與結帳建的帳號不升；support_email 已有值不被覆蓋 in `tests/Feature/Platform/FirstAdminTest.php`
+- [ ] T0C5 使用者實測：乾淨 DB 跑 `migrate --force`，用自己的 email 走一次 `/login`，確認進得去 `/admin` 且「Email 模板」頁的客服信箱已是該 email
+
 ## 進度日誌
+
+- 2026-09-25: US13 首次安裝的第一位管理員完成（T0C1–T0C4，僅剩 T0C5 使用者實測）— `FirstAdminService::bootstrap()` 是唯一判斷點，由 `LoginController::verify()` 在建帳後於**同一個 transaction** 內呼叫。判斷式照 FR-115 的兩半：先確認沒有任何 `role = admin`，再看 `FIRST_ADMIN_EMAIL` 是否指名（相符才升，比對前 trim + 轉小寫）或這是 `users` 表唯一的一列。升權時一併把 email 寫進 `support_email`（**僅在空值時**）並寫 `first_admin.bootstrapped` info log。`config/auth.php` 新增 `first_admin_email`、`.env.example` 補上該鍵與留空行為說明。
+  TDD：先寫 `FirstAdminTest` 7 條，跑出 **5 紅**（紅在「期望 admin、實際 member」，確認是功能不存在而不是測試寫錯），實作後全綠。其中兩條是反向守門——電子報訂閱建的第一個帳號不得升權（`NewsletterService` 路徑）、已設定的 `support_email` 不得被覆蓋。全套 **1010 passed（4341 assertions）**。
+
+- 2026-09-25: US12 追加網站圖示與 favicon 上傳 — 導覽列的 logo 原本是 `import` 進 JS bundle 的檔案、favicon 則根本不存在（`public/favicon.ico` 是 Laravel 預設的 0 bytes 空檔），兩者都不是第二個安裝換得掉的東西。改成後台上傳，存 public disk。
+  **favicon 只要上傳一張 PNG**：`SiteIconService` 用 GD 縮出 32×32 與 180×180，再把 32×32 那張包成 `.ico`。這台機器沒有 Imagick、GD 也不會寫 ICO，但 ICO 容器本來就允許整包一張 PNG（Vista 之後通用），所以檔案就是 6 bytes 檔頭 + 16 bytes 目錄項 + PNG 本體，二十行搞定、不必加套件；測試逐欄位驗那 22 bytes，不是只看副檔名。兩個實作中的判斷：(1) 縮圖前一定要先關 alphablending、開 savealpha 並填透明底，否則 GD 把 alpha 壓在黑底上，淺色分頁看到的是一塊黑；(2) `public/favicon.ico` 必須從 repo 刪掉，nginx 的 `try_files` 會先命中那個空檔，留著等於路由永遠不會被呼叫到。
+  另外把 OG 卡片的 logo 也接上上傳的圖，並把 logo 檔名放進快取 key —— 否則換了 logo，舊卡片會帶著上一個品牌的 mark 留在 disk 上。本機實測：上傳後導覽列換圖、`<head>` 三個 icon link 正確、`/favicon.ico` 回 200 `image/x-icon`，刪除後回 404。新增 `SiteIconTest` 9 tests，全套 **1003 passed（4313 assertions）**、`npm run build` exit 0。
 
 - 2026-09-25: `html, body { overscroll-behavior: none }`（`resources/css/app.css`）— 業主回報前後台頂端出現一條米色橫條。查證後確認不是版面問題：正式站伺服器送出的 HTML 裡 `<body>` 底下只有 `#app`（沒有多餘元素、沒有文字節點、`<style>` 數為 0），瀏覽器實際渲染時 `nav` 與 `#app` 的 `top` 都是 0。那個顏色是 `body` 的底色 `#F6F1E9`，只有在捲動回彈把頁面推離視窗上緣時，瀏覽器才會用它畫外露的畫布。關掉回彈就沒有露出的機會。**症狀在部署完成後自行消失，無法證明是這條規則修好的**（也可能只是業主瀏覽器還拿著部署前的快取）；規則本身無害且合理，所以留著。副作用：手機瀏覽器的下拉重新整理會失效。
 

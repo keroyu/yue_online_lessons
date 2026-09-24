@@ -7,9 +7,11 @@ use App\Http\Requests\Auth\SendVerificationCodeRequest;
 use App\Http\Requests\Auth\VerifyCodeRequest;
 use App\Mail\VerificationCodeMail;
 use App\Models\User;
+use App\Services\FirstAdminService;
 use App\Services\VerificationCodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
@@ -74,10 +76,19 @@ class LoginController extends Controller
 
         // Create user if not exists
         if ($isNewUser) {
-            $user = User::create([
-                'email' => $email,
-                'email_verified_at' => now(),
-            ]);
+            // Creation and the first-admin check share one transaction so two
+            // simultaneous first registrations cannot both read "no admin yet"
+            // (000 US13).
+            $user = DB::transaction(function () use ($email) {
+                $user = User::create([
+                    'email' => $email,
+                    'email_verified_at' => now(),
+                ]);
+
+                app(FirstAdminService::class)->bootstrap($user);
+
+                return $user;
+            });
 
             // First-time account creation is the CompleteRegistration conversion (000 US7).
             $meta = app(\App\Services\MetaConversionsService::class);
