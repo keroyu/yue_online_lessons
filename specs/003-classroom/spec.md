@@ -334,7 +334,7 @@ touchpoints:
 - [x] 「提交答案」把既有草稿**轉正同一筆**（保留 created_at、寫入 submitted_at，輸入框有新內容則一併更新）；無草稿時直接建立已提交留言
 - [x] 講師端完全看不到草稿：後台提交列表、AI 批改脈絡（含批改往返）、`preview_user_id` 學員視角三處一律過濾
 - [x] 已提交且**尚無講師回覆**、且該題未對該學員標記完成時，卡片顯示「改回草稿」；條件不成立則不顯示，後端同步回 422
-- [x] 後台每筆提交可「打回草稿」（二次確認）：該筆離開提交列表，並發 `returned` 通知「老師認為《課程名》的作業尚未完成，請補完後再提交」
+- [x] 後台每筆提交可「打回草稿」（二次確認）：該筆離開提交列表，並發 `returned` 通知「你在【小節名稱】的作業看起來還沒完成喔，補完後再提交一次」（小節名以 `with('lesson:id,title')` 讀取，不另存冗餘欄位）
 - [x] 任何轉回草稿的動作，若該學員在該題已有草稿 → 擋下並回可讀訊息（維持一題一草稿不變量）
 - [x] 既有留言全部視為已提交（migration backfill `submitted_at = created_at`），行為與本功能上線前逐字相同
 
@@ -580,7 +580,7 @@ touchpoints:
 - [x] T00D7 `HomeworkController::index`：query 加 `->submitted()`、`latest()` 改 `orderByDesc('submitted_at')`（FR-042），payload 補 `submitted_at`；新增 `returnToDraft(Assignment, Comment)` 端點 + 路由〔touchpoint 000〕in app/Http/Controllers/Admin/HomeworkController.php, routes/web.php
 - [x] T00D8 [P] AI 批改：`aiDraft` 的 `abort_if` 追加 `$comment->isDraft()`（FR-035/FR-021）；`exchange()` 的 replies 查詢加 `submitted()` in app/Http/Controllers/Admin/HomeworkController.php, app/Services/HomeworkGradingService.php
 - [x] T00D9 `ClassroomController::show`：作業留言 payload 每筆補 `is_draft` / `submitted_at` / `can_revert`（FR-038 三條件在後端算，前端只讀）；`preview_user_id` 路徑（admin 看學員視角）加 `submitted()` 過濾 in app/Http/Controllers/Member/ClassroomController.php
-- [x] T00D10 [P] 通知文案加 `returned` 分支：「老師認為《{course_name}》的作業尚未完成，請補完後再提交」（原 `$n->type === 'reply' ? … : …` 三元改 match）〔touchpoint 000〕in app/Http/Middleware/HandleInertiaRequests.php
+- [x] T00D10 [P] 通知文案加 `returned` 分支：「你在【{lesson.title}】的作業看起來還沒完成喔，補完後再提交一次」；鈴鐺查詢補 `with('lesson:id,title')`（D5 的冗餘 `course_name` 是為了免 join，但小節名再存一份會在改小節標題後變成舊資料，這裡只多一次 eager load）（原 `$n->type === 'reply' ? … : …` 三元改 match）〔touchpoint 000〕in app/Http/Middleware/HandleInertiaRequests.php
 
 **Phase B — 前端**（T00D9 完成後）
 

@@ -262,6 +262,23 @@ class AssignmentDraftTest extends TestCase
         $this->assertSame($this->lesson->id, $notification->lesson_id);
     }
 
+    /** FR-040: the bell names the lesson the work belongs to. */
+    public function test_returned_notification_message_names_the_lesson(): void
+    {
+        $submission = $this->submitted();
+
+        $this->actingAs($this->admin())
+            ->post("/admin/homework/{$this->assignment->id}/comments/{$submission->id}/return")
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($this->student)
+            ->get('/member/learning')
+            ->assertInertia(fn ($page) => $page->where(
+                'notifications.0.message',
+                "你在【{$this->lesson->title}】的作業看起來還沒完成喔，補完後再提交一次",
+            ));
+    }
+
     /** FR-036: the one-draft invariant also guards the return paths. */
     public function test_return_is_blocked_when_the_student_already_holds_a_draft(): void
     {

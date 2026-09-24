@@ -75,6 +75,9 @@ class HandleInertiaRequests extends Middleware
                 : 0,
             'notifications' => fn () => $request->user()
                 ? $request->user()->homeworkNotifications()
+                    // 'returned' names the lesson, so the title comes from the lesson
+                    // itself rather than a second redundant column that could go stale.
+                    ->with('lesson:id,title')
                     ->latest()
                     ->limit(5)
                     ->get()
@@ -87,7 +90,7 @@ class HandleInertiaRequests extends Middleware
                         'is_read'     => $n->is_read,
                         'message'     => match ($n->type) {
                             'reply'    => "老師已批改《{$n->course_name}》的作業",
-                            'returned' => "老師認為《{$n->course_name}》的作業尚未完成，請補完後再提交",
+                            'returned' => "你在【{$n->lesson?->title}】的作業看起來還沒完成喔，補完後再提交一次",
                             default    => "《{$n->course_name}》作業已完成，積分 +100",
                         },
                         'created_at'  => $n->created_at,
