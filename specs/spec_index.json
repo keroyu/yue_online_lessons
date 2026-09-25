@@ -1060,14 +1060,14 @@
       "code_files": [
         "database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php",
         "app/Models/HomepageFeaturedCourse.php",
-        "app/Services/SidebarService.php",
+        "app/Services/HomepageWidgetService.php",
         "app/Http/Controllers/Admin/HomepageSettingController.php",
         "app/Http/Controllers/Admin/HomepageFeaturedCourseController.php",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
         "routes/web.php",
         "tests/Feature/Storefront/FeaturedCourseVisibilityTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "002.us-2",
@@ -1140,7 +1140,7 @@
         "app/Http/Controllers/HomeController.php",
         "app/Http/Controllers/Admin/HomepageSettingController.php",
         "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
-        "app/Services/SidebarService.php",
+        "app/Services/HomepageWidgetService.php",
         "database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php",
         "resources/js/Pages/Home.vue",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
@@ -1152,7 +1152,7 @@
         "database/seeders/HomepageSettingsSeeder.php",
         "tests/Feature/Storefront/SnsProfileTest.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "002.us-21",
@@ -1201,7 +1201,7 @@
         "tests/Feature/Storefront/HomeHeroTest.php",
         "database/seeders/HomepageSettingsSeeder.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "002.us-22",
@@ -1227,6 +1227,72 @@
         "routes/web.php",
         "tests/Feature/Storefront/SiteIdentityTest.php",
         "tests/Feature/Platform/SiteIconTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
+      "id": "002.us-23",
+      "module": "002-storefront",
+      "title": "首頁左右欄區塊排序與自訂 HTML widget",
+      "summary": "首頁左右兩欄的組成改為資料：homepage_widgets 單表承載內建與自訂 widget，兩欄各自拖曳排序、每塊可開關顯示；管理員可新增/編輯/刪除自訂 HTML 區塊，編輯時附目前配色方案的 CSS 變數色票提示。",
+      "heading": "### User Story 23 - 首頁左右欄區塊排序與自訂 HTML widget (Priority: P2)",
+      "file": "specs/002-storefront/spec.md",
+      "anchor": "user-story-23---首頁左右欄區塊排序與自訂-html-widget-priority-p2",
+      "keywords": [
+        "首頁區塊",
+        "widget",
+        "排序",
+        "拖曳",
+        "drag",
+        "sortable",
+        "左欄",
+        "右欄",
+        "main column",
+        "sidebar",
+        "自訂 HTML",
+        "custom html",
+        "CRUD",
+        "顯示隱藏",
+        "is_visible",
+        "homepage_widgets",
+        "WidgetColumn",
+        "CourseCatalog",
+        "色票",
+        "color token",
+        "CSS 變數",
+        "var(--color-brand-",
+        "配色方案",
+        "內容分類",
+        "所有資源",
+        "熱門文章",
+        "精選推薦",
+        "近期文章",
+        "sidebar_widget_order",
+        "sns_section_enabled"
+      ],
+      "code_files": [
+        "database/migrations/2026_09_26_000001_create_homepage_widgets_table.php",
+        "app/Models/HomepageWidget.php",
+        "app/Services/HomepageWidgetService.php",
+        "app/Http/Controllers/Admin/HomepageWidgetController.php",
+        "app/Http/Requests/Admin/StoreHomepageWidgetRequest.php",
+        "app/Http/Requests/Admin/UpdateHomepageWidgetRequest.php",
+        "app/Http/Controllers/Admin/HomepageSettingController.php",
+        "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php",
+        "app/Http/Controllers/HomeController.php",
+        "app/Http/Controllers/BlogController.php",
+        "routes/web.php",
+        "database/seeders/HomepageSettingsSeeder.php",
+        "resources/js/Components/Layout/WidgetColumn.vue",
+        "resources/js/Components/Home/CourseCatalog.vue",
+        "resources/js/Components/Admin/HomepageWidgetList.vue",
+        "resources/js/Components/Admin/ColorTokenHint.vue",
+        "resources/js/Pages/Home.vue",
+        "resources/js/Pages/Blog/Show.vue",
+        "resources/js/Pages/Admin/HomepageSettings/Edit.vue",
+        "tests/Feature/Storefront/HomepageWidgetTest.php",
+        "tests/Feature/Storefront/SnsProfileTest.php",
+        "tests/Feature/Storefront/HomeHeroTest.php"
       ],
       "status": "implemented"
     },
@@ -1339,10 +1405,10 @@
         "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php",
         "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php",
         "app/Models/HomepageFeaturedCourse.php",
-        "app/Services/SidebarService.php",
+        "app/Services/HomepageWidgetService.php",
         "database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php",
         "resources/js/Components/FeaturedCourses.vue",
-        "resources/js/Components/Layout/Sidebar.vue",
+        "resources/js/Components/Layout/WidgetColumn.vue",
         "resources/js/Pages/Admin/HomepageSettings/Edit.vue"
       ],
       "status": "implemented"
@@ -5350,10 +5416,10 @@
         "app/Models/Post.php",
         "app/Services/OgImageService.php",
         "app/Services/PostService.php",
-        "app/Services/SidebarService.php",
+        "app/Services/HomepageWidgetService.php",
         "resources/fonts/NotoSansTC.ttf",
         "resources/images/og-logo.png",
-        "resources/js/Components/Layout/Sidebar.vue",
+        "resources/js/Components/Layout/WidgetColumn.vue",
         "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Pages/Blog/Index.vue",
         "resources/js/Pages/Blog/Show.vue",

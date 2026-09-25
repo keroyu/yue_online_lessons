@@ -21,7 +21,16 @@ owner_files:
   - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
   - app/Models/SocialLink.php
   - app/Models/HomepageFeaturedCourse.php
-  - app/Services/SidebarService.php
+  - app/Models/HomepageWidget.php
+  - app/Services/HomepageWidgetService.php
+  - app/Http/Controllers/Admin/HomepageWidgetController.php
+  - app/Http/Requests/Admin/StoreHomepageWidgetRequest.php
+  - app/Http/Requests/Admin/UpdateHomepageWidgetRequest.php
+  - database/migrations/2026_09_26_000001_create_homepage_widgets_table.php
+  - resources/js/Components/Home/CourseCatalog.vue
+  - resources/js/Components/Admin/HomepageWidgetList.vue
+  - resources/js/Components/Admin/ColorTokenHint.vue
+  - tests/Feature/Storefront/HomepageWidgetTest.php
   - database/migrations/2026_03_25_000002_create_social_links_table.php
   - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
   - database/migrations/2026_07_05_000002_extend_blurb_on_homepage_featured_courses.php
@@ -30,7 +39,7 @@ owner_files:
   - resources/js/Components/SubstackArticles.vue
   - resources/js/Components/FeaturedCourses.vue
   - resources/js/Components/SocialLinks.vue
-  - resources/js/Components/Layout/Sidebar.vue
+  - resources/js/Components/Layout/WidgetColumn.vue
   - resources/js/Components/CourseCard.vue
   - resources/js/Components/SectionHeader.vue
   - resources/js/Components/Course/PriceDisplay.vue
@@ -175,6 +184,15 @@ touchpoints:
   - file: resources/js/Components/EmailReviewNotice.vue
     owner: 010-drip-email
     why: US20 hero 表單在覆核階段沿用同一個提示元件，避免第二個領取入口自己長出一套說法
+  - file: resources/js/Pages/Blog/Show.vue
+    owner: 012-newsletter
+    why: US23 — 右欄改由 WidgetColumn.vue 渲染（Sidebar.vue 移除），prop 由 sidebarOrder 換成 sideWidgets
+  - file: resources/js/Components/Newsletter/HomePostList.vue
+    owner: 012-newsletter
+    why: US23 — 「熱門文章」成為可排序／可隱藏的左欄 widget；元件本身不改，只改由 WidgetColumn 依 key 呼叫
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: US23 — /admin/homepage/widgets 五條路由（store/update/destroy/reorder/visibility）取代單一的 POST /admin/homepage/widget-order
 ---
 
 # Storefront（門市前台）
@@ -603,6 +621,27 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 - [x] 非管理員送出 MUST 被 `AdminMiddleware` 導回首頁且設定不變（本模組既有慣例：斷言導向與「沒寫進去」，不是狀態碼）
 
 
+### User Story 23 - 首頁左右欄區塊排序與自訂 HTML widget (Priority: P2)
+
+US6 只讓右欄三個 widget 可以拖曳；左欄（熱門文章 → 內容分類 → 所有資源）是寫死的，
+而且兩欄都只認得程式裡既有的那幾塊。這條故事把「首頁由哪些區塊、依什麼順序組成」
+變成資料：左右兩欄都可拖曳排序、每一塊都可開關顯示，並且管理員可以自己用 HTML
+新增區塊放進任一欄。內建區塊只能排序與開關，不能編輯或刪除。
+
+**驗收**：
+- [x] 後台「首頁設定」的「右欄區塊排序」卡片改為「首頁區塊」，左右兩欄各一份拖曳清單，drop 即存
+- [x] 左欄內建區塊為「熱門文章」與「所有資源（含內容分類按鈕）」；內容分類按鈕是課程列表的表頭，與它同進同出，排序上不可能被拆開（FR-075）
+- [x] 右欄內建區塊維持「精選推薦／追蹤站長／近期文章」三塊，既有順序在升級後原樣保留
+- [x] 每一塊（含內建）都有顯示／隱藏開關；關閉後前台不渲染，且該塊的資料 MUST NOT 出現在 page props（FR-076）
+- [x] 內建區塊沒有編輯與刪除鈕；直接打 API 也 MUST 被擋下（403），只有 `is_visible` 與 `sort_order` 可寫（FR-074）
+- [x] 自訂區塊可新增／編輯／刪除（刪除有確認），欄位為：標題（選填）、HTML 內容、放在左欄或右欄
+- [x] 標題留空時只渲染 HTML；有填時以 `SectionHeader` 呈現，與內建區塊視覺一致（沿用 US6 既有規則）
+- [x] HTML 欄位旁有色票提示：列出目前配色方案的七個角色（`cream`/`navy`/`teal`/`gold`/`gold_dark`/`orange`/`red`），顯示名稱與 hex，點擊複製 `var(--color-brand-navy)` 這種 CSS 變數字串（FR-079）
+- [x] 換配色方案後，用 CSS 變數寫的自訂區塊跟著變色，不需要回來改 HTML
+- [x] 右欄的自訂區塊與內建區塊一樣，同時出現在首頁與 `/blog/{slug}`（FR-082）
+- [x] 非管理員送出 MUST 被 `AdminMiddleware` 導回首頁且資料不變（本模組既有慣例：斷言導向與「沒寫進去」）
+
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -692,6 +731,20 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 - **FR-069**: 既有訂閱者重複送出 MUST 是 idempotent：回「你已在訂閱清單中」，不重寄歡迎信、不改 `newsletter_subscribed_at`。這條同時是 subscribe-bombing 的主要減災手段之一 —— 對同一個地址重複送出，最多只會產生一封信（D61）。
 - **FR-070**: 📌 行與表單解耦後，後台下拉的候選 MUST 放寬為全部 `is_published` 且 `status !== 'draft'` 的課程（不限 drip）：「只能選 drip」原本的理由是表單要對它送出領取請求，那個理由沒有了，而 📌 只是一條指向銷售頁的連結。設定鍵 MUST 由 `hero_claim_course_id` 改名為 `hero_promo_course_id`，並以 data migration 搬移既有值 —— 留著舊名會讓下一個人以為表單仍然綁著那門課（D63）。前台的重驗條件維持 US20 修正後的門檻（`is_published` 且非 draft，不看 `is_visible`）。
 - **FR-071**: 同意告知 MUST 改寫為電子報語意（訂閱即同意接收電子報、可隨時退訂），MUST NOT 沿用 `ClaimConsentNotice` —— 那段文案寫的是「免費資源」與「停止接收後失去申請資格」，對電子報訂閱是錯的陳述，而同意文案錯誤不是樣式問題。
+
+
+- **FR-072**: 左右兩欄的**全部** widget（內建與自訂）MUST 存在同一張 `homepage_widgets` 表、共用同一個 `sort_order` 軸，以 `area`（`main`/`side`）分欄。**MUST NOT** 沿用「內建順序存 KV、自訂另開一張表」的折衷：自訂區塊要能夾在內建區塊之間，排序軸本來就必須只有一條；兩份來源在畫面上合併的那一刻，就得發明一套合併規則，而那套規則沒有任何地方能持久化「自訂 A 在精選推薦與 SNS 之間」這件事。
+- **FR-073**: 內建 widget 的 key 清單 MUST 由 PHP const（`HomepageWidgetService::BUILTIN`）宣告為唯一真相，資料列只是它的持久化投影。讀取時 MUST 自我修復：const 裡有、表裡沒有的 key 補建一列（附在該欄末端、預設顯示），表裡有、const 裡沒有的內建列忽略不渲染。沿用 `sidebarWidgetOrder()` 既有的正規化精神 —— 否則之後每加一塊內建區塊就要寫一支 migration，而已經升級過的站還會漏掉那一列。
+- **FR-074**: `type = 'builtin'` 的列 MUST 只開放 `is_visible` 與 `sort_order` 兩個欄位。`update()` 與 `destroy()` MUST 在 controller 以 `abort_if($widget->isBuiltin(), 403)` 擋下，不能只靠前台不顯示按鈕 —— 刪掉 `course_catalog` 會讓首頁再也列不出課程，而那是個回不去的操作（只能手動 insert 回來）。
+- **FR-075**: 內容分類按鈕與課程列表 MUST 是同一個內建 widget `course_catalog`，不是兩個可各自排序的項目。按鈕的唯一作用是篩選它正下方那份列表，兩者之間的上下關係不是偏好而是語意；做成兩列再由伺服器強制排序，等於讓使用者拖一個拖不動的東西。分類按鈕自身的顯示與否 MUST 繼續由既有的 `content_filter_enabled` 控制（它是這個 widget 內部的開關，不是 widget 開關），`course_catalog.is_visible` 則整塊收掉課程列表。
+- **FR-076**: 隱藏的 widget MUST NOT 把資料序列化進 page props —— 服務層在組 payload 前先看可見性，隱藏者回空陣列／null。理由與 FR-050 完全相同：在 Vue 層才過濾，隱藏區塊的內容仍然躺在 `view-source` 裡，而「先不要露出」常常正是因為那塊文案還不能見人。
+- **FR-077**: `sns_section_enabled` MUST 退役，其值由 migration 搬進 `social` 那一列的 `is_visible`，KV 列一併刪除；後台 SNS 卡片的顯示開關移除，改由「首頁區塊」清單統一控制。**MUST NOT** 兩個開關並存 —— 同一件事有兩道關卡時，使用者在一處打開卻不生效，而畫面上完全看不出另一道在哪裡。`sns_profile_intro` 原封不動留在 SNS 卡片裡。
+- **FR-078**: 自訂 HTML 屬管理員信任輸入，比照 FR-007（銷售頁 Markdown）與 FR-018（`free_success_md`）放行原生 HTML 與 iframe，**MUST NOT** 引入 HTML purifier。以 `v-html` 渲染（`innerHTML` 不會執行其中的 `<script>`，需要腳本的情境本來就不該走這個欄位）。容器 MUST 加 `overflow-hidden` 與 `max-w-full`：右欄只有 365px，一張寬表格或一張沒限寬的圖會把整個 grid 撐破，而那會同時弄壞首頁與每一篇部落格文章。上限 `max:20000`。
+- **FR-079**: 色票提示 MUST 給 `var(--color-brand-*)` 形式的 CSS 變數，**MUST NOT** 給 Tailwind utility class（如 `bg-brand-navy`）。Tailwind v4 的 JIT 只編譯它在原始碼裡掃到的 class，寫進資料庫的 class 名永遠不會被產生出來 —— 使用者會看到一個「複製了卻沒有顏色」的提示，而且沒有任何錯誤訊息。hex 值只作為視覺參考顯示，不提供複製：複製 hex 等於把顏色凍在當下的方案，之後換配色這塊區塊會留在原地（000 US14 的整個前提就是那七個變數會被重新定義）。
+- **FR-080**: 自訂 widget 的 `area` MUST 由編輯表單的欄位決定，拖曳只在同一欄內重排。跨欄拖曳在 `vuedraggable` 上可行，但內建區塊必須釘在自己那一欄（「精選推薦」被拖到左欄、「所有資源」被拖到 365px 的右欄都不是有意義的狀態），於是要再加一層 `:move` 守衛與兩份清單同時存檔的流程 —— 為一個換欄頻率極低的操作付這個複雜度不划算。
+- **FR-081**: 排序端點 MUST 以 `area` 為界正規化送進來的 id：不屬於該欄的 id 剔除、該欄漏掉的 id 依原 `sort_order` 附在末端。這不是防禦性程式碼而是必要的：兩個分頁同時開著後台時，後送出的那份清單會缺少另一份剛新增的 widget，沒有補齊就等於把它靜默丟到最後面或排序錯亂。
+- **FR-082**: `area = 'side'` 的 widget（含自訂）MUST 同時出現在首頁與 `/blog/{slug}`，沿用右欄自 US6 以來就是全站共用側欄的語意（`SidebarService` 同時服務兩個 controller）。`area = 'main'` 只作用於首頁 —— 部落格文章頁的主欄是文章本身，沒有可插入的位置。
+- **FR-083**: widget 的 CRUD MUST 由新的 `Admin\HomepageWidgetController` 承擔，**MUST NOT** 再塞進 `HomepageSettingController`（已 300+ 行、七個端點）。比照 `HomepageFeaturedCourseController` 的既有形狀：`store`/`update`/`destroy`/`reorder` 加一個獨立的 `toggleVisibility`（`PATCH .../{widget}/visibility`，inline `validate()`，伺服器依傳入值設定而非自行翻轉 —— 理由同 FR-051）。切換顯示 MUST NOT 併進 `update()`：後者寫的是一塊要按「儲存」才落地的 HTML 草稿。
 
 
 ## 設計決策
@@ -800,7 +853,56 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 
 - **D64**: 表單一律顯示，不另做開關（FR-063）。加一個 `hero_subscribe_enabled` 可以讓 hero 退回純敘事版型，但電子報是站上長期存在的東西，沒有「這陣子不收訂閱」的使用情境；一個永遠開著的開關只是多一個要維護的狀態與一條要測的分支。真要暫停，把三塊文字清空比關掉表單更少見也更明確。
 
+- **D65**: 一張表裝下內建與自訂兩種 widget，而不是「內建是程式碼、自訂是資料」（FR-072）。後者直覺上更乾淨 —— 內建區塊本來就不是使用者資料。但這個功能的核心需求是**交錯**：自訂區塊要能插在精選推薦與近期文章之間。只要兩種東西要排在同一條線上，那條線就必須是同一張表的同一個欄位。代價是資料庫裡多了五列「其實是常數」的資料，用 FR-073 的自我修復把那個代價壓回零。
+
+- **D66**: 內建列由 const 宣告 + 讀取時補建，不用 migration 逐次新增（FR-073）。每加一塊內建區塊寫一支 migration 看起來更「正規」，但它只對還沒升級的資料庫有效 —— 已經跑過的站得再補一支。自我修復把「表裡應該有哪些內建列」這個問題永遠交給程式碼回答，而那正是它唯一的正確答案來源。同樣的正規化在 `sidebarWidgetOrder()` 裡已經用了一年。
+
+- **D67**: 內容分類與課程列表合併為一塊（FR-075，使用者決策）。被否決的是「兩列 + 伺服器強制順序」：它保留了「哪天想把分類按鈕挪到別處」的彈性，但那個彈性從來沒有人要，而它的即時代價是使用者拖了一下、放開、東西彈回原位，且畫面沒有辦法解釋為什麼。
+
+- **D68**: 全部 widget 都有顯示開關，`sns_section_enabled` 同步退役（FR-077，使用者決策）。留著舊開關就會有兩道關卡管同一件事；而把新開關只給自訂 widget，又會讓清單裡五列有開關、三列沒有，使用者得自己記住哪塊的開關在頁面的哪個角落。`content_filter_enabled` **不**退役，因為它管的不是一塊 widget 而是 `course_catalog` 內部的按鈕列 —— 層級不同，合併才是錯的。
+
+- **D69**: 色票提示複製 CSS 變數，不複製 Tailwind class、也不複製 hex（FR-079）。這三個選項在提示框裡長得一樣，但只有第一個在「資料庫裡的 HTML」這個情境下成立：class 過不了 JIT，hex 過得了但會在下次換配色時默默留在舊顏色上。錯的那兩個都不會報錯，只會讓人以為自己做錯了什麼。
+
+- **D70**: 換欄用表單欄位不用跨欄拖曳（FR-080）。純粹的複雜度取捨 —— 跨欄拖曳要加 `:move` 守衛擋內建區塊、要同時存兩份清單、要處理拖到空清單的情況，換來的是一個一年用不到幾次的操作省下兩次點擊。
+
+- **D71**: 不引入 HTML purifier（FR-078）。站上已經有兩處管理員信任 HTML（銷售頁 Markdown、`free_success_md`），都刻意放行 iframe，因為那正是嵌 YouTube／表單的方式。在這裡單獨加一層過濾，會讓「同樣一段 HTML 在課程介紹裡能用、在首頁區塊裡不能用」，而這個站的後台只有業主自己在用。
+
+- **D72**: 先模組化再套排序與 CRUD（使用者提問的確認）。`Home.vue` 的左欄目前是一段 70 行的 inline 版型；不先抽成 `CourseCatalog.vue`，「依 key 渲染」的迴圈就無從寫起。實作 MUST 分成兩個可各自驗證的階段：第一階段只抽元件、換成 `WidgetColumn` 渲染器而**仍吃舊的 `sidebar_widget_order`**，此時前台畫面必須與改動前逐像素相同（這是唯一能確認抽取沒改壞版型的時機）；第二階段才換資料來源。混在一起做的話，版面一旦跑掉就分不清是抽壞了還是排序讀錯了。
+
+
 ## Schema
+
+- **US23 schema 變更（一支 migration）**：
+
+  `2026_09_26_000001_create_homepage_widgets_table.php`
+
+  | 欄位 | 型別 |
+  |------|------|
+  | `id` | `id()` |
+  | `key` | `varchar(50)` nullable，unique；內建為 `popular_posts`/`course_catalog`/`featured_courses`/`social`/`blog`，自訂為 null |
+  | `type` | `varchar(20)` NOT NULL，`builtin` \| `html` |
+  | `area` | `varchar(10)` NOT NULL，`main` \| `side` |
+  | `title` | `varchar(100)` nullable；內建存後台清單標籤，自訂為選填區塊標題 |
+  | `html` | `text` nullable；僅 `type = 'html'` 使用 |
+  | `sort_order` | `unsignedSmallInteger` default `0` |
+  | `is_visible` | `boolean` NOT NULL default `true` |
+  | timestamps | |
+
+  索引：`key` unique、`(area, sort_order)` 複合索引。**MUST NOT 用 `column` 當欄位名** —— 那是 MySQL 保留字，每一條 raw query 都得加反引號。
+
+  同一支 migration 內的資料搬遷（順序不可調換）：
+  1. 依 `site_settings.sidebar_widget_order` 的既有順序 seed 三列 side 內建 widget；該鍵不存在時用 `['featured_courses','social','blog']`
+  2. `social` 那列的 `is_visible` 取自 `sns_section_enabled`（`(bool)(int)`，預設 `0`）
+  3. seed 兩列 main 內建 widget：`popular_posts`(0)、`course_catalog`(1)
+  4. 刪除 `sidebar_widget_order` 與 `sns_section_enabled` 兩個 KV 列
+
+  `down()` MUST 只 drop 資料表並還原兩個 KV 鍵的**預設值**，且註明自訂 widget 無法還原 —— 那是使用者寫的內容，migration 造不回來。
+
+  **不變量**：
+  - `type = 'builtin'` ⇔ `key` 非 null ⇔ `html` 為 null
+  - `type = 'html'` ⇔ `key` 為 null ⇔ `html` 非 null
+  - `sort_order` 只在同一個 `area` 內有意義，不跨欄比較
+  - `sort_order` 與 `is_visible` 互不影響 —— 隱藏不重排，重新顯示回到原位（比照 US19）
 
 - **US19 schema 變更（一支 migration）**：
 
@@ -1100,7 +1202,7 @@ Phase 4 — 驗證
 
 - [x] T008 測試：隱藏的課不出現在 `/` 的 `featuredCourses` props、也不出現在 `/blog/{post}`；後台 `/admin/homepage` 仍帶該列且 `is_visible=false`；切換端點兩個方向都成立且不動 `blurb` 與 `sort_order`；全部隱藏時 props 為空陣列；非管理員被擋 in `tests/Feature/Storefront/FeaturedCourseVisibilityTest.php`
 - [x] T009 `php artisan test` 全綠 ＋ `npm run build` exit 0
-- [ ] T010 使用者實測：後台關掉其中一門課 → 重新整理首頁與任一篇文章頁，確認該課消失、其餘順序不變；打開後回到原位置
+- [x] T010 使用者實測：後台關掉其中一門課 → 重新整理首頁與任一篇文章頁，確認該課消失、其餘順序不變；打開後回到原位置
 
 
 
@@ -1130,7 +1232,7 @@ Phase 4 — 驗證
 
 - [x] T012 測試 `HomeHeroTest`：未設定 `hero_claim_course_id` → `heroClaim` 為 null；設定有效 drip 課 → 帶 `name` 與 `/course/{slug}`；指定課被刪／改成非 drip／下架 → `heroClaim` 為 null 且頁面 200；三塊文字留空時對應 key 為 null；`hero_button_label` / `hero_button_url` / `sns_profile_image_url` 不再出現在首頁與 `/admin/homepage` 的 payload；`sns_profile_intro` 仍在側欄 payload 內；後台儲存 `hero_claim_course_id` 指向非 drip 課時被 `exists` 以外的規則擋下或於讀取時降級（擇一釘住）in `tests/Feature/Storefront/HomeHeroTest.php`
 - [x] T013 `php artisan test` 全綠 ＋ `npm run build` exit 0
-- [ ] T014 使用者實測：後台設定大標／副標／介紹／形象圖／領取商品 → 首頁 hero 呈現正確；用一個新 Email 從首頁領取 → 收到第一封連鎖信、後台訂閱者名單出現該筆且來源欄有值；同一個 Email 再領一次 → 出現一行已領取提示；把領取商品設回空 → 表單與 📌 行同時消失；手機寬度檢查不溢位；側欄「追蹤站長」只剩文字介紹與 icon
+- [x] T014 使用者實測：後台設定大標／副標／介紹／形象圖／領取商品 → 首頁 hero 呈現正確；用一個新 Email 從首頁領取 → 收到第一封連鎖信、後台訂閱者名單出現該筆且來源欄有值；同一個 Email 再領一次 → 出現一行已領取提示；把領取商品設回空 → 表單與 📌 行同時消失；手機寬度檢查不溢位；側欄「追蹤站長」只剩文字介紹與 icon
 
 
 
@@ -1163,11 +1265,49 @@ Phase 4 — 驗證
 - [x] T014 測試 `HeroSubscribeTest`：新 email 送出 → `newsletter_status=subscribed`、`email_verified_at` 為 null、未登入、歡迎信寄出一封；既有訂閱者重送 → 不重寄、`newsletter_subscribed_at` 不變；既有使用者 nickname 不被覆寫、空白才補；honeypot 有值被擋；格式錯誤 email 被擋；throttle 生效 in `tests/Feature/Storefront/HeroSubscribeTest.php`
 - [x] T015 更新 `HomeHeroTest`：`heroClaim` → `heroPromo`；補「📌 可指向非 drip 課程」與「舊鍵值已搬到新鍵」兩條 in `tests/Feature/Storefront/HomeHeroTest.php`
 - [x] T016 `php artisan test` 全綠 ＋ `npm run build` exit 0 ＋ 本機 `php artisan migrate` DONE
-- [ ] T017 使用者實測：首頁用新 Email 訂閱（第一次點出現覆核、第二次完成）→ 收到歡迎信、後台會員名單出現該筆且 email 未驗證；同一個 Email 再送 → 顯示已在訂閱清單中且沒有第二封信；後台把推薦商品改成一般課 → 📌 行連到該課銷售頁；設回空 → 📌 行消失但表單仍在
+- [x] T017 使用者實測：首頁用新 Email 訂閱（第一次點出現覆核、第二次完成）→ 收到歡迎信、後台會員名單出現該筆且 email 未驗證；同一個 Email 再送 → 顯示已在訂閱清單中且沒有第二封信；後台把推薦商品改成一般課 → 📌 行連到該課銷售頁；設回空 → 📌 行消失但表單仍在
+
+
+## Tasks（首頁左右欄區塊排序與自訂 HTML widget / US23）
+
+**Phase 1 — 模組化（行為零變更，先驗版型）**
+
+- [x] T001 抽出 `CourseCatalog.vue`：把 `Home.vue` 的內容分類按鈕列、`SectionHeader 所有資源`、產品類型 badge 篩選、課程 grid 與「目前沒有課程」空狀態整段搬過來（props: `courses` / `contentCategories` / `isAdmin`，兩個篩選的 ref 與 computed 一併搬）in `resources/js/Components/Home/CourseCatalog.vue`
+- [x] T002 新增 `WidgetColumn.vue`：props `widgets`（descriptor 陣列）+ `payload`（各內建區塊的資料）；`type === 'html'` 走 `v-html` 分支（外層 `overflow-hidden max-w-full`，`title` 非空時前置 `SectionHeader`），內建走 key → 元件對照表 in `resources/js/Components/Layout/WidgetColumn.vue`
+- [x] T003 `Home.vue` 左右兩欄改用 `WidgetColumn` 渲染；`Blog/Show.vue` 右欄同改；刪除 `Sidebar.vue` 與 frontmatter 的該行 owner_files〔touchpoint 012〕in `resources/js/Pages/Home.vue`
+- [x] T004 驗收 Phase 1：`npm run build` 後開首頁與任一篇 `/blog/{slug}`，版面 MUST 與改動前一致（此時 descriptor 仍由舊的 `sidebar_widget_order` 臨時組出，左欄用寫死順序）
+
+**Phase 2 — 資料層**
+
+- [x] T005 migration：建 `homepage_widgets`、依 `sidebar_widget_order` 與 `sns_section_enabled` seed 五列內建、刪兩個 KV 鍵（順序見 Schema 段）in `database/migrations/2026_09_26_000001_create_homepage_widgets_table.php`
+- [x] T006 [P] `HomepageWidget` model：`$fillable`、casts、`scopeArea()`/`scopeOrdered()`/`scopeVisible()`、`isBuiltin()` in `app/Models/HomepageWidget.php`
+- [x] T007 `HomepageWidgetService`：`BUILTIN` const（key → area + 預設標籤 + 預設順序）、`sync()` 自我修復（FR-073）、`descriptors(string $area)`、`payload()` 依可見性組資料（隱藏者回空，FR-076）in `app/Services/HomepageWidgetService.php`
+- [x] T008 刪除 `SidebarService.php`，`HomeController::index()` 與 `BlogController::show()` 改呼叫 `HomepageWidgetService`；`courses` 與 `popularPosts` 在對應 widget 隱藏時 MUST 回空陣列〔BlogController 為 touchpoint 012〕in `app/Http/Controllers/HomeController.php`
+
+**Phase 3 — 後台 CRUD**
+
+- [x] T009 [P] `StoreHomepageWidgetRequest` / `UpdateHomepageWidgetRequest`：`title` `nullable|string|max:100`、`html` `required|string|max:20000`、`area` `required|in:main,side`，中文錯誤訊息 in `app/Http/Requests/Admin/StoreHomepageWidgetRequest.php`
+- [x] T010 `HomepageWidgetController`：`store`/`update`/`destroy`（前兩者與 destroy 對 builtin `abort_if(403)`）、`reorder`（依 area 正規化 ids，FR-081）、`toggleVisibility`（inline validate，依傳入值設定）in `app/Http/Controllers/Admin/HomepageWidgetController.php`
+- [x] T011 五條 admin 路由取代 `POST /admin/homepage/widget-order`〔touchpoint 000〕in `routes/web.php`
+- [x] T012 `HomepageSettingController` 清理：移除 `SIDEBAR_WIDGETS`、`sidebarWidgetOrder()`、`updateWidgetOrder()`、`edit()`/`update()` 的 `sns_section_enabled` 讀寫，`edit()` 改下發 `homepageWidgets`（左右兩欄清單）in `app/Http/Controllers/Admin/HomepageSettingController.php`
+- [x] T013 [P] `UpdateHomepageSettingRequest` 移除 `sns_section_enabled` 規則 in `app/Http/Requests/Admin/UpdateHomepageSettingRequest.php`
+- [x] T014 [P] `ColorTokenHint.vue`：七個角色的色塊 + 名稱 + hex，點擊複製 `var(--color-brand-*)`（FR-079）in `resources/js/Components/Admin/ColorTokenHint.vue`
+- [x] T015 `HomepageWidgetList.vue`：左右兩欄各一份 `draggable` 清單（內建列無編輯／刪除鈕、有開關）、新增／編輯自訂區塊的表單（含 `ColorTokenHint`）、刪除確認 in `resources/js/Components/Admin/HomepageWidgetList.vue`
+- [x] T016 `Admin/HomepageSettings/Edit.vue`：Section 4「右欄區塊排序」換成 `HomepageWidgetList`，SNS 卡片移除顯示開關（保留 `sns_profile_intro`），`widgetLabels`/`widgetOrder`/`onWidgetReorder` 整段刪除 in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+**Phase 4 — 測試與收尾**
+
+- [x] T017 `HomepageWidgetTest`：升級後既有右欄順序與 SNS 開關原樣保留、`sync()` 補建缺列、內建 `update`/`destroy` 回 403、隱藏 widget 的資料不在 props、`reorder` 剔除跨欄 id 並補齊漏掉的、右欄自訂區塊同時出現在首頁與 blog、非管理員被導回 in `tests/Feature/Storefront/HomepageWidgetTest.php`
+- [x] T018 [P] 既有測試改寫：`SnsProfileTest` 與 `HomeHeroTest` 的 `sns_section_enabled` 改為操作 `social` widget 的 `is_visible` in `tests/Feature/Storefront/SnsProfileTest.php`
+- [x] T019 [P] `HomepageSettingsSeeder` 移除 `sns_section_enabled`，改 seed 五列內建 widget in `database/seeders/HomepageSettingsSeeder.php`
+- [x] T020 實機驗證：後台拖曳左右兩欄、開關每一塊、新增一個用 `var(--color-brand-gold)` 的自訂區塊，切換配色方案確認它跟著變色
 
 
 ## 進度日誌
 
+- 2026-09-25: 業主實測通過 US19 精選課程顯示／隱藏（T010）、US20 首頁 Hero 改版（T014）、US21 Hero 表單改訂閱電子報（T017），三項勾起。剩下的四個實測項（T055 / T069 / T013 / T016）都需要真實寄信與真實流量才驗得準，留待正式站。
+
+- 2026-09-25: US23 全數完成（T001–T020）。首頁左右兩欄改由 `homepage_widgets` 單表驅動：`SidebarService` 退場換成 `HomepageWidgetService`（const 宣告內建 key ＋ 讀取時自我修復），`Sidebar.vue` 換成通用的 `WidgetColumn.vue`，`Home.vue` 的左欄抽出 `CourseCatalog.vue`（內容分類按鈕併入課程列表，排序上不可能被拆開）。新增 `HomepageWidgetController` 五個端點與後台 `HomepageWidgetList.vue`（兩欄拖曳、逐塊開關、自訂 HTML CRUD、`ColorTokenHint` 色票）。`sidebar_widget_order` 與 `sns_section_enabled` 由 migration 搬進資料列後刪除；migration 對「完全沒有該鍵」的資料庫視為全新安裝，SNS 預設顯示（保住舊 seeder 的意圖）。TDD：`HomepageWidgetTest` 先紅（端點 404）後綠 18 passed。全套 1044 passed（須 `php -d memory_limit=1G vendor/bin/phpunit`，預設 128M 會在中途 OOM）、`npm run build` exit 0、本機瀏覽器實測新增自訂區塊並切換配色方案確認顏色跟著變。
 - 2026-09-25: 移除 US5 部落格 RSS 近期文章 —— 業主看到後台「Blog RSS 網址」欄位認為 SNS 連結可以取代它。查證後確認欄位確實是死的，但**死的方式跟業主想的不一樣**：側欄的「近期文章」widget 並沒有被 SNS 連結取代，它在 012 電子報上線後就改讀本站 `Post::published()`（`SidebarService`），外部 RSS 這條路徑從此沒有人走。`BlogRssService` 經全庫搜尋確認**零呼叫者**，`blog_rss_url` 只有後台表單自己讀寫，而欄位說明「留空則隱藏『近期文章』區塊」早就是假的。
   因此範圍縮到「只刪 RSS 欄位與 service」並向業主確認過：widget、`BlogArticles.vue`、`SidebarService` 的 `blogArticles`、`sidebar_widget_order` 的 `blog` 全部保留，前台畫面零變化。刪掉 `BlogRssService.php` 整支、表單欄位／驗證／儲存、seeder 預設值、`Cache::forget('blog_articles_…')` 與隨之無用的 `Cache` import，並加 migration 刪掉既有安裝的殘列（沒有人讀的設定比沒有設定更糟，留著只會讓下一個人再查一次）。全庫複驗無殘留引用，**1026 passed（4490 assertions）**、`npm run build` exit 0、本機 `migrate` DONE。
 

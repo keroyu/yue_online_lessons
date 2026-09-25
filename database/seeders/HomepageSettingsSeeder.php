@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\HomepageWidget;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
+use App\Services\HomepageWidgetService;
 use Illuminate\Database\Seeder;
 
 class HomepageSettingsSeeder extends Seeder
@@ -18,7 +20,6 @@ class HomepageSettingsSeeder extends Seeder
             // Empty = no 📌 line; pointing it at a course is an editorial
             // decision, not something a fresh install should guess (FR-070).
             'hero_promo_course_id' => '',
-            'sns_section_enabled'  => '1',
         ];
 
         foreach ($settings as $key => $value) {
@@ -39,6 +40,25 @@ class HomepageSettingsSeeder extends Seeder
                 ['platform' => $link['platform'], 'sort_order' => $link['sort_order']],
                 ['url' => $link['url']]
             );
+        }
+
+        // Homepage blocks (002 US23). The migration already creates these on
+        // any database that has one; this is for a seeder-only rebuild.
+        // firstOrCreate, never update: order and visibility belong to the
+        // admin the moment the site is live, and re-seeding must not undo them.
+        $orderInArea = [];
+
+        foreach (HomepageWidgetService::BUILTIN as $key => $builtin) {
+            $area = $builtin['area'];
+            $orderInArea[$area] = ($orderInArea[$area] ?? -1) + 1;
+
+            HomepageWidget::firstOrCreate(['key' => $key], [
+                'type'       => HomepageWidget::TYPE_BUILTIN,
+                'area'       => $area,
+                'title'      => $builtin['title'],
+                'sort_order' => $orderInArea[$area],
+                'is_visible' => true,
+            ]);
         }
     }
 }

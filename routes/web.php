@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ConsultationSlotController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
 use App\Http\Controllers\Admin\HomepageFeaturedCourseController;
+use App\Http\Controllers\Admin\HomepageWidgetController;
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Controllers\Admin\HomeworkController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
@@ -414,8 +415,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/homepage/site-logo', [HomepageSettingController::class, 'deleteSiteLogo'])->name('homepage.site-logo.destroy');
     Route::delete('/homepage/site-favicon', [HomepageSettingController::class, 'deleteSiteFavicon'])->name('homepage.site-favicon.destroy');
 
-    // Sidebar widget ordering
-    Route::post('/homepage/widget-order', [HomepageSettingController::class, 'updateWidgetOrder'])->name('homepage.widget-order');
+    // Homepage blocks: order, visibility, and the admin's own HTML ones (002 US23)
+    Route::post('/homepage/widgets', [HomepageWidgetController::class, 'store'])->name('homepage.widgets.store');
+    Route::put('/homepage/widgets/{widget}', [HomepageWidgetController::class, 'update'])->name('homepage.widgets.update');
+    Route::delete('/homepage/widgets/{widget}', [HomepageWidgetController::class, 'destroy'])->name('homepage.widgets.destroy');
+    Route::patch('/homepage/widgets/{widget}/visibility', [HomepageWidgetController::class, 'toggleVisibility'])->name('homepage.widgets.visibility');
+    Route::post('/homepage/widgets/reorder', [HomepageWidgetController::class, 'reorder'])->name('homepage.widgets.reorder');
 
     // Content categories (homepage type filter) + visibility toggle
     Route::post('/homepage/content-categories', [HomepageSettingController::class, 'updateContentCategories'])->name('homepage.content-categories');

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Tag;
+use App\Services\HomepageWidgetService;
 use App\Services\OgImageService;
 use App\Services\PostService;
-use App\Services\SidebarService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -99,7 +99,7 @@ class BlogController extends Controller
                 ] : null,
             ],
             'related' => $related,
-            ...app(SidebarService::class)->widgets(),
+            ...app(HomepageWidgetService::class)->sideProps(),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Storefront;
 
 use App\Models\Course;
+use App\Models\HomepageWidget;
 use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -173,7 +174,7 @@ class HomeHeroTest extends TestCase
 
     public function test_the_owner_avatar_is_gone_but_the_intro_text_stays(): void
     {
-        SiteSetting::set('sns_section_enabled', '1');
+        HomepageWidget::where('key', 'social')->update(['is_visible' => true]);
         SiteSetting::set('sns_profile_intro', '我是站長');
 
         $profile = $this->heroProps()['snsProfile'];
@@ -223,7 +224,6 @@ class HomeHeroTest extends TestCase
             'hero_subtitle'         => '副標',
             'hero_description'      => '網站介紹',
             'hero_promo_course_id'  => $course->id,
-            'sns_section_enabled'   => true,
         ])->assertRedirect();
 
         $this->assertSame('副標', SiteSetting::get('hero_subtitle'));
@@ -237,7 +237,6 @@ class HomeHeroTest extends TestCase
 
         $this->actingAs($this->admin())->post('/admin/homepage', [
             'hero_promo_course_id' => '',
-            'sns_section_enabled'  => true,
         ])->assertRedirect();
 
         $this->assertNull($this->heroProps()['heroPromo']);
@@ -247,7 +246,6 @@ class HomeHeroTest extends TestCase
     {
         $this->actingAs($this->admin())->post('/admin/homepage', [
             'hero_promo_course_id' => 999999,
-            'sns_section_enabled'  => true,
         ])->assertSessionHasErrors('hero_promo_course_id');
     }
 
@@ -265,7 +263,6 @@ class HomeHeroTest extends TestCase
         \Illuminate\Support\Facades\Storage::fake('public');
 
         $this->actingAs($this->admin())->post('/admin/homepage', [
-            'sns_section_enabled' => true,
             'hero_banner' => \Illuminate\Http\UploadedFile::fake()->image('portrait.jpg', 800, 1000),
         ])->assertSessionHasNoErrors();
 

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateHomepageSettingRequest;
 use App\Models\Course;
 use App\Models\HomepageFeaturedCourse;
+use App\Models\HomepageWidget;
 use App\Models\SiteSetting;
 use App\Models\SocialLink;
+use App\Services\HomepageWidgetService;
 use App\Services\SiteIconService;
 use App\Services\ThemeService;
 use Illuminate\Http\RedirectResponse;
@@ -20,9 +22,6 @@ use Inertia\Response;
 
 class HomepageSettingController extends Controller
 {
-    /** Sidebar widget keys in default display order. */
-    public const SIDEBAR_WIDGETS = ['featured_courses', 'social', 'blog'];
-
     /** Default content categories (label + slug), max 3 slots. */
     public const DEFAULT_CONTENT_CATEGORIES = [
         ['label' => '思維升級', 'slug' => 'mindset'],
@@ -64,30 +63,12 @@ class HomepageSettingController extends Controller
         return (bool) (int) SiteSetting::get('content_filter_enabled', '0');
     }
 
-    /**
-     * Return the saved sidebar widget order, normalised so it always
-     * contains exactly the known widget keys (missing keys appended).
-     */
-    public static function sidebarWidgetOrder(): array
-    {
-        $saved = json_decode(SiteSetting::get('sidebar_widget_order', '[]'), true);
-        $saved = is_array($saved) ? array_values(array_intersect($saved, self::SIDEBAR_WIDGETS)) : [];
-
-        foreach (self::SIDEBAR_WIDGETS as $key) {
-            if (! in_array($key, $saved, true)) {
-                $saved[] = $key;
-            }
-        }
-
-        return $saved;
-    }
-
-    public function edit(): Response
+    public function edit(HomepageWidgetService $widgets): Response
     {
         $settings = SiteSetting::getMany([
             'hero_title', 'hero_subtitle', 'hero_description',
             'hero_banner_path', 'hero_promo_course_id',
-            'sns_section_enabled', 'sns_profile_intro',
+            'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
@@ -99,8 +80,6 @@ class HomepageSettingController extends Controller
                 'hero_description'    => $settings->get('hero_description'),
                 'hero_banner_url'     => $bannerPath ? Storage::url($bannerPath) : null,
                 'hero_promo_course_id' => $settings->get('hero_promo_course_id') ?: null,
-                // Cast to bool: stored as "0"/"1" text — (bool)"0" is true in PHP
-                'sns_section_enabled' => (bool) (int) $settings->get('sns_section_enabled', '0'),
                 'sns_profile_intro'   => $settings->get('sns_profile_intro'),
             ],
             'socialLinks' => SocialLink::ordered()->get()->map(fn ($link) => [
@@ -142,7 +121,19 @@ class HomepageSettingController extends Controller
             'colorSchemes' => app(ThemeService::class)->all(),
             'activeColorScheme' => app(ThemeService::class)->activeKey(),
             'siteIcons' => app(SiteIconService::class)->urls(),
-            'sidebarOrder' => self::sidebarWidgetOrder(),
+            // Both columns, hidden rows included — the admin has to see what is
+            // off before it can be switched back on (002 US23, cf. FR-051).
+            'widgetColumns' => collect(HomepageWidget::AREAS)->mapWithKeys(
+                fn (string $area) => [$area => $widgets->column($area)->map(fn (HomepageWidget $w) => [
+                    'id'         => $w->id,
+                    'key'        => $w->key,
+                    'type'       => $w->type,
+                    'area'       => $w->area,
+                    'title'      => $w->title,
+                    'html'       => $w->html,
+                    'is_visible' => $w->is_visible,
+                ])->values()]
+            ),
             'contentCategorySlots' => self::contentCategorySlots(),
             'contentFilterEnabled' => self::contentFilterEnabled(),
         ]);
@@ -285,18 +276,6 @@ class HomepageSettingController extends Controller
         return redirect()->back()->with('success', '配色方案已更新');
     }
 
-    public function updateWidgetOrder(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'order'   => ['required', 'array'],
-            'order.*' => ['string', 'in:' . implode(',', self::SIDEBAR_WIDGETS)],
-        ]);
-
-        SiteSetting::set('sidebar_widget_order', json_encode(array_values($validated['order'])));
-
-        return redirect()->back()->with('success', '側欄排序已更新');
-    }
-
     public function update(UpdateHomepageSettingRequest $request): RedirectResponse
     {
         if ($request->hasFile('hero_banner')) {
@@ -314,7 +293,6 @@ class HomepageSettingController extends Controller
         // Empty string, not null: the 📌 line is off when this is blank, and a
         // stored '' reads back the same on every driver.
         SiteSetting::set('hero_promo_course_id', (string) $request->input('hero_promo_course_id', ''));
-        SiteSetting::set('sns_section_enabled', $request->boolean('sns_section_enabled') ? '1' : '0');
         SiteSetting::set('sns_profile_intro', $request->input('sns_profile_intro'));
 
         return redirect()->back()->with('success', '首頁設定已儲存');

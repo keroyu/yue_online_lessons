@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import draggable from 'vuedraggable'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ColorSchemePicker from '@/Components/Admin/ColorSchemePicker.vue'
+import HomepageWidgetList from '@/Components/Admin/HomepageWidgetList.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -44,9 +45,9 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  sidebarOrder: {
-    type: Array,
-    default: () => [],
+  widgetColumns: {
+    type: Object,
+    default: () => ({ main: [], side: [] }),
   },
   contentCategorySlots: {
     type: Array,
@@ -140,7 +141,6 @@ const heroForm = ref({
   hero_subtitle:        props.settings.hero_subtitle ?? '',
   hero_description:     props.settings.hero_description ?? '',
   hero_promo_course_id: props.settings.hero_promo_course_id ?? '',
-  sns_section_enabled:  props.settings.sns_section_enabled ? '1' : '0',
   sns_profile_intro:    props.settings.sns_profile_intro ?? '',
   hero_banner:          null,
 })
@@ -174,7 +174,6 @@ function saveHeroSettings() {
   formData.append('hero_subtitle',        heroForm.value.hero_subtitle)
   formData.append('hero_description',     heroForm.value.hero_description)
   formData.append('hero_promo_course_id', heroForm.value.hero_promo_course_id ?? '')
-  formData.append('sns_section_enabled',  heroForm.value.sns_section_enabled)
   formData.append('sns_profile_intro',    heroForm.value.sns_profile_intro)
   if (heroForm.value.hero_banner) {
     formData.append('hero_banner', heroForm.value.hero_banner)
@@ -316,21 +315,13 @@ function onFeaturedReorder() {
   }, { preserveScroll: true })
 }
 
-// ─── Section 4: Sidebar widget order ─────────────────────────────────────────
+// ─── Section 4: Homepage blocks ──────────────────────────────────────────────
+// Owned by HomepageWidgetList.vue (002 US23); the active palette is passed
+// through so the custom-HTML editor can offer its CSS variables.
 
-const widgetLabels = {
-  featured_courses: '精選推薦（課程）',
-  social:           '追蹤站長（SNS）',
-  blog:             '近期文章（Blog）',
-}
-
-const widgetOrder = ref([...props.sidebarOrder])
-
-function onWidgetReorder() {
-  router.post('/admin/homepage/widget-order', {
-    order: widgetOrder.value,
-  }, { preserveScroll: true })
-}
+const activeScheme = computed(
+  () => props.colorSchemes.find(s => s.key === props.activeColorScheme) ?? null
+)
 
 // ─── Section 5: Content categories (homepage type filter) ────────────────────
 
@@ -551,25 +542,9 @@ function saveCategories() {
         <p v-if="heroErrors.hero_promo_course_id" class="mt-1 text-sm text-red-600">{{ heroErrors.hero_promo_course_id }}</p>
       </div>
 
-      <!-- SNS toggle -->
-      <div class="flex items-center gap-3">
-        <label class="text-sm font-medium text-gray-700">顯示 SNS 區塊</label>
-        <button
-          type="button"
-          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-          :class="heroForm.sns_section_enabled === '1' ? 'bg-brand-navy' : 'bg-gray-300'"
-          @click="heroForm.sns_section_enabled = heroForm.sns_section_enabled === '1' ? '0' : '1'"
-        >
-          <span
-            class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-            :class="heroForm.sns_section_enabled === '1' ? 'translate-x-6' : 'translate-x-1'"
-          />
-        </button>
-        <span class="text-sm text-gray-500">{{ heroForm.sns_section_enabled === '1' ? '顯示' : '不顯示' }}</span>
-      </div>
-
-      <!-- 站長形象與介紹（顯示於 SNS 連結上方） -->
-      <div v-if="heroForm.sns_section_enabled === '1'" class="ml-1 pl-4 border-l-2 border-gray-100 space-y-4">
+      <!-- 站長形象與介紹（顯示於 SNS 連結上方）。是否顯示整個 SNS 區塊，
+           改由下方「首頁區塊」清單的開關控制（002 FR-077）。 -->
+      <div class="ml-1 pl-4 border-l-2 border-gray-100 space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">站長介紹</label>
           <textarea
@@ -786,28 +761,8 @@ function saveCategories() {
       </button>
     </section>
 
-    <!-- Section 4: 右欄排序 -->
-    <section class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-      <div>
-        <h2 class="text-lg font-semibold text-gray-800">右欄區塊排序</h2>
-        <p class="mt-1 text-xs text-gray-400">拖曳調整首頁右欄各區塊的上下順序，放開後自動儲存。</p>
-      </div>
-
-      <draggable
-        v-model="widgetOrder"
-        item-key="self"
-        handle=".drag-handle"
-        class="space-y-2"
-        @end="onWidgetReorder"
-      >
-        <template #item="{ element: key }">
-          <div class="flex items-center gap-3 border border-gray-200 rounded-lg px-3 py-2.5">
-            <span class="drag-handle cursor-move select-none text-gray-400 hover:text-gray-600" title="拖曳排序">⠿</span>
-            <span class="text-sm font-medium text-gray-700">{{ widgetLabels[key] ?? key }}</span>
-          </div>
-        </template>
-      </draggable>
-    </section>
+    <!-- Section 4: 首頁區塊（左右兩欄排序、開關、自訂 HTML） -->
+    <HomepageWidgetList :columns="widgetColumns" :color-scheme="activeScheme" />
 
     <!-- Section 5: 內容分類（首頁類型過濾按鈕） -->
     <section class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">

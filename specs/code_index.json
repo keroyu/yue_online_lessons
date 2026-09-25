@@ -153,9 +153,13 @@
       "002.us-20",
       "002.us-21",
       "002.us-22",
+      "002.us-23",
       "002.us-3",
       "002.us-7",
       "002.us-9"
+    ],
+    "app/Http/Controllers/Admin/HomepageWidgetController.php": [
+      "002.us-23"
     ],
     "app/Http/Controllers/Admin/HomeworkController.php": [
       "001.us-3",
@@ -233,6 +237,7 @@
     ],
     "app/Http/Controllers/BlogController.php": [
       "002.us-10",
+      "002.us-23",
       "012.us-2",
       "012.us-8"
     ],
@@ -301,6 +306,7 @@
       "002.us-1",
       "002.us-20",
       "002.us-21",
+      "002.us-23",
       "002.us-9",
       "012.us-2",
       "012.us-3"
@@ -468,6 +474,9 @@
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
     ],
+    "app/Http/Requests/Admin/StoreHomepageWidgetRequest.php": [
+      "002.us-23"
+    ],
     "app/Http/Requests/Admin/StoreLessonRequest.php": [
       "003.us-10",
       "003.us-9",
@@ -517,8 +526,12 @@
     "app/Http/Requests/Admin/UpdateHomepageSettingRequest.php": [
       "002.us-20",
       "002.us-21",
+      "002.us-23",
       "002.us-3",
       "002.us-9"
+    ],
+    "app/Http/Requests/Admin/UpdateHomepageWidgetRequest.php": [
+      "002.us-23"
     ],
     "app/Http/Requests/Admin/UpdateMemberRequest.php": [
       "008.us-2",
@@ -786,6 +799,9 @@
       "002.us-19",
       "002.us-6"
     ],
+    "app/Models/HomepageWidget.php": [
+      "002.us-23"
+    ],
     "app/Models/HomeworkNotification.php": [
       "003.us-8"
     ],
@@ -996,6 +1012,13 @@
       "011.us-5",
       "011.us-9"
     ],
+    "app/Services/HomepageWidgetService.php": [
+      "002.us-19",
+      "002.us-20",
+      "002.us-23",
+      "002.us-6",
+      "012.us-2"
+    ],
     "app/Services/HomeworkGradingService.php": [
       "003.us-10",
       "003.us-12"
@@ -1055,12 +1078,6 @@
     ],
     "app/Services/RoadmapProgressService.php": [
       "003.us-11"
-    ],
-    "app/Services/SidebarService.php": [
-      "002.us-19",
-      "002.us-20",
-      "002.us-6",
-      "012.us-2"
     ],
     "app/Services/SiteAnalyticsService.php": [
       "002.us-10",
@@ -1457,6 +1474,9 @@
     "database/migrations/2026_09_25_000002_drop_blog_rss_url_setting.php": [
       "002.us-5"
     ],
+    "database/migrations/2026_09_26_000001_create_homepage_widgets_table.php": [
+      "002.us-23"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1468,7 +1488,8 @@
     ],
     "database/seeders/HomepageSettingsSeeder.php": [
       "002.us-20",
-      "002.us-21"
+      "002.us-21",
+      "002.us-23"
     ],
     "database/seeders/ShortLinkSeeder.php": [
       "000.us-8"
@@ -1498,6 +1519,9 @@
     ],
     "resources/js/Components/Admin/ColorSchemePicker.vue": [
       "000.us-14"
+    ],
+    "resources/js/Components/Admin/ColorTokenHint.vue": [
+      "002.us-23"
     ],
     "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue": [
       "011.us-13",
@@ -1529,6 +1553,9 @@
     ],
     "resources/js/Components/Admin/HintBox.vue": [
       "000.us-9"
+    ],
+    "resources/js/Components/Admin/HomepageWidgetList.vue": [
+      "002.us-23"
     ],
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "004.us-4"
@@ -1702,6 +1729,9 @@
     "resources/js/Components/GiftCourseModal.vue": [
       "008.us-6"
     ],
+    "resources/js/Components/Home/CourseCatalog.vue": [
+      "002.us-23"
+    ],
     "resources/js/Components/Home/HeroClaimForm.vue": [
       "002.us-20"
     ],
@@ -1728,7 +1758,8 @@
       "000.us-12",
       "000.us-6"
     ],
-    "resources/js/Components/Layout/Sidebar.vue": [
+    "resources/js/Components/Layout/WidgetColumn.vue": [
+      "002.us-23",
       "002.us-6",
       "012.us-2"
     ],
@@ -1899,6 +1930,7 @@
       "002.us-20",
       "002.us-21",
       "002.us-22",
+      "002.us-23",
       "002.us-3",
       "002.us-4",
       "002.us-6",
@@ -1963,6 +1995,7 @@
       "012.us-2"
     ],
     "resources/js/Pages/Blog/Show.vue": [
+      "002.us-23",
       "012.us-2"
     ],
     "resources/js/Pages/Blog/Tag.vue": [
@@ -2004,6 +2037,7 @@
       "002.us-1",
       "002.us-20",
       "002.us-21",
+      "002.us-23",
       "002.us-3",
       "002.us-9",
       "004.us-2",
@@ -2137,6 +2171,7 @@
       "002.us-20",
       "002.us-21",
       "002.us-22",
+      "002.us-23",
       "002.us-9",
       "003.us-10",
       "003.us-11",
@@ -2409,7 +2444,11 @@
     ],
     "tests/Feature/Storefront/HomeHeroTest.php": [
       "002.us-20",
-      "002.us-21"
+      "002.us-21",
+      "002.us-23"
+    ],
+    "tests/Feature/Storefront/HomepageWidgetTest.php": [
+      "002.us-23"
     ],
     "tests/Feature/Storefront/SalesPromoCouponChainTest.php": [
       "002.us-12",
@@ -2426,7 +2465,8 @@
       "002.us-22"
     ],
     "tests/Feature/Storefront/SnsProfileTest.php": [
-      "002.us-20"
+      "002.us-20",
+      "002.us-23"
     ],
     "tests/Support/BooksHighTicket.php": [
       "011.us-11",

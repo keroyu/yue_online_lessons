@@ -3,9 +3,10 @@ import { Head, Link } from '@inertiajs/vue3'
 import ShareButtons from '@/Components/Newsletter/ShareButtons.vue'
 import PostCard from '@/Components/Newsletter/PostCard.vue'
 import SubscribeForm from '@/Components/Newsletter/SubscribeForm.vue'
-import Sidebar from '@/Components/Layout/Sidebar.vue'
+import { computed } from 'vue'
+import WidgetColumn from '@/Components/Layout/WidgetColumn.vue'
 
-defineProps({
+const props = defineProps({
   post: {
     type: Object,
     required: true,
@@ -14,13 +15,20 @@ defineProps({
     type: Array,
     default: () => [],
   },
-  // Shared right-hand sidebar (same widgets as the homepage)
-  sidebarOrder: { type: Array, default: () => ['featured_courses', 'social', 'blog'] },
+  // Shared right-hand sidebar (same widgets, same order as the homepage)
+  sideWidgets: { type: Array, default: () => [] },
   featuredCourses: { type: Array, default: () => [] },
   socialLinks: { type: Array, default: () => [] },
   snsProfile: { type: Object, default: null },
   blogArticles: { type: Array, default: () => [] },
 })
+
+const widgetPayload = computed(() => ({
+  featuredCourses: props.featuredCourses,
+  socialLinks: props.socialLinks,
+  snsProfile: props.snsProfile,
+  blogArticles: props.blogArticles,
+}))
 </script>
 
 <template>
@@ -91,13 +99,7 @@ defineProps({
     </article>
 
     <!-- Shared right sidebar (same widgets as the homepage) -->
-    <Sidebar
-      :sidebar-order="sidebarOrder"
-      :featured-courses="featuredCourses"
-      :social-links="socialLinks"
-      :sns-profile="snsProfile"
-      :blog-articles="blogArticles"
-    />
+    <WidgetColumn area="side" :widgets="sideWidgets" :payload="widgetPayload" />
    </div>
   </div>
 </template>

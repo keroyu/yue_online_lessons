@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Storefront;
 
+use App\Models\HomepageWidget;
 use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,6 @@ class SnsProfileTest extends TestCase
     {
         $this->actingAs($this->admin())
             ->post('/admin/homepage', [
-                'sns_section_enabled' => 1,
                 'sns_profile_intro'   => '嗨，我是站長。',
             ])
             ->assertRedirect();
@@ -39,7 +39,6 @@ class SnsProfileTest extends TestCase
         $this->actingAs($this->admin())
             ->from('/admin/homepage')
             ->post('/admin/homepage', [
-                'sns_section_enabled' => 1,
                 'sns_profile_intro'   => str_repeat('字', 501),
             ])
             ->assertSessionHasErrors('sns_profile_intro');
@@ -47,7 +46,7 @@ class SnsProfileTest extends TestCase
 
     public function test_home_exposes_sns_profile_when_enabled(): void
     {
-        SiteSetting::set('sns_section_enabled', '1');
+        HomepageWidget::where('key', 'social')->update(['is_visible' => true]);
         SiteSetting::set('sns_profile_intro', '站長的一段介紹');
 
         $this->get('/')
@@ -57,7 +56,7 @@ class SnsProfileTest extends TestCase
 
     public function test_home_hides_sns_profile_when_section_disabled(): void
     {
-        SiteSetting::set('sns_section_enabled', '0');
+        HomepageWidget::where('key', 'social')->update(['is_visible' => false]);
         SiteSetting::set('sns_profile_intro', '站長的一段介紹');
 
         $this->get('/')

@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Models\Course;
+use App\Models\HomepageWidget;
 use App\Models\Post;
 use App\Models\SiteSetting;
-use App\Services\SidebarService;
+use App\Models\User;
+use App\Services\HomepageWidgetService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,7 +21,50 @@ class HomeController extends Controller
         $user = auth()->user();
         $isAdmin = $user && $user->isAdmin();
 
-        $courses = Course::visibleToUser($user)
+        $widgets = app(HomepageWidgetService::class);
+
+        // Hidden blocks are not queried at all, so nothing about them reaches
+        // the page payload (002 FR-076).
+        $courses = $widgets->isVisible('course_catalog')
+            ? $this->courses($user)
+            : collect();
+
+        $popularPosts = $widgets->isVisible('popular_posts')
+            ? $this->popularPosts()
+            : [];
+
+        $settings = SiteSetting::getMany([
+            'hero_title', 'hero_subtitle', 'hero_description',
+            'hero_banner_path', 'hero_promo_course_id',
+        ]);
+
+        $bannerPath = $settings->get('hero_banner_path');
+
+        $hero = [
+            'title'       => $settings->get('hero_title') ?: null,
+            'subtitle'    => $settings->get('hero_subtitle') ?: null,
+            'description' => $settings->get('hero_description') ?: null,
+            'banner_url'  => $bannerPath ? Storage::url($bannerPath) : null,
+        ];
+
+        return Inertia::render('Home', [
+            'courses'           => $courses,
+            'hero'              => $hero,
+            'heroPromo'         => $this->heroPromo($settings->get('hero_promo_course_id')),
+            'popularPosts'      => $popularPosts,
+            'contentCategories' => HomepageSettingController::contentFilterEnabled()
+                ? HomepageSettingController::contentCategories()
+                : [],
+            'isAdmin'           => $isAdmin,
+            'mainWidgets'       => $widgets->descriptors(HomepageWidget::AREA_MAIN),
+            ...$widgets->sideProps(),
+        ]);
+    }
+
+    /** The homepage course grid, shaped for `CourseCatalog.vue`. */
+    private function courses(?User $user): Collection
+    {
+        return Course::visibleToUser($user)
             ->ordered()
             ->select(['id', 'slug', 'name', 'tagline', 'price', 'original_price', 'promo_ends_at', 'thumbnail', 'instructor_name', 'type', 'content_category', 'course_type', 'status', 'is_published', 'is_visible'])
             ->get()
@@ -40,24 +86,15 @@ class HomeController extends Controller
                 'is_published'    => $course->is_published,
                 'is_visible'      => $course->is_visible,
             ]);
+    }
 
-        $settings = SiteSetting::getMany([
-            'hero_title', 'hero_subtitle', 'hero_description',
-            'hero_banner_path', 'hero_promo_course_id',
-        ]);
-
-        $bannerPath = $settings->get('hero_banner_path');
-
-        $hero = [
-            'title'       => $settings->get('hero_title') ?: null,
-            'subtitle'    => $settings->get('hero_subtitle') ?: null,
-            'description' => $settings->get('hero_description') ?: null,
-            'banner_url'  => $bannerPath ? Storage::url($bannerPath) : null,
-        ];
-
-        // Main-column list block: featured posts first (editorial call), then
-        // the most-viewed among the rest (FR-031).
-        $popularPosts = Post::published()
+    /**
+     * Main-column list block: featured posts first (editorial call), then
+     * the most-viewed among the rest (FR-031).
+     */
+    private function popularPosts(): array
+    {
+        return Post::published()
             ->with('tags:id,name')
             ->orderByDesc('is_featured')
             ->orderByDesc('view_count')
@@ -71,18 +108,6 @@ class HomeController extends Controller
                 'url' => "/blog/{$post->slug}",
                 'published_at' => $post->published_at?->timezone('Asia/Taipei')->toDateString(),
             ])->values()->all();
-
-        return Inertia::render('Home', [
-            'courses'         => $courses,
-            'hero'            => $hero,
-            'heroPromo'       => $this->heroPromo($settings->get('hero_promo_course_id')),
-            'popularPosts'    => $popularPosts,
-            'contentCategories' => HomepageSettingController::contentFilterEnabled()
-                ? HomepageSettingController::contentCategories()
-                : [],
-            'isAdmin'         => $isAdmin,
-            ...app(SidebarService::class)->widgets(),
-        ]);
     }
 
     /**
