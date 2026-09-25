@@ -200,6 +200,27 @@ class HomepageSettingController extends Controller
         return redirect()->back()->with('success', 'Favicon 已刪除');
     }
 
+    /**
+     * 站長介紹 — the paragraph above the SNS links in the sidebar (002 FR-087).
+     *
+     * It used to ride along on the hero's multipart request for purely
+     * historical reasons. It renders inside the 追蹤站長 block and is now edited
+     * there too, so it gets its own endpoint rather than being re-posted every
+     * time somebody swaps the hero image (same reasoning as US22's split).
+     */
+    public function updateSnsProfile(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'intro' => ['nullable', 'string', 'max:500'],
+        ], [
+            'intro.max' => '站長介紹不能超過 500 字',
+        ]);
+
+        SiteSetting::set('sns_profile_intro', $validated['intro'] ?? '');
+
+        return redirect()->back()->with('success', '站長介紹已更新');
+    }
+
     public function updateContentCategories(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -293,7 +314,6 @@ class HomepageSettingController extends Controller
         // Empty string, not null: the 📌 line is off when this is blank, and a
         // stored '' reads back the same on every driver.
         SiteSetting::set('hero_promo_course_id', (string) $request->input('hero_promo_course_id', ''));
-        SiteSetting::set('sns_profile_intro', $request->input('sns_profile_intro'));
 
         return redirect()->back()->with('success', '首頁設定已儲存');
     }

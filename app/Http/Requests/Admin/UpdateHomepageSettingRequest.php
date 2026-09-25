@@ -25,7 +25,6 @@ class UpdateHomepageSettingRequest extends FormRequest
             // no longer tied to it (FR-070). Still a bare reference with no
             // foreign key behind it, so every read re-checks.
             'hero_promo_course_id' => ['nullable', 'integer', 'exists:courses,id'],
-            'sns_profile_intro'   => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -36,7 +35,6 @@ class UpdateHomepageSettingRequest extends FormRequest
             'hero_banner.mimes'      => '圖片格式必須是 jpg、jpeg、png 或 webp',
             'hero_banner.max'        => '圖片大小不能超過 5MB',
             'hero_promo_course_id.exists' => '選擇的課程不存在',
-            'sns_profile_intro.max'  => '站長介紹不能超過 500 字',
         ];
     }
 

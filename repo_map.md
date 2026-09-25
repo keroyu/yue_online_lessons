@@ -223,11 +223,15 @@ main_files:
 - database/migrations/2026_09_26_000001_create_homepage_widgets_table.php
 - database/seeders/HomepageSettingsSeeder.php
 - resources/css/app.css
+- resources/js/Components/Admin/AdminModal.vue
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
 - resources/js/Components/Admin/ColorTokenHint.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/HomepageWidgetList.vue
+- resources/js/Components/Admin/HomepageWidgets/ContentCategoriesModal.vue
+- resources/js/Components/Admin/HomepageWidgets/FeaturedCoursesModal.vue
+- resources/js/Components/Admin/HomepageWidgets/SnsLinksModal.vue
 - resources/js/Components/Admin/LessonForm.vue
 - resources/js/Components/Course/FreeSuccessBlock.vue
 - resources/js/Components/Course/PriceDisplay.vue
@@ -261,6 +265,7 @@ main_files:
 - tests/Feature/Storefront/FreeSuccessBlockTest.php
 - tests/Feature/Storefront/HeroSubscribeTest.php
 - tests/Feature/Storefront/HomeHeroTest.php
+- tests/Feature/Storefront/HomepageWidgetSettingsTest.php
 - tests/Feature/Storefront/HomepageWidgetTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 - tests/Feature/Storefront/SiteAnalyticsTest.php

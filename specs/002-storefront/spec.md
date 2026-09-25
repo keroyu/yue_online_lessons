@@ -30,6 +30,10 @@ owner_files:
   - resources/js/Components/Home/CourseCatalog.vue
   - resources/js/Components/Admin/HomepageWidgetList.vue
   - resources/js/Components/Admin/ColorTokenHint.vue
+  - resources/js/Components/Admin/AdminModal.vue
+  - resources/js/Components/Admin/HomepageWidgets/FeaturedCoursesModal.vue
+  - resources/js/Components/Admin/HomepageWidgets/SnsLinksModal.vue
+  - resources/js/Components/Admin/HomepageWidgets/ContentCategoriesModal.vue
   - tests/Feature/Storefront/HomepageWidgetTest.php
   - database/migrations/2026_03_25_000002_create_social_links_table.php
   - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
@@ -642,6 +646,28 @@ US6 只讓右欄三個 widget 可以拖曳；左欄（熱門文章 → 內容分
 - [x] 非管理員送出 MUST 被 `AdminMiddleware` 導回首頁且資料不變（本模組既有慣例：斷言導向與「沒寫進去」）
 
 
+### User Story 24 - 首頁區塊設定收進 modal (Priority: P2)
+
+US23 把「哪些區塊、什麼順序」變成資料，但三個內建區塊的**內容**還是各自佔著
+「首頁設定」頁上的一整張卡片（SNS 連結、精選課程、內容分類），加上 hero 與站台
+資訊，整頁已經 837 行、要捲很久才找得到東西。這條故事把那三張卡片收成 modal，
+入口回到它們真正所屬的地方——「首頁區塊」清單裡自己那一列。
+
+排序、開關、內容三件事從此在同一個地方問：先在清單看到有哪些區塊，再點進去改
+那一塊的內容。
+
+**驗收**：
+- [x] 「首頁區塊」清單中，`featured_courses` / `social` / `course_catalog` 三列各多一顆「設定」；其餘列（`popular_posts`、`blog`、自訂 HTML）沒有，因為它們沒有可設定的內容
+- [x] 點「設定」跳出對應 modal：精選課程（加入/blurb/排序/逐筆顯示隱藏）、追蹤站長（站長介紹＋SNS 連結 CRUD）、內容分類（顯示開關＋3 組欄位）
+- [x] 三張原本的卡片從「首頁設定」頁移除；頁面剩站台資訊、配色方案、Hero 主視覺、首頁區塊四張卡片
+- [x] 每個 modal 自帶狀態與送出邏輯，`Edit.vue` 只負責把伺服器資料當 props 傳下去（FR-085）
+- [x] 在 modal 內儲存後 modal MUST 保持開啟，且列表內容更新為儲存後的結果（FR-086）—— 改完一筆 blurb 就被關掉等於每改一筆都要重點一次
+- [x] 「站長介紹」從 Hero 卡片搬進追蹤站長 modal，改走自己的端點 `POST /admin/homepage/sns-profile`；Hero 的 multipart 表單不再帶這個欄位（FR-087）
+- [x] Modal 可用 Escape、點背景、右上角 ✕ 關閉；關閉不儲存，未按儲存的草稿就是丟掉（與現在離開頁面的行為一致，不另做提醒）
+- [x] Modal 在手機寬度可用：面板滿版留邊、內容區自己捲動、儲存鈕不被內容推到畫面外
+- [x] 非管理員的存取限制不變（既有端點與 `AdminMiddleware` 都沒動）
+
+
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
@@ -745,6 +771,15 @@ US6 只讓右欄三個 widget 可以拖曳；左欄（熱門文章 → 內容分
 - **FR-081**: 排序端點 MUST 以 `area` 為界正規化送進來的 id：不屬於該欄的 id 剔除、該欄漏掉的 id 依原 `sort_order` 附在末端。這不是防禦性程式碼而是必要的：兩個分頁同時開著後台時，後送出的那份清單會缺少另一份剛新增的 widget，沒有補齊就等於把它靜默丟到最後面或排序錯亂。
 - **FR-082**: `area = 'side'` 的 widget（含自訂）MUST 同時出現在首頁與 `/blog/{slug}`，沿用右欄自 US6 以來就是全站共用側欄的語意（`SidebarService` 同時服務兩個 controller）。`area = 'main'` 只作用於首頁 —— 部落格文章頁的主欄是文章本身，沒有可插入的位置。
 - **FR-083**: widget 的 CRUD MUST 由新的 `Admin\HomepageWidgetController` 承擔，**MUST NOT** 再塞進 `HomepageSettingController`（已 300+ 行、七個端點）。比照 `HomepageFeaturedCourseController` 的既有形狀：`store`/`update`/`destroy`/`reorder` 加一個獨立的 `toggleVisibility`（`PATCH .../{widget}/visibility`，inline `validate()`，伺服器依傳入值設定而非自行翻轉 —— 理由同 FR-051）。切換顯示 MUST NOT 併進 `update()`：後者寫的是一塊要按「儲存」才落地的 HTML 草稿。
+
+
+- **FR-084**: 有內容可設定的內建 widget MUST 由一份 const map 宣告（key → modal），與 `HomepageWidgetService::BUILTIN` 分開但對齊。清單列只在 key 出現在這份 map 時才畫「設定」鈕。MUST NOT 用「是不是內建」當條件 —— `popular_posts` 與 `blog` 是內建但沒有任何可調的內容，給它們一顆點了跳出空白面板的按鈕比沒有更糟。
+- **FR-085**: 每個 modal MUST 自帶本地狀態與 `router` 呼叫，`Edit.vue` 只把伺服器資料當 props 傳下去。這不是風格偏好而是這條故事的**手段**：只把 template 搬進 modal、script 留在 `Edit.vue`，頁面檔案一行都不會變短，而「頁面太長」正是要解決的問題。三段搬走後 `Edit.vue` 預期從 837 行降到 450 行上下。
+- **FR-086**: Modal 內儲存後 MUST 保持開啟。送出一律 `preserveScroll: true` 且**不導頁**，modal 的開關狀態留在 `Edit.vue` 的 ref（Inertia partial reload 會重用元件實例，ref 因此存活）；modal 內的本地清單 MUST 以 `watch(() => props.xxx, ...)` 重新同步，而不是只在 `setup` 時複製一次。兩者缺一都會壞：ref 放在 modal 內部會隨關閉重建，而不 watch 則會讓畫面停在儲存前的舊值，看起來像沒存進去。
+- **FR-087**: `sns_profile_intro` MUST 移出 hero 表單，改走 `POST /admin/homepage/sns-profile`（body `intro` 為 `nullable|string|max:500`，inline `validate()`，比照同頁的 `updateContentCategories`）。`UpdateHomepageSettingRequest` 的規則、`update()` 的 `SiteSetting::set` 與前端 FormData 欄位 MUST 一併移除。理由與 FR-051／US22 的端點拆分同源：hero 那條是繞著圖片建的 multipart 請求，站長介紹沒有理由在每次換 banner 時被重送一次，而它現在連顯示位置都不在 hero 裡。
+- **FR-088**: 三個 modal MUST 共用一個 `AdminModal.vue` 外殼（backdrop、面板、標題列、✕、Escape、背景鎖捲動）。站上已有 16 個各自手寫 `fixed inset-0` 的 modal，且已經漂移出兩種背景色寫法（`bg-black/50` 與 `bg-gray-500 bg-opacity-75`）；再加三份手寫的只會讓第三種出現。**MUST NOT 回頭改寫既有那 16 個** —— 那是另一件事，混進來會讓這次的改動無法單獨驗證。
+- **FR-089**: Modal MUST 可用 Escape、點背景、右上角 ✕ 關閉，且關閉 MUST NOT 攔截未儲存的草稿。目前離開頁面就會丟掉草稿，modal 維持同一條規則；為此單獨做一套 dirty 判斷，會讓同一份草稿在頁面上與 modal 裡有兩種命運。
+- **FR-090**: Modal 面板在手機寬度 MUST 為滿版留邊（`max-w-2xl w-full mx-4`），**內容區自己捲動**而不是整個面板長出畫面：精選課程清單可以有十幾列，儲存鈕被推到視窗外等於那個 modal 在手機上不能用。
 
 
 ## 設計決策
@@ -868,6 +903,17 @@ US6 只讓右欄三個 widget 可以拖曳；左欄（熱門文章 → 內容分
 - **D71**: 不引入 HTML purifier（FR-078）。站上已經有兩處管理員信任 HTML（銷售頁 Markdown、`free_success_md`），都刻意放行 iframe，因為那正是嵌 YouTube／表單的方式。在這裡單獨加一層過濾，會讓「同樣一段 HTML 在課程介紹裡能用、在首頁區塊裡不能用」，而這個站的後台只有業主自己在用。
 
 - **D72**: 先模組化再套排序與 CRUD（使用者提問的確認）。`Home.vue` 的左欄目前是一段 70 行的 inline 版型；不先抽成 `CourseCatalog.vue`，「依 key 渲染」的迴圈就無從寫起。實作 MUST 分成兩個可各自驗證的階段：第一階段只抽元件、換成 `WidgetColumn` 渲染器而**仍吃舊的 `sidebar_widget_order`**，此時前台畫面必須與改動前逐像素相同（這是唯一能確認抽取沒改壞版型的時機）；第二階段才換資料來源。混在一起做的話，版面一旦跑掉就分不清是抽壞了還是排序讀錯了。
+
+
+- **D73**: 設定入口收回「首頁區塊」那一列，而不是留在頁面上另外編號的卡片（FR-084）。US23 已經讓那份清單回答「首頁由哪些區塊組成」；設定卡片散在頁面各處，等於同一個問題有兩個答案，而且兩邊的順序還不一樣（清單照顯示順序，卡片照歷史新增順序）。
+
+- **D74**: 三個 modal 各自擁有狀態，不是把 `Edit.vue` 的 ref 傳進去（FR-085）。傳 ref 進去更省事，但那樣 `Edit.vue` 仍然持有全部邏輯，頁面檔案不會變短 —— 而這條故事唯一的產出就是「那個檔案變短、那一頁變好找」。
+
+- **D75**: 做一個共用的 `AdminModal.vue`，但不回頭改既有 16 個（FR-088）。兩個極端都不對：不做共用殼會當場新增三份手寫 scaffold；全面重構 16 個則是一次碰十幾個後台頁面的改動，而它們各自有不同的關閉條件與巢狀結構，混進這條故事裡就沒有人能單獨驗證這次改了什麼。
+
+- **D76**: `sns_profile_intro` 跟著 SNS 連結走（FR-087，使用者決策）。它渲染在「追蹤站長」那一塊裡，卻因為歷史因素掛在 hero 的表單上；搬家的成本只是一個端點，留著的成本是每次有人要改側欄那段文字都得先在 hero 卡片裡找到它。
+
+- **D77**: Hero 卡片維持展開，不做成 modal（使用者決策）。Hero 不在「首頁區塊」的兩欄清單裡（它在 nav bar 下方、兩欄之外），沒有可以掛設定鈕的列；硬給它一個入口會讓它看起來跟兩欄 widget 同層級，而它不是。它也確實會變成頁面上最長的一塊，這是接受的取捨。
 
 
 ## Schema
@@ -1303,7 +1349,40 @@ Phase 4 — 驗證
 - [x] T020 實機驗證：後台拖曳左右兩欄、開關每一塊、新增一個用 `var(--color-brand-gold)` 的自訂區塊，切換配色方案確認它跟著變色
 
 
+## Tasks（首頁區塊設定收進 modal / US24）
+
+**Phase 1 — 外殼與入口**
+
+- [x] T001 `AdminModal.vue`：props `open` / `title`，emit `close`；backdrop、面板（`max-w-2xl w-full mx-4`）、標題列 + ✕、Escape 關閉、開啟時鎖 `body` 捲動、內容區 `overflow-y-auto max-h-[70vh]`（FR-088 / FR-089 / FR-090）in `resources/js/Components/Admin/AdminModal.vue`
+- [x] T002 `HomepageWidgetList.vue`：加 `SETTINGS_KEYS` const（`featured_courses` / `social` / `course_catalog`），符合的列多一顆「設定」，點擊 emit `open-settings(key)`（FR-084）in `resources/js/Components/Admin/HomepageWidgetList.vue`
+
+**Phase 2 — 後端：站長介紹獨立端點**
+
+- [x] T003 `HomepageSettingController::updateSnsProfile()`：inline validate `intro` `nullable|string|max:500`，中文錯誤訊息；`update()` 移除 `sns_profile_intro` 的 `SiteSetting::set` in `app/Http/Controllers/Admin/HomepageSettingController.php`
+- [x] T004 [P] `UpdateHomepageSettingRequest` 移除 `sns_profile_intro` 規則與訊息 in `app/Http/Requests/Admin/UpdateHomepageSettingRequest.php`
+- [x] T005 [P] 新增 `POST /admin/homepage/sns-profile`〔touchpoint 000〕in `routes/web.php`
+
+**Phase 3 — 三個 modal（搬 template ＋ script，不是只搬 template）**
+
+- [x] T006 `FeaturedCoursesModal.vue`：搬 `Edit.vue` Section 3 的全部狀態與函式（`featured` / `showFeaturedForm` / `newFeatured` / `addFeatured` / `saveFeaturedBlurb` / `toggleFeaturedVisibility` / `removeFeatured` / `onFeaturedReorder`），props `featuredCourses` / `availableCourses`，加 `watch` 重新同步（FR-086）in `resources/js/Components/Admin/HomepageWidgets/FeaturedCoursesModal.vue`
+- [x] T007 `SnsLinksModal.vue`：搬 Section 2 的全部狀態與函式（`localLinks` / `startEdit` / `cancelEdit` / `saveLink` / `deleteLink` / `addLink`），再加站長介紹欄位與它的獨立儲存（走 T003 的端點）；props `socialLinks` / `snsProfileIntro` in `resources/js/Components/Admin/HomepageWidgets/SnsLinksModal.vue`
+- [x] T008 `ContentCategoriesModal.vue`：搬 Section 5 的 `categoryForm` / `categoryErrors` / `saveCategories`；props `contentCategorySlots` / `contentFilterEnabled` in `resources/js/Components/Admin/HomepageWidgets/ContentCategoriesModal.vue`
+
+**Phase 4 — 收攏 Edit.vue**
+
+- [x] T009 `Edit.vue`：刪除 Section 2 / 3 / 5 的 template 與 script；hero 表單移除 `sns_profile_intro`（含 FormData 那行）；新增 `openSettings` ref 與三個 modal 的掛載，把資料當 props 傳下去 in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+- [x] T010 `HomepageWidgetList` 的 `open-settings` 接到 `Edit.vue` 的 `openSettings`；modal 的 `open` 綁 `openSettings === '<key>'`，`close` 設回 null（FR-086：ref 住在 `Edit.vue`，不在 modal 內）in `resources/js/Pages/Admin/HomepageSettings/Edit.vue`
+
+**Phase 5 — 驗證**
+
+- [x] T011 `HomepageWidgetSettingsTest`：站長介紹走新端點寫入且 `max:500` 被擋、hero 表單不再寫 `sns_profile_intro`（送了也不生效）、`edit()` 仍下發 `sns_profile_intro`、非管理員打新端點被導回首頁且設定不變 in `tests/Feature/Storefront/HomepageWidgetSettingsTest.php`
+- [x] T012 `php artisan test` 全綠（注意需 `php -d memory_limit=1G vendor/bin/phpunit`，預設 128M 會 OOM）＋ `npm run build` exit 0
+- [ ] T013 使用者實測：三個 modal 各開一次，在裡面儲存 → modal 不關且數字/文字更新；Escape 與點背景可關；手機寬度下精選課程清單可捲動且儲存鈕看得到；確認 `Edit.vue` 行數確實降下來
+
+
 ## 進度日誌
+
+- 2026-09-25: US24 完成 T001–T012（T013 使用者實測待跑）。精選課程／SNS 連結／內容分類三張卡片改為「首頁區塊」清單對應列的「設定」modal，`Edit.vue` 837 → 450 行（與 FR-085 的預估一致）；站長介紹跟著搬進 SNS modal 並取得 `POST /admin/homepage/sns-profile`，`SnsProfileTest` 的兩條寫入測試由新的 `HomepageWidgetSettingsTest` 承接。新增共用外殼 `AdminModal.vue`（既有 16 個 modal 不回頭改）。實測抓到一個真 bug：backdrop 的 click handler 掛錯層——置中用的 flex 容器蓋在 backdrop 上且滿版，點面板旁邊命中的是它，所以掛在 backdrop 上的 handler 永遠不會觸發，改成在 flex 容器上 `@click.self`。另外注意：自動化瀏覽器分頁是 `visibilityState: hidden`，`requestAnimationFrame` 不會觸發，Vue `<Transition>` 因此整個停住——當時看起來像「Escape 關不掉」其實是這個，不是程式問題。全套 1048 passed、`npm run build` exit 0。
 
 - 2026-09-25: 業主實測通過 US19 精選課程顯示／隱藏（T010）、US20 首頁 Hero 改版（T014）、US21 Hero 表單改訂閱電子報（T017），三項勾起。剩下的四個實測項（T055 / T069 / T013 / T016）都需要真實寄信與真實流量才驗得準，留待正式站。
 

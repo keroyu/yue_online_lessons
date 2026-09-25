@@ -422,6 +422,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::patch('/homepage/widgets/{widget}/visibility', [HomepageWidgetController::class, 'toggleVisibility'])->name('homepage.widgets.visibility');
     Route::post('/homepage/widgets/reorder', [HomepageWidgetController::class, 'reorder'])->name('homepage.widgets.reorder');
 
+    // 站長介紹 — edited in the 追蹤站長 modal, not with the hero (002 US24)
+    Route::post('/homepage/sns-profile', [HomepageSettingController::class, 'updateSnsProfile'])->name('homepage.sns-profile');
+
     // Content categories (homepage type filter) + visibility toggle
     Route::post('/homepage/content-categories', [HomepageSettingController::class, 'updateContentCategories'])->name('homepage.content-categories');
 

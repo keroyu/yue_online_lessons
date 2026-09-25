@@ -154,6 +154,7 @@
       "002.us-21",
       "002.us-22",
       "002.us-23",
+      "002.us-24",
       "002.us-3",
       "002.us-7",
       "002.us-9"
@@ -527,6 +528,7 @@
       "002.us-20",
       "002.us-21",
       "002.us-23",
+      "002.us-24",
       "002.us-3",
       "002.us-9"
     ],
@@ -1505,6 +1507,9 @@
     "resources/images/og-logo.png": [
       "012.us-2"
     ],
+    "resources/js/Components/Admin/AdminModal.vue": [
+      "002.us-24"
+    ],
     "resources/js/Components/Admin/Analytics/ShortLinkTab.vue": [
       "000.us-8",
       "002.us-15"
@@ -1555,7 +1560,17 @@
       "000.us-9"
     ],
     "resources/js/Components/Admin/HomepageWidgetList.vue": [
-      "002.us-23"
+      "002.us-23",
+      "002.us-24"
+    ],
+    "resources/js/Components/Admin/HomepageWidgets/ContentCategoriesModal.vue": [
+      "002.us-24"
+    ],
+    "resources/js/Components/Admin/HomepageWidgets/FeaturedCoursesModal.vue": [
+      "002.us-24"
+    ],
+    "resources/js/Components/Admin/HomepageWidgets/SnsLinksModal.vue": [
+      "002.us-24"
     ],
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "004.us-4"
@@ -1931,6 +1946,7 @@
       "002.us-21",
       "002.us-22",
       "002.us-23",
+      "002.us-24",
       "002.us-3",
       "002.us-4",
       "002.us-6",
@@ -2172,6 +2188,7 @@
       "002.us-21",
       "002.us-22",
       "002.us-23",
+      "002.us-24",
       "002.us-9",
       "003.us-10",
       "003.us-11",
@@ -2447,6 +2464,9 @@
       "002.us-21",
       "002.us-23"
     ],
+    "tests/Feature/Storefront/HomepageWidgetSettingsTest.php": [
+      "002.us-24"
+    ],
     "tests/Feature/Storefront/HomepageWidgetTest.php": [
       "002.us-23"
     ],
@@ -2466,7 +2486,8 @@
     ],
     "tests/Feature/Storefront/SnsProfileTest.php": [
       "002.us-20",
-      "002.us-23"
+      "002.us-23",
+      "002.us-24"
     ],
     "tests/Support/BooksHighTicket.php": [
       "011.us-11",

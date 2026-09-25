@@ -14,7 +14,15 @@ const props = defineProps({
   colorScheme: { type: Object, default: null },
 })
 
+const emit = defineEmits(['open-settings'])
+
 const AREA_LABELS = { main: '左欄（主內容）', side: '右欄（側欄）' }
+
+// Built-ins whose CONTENT is editable, each behind a modal (002 FR-084).
+// Deliberately not "every built-in": `popular_posts` and `blog` have nothing
+// to configure, and a 設定 button that opens an empty panel is worse than no
+// button at all.
+const SETTINGS_KEYS = ['featured_courses', 'social', 'course_catalog']
 
 const lists = ref({ main: [], side: [] })
 
@@ -146,6 +154,13 @@ const isEditing = computed(() => !! form.value?.id)
                   :class="w.is_visible ? 'translate-x-5' : 'translate-x-1'"
                 />
               </button>
+
+              <button
+                v-if="SETTINGS_KEYS.includes(w.key)"
+                type="button"
+                class="cursor-pointer shrink-0 text-xs text-gray-500 hover:text-brand-navy hover:underline"
+                @click="emit('open-settings', w.key)"
+              >設定</button>
 
               <template v-if="w.type === 'html'">
                 <button
