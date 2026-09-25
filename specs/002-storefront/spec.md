@@ -2,6 +2,7 @@
 id: 002-storefront
 status: building
 owner_files:
+  - database/migrations/2026_09_25_000002_drop_blog_rss_url_setting.php
   - database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
   - tests/Feature/Storefront/FeaturedCourseVisibilityTest.php
   - tests/Feature/Storefront/SiteIdentityTest.php
@@ -20,7 +21,6 @@ owner_files:
   - app/Http/Requests/Admin/UpdateSocialLinkRequest.php
   - app/Models/SocialLink.php
   - app/Models/HomepageFeaturedCourse.php
-  - app/Services/BlogRssService.php
   - app/Services/SidebarService.php
   - database/migrations/2026_03_25_000002_create_social_links_table.php
   - database/migrations/2026_07_05_000001_create_homepage_featured_courses_table.php
@@ -99,7 +99,7 @@ touchpoints:
     why: 銷售頁 `promo_html` 的 {alias} 展開（substitutePlaceholders），與教室頁共用同一個服務
   - file: app/Models/SiteSetting.php
     owner: 000-platform-core
-    why: hero/RSS/SNS/側欄排序/內容分類等設定的 key-value 存取（get/getMany/set）
+    why: hero/SNS/側欄排序/內容分類等設定的 key-value 存取（get/getMany/set）
   - file: database/migrations/2026_03_25_000001_create_site_settings_table.php
     owner: 000-platform-core
     why: site_settings 為全站共用 key-value 表，本模組只使用其中的鍵，不擁有資料表
@@ -182,7 +182,7 @@ touchpoints:
 ## 目標
 
 給訪客的門面：首頁（hero、課程列表、分類篩選、右側欄 widget）與課程銷售頁；
-給管理員的首頁後台設定（hero / SNS / RSS / 精選課程 / 側欄排序 / 內容分類）；
+給管理員的首頁後台設定（hero / SNS / 精選課程 / 側欄排序 / 內容分類）；
 以及行銷追蹤（全站 UTM/流量捕捉 → 課程漏斗分析與訂單來源統計頁）。
 
 ## User Stories
@@ -244,16 +244,26 @@ touchpoints:
 - [x] 全域開關關閉或無任何連結時，首頁 SNS 區塊整個隱藏（不留空卡片）
 - [x] 同平台可重複新增（platform 僅決定 icon）；URL 需含 protocol，否則驗證錯誤
 - [x] 所有社群連結新分頁開啟
-- [x] `HomepageSettingsSeeder` 播種六筆預設連結與 hero/RSS 預設值，未設定前首頁即可正常渲染
+- [x] `HomepageSettingsSeeder` 播種六筆預設連結與 hero 預設值，未設定前首頁即可正常渲染
 
-### User Story 5 - 部落格 RSS 近期文章 (Priority: P2)
+### User Story 5 - 部落格 RSS 近期文章（已移除） (Priority: P2)
 
-管理員在後台設定部落格 RSS URL；首頁側欄「近期文章」顯示最新 5 篇（標題＋日期，新分頁開啟）。
+**2026-09-25 移除。** 這條故事是「從外部部落格的 RSS 抓最新 5 篇放進首頁側欄」——
+站台還沒有自己的文章時的過渡方案。012 電子報上線後，側欄的「近期文章」改讀本站
+`Post::published()`（見 `SidebarService`），這條路徑就再也沒有人走。
 
-**驗收**：
-- [x] `BlogRssService::getArticles($url)` 取最新 5 篇，快取 1 小時（key: `blog_articles_` + md5(url)），HTTP timeout 5 秒
-- [x] RSS 抓取失敗/格式錯誤時回空陣列並記 log warning，首頁隱藏該區塊，不會出錯或阻塞頁面
-- [x] RSS URL 清空儲存後區塊完全隱藏；URL 變更時舊 cache key 立即清除，下次載入抓新 feed
+留下來的是三樣沒有消費者的東西：`site_settings.blog_rss_url`、`BlogRssService`
+（零呼叫者）、以及後台「首頁設定」的那個輸入框——而那個框的說明文字
+「留空則隱藏『近期文章』區塊」**早就不是真的**，清空它什麼也不會發生。
+一個沒有人讀的設定比沒有設定更糟，因為下一個打開表格的人得自己證明這件事。
+
+**移除範圍**：`BlogRssService.php` 整支、`blog_rss_url` 的表單欄位／驗證規則／儲存、
+seeder 的預設值、`Cache::forget('blog_articles_…')` 與隨之無用的 `Cache` import，
+並以 `2026_09_25_000002_drop_blog_rss_url_setting` 刪掉既有安裝的殘列。
+
+**MUST NOT 一併移除**：側欄的「近期文章」widget、`BlogArticles.vue`、
+`SidebarService` 的 `blogArticles`、`sidebar_widget_order` 的 `blog` 選項。
+那個區塊是活的，只是換了資料來源；SNS 連結取代不了本站最新文章的側欄入口。
 
 ### User Story 6 - 精選課程與側欄排序 (Priority: P2)
 
@@ -596,7 +606,7 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 ## Requirements
 
 - **FR-001**: `sns_section_enabled`、`content_filter_enabled` 等布林設定以 `"0"/"1"` 文字存於 site_settings，讀取時 MUST `(bool)(int)` 轉型（PHP `(bool)"0"` 為 true）。
-- **FR-002**: 首頁與銷售頁對訪客 MUST 無錯誤降級：RSS 失敗、精選課程失聯、hero 未設定，皆隱藏區塊而非出錯。
+- **FR-002**: 首頁與銷售頁對訪客 MUST 無錯誤降級：精選課程失聯、hero 未設定，皆隱藏區塊而非出錯。（原本也涵蓋 RSS 抓取失敗，US5 移除後不再適用）
 - **FR-003**: 來源捕捉 MUST 由全站 middleware 進行、以 cookie 傳遞（首次 + 最後觸點各 7 天）；訂單歸因用最後觸點（既有 orders 欄位語意不變）。（原「僅銷售頁 + session + 只記轉換」設計由 US10 取代）
 - **FR-004**: referrer 黑名單 MUST 含自站網域與金流回跳網域（payuni.com.tw、newebpay.com），避免付款回跳覆蓋真實來源。
 - **FR-005**: 課程路由綁定 MUST 先以 slug 再 fallback id 解析（`Course::resolveRouteBinding`），舊 id 連結不失效。
@@ -852,7 +862,7 @@ US20 把 hero 的表單綁在一門 drip 連鎖課上：訪客留下 Email 換�
 - `courses.promo_html` / `courses.promo_delay_seconds`（US12 新欄，與 US11 同一支 migration）— 銷售頁延遲促銷區塊內容與等待秒數；`promo_delay_seconds` null=停用整塊、0=立即顯示。與 `lessons` 的同名欄位語意平行但互不相干（一個在銷售頁、一個在教室）。
 - `social_links` — 首頁 SNS 連結；`platform` 限六平台枚舉字串（僅決定 icon，可重複）、`sort_order` 建立時 max+1，無啟用欄位（存在即顯示，整區顯隱由 `sns_section_enabled` 控制）。
 - `homepage_featured_courses` — 首頁精選課程；`course_id` FK cascadeOnDelete、`blurb` varchar(500) nullable（空則前台 fallback 課程名）、`sort_order` 拖曳重排時整批改寫。
-- site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`blog_rss_url`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
+- site_settings 使用鍵（表本身屬 000-platform-core）：`hero_title` / `hero_description` / `hero_button_label` / `hero_button_url` / `hero_banner_path`、`sns_section_enabled`、`sns_profile_image_path`（public disk 路徑，nullable）、`sns_profile_intro`（≤500 字，nullable）、`sidebar_widget_order`（JSON array）、`content_categories`（JSON，≤3 組 label+slug）、`content_filter_enabled`。
 - **US9 無 migration**：`sns_profile_image_path` / `sns_profile_intro` 為新增 KV 鍵，沿用既有 site_settings 表。
 - **US20 無結構變更，一支 data migration**：`2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php` —— 先以 `Storage::disk('public')->delete()` 清掉 `sns_profile_image_path` 指向的檔案，再 `SiteSetting::whereIn('key', [...])->delete()` 刪除 `hero_button_label` / `hero_button_url` / `sns_profile_image_path` 三列；`down()` 為 no-op（FR-062 / D57）。
   **US20 後的 hero 相關 KV 鍵**：`hero_title`、`hero_subtitle`（新增）、`hero_description`、`hero_banner_path`（改作右欄形象圖，寬度下限驗證移除）、`hero_claim_course_id`（新增，drip 課 id 字串，空 = 停用領取區）。
@@ -1157,6 +1167,9 @@ Phase 4 — 驗證
 
 
 ## 進度日誌
+
+- 2026-09-25: 移除 US5 部落格 RSS 近期文章 —— 業主看到後台「Blog RSS 網址」欄位認為 SNS 連結可以取代它。查證後確認欄位確實是死的，但**死的方式跟業主想的不一樣**：側欄的「近期文章」widget 並沒有被 SNS 連結取代，它在 012 電子報上線後就改讀本站 `Post::published()`（`SidebarService`），外部 RSS 這條路徑從此沒有人走。`BlogRssService` 經全庫搜尋確認**零呼叫者**，`blog_rss_url` 只有後台表單自己讀寫，而欄位說明「留空則隱藏『近期文章』區塊」早就是假的。
+  因此範圍縮到「只刪 RSS 欄位與 service」並向業主確認過：widget、`BlogArticles.vue`、`SidebarService` 的 `blogArticles`、`sidebar_widget_order` 的 `blog` 全部保留，前台畫面零變化。刪掉 `BlogRssService.php` 整支、表單欄位／驗證／儲存、seeder 預設值、`Cache::forget('blog_articles_…')` 與隨之無用的 `Cache` import，並加 migration 刪掉既有安裝的殘列（沒有人讀的設定比沒有設定更糟，留著只會讓下一個人再查一次）。全庫複驗無殘留引用，**1026 passed（4490 assertions）**、`npm run build` exit 0、本機 `migrate` DONE。
 
 - 2026-09-25: 「站台資訊」區塊加上網站圖示與 favicon 上傳（US22 / 000 US12）— 兩個檔案欄位掛在同一個儲存鈕上，表單改送 `FormData`；各自有預覽與刪除。favicon 的 hint 特別寫明只要一張正方形 PNG，其餘尺寸與 `.ico` 由系統產生。
 

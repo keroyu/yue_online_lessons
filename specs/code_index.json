@@ -154,7 +154,6 @@
       "002.us-21",
       "002.us-22",
       "002.us-3",
-      "002.us-5",
       "002.us-7",
       "002.us-9"
     ],
@@ -302,7 +301,6 @@
       "002.us-1",
       "002.us-20",
       "002.us-21",
-      "002.us-5",
       "002.us-9",
       "012.us-2",
       "012.us-3"
@@ -880,9 +878,6 @@
       "003.us-12",
       "003.us-7"
     ],
-    "app/Services/BlogRssService.php": [
-      "002.us-5"
-    ],
     "app/Services/BroadcastService.php": [
       "012.us-5",
       "012.us-6"
@@ -1459,6 +1454,9 @@
     "database/migrations/2026_09_25_000001_install_site_identity_settings.php": [
       "000.us-12"
     ],
+    "database/migrations/2026_09_25_000002_drop_blog_rss_url_setting.php": [
+      "002.us-5"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1609,7 +1607,6 @@
       "008.us-5"
     ],
     "resources/js/Components/BlogArticles.vue": [
-      "002.us-5",
       "012.us-3"
     ],
     "resources/js/Components/Cart/CouponInput.vue": [

@@ -12,7 +12,6 @@ use App\Services\SiteIconService;
 use App\Services\ThemeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -88,7 +87,7 @@ class HomepageSettingController extends Controller
         $settings = SiteSetting::getMany([
             'hero_title', 'hero_subtitle', 'hero_description',
             'hero_banner_path', 'hero_promo_course_id',
-            'blog_rss_url', 'sns_section_enabled', 'sns_profile_intro',
+            'sns_section_enabled', 'sns_profile_intro',
         ]);
 
         $bannerPath = $settings->get('hero_banner_path');
@@ -100,7 +99,6 @@ class HomepageSettingController extends Controller
                 'hero_description'    => $settings->get('hero_description'),
                 'hero_banner_url'     => $bannerPath ? Storage::url($bannerPath) : null,
                 'hero_promo_course_id' => $settings->get('hero_promo_course_id') ?: null,
-                'blog_rss_url'        => $settings->get('blog_rss_url'),
                 // Cast to bool: stored as "0"/"1" text — (bool)"0" is true in PHP
                 'sns_section_enabled' => (bool) (int) $settings->get('sns_section_enabled', '0'),
                 'sns_profile_intro'   => $settings->get('sns_profile_intro'),
@@ -310,19 +308,12 @@ class HomepageSettingController extends Controller
             SiteSetting::set('hero_banner_path', $path);
         }
 
-        $oldRssUrl = SiteSetting::get('blog_rss_url', '');
-        $newRssUrl = $request->input('blog_rss_url', '');
-        if ($oldRssUrl !== $newRssUrl && $oldRssUrl) {
-            Cache::forget('blog_articles_' . md5($oldRssUrl));
-        }
-
         SiteSetting::set('hero_title', $request->input('hero_title'));
         SiteSetting::set('hero_subtitle', $request->input('hero_subtitle'));
         SiteSetting::set('hero_description', $request->input('hero_description'));
         // Empty string, not null: the 📌 line is off when this is blank, and a
         // stored '' reads back the same on every driver.
         SiteSetting::set('hero_promo_course_id', (string) $request->input('hero_promo_course_id', ''));
-        SiteSetting::set('blog_rss_url', $newRssUrl);
         SiteSetting::set('sns_section_enabled', $request->boolean('sns_section_enabled') ? '1' : '0');
         SiteSetting::set('sns_profile_intro', $request->input('sns_profile_intro'));
 

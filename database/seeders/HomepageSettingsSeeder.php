@@ -18,7 +18,6 @@ class HomepageSettingsSeeder extends Seeder
             // Empty = no 📌 line; pointing it at a course is an editorial
             // decision, not something a fresh install should guess (FR-070).
             'hero_promo_course_id' => '',
-            'blog_rss_url'         => 'https://getwhealthy.substack.com/feed',
             'sns_section_enabled'  => '1',
         ];
 

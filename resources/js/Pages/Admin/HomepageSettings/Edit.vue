@@ -140,7 +140,6 @@ const heroForm = ref({
   hero_subtitle:        props.settings.hero_subtitle ?? '',
   hero_description:     props.settings.hero_description ?? '',
   hero_promo_course_id: props.settings.hero_promo_course_id ?? '',
-  blog_rss_url:         props.settings.blog_rss_url ?? '',
   sns_section_enabled:  props.settings.sns_section_enabled ? '1' : '0',
   sns_profile_intro:    props.settings.sns_profile_intro ?? '',
   hero_banner:          null,
@@ -175,7 +174,6 @@ function saveHeroSettings() {
   formData.append('hero_subtitle',        heroForm.value.hero_subtitle)
   formData.append('hero_description',     heroForm.value.hero_description)
   formData.append('hero_promo_course_id', heroForm.value.hero_promo_course_id ?? '')
-  formData.append('blog_rss_url',         heroForm.value.blog_rss_url)
   formData.append('sns_section_enabled',  heroForm.value.sns_section_enabled)
   formData.append('sns_profile_intro',    heroForm.value.sns_profile_intro)
   if (heroForm.value.hero_banner) {
@@ -586,20 +584,6 @@ function saveCategories() {
             <span class="ml-auto text-xs" :class="heroForm.sns_profile_intro.length > 500 ? 'text-red-600' : 'text-gray-400'">{{ heroForm.sns_profile_intro.length }} / 500</span>
           </div>
         </div>
-      </div>
-
-      <!-- Blog RSS URL -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Blog RSS 網址</label>
-        <input
-          v-model="heroForm.blog_rss_url"
-          type="url"
-          maxlength="500"
-          placeholder="https://example.com/feed"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
-        />
-        <p class="mt-1 text-xs text-gray-400">留空則隱藏「近期文章」區塊</p>
-        <p v-if="heroErrors.blog_rss_url" class="mt-1 text-sm text-red-600">{{ heroErrors.blog_rss_url }}</p>
       </div>
 
       <div class="pt-2">

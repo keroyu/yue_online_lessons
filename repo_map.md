@@ -193,7 +193,6 @@ main_files:
 - app/Models/Purchase.php
 - app/Models/ShortLink.php
 - app/Models/SocialLink.php
-- app/Services/BlogRssService.php
 - app/Services/CheckoutService.php
 - app/Services/DripService.php
 - app/Services/EmailLinkTagger.php
@@ -216,13 +215,13 @@ main_files:
 - database/migrations/2026_09_11_000002_add_is_visible_to_homepage_featured_courses_table.php
 - database/migrations/2026_09_12_000001_retire_hero_button_and_sns_profile_image_settings.php
 - database/migrations/2026_09_13_000001_rename_hero_claim_course_id_setting.php
+- database/migrations/2026_09_25_000002_drop_blog_rss_url_setting.php
 - database/seeders/HomepageSettingsSeeder.php
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/Analytics/TrafficTab.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/LessonForm.vue
-- resources/js/Components/BlogArticles.vue
 - resources/js/Components/Course/FreeSuccessBlock.vue
 - resources/js/Components/Course/PriceDisplay.vue
 - resources/js/Components/Course/SalesPromoBlock.vue

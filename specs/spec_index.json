@@ -1292,11 +1292,11 @@
     {
       "id": "002.us-5",
       "module": "002-storefront",
-      "title": "部落格 RSS 近期文章",
-      "summary": "後台設定 RSS URL，首頁側欄顯示最新 5 篇文章，快取 1 小時、失敗降級隱藏",
-      "heading": "### User Story 5 - 部落格 RSS 近期文章 (Priority: P2)",
+      "title": "部落格 RSS 近期文章（已移除）",
+      "summary": "已於 2026-09-25 移除。側欄「近期文章」在 012 上線後改讀本站 Post::published()，外部 RSS 路徑、blog_rss_url 設定與 BlogRssService 全無消費者，故一併刪除；widget 本身保留。",
+      "heading": "### User Story 5 - 部落格 RSS 近期文章（已移除） (Priority: P2)",
       "file": "specs/002-storefront/spec.md",
-      "anchor": "user-story-5---部落格-rss-近期文章-priority-p2",
+      "anchor": "user-story-5---部落格-rss-近期文章（已移除）-priority-p2",
       "keywords": [
         "RSS",
         "blog",
@@ -1309,12 +1309,9 @@
         "BlogRssService"
       ],
       "code_files": [
-        "app/Services/BlogRssService.php",
-        "resources/js/Components/BlogArticles.vue",
-        "app/Http/Controllers/Admin/HomepageSettingController.php",
-        "app/Http/Controllers/HomeController.php"
+        "database/migrations/2026_09_25_000002_drop_blog_rss_url_setting.php"
       ],
-      "status": "implemented"
+      "status": "removed"
     },
     {
       "id": "002.us-6",

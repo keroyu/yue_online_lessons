@@ -25,7 +25,6 @@ class UpdateHomepageSettingRequest extends FormRequest
             // no longer tied to it (FR-070). Still a bare reference with no
             // foreign key behind it, so every read re-checks.
             'hero_promo_course_id' => ['nullable', 'integer', 'exists:courses,id'],
-            'blog_rss_url'        => ['nullable', 'url', 'max:500'],
             'sns_section_enabled' => ['required', 'boolean'],
             'sns_profile_intro'   => ['nullable', 'string', 'max:500'],
         ];
