@@ -1234,7 +1234,7 @@
       "id": "002.us-23",
       "module": "002-storefront",
       "title": "首頁左右欄區塊排序與自訂 HTML widget",
-      "summary": "首頁左右兩欄的組成改為資料：homepage_widgets 單表承載內建與自訂 widget，兩欄各自拖曳排序、每塊可開關顯示；管理員可新增/編輯/刪除自訂 HTML 區塊，編輯時附目前配色方案的 CSS 變數色票提示。",
+      "summary": "首頁左右兩欄的組成改為資料：homepage_widgets 單表承載內建與自訂 widget，兩欄各自拖曳排序、每塊可開關顯示；管理員可新增/編輯/刪除自訂 HTML 區塊，編輯時附目前配色方案的 CSS 變數色票提示；色票另提供一鍵複製整組配色（FR-091）。",
       "heading": "### User Story 23 - 首頁左右欄區塊排序與自訂 HTML widget (Priority: P2)",
       "file": "specs/002-storefront/spec.md",
       "anchor": "user-story-23---首頁左右欄區塊排序與自訂-html-widget-priority-p2",
@@ -1268,7 +1268,11 @@
         "精選推薦",
         "近期文章",
         "sidebar_widget_order",
-        "sns_section_enabled"
+        "sns_section_enabled",
+        "複製整組配色",
+        "copy palette",
+        "AI prompt",
+        "色票複製"
       ],
       "code_files": [
         "database/migrations/2026_09_26_000001_create_homepage_widgets_table.php",

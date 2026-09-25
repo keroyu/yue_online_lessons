@@ -642,6 +642,7 @@ US6 只讓右欄三個 widget 可以拖曳；左欄（熱門文章 → 內容分
 - [x] 標題留空時只渲染 HTML；有填時以 `SectionHeader` 呈現，與內建區塊視覺一致（沿用 US6 既有規則）
 - [x] HTML 欄位旁有色票提示：列出目前配色方案的七個角色（`cream`/`navy`/`teal`/`gold`/`gold_dark`/`orange`/`red`），顯示名稱與 hex，點擊複製 `var(--color-brand-navy)` 這種 CSS 變數字串（FR-079）
 - [x] 換配色方案後，用 CSS 變數寫的自訂區塊跟著變色，不需要回來改 HTML
+- [x] 色票提示另有一顆「複製整組配色」，一次複製七個角色的「名稱／CSS 變數／目前 hex」三欄，前面帶一行給 AI 的指示句（FR-091）
 - [x] 右欄的自訂區塊與內建區塊一樣，同時出現在首頁與 `/blog/{slug}`（FR-082）
 - [x] 非管理員送出 MUST 被 `AdminMiddleware` 導回首頁且資料不變（本模組既有慣例：斷言導向與「沒寫進去」）
 
@@ -779,6 +780,10 @@ US23 把「哪些區塊、什麼順序」變成資料，但三個內建區塊的
 - **FR-087**: `sns_profile_intro` MUST 移出 hero 表單，改走 `POST /admin/homepage/sns-profile`（body `intro` 為 `nullable|string|max:500`，inline `validate()`，比照同頁的 `updateContentCategories`）。`UpdateHomepageSettingRequest` 的規則、`update()` 的 `SiteSetting::set` 與前端 FormData 欄位 MUST 一併移除。理由與 FR-051／US22 的端點拆分同源：hero 那條是繞著圖片建的 multipart 請求，站長介紹沒有理由在每次換 banner 時被重送一次，而它現在連顯示位置都不在 hero 裡。
 - **FR-088**: 三個 modal MUST 共用一個 `AdminModal.vue` 外殼（backdrop、面板、標題列、✕、Escape、背景鎖捲動）。站上已有 16 個各自手寫 `fixed inset-0` 的 modal，且已經漂移出兩種背景色寫法（`bg-black/50` 與 `bg-gray-500 bg-opacity-75`）；再加三份手寫的只會讓第三種出現。**MUST NOT 回頭改寫既有那 16 個** —— 那是另一件事，混進來會讓這次的改動無法單獨驗證。
 - **FR-089**: Modal MUST 可用 Escape、點背景、右上角 ✕ 關閉，且關閉 MUST NOT 攔截未儲存的草稿。目前離開頁面就會丟掉草稿，modal 維持同一條規則；為此單獨做一套 dirty 判斷，會讓同一份草稿在頁面上與 modal 裡有兩種命運。
+- **FR-091**: 色票提示 MUST 另有一顆「複製整組配色」，把七個角色一次複製成「名稱／`var(--color-brand-*)`／目前 hex」三欄的純文字，**前面 MUST 帶一行指示句**說明要用變數而不是 hex。這條是 FR-079 的延伸而非例外：逐個複製變數適合「我要改這一行的顏色」，而這顆按鈕服務的是另一件事 —— 把整組配色交給 AI 生成一整塊 HTML，那時 AI 需要一次看到全部七個角色才選得出對比與層次。
+  hex **MUST 一起附上**（這點與 FR-079「hex 不提供複製」不同，且是刻意的）：AI 要靠實際色值判斷深淺與對比，只給變數名它會瞎猜。但指示句 MUST 明講「不要直接寫 hex」—— 沒有這句話，AI 幾乎一定回傳寫死 hex 的 HTML，那塊區塊就永遠停在當下這組配色，而一鍵換配色正是 000 US14 存在的理由。
+  格式 MUST 是**對齊的純文字**，MUST NOT 是 JSON 或 `:root { }` 區塊：前者讓人貼進對話框前看不懂自己貼了什麼，後者會讓 AI 以為要把那段 `:root` 也寫進產出，而站上已經有了（`ThemeService::cssVariables()` 注在 blade head）。
+
 - **FR-090**: Modal 面板在手機寬度 MUST 為滿版留邊（`max-w-2xl w-full mx-4`），**內容區自己捲動**而不是整個面板長出畫面：精選課程清單可以有十幾列，儲存鈕被推到視窗外等於那個 modal 在手機上不能用。
 
 
@@ -1380,7 +1385,17 @@ Phase 4 — 驗證
 - [ ] T013 使用者實測：三個 modal 各開一次，在裡面儲存 → modal 不關且數字/文字更新；Escape 與點背景可關；手機寬度下精選課程清單可捲動且儲存鈕看得到；確認 `Edit.vue` 行數確實降下來
 
 
+## Tasks（色票一鍵複製整組配色 / FR-091）
+
+- [x] T001 `ColorTokenHint.vue`：加 `schemeBlob` computed（指示句 + 七列對齊的「名稱／變數／hex」）與「複製整組配色」按鈕，沿用既有 `copy()` 的 try/catch 與 1.5 秒「已複製」回饋 in `resources/js/Components/Admin/ColorTokenHint.vue`
+- [x] T002 對齊用 `padEnd` 以**顯示寬度**計算，中文字算兩格：`'頁面底色'.padEnd(12)` 會因為中文字寬而排不齊，貼進等寬字型的對話框一眼就看得出來 in `resources/js/Components/Admin/ColorTokenHint.vue`
+- [x] T003 `npm run build` exit 0 ＋ 後台實機：按下按鈕後貼到文字編輯器，確認七列對齊、指示句帶到、hex 與目前配色一致；切一次配色方案再複製一次，確認內容跟著換
+
+
 ## 進度日誌
+
+- 2026-09-25: FR-091 完成。色票提示加一顆「複製整組配色」，複製出「一行給 AI 的指示句 ＋ 名稱／CSS 變數／目前 hex 三欄對齊純文字」。對齊用顯示寬度計算（CJK 算兩格）而非 `padEnd`，否則中文與 ASCII 混排的標籤在等寬字型下會歪掉。hex 這次一起附上（與 FR-079「hex 不給複製」刻意不同）：AI 需要實際色值判斷對比，指示句負責擋掉它寫死 hex。逐個色票的點擊複製維持只給變數。實測：在後台開「新增自訂區塊」確認按鈕位置與 swatch 版面，並以頁面實際 props 重跑一次組字邏輯，輸出與預期逐字相符。全套 1048 passed、`npm run build` exit 0。
+  已知限制：自動化分頁 `document.hasFocus()` 為 false，`navigator.clipboard.writeText` 會丟 NotAllowedError（元件既有的 try/catch 靜默吞掉），所以「真的複製進剪貼簿」這一步只能由使用者在一般分頁確認。
 
 - 2026-09-25: US24 完成 T001–T012（T013 使用者實測待跑）。精選課程／SNS 連結／內容分類三張卡片改為「首頁區塊」清單對應列的「設定」modal，`Edit.vue` 837 → 450 行（與 FR-085 的預估一致）；站長介紹跟著搬進 SNS modal 並取得 `POST /admin/homepage/sns-profile`，`SnsProfileTest` 的兩條寫入測試由新的 `HomepageWidgetSettingsTest` 承接。新增共用外殼 `AdminModal.vue`（既有 16 個 modal 不回頭改）。實測抓到一個真 bug：backdrop 的 click handler 掛錯層——置中用的 flex 容器蓋在 backdrop 上且滿版，點面板旁邊命中的是它，所以掛在 backdrop 上的 handler 永遠不會觸發，改成在 flex 容器上 `@click.self`。另外注意：自動化瀏覽器分頁是 `visibilityState: hidden`，`requestAnimationFrame` 不會觸發，Vue `<Transition>` 因此整個停住——當時看起來像「Escape 關不掉」其實是這個，不是程式問題。全套 1048 passed、`npm run build` exit 0。
 
