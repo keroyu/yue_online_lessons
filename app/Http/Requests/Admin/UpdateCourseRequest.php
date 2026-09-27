@@ -81,6 +81,11 @@ class UpdateCourseRequest extends FormRequest
             'bundle_redeem_points' => ['nullable', 'integer', 'min:1'],
             'bundle_default_quantity' => ['nullable', 'integer', 'min:0'],
             'bundle_unlimited' => ['nullable', 'boolean'],
+            // Per-tier quantities ride with this form rather than having their
+            // own save button — the page promises one save (011 D145 revised).
+            'bundle_plans' => ['nullable', 'array'],
+            'bundle_plans.*.quantity' => ['nullable', 'integer', 'min:0'],
+            'bundle_plans.*.unlimited' => ['nullable', 'boolean'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB

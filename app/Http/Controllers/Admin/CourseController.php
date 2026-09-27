@@ -267,6 +267,10 @@ class CourseController extends Controller
         $dripDays = $data['drip_days'] ?? null;
         unset($data['drip_days']);
 
+        // Per-tier bundle settings live on course_plans, not on the course
+        $bundlePlans = $data['bundle_plans'] ?? [];
+        unset($data['bundle_plans']);
+
         // Handle thumbnail upload
         if ($request->hasFile('thumbnail')) {
             // Delete old thumbnail if exists
@@ -284,8 +288,11 @@ class CourseController extends Controller
             $data['drip_interval_days'] = null;
         }
 
-        DB::transaction(function () use ($course, $data, $targetCourseIds, $dripDays) {
+        DB::transaction(function () use ($course, $data, $targetCourseIds, $dripDays, $bundlePlans) {
             $course->update($data);
+
+            // One save for the whole yellow panel (011 D145 revised)
+            app(\App\Services\BundleCreditService::class)->syncPlanSettings($course, $bundlePlans);
 
             // Drip send schedule: write the per-lesson days, or wipe them when
             // the course is no longer a drip (010 US18)

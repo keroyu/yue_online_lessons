@@ -5213,7 +5213,8 @@
         "tests/Feature/HighTicket/CourseRosterTest.php",
         "resources/js/Pages/Admin/Courses/Edit.vue",
         "phpunit.xml",
-        "database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php"
+        "database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php",
+        "resources/js/Components/MemberDetailModal.vue"
       ],
       "status": "implemented"
     },

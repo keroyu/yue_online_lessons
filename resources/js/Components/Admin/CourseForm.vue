@@ -70,6 +70,14 @@ const form = useForm({
   bundle_redeem_points: props.course?.bundle_redeem_points || '',
   bundle_default_quantity: props.course?.bundle_default_quantity ?? 0,
   bundle_unlimited: props.course?.bundle_unlimited ?? false,
+  // Per-tier bundle settings ride with this form: the page says "填完按儲存即可",
+  // so the panel must not have save buttons of its own (011 D145 revised).
+  bundle_plans: Object.fromEntries(
+    (props.plans || []).map(plan => [plan.id, {
+      quantity: plan.bundle_quantity ?? 0,
+      unlimited: !!plan.bundle_unlimited,
+    }]),
+  ),
   original_price: props.course?.original_price || '',
   promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,

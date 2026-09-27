@@ -184,6 +184,34 @@ class BundleCreditService
     }
 
     /**
+     * Save each tier's bundle settings, posted with the course form (FR-202).
+     *
+     * Scoped to this course's own plans: the ids come from a form, and a plan id
+     * from another course must not be writable through it.
+     *
+     * @param  array<int|string, array{quantity?: mixed, unlimited?: mixed}>  $rows
+     */
+    public function syncPlanSettings(Course $course, array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $ownPlanIds = $course->plans()->pluck('id')->all();
+
+        foreach ($rows as $planId => $row) {
+            if (! in_array((int) $planId, $ownPlanIds, true)) {
+                continue;
+            }
+
+            CoursePlan::whereKey((int) $planId)->update([
+                'bundle_quantity' => max(0, (int) ($row['quantity'] ?? 0)),
+                'bundle_unlimited' => (bool) ($row['unlimited'] ?? false),
+            ]);
+        }
+    }
+
+    /**
      * Backfill credits for members who already hold the course (FR-219).
      *
      * The case this exists for: a course that had no perk gets one, and every

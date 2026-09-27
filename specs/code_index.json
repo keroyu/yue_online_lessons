@@ -1850,7 +1850,8 @@
       "008.us-2",
       "008.us-3",
       "008.us-9",
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "resources/js/Components/MyCourseCard.vue": [
       "003.us-1",

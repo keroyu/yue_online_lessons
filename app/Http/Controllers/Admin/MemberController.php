@@ -127,8 +127,10 @@ class MemberController extends Controller
             ->flip()
             ->toArray();
 
+        $credits = app(BundleCreditService::class);
+
         $courses = $courses
-            ->map(function ($purchase) use ($member, $progressMap) {
+            ->map(function ($purchase) use ($member, $progressMap, $credits) {
                 $course = $purchase->course;
                 // Tiered purchases only count their own lessons (011 FR-091).
                 $progress = $member->getCourseProgressSummary($course, $progressMap, $purchase->accessibleLessonIds());
@@ -152,6 +154,15 @@ class MemberController extends Controller
                     'total_lessons' => $progress['total_lessons'],
                     'completed_lessons' => $progress['completed_lessons'],
                     'progress_percent' => $progress['progress_percent'],
+                    // Bundle perk held through this purchase (011 US37 / FR-220).
+                    // Null when the course sells no perk, so the row renders as
+                    // it always did.
+                    'bundle' => $course->has_bundle ? [
+                        'name' => $course->bundle_name,
+                        'balance' => (int) $purchase->bundle_balance,
+                        'granted' => (int) $purchase->bundle_granted,
+                        'unlimited' => $credits->isUnlimitedFor($course, $purchase->plan),
+                    ] : null,
                 ];
             });
 

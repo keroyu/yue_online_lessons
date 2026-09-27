@@ -305,6 +305,39 @@ class BundleCreditTest extends TestCase
         $this->assertSame(0, $neverHad['granted']); // card hides the block
     }
 
+    public function test_member_detail_payload_carries_the_bundle_for_each_owned_course(): void
+    {
+        $course = $this->bundleCourse();
+        $limited = $this->plan($course, '入門版', 4);
+        $unlimitedPlan = $this->plan($course, '完整版', 0, 1, unlimited: true);
+        $onEntry = $this->member('entry@example.com');
+        $onFull = $this->member('full@example.com');
+        $this->service()->syncPlanGrant($this->purchase($onEntry, $course, $limited));
+        $this->service()->syncPlanGrant($this->purchase($onFull, $course, $unlimitedPlan));
+
+        $admin = $this->admin();
+
+        $entryBundle = $this->actingAs($admin)->getJson("/admin/members/{$onEntry->id}")
+            ->assertOk()->json('courses.0.bundle');
+        $fullBundle = $this->actingAs($admin)->getJson("/admin/members/{$onFull->id}")
+            ->assertOk()->json('courses.0.bundle');
+
+        $this->assertSame(['name' => '團體諮詢', 'balance' => 4, 'granted' => 4, 'unlimited' => false], $entryBundle);
+        $this->assertSame(['name' => '團體諮詢', 'balance' => 0, 'granted' => 0, 'unlimited' => true], $fullBundle);
+    }
+
+    public function test_member_detail_payload_omits_the_bundle_on_courses_without_one(): void
+    {
+        $course = $this->makeCourse('high_ticket');
+        $member = $this->member();
+        $this->purchase($member, $course);
+
+        $this->assertNull(
+            $this->actingAs($this->admin())->getJson("/admin/members/{$member->id}")
+                ->assertOk()->json('courses.0.bundle'),
+        );
+    }
+
     // ── the three grant entrances (FR-204) ────────────────────────────────
 
     public function test_converting_a_lead_grants_the_plans_credits(): void
@@ -572,30 +605,48 @@ class BundleCreditTest extends TestCase
         $this->assertSame('小組諮詢', $course->fresh()->bundle_name);
     }
 
-    public function test_plan_quantity_is_saved_through_the_existing_plan_endpoint(): void
+    public function test_the_whole_panel_saves_with_the_course_form(): void
     {
-        $course = $this->bundleCourse();
-        $plan = $this->plan($course, '完整方案', 0);
+        // The regression this pins: the panel used to have per-tier save buttons,
+        // so pressing one made the two fields above look saved when they were not
+        // (D145 revised). Everything now goes in one request.
+        $course = $this->makeCourse('high_ticket');
+        $entry = $this->plan($course, '入門版', 0);
+        $full = $this->plan($course, '完整版', 0);
 
         $this->actingAs($this->admin())
-            ->put("/admin/plans/{$plan->id}", ['name' => '完整方案', 'price' => 30000, 'bundle_quantity' => 5])
+            ->put("/admin/courses/{$course->id}", $this->coursePayload($course, [
+                'bundle_name' => '團體諮詢',
+                'bundle_redeem_points' => 300,
+                'bundle_plans' => [
+                    $entry->id => ['quantity' => 4, 'unlimited' => false],
+                    $full->id => ['quantity' => 0, 'unlimited' => true],
+                ],
+            ]))
+            ->assertSessionHasNoErrors()
             ->assertRedirect();
 
-        $this->assertSame(5, $plan->fresh()->bundle_quantity);
+        $course->refresh();
+        $this->assertSame('團體諮詢', $course->bundle_name);
+        $this->assertSame(300, $course->bundle_redeem_points);
+        $this->assertSame(4, $entry->fresh()->bundle_quantity);
+        $this->assertTrue($full->fresh()->bundle_unlimited);
     }
 
-    public function test_unlimited_flag_is_saved_through_the_existing_plan_endpoint(): void
+    public function test_plan_rows_belonging_to_another_course_are_ignored(): void
     {
         $course = $this->bundleCourse();
-        $plan = $this->plan($course, '完整方案', 0);
+        $other = $this->bundleCourse();
+        $foreign = $this->plan($other, '別人的方案', 0);
 
         $this->actingAs($this->admin())
-            ->put("/admin/plans/{$plan->id}", [
-                'name' => '完整方案', 'price' => 30000, 'bundle_quantity' => 0, 'bundle_unlimited' => true,
-            ])
+            ->put("/admin/courses/{$course->id}", $this->coursePayload($course, [
+                'bundle_plans' => [$foreign->id => ['quantity' => 9, 'unlimited' => true]],
+            ]))
             ->assertRedirect();
 
-        $this->assertTrue($plan->fresh()->bundle_unlimited);
+        $this->assertSame(0, $foreign->fresh()->bundle_quantity);
+        $this->assertFalse($foreign->fresh()->bundle_unlimited);
     }
 
     /** The course form posts every field it holds; only the overrides differ. */

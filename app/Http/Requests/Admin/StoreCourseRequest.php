@@ -64,6 +64,12 @@ class StoreCourseRequest extends FormRequest
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'price' => ['required_unless:course_type,drip', 'numeric', 'min:0'],
             'redeem_points' => ['nullable', 'integer', 'min:0'],
+            // Bundle perk (011 US37). A brand-new course has no plans yet, so
+            // only the course-level fields apply here.
+            'bundle_name' => ['nullable', 'string', 'max:50'],
+            'bundle_redeem_points' => ['nullable', 'integer', 'min:1'],
+            'bundle_default_quantity' => ['nullable', 'integer', 'min:0'],
+            'bundle_unlimited' => ['nullable', 'boolean'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date', 'after:now'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB

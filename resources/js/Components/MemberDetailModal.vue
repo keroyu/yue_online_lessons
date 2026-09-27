@@ -587,6 +587,28 @@ const handleBackdropClick = (e) => {
                               {{ course.acquisition_type === 'paid' ? '購買於' : '取得於' }} {{ formatDate(course.purchased_at) }}
                             </p>
 
+                            <!-- Bundle perk held on this purchase (011 US37 / FR-220) -->
+                            <div v-if="course.bundle" class="mt-1.5 flex items-center gap-2">
+                              <span class="text-xs text-gray-500">{{ course.bundle.name }}</span>
+                              <span
+                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
+                                :class="course.bundle.unlimited
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : (course.bundle.balance > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-600')"
+                              >
+                                {{ course.bundle.unlimited ? '無限次' : `剩 ${course.bundle.balance} 次` }}
+                              </span>
+                              <!-- Granted 0 with no balance means this member predates
+                                   the perk — worth saying so rather than showing a
+                                   bare 0 (FR-218 / D149). -->
+                              <span
+                                v-if="!course.bundle.unlimited && course.bundle.granted === 0 && course.bundle.balance === 0"
+                                class="text-xs text-gray-400"
+                              >
+                                （尚未取得，可在課程的學員名單批次補發）
+                              </span>
+                            </div>
+
                             <!-- Tier (011 US21); absent for courses without plans -->
                             <div v-if="course.available_plans && course.available_plans.length > 0" class="mt-1.5">
                               <div v-if="planEditingCourseId !== course.id" class="flex items-center gap-2">
