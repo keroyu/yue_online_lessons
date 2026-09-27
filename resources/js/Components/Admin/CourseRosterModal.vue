@@ -28,6 +28,8 @@ const copied = ref(false)
 const actionResult = ref('')
 const consuming = ref(false)
 const confirmingConsume = ref(false)
+const granting = ref(false)
+const confirmingGrant = ref(false)
 
 const hasBundle = computed(() => !!props.course?.has_bundle)
 const bundleName = computed(() => props.course?.bundle_name || '福利')
@@ -73,6 +75,7 @@ watch(() => props.open, (isOpen) => {
   withCredit.value = false
   selected.value = []
   confirmingConsume.value = false
+  confirmingGrant.value = false
   load()
 })
 
@@ -91,6 +94,24 @@ const copyEmails = async () => {
   }
 }
 
+// Backfill for students who predate the perk (FR-219). Idempotent server side,
+// so the confirm text can promise that a second press is harmless.
+const grant = async () => {
+  granting.value = true
+  try {
+    const { data } = await axios.post(`/admin/courses/${props.course.id}/bundle/grant`, {
+      user_ids: selected.value,
+    })
+    actionResult.value = `已補發 ${data.granted} 位，${data.unchanged} 位未變動`
+    await load()
+  } catch (e) {
+    actionResult.value = e.response?.data?.message || '補發失敗，請稍後再試'
+  } finally {
+    granting.value = false
+    confirmingGrant.value = false
+  }
+}
+
 const consume = async () => {
   consuming.value = true
   try {
@@ -100,7 +121,12 @@ const consume = async () => {
     const skipped = data.skipped?.length
       ? `，${data.skipped.length} 位次數不足已跳過`
       : ''
-    actionResult.value = `已扣 ${data.consumed} 位${skipped}`
+    // Said out loud on purpose: unlimited members were not deducted, and a
+    // silent pass would read as "done" (011 FR-215).
+    const unlimited = data.unlimited?.length
+      ? `，其中 ${data.unlimited.length} 位為無限次未扣除`
+      : ''
+    actionResult.value = `已扣 ${data.consumed} 位${skipped}${unlimited}`
     selected.value = []
     await load()
   } catch (e) {
@@ -210,7 +236,8 @@ const consume = async () => {
               {{ student.plan_name || '—' }}
             </td>
             <td v-if="hasBundle" class="px-3 py-2 font-medium text-gray-900">
-              {{ student.bundle_balance }}
+              <span v-if="student.unlimited" class="text-emerald-700">無限</span>
+              <span v-else>{{ student.bundle_balance }}</span>
             </td>
           </tr>
           <tr v-if="!loading && students.length === 0">
@@ -244,6 +271,38 @@ const consume = async () => {
       </button>
 
       <template v-if="hasBundle">
+        <button
+          v-if="!confirmingGrant"
+          type="button"
+          :disabled="selected.length === 0"
+          class="cursor-pointer rounded-lg border border-emerald-600 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+          title="把所選學員的次數補到其方案的預設值；已領過的人不會多拿"
+          @click="confirmingGrant = true"
+        >
+          補發至方案預設次數
+        </button>
+        <div v-else class="flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-2">
+          <span class="text-sm text-emerald-900">
+            把 {{ selected.length }} 位學員的{{ bundleName }}補到方案預設次數？已領過的人不會多拿。
+          </span>
+          <button
+            type="button"
+            :disabled="granting"
+            class="cursor-pointer rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            @click="grant"
+          >
+            {{ granting ? '處理中…' : '確認補發' }}
+          </button>
+          <button
+            type="button"
+            :disabled="granting"
+            class="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50"
+            @click="confirmingGrant = false"
+          >
+            取消
+          </button>
+        </div>
+
         <button
           v-if="!confirmingConsume"
           type="button"

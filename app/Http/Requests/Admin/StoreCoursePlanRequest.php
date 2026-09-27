@@ -21,6 +21,9 @@ class StoreCoursePlanRequest extends FormRequest
             // Bundle credits this tier grants on a sale (011 US37 / FR-202).
             // Edited on the course settings page, saved through this endpoint.
             'bundle_quantity' => ['nullable', 'integer', 'min:0'],
+            // Uncapped perk for this tier (011 US37 / FR-213); when true the
+            // quantity above is ignored everywhere.
+            'bundle_unlimited' => ['nullable', 'boolean'],
         ];
     }
 

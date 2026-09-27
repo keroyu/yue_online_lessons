@@ -51,6 +51,31 @@ class BundleCreditService
     }
 
     /**
+     * Whether this course/plan combination grants the perk without counting
+     * (011 FR-213).
+     *
+     * Read from the tier every time, never snapshotted onto the purchase: a
+     * quantity is a batch already handed over, but "unlimited" is a standing
+     * entitlement, so flipping a tier covers everyone already holding it
+     * without reconversion (D148).
+     *
+     * The course-level flag is the no-plans fallback only, exactly like
+     * bundle_default_quantity.
+     */
+    public function isUnlimitedFor(Course $course, ?CoursePlan $plan): bool
+    {
+        if (! $course->has_bundle) {
+            return false;
+        }
+
+        if ($plan) {
+            return (bool) $plan->bundle_unlimited;
+        }
+
+        return $course->plans()->exists() ? false : (bool) $course->bundle_unlimited;
+    }
+
+    /**
      * Top the purchase up to what its plan owes it (FR-203).
      *
      * One rule answers both cases: re-granting the same plan is a no-op
@@ -68,6 +93,13 @@ class BundleCreditService
         $course = $purchase->course;
 
         if (! $course || ! $course->has_bundle) {
+            return 0;
+        }
+
+        // Unlimited tiers have no number to reconcile, so both columns stay at
+        // zero — and because the flag is not snapshotted, switching back to a
+        // limited tier later grants that tier in full (FR-214).
+        if ($this->isUnlimitedFor($course, $purchase->plan)) {
             return 0;
         }
 
@@ -95,25 +127,38 @@ class BundleCreditService
      * reported rather than failing the batch — the admin has already sent the
      * invitations by the time they press this.
      *
+     * Unlimited members are reported separately rather than silently passed
+     * over: there is nothing to spend, but the admin pressing this must be told
+     * so, or the result reads as "deducted" (FR-215).
+     *
      * @param  array<int>  $userIds
-     * @return array{consumed: int, skipped: array<string>}
+     * @return array{consumed: int, skipped: array<string>, unlimited: array<string>}
      */
     public function consume(Course $course, array $userIds, int $quantity = 1): array
     {
         if ($userIds === [] || $quantity < 1) {
-            return ['consumed' => 0, 'skipped' => []];
+            return ['consumed' => 0, 'skipped' => [], 'unlimited' => []];
         }
 
         $purchases = Purchase::where('course_id', $course->id)
             ->whereIn('user_id', $userIds)
             ->paidStatus()
-            ->with('user:id,email')
+            ->with(['user:id,email', 'plan'])
             ->get();
 
         $consumed = 0;
         $skipped = [];
+        $unlimited = [];
 
         foreach ($purchases as $purchase) {
+            $email = $purchase->user?->email ?? $purchase->buyer_email;
+
+            if ($this->isUnlimitedFor($course, $purchase->plan)) {
+                $unlimited[] = $email;
+
+                continue;
+            }
+
             // Guarded UPDATE, not decrement-after-read: the balance can never
             // go below zero even if this list is stale (FR-205).
             $affected = Purchase::whereKey($purchase->id)
@@ -123,7 +168,7 @@ class BundleCreditService
             if ($affected > 0) {
                 $consumed++;
             } else {
-                $skipped[] = $purchase->user?->email ?? $purchase->buyer_email;
+                $skipped[] = $email;
             }
         }
 
@@ -132,9 +177,54 @@ class BundleCreditService
             'requested' => count($userIds),
             'consumed' => $consumed,
             'skipped' => count($skipped),
+            'unlimited' => count($unlimited),
         ]);
 
-        return ['consumed' => $consumed, 'skipped' => $skipped];
+        return ['consumed' => $consumed, 'skipped' => $skipped, 'unlimited' => $unlimited];
+    }
+
+    /**
+     * Backfill credits for members who already hold the course (FR-219).
+     *
+     * The case this exists for: a course that had no perk gets one, and every
+     * existing student sits at zero because grants only run at a sale. Automatic
+     * backfilling was rejected — it would fire while the admin is still typing
+     * numbers, and there is no ledger to unwind it with (D149). So this is a
+     * button, pressed when the admin means it.
+     *
+     * Safe to press twice: syncPlanGrant() tops up to what the plan owes, so
+     * anyone already at that number (and anyone unlimited) comes back unchanged.
+     *
+     * @param  array<int>  $userIds
+     * @return array{granted: int, unchanged: int}
+     */
+    public function grantToMembers(Course $course, array $userIds): array
+    {
+        if ($userIds === [] || ! $course->has_bundle) {
+            return ['granted' => 0, 'unchanged' => 0];
+        }
+
+        $purchases = Purchase::where('course_id', $course->id)
+            ->whereIn('user_id', $userIds)
+            ->paidStatus()
+            ->with('plan')
+            ->get();
+
+        $granted = 0;
+        $unchanged = 0;
+
+        foreach ($purchases as $purchase) {
+            $this->syncPlanGrant($purchase) > 0 ? $granted++ : $unchanged++;
+        }
+
+        Log::info('Bundle credits backfilled', [
+            'course_id' => $course->id,
+            'requested' => count($userIds),
+            'granted' => $granted,
+            'unchanged' => $unchanged,
+        ]);
+
+        return ['granted' => $granted, 'unchanged' => $unchanged];
     }
 
     /**
@@ -153,6 +243,12 @@ class BundleCreditService
 
         if (! $course || ! $course->has_bundle || $cost <= 0) {
             return ['success' => false, 'status' => 422, 'error' => '此課程的福利無法以積分加購'];
+        }
+
+        // Buying more of an uncapped perk is meaningless; the button is hidden,
+        // and this is the guard behind it (FR-217).
+        if ($this->isUnlimitedFor($course, $purchase->plan)) {
+            return ['success' => false, 'status' => 422, 'error' => '此方案的福利為無限次，無需加購'];
         }
 
         $user = $purchase->user;
@@ -200,7 +296,9 @@ class BundleCreditService
     {
         $query = Purchase::where('course_id', $course->id)
             ->paidStatus()
-            ->with(['user:id,nickname,real_name,email', 'plan:id,name']);
+            // bundle_unlimited must be in the select: isUnlimitedFor() reads it
+            // off this relation, and a trimmed column would silently be false.
+            ->with(['user:id,nickname,real_name,email', 'plan:id,name,bundle_unlimited']);
 
         if ($planId === 'none') {
             $query->whereNull('course_plan_id');
@@ -209,7 +307,22 @@ class BundleCreditService
         }
 
         if ($withCredit) {
-            $query->where('bundle_balance', '>', 0);
+            // Unlimited members always qualify. Resolved as a small id lookup
+            // rather than a join, so the roster stays a single-table read (D148).
+            $unlimitedPlanIds = $course->plans()->where('bundle_unlimited', true)->pluck('id');
+            $courseLevelUnlimited = $this->isUnlimitedFor($course, null);
+
+            $query->where(function ($inner) use ($unlimitedPlanIds, $courseLevelUnlimited) {
+                $inner->where('bundle_balance', '>', 0);
+
+                if ($unlimitedPlanIds->isNotEmpty()) {
+                    $inner->orWhereIn('course_plan_id', $unlimitedPlanIds);
+                }
+
+                if ($courseLevelUnlimited) {
+                    $inner->orWhereNull('course_plan_id');
+                }
+            });
         }
 
         return $query->orderBy('created_at')
@@ -222,6 +335,7 @@ class BundleCreditService
                 'joined_at' => $purchase->created_at?->timezone(self::DISPLAY_TZ)->format('Y-m-d H:i'),
                 'plan_name' => $purchase->plan?->name,
                 'bundle_balance' => (int) $purchase->bundle_balance,
+                'unlimited' => $this->isUnlimitedFor($course, $purchase->plan),
             ])
             ->values()
             ->all();

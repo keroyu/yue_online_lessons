@@ -1317,7 +1317,22 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - [ ] 後端 MUST 依 `course_id` + `user_ids` **重查** purchase 與餘額（前端名單不可信，也可能已經過時），餘額不足者跳過並回報，MUST NOT 整批失敗
 - [ ] 扣減 MUST 以 `where('bundle_balance', '>=', $n)` 的條件 UPDATE 進行，餘額不可能變負數
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；福利區塊的方案次數欄與名單表格在手機寬度不破版
-- [ ] 測試：福利欄位驗證與非高價課守門、持有時清空名稱 422（改名放行）、重複開通不重複發、升級補差額（含已消費過的情形）、降級不回收、贈課／匯入會發、前台結帳不發、積分加購（成功／點數不足／未設點數 422／非本人 403）、名單條件組合、消費批次（含餘額不足跳過）、餘額不可為負
+- [x] **無限次**（FR-213–FR-217）：方案可勾「無限次」，勾了之後該方案的學員不再有次數概念
+- [x] 課程未設方案時，無限次勾在課程本身（與「預設次數」同一層）
+- [x] 無限次 MUST 讀方案當下的值，MUST NOT 快照到 purchase —— 把某個方案改成無限次，**既有該方案的學員立刻跟著變**，不必重新開通（D148）
+- [x] 補差價切換到無限次方案時，該學員即刻變成無限次（這是前一條的直接結果，不需要另一條規則）
+- [x] 無限次時成交 MUST NOT 授予次數，`bundle_granted` 維持 0
+- [x] 由無限次方案切回有限方案時，照 FR-203 正常授予該方案的次數（`bundle_granted` 本來是 0，所以拿到完整次數，不是 0 次）
+- [x] 「我的課程」卡片對無限次顯示「無限次」而非「剩 N 次」，且 MUST NOT 顯示積分加購按鈕
+- [x] 加購端點對無限次的 purchase MUST 回 422 —— 前端點不到不等於擋住，那是公開端點
+- [x] 學員名單的「只列還有次數的人」MUST 包含無限次的學員；剩餘次數欄顯示「無限」
+- [x] 無限次的學員 MUST 可以被勾選（發邀請的名單是一份完整名單），但按下「消費 1 次福利」時**不扣除**
+- [x] 消費結果 MUST 說出無限次那幾位沒被扣（「已扣 N 位，其中 M 位為無限次未扣除」）—— 默默跳過會讓管理員以為扣了
+- [x] **舊學員**（FR-218–FR-219）：課程原本沒有福利、後來才設定時，既有學員的次數仍是 0（授予只在成交／換方案／贈課三個時機跑），這是預期行為，但兩件事要補：
+- [x] 卡片 MUST 分辨「從未領過」與「已用完」：`bundle_granted = 0` 且 `bundle_balance = 0` 且非無限次時**整塊不渲染**；`bundle_granted > 0` 而餘額為 0 才顯示「剩 0 次」
+- [x] 學員名單 MUST 提供批次「補發至方案預設次數」：對勾選者各跑一次 `syncPlanGrant()`，回報補發人數與未變動人數
+- [x] 批次補發 MUST 可重複按而不會多發（`syncPlanGrant()` 本來就 idempotent）；無限次與已領滿的人計入「未變動」
+- [ ] 測試：福利欄位驗證與非高價課守門、持有時清空名稱 422（改名放行）、重複開通不重複發、升級補差額（含已消費過的情形）、降級不回收、贈課／匯入會發、前台結帳不發、積分加購（成功／點數不足／未設點數 422／非本人 403）、名單條件組合、消費批次（含餘額不足跳過）、餘額不可為負、卡片在從未領過時不渲染、批次補發（新學員補滿／已領過不變／無限次不變／非持有者忽略／重複按不多發）、無限次（成交不發次數、切到無限次立即生效、切回有限方案照發、加購 422、名單納入且不扣除、回報文案帶無限次人數）
 
 
 ## Requirements
@@ -1851,6 +1866,13 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - **FR-209**: 名單欄位為姓名、Email、加入時間（`purchases.created_at`，出口 `->timezone('Asia/Taipei')`）、方案名、剩餘次數；只計 `paidStatus()` 的 purchase。查詢為 `purchases` 單表 join `users` / `course_plans`（餘額同列，這是 D141 的直接好處），MUST NOT 在迴圈裡補查
 - **FR-210**: 「複製 Email」沿用 011 US17 的形狀：`', '` 相隔、去重、依畫面順序，`navigator.clipboard.writeText()` 失敗時顯示提示而非靜默
 - **FR-211**: 「消費 1 次福利」只在課程有福利時出現。後端 MUST 依 `course_id` + 傳入的 `user_ids` **重查** purchase 與餘額（前端名單不可信，FR-208 的名單也可能已經過時），逐位扣 1，回傳 `consumed` 與 `skipped`（含 email）；餘額不足者跳過，MUST NOT 讓整批失敗
+- **FR-218**: `bundle_granted` 取得第二個用途：**分辨「從未領過」與「已用完」**。「我的課程」卡片在 `bundle_granted = 0` 且 `bundle_balance = 0` 且非無限次時 MUST NOT 渲染整塊 —— 課程新設福利時所有既有學員都落在這個狀態，顯示「剩 0 次」會讀成「我的次數被用光了」。`bundle_granted > 0` 而餘額為 0 則 MUST 顯示「剩 0 次」，那是真的用完了（D149）。payload 需多帶 `granted`
+- **FR-219**: 學員名單提供批次補發：`POST /admin/courses/{course}/bundle/grant`，對傳入的 `user_ids` 各跑一次 `BundleCreditService::syncPlanGrant()`，回 `{granted: 人數, unchanged: 人數}`。**MUST 可重複按**：`syncPlanGrant()` 的補差規則（FR-203）本來就 idempotent，已領滿者 delta 為 0、無限次者直接回 0，兩者都計入 `unchanged`。守門與名單同源（admin、依 `course_id` 重查 purchase，FR-211 同一立場）
+- **FR-213**: 無限次旗標為兩個布林欄位：`course_plans.bundle_unlimited`（方案層，與 `bundle_quantity` 同一層）與 `courses.bundle_unlimited`（**僅課程未設方案時生效**的 fallback，與 `bundle_default_quantity` 同樣的角色）。判定一律經 `BundleCreditService::isUnlimitedFor(Course $course, ?CoursePlan $plan): bool`，MUST NOT 在呼叫端各自判斷。**旗標讀方案當下的值，MUST NOT 快照到 `purchases`**（D148）
+- **FR-214**: 無限次時 `syncPlanGrant()` MUST 直接回 0：不加 `bundle_balance`、不動 `bundle_granted`（沒有數字要對）。由無限次方案切回有限方案時，`bundle_granted` 仍是 0，於是 FR-203 的補差規則會授予該方案的完整次數 —— 這是對的：他現在持有的是一個有次數的方案，而他從未領過次數
+- **FR-215**: `consume()` 對無限次的 purchase MUST NOT 扣減，且 MUST NOT 計入 `consumed`；回傳值新增 `unlimited` 計數（那幾位的 email），前端文案 MUST 說出來。理由：管理員按下按鈕是為了「記錄這輪邀請已消耗」，無限次的人沒有東西可消耗，但**畫面必須講明白**，否則會被讀成已扣
+- **FR-216**: 學員名單的 `with_credit=1` 篩選 MUST 包含無限次的學員（`bundle_balance > 0` OR 無限次）；每列多帶 `unlimited` 布林，剩餘次數欄顯示「無限」。無限次學員 MUST 可勾選 —— 那是一份發邀請的名單，不是一份扣款名單
+- **FR-217**: 「我的課程」卡片對無限次顯示「無限次」而非「剩 N 次」，且 MUST NOT 顯示積分加購按鈕（買更多沒有意義）；加購端點對無限次的 purchase MUST 回 422
 - **FR-212**: 仍有人持有次數（任一 paid purchase 的 `bundle_granted > 0` 或 `bundle_balance > 0`）時，`bundle_name` MUST NOT 被清空 —— 回 422 並說明人數（比照方案刪除守門 FR-093）。**改名不受限**：那只是顯示文字，而「停用福利」會讓已持有的次數變成無名無主的數字
 
 
@@ -2235,6 +2257,14 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - **D145**: 福利設定放在**編輯課程頁**（使用者指定），方案仍在章節編輯頁建立。
   三個 `bundle_*` 欄位是 `courses` 的欄位，隨 CourseForm 一起送，不需要新端點；各方案的次數走既有的 `PUT /admin/plans/{plan}`（面板把 name / price 原值一起送回，形狀與 `CoursePlanPanel` 現在的改名完全一樣），所以這個故事**沒有新增任何後台設定 controller**。
   代價是設一門新課要跑兩頁：章節編輯頁開方案 → 編輯課程頁填各方案次數。面板在課程沒有方案時顯示單一欄位並提示「此課程尚未設定方案，成交時一律給這個次數」。
+- **D149**: 「從未領過」以 `bundle_granted = 0` 判斷，不加欄位。
+  這個欄位當初只為 FR-203 的去重而存在，現在多承擔一個語意 —— 但那個語意本來就在它身上：`granted` 恆為「方案總共應該給過幾次」，是 0 就代表這個人從沒被授予過。加一個 `bundle_ever_granted` 之類的旗標會是同一件事的第二份真相。
+  代價：`granted` 從此有兩個讀法，改動它的程式（目前只有 `syncPlanGrant()`）必須同時想到卡片的顯示。這一條記在這裡就是為了那一天。
+  另一個被否決的選項是「新設福利時自動補發給所有既有學員」：那會在管理員還在試填數字的時候就把次數發出去，而且發錯了沒有回收路徑（D141 之後沒有帳本可以回溯）。改成一顆要按的批次補發按鈕（FR-219），時機由管理員決定。
+- **D148**: 無限次旗標**讀方案當下的值，不快照到 purchase**（與次數相反的處理）。
+  次數必須快照（`bundle_granted`）：已經給出去的東西是他的，之後改方案設定不該回頭改寫歷史。但「無限」不是一批給出去的東西，而是**一個持續有效的資格**，所以它跟著方案走。
+  這個選擇直接滿足使用者補充的那條要求：補差價切換到無限次方案的人，當下就是無限次，不需要任何額外規則或重新開通。反過來若做成快照，同一件事要多寫一段「切換時把旗標也帶過去」的程式，而把某個方案改成無限次時，**既有該方案的學員不會跟著變** —— 那是要靠一個個重開才能修好的狀態。
+  代價：學員名單的「只列還有次數的人」不再是單欄比較，得先取出該課程「無限次的方案 id」再 `orWhereIn`（一次額外的小查詢，仍不是 join）。以及無限次這件事沒有歷史 —— 曾經無限、後來改回有限，看不出曾經無限過（與 D141 不做帳本同一個取捨，不再額外付帳）。
 - **D146**: 積分加購一次固定 `+1`，不做數量輸入。
   `bundle_redeem_points` 是單次價，要加 3 次就按 3 次。數量輸入要處理「輸入 99 但點數只夠 3 次」這類提示，以及一個可以一次扣掉全部積分的輸入框 —— 而實際場景是加購一兩次。真的要加購十次，那是找管理員談的量級。
 
@@ -2503,7 +2533,16 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 
   `2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php` — `point_transactions.type` enum 加入 `redeem_bundle`（第 6 個值），寫法比照 011 既有的 `2026_08_06_000002_add_cancelled_...`。`down()` MUST 先把 `redeem_bundle` 的列改回 `redeem_course` 再收窄 enum，否則回滾會在既有資料上炸掉。表歸 007，故以獨立 alter migration 進行，不改建表 migration。
 
+  `2026_09_27_000005_add_bundle_unlimited_flags.php` — 無限次福利（FR-213）：
+
+  | 表 / 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `course_plans.bundle_unlimited` | boolean default false，`after('bundle_quantity')` | 此方案的福利不計次 |
+  | `courses.bundle_unlimited` | boolean default false，`after('bundle_default_quantity')` | **僅課程未設方案時生效**的 fallback |
+
   **不變量**：
+  - 無限次為真時，該 purchase 的 `bundle_balance` / `bundle_granted` 皆無意義且恆為 0（授予被跳過、消費不扣）；**讀取端 MUST 以無限次優先，不得顯示 0 次**
+  - 無限次由方案（或無方案課程）決定，`purchases` 無對應欄位；同一方案的所有學員永遠一致
   - `bundle_balance >= 0` 恆成立（unsigned + FR-205 的條件 UPDATE 兩道）
   - `bundle_granted` 單調遞增；它與 `bundle_balance` 的差**不等於消費次數**（加購也會加 balance），不可用來反推消費筆數
   - `courses.bundle_name` 為空 ⇒ 該課程的 `bundle_default_quantity`、各方案 `bundle_quantity`、各 purchase 的兩個 `bundle_*` 一律無意義，前後端都 MUST NOT 顯示
@@ -3369,8 +3408,48 @@ Phase 4 — 驗證
 - [ ] T475 使用者實測：拿正式站那門高價課，填福利「團體諮詢」與每次 X 積分、入門 2 次／完整 5 次，開通一位測試會員 → 確認「我的課程」看得到剩餘次數；把他升級到完整方案 → 確認補成差額；在課程列表的學員名單選「完整方案 + 只列還有次數的人」→ 複製 Email、按「消費 1 次福利」→ 確認次數少 1 且重新整理後仍正確
 
 
+### US37 補充 — 無限次福利（FR-213–FR-217 / D148）
+
+- [x] T476 migration：`course_plans.bundle_unlimited` 與 `courses.bundle_unlimited`（皆 boolean default false，`after` 對應的次數欄）in `database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php`
+- [x] T477 [P] model：兩個欄位入 `$fillable` 與 `casts()`（boolean）in `app/Models/Course.php`〔touchpoint 004〕, `app/Models/CoursePlan.php`
+- [x] T478 `BundleCreditService`：加 `isUnlimitedFor(Course, ?CoursePlan): bool`（方案優先、無方案才讀課程，FR-213）；`syncPlanGrant()` 無限次時直接回 0（FR-214）；`consume()` 無限次者不扣並回傳 `unlimited` email 陣列（FR-215）；`roster()` 每列加 `unlimited`、`$withCredit` 改為「餘額 > 0 OR 屬於無限次方案（或無方案且課程無限次）」（FR-216）；`redeemWithPoints()` 無限次回 422（FR-217）in `app/Services/BundleCreditService.php`
+- [x] T479 [P] 驗證與 payload：`StoreCoursePlanRequest` 加 `bundle_unlimited`（`nullable|boolean`）並於 `CoursePlanController::update/store` 寫入；`UpdateCourseRequest` 加 `bundle_unlimited`（`nullable|boolean`）in `app/Http/Requests/Admin/StoreCoursePlanRequest.php`, `app/Http/Controllers/Admin/CoursePlanController.php`, `app/Http/Requests/Admin/UpdateCourseRequest.php`〔touchpoint 004〕
+- [x] T480 [P] `CourseController::edit()` 的 `plans` select 加 `bundle_unlimited`、course payload 加 `bundle_unlimited`；`LearningController` 的 `bundle` payload 加 `unlimited`（`isUnlimitedFor()`，eager load 已有的 plan 關聯，不在 map 裡補查）in `app/Http/Controllers/Admin/CourseController.php`〔touchpoint 004〕, `app/Http/Controllers/Member/LearningController.php`〔touchpoint 003〕
+- [x] T481 [P] `CourseBundlePanel.vue`：每個方案列加「無限次」checkbox（勾選時次數輸入框 disabled 並顯示「不計次」），隨「儲存次數」一起送；無方案時的區塊同樣加一顆 in `resources/js/Components/Admin/CourseBundlePanel.vue`
+- [x] T482 [P] `BundleCreditBlock.vue`：`bundle.unlimited` 時顯示「無限次」並整段隱藏加購按鈕（FR-217）in `resources/js/Components/BundleCreditBlock.vue`
+- [x] T483 [P] `CourseRosterModal.vue`：剩餘次數欄對 `unlimited` 顯示「無限」、消費結果文案加「其中 M 位為無限次未扣除」（FR-215）in `resources/js/Components/Admin/CourseRosterModal.vue`
+- [x] T484 測試（`BundleCreditTest`）：無限次方案成交不發次數且 `bundle_granted` 為 0、切換到無限次方案後立刻視為無限次（不需重新開通）、由無限次切回有限方案照發完整次數、加購端點回 422、課程無方案時讀課程旗標、課程有方案時課程旗標不生效 in `tests/Feature/HighTicket/BundleCreditTest.php`
+- [x] T485 測試（`CourseRosterTest`）：`with_credit=1` 納入無限次學員（含餘額為 0 者）、名單列帶 `unlimited`、批次消費對無限次者不扣且回傳 `unlimited` 清單、混合名單的 `consumed` / `skipped` / `unlimited` 三個數字各自正確 in `tests/Feature/HighTicket/CourseRosterTest.php`
+- [x] T486 `php artisan test` 全綠、`npm run build` exit 0
+- [x] T488 [P] `LearningController` 的 `bundle` payload 多帶 `granted`（`(int) $purchase->bundle_granted`）in `app/Http/Controllers/Member/LearningController.php`〔touchpoint 003〕
+- [x] T489 [P] `BundleCreditBlock.vue`：`!unlimited && balance === 0 && granted === 0` 時整塊不渲染（FR-218）in `resources/js/Components/BundleCreditBlock.vue`
+- [x] T490 `BundleCreditService::grantToMembers(Course $course, array $userIds): array` —— 依 `course_id` + ids 重查 paid purchase，各跑 `syncPlanGrant()`，回 `{granted, unchanged}`（FR-219）in `app/Services/BundleCreditService.php`
+- [x] T491 `CourseRosterController::grant()`（沿用 `ConsumeBundleCreditRequest`、課程無福利回 422）＋ 路由 `POST /admin/courses/{course}/bundle/grant` in `app/Http/Controllers/Admin/CourseRosterController.php`, `routes/web.php`〔touchpoint 000〕
+- [x] T492 [P] `CourseRosterModal.vue`：「補發至方案預設次數」按鈕（確認框說明重複按不會多發）＋ 結果文案「已補發 N 位，M 位未變動」in `resources/js/Components/Admin/CourseRosterModal.vue`
+- [x] T493 [P] 測試：`BundleCreditTest` 補 payload 帶 `granted`；`CourseRosterTest` 補批次補發（新學員補滿方案次數／已領過不變／無限次計入 unchanged／非持有者忽略／連按兩次總數不變／課程無福利 422）in `tests/Feature/HighTicket/BundleCreditTest.php`, `tests/Feature/HighTicket/CourseRosterTest.php`
+- [x] T494 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T487 使用者實測：把「完整方案」勾成無限次 → 確認既有完整方案學員的「我的課程」立刻變「無限次」且沒有加購按鈕；把一位入門方案學員補差價切到完整方案 → 確認他也變無限次；在學員名單勾一批混合的人按「消費 1 次福利」→ 確認有限次的少 1、無限次的沒變，且提示有講出無限次那幾位
+
+
 
 ## 進度日誌
+
+- 2026-09-27: US37 補充 —— 舊學員的兩個洞補完（T488–T494 / FR-218–FR-219 / D149）。課程原本沒有福利、後來才設定時，既有學員的次數是 0（授予只在成交／換方案／贈課三個時機跑），這個行為不變，補的是它造成的兩個後果。
+  第一個是顯示：卡片會對一位從沒領過福利的舊學員說「剩 0 次」，而那句話讀起來是「我的次數被用光了」。改以 `bundle_granted = 0` 分辨「從未領過」並整塊不渲染 —— 這個欄位當初只為去重而存在，但「方案總共應該給過幾次是 0」本來就等於沒被授予過，加第二個旗標會是同一件事的兩份真相（D149）。代價是 `granted` 從此有兩個讀法，記在 D149 裡。
+  第二個是沒有補發手段：原本只能到會員詳情一個個按「切換方案 → 選同一個方案 → 儲存」（那顆儲存不管有沒有改選都會送 PATCH，所以確實補得到，但一人一次）。改為名單上一顆批次「補發至方案預設次數」，後端對勾選者各跑一次 `syncPlanGrant()`。**沒有做成「新設福利時自動補發」**：那會在管理員還在試填數字時就把次數發出去，而 D141 之後沒有帳本可以回收。
+  重複按不會多發（`syncPlanGrant()` 的補差本來就 idempotent），測試特地連按兩次斷言總數不變；無限次與已領滿的人一起計入 `unchanged`。
+  一個測試自己的 bug：迴圈裡呼叫兩次 `$this->admin()` 撞到 `users.email` unique，改為先建一次。
+  全套 **1095 passed（4770 assertions）**、`npm run build` exit 0。
+
+- 2026-09-27: US37 補充 —— 無限次福利完成（T476–T486，僅剩 T487 使用者實測）。一支 migration 兩個布林欄位、`isUnlimitedFor()` 一支判定、五個呼叫點各一個分支。
+  使用者補充的「補差價切換方案時也要變成無限次」不需要任何程式：旗標讀方案當下的值（D148），切過去的那一刻就成立。測試把這件事釘成兩條 —— 切換方案後即為無限次、以及**把既有方案直接勾成無限次時，該方案的既有學員立刻涵蓋**（後者是 snapshot 做法會失敗的那條）。
+  一個實際的 bug 被測試抓到：`roster()` 的 eager load 原本是 `plan:id,name`，`isUnlimitedFor()` 讀 `bundle_unlimited` 會拿到 null 並轉成 false —— 名單篩選對（`orWhereIn` 用的是方案 id），但每列的「無限」標記全是假的，而畫面上看不出差別。改成 `plan:id,name,bundle_unlimited`。
+  反向路徑也釘住：由無限次切回有限方案時，`bundle_granted` 一路維持 0，所以會拿到該方案的**完整次數**而不是 0 次。
+  `BundleCreditTest` 23 → 31 tests、`CourseRosterTest` 9 → 11 tests，全套 **1090 passed（4737 assertions）**、`npm run build` exit 0。
+- 2026-09-27: [draft] 規劃 US37 補充 —— 無限次福利（FR-213–FR-217 / D148）。方案（或無方案課程）可勾「無限次」，勾了之後該方案的學員不再有次數概念。
+  唯一真正的設計選擇是 D148：**旗標讀方案當下的值，不快照到 purchase**，與次數的處理刻意相反。次數要快照（已給出去的是他的），但「無限」不是一批東西而是一個持續資格。這個選擇直接滿足使用者補充的那條要求 —— 補差價切到無限次方案的人當下就是無限次，不必為此多寫一段搬旗標的程式；反過來做成快照的話，把某個方案改成無限次時既有學員不會跟著變，那是要一個個重開才修得好的狀態。
+  四個連帶行為：成交不授予（`bundle_granted` 維持 0，切回有限方案時因此會拿到完整次數，這是對的）、我的課程顯示「無限次」且隱藏加購按鈕（端點另回 422，前端點不到不等於擋住）、學員名單的「只列還有次數的人」要納入無限次的人、以及批次消費對他們不扣但**必須在結果文案講出來**（默默跳過會被讀成已扣）。
+  代價寫在 D148：名單篩選不再是單欄比較，要先取該課程「無限次的方案 id」再 `orWhereIn`（一次小查詢，仍不是 join）；以及無限次沒有歷史，曾經無限後來改回有限看不出來（與 D141 不做帳本同一個取捨）。status: draft 待審核。
 
 - 2026-09-27: US37 課程福利次數與學員名單完成（T449–T474，僅剩 T475 使用者實測）— 四支 alter migration、零新表、零新 model，設定端也沒有新 controller：三個 `bundle_*` 欄位隨 `CourseForm` 送出（`UpdateCourseRequest` 驗證 + 兩道守門），各方案次數走既有的 `PUT /admin/plans/{plan}`。
   三個授予入口全部接上並各有一條端點層測試（規劃時只打算測 service，那樣測不到接線）：`convertLead()`、`MemberController::updatePurchasePlan()`、`giftCourse()`／`grantCourse()`。**`giftCourse()` 是規劃時漏掉的第四個寫入點** —— spec 只寫了 `grantCourse()`（匯入用），但贈課 modal 走的是另一支 `Purchase::updateOrCreate`，漏掉它會讓「贈課有選方案卻沒拿到次數」，所以兩處都接。

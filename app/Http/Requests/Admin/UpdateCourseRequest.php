@@ -80,6 +80,7 @@ class UpdateCourseRequest extends FormRequest
             'bundle_name' => ['nullable', 'string', 'max:50'],
             'bundle_redeem_points' => ['nullable', 'integer', 'min:1'],
             'bundle_default_quantity' => ['nullable', 'integer', 'min:0'],
+            'bundle_unlimited' => ['nullable', 'boolean'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
@@ -176,7 +177,7 @@ class UpdateCourseRequest extends FormRequest
     protected function validateBundle($validator): void
     {
         $course = $this->route('course');
-        $posted = ['bundle_name', 'bundle_redeem_points', 'bundle_default_quantity'];
+        $posted = ['bundle_name', 'bundle_redeem_points', 'bundle_default_quantity', 'bundle_unlimited'];
         $touched = array_filter($posted, fn ($key) => filled($this->input($key)));
 
         if ($this->input('type') !== 'high_ticket') {

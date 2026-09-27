@@ -52,10 +52,16 @@ class BundleCreditTest extends TestCase
         ], $extra));
     }
 
-    private function plan(Course $course, string $name, int $quantity, int $sort = 0): CoursePlan
-    {
+    private function plan(
+        Course $course,
+        string $name,
+        int $quantity,
+        int $sort = 0,
+        bool $unlimited = false,
+    ): CoursePlan {
         return $course->plans()->create([
-            'name' => $name, 'price' => 30000, 'bundle_quantity' => $quantity, 'sort_order' => $sort,
+            'name' => $name, 'price' => 30000, 'bundle_quantity' => $quantity,
+            'bundle_unlimited' => $unlimited, 'sort_order' => $sort,
         ]);
     }
 
@@ -275,6 +281,30 @@ class BundleCreditTest extends TestCase
         $this->assertSame(0, $purchase->fresh()->bundle_balance);
     }
 
+    // ── never granted vs used up (FR-218) ─────────────────────────────────
+
+    public function test_my_courses_payload_carries_granted_so_the_card_can_tell_the_two_apart(): void
+    {
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 1);
+        $member = $this->member();
+        $legacy = $this->member('legacy@example.com');
+        $this->service()->syncPlanGrant($this->purchase($member, $course, $plan));
+        $this->service()->consume($course, [$member->id]);
+        // Held the course before the perk existed: never granted anything.
+        $this->purchase($legacy, $course, $plan);
+
+        $usedUp = $this->actingAs($member)->get('/member/learning')
+            ->assertOk()->inertiaProps('courses')[0]['bundle'];
+        $neverHad = $this->actingAs($legacy)->get('/member/learning')
+            ->assertOk()->inertiaProps('courses')[0]['bundle'];
+
+        $this->assertSame(0, $usedUp['balance']);
+        $this->assertSame(1, $usedUp['granted']);   // card shows 剩 0 次
+        $this->assertSame(0, $neverHad['balance']);
+        $this->assertSame(0, $neverHad['granted']); // card hides the block
+    }
+
     // ── the three grant entrances (FR-204) ────────────────────────────────
 
     public function test_converting_a_lead_grants_the_plans_credits(): void
@@ -373,6 +403,114 @@ class BundleCreditTest extends TestCase
         $this->assertSame(4, $purchase->fresh()->bundle_balance);
     }
 
+    // ── unlimited perk (FR-213–FR-217) ────────────────────────────────────
+
+    public function test_an_unlimited_plan_grants_no_credits_at_all(): void
+    {
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 5, 0, unlimited: true);
+        $purchase = $this->purchase($this->member(), $course, $plan);
+
+        $this->assertSame(0, $this->service()->syncPlanGrant($purchase));
+
+        $purchase->refresh();
+        // Both columns are meaningless while unlimited holds, so they stay at 0
+        // rather than carrying a number nobody should read (FR-214).
+        $this->assertSame(0, $purchase->bundle_balance);
+        $this->assertSame(0, $purchase->bundle_granted);
+        $this->assertTrue($this->service()->isUnlimitedFor($course, $plan));
+    }
+
+    public function test_switching_to_an_unlimited_plan_takes_effect_with_no_regrant(): void
+    {
+        $course = $this->bundleCourse();
+        $entry = $this->plan($course, '入門方案', 2);
+        $unlimited = $this->plan($course, '完整方案', 0, 1, unlimited: true);
+        $member = $this->member();
+        $purchase = $this->purchase($member, $course, $entry);
+        $this->service()->syncPlanGrant($purchase);
+
+        $this->actingAs($this->admin())
+            ->patchJson("/admin/members/{$member->id}/purchases/{$purchase->id}/plan", [
+                'course_plan_id' => $unlimited->id,
+            ])
+            ->assertOk();
+
+        $this->assertTrue($this->service()->isUnlimitedFor($course, $purchase->fresh()->plan));
+    }
+
+    public function test_flipping_a_plan_to_unlimited_covers_its_existing_holders(): void
+    {
+        // The whole point of reading the flag off the plan (D148): no reconversion.
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 5);
+        $purchase = $this->purchase($this->member(), $course, $plan);
+        $this->service()->syncPlanGrant($purchase);
+
+        $plan->update(['bundle_unlimited' => true]);
+
+        $this->assertTrue($this->service()->isUnlimitedFor($course, $purchase->fresh()->plan));
+    }
+
+    public function test_switching_back_to_a_limited_plan_grants_that_plans_full_quantity(): void
+    {
+        $course = $this->bundleCourse();
+        $unlimited = $this->plan($course, '完整方案', 0, 0, unlimited: true);
+        $limited = $this->plan($course, '入門方案', 2, 1);
+        $purchase = $this->purchase($this->member(), $course, $unlimited);
+        $this->service()->syncPlanGrant($purchase);
+
+        $purchase->refresh()->update(['course_plan_id' => $limited->id]);
+
+        // bundle_granted was never moved while unlimited, so the full 2 arrive.
+        $this->assertSame(2, $this->service()->syncPlanGrant($purchase->fresh()));
+        $this->assertSame(2, $purchase->fresh()->bundle_balance);
+    }
+
+    public function test_unlimited_members_are_never_deducted(): void
+    {
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 0, 0, unlimited: true);
+        $member = $this->member();
+        $this->service()->syncPlanGrant($this->purchase($member, $course, $plan));
+
+        $result = $this->service()->consume($course, [$member->id]);
+
+        $this->assertSame(0, $result['consumed']);
+        $this->assertSame([], $result['skipped']);
+        $this->assertSame(['bundle-member@example.com'], $result['unlimited']);
+    }
+
+    public function test_top_up_is_rejected_for_unlimited_members(): void
+    {
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 0, 0, unlimited: true);
+        $member = $this->member();
+        app(PointService::class)->award($member, 500, 'admin_grant');
+        $purchase = $this->purchase($member, $course, $plan);
+
+        $this->actingAs($member)
+            ->post("/member/purchases/{$purchase->id}/bundle-redeem")
+            ->assertStatus(422);
+
+        $this->assertSame(500, $member->fresh()->points);
+    }
+
+    public function test_the_course_level_flag_only_applies_when_there_are_no_plans(): void
+    {
+        $withoutPlans = $this->bundleCourse(['bundle_unlimited' => true, 'bundle_default_quantity' => 3]);
+        $purchaseA = $this->purchase($this->member('nop@example.com'), $withoutPlans);
+        $this->assertTrue($this->service()->isUnlimitedFor($withoutPlans, null));
+        $this->assertSame(0, $this->service()->syncPlanGrant($purchaseA));
+
+        // Same flag on a course that does have plans: the tier decides, and a
+        // planless purchase there is a legacy full-access record (FR-213).
+        $withPlans = $this->bundleCourse(['bundle_unlimited' => true]);
+        $limited = $this->plan($withPlans, '入門方案', 2);
+        $this->assertFalse($this->service()->isUnlimitedFor($withPlans, $limited));
+        $this->assertFalse($this->service()->isUnlimitedFor($withPlans, null));
+    }
+
     // ── course settings (FR-200 / FR-201 / FR-212) ─────────────────────────
 
     public function test_admin_can_save_bundle_fields_on_a_high_ticket_course(): void
@@ -444,6 +582,20 @@ class BundleCreditTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(5, $plan->fresh()->bundle_quantity);
+    }
+
+    public function test_unlimited_flag_is_saved_through_the_existing_plan_endpoint(): void
+    {
+        $course = $this->bundleCourse();
+        $plan = $this->plan($course, '完整方案', 0);
+
+        $this->actingAs($this->admin())
+            ->put("/admin/plans/{$plan->id}", [
+                'name' => '完整方案', 'price' => 30000, 'bundle_quantity' => 0, 'bundle_unlimited' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($plan->fresh()->bundle_unlimited);
     }
 
     /** The course form posts every field it holds; only the overrides differ. */

@@ -5146,7 +5146,7 @@
       "id": "011.us-37",
       "module": "011-high-ticket",
       "title": "課程福利次數與學員名單",
-      "summary": "高價課可附帶一種福利（如團體諮詢）：名稱與單次點數是課程欄位、預設次數是方案欄位、餘額是 purchases 欄位（零新表）。開通／換方案／贈課依方案補足差額儲值，會員在「我的課程」以積分加購（一次 +1），管理員在課程列表的學員名單依方案與餘額篩選、複製 Email 並批次扣 1 次",
+      "summary": "高價課可附帶一種福利（如團體諮詢）：名稱與單次點數是課程欄位、預設次數是方案欄位、餘額是 purchases 欄位（零新表）。開通／換方案／贈課依方案補足差額儲值，會員在「我的課程」以積分加購（一次 +1），管理員在課程列表的學員名單依方案與餘額篩選、複製 Email 並批次扣 1 次；方案可設「無限次」（旗標跟著方案，不快照到購買記錄）",
       "heading": "### User Story 37 - 課程福利次數與學員名單 (Priority: P1)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-37---課程福利次數與學員名單-priority-p1",
@@ -5171,7 +5171,15 @@
         "consume",
         "高價課",
         "course plan",
-        "零新表"
+        "零新表",
+        "無限次",
+        "unlimited",
+        "bundle_unlimited",
+        "不計次",
+        "補發",
+        "backfill",
+        "舊學員",
+        "granted"
       ],
       "code_files": [
         "app/Services/BundleCreditService.php",
@@ -5204,7 +5212,8 @@
         "tests/Feature/HighTicket/BundleCreditTest.php",
         "tests/Feature/HighTicket/CourseRosterTest.php",
         "resources/js/Pages/Admin/Courses/Edit.vue",
-        "phpunit.xml"
+        "phpunit.xml",
+        "database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php"
       ],
       "status": "implemented"
     },

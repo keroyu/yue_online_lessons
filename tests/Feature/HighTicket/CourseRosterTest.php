@@ -41,10 +41,16 @@ class CourseRosterTest extends TestCase
         ]);
     }
 
-    private function plan(Course $course, string $name, int $quantity, int $sort = 0): CoursePlan
-    {
+    private function plan(
+        Course $course,
+        string $name,
+        int $quantity,
+        int $sort = 0,
+        bool $unlimited = false,
+    ): CoursePlan {
         return $course->plans()->create([
-            'name' => $name, 'price' => 30000, 'bundle_quantity' => $quantity, 'sort_order' => $sort,
+            'name' => $name, 'price' => 30000, 'bundle_quantity' => $quantity,
+            'bundle_unlimited' => $unlimited, 'sort_order' => $sort,
         ]);
     }
 
@@ -192,6 +198,125 @@ class CourseRosterTest extends TestCase
 
         $this->actingAs($this->admin())
             ->postJson("/admin/courses/{$course->id}/bundle/consume", ['user_ids' => [$member->id]])
+            ->assertStatus(422);
+    }
+
+    // ── unlimited members (FR-215 / FR-216) ───────────────────────────────
+
+    public function test_with_credit_filter_keeps_unlimited_members_despite_a_zero_balance(): void
+    {
+        $course = $this->course();
+        $unlimitedPlan = $this->plan($course, '完整方案', 0, 0, unlimited: true);
+        $spent = $this->plan($course, '入門方案', 1, 1);
+        $spender = $this->member('spent@example.com');
+        $this->enrol($this->member('unlimited@example.com'), $course, $unlimitedPlan);
+        $this->enrol($spender, $course, $spent);
+        app(BundleCreditService::class)->consume($course, [$spender->id]);
+
+        $students = $this->actingAs($this->admin())
+            ->getJson("/admin/courses/{$course->id}/roster?with_credit=1")
+            ->assertOk()
+            ->json('students');
+
+        // Balance is 0 for both, but only the unlimited one still qualifies.
+        $this->assertSame(['unlimited@example.com'], array_column($students, 'email'));
+        $this->assertTrue($students[0]['unlimited']);
+    }
+
+    public function test_batch_consume_reports_unlimited_members_separately(): void
+    {
+        $course = $this->course();
+        $limited = $this->plan($course, '入門方案', 2);
+        $unlimitedPlan = $this->plan($course, '完整方案', 0, 1, unlimited: true);
+        $paying = $this->member('paying@example.com');
+        $forever = $this->member('forever@example.com');
+        $this->enrol($paying, $course, $limited);
+        $this->enrol($forever, $course, $unlimitedPlan);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/consume", [
+                'user_ids' => [$paying->id, $forever->id],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'consumed' => 1,
+                'skipped' => [],
+                'unlimited' => ['forever@example.com'],
+            ]);
+
+        $this->assertSame(1, Purchase::where('user_id', $paying->id)->value('bundle_balance'));
+        // Untouched: an unlimited member has nothing to spend.
+        $this->assertSame(0, Purchase::where('user_id', $forever->id)->value('bundle_balance'));
+    }
+
+    // ── batch backfill (FR-219) ───────────────────────────────────────────
+
+    public function test_batch_grant_backfills_students_who_predate_the_perk(): void
+    {
+        $course = $this->course();
+        $plan = $this->plan($course, '完整方案', 5);
+        $fresh = $this->member('fresh@example.com');
+        $alreadyHas = $this->member('already@example.com');
+        // enrol() grants; simulate a pre-perk student by zeroing the columns.
+        $this->enrol($fresh, $course, $plan)->update(['bundle_balance' => 0, 'bundle_granted' => 0]);
+        $this->enrol($alreadyHas, $course, $plan);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/grant", [
+                'user_ids' => [$fresh->id, $alreadyHas->id],
+            ])
+            ->assertOk()
+            ->assertJson(['granted' => 1, 'unchanged' => 1]);
+
+        $this->assertSame(5, Purchase::where('user_id', $fresh->id)->value('bundle_balance'));
+        $this->assertSame(5, Purchase::where('user_id', $alreadyHas->id)->value('bundle_balance'));
+    }
+
+    public function test_pressing_batch_grant_twice_hands_out_nothing_extra(): void
+    {
+        $course = $this->course();
+        $plan = $this->plan($course, '完整方案', 5);
+        $member = $this->member('twice@example.com');
+        $this->enrol($member, $course, $plan)->update(['bundle_balance' => 0, 'bundle_granted' => 0]);
+
+        $admin = $this->admin();
+
+        foreach ([1, 2] as $attempt) {
+            $this->actingAs($admin)
+                ->postJson("/admin/courses/{$course->id}/bundle/grant", ['user_ids' => [$member->id]])
+                ->assertOk();
+        }
+
+        $this->assertSame(5, Purchase::where('user_id', $member->id)->value('bundle_balance'));
+    }
+
+    public function test_batch_grant_leaves_unlimited_members_and_strangers_alone(): void
+    {
+        $course = $this->course();
+        $unlimitedPlan = $this->plan($course, '完整方案', 0, 0, unlimited: true);
+        $forever = $this->member('forever@example.com');
+        $stranger = $this->member('stranger@example.com');
+        $this->enrol($forever, $course, $unlimitedPlan);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/grant", [
+                'user_ids' => [$forever->id, $stranger->id],
+            ])
+            ->assertOk()
+            ->assertJson(['granted' => 0, 'unchanged' => 1]); // the stranger is not on the roster
+
+        $this->assertSame(0, Purchase::where('user_id', $forever->id)->value('bundle_balance'));
+    }
+
+    public function test_batch_grant_is_rejected_on_a_course_with_no_bundle(): void
+    {
+        $course = $this->course();
+        $course->update(['bundle_name' => null]);
+        $member = $this->member('m@example.com');
+        $this->enrol($member, $course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/grant", ['user_ids' => [$member->id]])
             ->assertStatus(422);
     }
 

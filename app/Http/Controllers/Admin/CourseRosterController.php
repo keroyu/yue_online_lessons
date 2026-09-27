@@ -26,7 +26,7 @@ class CourseRosterController extends Controller
             'bundle_name' => $course->bundle_name,
             // The dropdown's options come with the list so the modal never has
             // to guess a tier id from a name.
-            'plans' => $course->plans()->get(['id', 'name']),
+            'plans' => $course->plans()->get(['id', 'name', 'bundle_unlimited']),
             'students' => $credits->roster(
                 $course,
                 $request->query('plan_id', 'all'),
@@ -45,5 +45,21 @@ class CourseRosterController extends Controller
         }
 
         return response()->json($credits->consume($course, $request->validated('user_ids')));
+    }
+
+    /**
+     * Backfill credits for students who already hold the course (FR-219) —
+     * the action a course needs right after a perk is added to it.
+     */
+    public function grant(
+        ConsumeBundleCreditRequest $request,
+        Course $course,
+        BundleCreditService $credits,
+    ): JsonResponse {
+        if (! $course->has_bundle) {
+            return response()->json(['message' => '此課程未設定附帶福利'], 422);
+        }
+
+        return response()->json($credits->grantToMembers($course, $request->validated('user_ids')));
     }
 }

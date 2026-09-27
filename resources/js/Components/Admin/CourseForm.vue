@@ -69,6 +69,7 @@ const form = useForm({
   bundle_name: props.course?.bundle_name || '',
   bundle_redeem_points: props.course?.bundle_redeem_points || '',
   bundle_default_quantity: props.course?.bundle_default_quantity ?? 0,
+  bundle_unlimited: props.course?.bundle_unlimited ?? false,
   original_price: props.course?.original_price || '',
   promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,

@@ -26,6 +26,11 @@ const props = defineProps({
 const quantities = ref(
   Object.fromEntries(props.plans.map(plan => [plan.id, plan.bundle_quantity ?? 0])),
 )
+// Unlimited is a tier flag, not a snapshot: ticking it covers everyone already
+// holding that tier (011 D148).
+const unlimited = ref(
+  Object.fromEntries(props.plans.map(plan => [plan.id, !!plan.bundle_unlimited])),
+)
 
 const savingPlanId = ref(null)
 const savedPlanId = ref(null)
@@ -38,6 +43,7 @@ const savePlanQuantity = (plan) => {
     name: plan.name,
     price: plan.price,
     bundle_quantity: Number(quantities.value[plan.id]) || 0,
+    bundle_unlimited: unlimited.value[plan.id],
   }, {
     preserveScroll: true,
     onSuccess: () => {
@@ -103,14 +109,23 @@ const savePlanQuantity = (plan) => {
           class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-amber-200"
         >
           <span class="flex-1 text-sm font-medium text-gray-900">{{ plan.name }}</span>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <input
               v-model="quantities[plan.id]"
               type="number"
               min="0"
-              class="w-24 rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              :disabled="unlimited[plan.id]"
+              class="w-24 rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
             />
-            <span class="text-sm text-gray-500">次</span>
+            <span class="text-sm text-gray-500">{{ unlimited[plan.id] ? '不計次' : '次' }}</span>
+            <label class="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700">
+              <input
+                v-model="unlimited[plan.id]"
+                type="checkbox"
+                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              />
+              無限次
+            </label>
             <button
               type="button"
               :disabled="savingPlanId === plan.id"
@@ -123,7 +138,7 @@ const savePlanQuantity = (plan) => {
         </div>
       </div>
       <p :class="helpTextClasses">
-        方案本身在「章節編輯」頁新增或刪除；這裡只設定各方案帶幾次福利，次數需個別按「儲存次數」。
+        方案本身在「章節編輯」頁新增或刪除；這裡只設定各方案帶幾次福利，次數與「無限次」需個別按「儲存次數」。勾「無限次」後該方案的學員不再計次，且既有學員立刻生效。
       </p>
     </div>
 
@@ -137,8 +152,16 @@ const savePlanQuantity = (plan) => {
         min="0"
         class="mt-2 block w-32 rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal"
       />
+      <label class="mt-2 flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-700">
+        <input
+          v-model="form.bundle_unlimited"
+          type="checkbox"
+          class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+        />
+        無限次（不計次，勾選後上面的次數不生效）
+      </label>
       <p :class="helpTextClasses">
-        此課程尚未設定方案，成交時一律給這個次數。設定方案後改為各方案分別設定。
+        此課程尚未設定方案，成交時一律給這個次數。設定方案後改為各方案分別設定（無限次也改由方案決定）。
       </p>
       <p v-if="form.errors.bundle_default_quantity" :class="errorTextClasses">
         {{ form.errors.bundle_default_quantity }}

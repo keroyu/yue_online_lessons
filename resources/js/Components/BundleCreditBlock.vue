@@ -18,7 +18,18 @@ const props = defineProps({
 })
 
 const cost = computed(() => props.bundle?.redeem_points ?? null)
-const canBuy = computed(() => cost.value !== null && cost.value > 0)
+// Unlimited hides the top-up entirely: buying more of an uncapped perk means
+// nothing, and the endpoint refuses it anyway (011 FR-217).
+const isUnlimited = computed(() => !!props.bundle?.unlimited)
+// Never granted anything, and not unlimited either: this member predates the
+// perk being added to the course, so the block stays hidden rather than
+// claiming "剩 0 次" — which reads as "I used mine up" (FR-218 / D149).
+const neverGranted = computed(
+  () => !isUnlimited.value
+    && (props.bundle?.granted ?? 0) === 0
+    && (props.bundle?.balance ?? 0) === 0,
+)
+const canBuy = computed(() => !isUnlimited.value && cost.value !== null && cost.value > 0)
 const affordable = computed(
   () => canBuy.value && props.availablePoints !== null && props.availablePoints >= cost.value,
 )
@@ -44,14 +55,15 @@ const redeem = () => {
 </script>
 
 <template>
-  <div v-if="bundle" class="mt-3 rounded-lg bg-brand-cream/60 px-3 py-2">
+  <div v-if="bundle && !neverGranted" class="mt-3 rounded-lg bg-brand-cream/60 px-3 py-2">
     <p v-if="planName" class="text-xs text-gray-500">
       方案：<span class="font-medium text-brand-navy">{{ planName }}</span>
     </p>
 
     <div class="mt-1 flex items-center justify-between gap-2">
       <span class="text-sm text-brand-navy">{{ bundle.name }}</span>
-      <span class="text-sm font-semibold text-brand-navy">剩 {{ bundle.balance }} 次</span>
+      <span v-if="isUnlimited" class="text-sm font-semibold text-emerald-700">無限次</span>
+      <span v-else class="text-sm font-semibold text-brand-navy">剩 {{ bundle.balance }} 次</span>
     </div>
 
     <!-- Top-up, only when the course sets a per-credit price -->

@@ -784,6 +784,7 @@ main_files:
 - database/migrations/2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php
 - database/migrations/2026_09_27_000003_add_bundle_credits_to_purchases_table.php
 - database/migrations/2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php
+- database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue

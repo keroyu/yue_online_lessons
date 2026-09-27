@@ -212,6 +212,7 @@ class CourseController extends Controller
                 'bundle_name' => $course->bundle_name,
                 'bundle_redeem_points' => $course->bundle_redeem_points,
                 'bundle_default_quantity' => $course->bundle_default_quantity,
+                'bundle_unlimited' => $course->bundle_unlimited,
                 'drip_interval_days' => $course->drip_interval_days,
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
@@ -231,7 +232,7 @@ class CourseController extends Controller
             'availableCourses' => $availableCourses,
             // Read-only here: tiers are created on the chapters page (011 D145).
             // The bundle panel needs their names to label one quantity per tier.
-            'plans' => $course->plans()->get(['id', 'name', 'price', 'bundle_quantity']),
+            'plans' => $course->plans()->get(['id', 'name', 'price', 'bundle_quantity', 'bundle_unlimited']),
             'courseLessons' => $courseLessons,
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),

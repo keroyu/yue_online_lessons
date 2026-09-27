@@ -326,6 +326,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Student roster + batch bundle-credit deduction (011 US37 / FR-208)
     Route::get('/courses/{course}/roster', [\App\Http\Controllers\Admin\CourseRosterController::class, 'index'])->name('courses.roster');
     Route::post('/courses/{course}/bundle/consume', [\App\Http\Controllers\Admin\CourseRosterController::class, 'consume'])->name('courses.bundle.consume');
+    Route::post('/courses/{course}/bundle/grant', [\App\Http\Controllers\Admin\CourseRosterController::class, 'grant'])->name('courses.bundle.grant');
 
     // A learner's roadmap progress, opened from the homework grading list (003 US11)
     Route::get('/homework/roadmap/{course}/{user}', [\App\Http\Controllers\Admin\StudentRoadmapController::class, 'show'])->name('homework.roadmap');

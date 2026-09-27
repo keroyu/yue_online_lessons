@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\LessonProgress;
+use App\Services\BundleCreditService;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class LearningController extends Controller
 {
-    public function index(Request $request, PointService $points): Response
+    public function index(Request $request, PointService $points, BundleCreditService $credits): Response
     {
         $user = $request->user();
 
@@ -29,7 +30,7 @@ class LearningController extends Controller
             ->toArray();
 
         // Map to MyCourse format for frontend
-        $courses = $purchases->map(function ($purchase) use ($progressMap, $user) {
+        $courses = $purchases->map(function ($purchase) use ($progressMap, $user, $credits) {
             $course = $purchase->course;
             // Tiered purchases only count their own lessons (011 FR-091).
             $progress = $user->getCourseProgressSummary($course, $progressMap, $purchase->accessibleLessonIds());
@@ -48,7 +49,12 @@ class LearningController extends Controller
                     'purchase_id' => $purchase->id,
                     'name' => $course->bundle_name,
                     'balance' => (int) $purchase->bundle_balance,
+                    // Tells "never granted" apart from "all used up" (FR-218).
+                    'granted' => (int) $purchase->bundle_granted,
                     'redeem_points' => $course->bundle_redeem_points,
+                    // Read off the tier, so a tier flipped to unlimited shows up
+                    // here immediately (011 D148).
+                    'unlimited' => $credits->isUnlimitedFor($course, $purchase->plan),
                 ] : null,
             ];
         });
