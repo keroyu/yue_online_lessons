@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreChapterRequest;
 use App\Models\Chapter;
 use App\Models\Course;
 use App\Services\CouponChainService;
+use App\Services\LessonNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,10 @@ use Inertia\Response;
 
 class ChapterController extends Controller
 {
-    public function __construct(protected CouponChainService $couponChainService) {}
+    public function __construct(
+        protected CouponChainService $couponChainService,
+        protected LessonNotificationService $notifications,
+    ) {}
 
     /**
      * Display the chapters page for a course.
@@ -46,6 +50,7 @@ class ChapterController extends Controller
                     'reward_html' => $lesson->reward_html,
                     'video_access_hours' => $lesson->video_access_hours,
                     'plan_ids' => $lesson->plans->pluck('id')->values(),
+                    'notified_at' => $lesson->notified_at?->timezone('Asia/Taipei')->format('Y/m/d H:i'),
                 ]),
             ]);
 
@@ -72,6 +77,7 @@ class ChapterController extends Controller
                 'reward_html' => $lesson->reward_html,
                 'video_access_hours' => $lesson->video_access_hours,
                 'plan_ids' => $lesson->plans->pluck('id')->values(),
+                'notified_at' => $lesson->notified_at?->timezone('Asia/Taipei')->format('Y/m/d H:i'),
             ]);
 
         return Inertia::render('Admin/Courses/Chapters', [
@@ -87,6 +93,10 @@ class ChapterController extends Controller
             // Tiers of a high-ticket course (011 US21); empty for every other
             // course, which is what switches the whole feature off in the UI.
             'plans' => $course->plans()->get(['id', 'name', 'price', 'sort_order']),
+            // Eligible holder counts bucketed by plan, so the lesson form can
+            // show "預計通知 N 位" off one query instead of one per lesson
+            // (004 FR-027).
+            'notifiableCounts' => $this->notifications->notifiableCounts($course),
             'couponChains' => $this->couponChainService->editorOptions(),
         ]);
     }

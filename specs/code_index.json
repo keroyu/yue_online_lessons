@@ -57,6 +57,7 @@
     "app/Http/Controllers/Admin/ChapterController.php": [
       "003.us-10",
       "004.us-3",
+      "004.us-6",
       "006.us-5",
       "011.us-21"
     ],
@@ -827,6 +828,7 @@
     "app/Models/Lesson.php": [
       "003.us-10",
       "004.us-3",
+      "004.us-6",
       "010.us-18",
       "011.us-21"
     ],
@@ -862,6 +864,7 @@
     ],
     "app/Models/Purchase.php": [
       "002.us-17",
+      "004.us-6",
       "005.us-4",
       "005.us-6",
       "005.us-7",
@@ -1046,6 +1049,9 @@
     "app/Services/HomeworkGradingService.php": [
       "003.us-10",
       "003.us-12"
+    ],
+    "app/Services/LessonNotificationService.php": [
+      "004.us-6"
     ],
     "app/Services/MetaConversionsService.php": [
       "000.us-7"
@@ -1505,6 +1511,9 @@
     "database/migrations/2026_09_27_000001_add_bundle_fields_to_courses_table.php": [
       "011.us-37"
     ],
+    "database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php": [
+      "004.us-6"
+    ],
     "database/migrations/2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php": [
       "011.us-37"
     ],
@@ -1561,6 +1570,7 @@
     ],
     "resources/js/Components/Admin/ChapterList.vue": [
       "004.us-3",
+      "004.us-6",
       "011.us-21"
     ],
     "resources/js/Components/Admin/ColorSchemePicker.vue": [
@@ -1941,6 +1951,7 @@
     ],
     "resources/js/Pages/Admin/Courses/Chapters.vue": [
       "004.us-3",
+      "004.us-6",
       "011.us-21"
     ],
     "resources/js/Pages/Admin/Courses/Create.vue": [
@@ -2290,6 +2301,9 @@
     ],
     "tests/Feature/Admin/CourseTypeTest.php": [
       "004.us-2"
+    ],
+    "tests/Feature/Admin/LessonNotificationTest.php": [
+      "004.us-6"
     ],
     "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php": [
       "008.us-6",

@@ -1,6 +1,6 @@
 ---
 id: 004-course-admin
-status: done
+status: building
 owner_files:
   - app/Http/Controllers/Admin/CourseController.php
   - app/Http/Controllers/Admin/ChapterController.php
@@ -22,6 +22,7 @@ owner_files:
   - app/Models/CourseRoadmapStage.php
   - app/Models/CourseRoadmapCheckpoint.php
   - app/Services/CourseRoadmapService.php
+  - app/Services/LessonNotificationService.php
   - app/Policies/CoursePolicy.php
   - app/Console/Commands/UpdateCourseStatus.php
   - app/Mail/LessonAddedNotification.php
@@ -63,6 +64,8 @@ owner_files:
   - database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
   - database/migrations/2026_07_06_000001_add_content_category_to_courses_table.php
   - database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
+  - database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php
+  - tests/Feature/Admin/LessonNotificationTest.php
 touchpoints:
   - file: database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
     owner: 010-drip-email
@@ -102,7 +105,10 @@ touchpoints:
     why: 小節儲存時解析/驗證 Vimeo、YouTube 連結為 video_platform + video_id
   - file: app/Models/Purchase.php
     owner: 005-checkout
-    why: 建課自動指派 system_assigned 購買紀錄、刪課防呆與通知信收件人名單皆查詢此 model
+    why: 建課自動指派 system_assigned 購買紀錄、刪課防呆與通知信收件人名單皆查詢此 model；小節通知的方案過濾呼叫 `Purchase::accessibleLessonIds()`（語意歸 011 US21）
+  - file: app/Models/CoursePlan.php
+    owner: 011-high-ticket
+    why: 小節通知的收件人過濾與「預計通知人數」預覽需讀 course_plan_lesson 歸屬與各方案的合格購買數（US6 追加，FR-024/FR-027）
   - file: app/Http/Requests/Concerns/NormalizesTaipeiInput.php
     owner: 000-platform-core
     why: sale_at / promo_ends_at 的 FormRequest 用它在 prepareForValidation() 把 datetime-local 的台北牆鐘轉成 UTC（000 US11）
@@ -209,6 +215,16 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 信件優先使用 `EmailTemplate::forEvent('lesson_added')` 模板（變數：course_name / lesson_title / classroom_url，CommonMark 轉 HTML）；無模板時 fallback 至純文字 blade（`emails/lesson-added.blade.php`），主旨依課程 type 顯示 課程/迷你課/講座
 - [x] 逐封同步發送；單封失敗僅記 log，不中斷後續發送、不影響小節儲存成功
 
+**補寄與回報（2026-09-27 追加，FR-024~FR-028）**：多方案課（011 US21）在建立小節的當下，`course_plan_lesson`
+必然還是空的，綁方案的學員會被方案過濾整批濾掉 —— 信一封都不會寄，畫面卻只顯示「小節建立成功」。
+補上「編輯時可補寄」與「寄送結果誠實回報」兩條路。
+
+- [x] 小節**編輯** Modal 亦顯示「發送 Email 通知學員」勾選框（同樣只在已發布非 drip 課），`update()` 與 `store()` 共用同一支寄信 Service
+- [x] 勾選框旁常駐「預計通知 N 位學員」；N=0 時改為警示樣式並 disable 勾選框，明寫原因（此小節尚未歸屬任何方案／此課程尚無學員）
+- [x] 已寄過的小節顯示上次寄送時間（台北時區），勾選框文案改為「再次發送 Email 通知學員（收過的人會再收到）」的二次確認語意
+- [x] 儲存後的 flash 帶實際成功寄出封數（`小節建立成功，已通知 12 位學員`）；0 封時附上原因，不得只說成功
+- [x] 單方案／無方案課程的行為完全不變（`LessonNotificationTest` 回歸防線 + 手動回歸）
+
 ### User Story 7 - 課程 Roadmap 編輯 (Priority: P2)
 
 管理員在 `/admin/courses/{course}/roadmap` 為單一課程自訂一份 Roadmap：一串**縱向排列的階段里程碑**，
@@ -255,6 +271,12 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-022**: `sort_order` 由**陣列位置**決定，後端於儲存時整批重寫（0..n-1），不信任前端送來的 sort_order 值 — 前例 FR-009 的 reorder 防線
 - **FR-023**: Markdown 匯入只是**前端的草稿產生器**，不是 import API：解析後填進表單狀態，使用者仍要按儲存。因此匯入產生的階段一律無 `id`（= 全新），使用者若在既有 Roadmap 上匯入，等同整份取代、既有完成紀錄消失 —— 這就是驗收要求必須先跳警告的原因
 
+- **FR-024**: 通知信的收件人規則是**單一真相**，只實作在 `LessonNotificationService`：`purchases.status≠refunded` ∧ `type≠system_assigned` ∧（`course_plan_id` 為 null ∨ 該小節在其方案的 `course_plan_lesson` 內，即 `Purchase::accessibleLessonIds()` 判定）。`store()`、`update()`、預覽人數三處 MUST 都走它，**不得各自寫一份 Purchase query** —— 規則漂移的代價是「有人收到兩封、有人一封都沒有」，且不會有任何錯誤浮出來
+- **FR-025**: 建立小節時 `course_plan_lesson` **必然為空**（方案歸屬走另一條 `PUT /lessons/{lesson}/plans`，`StoreLessonRequest` 完全不收 plan 欄位），所以多方案課在建立當下勾通知，綁方案的學員一律被 FR-024 濾掉、實際寄出 0 封。這不是過濾寫錯而是**時序**問題：011 FR-095 讓方案外小節在教室直接隱藏，寄了學員也點不到，故過濾本身 MUST 保留。因此「編輯時可補寄」MUST 存在 —— 否則綁方案的學員永遠收不到新小節通知，而現行設計連補救入口都沒有（勾選框只在 `!isEditing` 顯示，`update()` 也不讀 `notify_members`）
+- **FR-026**: 寄送結果 MUST 誠實回報。flash 帶實際成功封數；0 封時 MUST 附原因（尚未歸屬任何方案／此課程尚無合格學員）。**不得只顯示「小節建立成功」讓管理員以為信寄出去了** —— 這正是本次問題被埋了這麼久的原因。**已知限制**：`BlockSuppressedRecipients`（000 FR-022）是靠 `MessageSending` 回 `false` 取消寄送、不丟例外，所以退信名單上的地址會被算進「已通知 N 位」。這是全站 14 個寄信點共有的行為，不在本次範圍 —— 封數的語意是「已交給 mailer 且未被擋下」，不是「進到收件匣」；要精確就得改成監聽 `MessageSent` 計數（未做）
+- **FR-027**: 「預計通知人數」是**前端加總**，不是後端逐小節查詢：payload 帶一份 `notifiableCounts`（`no_plan` + 各 `course_plan_id` 的合格購買數，單一 `groupBy` 查詢即得），前端以 `no_plan + Σ counts[lesson.plan_ids]` 算出每個小節的預計人數。預覽**僅供參考**，實際寄送名單一律由後端依 FR-024 重算（比照 D23：提示是前端的事，不為一句提示多一個往返）
+- **FR-028**: `lessons.notified_at` 只記**最後一次**寄送時間，不記「誰收過」。已寄過時勾選框 MUST 轉為明確的二次確認語意（顯示上次時間 + 「收過的人會再收到」），既不得靜默重寄、也不得永久封鎖 —— 永久封鎖會讓後來才被加進方案 B 的學員永遠收不到（FR-025 的同一個坑換個位置重演）
+
 ## 設計決策
 
 - **D1**: `status` + `is_published` 雙欄位而非單一狀態欄 — 下架回草稿後仍可由 `sale_at` 重新推斷發佈狀態；發佈邏輯（未來 sale_at → preorder）collapse 在 `publish()` 一處
@@ -286,6 +308,11 @@ SEO、點數兌換、金流與顯示設定。
 - **D22**: `CourseRoadmapService::sync(Course $course, array $data): void` 封裝整段 diff 儲存（單一 transaction：驗歸屬 → upsert 階段 → upsert 各階段檢核項目 → 刪除缺席列 → 重寫 sort_order），controller 只做 `$this->service->sync($course, $request->validated())` + redirect。刪除交給 FK `cascadeOnDelete` 連動清完成紀錄，不在 Service 手動刪第三張表
 - **D23**: `CourseRoadmapRequest` 另提供 `affectedCompletions(Course $course): int` 供刪除警告使用？**否決** — 警告是**前端**的事：頁面載入時每個檢核項目已帶著 `completed_count`，刪除時直接加總即可，不必為了一句提示多一個往返
 
+- **D24**: 補寄做成**編輯 Modal 裡的同一顆勾選框**，不是小節列上一顆獨立「通知學員」按鈕 —— 介面與建立時完全一致（同一個 Modal、同一個位置、同一句文案），管理員不必學兩套心智模型。代價是「只想寄信」也得按一次儲存，但那是無害的 no-op update（否決：小節列加通知按鈕 — 多一條路由與一個只做一件事的 endpoint，語意還與既有勾選框重複；否決：設定方案時自動補寄 — 方案面板一次 sync 一整批小節，會毫無預警噴出數十封信，且管理員調方案歸屬的頻率遠高於「想通知」的頻率）
+- **D25**: 抽 `LessonNotificationService`，把收件人規則從 controller 搬出去 —— `LessonController::store()`、`update()`、`ChapterController::index()` 的預覽人數三處共用同一份規則（FR-024）。D3 的「同步逐封 `Mail::send`、單封失敗只記 log」不變，只是搬家。方法簽名：`recipients(Lesson $lesson): Collection`（合格 purchases，已 eager load `user` 與 `plan.lessons:id`）、`notify(Lesson $lesson): array`（逐封寄送，回 `['sent' => int, 'failed' => int, 'eligible' => int]` 並寫 `notified_at`；constitution §II 要求有副作用的寫入回結構化結果，故非裸 int）、`notifiableCounts(Course $course): array`（回 `['no_plan' => int, 'plans' => [planId => int]]`，單一 `groupBy('course_plan_id')`）、`emptyReason(Lesson $lesson): ?string`（0 封時的原因，flash 與表單提示共用）（否決：在 LessonController 開 private helper — ChapterController 也要用，跨 controller 共用就該是 Service）
+- **D26**: 防重複用**單一 `notified_at` datetime 欄位 + 明確二次確認**，而不是 `lesson_notifications(lesson_id, user_id, sent_at)` 明細表。明細表能做到零重複（方案 B 補寄時自動跳過方案 A 學員），但那是一張**只為了防重複而存在**的表，而補寄是低頻操作（設方案 → 補寄，一門課一生發生幾次）。改成把判斷交給看得到名單的管理員：「已於 09/27 14:30 通知，仍要再寄?」（否決：`lesson_notifications` 明細表 — 精準但成本不成比例；否決：`notified_user_ids` JSON 欄位 — 一樣要維護、又沒有表的查詢與去重能力）。**升級條件寫在這裡**：若日後補寄變成常態，或出現學員抱怨收到重複信，就該把這裡換成明細表，`notified_at` 退化為衍生值
+- **D27**: `notified_at` **不進 `$fillable`** —— 它是寄送的副作用，不是表單欄位，只由 Service 以 `forceFill`/明確 `save()` 寫入。同理 `update()` MUST 比照 `store()` 明確寫出 `$request->safe()->except(['notify_members'])`：今天 `update()` 直接把含 `notify_members` 的 `validated()` 餵給 `$lesson->update()` 而沒出錯，是因為該 key 剛好不在 `$fillable` 被靜默丟棄 —— 那是運氣，不是設計（前例 FR-015 的「缺規則靜默丟棄」）
+
 ## Schema
 
 - 本次新增 migration `2026_08_01_000001_add_ebook_to_courses_type.php` — `courses.type` enum 由 4 值擴為 5 值（加 `ebook`）；以 `Schema::change()` 同時作用於 MySQL 與 sqlite（D10）。down() 還原為 4 值前須確保無 ebook 資料列
@@ -297,6 +324,12 @@ SEO、點數兌換、金流與顯示設定。
 - `2026_09_23_000003_add_roadmap_title_to_courses_table.php` — `courses.roadmap_title` string(100) nullable
 
 關鍵不變量：**checkpoint 的 id 是學員完成紀錄的唯一錨點**（見 FR-020／D19）。刪除階段 → cascade 刪其檢核項目 → cascade 刪學員完成紀錄，這條鏈是刻意的，但也因此任何「重建式儲存」都會靜默清空全站進度。完成紀錄表本身（`roadmap_checkpoint_completions`）歸 003 擁有，見 003 US11 Schema 段。
+
+**小節通知補寄（US6 追加，2026-09-27）**：
+
+- `2026_09_27_000001_add_notified_at_to_lessons_table.php` — `lessons.notified_at` datetime nullable，無 index（只做單列讀寫，不做範圍查詢）
+
+關鍵不變量：`notified_at` 是**最後一次寄送時間**，不是「誰收過」的名單（D26）。既有小節一律留 null，不回填 —— 過去確實寄過的小節會顯示成「未寄送」，這是刻意的：回填只能瞎猜時間，而 null 的語意「沒有寄送紀錄」本來就涵蓋它。此欄位不進 `$fillable`（D27）。
 
 本模組擁有的資料表（細節見 migrations）：
 
@@ -367,7 +400,32 @@ Phase 3 — 驗證
 - [x] T00H11 測試（TDD，先紅）：(a) 儲存既有階段時 id 保留、學員完成紀錄存活；(b) payload 移除某檢核項目 → 該列與其完成紀錄一起消失；(c) 帶別門課的 stage id → 422；(d) sort_order 由陣列位置重寫、不信前端值 in tests/Feature/Admin/CourseRoadmapTest.php
 - [x] T00H12 `php artisan test` 全綠 + `npm run build` exit 0
 
+### 小節通知補寄與寄送回報（US6 追加，FR-024~FR-028）
+
+**Phase A — 後端**
+
+- [x] T00I1 migration：`lessons.notified_at` datetime nullable（不回填既有列）in database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php
+- [x] T00I2 `LessonNotificationService`（D25）三個方法：`recipients(Lesson): Collection`（把現行 `store()` 內那段 Purchase query + `accessibleLessonIds()` 過濾整段搬進來，eager load `user`、`plan.lessons:id`）、`notify(Lesson): int`（逐封 `Mail::send(new LessonAddedNotification(...))`，單封失敗只記 log 續跑，結束後寫 `notified_at = now()` 並回成功封數）、`notifiableCounts(Course): array`（單一 `groupBy('course_plan_id')` 查合格購買數，回 `['no_plan' => n, 'plans' => [id => n]]`）in app/Services/LessonNotificationService.php
+- [x] T00I3 `LessonController::store()` 改呼叫 Service：保留「已發布 ∧ 非 drip」的二次判斷，`$sent = $service->notify($lesson)`，flash 依 FR-026 組字串（勾了通知才附人數；0 封時依 `notifiableCounts` 判斷原因是「尚未歸屬任何方案」還是「尚無合格學員」）in app/Http/Controllers/Admin/LessonController.php
+- [x] T00I4 `LessonController::update()` 加上同一段通知處理，並把 `$request->validated()` 改為 `$request->safe()->except(['notify_members'])`（D27）in app/Http/Controllers/Admin/LessonController.php
+- [x] T00I5 `ChapterController::index()` payload 追加：每個 lesson 的 `notified_at`（`->timezone('Asia/Taipei')` 後輸出，或直接 ISO 交前端）與頁層級 `notifiableCounts`（FR-027，單一查詢、不逐小節算）in app/Http/Controllers/Admin/ChapterController.php
+
+**Phase B — 前端**（T00I5 完成後）
+
+- [x] T00I6 `LessonForm.vue`：(a) 通知區塊的 `v-if` 移除 `!isEditing`，只留 `courseStatus !== 'draft' && courseType !== 'drip'`；(b) 以 props 傳入的 `notifiableCounts` + 目前 `plan_ids` 算出預計人數並常駐顯示，0 人時警示樣式 + disable 勾選框 + 明寫原因；(c) 編輯且 `notified_at` 有值時顯示台北時間並改用「再次發送（收過的人會再收到）」文案（FR-028）in resources/js/Components/Admin/LessonForm.vue
+- [x] T00I7 `Chapters.vue`：把 `notifiableCounts` 與小節的 `notified_at` 往下傳給 LessonForm；`plan_ids` 已在 payload 內（011 US21），沿用不動 in resources/js/Pages/Admin/Courses/Chapters.vue, resources/js/Components/Admin/ChapterList.vue
+
+**Phase C — 驗證**
+
+- [x] T00I8 測試（TDD，先紅）：(a) 多方案課建立小節勾通知 → 綁方案學員 0 封、flash 帶 0 與原因（鎖住今天的行為並讓它可見）；(b) 把小節加進方案 A 後編輯勾通知 → 方案 A 學員收到、方案 B 學員沒收到、`notified_at` 落值；(c) 無方案課程建立時通知照舊全寄（回歸防線）；(d) refunded / system_assigned 一律不收；(e) 單封 Mail 失敗不中斷後續且不影響儲存 in tests/Feature/Admin/LessonNotificationTest.php
+- [x] T00I9 `php artisan test` 全綠 + `npm run build` exit 0
+- [ ] T00I10 **部署後在正式站驗**（本機 DB 無多方案課資料，2026-09-27 決定跳過本機實走）：拿一門**沒有學員**的多方案課走「建立小節（確認勾不下去且寫出 0 位原因）→ 設方案歸屬 → 編輯勾通知 → 重開確認顯示台北時間與二次確認文案」。**注意：正式站勾下去是真的寄信給真學員**，不要拿有學員的課試
+
 ## 進度日誌
+
+- 2026-09-27: 實作 US6 追加 T00I1~T00I8 — `lessons.notified_at`（datetime、不進 `$fillable`、有 datetime cast）、`LessonNotificationService`（`recipients` / `notify` / `notifiableCounts` / `emptyReason`，收件人規則從 LessonController 搬出成單一真相）、`store()` 與 `update()` 共用 `notifyAndDescribe()` 把實際寄出封數與 0 封原因寫進 flash、`ChapterController@index` payload 加 `notifiableCounts` 與各小節台北時區的 `notified_at`、LessonForm 通知區塊改為建立/編輯都顯示並帶預計人數（0 人時 disable + 警示原因）與已寄過的二次確認文案。`LessonNotificationTest` 9 例綠（含故意弄壞 no_plan 計數、方案過濾、時區轉換各一次確認會紅），`php artisan test` 1108 passed、`npm run build` exit 0。手動實走改為部署後在正式站進行（T00I10，本機 DB 沒有多方案課資料）。
+
+- 2026-09-27: /spec 規劃「小節通知補寄與寄送回報」（US6 追加，FR-024~FR-028、D24~D27、T00I1~T00I9）— 根因是多方案課建立小節時 `course_plan_lesson` 必為空，`store()` 的方案過濾把所有綁方案的學員濾掉，導致靜默 0 寄送且無補救路徑。解法：抽 `LessonNotificationService` 統一收件人規則、編輯 Modal 也能勾通知（`lessons.notified_at` + 二次確認防手滑）、flash 回報實際封數、勾選框旁前端加總預覽人數。status: draft 待審。
 
 - 2026-09-25: `lesson-added.blade.php` 的署名改讀 `SiteSetting::siteName()`，不再寫死品牌字串（000 US12）。
 

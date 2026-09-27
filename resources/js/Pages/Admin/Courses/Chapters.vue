@@ -27,6 +27,10 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  notifiableCounts: {
+    type: Object,
+    default: () => ({ no_plan: 0, plans: {} }),
+  },
 })
 </script>
 
@@ -89,6 +93,7 @@ defineProps({
         :standalone-lessons="standaloneLessons"
         :coupon-chains="couponChains"
         :plans="plans"
+        :notifiable-counts="notifiableCounts"
       />
   </div>
 </template>

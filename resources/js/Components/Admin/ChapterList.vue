@@ -33,6 +33,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  notifiableCounts: {
+    type: Object,
+    default: () => ({ no_plan: 0, plans: {} }),
+  },
 })
 
 const emit = defineEmits(['update:chapters', 'update:standaloneLessons'])
@@ -550,6 +554,7 @@ const onLessonDragEnd = (chapterId = null) => {
       :course-type="courseType"
       :course-status="courseStatus"
       :coupon-chains="couponChains"
+      :notifiable-counts="notifiableCounts"
       @save="saveLesson"
       @close="closeLessonForm"
     />

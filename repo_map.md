@@ -376,13 +376,16 @@ main_files:
 - app/Models/CourseRoadmapCheckpoint.php
 - app/Models/CourseRoadmapStage.php
 - app/Models/Lesson.php
+- app/Models/Purchase.php
 - app/Policies/CoursePolicy.php
 - app/Services/CourseRoadmapService.php
+- app/Services/LessonNotificationService.php
 - database/migrations/2026_03_08_180036_add_seo_fields_to_courses_table.php
 - database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
 - database/migrations/2026_06_30_000003_add_redeem_points_to_courses_table.php
 - database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
 - database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
+- database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/ImageGalleryModal.vue
@@ -404,6 +407,7 @@ main_files:
 - tests/Feature/Admin/CourseImageBatchUploadTest.php
 - tests/Feature/Admin/CourseRoadmapTest.php
 - tests/Feature/Admin/CourseTypeTest.php
+- tests/Feature/Admin/LessonNotificationTest.php
 
 related_specs:
 - specs/004-course-admin/spec.md

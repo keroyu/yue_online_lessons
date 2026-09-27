@@ -20,6 +20,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Eligible holder counts bucketed by plan (004 FR-027); the preview below
+  // is a sum of these, the real recipient list is recomputed server-side.
+  notifiableCounts: {
+    type: Object,
+    default: () => ({ no_plan: 0, plans: {} }),
+  },
 })
 
 const emit = defineEmits(['save', 'close'])
@@ -136,6 +142,37 @@ onMounted(() => {
 })
 
 const isEditing = computed(() => !!props.lesson)
+
+// Notification (004 US6). Shown on both create and edit: on a multi-plan
+// course the pivot is still empty when the lesson is created, so the back-fill
+// from this form is the only way plan holders ever hear about it (FR-025).
+const canNotify = computed(
+  () => props.courseStatus !== 'draft' && props.courseType !== 'drip'
+)
+
+const notifiedAt = computed(() => props.lesson?.notified_at ?? null)
+
+const hasAnyHolders = computed(() => {
+  const counts = props.notifiableCounts
+  const planTotal = Object.values(counts.plans || {}).reduce((sum, n) => sum + n, 0)
+  return (counts.no_plan || 0) + planTotal > 0
+})
+
+// no_plan holders see everything; plan holders only count when this lesson is
+// in their tier. Matches LessonNotificationService::recipients (FR-024).
+const notifiableCount = computed(() => {
+  const counts = props.notifiableCounts
+  const planIds = props.lesson?.plan_ids ?? []
+  const fromPlans = planIds.reduce((sum, id) => sum + (counts.plans?.[id] ?? 0), 0)
+  return (counts.no_plan || 0) + fromPlans
+})
+
+const emptyReason = computed(() => {
+  if (notifiableCount.value > 0) return null
+  return hasAnyHolders.value
+    ? '此小節尚未歸屬任何方案，綁定方案的學員看不到它。請先到方案面板設定歸屬。'
+    : '此課程尚無可通知的學員。'
+})
 
 const videoPlatform = computed(() => {
   const url = form.value.video_url
@@ -461,16 +498,32 @@ const errorTextClasses = 'mt-2 text-sm text-red-600'
               </div>
             </div>
 
-            <!-- Notify members (new lesson only, published standard courses) -->
-            <div v-if="!isEditing && courseStatus !== 'draft' && courseType !== 'drip'" class="border-t pt-6 mt-2">
-              <label class="flex items-center space-x-2 cursor-pointer">
+            <!-- Notify members (published standard courses, create and edit) -->
+            <div v-if="canNotify" class="border-t pt-6 mt-2">
+              <p v-if="notifiedAt" class="mb-2 text-sm text-gray-500">
+                已於 {{ notifiedAt }} 通知學員
+              </p>
+              <label
+                class="flex items-start space-x-2"
+                :class="emptyReason ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'"
+              >
                 <input
                   v-model="notifyMembers"
                   type="checkbox"
-                  class="rounded border-gray-300 text-brand-teal shadow-sm focus:ring-brand-teal"
+                  :disabled="!!emptyReason"
+                  class="mt-0.5 rounded border-gray-300 text-brand-teal shadow-sm focus:ring-brand-teal disabled:cursor-not-allowed"
                 />
-                <span class="text-sm text-gray-700">發送 Email 通知學員</span>
+                <span class="text-sm text-gray-700">
+                  {{ notifiedAt ? '再次發送 Email 通知學員（收過的人會再收到）' : '發送 Email 通知學員' }}
+                </span>
               </label>
+              <p
+                class="mt-2 text-sm"
+                :class="emptyReason ? 'text-amber-700' : 'text-gray-500'"
+              >
+                <template v-if="emptyReason">⚠ 預計通知 0 位 — {{ emptyReason }}</template>
+                <template v-else>預計通知 {{ notifiableCount }} 位學員</template>
+              </p>
             </div>
 
             <!-- Actions -->

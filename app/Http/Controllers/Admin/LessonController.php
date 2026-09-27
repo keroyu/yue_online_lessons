@@ -4,22 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreLessonRequest;
-use App\Mail\LessonAddedNotification;
 use App\Models\Course;
 use App\Models\Lesson;
-use App\Models\Purchase;
 use App\Services\DripService;
+use App\Services\LessonNotificationService;
 use App\Services\VideoEmbedService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class LessonController extends Controller
 {
     public function __construct(
         protected VideoEmbedService $videoEmbedService,
         protected DripService $dripService,
+        protected LessonNotificationService $notifications,
     ) {}
 
     /**
@@ -73,40 +71,9 @@ class LessonController extends Controller
             $this->dripService->reactivateCompletedSubscriptions($course);
         }
 
-        // Send notification email to course owners (standard courses only, published only)
-        if ($notifyMembers && $course->status !== 'draft' && $course->course_type !== 'drip') {
-            $recipients = Purchase::where('course_id', $course->id)
-                ->where('status', '!=', 'refunded')
-                ->where('type', '!=', 'system_assigned')
-                ->with(['user', 'plan.lessons:id'])
-                ->get()
-                // A plan A holder must not be told about a lesson their tier
-                // does not include: they would come looking and find nothing,
-                // since plan-external lessons are hidden outright (011 FR-095).
-                ->filter(function ($purchase) use ($lesson) {
-                    $lessonIds = $purchase->accessibleLessonIds();
-
-                    return $lessonIds === null || in_array($lesson->id, $lessonIds);
-                });
-
-            foreach ($recipients as $purchase) {
-                if ($purchase->user && $purchase->user->email) {
-                    try {
-                        Mail::to($purchase->user->email)
-                            ->send(new LessonAddedNotification($course, $lesson));
-                    } catch (\Exception $e) {
-                        Log::error('Failed to send lesson notification', [
-                            'purchase_id' => $purchase->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
-        }
-
         return redirect()
             ->route('admin.chapters.index', $course)
-            ->with('success', '小節建立成功');
+            ->with('success', $this->notifyAndDescribe($lesson, $notifyMembers, '小節建立成功'));
     }
 
     /**
@@ -114,7 +81,9 @@ class LessonController extends Controller
      */
     public function update(StoreLessonRequest $request, Lesson $lesson): RedirectResponse
     {
-        $data = $request->validated();
+        $notifyMembers = $request->boolean('notify_members');
+        // Explicit, not "it happens not to be in $fillable" (D27).
+        $data = $request->safe()->except(['notify_members']);
 
         // Ensure duration_seconds is never null (DB NOT NULL constraint)
         $data['duration_seconds'] = $data['duration_seconds'] ?? 0;
@@ -138,7 +107,34 @@ class LessonController extends Controller
 
         return redirect()
             ->route('admin.chapters.index', $lesson->course_id)
-            ->with('success', '小節更新成功');
+            ->with('success', $this->notifyAndDescribe($lesson, $notifyMembers, '小節更新成功'));
+    }
+
+    /**
+     * Notify holders if asked, and fold the real outcome into the flash
+     * message. Silence here is what let a multi-plan course report success
+     * while mailing nobody (FR-025 / FR-026).
+     */
+    private function notifyAndDescribe(Lesson $lesson, bool $notifyMembers, string $base): string
+    {
+        $course = $lesson->course;
+
+        if (!$notifyMembers || $course->status === 'draft' || $course->course_type === 'drip') {
+            return $base;
+        }
+
+        $result = $this->notifications->notify($lesson);
+        $message = "{$base}，已通知 {$result['sent']} 位學員";
+
+        if ($result['sent'] === 0 && $reason = $this->notifications->emptyReason($lesson)) {
+            $message .= "（{$reason}）";
+        }
+
+        if ($result['failed'] > 0) {
+            $message .= "；{$result['failed']} 封寄送失敗，詳見 log";
+        }
+
+        return $message;
     }
 
     /**

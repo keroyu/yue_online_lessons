@@ -40,6 +40,9 @@ class Lesson extends Model
             'sort_order' => 'integer',
             'promo_delay_seconds' => 'integer',
             'video_access_hours' => 'integer',
+            // Deliberately absent from $fillable: written only by
+            // LessonNotificationService as a side effect of sending (004 D27).
+            'notified_at' => 'datetime',
             'drip_day' => 'integer',
             'is_preview' => 'boolean',
         ];
