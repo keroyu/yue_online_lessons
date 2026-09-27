@@ -320,6 +320,71 @@ class CourseRosterTest extends TestCase
             ->assertStatus(422);
     }
 
+    // ── manual +1, the undo for a mis-click (FR-221) ──────────────────────
+
+    public function test_manual_credit_adds_one_each_without_touching_granted(): void
+    {
+        $course = $this->course();
+        $plan = $this->plan($course, '入門版', 4);
+        $member = $this->member('oops@example.com');
+        $this->enrol($member, $course, $plan);
+        app(BundleCreditService::class)->consume($course, [$member->id]); // mis-click: 4 -> 3
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/credit", ['user_ids' => [$member->id]])
+            ->assertOk()
+            ->assertJson(['credited' => 1, 'unlimited' => []]);
+
+        $purchase = Purchase::where('user_id', $member->id)->first();
+        $this->assertSame(4, $purchase->bundle_balance);
+        // Untouched, or a later backfill would hand out less than the plan owes.
+        $this->assertSame(4, $purchase->bundle_granted);
+    }
+
+    public function test_manual_credit_can_take_a_member_above_the_plan_quantity(): void
+    {
+        $course = $this->course();
+        $plan = $this->plan($course, '入門版', 2);
+        $member = $this->member('extra@example.com');
+        $this->enrol($member, $course, $plan);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/credit", ['user_ids' => [$member->id]])
+            ->assertOk();
+
+        $this->assertSame(3, Purchase::where('user_id', $member->id)->value('bundle_balance'));
+    }
+
+    public function test_manual_credit_skips_unlimited_members_and_strangers(): void
+    {
+        $course = $this->course();
+        $unlimitedPlan = $this->plan($course, '完整版', 0, 0, unlimited: true);
+        $forever = $this->member('forever@example.com');
+        $stranger = $this->member('stranger@example.com');
+        $this->enrol($forever, $course, $unlimitedPlan);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/credit", [
+                'user_ids' => [$forever->id, $stranger->id],
+            ])
+            ->assertOk()
+            ->assertJson(['credited' => 0, 'unlimited' => ['forever@example.com']]);
+
+        $this->assertSame(0, Purchase::where('user_id', $forever->id)->value('bundle_balance'));
+    }
+
+    public function test_manual_credit_is_rejected_on_a_course_with_no_bundle(): void
+    {
+        $course = $this->course();
+        $course->update(['bundle_name' => null]);
+        $member = $this->member('m@example.com');
+        $this->enrol($member, $course);
+
+        $this->actingAs($this->admin())
+            ->postJson("/admin/courses/{$course->id}/bundle/credit", ['user_ids' => [$member->id]])
+            ->assertStatus(422);
+    }
+
     public function test_members_cannot_read_the_roster_or_spend_credits(): void
     {
         $course = $this->course();

@@ -327,6 +327,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/courses/{course}/roster', [\App\Http\Controllers\Admin\CourseRosterController::class, 'index'])->name('courses.roster');
     Route::post('/courses/{course}/bundle/consume', [\App\Http\Controllers\Admin\CourseRosterController::class, 'consume'])->name('courses.bundle.consume');
     Route::post('/courses/{course}/bundle/grant', [\App\Http\Controllers\Admin\CourseRosterController::class, 'grant'])->name('courses.bundle.grant');
+    Route::post('/courses/{course}/bundle/credit', [\App\Http\Controllers\Admin\CourseRosterController::class, 'credit'])->name('courses.bundle.credit');
 
     // A learner's roadmap progress, opened from the homework grading list (003 US11)
     Route::get('/homework/roadmap/{course}/{user}', [\App\Http\Controllers\Admin\StudentRoadmapController::class, 'show'])->name('homework.roadmap');

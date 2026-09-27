@@ -256,6 +256,57 @@ class BundleCreditService
     }
 
     /**
+     * Hand one credit back (or give one out) by hand (FR-221).
+     *
+     * The counterpart of consume(), and the only way to undo a mis-click: there
+     * is no ledger to roll back (D141), and grantToMembers() cannot help because
+     * it tops up to what the plan owes — someone who already received that is
+     * "unchanged" no matter how many credits they just lost.
+     *
+     * `bundle_granted` is deliberately NOT moved: it answers "what the plan
+     * owed", and a manual adjustment was never owed. Moving it would also shrink
+     * a later backfill (FR-203 tops up to the difference).
+     *
+     * @param  array<int>  $userIds
+     * @return array{credited: int, unlimited: array<string>}
+     */
+    public function credit(Course $course, array $userIds, int $quantity = 1): array
+    {
+        if ($userIds === [] || $quantity < 1 || ! $course->has_bundle) {
+            return ['credited' => 0, 'unlimited' => []];
+        }
+
+        $purchases = Purchase::where('course_id', $course->id)
+            ->whereIn('user_id', $userIds)
+            ->paidStatus()
+            ->with(['user:id,email', 'plan'])
+            ->get();
+
+        $credited = 0;
+        $unlimited = [];
+
+        foreach ($purchases as $purchase) {
+            if ($this->isUnlimitedFor($course, $purchase->plan)) {
+                $unlimited[] = $purchase->user?->email ?? $purchase->buyer_email;
+
+                continue;
+            }
+
+            Purchase::whereKey($purchase->id)->increment('bundle_balance', $quantity);
+            $credited++;
+        }
+
+        Log::info('Bundle credits added by hand', [
+            'course_id' => $course->id,
+            'requested' => count($userIds),
+            'credited' => $credited,
+            'unlimited' => count($unlimited),
+        ]);
+
+        return ['credited' => $credited, 'unlimited' => $unlimited];
+    }
+
+    /**
      * Buy one more credit with points (FR-206).
      *
      * One call = one credit: `bundle_redeem_points` is the per-credit price

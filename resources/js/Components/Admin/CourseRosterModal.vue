@@ -30,6 +30,8 @@ const consuming = ref(false)
 const confirmingConsume = ref(false)
 const granting = ref(false)
 const confirmingGrant = ref(false)
+const crediting = ref(false)
+const confirmingCredit = ref(false)
 
 const hasBundle = computed(() => !!props.course?.has_bundle)
 const bundleName = computed(() => props.course?.bundle_name || '福利')
@@ -76,6 +78,7 @@ watch(() => props.open, (isOpen) => {
   selected.value = []
   confirmingConsume.value = false
   confirmingGrant.value = false
+  confirmingCredit.value = false
   load()
 })
 
@@ -109,6 +112,28 @@ const grant = async () => {
   } finally {
     granting.value = false
     confirmingGrant.value = false
+  }
+}
+
+// The undo for a mis-pressed deduction (FR-221): there is no ledger to roll
+// back, and 補發 tops up to the plan's number, which helps nobody who already
+// received it.
+const credit = async () => {
+  crediting.value = true
+  try {
+    const { data } = await axios.post(`/admin/courses/${props.course.id}/bundle/credit`, {
+      user_ids: selected.value,
+    })
+    const unlimited = data.unlimited?.length
+      ? `，其中 ${data.unlimited.length} 位為無限次未變動`
+      : ''
+    actionResult.value = `已補 ${data.credited} 位各 1 次${unlimited}`
+    await load()
+  } catch (e) {
+    actionResult.value = e.response?.data?.message || '補次數失敗，請稍後再試'
+  } finally {
+    crediting.value = false
+    confirmingCredit.value = false
   }
 }
 
@@ -329,6 +354,38 @@ const consume = async () => {
             :disabled="consuming"
             class="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50"
             @click="confirmingConsume = false"
+          >
+            取消
+          </button>
+        </div>
+
+        <button
+          v-if="!confirmingCredit"
+          type="button"
+          :disabled="selected.length === 0"
+          class="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          title="扣錯了用這個補回來，一次 +1"
+          @click="confirmingCredit = true"
+        >
+          補 1 次
+        </button>
+        <div v-else class="flex items-center gap-2 rounded-lg border border-gray-400 bg-gray-50 px-3 py-2">
+          <span class="text-sm text-gray-700">
+            將把 {{ selected.length }} 位學員的{{ bundleName }}各加 1 次？
+          </span>
+          <button
+            type="button"
+            :disabled="crediting"
+            class="cursor-pointer rounded-lg bg-gray-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-60"
+            @click="credit"
+          >
+            {{ crediting ? '處理中…' : '確認補 1 次' }}
+          </button>
+          <button
+            type="button"
+            :disabled="crediting"
+            class="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-50"
+            @click="confirmingCredit = false"
           >
             取消
           </button>

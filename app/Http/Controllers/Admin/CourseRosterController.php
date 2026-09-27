@@ -62,4 +62,20 @@ class CourseRosterController extends Controller
 
         return response()->json($credits->grantToMembers($course, $request->validated('user_ids')));
     }
+
+    /**
+     * Add one credit by hand (FR-221) — the undo for a mis-pressed deduction,
+     * since there is no ledger to roll back.
+     */
+    public function credit(
+        ConsumeBundleCreditRequest $request,
+        Course $course,
+        BundleCreditService $credits,
+    ): JsonResponse {
+        if (! $course->has_bundle) {
+            return response()->json(['message' => '此課程未設定附帶福利'], 422);
+        }
+
+        return response()->json($credits->credit($course, $request->validated('user_ids')));
+    }
 }
