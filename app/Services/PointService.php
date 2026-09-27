@@ -62,10 +62,18 @@ class PointService
      * Deduct points for a redemption. Atomic + guarded — the conditional UPDATE
      * guarantees the balance can never go negative under concurrency.
      * Throws RuntimeException on insufficient balance (caller catches to rollback).
+     *
+     * $type distinguishes what the points bought: a whole course (the default,
+     * 007 US1) or one bundle credit (`redeem_bundle`, 011 US37 / FR-206).
      */
-    public function redeemDeduct(User $user, int $cost, string $refType, int $refId): PointTransaction
-    {
-        return DB::transaction(function () use ($user, $cost, $refType, $refId) {
+    public function redeemDeduct(
+        User $user,
+        int $cost,
+        string $refType,
+        int $refId,
+        string $type = 'redeem_course'
+    ): PointTransaction {
+        return DB::transaction(function () use ($user, $cost, $refType, $refId, $type) {
             // Ensure just-matured referral points are spendable (F1: matured == available).
             $this->foldMatured($user);
 
@@ -80,7 +88,7 @@ class PointService
             $tx = PointTransaction::create([
                 'user_id'        => $user->id,
                 'amount'         => -$cost,
-                'type'           => 'redeem_course',
+                'type'           => $type,
                 'reference_type' => $refType,
                 'reference_id'   => $refId,
                 'available_at'   => now(),

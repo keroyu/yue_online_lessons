@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\LessonProgress;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LearningController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, PointService $points): Response
     {
         $user = $request->user();
 
@@ -40,11 +41,21 @@ class LearningController extends Controller
                 'instructor_name' => $course->instructor_name,
                 'progress_percent' => $progress['progress_percent'],
                 'purchased_at' => $purchase->created_at->toIso8601String(),
+                'plan_name' => $purchase->plan?->name,
+                // Bundle perk block (011 US37 / FR-207). Null on every course
+                // without a perk, so the card renders exactly as before.
+                'bundle' => $course->has_bundle ? [
+                    'purchase_id' => $purchase->id,
+                    'name' => $course->bundle_name,
+                    'balance' => (int) $purchase->bundle_balance,
+                    'redeem_points' => $course->bundle_redeem_points,
+                ] : null,
             ];
         });
 
         return Inertia::render('Member/Learning', [
             'courses' => $courses,
+            'availablePoints' => $points->availableBalance($user),
         ]);
     }
 }

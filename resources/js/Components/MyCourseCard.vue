@@ -1,10 +1,16 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
+import BundleCreditBlock from '@/Components/BundleCreditBlock.vue'
 
 defineProps({
   course: {
     type: Object,
     required: true,
+  },
+  // Null when the member has no point balance loaded (011 US37).
+  availablePoints: {
+    type: Number,
+    default: null,
   },
 })
 
@@ -64,6 +70,13 @@ const formatDate = (dateString) => {
       <div class="flex items-center justify-between text-xs text-gray-400">
         <span>購買日期：{{ formatDate(course.purchased_at) }}</span>
       </div>
+
+      <!-- Bundle perk: plan name, credits left, point top-up (011 US37) -->
+      <BundleCreditBlock
+        :plan-name="course.plan_name"
+        :bundle="course.bundle"
+        :available-points="availablePoints"
+      />
 
       <!-- Action Button -->
       <Link

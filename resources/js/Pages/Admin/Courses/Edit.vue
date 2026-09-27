@@ -35,6 +35,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Tiers of this course (011 US37) — the bundle panel needs their names.
+  plans: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const statusBadge = computed(() => {
@@ -148,6 +153,7 @@ const unpublish = () => {
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
         :coupon-chains="couponChains"
+        :plans="plans"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"
       />

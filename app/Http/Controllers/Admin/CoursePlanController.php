@@ -31,6 +31,7 @@ class CoursePlanController extends Controller
         $course->plans()->create([
             'name' => $request->validated('name'),
             'price' => $request->validated('price'),
+            'bundle_quantity' => $request->validated('bundle_quantity') ?? 0,
             'sort_order' => ($course->plans()->max('sort_order') ?? -1) + 1,
         ]);
 
@@ -42,6 +43,9 @@ class CoursePlanController extends Controller
         $plan->update([
             'name' => $request->validated('name'),
             'price' => $request->validated('price'),
+            // Absent means "left alone": the plan panel posts name + price only,
+            // the bundle panel posts all three (011 FR-202).
+            'bundle_quantity' => $request->validated('bundle_quantity') ?? $plan->bundle_quantity,
         ]);
 
         return back()->with('success', '方案已更新');

@@ -17,6 +17,12 @@ class Purchase extends Model
         'user_id',
         'course_id',
         'course_plan_id',
+        // Bundle credits live here because this table is already one row per
+        // (user, course) — the exact grain a balance needs (011 D141). They are
+        // deliberately absent from every updateOrCreate() attribute array:
+        // re-granting a course must not reset the balance (FR-204).
+        'bundle_balance',
+        'bundle_granted',
         'portaly_order_id',
         'payuni_trade_no',
         'buyer_email',
@@ -48,6 +54,8 @@ class Purchase extends Model
         return [
             'amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
+            'bundle_balance' => 'integer',
+            'bundle_granted' => 'integer',
             'webhook_received_at' => 'datetime',
             'first_touch' => 'array',
         ];

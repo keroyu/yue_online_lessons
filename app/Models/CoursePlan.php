@@ -23,6 +23,7 @@ class CoursePlan extends Model
         'course_id',
         'name',
         'price',
+        'bundle_quantity',
         'sort_order',
     ];
 
@@ -30,6 +31,7 @@ class CoursePlan extends Model
     {
         return [
             'price' => 'integer',
+            'bundle_quantity' => 'integer',
             'sort_order' => 'integer',
         ];
     }

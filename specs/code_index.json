@@ -96,16 +96,21 @@
       "010.us-11",
       "010.us-13",
       "010.us-18",
+      "011.us-37",
       "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
       "004.us-4"
     ],
     "app/Http/Controllers/Admin/CoursePlanController.php": [
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Http/Controllers/Admin/CourseRoadmapController.php": [
       "004.us-7"
+    ],
+    "app/Http/Controllers/Admin/CourseRosterController.php": [
+      "011.us-37"
     ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7"
@@ -190,7 +195,8 @@
       "008.us-8",
       "008.us-9",
       "010.us-13",
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Http/Controllers/Admin/PostController.php": [
       "012.us-1",
@@ -316,6 +322,9 @@
       "003.us-12",
       "003.us-5"
     ],
+    "app/Http/Controllers/Member/BundleRedemptionController.php": [
+      "011.us-37"
+    ],
     "app/Http/Controllers/Member/ClassroomController.php": [
       "003.us-10",
       "003.us-11",
@@ -334,7 +343,8 @@
     ],
     "app/Http/Controllers/Member/LearningController.php": [
       "003.us-1",
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Http/Controllers/Member/NotificationController.php": [
       "003.us-8"
@@ -423,6 +433,9 @@
       "003.us-10",
       "003.us-6"
     ],
+    "app/Http/Requests/Admin/ConsumeBundleCreditRequest.php": [
+      "011.us-37"
+    ],
     "app/Http/Requests/Admin/CourseRoadmapRequest.php": [
       "004.us-7"
     ],
@@ -463,7 +476,8 @@
       "006.us-2"
     ],
     "app/Http/Requests/Admin/StoreCoursePlanRequest.php": [
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Http/Requests/Admin/StoreCourseRequest.php": [
       "002.us-11",
@@ -519,7 +533,8 @@
       "002.us-12",
       "004.us-1",
       "004.us-2",
-      "010.us-18"
+      "010.us-18",
+      "011.us-37"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -741,7 +756,8 @@
       "004.us-2",
       "004.us-5",
       "004.us-7",
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
@@ -752,7 +768,8 @@
       "004.us-4"
     ],
     "app/Models/CoursePlan.php": [
-      "011.us-21"
+      "011.us-21",
+      "011.us-37"
     ],
     "app/Models/CourseRoadmapCheckpoint.php": [
       "004.us-7"
@@ -849,6 +866,7 @@
       "005.us-6",
       "005.us-7",
       "011.us-21",
+      "011.us-37",
       "011.us-5"
     ],
     "app/Models/RoadmapCheckpointCompletion.php": [
@@ -899,6 +917,9 @@
     "app/Services/BroadcastService.php": [
       "012.us-5",
       "012.us-6"
+    ],
+    "app/Services/BundleCreditService.php": [
+      "011.us-37"
     ],
     "app/Services/CalendarInviteService.php": [
       "011.us-14"
@@ -1010,6 +1031,7 @@
       "011.us-28",
       "011.us-30",
       "011.us-31",
+      "011.us-37",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -1055,7 +1077,8 @@
       "007.us-1",
       "007.us-2",
       "007.us-3",
-      "007.us-6"
+      "007.us-6",
+      "011.us-37"
     ],
     "app/Services/PortalyWebhookService.php": [
       "000.us-7",
@@ -1479,6 +1502,18 @@
     "database/migrations/2026_09_26_000001_create_homepage_widgets_table.php": [
       "002.us-23"
     ],
+    "database/migrations/2026_09_27_000001_add_bundle_fields_to_courses_table.php": [
+      "011.us-37"
+    ],
+    "database/migrations/2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php": [
+      "011.us-37"
+    ],
+    "database/migrations/2026_09_27_000003_add_bundle_credits_to_purchases_table.php": [
+      "011.us-37"
+    ],
+    "database/migrations/2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php": [
+      "011.us-37"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "011.us-10",
       "011.us-11",
@@ -1495,6 +1530,9 @@
     ],
     "database/seeders/ShortLinkSeeder.php": [
       "000.us-8"
+    ],
+    "phpunit.xml": [
+      "011.us-37"
     ],
     "resources/css/app.css": [
       "000.us-14",
@@ -1545,16 +1583,23 @@
     "resources/js/Components/Admin/CouponForm.vue": [
       "006.us-2"
     ],
+    "resources/js/Components/Admin/CourseBundlePanel.vue": [
+      "011.us-37"
+    ],
     "resources/js/Components/Admin/CourseForm.vue": [
       "002.us-11",
       "002.us-12",
       "004.us-2",
       "006.us-5",
       "010.us-18",
-      "010.us-8"
+      "010.us-8",
+      "011.us-37"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
+    ],
+    "resources/js/Components/Admin/CourseRosterModal.vue": [
+      "011.us-37"
     ],
     "resources/js/Components/Admin/HintBox.vue": [
       "000.us-9"
@@ -1650,6 +1695,9 @@
     ],
     "resources/js/Components/BlogArticles.vue": [
       "012.us-3"
+    ],
+    "resources/js/Components/BundleCreditBlock.vue": [
+      "011.us-37"
     ],
     "resources/js/Components/Cart/CouponInput.vue": [
       "006.us-1",
@@ -1802,7 +1850,8 @@
       "011.us-21"
     ],
     "resources/js/Components/MyCourseCard.vue": [
-      "003.us-1"
+      "003.us-1",
+      "011.us-37"
     ],
     "resources/js/Components/Newsletter/PostCard.vue": [
       "012.us-2",
@@ -1896,6 +1945,7 @@
     ],
     "resources/js/Pages/Admin/Courses/Edit.vue": [
       "004.us-1",
+      "011.us-37",
       "011.us-8"
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
@@ -1904,7 +1954,8 @@
     "resources/js/Pages/Admin/Courses/Index.vue": [
       "004.us-1",
       "004.us-2",
-      "004.us-7"
+      "004.us-7",
+      "011.us-37"
     ],
     "resources/js/Pages/Admin/Courses/Roadmap.vue": [
       "004.us-7"
@@ -2073,7 +2124,8 @@
       "003.us-2"
     ],
     "resources/js/Pages/Member/Learning.vue": [
-      "003.us-1"
+      "003.us-1",
+      "011.us-37"
     ],
     "resources/js/Pages/Member/Points.vue": [
       "007.us-3"
@@ -2211,6 +2263,7 @@
       "011.us-31",
       "011.us-34",
       "011.us-35",
+      "011.us-37",
       "011.us-6",
       "011.us-8",
       "012.us-1",
@@ -2304,6 +2357,9 @@
       "011.us-10",
       "011.us-9"
     ],
+    "tests/Feature/HighTicket/BundleCreditTest.php": [
+      "011.us-37"
+    ],
     "tests/Feature/HighTicket/CalendarInviteTest.php": [
       "011.us-14"
     ],
@@ -2339,6 +2395,9 @@
     ],
     "tests/Feature/HighTicket/CoursePlanTest.php": [
       "011.us-21"
+    ],
+    "tests/Feature/HighTicket/CourseRosterTest.php": [
+      "011.us-37"
     ],
     "tests/Feature/HighTicket/DuplicateBookingTest.php": [
       "011.us-16"

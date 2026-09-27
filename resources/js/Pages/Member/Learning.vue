@@ -13,6 +13,11 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  // Spendable point balance, for the bundle top-up button (011 US37).
+  availablePoints: {
+    type: Number,
+    default: null,
+  },
 })
 
 const page = usePage()
@@ -68,6 +73,7 @@ const isLoggedIn = computed(() => !!page.props.auth?.user)
         v-for="course in courses"
         :key="course.id"
         :course="course"
+        :available-points="availablePoints"
       />
     </div>
 

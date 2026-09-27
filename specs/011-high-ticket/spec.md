@@ -2,6 +2,19 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Services/BundleCreditService.php
+  - app/Http/Controllers/Admin/CourseRosterController.php
+  - app/Http/Controllers/Member/BundleRedemptionController.php
+  - app/Http/Requests/Admin/ConsumeBundleCreditRequest.php
+  - resources/js/Components/Admin/CourseBundlePanel.vue
+  - resources/js/Components/Admin/CourseRosterModal.vue
+  - resources/js/Components/BundleCreditBlock.vue
+  - database/migrations/2026_09_27_000001_add_bundle_fields_to_courses_table.php
+  - database/migrations/2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php
+  - database/migrations/2026_09_27_000003_add_bundle_credits_to_purchases_table.php
+  - database/migrations/2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php
+  - tests/Feature/HighTicket/BundleCreditTest.php
+  - tests/Feature/HighTicket/CourseRosterTest.php
   - database/migrations/2026_09_11_000001_add_followup_append_rules_to_prompt.php
   - database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
   - database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
@@ -142,6 +155,48 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: app/Models/Course.php
+    owner: 004-course-admin
+    why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）
+  - file: app/Models/Purchase.php
+    owner: 005-checkout
+    why: US37 `bundle_balance` / `bundle_granted` 兩欄落在這張表（一人一課一列，天然就是餘額的粒度）；`$fillable` 與 `casts()` 補上，寫入一律經 `BundleCreditService`
+  - file: app/Http/Controllers/Admin/CourseController.php
+    owner: 004-course-admin
+    why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`
+  - file: app/Http/Requests/Admin/UpdateCourseRequest.php
+    owner: 004-course-admin
+    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）
+  - file: resources/js/Components/Admin/CourseForm.vue
+    owner: 004-course-admin
+    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點
+  - file: resources/js/Pages/Admin/Courses/Index.vue
+    owner: 004-course-admin
+    why: US37 每列加「學員名單」按鈕並掛 `CourseRosterModal.vue`（FR-208）
+  - file: resources/js/Pages/Admin/Courses/Edit.vue
+    owner: 004-course-admin
+    why: US37 多收一個 `plans` prop 並透傳給 `CourseForm`，供福利面板標示各方案（新增課程頁不傳，因此不顯示方案次數）
+  - file: phpunit.xml
+    owner: 000-platform-core
+    why: US37 加 `<ini name="memory_limit" value="512M">` —— 測試套件峰值約 133MB，超過 PHP 預設 128M，`php artisan test` 會在 mime 猜測處以配置失敗中斷而非回報結果（此檔原先無 owner 宣告，暫記在平台核心）
+  - file: app/Http/Controllers/Admin/MemberController.php
+    owner: 008-members-admin
+    why: US37 `updatePurchasePlan()`（換方案）與 `grantCourse()`（贈課／匯入）在既有 transaction 內呼叫 `BundleCreditService::syncPlanGrant()`（FR-203）
+  - file: app/Services/PointService.php
+    owner: 007-points-referral
+    why: US37 為 `redeemDeduct()` 加 `string $type = 'redeem_course'` 參數，福利加購傳 `redeem_bundle`；`users.points` 仍只由這支寫入（007 FR-003 不變）
+  - file: database/migrations/2026_06_30_000001_create_point_transactions_table.php
+    owner: 007-points-referral
+    why: US37 為 `type` enum 新增 `redeem_bundle`（第 6 個值），以獨立 alter migration 進行，不改建表 migration
+  - file: app/Http/Controllers/Member/LearningController.php
+    owner: 003-classroom
+    why: US37 每筆 purchase 多帶 `plan_name` 與福利三欄（名稱／剩餘次數／單次點數），頁面層多帶 `availablePoints`（FR-207）
+  - file: resources/js/Pages/Member/Learning.vue
+    owner: 003-classroom
+    why: US37 把 `availablePoints` 透傳給 `MyCourseCard`
+  - file: resources/js/Components/MyCourseCard.vue
+    owner: 003-classroom
+    why: US37 卡片內掛 `BundleCreditBlock.vue`（方案名 + 福利剩餘次數 + 積分加購）
   - file: app/Services/TransactionService.php
     owner: 009-transactions-admin
     why: US30 退款回寫 —— `refund()` 在寫入 `refunded`、作廢推薦回饋之後，以 try/catch 呼叫 `HighTicketLeadService::syncRefundedLead()`；lead 狀態機留在 011，這裡只是觸發點（FR-152 / D118）
@@ -1220,6 +1275,50 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - [x] modal 的時間戳提示 MUST 取 `followup_email_generated_at` 與 `followup_email_edited_at` 較新的那一個顯示 —— 追加之後兩者都成立，只看 `edited_at` 會顯示一個比實際更舊的時間（FR-199）
 - [x] 測試：追加到既有內容（恰一個空行相隔）、既有為空時等同直接寫入、`## 顧問補充指示` 為輸入最後一段、未填時該段不存在、既有信非空時輸入含 `## 目前的追銷信`、合併後超長回 422 且既有內容不變、生成後 `followup_email_edited_at` 維持不變、指示超過 2000 字 422、非 staff 被擋
 
+### User Story 37 - 課程福利次數與學員名單 (Priority: P1)
+
+高價課賣的不只是影片：成交時附帶的「團體諮詢 N 次」目前只存在於成交當下的對話與管理員的記憶裡。
+系統不知道誰還剩幾次，要發下一輪邀請時只能憑印象挑人，而「發出邀請就等於用掉一次」這件事
+從來沒有被記下來過。
+
+三層各自的歸屬，**全部落在既有的表上**（D141）：福利的名稱與單次兌換點數是**課程欄位**，
+預設次數是**方案欄位**（入門送 2 次、完整送 5 次 —— 同一個福利的不同數量），
+餘額是**購買記錄欄位**（`purchases` 本來就一人一課一列，正好是餘額的粒度）。
+成交／換方案／贈課時依所買方案儲值，會員自己可以在「我的課程」用積分加購，
+管理員在課程列表的學員名單裡挑人、複製 Email 發出邀請，順手批次扣掉 1 次。
+
+**一門課一種福利**是這個形狀的前提（D142）：這樣三個地方各加欄位就夠，不必為多對多開 pivot。
+
+**驗收**：
+- [ ] 只有 `type = high_ticket` 的課程能設定福利：編輯課程頁的福利區塊 `v-if` 該條件，`UpdateCourseRequest` 另擋一次，立場與方案面板（D82）一致
+- [ ] 編輯課程頁可填福利名稱與「每次加購所需積分」（選填，留空 = 不可用積分加購）；**名稱留空 = 這門課沒有福利**，整套機制對它完全不存在
+- [ ] 福利區塊列出課程的每個方案，各填一個預設次數；課程未設方案時只出現單一「預設次數」欄，成交時讀它
+- [ ] 方案仍只在章節編輯頁建立／刪除；福利區塊裡的方案是唯讀清單，次數走既有的 plan update 端點（不是第二個方案管理入口）
+- [ ] 新增課程頁（課程還沒有 id、也還沒有方案）MUST NOT 顯示方案次數，只顯示名稱與點數
+- [ ] 已有人持有次數時（任一 purchase 的 `bundle_granted > 0` 或 `bundle_balance > 0`）MUST NOT 把福利名稱清空（422 並說明人數）；**改名允許**，那只是顯示文字
+- [ ] 開通成交時依所選方案的預設次數儲值；同一人同一課**重複開通不會重複儲值**
+- [ ] 會員詳情把方案由「入門」切到「完整」時，福利次數補上差額（完整 5 − 已授予 2 = 補 3），**已用掉的次數不會被還回來**
+- [ ] 由高往低切換方案 MUST NOT 回收次數（只補不收），且 MUST NOT 讓 `bundle_balance` 變小
+- [ ] 贈課與 CSV 匯入（指定課程 + 方案）同樣儲值 —— 它們寫的就是 `lead_conversion`，語意上與開通同一件事（D143）
+- [ ] 前台結帳、免費領取、積分兌換整門課 MUST NOT 儲值福利（維持 FR-090「非開通路徑行為零變化」的立場）
+- [ ] 儲值 MUST 在各自既有的 `DB::transaction` 內完成：成交成立而福利沒進去，是事後沒人會發現的帳
+- [ ] 開通／贈課的 `Purchase::updateOrCreate` MUST NOT 把兩個 `bundle_*` 欄位寫進屬性陣列 —— 那會在重複開通時把餘額重設回 0
+- [ ] 「我的課程」的課程卡片顯示方案名與福利剩餘次數；沒有福利的課程卡片外觀完全不變（不出現空區塊、不出現「0 次」）
+- [ ] 卡片上可用積分加購：一次 +1 次，兩段式確認（沿用 007 US1 的形狀），積分不足時按鈕 disabled 並顯示還差幾點
+- [ ] 加購端點以 purchase 為主體，MUST 驗證該 purchase 屬於登入者且為 paid（否則 403）；課程未設福利或未設點數時回 422
+- [ ] 扣點與加次數 MUST 在同一個 transaction：扣了點沒加到次數，或加了次數沒扣點，兩種都不可接受
+- [ ] 積分帳本留下 `redeem_bundle` 一列（積分那邊的帳本本來就存在，這裡只是接上去）
+- [ ] 課程管理列表每列有「學員名單」按鈕，開啟 modal 後可設條件：方案（全部／指定方案／未指定方案）＋「只列還有福利次數的人」
+- [ ] 勾選「只列還有次數的人」時，名單只列 `bundle_balance > 0` 的人（發邀請的名單本來就不該包含已用完的人）
+- [ ] 名單欄位：姓名、Email、加入時間（購買時間，顯示為台北時間）、方案、剩餘次數；只計 paid purchase
+- [ ] 名單 MUST 由後端查詢產生 —— 後面那顆扣次數按鈕不能建立在前端算出來的名單上（D144）
+- [ ] 「複製 Email」以 `', '` 相隔、去重、依畫面順序，沿用 US17 的形狀；複製後按鈕短暫顯示已複製
+- [ ] 課程有福利時才出現「消費 1 次福利」；確認框顯示人數，送出後回報「已扣 N 位」與跳過的人
+- [ ] 後端 MUST 依 `course_id` + `user_ids` **重查** purchase 與餘額（前端名單不可信，也可能已經過時），餘額不足者跳過並回報，MUST NOT 整批失敗
+- [ ] 扣減 MUST 以 `where('bundle_balance', '>=', $n)` 的條件 UPDATE 進行，餘額不可能變負數
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；福利區塊的方案次數欄與名單表格在手機寬度不破版
+- [ ] 測試：福利欄位驗證與非高價課守門、持有時清空名稱 422（改名放行）、重複開通不重複發、升級補差額（含已消費過的情形）、降級不回收、贈課／匯入會發、前台結帳不發、積分加購（成功／點數不足／未設點數 422／非本人 403）、名單條件組合、消費批次（含餘額不足跳過）、餘額不可為負
+
 
 ## Requirements
 
@@ -1739,6 +1838,21 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - **FR-197**: 生成 MUST **追加**而非覆寫（D138）。寫入值為 `rtrim(既有 followup_email) . "\n\n" . 新內容`，既有為空（或全為空白）時即為新內容本身；MUST NOT 插入分隔線或任何標記 —— 這封信會被整段複製去寄出，記號都得手動刪。`followup_email_generated_at` MUST 每次更新；`followup_email_edited_at` MUST **維持原值**，MUST NOT 再清為 null（FR-190 的該條款於此修訂）—— 人工編修過的內容在追加後仍然留在信裡，鎖就還成立。追加後全文長度 MUST 以 20000 字為上限，超過時回 422（訊息指出請先精簡或分次產生）且 MUST NOT 寫入任何欄位：上限與 `updateFollowupEmail()` 的 `max:20000` 同值，否則會產出一封顧問存不回去的信。
 - **FR-198**: `consultation_followup_email` 的 instructions MUST 由一支獨立的 update migration 追加兩條規則：（1）輸入若含 `## 目前的追銷信`，本次要寫的是**接在其後的續段**，MUST NOT 重複稱呼語與署名、MUST NOT 重述已寫過的內容，長度與語氣與前文銜接；（2）輸入若含 `## 顧問補充指示`，那是顧問的一次性指令，**優先於 instructions 裡的所有既定規則**（含四段結構、字數、收尾方式），衝突時以它為準，且 MUST NOT 在信裡提到「指示」這類字眼。追加 MUST 以 marker 守門（存在即 return）、MUST NOT 重寫既有 `instructions` —— 正式站的內文此刻可能已是使用者改過的版本（FR-149 / D115），整段覆寫會靜靜吃掉那些修改。形狀完全比照 003 的 `add_note_priority_to_homework_grading_prompt`，`down()` 以字串移除同一段。
 - **FR-199**: modal 的三處前端行為：（a）自訂指示 textarea 只在 `mode='followup'` 出現（由 `MODES` 表的一個旗標決定，MUST NOT 在 template 裡寫 `mode === 'followup'`），開啟與換 note 時清空，成功產生後 MUST NOT 自動清空（顧問常要微調同一句再產一次）；（b）按下生成時若 `dirty` 為真 MUST 擋下並提示先儲存 —— 追加的基準是資料庫現值，畫面上未存的修改不在其中，不擋就會被靜靜蓋掉；（c）confirm 文案依既有內容有無切換，且時間戳提示改取 `generated_at` 與 `edited_at` 中較新者、標籤隨之切換（追加後兩者同時成立）。
+- **FR-200**: 課程福利只存在於 `type = high_ticket` 的課程。`UpdateCourseRequest` 在課程非高價課而傳入任一 `bundle_*` 欄位時驗證失敗，前端區塊另以 `v-if` 收斂。理由與方案（D82）同一條：一般課程的前台沒有方案選擇器，也沒有任何路徑會去讀預設次數，設得到卻發不出去的欄位只會製造誤解
+- **FR-201**: 福利定義為三個 `courses` 欄位：`bundle_name`（`nullable|string|max:50`，**非空即代表這門課有福利**，是整個機制的開關）、`bundle_redeem_points`（`nullable|integer|min:1`，null = 不可用積分加購）、`bundle_default_quantity`（`integer|min:0`，僅供未設方案的課程）。一門課恰一種福利（D142）
+- **FR-202**: 每個方案的預設次數是 `course_plans.bundle_quantity`（`integer|min:0`，default 0），由既有的 `PUT /admin/plans/{plan}` 端點連同 name / price 一起寫入（`StoreCoursePlanRequest` 加該欄位）。課程未設方案時改讀 `courses.bundle_default_quantity`。取值一律經 `BundleCreditService::defaultQuantityFor()`，MUST NOT 在呼叫端各自判斷
+- **FR-203**: 授予規則只有一條，主體是 purchase：`delta = max(0, defaultQuantityFor(course, plan) - purchase->bundle_granted)`，delta > 0 時 `bundle_balance` 與 `bundle_granted` 同步遞增 delta。同一條規則同時滿足「重複開通不重複發」（delta = 0）與「升級補差額」（5 − 2 = 3），且**只加不減** —— 降級不回收、已消費的次數不因換方案被還回來。
+  授予點恰有三處，且 MUST 在各自既有的 `DB::transaction` 內呼叫：`HighTicketLeadService::convertLead()`（開通）、`MemberController::updatePurchasePlan()`（換方案）、`MemberController::grantCourse()`（贈課／CSV 匯入）。前台結帳、免費領取、積分兌換整門課 MUST NOT 授予（維持 FR-090）
+- **FR-204**: 餘額與已授予數落在 `purchases.bundle_balance` / `purchases.bundle_granted`（D141）。兩欄 MUST NOT 出現在任何 `Purchase::updateOrCreate()` 的屬性陣列裡 —— 開通與贈課都用它，把欄位寫進去等於每次重複開通都把餘額重設回 0。`bundle_granted` 只服務 FR-203 的去重判斷，MUST NOT 被加購或消費路徑改動：它回答的是「方案總共應該給過幾次」，不是「現在剩幾次」
+- **FR-205**: 所有扣減 MUST 以 `Purchase::where(...)->where('bundle_balance', '>=', $n)->decrement('bundle_balance', $n)` 形式進行，`affected === 0` 即視為餘額不足並回報；欄位另宣告為 unsigned 兜底。理由：批次消費是同一個請求裡的多筆寫入，沒有條件的 `decrement` 會把一筆錯誤資料寫成負餘額，而負餘額在畫面上看起來只是「剩 -1 次」。**D141 之後沒有帳本可以對帳，這是唯一防線**
+- **FR-206**: 積分加購一次 `+1` 次、扣 `bundle_redeem_points` 點（那是**單次**價，不提供數量輸入，D146）。扣點走 `PointService::redeemDeduct()`（新增 `string $type` 參數，傳 `redeem_bundle`、`refType = 'purchase'`、`refId = purchase->id`），扣點與加次數 MUST 在同一個 `DB::transaction`；課程未設福利或 `bundle_redeem_points` 為 null 時回 422
+- **FR-207**: 加購端點為 `POST /member/purchases/{purchase}/bundle-redeem`，MUST 驗證該 purchase 屬於登入者且 `paidStatus()`，否則 403；路由掛 `throttle:10,1`（比照 007 US1：這是會花掉別人點數的公開端點）。成功後 `back()` 帶新餘額與新積分餘額
+- **FR-208**: 學員名單由 `GET /admin/courses/{course}/roster?plan_id=&with_credit=` 回 JSON 產生，MUST NOT 在前端過濾。`plan_id` 接受 `all`（預設）／方案 id／`none`（未指定方案者）；`with_credit=1` 時只列 `bundle_balance > 0` 的人
+- **FR-209**: 名單欄位為姓名、Email、加入時間（`purchases.created_at`，出口 `->timezone('Asia/Taipei')`）、方案名、剩餘次數；只計 `paidStatus()` 的 purchase。查詢為 `purchases` 單表 join `users` / `course_plans`（餘額同列，這是 D141 的直接好處），MUST NOT 在迴圈裡補查
+- **FR-210**: 「複製 Email」沿用 011 US17 的形狀：`', '` 相隔、去重、依畫面順序，`navigator.clipboard.writeText()` 失敗時顯示提示而非靜默
+- **FR-211**: 「消費 1 次福利」只在課程有福利時出現。後端 MUST 依 `course_id` + 傳入的 `user_ids` **重查** purchase 與餘額（前端名單不可信，FR-208 的名單也可能已經過時），逐位扣 1，回傳 `consumed` 與 `skipped`（含 email）；餘額不足者跳過，MUST NOT 讓整批失敗
+- **FR-212**: 仍有人持有次數（任一 paid purchase 的 `bundle_granted > 0` 或 `bundle_balance > 0`）時，`bundle_name` MUST NOT 被清空 —— 回 422 並說明人數（比照方案刪除守門 FR-093）。**改名不受限**：那只是顯示文字，而「停用福利」會讓已持有的次數變成無名無主的數字
+
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2105,6 +2219,25 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - **D131**: 上傳的原始檔**不落地**。不進 storage、不加欄位、不留備份。`consultation_notes` 現在的形狀是「一場面談一列、只存整理後的結果」，塞一份未匿名化的原始檔進來會在同一張表裡製造出兩種資料等級（一種已匿名、一種沒有），而那張表的存取控管是照「已匿名」設計的。真的需要留底的是管理員自己手上的那份檔案。
 - **D132**: `vttToDialogue()` 更名為 `toDialogue()`，不新增第二支解析器。現有實作其實已經是格式中立的 —— 它濾掉的 `-->` 時間軸行與純數字序號行，正好也是 SRT 的形狀；純 txt 沒有這兩種行，會直接通過。所以這裡要做的是把名字改成它實際的行為，而不是再寫一支八成重複的 parser（重複的 parser 意味著兩份 `/u` 修飾子，而那個修飾子在中文逐字稿上是會不會整份壞掉的差別）。舊名不保留別名：呼叫點只有兩處，留一個過時的名字比改兩行貴。
 
+- **D141**: 福利不開任何新表，三層各自落在既有表的欄位上（使用者決策：表太多）。
+  規劃初版是三張新表（`course_bundles` / `course_bundle_plan` / `user_bundle_credits`）加一張異動帳本，被否決。改為 `courses` 三欄 + `course_plans` 一欄 + `purchases` 兩欄，四支全是 alter migration，零新 model。
+  `purchases` 是餘額的正確歸屬而不是妥協：它本來就 `unique(user_id, course_id)`，一人一課恰一列，正是餘額的粒度；`course_plan_id` 也已經在這列上，於是「這個人買的是哪個方案、還剩幾次、什麼時候加入」變成同一列的三個欄位 —— 學員名單（FR-209）因此是單表查詢而不是三表 join，批次扣次數也是一句條件 UPDATE。
+  **同時放棄異動帳本**（使用者決策）：次數多寡在成交當下就已經跟客戶講清楚，糾紛不從這裡來。代價誠實記在這裡：日後問「他怎麼只剩 1 次」只剩 `bundle_granted`（總共給過）與 `bundle_balance`（剩幾次）兩個數字，中間每一次是誰在哪天扣的、是加購還是管理員消費，都沒有留下，而歷史補不回來。
+  第二個代價：福利餘額從此與 purchase 同生共死。刪掉那筆購買記錄，次數跟著消失（語意上正確），但也意味著**福利無法跨課程共用** —— 買 A 課送的諮詢不可能拿去 B 課用。目前需求正是「綁定該課程」，所以這個限制是免費的；哪天要共用，得把餘額搬出來，而那是一次資料搬遷。
+- **D142**: 一門課**恰一種福利**，不做多福利（D141 的直接後果）。
+  多福利要嘛開 pivot（回到被否決的三張表），要嘛把數量塞進 JSON 欄位 —— 後者省表但讓「哪個方案給幾次」變成一個查不到、測不到、只能整欄讀出來的 map。目前要賣的是一種（團體諮詢）。
+  代價明確：要加第二種福利（例如「1v1 加購」）必須改 schema，而且屆時大概就是把這三組欄位抽成當初那三張表。這是「先完成再優化」的一次自覺選擇，不是疏漏。
+- **D143**: 授予寫成「目標 − 已授予」的補差，而不是「開通時 `+= 預設值`」。
+  後者要另外記「這筆 purchase 發過了沒」才不會在重複開通時發第二次，而升級補差額又得再記「上次是哪個方案」—— 兩個狀態、兩條規則、四種組合。`bundle_granted` 一個累計欄位就把兩件事同時答完，而且它天然 idempotent：同一個動作跑幾次結果都一樣。
+  贈課與 CSV 匯入也授予：它們寫進 `purchases` 的 `type` 就是 `lead_conversion`，而且都會選方案 —— 在系統裡它們與「開通」是同一件事的三個入口。只讓其中一個發福利，會造就「用贈課補開通的那個人沒有次數」這種只能靠記憶發現的差異。代價是匯入一份 200 人的 CSV 並指定方案時會一口氣授予 200 人，這是對的行為但值得在驗收裡明確測一次。
+- **D144**: 名單與批次扣次數都走後端，不做前端過濾。
+  那顆「消費 1 次福利」按鈕送上來的是一串 user_id，後端若不自己重查 purchase 與餘額，就等於相信瀏覽器傳來的名單 —— 那是個會改動別人福利的端點。名單也一併走後端，否則兩者會各有一套「誰符合條件」的定義。
+- **D145**: 福利設定放在**編輯課程頁**（使用者指定），方案仍在章節編輯頁建立。
+  三個 `bundle_*` 欄位是 `courses` 的欄位，隨 CourseForm 一起送，不需要新端點；各方案的次數走既有的 `PUT /admin/plans/{plan}`（面板把 name / price 原值一起送回，形狀與 `CoursePlanPanel` 現在的改名完全一樣），所以這個故事**沒有新增任何後台設定 controller**。
+  代價是設一門新課要跑兩頁：章節編輯頁開方案 → 編輯課程頁填各方案次數。面板在課程沒有方案時顯示單一欄位並提示「此課程尚未設定方案，成交時一律給這個次數」。
+- **D146**: 積分加購一次固定 `+1`，不做數量輸入。
+  `bundle_redeem_points` 是單次價，要加 3 次就按 3 次。數量輸入要處理「輸入 99 但點數只夠 3 次」這類提示，以及一個可以一次扣掉全部積分的輸入框 —— 而實際場景是加購一兩次。真的要加購十次，那是找管理員談的量級。
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2342,6 +2475,40 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 
   `2026_09_10_000002_install_consultation_followup_prompt.php` —— 無 schema 變更，只 insert-if-absent 一列 `ai_prompts`（FR-188）。新舊環境**共同**的唯一路徑：正式站的建表 migration 早已跑過，而新環境 `migrate:fresh` 也會跑到這一支。
 
+
+- **US37 schema 變更（四支 migration，全部是 alter，無新表）**：
+
+  `2026_09_27_000001_add_bundle_fields_to_courses_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `bundle_name` | varchar(50) nullable，`after('redeem_points')` | 福利名稱，例如「團體諮詢」。**非 null 且非空 = 這門課有福利**，是整套機制的開關（比照方案「列數即開關」的 D82 精神） |
+  | `bundle_redeem_points` | unsignedInteger nullable | **單次**加購所需積分；null = 不可用積分加購（與 `courses.redeem_points` 的 null 語意一致） |
+  | `bundle_default_quantity` | unsignedSmallInteger default 0 | **僅供未設方案的課程**；有方案時一律讀方案欄位（FR-202） |
+
+  `2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `bundle_quantity` | unsignedSmallInteger default 0，`after('price')` | 該方案成交時給幾次。default 0 讓既有方案在這支 migration 之後行為不變 |
+
+  `2026_09_27_000003_add_bundle_credits_to_purchases_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `bundle_balance` | unsignedSmallInteger default 0，`after('course_plan_id')` | **剩幾次**。unsigned 是 FR-205 條件 UPDATE 之外的第二道防線 |
+  | `bundle_granted` | unsignedSmallInteger default 0 | **方案總共應該給過幾次**，只由 FR-203 的授予路徑遞增；加購與消費一律不動它 |
+
+  兩欄落在 `purchases` 而不是自己一張表：這張表已經 `unique(user_id, course_id)`、已經帶 `course_plan_id`，餘額的粒度與它完全一致（D141）。
+
+  `2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php` — `point_transactions.type` enum 加入 `redeem_bundle`（第 6 個值），寫法比照 011 既有的 `2026_08_06_000002_add_cancelled_...`。`down()` MUST 先把 `redeem_bundle` 的列改回 `redeem_course` 再收窄 enum，否則回滾會在既有資料上炸掉。表歸 007，故以獨立 alter migration 進行，不改建表 migration。
+
+  **不變量**：
+  - `bundle_balance >= 0` 恆成立（unsigned + FR-205 的條件 UPDATE 兩道）
+  - `bundle_granted` 單調遞增；它與 `bundle_balance` 的差**不等於消費次數**（加購也會加 balance），不可用來反推消費筆數
+  - `courses.bundle_name` 為空 ⇒ 該課程的 `bundle_default_quantity`、各方案 `bundle_quantity`、各 purchase 的兩個 `bundle_*` 一律無意義，前後端都 MUST NOT 顯示
+  - 福利只應設在 `type = high_ticket` 的課程（Form Request 守門，DB 無約束 —— 比照 `course_plans` 的既有作法）
+  - 方案存在時 `bundle_quantity` 優先，`bundle_default_quantity` 只在課程無方案時生效
 
 ## Tasks
 
@@ -3171,8 +3338,51 @@ Phase 4 — 驗證
 
 
 
+### US37 課程福利次數與學員名單（FR-200–FR-212 / D141–D146）
+
+- [x] T449 [P] migration：`courses` 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` in `database/migrations/2026_09_27_000001_add_bundle_fields_to_courses_table.php`
+- [x] T450 [P] migration：`course_plans` 加 `bundle_quantity` in `database/migrations/2026_09_27_000002_add_bundle_quantity_to_course_plans_table.php`
+- [x] T451 [P] migration：`purchases` 加 `bundle_balance` / `bundle_granted` in `database/migrations/2026_09_27_000003_add_bundle_credits_to_purchases_table.php`
+- [x] T452 [P] migration：`point_transactions.type` enum 加 `redeem_bundle`，`down()` 先回寫 `redeem_course` 再收窄 in `database/migrations/2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php`〔touchpoint 007〕
+- [x] T453 [P] model 欄位：`Course` 三欄入 `$fillable` + `hasBundle` accessor in `app/Models/Course.php`〔touchpoint 004〕；`CoursePlan` 加 `bundle_quantity`；`Purchase` 兩欄入 `$fillable` / `casts()` in `app/Models/Purchase.php`〔touchpoint 005〕
+- [x] T454 `BundleCreditService`：`defaultQuantityFor(Course, ?CoursePlan): int`（FR-202）、`syncPlanGrant(Purchase): int`（FR-203，回實際補發數）、`redeemWithPoints(Purchase): array`（FR-206）、`consume(Course, array $userIds, int $quantity = 1): array`（FR-205 / FR-211）、`roster(Course, ?string $planId, bool $withCredit): array`（FR-208 / FR-209）in `app/Services/BundleCreditService.php`
+- [x] T455 `PointService::redeemDeduct()` 加 `string $type = 'redeem_course'` 參數並用於寫入（既有呼叫端不動）in `app/Services/PointService.php`〔touchpoint 007〕
+- [x] T456 授予接點一：`convertLead()` 的 transaction 內、`Purchase::updateOrCreate` 之後呼叫 `syncPlanGrant()`；確認屬性陣列裡沒有 `bundle_*`（FR-204）in `app/Services/HighTicketLeadService.php`
+- [x] T457 授予接點二／三：`updatePurchasePlan()` 的 transaction 內（換方案後）與 `grantCourse()` 內（建立 purchase 後）各呼叫一次；`grantCourse` 的 `updateOrCreate` 同樣不帶 `bundle_*` in `app/Http/Controllers/Admin/MemberController.php`〔touchpoint 008〕
+- [x] T458 `UpdateCourseRequest`：三個 `bundle_*` 驗證（FR-201）＋非高價課傳入即失敗（FR-200）＋清空名稱的持有守門（FR-212，查該課程 paid purchase 的 `bundle_granted`/`bundle_balance`）in `app/Http/Requests/Admin/UpdateCourseRequest.php`〔touchpoint 004〕
+- [x] T459 [P] `StoreCoursePlanRequest` 加 `bundle_quantity`（`integer|min:0`，選填）；`CoursePlanController::update()` 一併寫入 in `app/Http/Requests/Admin/StoreCoursePlanRequest.php`, `app/Http/Controllers/Admin/CoursePlanController.php`
+- [x] T460 `CourseController::edit()` 多下發 `plans`（id / name / price / bundle_quantity）與三個 `bundle_*`；`index()` payload 加 `has_bundle` in `app/Http/Controllers/Admin/CourseController.php`〔touchpoint 004〕
+- [x] T461 `CourseBundlePanel.vue`：名稱與單次點數（`v-model` 綁 CourseForm 的表單物件，隨表單送出）＋方案次數列（各自 `PUT /admin/plans/{plan}`、`preserveScroll`，帶回 name / price 原值）；無方案時改顯示單一預設次數欄與說明 in `resources/js/Components/Admin/CourseBundlePanel.vue`
+- [x] T462 CourseForm 在高價課設定區塊後掛載面板（`v-if` product_type=high_ticket）並把三個欄位納入表單 in `resources/js/Components/Admin/CourseForm.vue`〔touchpoint 004〕
+- [x] T463 `BundleRedemptionController::store`：`purchase` 歸屬與 paid 驗證（403）、課程無福利／未設點數 422、委派 `redeemWithPoints()`、`back()` 帶新餘額；路由 `POST /member/purchases/{purchase}/bundle-redeem`（auth + `throttle:10,1`）in `app/Http/Controllers/Member/BundleRedemptionController.php`, `routes/web.php`〔touchpoint 000〕
+- [x] T464 `LearningController::index()`：每筆 purchase 加 `plan_name` 與 `bundle`（name / balance / redeem_points，課程無福利時為 null），頁面層加 `availablePoints`；沿用既有 eager load，不在 map 裡補查 in `app/Http/Controllers/Member/LearningController.php`〔touchpoint 003〕
+- [x] T465 [P] `BundleCreditBlock.vue`：方案名 + 「福利名 · 剩 N 次」+ 加購按鈕（兩段式確認、點數不足文案）；`bundle` 為 null 時整塊不渲染（FR-207 驗收）in `resources/js/Components/BundleCreditBlock.vue`
+- [x] T466 [P] `MyCourseCard` 掛載 `BundleCreditBlock`、`Learning.vue` 透傳 `availablePoints` in `resources/js/Components/MyCourseCard.vue`, `resources/js/Pages/Member/Learning.vue`〔touchpoint 003〕
+- [x] T467 `CourseRosterController::index`：`plan_id`（`all` / id / `none`）＋ `with_credit` 條件，委派 `BundleCreditService::roster()`，回 JSON（姓名／Email／加入時間台北／方案／剩餘次數）in `app/Http/Controllers/Admin/CourseRosterController.php`
+- [x] T468 `ConsumeBundleCreditRequest`（`user_ids` required array of integer）＋ `CourseRosterController::consume`：委派 `consume()`，回 `consumed` / `skipped`（FR-211）in `app/Http/Requests/Admin/ConsumeBundleCreditRequest.php`, `app/Http/Controllers/Admin/CourseRosterController.php`
+- [x] T469 路由兩條（admin 群組，緊鄰既有 plans 三條）：`GET /admin/courses/{course}/roster`、`POST /admin/courses/{course}/bundle/consume` in `routes/web.php`〔touchpoint 000〕
+- [x] T470 `CourseRosterModal.vue`：條件列（方案下拉＋「只列還有次數的人」勾選）、名單表格（全選、姓名、Email、加入時間、方案、剩餘次數）、「複製 Email」（FR-210）、課程有福利時的「消費 1 次福利」＋確認框與結果提示 in `resources/js/Components/Admin/CourseRosterModal.vue`
+- [x] T471 課程列表每列加「學員名單」按鈕並掛 modal（`cursor-pointer` + hover）in `resources/js/Pages/Admin/Courses/Index.vue`〔touchpoint 004〕
+- [x] T472 [P] `BundleCreditTest`：欄位驗證與非高價課守門、持有時清空名稱 422／改名放行、開通儲值、重複開通不重複發（且餘額不被 `updateOrCreate` 重設）、升級補差額（含已消費過）、降級不回收、贈課／匯入會發、前台結帳與積分兌換課程不發、積分加購成功／點數不足／未設點數 422／非本人 403、扣點與加次數同一 transaction、餘額不可為負 in `tests/Feature/HighTicket/BundleCreditTest.php`
+- [x] T473 [P] `CourseRosterTest`：方案條件三種、`with_credit` 只列餘額 > 0、加入時間為台北時間、批次消費（含餘額不足跳過與非持有者被擋）、非 admin 被擋 in `tests/Feature/HighTicket/CourseRosterTest.php`
+- [x] T474 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T475 使用者實測：拿正式站那門高價課，填福利「團體諮詢」與每次 X 積分、入門 2 次／完整 5 次，開通一位測試會員 → 確認「我的課程」看得到剩餘次數；把他升級到完整方案 → 確認補成差額；在課程列表的學員名單選「完整方案 + 只列還有次數的人」→ 複製 Email、按「消費 1 次福利」→ 確認次數少 1 且重新整理後仍正確
+
+
 
 ## 進度日誌
+
+- 2026-09-27: US37 課程福利次數與學員名單完成（T449–T474，僅剩 T475 使用者實測）— 四支 alter migration、零新表、零新 model，設定端也沒有新 controller：三個 `bundle_*` 欄位隨 `CourseForm` 送出（`UpdateCourseRequest` 驗證 + 兩道守門），各方案次數走既有的 `PUT /admin/plans/{plan}`。
+  三個授予入口全部接上並各有一條端點層測試（規劃時只打算測 service，那樣測不到接線）：`convertLead()`、`MemberController::updatePurchasePlan()`、`giftCourse()`／`grantCourse()`。**`giftCourse()` 是規劃時漏掉的第四個寫入點** —— spec 只寫了 `grantCourse()`（匯入用），但贈課 modal 走的是另一支 `Purchase::updateOrCreate`，漏掉它會讓「贈課有選方案卻沒拿到次數」，所以兩處都接。
+  FR-204 的陷阱實際存在且已被測住：三處 `updateOrCreate` 的屬性陣列都不含 `bundle_*`，測試特地在消費過 1 次之後再跑一次同形狀的 `updateOrCreate`，斷言餘額仍是 4 而不是被重設。
+  roster 端點連同 `plans`（id/name）一起回傳，前端下拉才不必從方案名反推 id —— 第一版把方案名當成 `plan_id` 送出，後端 `(int)` 轉型會變成 0、篩出空名單；改為由端點下發選項後這個錯誤不可能發生。
+  `php artisan test` 原本會在中途以「Allowed memory size of 134217728 bytes exhausted」中斷：套件峰值 132.5MB，剛好越過 PHP 預設 128M。改為在 `phpunit.xml` 釘 `memory_limit=512M`（CLAUDE.md 寫的就是這個指令，它必須跑得完）。
+  `BundleCreditTest` 23 tests、`CourseRosterTest` 9 tests，全套 **1076 passed（4702 assertions）**、`npm run build` exit 0。
+- 2026-09-27: [draft] 規劃 US37 課程福利次數與學員名單（FR-200–FR-212 / D141–D146）— 使用者要求「表太多」，於是整套改為**零新表**：福利定義是 `courses` 三欄、預設次數是 `course_plans` 一欄、餘額是 `purchases` 兩欄，四支全是 alter migration，沒有新 model、沒有新後台設定 controller（三個課程欄位隨 CourseForm 送出，方案次數走既有的 `PUT /admin/plans/{plan}`）。
+  `purchases` 承載餘額不是妥協而是正確歸屬：它本來就 `unique(user_id, course_id)`、本來就帶 `course_plan_id`，於是「買哪個方案、剩幾次、何時加入」是同一列的三個欄位 —— 學員名單因此是單表查詢，批次扣次數是一句條件 UPDATE（FR-209 / FR-205）。代價寫進 D141：福利與 purchase 同生共死，**無法跨課程共用**；以及一門課只能一種福利（D142），要加第二種得改 schema。
+  授予仍是 `max(0, 方案預設 - bundle_granted)` 的補差（D143）：一個累計欄位同時答完「重複開通不重複發」與「升級補差額」，天然 idempotent，降級不回收。餘額欄位落在 `purchases` 之後多出一條必須守的規則（FR-204）：`Purchase::updateOrCreate` 的屬性陣列**不得**含 `bundle_*`，否則每次重複開通都會把餘額重設回 0 —— 這是這個 schema 選擇帶來的唯一新陷阱，驗收與測試各有一條盯它。
+  使用者亦決定不做異動帳本（D141）：只留 `bundle_granted` 與 `bundle_balance` 兩個數字，中間每一次是誰哪天扣的補不回來。相應地 FR-205 的條件 UPDATE 與 unsigned 欄位一起留下，因為沒有帳本之後一個寫錯的餘額沒有任何東西可以對帳。
+  名單與批次扣次數走後端（D144）：那顆按鈕會改動別人的福利，端點必須自己重查 purchase 與餘額；批次以「跳過餘額不足者並回報」收尾，不整批失敗。贈課與 CSV 匯入也授予（D143），前台結帳／免費領取／積分兌換整門課一律不授予，維持 FR-090 的立場。status: draft 待審核。
 
 - 2026-09-25: 信件模板新增全域變數 `{{site_name}}`（000 US12）— 注入點與 `{{support_email}}` / `{{app_url}}` 同一處，編輯頁變數清單同步列出。`EmailTemplateSeeder` 與 `2026_08_06_000003_insert_booking_change_email_templates` 裡九處＋二處署名的「經營者時間銀行」改成該變數，`booking-verify` 的 HTML / 純文字版署名改讀 `SiteSetting::siteName()` —— 這些文字只在乾淨 DB 上會被寫進去，正式站既有的模板列一個字都沒動（兩支安裝 migration 本來就「缺才插、永不 update」）。
 

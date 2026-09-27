@@ -58,6 +58,9 @@ class CourseController extends Controller
                 'portaly_product_id' => $course->portaly_product_id,
                 'content_category' => $course->content_category,
                 'product_type' => $course->type,
+                // Drives the roster modal's consume button (011 US37 / FR-211)
+                'has_bundle' => (bool) $course->has_bundle,
+                'bundle_name' => $course->bundle_name,
             ]);
 
         return Inertia::render('Admin/Courses/Index', [
@@ -204,6 +207,11 @@ class CourseController extends Controller
                 'is_visible' => $course->is_visible,
                 'delivery_mode' => $course->course_type ?? 'standard',
                 'redeem_points' => $course->redeem_points,
+                // Bundle perk (011 US37 / FR-201) — the panel posts these three
+                // with the rest of the form.
+                'bundle_name' => $course->bundle_name,
+                'bundle_redeem_points' => $course->bundle_redeem_points,
+                'bundle_default_quantity' => $course->bundle_default_quantity,
                 'drip_interval_days' => $course->drip_interval_days,
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
@@ -221,6 +229,9 @@ class CourseController extends Controller
                     'height' => $image->height,
                 ]),
             'availableCourses' => $availableCourses,
+            // Read-only here: tiers are created on the chapters page (011 D145).
+            // The bundle panel needs their names to label one quantity per tier.
+            'plans' => $course->plans()->get(['id', 'name', 'price', 'bundle_quantity']),
             'courseLessons' => $courseLessons,
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),

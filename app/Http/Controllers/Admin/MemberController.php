@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\ToggleSalesConsultantRequest;
 use App\Http\Requests\Admin\UpdateMemberRequest;
 use App\Http\Requests\Admin\UpdatePurchasePlanRequest;
+use App\Services\BundleCreditService;
 use App\Services\DripService;
 use App\Services\PointService;
 use App\Mail\BatchEmailMail;
@@ -265,6 +266,10 @@ class MemberController extends Controller
             }
 
             $purchase->save();
+
+            // Upgrading a tier tops the bundle credits up to what the new plan
+            // owes; downgrading grants nothing back (011 US37 / FR-203).
+            app(BundleCreditService::class)->syncPlanGrant($purchase->fresh());
         });
 
         return response()->json([
@@ -504,7 +509,9 @@ class MemberController extends Controller
         foreach ($membersToGift as $member) {
             try {
                 // Create or update gift purchase (handles refunded purchases via unique constraint)
-                Purchase::updateOrCreate(
+                // The attribute array MUST NOT carry bundle_* — gifting the same
+                // course twice would reset credits already held (011 FR-204).
+                $purchase = Purchase::updateOrCreate(
                     ['user_id' => $member->id, 'course_id' => $courseId],
                     [
                         'course_plan_id' => $planId,
@@ -515,6 +522,11 @@ class MemberController extends Controller
                         'type' => 'gift',
                     ]
                 );
+
+                // A gift with a plan is the same sale as a conversion, so it
+                // carries the same bundle credits (011 D143).
+                app(BundleCreditService::class)->syncPlanGrant($purchase);
+
                 $giftedCount++;
 
                 // A gifted target course ends any drip funnel pointing at it (010 US13)
@@ -856,7 +868,7 @@ class MemberController extends Controller
             return false;
         }
 
-        Purchase::updateOrCreate(
+        $purchase = Purchase::updateOrCreate(
             ['user_id' => $user->id, 'course_id' => $courseId],
             [
                 'course_plan_id' => $planId,
@@ -867,6 +879,10 @@ class MemberController extends Controller
                 'type' => 'lead_conversion',
             ]
         );
+
+        // Importing a roster against a plan grants that plan's bundle credits
+        // too — same sale, third entrance (011 D143).
+        app(BundleCreditService::class)->syncPlanGrant($purchase);
 
         return true;
     }

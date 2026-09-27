@@ -18,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- The suite peaks around 133MB, just past PHP's 128M default, which
+             made `php artisan test` die mid-run with an allocation error in the
+             mime-type guesser instead of reporting results (011 US37). -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

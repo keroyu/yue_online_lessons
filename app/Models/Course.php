@@ -26,6 +26,9 @@ class Course extends Model
         'promo_delay_seconds',
         'price',
         'redeem_points',
+        'bundle_name',
+        'bundle_redeem_points',
+        'bundle_default_quantity',
         'original_price',
         'thumbnail',
         'instructor_name',
@@ -50,6 +53,8 @@ class Course extends Model
         return [
             'price' => 'decimal:2',
             'redeem_points' => 'integer',
+            'bundle_redeem_points' => 'integer',
+            'bundle_default_quantity' => 'integer',
             'original_price' => 'integer',
             'is_published' => 'boolean',
             'is_visible' => 'boolean',
@@ -67,6 +72,16 @@ class Course extends Model
     public function isRedeemable(): Attribute
     {
         return Attribute::get(fn () => $this->redeem_points !== null && $this->redeem_points > 0);
+    }
+
+    /**
+     * Whether this course sells a bundle perk alongside itself (011 FR-201).
+     * The name is the switch — with none set, nothing about bundles is shown
+     * or granted anywhere.
+     */
+    protected function hasBundle(): Attribute
+    {
+        return Attribute::get(fn () => filled($this->bundle_name));
     }
 
     public function resolveRouteBinding($value, $field = null): ?self

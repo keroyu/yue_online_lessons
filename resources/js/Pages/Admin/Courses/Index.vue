@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { ref, computed } from 'vue'
+import CourseRosterModal from '@/Components/Admin/CourseRosterModal.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -17,6 +18,9 @@ const props = defineProps({
 })
 
 const deletingCourseId = ref(null)
+
+// Student roster + bundle credit deduction (011 US37). One modal, reused per row.
+const rosterCourse = ref(null)
 
 // Client-side search + filters (the list loads every course, so filtering stays snappy).
 const search = ref('')
@@ -250,6 +254,13 @@ const formatPrice = (price) => {
                         >
                           編輯
                         </Link>
+                        <button
+                          type="button"
+                          class="cursor-pointer text-brand-teal hover:text-brand-navy"
+                          @click="rosterCourse = course"
+                        >
+                          學員名單
+                        </button>
                         <Link
                           :href="`/admin/courses/${course.id}/chapters`"
                           class="text-brand-teal hover:text-brand-navy"
@@ -298,5 +309,11 @@ const formatPrice = (price) => {
           </div>
         </div>
       </div>
+
+      <CourseRosterModal
+        :open="!!rosterCourse"
+        :course="rosterCourse"
+        @close="rosterCourse = null"
+      />
   </div>
 </template>

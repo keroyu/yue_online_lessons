@@ -216,6 +216,12 @@ Route::middleware('auth')->prefix('member')->name('member.')->group(function () 
 
     // Notifications
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+
+    // Bundle credit top-up with points (011 US37 / FR-207). Throttled: it spends
+    // points, same stance as the course redemption endpoint above.
+    Route::post('/purchases/{purchase}/bundle-redeem', [\App\Http\Controllers\Member\BundleRedemptionController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('bundle.redeem');
 });
 
 // Admin routes. Outer group carries auth + prefix + names; the staff subgroup
@@ -316,6 +322,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::delete('/plans/{plan}', [CoursePlanController::class, 'destroy'])->name('plans.destroy');
     Route::put('/lessons/{lesson}/plans', [CoursePlanController::class, 'syncLessons'])->name('lessons.plans.sync');
     Route::put('/plans/{plan}/lessons', [CoursePlanController::class, 'syncPlanLessons'])->name('plans.lessons.sync');
+
+    // Student roster + batch bundle-credit deduction (011 US37 / FR-208)
+    Route::get('/courses/{course}/roster', [\App\Http\Controllers\Admin\CourseRosterController::class, 'index'])->name('courses.roster');
+    Route::post('/courses/{course}/bundle/consume', [\App\Http\Controllers\Admin\CourseRosterController::class, 'consume'])->name('courses.bundle.consume');
 
     // A learner's roadmap progress, opened from the homework grading list (003 US11)
     Route::get('/homework/roadmap/{course}/{user}', [\App\Http\Controllers\Admin\StudentRoadmapController::class, 'show'])->name('homework.roadmap');

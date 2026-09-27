@@ -75,6 +75,11 @@ class UpdateCourseRequest extends FormRequest
             'promo_delay_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'price' => ['required_unless:course_type,drip', 'numeric', 'min:0'],
             'redeem_points' => ['nullable', 'integer', 'min:0'],
+            // Bundle perk sold with a high-ticket course (011 US37 / FR-201).
+            // The name is the switch: empty means this course has no perk.
+            'bundle_name' => ['nullable', 'string', 'max:50'],
+            'bundle_redeem_points' => ['nullable', 'integer', 'min:1'],
+            'bundle_default_quantity' => ['nullable', 'integer', 'min:0'],
             'original_price' => ['nullable', 'integer', 'min:0'],
             'promo_ends_at' => ['nullable', 'date'],
             'thumbnail' => ['nullable', 'image', 'max:10240'], // 10MB
@@ -106,6 +111,10 @@ class UpdateCourseRequest extends FormRequest
      */
     public function withValidator($validator): void
     {
+        $validator->after(function ($validator) {
+            $this->validateBundle($validator);
+        });
+
         $validator->after(function ($validator) {
             $days = $this->input('drip_days');
 
@@ -154,6 +163,46 @@ class UpdateCourseRequest extends FormRequest
     }
 
     /**
+     * Bundle perk guards (011 US37).
+     *
+     * Two rules the field-level rules cannot express:
+     *
+     * - Perks are high-ticket only (FR-200), for the same reason plans are
+     *   (D82): no other product type has a plan picker to sell them through.
+     * - Clearing the name while members still hold credits is refused (FR-212):
+     *   those credits would become an unnamed number nobody can explain.
+     *   Renaming stays allowed — that is only display text.
+     */
+    protected function validateBundle($validator): void
+    {
+        $course = $this->route('course');
+        $posted = ['bundle_name', 'bundle_redeem_points', 'bundle_default_quantity'];
+        $touched = array_filter($posted, fn ($key) => filled($this->input($key)));
+
+        if ($this->input('type') !== 'high_ticket') {
+            foreach ($touched as $key) {
+                $validator->errors()->add($key, '只有客製服務（高價課）可以設定附帶福利');
+            }
+
+            return;
+        }
+
+        if (blank($this->input('bundle_name')) && filled($course?->bundle_name)) {
+            $holders = $course->purchases()
+                ->paidStatus()
+                ->where(fn ($query) => $query->where('bundle_balance', '>', 0)->orWhere('bundle_granted', '>', 0))
+                ->count();
+
+            if ($holders > 0) {
+                $validator->errors()->add(
+                    'bundle_name',
+                    "還有 {$holders} 位學員持有此福利次數，請先處理完再停用（改名不受限）",
+                );
+            }
+        }
+    }
+
+    /**
      * Get custom messages for validator errors.
      */
     public function messages(): array
@@ -192,6 +241,11 @@ class UpdateCourseRequest extends FormRequest
             'drip_days.*.max' => '發信天數不能超過 365 天',
             'target_course_ids.array' => '目標課程格式無效',
             'target_course_ids.*.exists' => '選擇的目標課程不存在',
+            'bundle_name.max' => '福利名稱不可超過 50 個字',
+            'bundle_redeem_points.integer' => '每次加購所需積分必須是整數',
+            'bundle_redeem_points.min' => '每次加購所需積分至少為 1',
+            'bundle_default_quantity.integer' => '預設次數必須是整數',
+            'bundle_default_quantity.min' => '預設次數不能為負數',
         ];
     }
 }

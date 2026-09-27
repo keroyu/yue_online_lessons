@@ -452,7 +452,9 @@ class HighTicketLeadService
                 ]
             );
 
-            Purchase::updateOrCreate(
+            // MUST NOT carry bundle_balance / bundle_granted: re-converting the
+            // same buyer would reset credits they already hold (US37 / FR-204).
+            $purchase = Purchase::updateOrCreate(
                 ['user_id' => $user->id, 'course_id' => $courseId],
                 [
                     'course_plan_id' => $coursePlanId,
@@ -463,6 +465,11 @@ class HighTicketLeadService
                     'type'        => 'lead_conversion',
                 ]
             );
+
+            // Bundle credits ride with the sale, inside the same transaction: a
+            // deal that commits without its perk is a debt nobody notices
+            // (US37 / FR-203). Same-namespace service, hence no import.
+            app(BundleCreditService::class)->syncPlanGrant($purchase);
 
             $lead->update(['status' => 'converted']);
 

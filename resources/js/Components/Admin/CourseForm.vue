@@ -3,6 +3,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import { ref, computed, watch, nextTick } from 'vue'
 import ImageGalleryModal from './ImageGalleryModal.vue'
 import CouponChainInserter from './CouponChainInserter.vue'
+import CourseBundlePanel from './CourseBundlePanel.vue'
 
 const props = defineProps({
   course: {
@@ -33,6 +34,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Tiers of this course, read-only — the bundle panel labels one quantity
+  // input per tier (011 US37 / D145).
+  plans: {
+    type: Array,
+    default: () => [],
+  },
   submitUrl: {
     type: String,
     required: true,
@@ -58,6 +65,10 @@ const form = useForm({
   description_md: props.course?.description_md || '',
   price: props.course?.price || '',
   redeem_points: props.course?.redeem_points || '',
+  // Bundle perk (011 US37 / FR-201); '' posts as null-ish and clears the perk.
+  bundle_name: props.course?.bundle_name || '',
+  bundle_redeem_points: props.course?.bundle_redeem_points || '',
+  bundle_default_quantity: props.course?.bundle_default_quantity ?? 0,
   original_price: props.course?.original_price || '',
   promo_ends_at: props.course?.promo_ends_at || '',
   thumbnail: null,
@@ -371,6 +382,17 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             <span class="text-sm text-gray-700">隱藏原價／優惠價，改顯示「立即預約」按鈕</span>
           </label>
         </div>
+
+        <!-- Bundle perk, high-ticket only (011 US37 / FR-200) -->
+        <CourseBundlePanel
+          v-if="form.type === 'high_ticket'"
+          :form="form"
+          :plans="plans"
+          :label-classes="labelClasses"
+          :input-classes="inputClasses"
+          :help-text-classes="helpTextClasses"
+          :error-text-classes="errorTextClasses"
+        />
       </div>
     </div>
 
