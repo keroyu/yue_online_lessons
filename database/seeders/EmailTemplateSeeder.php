@@ -44,8 +44,8 @@ class EmailTemplateSeeder extends Seeder
             [
                 'name' => '課程新增小節通知',
                 'event_type' => 'lesson_added',
-                'subject' => '您擁有的課程「{{course_name}}」新增了小節：{{lesson_title}}',
-                'body_md' => "您好，\n\n您擁有的課程「{{course_name}}」新增了小節：\n「{{lesson_title}}」\n\n歡迎回來繼續學習：\n{{classroom_url}}\n\n{{site_name}}",
+                'subject' => '您擁有的課程新增了小節：「{{lesson_title}}」',
+                'body_md' => "您好，\n\n您擁有的課程「{{course_name}}」新增了小節：\n「{{lesson_title}}」\n\n立即觀看新小節：\n{{classroom_url}}\n\n{{site_name}}",
             ],
             [
                 'name' => '客製服務新時段通知',

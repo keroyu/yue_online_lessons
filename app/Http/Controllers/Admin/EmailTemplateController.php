@@ -71,7 +71,7 @@ class EmailTemplateController extends Controller
         'lesson_added' => [
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
             ['key' => '{{lesson_title}}', 'label' => '小節標題'],
-            ['key' => '{{classroom_url}}', 'label' => '教室連結'],
+            ['key' => '{{classroom_url}}', 'label' => '小節連結（直達該小節）'],
         ],
         'lead_converted' => [
             ['key' => '{{user_name}}', 'label' => '客戶姓名'],

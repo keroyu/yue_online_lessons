@@ -362,7 +362,9 @@ main_files:
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/CourseImageController.php
 - app/Http/Controllers/Admin/CourseRoadmapController.php
+- app/Http/Controllers/Admin/EmailTemplateController.php
 - app/Http/Controllers/Admin/LessonController.php
+- app/Http/Controllers/Auth/LoginController.php
 - app/Http/Requests/Admin/CourseRoadmapRequest.php
 - app/Http/Requests/Admin/StoreChapterRequest.php
 - app/Http/Requests/Admin/StoreCourseRequest.php
@@ -386,6 +388,8 @@ main_files:
 - database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
 - database/migrations/2026_08_01_000001_add_ebook_to_courses_type.php
 - database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php
+- database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php
+- database/seeders/EmailTemplateSeeder.php
 - resources/js/Components/Admin/ChapterList.vue
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/ImageGalleryModal.vue
@@ -408,6 +412,7 @@ main_files:
 - tests/Feature/Admin/CourseRoadmapTest.php
 - tests/Feature/Admin/CourseTypeTest.php
 - tests/Feature/Admin/LessonNotificationTest.php
+- tests/Feature/Auth/LoginIntendedRedirectTest.php
 
 related_specs:
 - specs/004-course-admin/spec.md

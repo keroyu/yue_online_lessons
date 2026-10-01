@@ -66,6 +66,8 @@ owner_files:
   - database/migrations/2026_07_06_000002_change_content_category_to_string_on_courses.php
   - database/migrations/2026_09_27_000001_add_notified_at_to_lessons_table.php
   - tests/Feature/Admin/LessonNotificationTest.php
+  - tests/Feature/Auth/LoginIntendedRedirectTest.php
+  - database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php
 touchpoints:
   - file: database/migrations/2026_02_16_000001_add_drip_fields_to_courses_table.php
     owner: 010-drip-email
@@ -100,6 +102,15 @@ touchpoints:
   - file: app/Models/EmailTemplate.php
     owner: 011-high-ticket
     why: LessonAddedNotification 優先使用 lesson_added 事件模板渲染主旨與內文
+  - file: app/Http/Controllers/Admin/EmailTemplateController.php
+    owner: 011-high-ticket
+    why: lesson_added 事件的 `{{classroom_url}}` 變數說明改為「小節連結（直達該小節）」，與 FR-029 的實際連結語意一致（US6 追加）
+  - file: app/Http/Controllers/Auth/LoginController.php
+    owner: 001-auth-account
+    why: 驗證碼登入成功改走 `redirect()->intended()`，未登入學員點通知信的小節連結登入後回到該小節而非「我的學習」（FR-030）
+  - file: database/seeders/EmailTemplateSeeder.php
+    owner: 011-high-ticket
+    why: lesson_added 預設主旨改為不含課程名、內文改「立即觀看新小節」，讓新環境與正式站 data migration 後一致（FR-031）
   - file: app/Services/VideoEmbedService.php
     owner: 003-classroom
     why: 小節儲存時解析/驗證 Vimeo、YouTube 連結為 video_platform + video_id
@@ -225,6 +236,14 @@ SEO、點數兌換、金流與顯示設定。
 - [x] 儲存後的 flash 帶實際成功寄出封數（`小節建立成功，已通知 12 位學員`）；0 封時附上原因，不得只說成功
 - [x] 單方案／無方案課程的行為完全不變（`LessonNotificationTest` 回歸防線 + 手動回歸）
 
+**直達小節連結（2026-09-27 追加，FR-029~FR-030）**：通知信原本連到 `/member/classroom/{course_id}`（數字 id、落在教室預設小節），
+學員還得自己找新小節在哪。改成 slug 網址並直接開到新小節。
+
+- [x] 通知信連結為 `/member/classroom/{course slug}?lesson_id={lesson id}`，點開即播放該新小節；課程無 slug 時退回 id（沿用 `Course::getRouteKey()`）
+- [x] 模板信（`{{classroom_url}}`）與 fallback 純文字信用同一個連結，不得兩邊各組一份
+- [x] 未登入學員點連結 → 登入頁 → 驗證碼登入成功後回到該小節（不是「我的學習」）；全站任何被 `auth` 擋去登入的頁面同樣登入後回原頁（使用者 2026-09-28 確認接受全站行為變更）
+- [x] 信件主旨改為「您擁有的課程新增了小節：「{小節標題}」」，主旨不放課程名（課程名留在內文）；正式站既有模板與無模板 fallback 一致
+
 ### User Story 7 - 課程 Roadmap 編輯 (Priority: P2)
 
 管理員在 `/admin/courses/{course}/roadmap` 為單一課程自訂一份 Roadmap：一串**縱向排列的階段里程碑**，
@@ -276,6 +295,9 @@ SEO、點數兌換、金流與顯示設定。
 - **FR-026**: 寄送結果 MUST 誠實回報。flash 帶實際成功封數；0 封時 MUST 附原因（尚未歸屬任何方案／此課程尚無合格學員）。**不得只顯示「小節建立成功」讓管理員以為信寄出去了** —— 這正是本次問題被埋了這麼久的原因。**已知限制**：`BlockSuppressedRecipients`（000 FR-022）是靠 `MessageSending` 回 `false` 取消寄送、不丟例外，所以退信名單上的地址會被算進「已通知 N 位」。這是全站 14 個寄信點共有的行為，不在本次範圍 —— 封數的語意是「已交給 mailer 且未被擋下」，不是「進到收件匣」；要精確就得改成監聽 `MessageSent` 計數（未做）
 - **FR-027**: 「預計通知人數」是**前端加總**，不是後端逐小節查詢：payload 帶一份 `notifiableCounts`（`no_plan` + 各 `course_plan_id` 的合格購買數，單一 `groupBy` 查詢即得），前端以 `no_plan + Σ counts[lesson.plan_ids]` 算出每個小節的預計人數。預覽**僅供參考**，實際寄送名單一律由後端依 FR-024 重算（比照 D23：提示是前端的事，不為一句提示多一個往返）
 - **FR-028**: `lessons.notified_at` 只記**最後一次**寄送時間，不記「誰收過」。已寄過時勾選框 MUST 轉為明確的二次確認語意（顯示上次時間 + 「收過的人會再收到」），既不得靜默重寄、也不得永久封鎖 —— 永久封鎖會讓後來才被加進方案 B 的學員永遠收不到（FR-025 的同一個坑換個位置重演）
+- **FR-029**: 小節通知信的連結 MUST 由 `route('member.classroom', ['course' => $course, 'lesson_id' => $lesson->id])` 產生 —— course 走 `getRouteKey()`（slug 優先、無 slug 退回 id），小節走教室既有的 `?lesson_id=` 定位（003 `ClassroomController::show`，已依方案過濾，方案外或已刪除的小節自動退回預設小節，不會 404）。連結只在 `LessonAddedNotification` 建構時算一次，模板變數 `{{classroom_url}}` 與 fallback blade 共用（不得再手串 `config('app.url') . '/member/classroom/' . $course->id`）
+- **FR-030**: 驗證碼登入成功 MUST 走 `redirect()->intended(route('member.learning'))`。`auth` middleware 本來就會把被擋下的 URL 存進 `url.intended`，但現行 `LoginController` 寫死導向 `member.learning`，把它丟掉了 —— 不修的話，信裡的直達連結對「未登入」學員（email 點進來最常見的狀態）等於沒做。沒有 intended 時行為不變
+- **FR-031**: 小節通知信主旨 MUST 為 `您擁有的課程新增了小節：「{{lesson_title}}」`，不含課程名、不依課程 type 變字（fallback 原本的 課程/講座/迷你課/電子書 分支移除，與正式站模板一律寫「課程」對齊）。正式站 `email_templates` id=3 的主旨是 DB 資料、部署不會跑 seeder，所以 MUST 以 data migration 更新：**只在主旨仍等於舊預設值時才改**（`您擁有的課程「{{course_name}}」新增了小節：{{lesson_title}}`），管理員若已自訂則不覆蓋；同一支 migration 把內文的 `歡迎回來繼續學習：` 換成 `立即觀看新小節：`（str_replace，只動這一句，保留管理員改過的署名等其他內容）。down() 反向還原同樣兩處
 
 ## 設計決策
 
@@ -312,6 +334,9 @@ SEO、點數兌換、金流與顯示設定。
 - **D25**: 抽 `LessonNotificationService`，把收件人規則從 controller 搬出去 —— `LessonController::store()`、`update()`、`ChapterController::index()` 的預覽人數三處共用同一份規則（FR-024）。D3 的「同步逐封 `Mail::send`、單封失敗只記 log」不變，只是搬家。方法簽名：`recipients(Lesson $lesson): Collection`（合格 purchases，已 eager load `user` 與 `plan.lessons:id`）、`notify(Lesson $lesson): array`（逐封寄送，回 `['sent' => int, 'failed' => int, 'eligible' => int]` 並寫 `notified_at`；constitution §II 要求有副作用的寫入回結構化結果，故非裸 int）、`notifiableCounts(Course $course): array`（回 `['no_plan' => int, 'plans' => [planId => int]]`，單一 `groupBy('course_plan_id')`）、`emptyReason(Lesson $lesson): ?string`（0 封時的原因，flash 與表單提示共用）（否決：在 LessonController 開 private helper — ChapterController 也要用，跨 controller 共用就該是 Service）
 - **D26**: 防重複用**單一 `notified_at` datetime 欄位 + 明確二次確認**，而不是 `lesson_notifications(lesson_id, user_id, sent_at)` 明細表。明細表能做到零重複（方案 B 補寄時自動跳過方案 A 學員），但那是一張**只為了防重複而存在**的表，而補寄是低頻操作（設方案 → 補寄，一門課一生發生幾次）。改成把判斷交給看得到名單的管理員：「已於 09/27 14:30 通知，仍要再寄?」（否決：`lesson_notifications` 明細表 — 精準但成本不成比例；否決：`notified_user_ids` JSON 欄位 — 一樣要維護、又沒有表的查詢與去重能力）。**升級條件寫在這裡**：若日後補寄變成常態，或出現學員抱怨收到重複信，就該把這裡換成明細表，`notified_at` 退化為衍生值
 - **D27**: `notified_at` **不進 `$fillable`** —— 它是寄送的副作用，不是表單欄位，只由 Service 以 `forceFill`/明確 `save()` 寫入。同理 `update()` MUST 比照 `store()` 明確寫出 `$request->safe()->except(['notify_members'])`：今天 `update()` 直接把含 `notify_members` 的 `validated()` 餵給 `$lesson->update()` 而沒出錯，是因為該 key 剛好不在 `$fillable` 被靜默丟棄 —— 那是運氣，不是設計（前例 FR-015 的「缺規則靜默丟棄」）
+- **D28**: **沿用 `{{classroom_url}}` 變數名、改它的值**，不新增 `{{lesson_url}}` —— 正式站的 `lesson_added` 模板已在用 `{{classroom_url}}`，換值就讓既有模板自動變直達，不必請管理員手改模板；新增變數則舊模板照樣連教室，等於沒修。代價是變數名與語意略有落差，由模板編輯器的 label 改為「小節連結（直達該小節）」補足（否決：新增 `{{lesson_url}}` 並保留舊值 — 需要人工改正式站模板才生效；否決：兩個變數同值 — 多一個沒人需要的別名）。`lead_converted` 事件的 `{{classroom_url}}` 是另一個事件、不動
+- **D29**: 小節**不加 slug**，用 `?lesson_id=` —— 教室已支援、drip 信（010 `DripService`）也是這個格式；小節 slug 需要 migration、唯一性規則與後台欄位，只為一條信件連結不划算（否決：`/member/classroom/{course}/lessons/{lessonSlug}` 路由 — 教室是單頁切換小節，新路由還得處理舊網址相容）
+- **D30**: 正式站模板用**條件式 data migration** 更新，而不是請管理員進後台手改或重跑 seeder —— seeder 是 `updateOrCreate`，重跑會把正式站自訂過的內文（署名已改成站名）整份蓋回預設；手改則容易忘，且 staging/本機不一致。條件式 migration 隨部署自動套用、已自訂的不碰（2026-09-28 已唯讀查過正式站：id=3 主旨仍為舊預設、內文含 `歡迎回來繼續學習：` 與 `{{classroom_url}}`，會命中）
 
 ## Schema
 
@@ -421,7 +446,30 @@ Phase 3 — 驗證
 - [x] T00I9 `php artisan test` 全綠 + `npm run build` exit 0
 - [ ] T00I10 **部署後在正式站驗**（本機 DB 無多方案課資料，2026-09-27 決定跳過本機實走）：拿一門**沒有學員**的多方案課走「建立小節（確認勾不下去且寫出 0 位原因）→ 設方案歸屬 → 編輯勾通知 → 重開確認顯示台北時間與二次確認文案」。**注意：正式站勾下去是真的寄信給真學員**，不要拿有學員的課試
 
+### 通知信直達小節連結（US6 追加，FR-029~FR-030）
+
+**Phase A — 實作**
+
+- [x] T00J1 測試（TDD，先紅）：(a) 有 slug 的課程 → 信件 HTML 與純文字內容含 `/member/classroom/{slug}?lesson_id={id}`，不含 `/member/classroom/{course_id}`；(b) 無 slug 課程 → 退回 id 且仍帶 `lesson_id`；(c) 無模板時 fallback 純文字信同一連結 in tests/Feature/Admin/LessonNotificationTest.php
+- [x] T00J2 `LessonAddedNotification` 建構時算一次 `$this->lessonUrl = route('member.classroom', [...])`（public 屬性），`{{classroom_url}}` 換成它 in app/Mail/LessonAddedNotification.php
+- [x] T00J3 [P] fallback 純文字信改用 `{{ $lessonUrl }}`，文案「歡迎回來繼續學習」改為「立即觀看新小節」 in resources/views/emails/lesson-added.blade.php
+- [x] T00J4 [P] `lesson_added` 的 `{{classroom_url}}` label 改「小節連結（直達該小節）」 in app/Http/Controllers/Admin/EmailTemplateController.php
+- [x] T00J5 測試（先紅）：未登入 GET `/member/classroom/{slug}?lesson_id=X` → 走完驗證碼登入 → 導回該 URL；無 intended 時仍導 `member.learning` in tests/Feature/Auth/LoginIntendedRedirectTest.php
+- [x] T00J6 `LoginController` 登入成功改 `redirect()->intended(route('member.learning'))` in app/Http/Controllers/Auth/LoginController.php
+- [x] T00J7 測試（先紅）：(a) 有模板與無模板兩條路徑主旨皆為 `您擁有的課程新增了小節：「{title}」` 且不含課程名；(b) data migration：主旨為舊預設 → 更新、主旨已自訂 → 不動；內文只替換那一句 in tests/Feature/Admin/LessonNotificationTest.php
+- [x] T00J8 `LessonAddedNotification` fallback 主旨改為固定字串、移除 typeLabel match in app/Mail/LessonAddedNotification.php
+- [x] T00J9 [P] seeder 的 lesson_added 預設主旨與內文同步新文案（新環境用） in database/seeders/EmailTemplateSeeder.php
+- [x] T00J10 data migration（FR-031 條件式更新，含 down()） in database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php
+
+**Phase B — 驗證**
+
+- [ ] T00J11 `php artisan test` 全綠；本機寄一封到 log mailer，實點連結確認開在新小節（登入/未登入各一次）— 2026-10-01 測試 1118 passed、本機 migrate 後以 tinker 實際渲染信件確認主旨/連結/內文正確；**實點連結（登入/未登入）尚未做**，改部署後在正式站點一次
+
 ## 進度日誌
+
+- 2026-10-01: 實作 T00J1~T00J10（FR-029~031）— `LessonAddedNotification` 以 `route('member.classroom', [course, lesson_id])` 產生 `$lessonUrl` 供模板 `{{classroom_url}}` 與 fallback 共用、fallback 主旨改「您擁有的課程新增了小節：「標題」」並移除 type 分支、fallback 文案改「立即觀看新小節」、模板變數 label 改「小節連結（直達該小節）」、`LoginController` 改 `redirect()->intended()`、seeder 同步新文案、條件式 data migration `2026_09_28_000001`（主旨僅在仍為舊預設時改、內文只換一句、含 down()）。新增 6 例於 `LessonNotificationTest` + `LoginIntendedRedirectTest` 2 例，先紅後綠，故意把 `{{classroom_url}}` 改回舊值確認會紅；`php artisan test` 1118 passed。剩 T00J11 實點連結與 T00I10，部署後在正式站驗。
+- 2026-09-27: /spec 規劃「通知信直達小節連結」（US6 追加，FR-029~FR-030、D28~D29、T00J1~T00J7）— 通知信原連 `/member/classroom/{id}` 落在教室預設小節；改用 `route()` 產生 slug 網址 + `?lesson_id=`，並修 LoginController 丟掉 `url.intended` 的問題讓未登入學員登入後回到該小節。status: draft 待審。
+- 2026-09-28: 審核回饋 — 確認全站登入後回原頁（FR-030）、fallback 文案改「立即觀看新小節」；追加主旨改為「您擁有的課程新增了小節：「小節標題」」（FR-031、D30、T00J7~T00J10），正式站模板以條件式 data migration 更新。
 
 - 2026-09-27: 實作 US6 追加 T00I1~T00I8 — `lessons.notified_at`（datetime、不進 `$fillable`、有 datetime cast）、`LessonNotificationService`（`recipients` / `notify` / `notifiableCounts` / `emptyReason`，收件人規則從 LessonController 搬出成單一真相）、`store()` 與 `update()` 共用 `notifyAndDescribe()` 把實際寄出封數與 0 封原因寫進 flash、`ChapterController@index` payload 加 `notifiableCounts` 與各小節台北時區的 `notified_at`、LessonForm 通知區塊改為建立/編輯都顯示並帶預計人數（0 人時 disable + 警示原因）與已寄過的二次確認文案。`LessonNotificationTest` 9 例綠（含故意弄壞 no_plan 計數、方案過濾、時區轉換各一次確認會紅），`php artisan test` 1108 passed、`npm run build` exit 0。手動實走改為部署後在正式站進行（T00I10，本機 DB 沒有多方案課資料）。
 

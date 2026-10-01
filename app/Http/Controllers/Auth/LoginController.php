@@ -109,7 +109,9 @@ class LoginController extends Controller
         // Login user
         Auth::login($user, true);
 
-        return redirect()->route('member.learning')->with('success', '登入成功');
+        // Return to the page the `auth` middleware bounced them from, e.g. the
+        // lesson link in a notification email (004 FR-030).
+        return redirect()->intended(route('member.learning'))->with('success', '登入成功');
     }
 
     public function logout(): RedirectResponse

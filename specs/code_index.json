@@ -120,6 +120,7 @@
       "010.us-17"
     ],
     "app/Http/Controllers/Admin/EmailTemplateController.php": [
+      "004.us-6",
       "011.us-10",
       "011.us-11",
       "011.us-12",
@@ -241,7 +242,8 @@
     "app/Http/Controllers/Auth/LoginController.php": [
       "000.us-13",
       "000.us-7",
-      "001.us-1"
+      "001.us-1",
+      "004.us-6"
     ],
     "app/Http/Controllers/BlogController.php": [
       "002.us-10",
@@ -1526,7 +1528,11 @@
     "database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php": [
       "011.us-37"
     ],
+    "database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php": [
+      "004.us-6"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
+      "004.us-6",
       "011.us-10",
       "011.us-11",
       "011.us-14",
@@ -2308,6 +2314,9 @@
     "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php": [
       "008.us-6",
       "008.us-8"
+    ],
+    "tests/Feature/Auth/LoginIntendedRedirectTest.php": [
+      "004.us-6"
     ],
     "tests/Feature/CheckoutTrafficSourceTest.php": [
       "002.us-10"

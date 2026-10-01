@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Mail\LessonAddedNotification;
 use App\Models\Course;
 use App\Models\CoursePlan;
+use App\Models\EmailTemplate;
 use App\Models\Lesson;
 use App\Models\Purchase;
 use App\Models\User;
@@ -276,5 +277,119 @@ class LessonNotificationTest extends TestCase
         $this->storeLesson();
 
         Mail::assertNothingSent();
+    }
+
+    // ── (e) direct lesson link and subject (FR-029 ~ FR-031) ───────────────
+
+    private const OLD_SUBJECT = '您擁有的課程「{{course_name}}」新增了小節：{{lesson_title}}';
+    private const OLD_BODY = "您好，\n\n您擁有的課程「{{course_name}}」新增了小節：\n「{{lesson_title}}」\n\n歡迎回來繼續學習：\n{{classroom_url}}\n\n經營者時間銀行";
+
+    // The install-missing-templates migration (011 FR-052) seeds lesson_added,
+    // so both paths have to clear it first to know which one they exercise.
+    private function withoutTemplate(): void
+    {
+        EmailTemplate::forEvent('lesson_added')->delete();
+    }
+
+    private function lessonTemplate(string $subject = self::OLD_SUBJECT, string $body = self::OLD_BODY): EmailTemplate
+    {
+        $this->withoutTemplate();
+
+        return EmailTemplate::create([
+            'name' => '課程新增小節通知', 'event_type' => 'lesson_added',
+            'subject' => $subject, 'body_type' => 'markdown', 'body_md' => $body,
+        ]);
+    }
+
+    public function test_fallback_mail_links_straight_to_the_lesson_by_slug(): void
+    {
+        $this->withoutTemplate();
+        $this->course->update(['slug' => 'growth-camp']);
+        $lesson = $this->storeLesson(false);
+
+        $mail = new LessonAddedNotification($this->course, $lesson);
+
+        $mail->assertSeeInText("/member/classroom/growth-camp?lesson_id={$lesson->id}");
+        $mail->assertDontSeeInText("/member/classroom/{$this->course->id}");
+        $mail->assertSeeInText('立即觀看新小節');
+    }
+
+    public function test_a_course_without_slug_falls_back_to_its_id_and_keeps_the_lesson(): void
+    {
+        $this->withoutTemplate();
+        $lesson = $this->storeLesson(false);
+        $this->course->forceFill(['slug' => null])->save();
+
+        $mail = new LessonAddedNotification($this->course->fresh(), $lesson);
+
+        $mail->assertSeeInText("/member/classroom/{$this->course->id}?lesson_id={$lesson->id}");
+    }
+
+    public function test_template_classroom_url_now_points_at_the_lesson(): void
+    {
+        $this->course->update(['slug' => 'growth-camp']);
+        $lesson = $this->storeLesson(false);
+        $this->lessonTemplate();
+
+        $mail = new LessonAddedNotification($this->course, $lesson);
+        $url = "/member/classroom/growth-camp?lesson_id={$lesson->id}";
+
+        $this->assertStringContainsString($url, html_entity_decode($mail->htmlBody));
+        $this->assertStringContainsString($url, $mail->textBody);
+        $this->assertSame($mail->lessonUrl, route('member.classroom', ['course' => $this->course, 'lesson_id' => $lesson->id]));
+    }
+
+    public function test_subject_names_the_lesson_but_not_the_course_on_both_paths(): void
+    {
+        $this->withoutTemplate();
+        $lesson = $this->storeLesson(false);
+        $expected = "您擁有的課程新增了小節：「{$lesson->title}」";
+
+        foreach (['lecture', 'ebook', 'mini', 'full'] as $type) {
+            $this->course->update(['type' => $type]);
+            $mail = new LessonAddedNotification($this->course->fresh(), $lesson);
+            $mail->assertHasSubject($expected);
+        }
+
+        $this->lessonTemplate(self::NEW_SUBJECT_FOR_TEST);
+        $mail = new LessonAddedNotification($this->course->fresh(), $lesson);
+        $mail->assertHasSubject($expected);
+        $this->assertStringNotContainsString($this->course->name, $mail->envelope()->subject);
+    }
+
+    private const NEW_SUBJECT_FOR_TEST = '您擁有的課程新增了小節：「{{lesson_title}}」';
+
+    private function runCopyMigration(string $direction = 'up'): void
+    {
+        $migration = require database_path('migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php');
+        $migration->{$direction}();
+    }
+
+    public function test_copy_migration_updates_an_untouched_template_and_only_the_one_sentence(): void
+    {
+        $template = $this->lessonTemplate();
+
+        $this->runCopyMigration();
+        $template->refresh();
+
+        $this->assertSame(self::NEW_SUBJECT_FOR_TEST, $template->subject);
+        $this->assertStringContainsString("立即觀看新小節：\n{{classroom_url}}", $template->body_md);
+        $this->assertStringNotContainsString('歡迎回來繼續學習', $template->body_md);
+        $this->assertStringContainsString('經營者時間銀行', $template->body_md);
+
+        $this->runCopyMigration('down');
+        $template->refresh();
+
+        $this->assertSame(self::OLD_SUBJECT, $template->subject);
+        $this->assertSame(self::OLD_BODY, $template->body_md);
+    }
+
+    public function test_copy_migration_leaves_a_customised_subject_alone(): void
+    {
+        $template = $this->lessonTemplate('【新課】{{lesson_title}}');
+
+        $this->runCopyMigration();
+
+        $this->assertSame('【新課】{{lesson_title}}', $template->fresh()->subject);
     }
 }

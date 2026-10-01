@@ -17,6 +17,7 @@ class LessonAddedNotification extends Mailable
 
     public ?string $htmlBody = null;
     public ?string $textBody = null;
+    public string $lessonUrl;
     private string $resolvedSubject;
     private bool $useTemplate = false;
 
@@ -24,13 +25,20 @@ class LessonAddedNotification extends Mailable
         public Course $course,
         public Lesson $lesson
     ) {
+        // One link for both the template and the fallback view (004 FR-029):
+        // slug-first via Course::getRouteKey(), opened straight on the new lesson.
+        $this->lessonUrl = route('member.classroom', [
+            'course' => $this->course,
+            'lesson_id' => $this->lesson->id,
+        ]);
+
         $template = EmailTemplate::forEvent('lesson_added')->first();
 
         if ($template) {
             $vars = [
                 '{{course_name}}' => $this->course->name,
                 '{{lesson_title}}' => $this->lesson->title,
-                '{{classroom_url}}' => config('app.url') . '/member/classroom/' . $this->course->id,
+                '{{classroom_url}}' => $this->lessonUrl,
             ];
 
             $this->resolvedSubject = $template->renderSubject($vars);
@@ -38,14 +46,7 @@ class LessonAddedNotification extends Mailable
             $this->textBody = $template->renderText($vars);
             $this->useTemplate = true;
         } else {
-            $typeLabel = match($this->course->type) {
-                'ebook' => '電子書',
-                'lecture' => '講座',
-                'mini'    => '迷你課',
-                default   => '課程',
-            };
-
-            $this->resolvedSubject = "您擁有的{$typeLabel}更新了：新小節「{$this->lesson->title}」上線囉";
+            $this->resolvedSubject = "您擁有的課程新增了小節：「{$this->lesson->title}」";
         }
     }
 

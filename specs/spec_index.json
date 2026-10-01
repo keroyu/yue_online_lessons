@@ -2194,7 +2194,7 @@
       "id": "004.us-6",
       "module": "004-course-admin",
       "title": "新增小節 Email 通知學員",
-      "summary": "已發布非 drip 課程新增小節時可勾選通知，發信給非退款/非 system_assigned 且該小節在其方案內的學員，優先用 lesson_added Email 模板，失敗不影響儲存；多方案課因建立時尚未歸屬方案，改在編輯時補寄（lessons.notified_at + 二次確認），flash 回報實際寄出封數並常駐預覽預計通知人數",
+      "summary": "已發布非 drip 課程新增小節時可勾選通知，發信給非退款/非 system_assigned 且該小節在其方案內的學員，優先用 lesson_added Email 模板，失敗不影響儲存；多方案課因建立時尚未歸屬方案，改在編輯時補寄（lessons.notified_at + 二次確認），flash 回報實際寄出封數並常駐預覽預計通知人數；通知信連結用 slug 網址 + ?lesson_id= 直達新小節，登入後經 intended 導回",
       "heading": "### User Story 6 - 新增小節 Email 通知學員 (Priority: P2)",
       "file": "specs/004-course-admin/spec.md",
       "anchor": "user-story-6---新增小節-email-通知學員-priority-p2",
@@ -2215,7 +2215,13 @@
         "多方案",
         "course_plan_lesson",
         "0 封",
-        "靜默漏寄"
+        "靜默漏寄",
+        "直達小節",
+        "lesson_id",
+        "slug",
+        "classroom_url",
+        "intended",
+        "登入導回"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/LessonController.php",
@@ -2229,7 +2235,12 @@
         "resources/js/Components/Admin/LessonForm.vue",
         "resources/js/Components/Admin/ChapterList.vue",
         "resources/js/Pages/Admin/Courses/Chapters.vue",
-        "tests/Feature/Admin/LessonNotificationTest.php"
+        "tests/Feature/Admin/LessonNotificationTest.php",
+        "app/Http/Controllers/Admin/EmailTemplateController.php",
+        "app/Http/Controllers/Auth/LoginController.php",
+        "tests/Feature/Auth/LoginIntendedRedirectTest.php",
+        "database/seeders/EmailTemplateSeeder.php",
+        "database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php"
       ],
       "status": "partial"
     },
