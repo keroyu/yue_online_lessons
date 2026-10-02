@@ -16,9 +16,12 @@ class LearningController extends Controller
     {
         $user = $request->user();
 
-        // Get user's purchases with course data
+        // Get user's purchases with course data. Drip courses are reached via
+        // subscription, so a Purchase on one (e.g. the creator's system_assigned
+        // row) never lists it here (003 FR-044).
         $purchases = $user->purchases()
             ->with(['course.lessons', 'plan.lessons:id'])
+            ->whereHas('course', fn ($q) => $q->where('course_type', '!=', 'drip'))
             ->paidStatus()
             ->orderBy('created_at', 'desc')
             ->get();

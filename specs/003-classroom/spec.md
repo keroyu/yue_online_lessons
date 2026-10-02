@@ -34,6 +34,7 @@ owner_files:
   - tests/Feature/Classroom/HomeworkCoursesTest.php
   - tests/Feature/Classroom/LessonProgressTest.php
   - tests/Feature/Classroom/RoadmapProgressTest.php
+  - tests/Feature/Classroom/MyCoursesTest.php
   - tests/Feature/Classroom/AssignmentDraftTest.php
   - database/migrations/2026_09_23_000004_create_roadmap_checkpoint_completions_table.php
   - database/migrations/2026_05_10_000002_create_assignments_table.php
@@ -164,6 +165,7 @@ touchpoints:
 - [x] 已登入且有付費購買紀錄（`Purchase::paidStatus()`，依購買時間新→舊）時，顯示課程卡片列表（桌機最多 2 欄，每張約 500px 寬）
 - [x] 每張卡片顯示課程進度百分比與進度條（`User::getCourseProgressSummary()`：已完成小節數 / 全部小節數；無小節課程顯示 0%）
 - [x] 無任何課程時顯示「尚無課程」提示並引導至首頁
+- [x] drip（連鎖）課程一律不出現在列表，不論持有的 Purchase 是哪種 type（FR-044）
 - [x] 未登入時顯示 client-side「請先登入」防護提示
 
 ### User Story 2 - 教室上課與影片播放 (Priority: P1)
@@ -384,6 +386,7 @@ touchpoints:
 - **FR-041**: 草稿不參與任何統計與獎勵：不影響 `assignment_completions`、不進 AI 脈絡、不觸發 reply 通知，也不出現在任何後台計數。但仍受一般留言規則約束（`max:5000`、一律頂層 FR-004）
 - **FR-042**: 後台提交列表排序 MUST 改依 `submitted_at` 降序（原為 created_at）—— 被打回後補完重新提交的作業必須回到列表最前面，否則老師要翻到第 3 頁才看得到剛補好的那筆
 - **FR-043**: `homework_notifications.type` 由 enum 改 `string(20)`（同 D10 `video_platform` 前例）；合法值真相回到程式碼，日後新增通知種類不再動 schema
+- **FR-044**: 「我的課程」（`LearningController::index`）MUST 排除 `course_type = drip` 的課程。drip 的存取管道是訂閱（`drip_subscriptions`），不是 Purchase；列表只呈現「買到 / 拿到的課程」。目前唯一會讓 drip 課程帶著 paid Purchase 的路徑是後台建課時自動指派給建課 admin 的 `system_assigned`（`Admin/CourseController::store`），但排除條件以課程型態判斷、不以 Purchase type 判斷，其他來源（贈課、手動交易）一併擋下
 
 ## 設計決策
 
@@ -435,6 +438,7 @@ touchpoints:
 - **D40**: 學員側的不可退條件用「有沒有 reply」而不是「講師有沒有看過」—— 站上沒有已讀機制，回覆是講師已投入時間的唯一可觀測證據。代價是「只讀不回」的提交仍可被學員收回，可接受：講師要攔就用「打回草稿」，或先回一句
 - **D41**: 講師端做「打回草稿」而不是「退回並刪除」—— 學員寫過的內容是資產（同 D4：題目只下架不刪除）。打回後那筆留在原地，學員接著改就好，不必重打一遍；也因此打回**不改內容**，只改狀態
 - **D42**: 草稿在教室以 amber 系呈現並明寫「僅你看得到」—— 草稿唯一的嚴重誤解是「我以為我交了」，顏色與文字都必須與已提交的白色氣泡一眼分辨。amber 是站內尚未用於狀態的中性警示色，不與 teal（講師）、green（已完成）撞
+- **D43**: 在列表查詢排除 drip（FR-044），而不是讓 `CourseController::store` 對 drip 課程不建 `system_assigned` Purchase —— 後者只防得住建課這一條路，贈課、手動建立交易仍可能讓 drip 課程帶 Purchase；而且 admin 進 drip 教室本來就不靠 Purchase（`hasAccessForUser` 對 admin 恆通過，FR-001），那筆 Purchase 保留無害，正式站現存的一筆（user 1 / course 7）不需清除。用 `whereHas('course', fn ($q) => $q->where('course_type', '!=', 'drip'))` 在 SQL 層過濾，`course_type` 為 NOT NULL enum（預設 standard），`!=` 不會誤吃 NULL
 
 ## Schema
 
@@ -593,7 +597,16 @@ touchpoints:
 - [x] T00D14 `php artisan test` 全綠 + `npm run build` exit 0 + `python3 tools/build_spec_index.py`；手動檢查：教室存草稿→覆蓋→轉正→改回草稿→後台打回→鈴鐺通知→手機 RWD
 
 
+### 我的課程排除 drip（US1，FR-044）
+
+- [x] T00L1 測試（TDD，先紅）：(a) admin 持有 drip 課程的 `system_assigned` paid Purchase → `/member/learning` 的 `courses` 不含該課；(b) 同一使用者持有一般課程 paid Purchase → 照常出現；(c) 一般會員持有 drip 課程的 paid Purchase（贈課情境）→ 也不出現 in tests/Feature/Classroom/MyCoursesTest.php
+- [x] T00L2 `LearningController::index` 的 purchases 查詢加 `whereHas('course', fn ($q) => $q->where('course_type', '!=', 'drip'))`（D43）in app/Http/Controllers/Member/LearningController.php
+- [x] T00L3 `php artisan test` 全綠 + `python3 tools/build_spec_index.py`；手動檢查：admin 帳號進 /member/learning 不再看到 drip 課程
+
 ## 進度日誌
+
+- 2026-10-03: 實作「我的課程排除 drip」（T00L1~T00L3）— `LearningController::index` 加 `whereHas(course_type != drip)`；新增 MyCoursesTest 3 例（先紅 2 例因 drip 仍被列出，後綠），全 repo 1121 passed（4858 assertions）。admin 帳號在 /member/learning 的實際畫面待部署後業主確認
+- 2026-10-03: /spec 規劃「我的課程排除 drip」（US1 追加 FR-044 / D43、T00L1~T00L3）— 業主回報自己領的免費 drip 出現在我的課程；正式站查證唯一一筆 drip Purchase 是建課自動指派給 admin 的 system_assigned（user 1 / course 7），學員端不受影響。改在列表查詢以課程型態排除。status: draft 待審
 
 - 2026-09-25: 教室頁 drip 訂閱的 `subscribed_at` 原本直接對 UTC datetime 取 `toDateString()`，跨午夜會差一天，補 `->timezone('Asia/Taipei')`（000 US11）
 
