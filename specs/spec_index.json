@@ -2242,7 +2242,7 @@
         "database/seeders/EmailTemplateSeeder.php",
         "database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "004.us-7",

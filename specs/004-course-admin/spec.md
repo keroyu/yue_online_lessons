@@ -1,6 +1,6 @@
 ---
 id: 004-course-admin
-status: building
+status: done
 owner_files:
   - app/Http/Controllers/Admin/CourseController.php
   - app/Http/Controllers/Admin/ChapterController.php
@@ -444,7 +444,7 @@ Phase 3 — 驗證
 
 - [x] T00I8 測試（TDD，先紅）：(a) 多方案課建立小節勾通知 → 綁方案學員 0 封、flash 帶 0 與原因（鎖住今天的行為並讓它可見）；(b) 把小節加進方案 A 後編輯勾通知 → 方案 A 學員收到、方案 B 學員沒收到、`notified_at` 落值；(c) 無方案課程建立時通知照舊全寄（回歸防線）；(d) refunded / system_assigned 一律不收；(e) 單封 Mail 失敗不中斷後續且不影響儲存 in tests/Feature/Admin/LessonNotificationTest.php
 - [x] T00I9 `php artisan test` 全綠 + `npm run build` exit 0
-- [ ] T00I10 **部署後在正式站驗**（本機 DB 無多方案課資料，2026-09-27 決定跳過本機實走）：拿一門**沒有學員**的多方案課走「建立小節（確認勾不下去且寫出 0 位原因）→ 設方案歸屬 → 編輯勾通知 → 重開確認顯示台北時間與二次確認文案」。**注意：正式站勾下去是真的寄信給真學員**，不要拿有學員的課試
+- [x] T00I10 **部署後在正式站驗**（本機 DB 無多方案課資料，2026-09-27 決定跳過本機實走）：拿一門**沒有學員**的多方案課走「建立小節（確認勾不下去且寫出 0 位原因）→ 設方案歸屬 → 編輯勾通知 → 重開確認顯示台北時間與二次確認文案」。**注意：正式站勾下去是真的寄信給真學員**，不要拿有學員的課試 — 2026-10-02 使用者決定略過，不做正式站實走
 
 ### 通知信直達小節連結（US6 追加，FR-029~FR-030）
 
@@ -463,10 +463,11 @@ Phase 3 — 驗證
 
 **Phase B — 驗證**
 
-- [ ] T00J11 `php artisan test` 全綠；本機寄一封到 log mailer，實點連結確認開在新小節（登入/未登入各一次）— 2026-10-01 測試 1118 passed、本機 migrate 後以 tinker 實際渲染信件確認主旨/連結/內文正確；**實點連結（登入/未登入）尚未做**，改部署後在正式站點一次
+- [x] T00J11 `php artisan test` 全綠；本機寄一封到 log mailer，實點連結確認開在新小節（登入/未登入各一次）— 2026-10-01 測試 1118 passed、本機 migrate 後以 tinker 實際渲染信件確認主旨/連結/內文正確；**實點連結（登入/未登入）尚未做**，2026-10-02 使用者決定略過
 
 ## 進度日誌
 
+- 2026-10-02: 使用者決定略過 T00I10、T00J11 的正式站手動實走，以自動測試（1118 passed）為準；004 status → done。
 - 2026-10-01: 實作 T00J1~T00J10（FR-029~031）— `LessonAddedNotification` 以 `route('member.classroom', [course, lesson_id])` 產生 `$lessonUrl` 供模板 `{{classroom_url}}` 與 fallback 共用、fallback 主旨改「您擁有的課程新增了小節：「標題」」並移除 type 分支、fallback 文案改「立即觀看新小節」、模板變數 label 改「小節連結（直達該小節）」、`LoginController` 改 `redirect()->intended()`、seeder 同步新文案、條件式 data migration `2026_09_28_000001`（主旨僅在仍為舊預設時改、內文只換一句、含 down()）。新增 6 例於 `LessonNotificationTest` + `LoginIntendedRedirectTest` 2 例，先紅後綠，故意把 `{{classroom_url}}` 改回舊值確認會紅；`php artisan test` 1118 passed。剩 T00J11 實點連結與 T00I10，部署後在正式站驗。
 - 2026-09-27: /spec 規劃「通知信直達小節連結」（US6 追加，FR-029~FR-030、D28~D29、T00J1~T00J7）— 通知信原連 `/member/classroom/{id}` 落在教室預設小節；改用 `route()` 產生 slug 網址 + `?lesson_id=`，並修 LoginController 丟掉 `url.intended` 的問題讓未登入學員登入後回到該小節。status: draft 待審。
 - 2026-09-28: 審核回饋 — 確認全站登入後回原頁（FR-030）、fallback 文案改「立即觀看新小節」；追加主旨改為「您擁有的課程新增了小節：「小節標題」」（FR-031、D30、T00J7~T00J10），正式站模板以條件式 data migration 更新。
