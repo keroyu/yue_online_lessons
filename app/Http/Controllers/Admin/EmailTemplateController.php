@@ -23,6 +23,15 @@ class EmailTemplateController extends Controller
             ['key' => '{{consult_minutes}}', 'label' => '諮詢長度（分鐘）'],
             ['key' => '{{zoom_join_url}}', 'label' => 'Zoom 會議連結（未設定 Zoom 時為空）'],
         ],
+        'consultation_credit_booking_confirmation' => [
+            ['key' => '{{user_name}}', 'label' => '學員姓名'],
+            ['key' => '{{user_email}}', 'label' => '學員 Email'],
+            ['key' => '{{course_name}}', 'label' => '課程名稱'],
+            ['key' => '{{slot_time}}', 'label' => '諮詢時段'],
+            ['key' => '{{consult_minutes}}', 'label' => '諮詢長度（分鐘）'],
+            ['key' => '{{zoom_join_url}}', 'label' => 'Zoom 會議連結（未設定 Zoom 時為空）'],
+            ['key' => '{{remaining_credits}}', 'label' => '預約後剩餘諮詢次數（無限次時為「不限」）'],
+        ],
         'high_ticket_booking_rescheduled' => [
             ['key' => '{{user_name}}', 'label' => '申請人暱稱'],
             ['key' => '{{user_email}}', 'label' => '申請人 Email'],

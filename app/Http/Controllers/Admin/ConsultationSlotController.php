@@ -62,6 +62,7 @@ class ConsultationSlotController extends Controller
             'Admin/ConsultationSlots/Index',
             array_merge($this->slots->weekView($request->query('week')), [
                 'bonusCodes'        => (string) SiteSetting::get(ConsultationSlotService::BONUS_CODES_KEY, ''),
+                'minNoticeHours'    => $this->slots->minNoticeHours(),
                 'consultants'       => $consultants,
                 'currentUserId'     => $user->id,
                 'ownerId'           => $this->ownerId($request, $consultants->all()),
@@ -113,9 +114,16 @@ class ConsultationSlotController extends Controller
 
         SiteSetting::set(ConsultationSlotService::BONUS_CODES_KEY, implode(', ', $codes));
 
-        return back()->with('success', $codes === []
+        $message = $codes === []
             ? '已清空預約優惠碼，所有諮詢一律 30 分鐘'
-            : '預約優惠碼已更新（共 ' . count($codes) . ' 組）');
+            : '預約優惠碼已更新（共 ' . count($codes) . ' 組）';
+
+        if ($request->filled('min_notice_hours')) {
+            SiteSetting::set(ConsultationSlotService::MIN_NOTICE_KEY, (string) $request->integer('min_notice_hours'));
+            $message .= '；付費諮詢需提前 ' . $request->integer('min_notice_hours') . ' 小時預約';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function store(StoreConsultationSlotsRequest $request): RedirectResponse
@@ -177,7 +185,7 @@ class ConsultationSlotController extends Controller
             abort(422, '這筆預約尚未確認或已取消，無法改期');
         }
 
-        $minutes = $this->slots->minutesFor($lead->booking_code);
+        $minutes = $this->slots->minutesForLead($lead);
         $current = $lead->slots()->first()?->starts_at;
 
         // Its own units count as free (FR-083) so a 45-minute booking can shift

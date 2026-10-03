@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 
 /**
- * Bundle perk block on a "my courses" card (011 US37 / FR-207).
+ * Consultation credit block on a "my courses" card (011 US37 / FR-207, US38).
  *
  * Renders nothing at all when the course has no perk — a card that gained an
  * empty box or a "0 次" line would be a regression for every other course.
@@ -65,6 +65,20 @@ const redeem = () => {
       <span v-if="isUnlimited" class="text-sm font-semibold text-emerald-700">無限次</span>
       <span v-else class="text-sm font-semibold text-brand-navy">剩 {{ bundle.balance }} 次</span>
     </div>
+
+    <!-- Ordinary courses book their consultations on the sales page (011 US38) -->
+    <template v-if="bundle.self_booking">
+      <p v-if="bundle.active_slot_label" class="mt-1 text-xs text-teal-800">
+        已預約：<span class="font-semibold tabular-nums">{{ bundle.active_slot_label }}</span>
+      </p>
+      <a
+        v-else-if="isUnlimited || bundle.balance > 0"
+        :href="bundle.booking_url"
+        class="mt-2 block w-full cursor-pointer rounded-lg border border-brand-teal px-3 py-2 text-center text-xs font-semibold text-brand-teal transition hover:bg-brand-teal/10"
+      >
+        預約諮詢
+      </a>
+    </template>
 
     <!-- Top-up, only when the course sets a per-credit price -->
     <template v-if="canBuy">

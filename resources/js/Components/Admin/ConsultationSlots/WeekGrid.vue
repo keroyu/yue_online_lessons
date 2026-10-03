@@ -714,13 +714,16 @@ function isHalf(label) {
           v-else-if="selected"
           class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs shadow-lg"
         >
+          <span v-if="selected.booking.kind === 'credit'" class="rounded bg-indigo-200 px-1.5 py-0.5 font-semibold text-indigo-900">
+            諮詢 · {{ selected.booking.course_name }}
+          </span>
           <span class="font-semibold text-indigo-900">{{ selected.booking.name }}</span>
           <span class="tabular-nums text-indigo-800">
             {{ selectedDayLabel }} {{ selected.booking.start }}–{{ selected.booking.end }}
           </span>
           <span class="text-indigo-700 opacity-80">{{ STATE_LABEL[selected.booking.state] }}</span>
           <a
-            v-if="selected.booking.email"
+            v-if="selected.booking.email && selected.booking.kind !== 'credit'"
             :href="leadUrl(selected.booking.email)"
             class="text-indigo-700 underline cursor-pointer hover:opacity-70"
           >
@@ -890,7 +893,7 @@ function isHalf(label) {
               rescheduling ? 'pointer-events-none' : '',
             ]"
             :style="blockStyle(booking)"
-            :title="`${booking.start}–${booking.end} ${booking.name}（${STATE_LABEL[booking.state]}）`"
+            :title="`${booking.start}–${booking.end} ${booking.kind === 'credit' ? `諮詢 · ${booking.course_name} · ` : ''}${booking.name}（${STATE_LABEL[booking.state]}）`"
             @click="selectBooking(dIndex, booking, $event)"
           >
             <!-- Picking a recipient must not open the panel the rest of the
@@ -907,6 +910,7 @@ function isHalf(label) {
                  clips; the time is already implied by where the block sits and
                  how tall it is, and everything else lives in the panel you get
                  by clicking. -->
+            <span v-if="booking.kind === 'credit'" class="mr-1 shrink-0 rounded bg-white/70 px-1 text-[10px] font-bold">諮詢</span>
             <span class="truncate font-semibold">{{ booking.name }}</span>
           </div>
         </div>

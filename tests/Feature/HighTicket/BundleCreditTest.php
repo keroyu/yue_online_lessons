@@ -565,13 +565,16 @@ class BundleCreditTest extends TestCase
         $this->assertSame(2, $course->bundle_default_quantity);
     }
 
-    public function test_bundle_fields_are_rejected_on_a_non_high_ticket_course(): void
+    public function test_bundle_fields_are_rejected_on_a_free_ordinary_course(): void
     {
-        $course = $this->makeCourse('lecture');
+        // US38 opened paid ordinary courses (FR-222); a free one still has no
+        // sale to grant credits from.
+        $course = $this->makeCourse('lecture', ['price' => 0]);
 
         $this->actingAs($this->admin())
             ->put("/admin/courses/{$course->id}", $this->coursePayload($course, [
                 'type' => 'lecture',
+                'price' => 0,
                 'bundle_name' => '團體諮詢',
             ]))
             ->assertSessionHasErrors('bundle_name');

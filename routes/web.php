@@ -43,6 +43,7 @@ use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\DripSubscriptionController;
 use App\Http\Controllers\DripTrackingController;
 use App\Http\Controllers\BookingConfirmController;
+use App\Http\Controllers\ConsultationBookingController;
 use App\Http\Controllers\HighTicketBookingController;
 use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
@@ -81,6 +82,15 @@ Route::get('/course/{course}/booking-slots', [HighTicketBookingController::class
 // Emailed confirmation link — public by design, the token is the credential (011 FR-034).
 Route::get('/booking/confirm/{token}', [BookingConfirmController::class, 'show'])
     ->name('booking.confirm');
+// Self-booked consultations for holders of an ordinary course (011 US38).
+Route::middleware('auth')->group(function () {
+    Route::get('/course/{course}/consultation-slots', [ConsultationBookingController::class, 'slots'])
+        ->middleware('throttle:30,1')
+        ->name('course.consultation-slots');
+    Route::post('/course/{course}/consultation-bookings', [ConsultationBookingController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('course.consultation-bookings.store');
+});
 Route::get('/course/{course}/preview', [ClassroomController::class, 'preview'])->name('course.preview');
 Route::post('/courses/{course}/redeem', [RedemptionController::class, 'store'])
     ->middleware('auth')

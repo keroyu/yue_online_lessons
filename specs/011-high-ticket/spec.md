@@ -2,6 +2,13 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Services/ConsultationCreditBookingService.php
+  - app/Http/Controllers/ConsultationBookingController.php
+  - app/Http/Requests/StoreConsultationBookingRequest.php
+  - resources/js/Components/Course/ConsultationCreditBooking.vue
+  - database/migrations/2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php
+  - database/migrations/2026_10_03_000002_install_consultation_credit_booking_template.php
+  - tests/Feature/HighTicket/ConsultationCreditBookingTest.php
   - app/Services/BundleCreditService.php
   - app/Http/Controllers/Admin/CourseRosterController.php
   - app/Http/Controllers/Member/BundleRedemptionController.php
@@ -155,6 +162,15 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: app/Services/CheckoutService.php
+    owner: 005-checkout
+    why: US38 `fulfillOrder()` 首次建立 purchase 時，對一般課程（`isSelfBooking()`）在既有 transaction 內呼叫 `syncPlanGrant()`（FR-224）
+  - file: app/Services/RedemptionService.php
+    owner: 007-points-referral
+    why: US38 積分兌換整門課建立 purchase 後，對一般課程呼叫 `syncPlanGrant()`（FR-224）
+  - file: app/Http/Requests/Admin/StoreCourseRequest.php
+    owner: 004-course-admin
+    why: US38 諮詢欄位守門改為 FR-222（drip / 免費擋，high_ticket 與一般付費課放行）
   - file: app/Models/Course.php
     owner: 004-course-admin
     why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）
@@ -166,10 +182,10 @@ touchpoints:
     why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`
   - file: app/Http/Requests/Admin/UpdateCourseRequest.php
     owner: 004-course-admin
-    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）
+    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
-    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點
+    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）
   - file: resources/js/Pages/Admin/Courses/Index.vue
     owner: 004-course-admin
     why: US37 每列加「學員名單」按鈕並掛 `CourseRosterModal.vue`（FR-208）
@@ -190,7 +206,7 @@ touchpoints:
     why: US37 為 `type` enum 新增 `redeem_bundle`（第 6 個值），以獨立 alter migration 進行，不改建表 migration
   - file: app/Http/Controllers/Member/LearningController.php
     owner: 003-classroom
-    why: US37 每筆 purchase 多帶 `plan_name` 與福利三欄（名稱／剩餘次數／單次點數），頁面層多帶 `availablePoints`（FR-207）
+    why: US37 每筆 purchase 多帶 `plan_name` 與福利三欄（名稱／剩餘次數／單次點數），頁面層多帶 `availablePoints`（FR-207）；US38 `bundle` payload 多帶 `self_booking` / `booking_url` / `active_slot_label`（`activeSlotLabels()` 一次查完，不在 map 裡補查）
   - file: resources/js/Pages/Member/Learning.vue
     owner: 003-classroom
     why: US37 把 `availablePoints` 透傳給 `MyCourseCard`
@@ -202,13 +218,13 @@ touchpoints:
     why: US30 退款回寫 —— `refund()` 在寫入 `refunded`、作廢推薦回饋之後，以 try/catch 呼叫 `HighTicketLeadService::syncRefundedLead()`；lead 狀態機留在 011，這裡只是觸發點（FR-152 / D118）
   - file: app/Services/PortalyWebhookService.php
     owner: 005-checkout
-    why: US30 退款回寫的第二條路徑 —— `handleRefund()` 寫入 `refunded` 之後呼叫同一個方法，形狀與 009 那條一致（FR-152）
+    why: US30 退款回寫的第二條路徑 —— `handleRefund()` 寫入 `refunded` 之後呼叫同一個方法，形狀與 009 那條一致（FR-152）；US38 建立 paid purchase 改包進 `DB::transaction`，同一 transaction 內呼叫 `BundleCreditService::grantOnStorefrontSale()`（FR-224）
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
-    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈
+    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈；US38 價格區塊下顯示「含 N 次 1 小時…」、已購買區塊掛 `ConsultationCreditBooking.vue`（錨點 `#consultation-booking`）
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
     why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
@@ -277,7 +293,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`；US38 新增 auth 群組內的 `GET /course/{course}/consultation-slots`（throttle:30,1）與 `POST /course/{course}/consultation-bookings`（throttle:10,1）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -1338,6 +1354,45 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - [x] 測試：福利欄位驗證與非高價課守門、持有時清空名稱 422（改名放行）、重複開通不重複發、升級補差額（含已消費過的情形）、降級不回收、贈課／匯入會發、前台結帳不發、積分加購（成功／點數不足／未設點數 422／非本人 403）、名單條件組合、消費批次（含餘額不足跳過）、餘額不可為負、卡片在從未領過時不渲染、批次補發（新學員補滿／已領過不變／無限次不變／非持有者忽略／重複按不多發）、無限次（成交不發次數、切到無限次立即生效、切回有限方案照發、加購 422、名單納入且不扣除、回報文案帶無限次人數）、會員詳情 payload 帶 bundle（無福利時為 null）、補 1 次（不動 granted／可超過方案次數／無限次與非持有者跳過／無福利 422）
 
 
+### User Story 38 - 一般課程附諮詢次數與自助預約 (Priority: P1)
+
+US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，而且消耗方式是管理員從名單挑人扣次數 ——
+那是團體諮詢的形狀：一次邀一批人，扣的是「這一輪你被邀了」。
+
+現在要賣一種**一般商品**：銷售頁直接標價購買，買到的是一門課加上 N 次 1 小時 1 對 1 諮詢。
+客戶不需要顧問成交，也就不需要資格審核、不需要 1 小時內點確認信 —— 錢已經付了，身分已經是會員。
+他回到銷售頁，在原本高價課放預約入口的位置直接選時段，按下去預約就成立，雙方同時收到會議通知，
+那一刻扣 1 次。次數用完就停在那裡，要再約只能用積分加購（US37 既有的 +1 機制）。
+
+同時這個機制從此**專門用來承載諮詢次數**：介面上的「福利」一律改稱「諮詢」。
+
+**消耗方式由課程類型決定，不另設旗標**（D151）：高價課 = 管理員從名單扣（US37 不變），
+一般課程 = 客戶自助預約時扣。時段、週曆、Zoom、行事曆邀請、改期、取消全部沿用 1 對 1 面談那一套（D150）。
+
+**驗收**：
+- [ ] **改名**：後台課程面板、學員名單、會員詳情、「我的課程」卡片、相關 flash 與驗證訊息中的「福利」一律改為「諮詢」（例：「諮詢名稱」「消費 1 次諮詢」「剩 N 次諮詢」）；面板範例文字改為「例如：1 對 1 諮詢」。程式識別字（`bundle_*`）不改
+- [ ] 一般課程（非 high_ticket、非 drip、非免費）也能在編輯課程頁設定諮詢名稱、預設次數、無限次、加購點數；high_ticket 課程的設定方式不變（FR-222）
+- [ ] drip 課程與售價為 0 的課程傳入 `bundle_*` 時驗證失敗 —— 免費領取不授予次數（FR-224），設得到卻發不出去
+- [ ] 一般課程透過**前台結帳**付款完成（`fulfillOrder` 首次建立 purchase）時依預設次數儲值；Portaly 付款與積分兌換整門課同樣儲值；high_ticket 課程走這三條路徑仍 MUST NOT 儲值（US37 立場不變）
+- [ ] 儲值 MUST 在各自既有的 `DB::transaction` 內完成，沿用 `syncPlanGrant()`，重複的付款通知不重複儲值
+- [ ] 銷售頁對**未購買者**在價格區塊顯示「含 N 次 1 小時 1 對 1 諮詢」（無限次顯示「不限次數」），購買流程與一般課程完全相同
+- [ ] 銷售頁對**已購買且持有次數**的登入會員，在原本高價課預約入口的位置顯示「預約 1 對 1 諮詢」區塊：剩餘次數 + 依日期分組的時段按鈕（只列 60 分鐘可完整容納、整點或半點開始、且距現在 ≥ 最短提前時數的起始時間）
+- [ ] 最短提前時數預設 24 小時，可在「諮詢時段」頁的設定區調整（`site_settings`）
+- [ ] 點選時段 → 確認框（「確定預約 X？將使用 1 次諮詢，剩 N−1 次」；無限次不提次數）→ 送出後預約**立即成立**：MUST NOT 有資格審核、MUST NOT 寄待確認信、MUST NOT 有暫留
+- [ ] 成立當下：建立 Zoom 會議（未設定則略過），寄「諮詢預約成立」信給客戶並 CC 該時段的顧問（無顧問時 CC 客服清單），附 `.ics`
+- [ ] 扣 1 次與佔時段 MUST 在同一個 transaction：時段被搶走（409）時次數不扣；次數不足（422）時時段不佔
+- [ ] 同一筆 purchase 同時只能有 **1 個尚未結束**的預約；已有未結束的預約時，區塊改顯示該場的時間與 Zoom 連結，以及「如需改期或取消請聯絡我們」，不顯示時段按鈕；後端同樣擋（422）
+- [ ] 次數為 0 時區塊顯示「諮詢次數已用完」，有設加購點數時提供連往「我的課程」加購的連結；沒有任何開放時段時顯示「目前沒有開放的時段，請稍後再來看看」
+- [ ] 預約端點 MUST 驗證：登入者擁有該課程的 paid purchase、課程為一般課程且有諮詢、所選時間符合上述三條件；否則 403 / 422
+- [ ] 週曆上這類預約與 1 對 1 面談並列在同一張格線（共用時段池），區塊上標「諮詢」與課程名以便分辨；改期沿用既有流程（長度固定 60 分鐘）
+- [ ] 後台**取消**這類預約時退還當初扣掉的次數（無限次者本來就沒扣，不退）；退還與取消在同一 transaction，重複取消不重複退
+- [ ] 這類預約 MUST NOT 出現在 Leads 名單、成交統計、CSV 匯出、新時段通知對象；不觸發 drip `checkAndBook`、Meta CAPI `Lead`、面談紀錄（consultation note）；週曆上不出現「婉拒」按鈕
+- [ ] 面談前一日提醒信照常寄出（沿用 US19）
+- [ ] 「我的課程」卡片對一般課程的諮詢區塊多一顆「預約諮詢」連往銷售頁的預約區塊（錨點）；有未結束預約時改顯示該場時間
+- [ ] 退款後 purchase 不再是 paid，預約端點即回 403；已排定的未來預約不自動取消（由管理員在週曆上取消）
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；預約區塊與時段按鈕在手機寬度不破版
+- [ ] 測試：見 T533
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1881,6 +1936,18 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
 - **FR-217**: 「我的課程」卡片對無限次顯示「無限次」而非「剩 N 次」，且 MUST NOT 顯示積分加購按鈕（買更多沒有意義）；加購端點對無限次的 purchase MUST 回 422
 - **FR-212**: 仍有人持有次數（任一 paid purchase 的 `bundle_granted > 0` 或 `bundle_balance > 0`）時，`bundle_name` MUST NOT 被清空 —— 回 422 並說明人數（比照方案刪除守門 FR-093）。**改名不受限**：那只是顯示文字，而「停用福利」會讓已持有的次數變成無名無主的數字
 
+- **FR-222**: FR-200 放寬為：諮詢設定可存在於 `type = high_ticket` 的課程，**以及**非 drip、售價 > 0 的一般課程。`UpdateCourseRequest` / `StoreCourseRequest` 對 drip 或售價為 0 的課程傳入任一 `bundle_*` 時驗證失敗；前端面板 `v-if` 同步放寬。high_ticket 課程的方案次數規則（FR-202）不變；一般課程沒有方案，一律讀 `courses.bundle_default_quantity` / `courses.bundle_unlimited`
+- **FR-223**: 消耗模式由課程類型推導，MUST NOT 另設旗標：`BundleCreditService::isSelfBooking(Course $course): bool` = `has_bundle && type !== 'high_ticket'`。所有分岔（銷售頁區塊、預約端點、名單「消費 1 次諮詢」按鈕）一律經這支判斷
+- **FR-224**: 一般課程的授予接點：`CheckoutService::fulfillOrder()`（`$created` 為真時）、`PortalyWebhookService` 建立 paid purchase 時、`RedemptionService` 建立 purchase 時，在各自既有 transaction 內呼叫 `syncPlanGrant()`；三處都以 `isSelfBooking()` 守門，high_ticket 課程維持不儲值。免費領取（`FreePurchaseController`）不接（FR-222 已擋掉免費課設定）
+- **FR-225**: 自助預約長度固定 60 分鐘（`ConsultationSlotService::CREDIT_MINUTES = 60`）。所有原本讀 `minutesFor($lead->booking_code)` 的地方改經 `ConsultationSlotService::minutesForLead(HighTicketLead $lead): int`（`kind = credit` → 60，否則原邏輯），涵蓋 Zoom 建立／更新、確認／提醒／改期信的 `{{consult_minutes}}`、改期選項
+- **FR-226**: 可選起始時間 = `ConsultationSlotService::availableStarts(60, null, $notBefore)`，`$notBefore = now() + min_notice_hours`；新增的 `?CarbonInterface $notBefore` 參數只濾起始時間，既有呼叫端不傳即行為不變。最短提前時數存 `site_settings.consultation_credit_min_notice_hours`（預設 24，`integer|min:0|max:168`），由既有的 `PUT /admin/consultation-slots/settings` 一併收
+- **FR-227**: 預約端點 `POST /course/{course}/consultation-bookings`（auth、`throttle:10,1`），body `starts_at`（ISO8601）。委派 `ConsultationCreditBookingService::book(User $user, Course $course, Carbon $startsAt): HighTicketLead`，在單一 `DB::transaction` 內依序：`lockForUpdate` 取該 user + course 的 paid purchase（無 → 403）→ 檢查無未結束預約（有 → 422）→ 檢查起始時間（不在 `$notBefore` 之後或非 :00/:30 → 422）→ 非無限次時條件扣減 `where('bundle_balance','>=',1)->decrement`（`affected === 0` → 422「諮詢次數不足」）→ 建立 lead → `reserve($lead, $startsAt, 60, null)` → `confirm($lead)`（快照顧問）。`SlotUnavailableException` 使整個 transaction 回滾並回 409
+- **FR-228**: 自助預約的 lead 欄位：`kind = 'credit'`、`purchase_id`、`course_id`、`name` / `email` / `phone` 取自 user、`status = 'pending'`、`booked_at` 與 `confirmed_at = now()`、`credits_spent` = 1（無限次為 0）。`confirm_token` / `resume_token` / 篩選欄位一律 null。每次預約一列（不是一人一課一列），`.ics` 的 UID 因此天然各自獨立
+- **FR-229**: 「未結束的預約」= 同 `purchase_id`、`kind = credit`、`isActiveBooking()`、且其最後一個時段單位的結束時間 > now。上一場時間過了即可約下一場，不需管理員把狀態改成「已談」
+- **FR-230**: transaction 提交後依序（各自 try/catch，不影響已成立的預約，沿用 FR-016）：建立 Zoom 會議（topic `{姓名} 諮詢`，主持人為快照的顧問，FR-063 fallback 不變）→ 寄 `consultation_credit_booking_confirmation` 信（收件客戶、CC 規則同 FR-061：顧問，無則客服清單；附 `.ics`）。共用 `createMeetingAndConfirm()`，改為接收 event type 參數；MUST NOT 觸發 drip、CAPI、consultation note
+- **FR-231**: `releaseBooking()` 對 `kind = credit` 且 `credits_spent > 0` 的 lead，在既有 transaction 內 `Purchase::whereKey($lead->purchase_id)->increment('bundle_balance', $lead->credits_spent)` 並將 `credits_spent` 歸 0；`isActiveBooking()` 守門讓重複取消不重複退。`bundle_granted` 不動（FR-204 立場）。`decline()` 對 credit lead 回 422（前端不顯示按鈕）
+- **FR-232**: 新增 `HighTicketLead::scopeApplications()`（`where('kind','application')`）。Leads 名單 `index()`、`conversionStats()`、`exportRows()` 的來源查詢、`notifySlot()`、`recordLead()` 的去重查詢 MUST 套用；週曆、改期、取消、提醒信 MUST NOT 套用（兩種預約都要）。週曆區塊 payload 多帶 `kind` 與 `course_name`
+- **FR-233**: 銷售頁 props：`CourseController::show()` 對 `isSelfBooking()` 的課程多傳 `consultationOffer`（`{name, quantity, unlimited}`，所有訪客）與 `consultationBooking`（僅登入且持有 paid purchase 時：`{balance, unlimited, redeem_points, active: {slot_label, zoom_join_url}|null}`）。時段清單由 `GET /course/{course}/consultation-slots`（auth）即時取得，形狀沿用 `groupStarts()`
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2274,6 +2341,13 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
   代價：學員名單的「只列還有次數的人」不再是單欄比較，得先取出該課程「無限次的方案 id」再 `orWhereIn`（一次額外的小查詢，仍不是 join）。以及無限次這件事沒有歷史 —— 曾經無限、後來改回有限，看不出曾經無限過（與 D141 不做帳本同一個取捨，不再額外付帳）。
 - **D146**: 積分加購一次固定 `+1`，不做數量輸入。
   `bundle_redeem_points` 是單次價，要加 3 次就按 3 次。數量輸入要處理「輸入 99 但點數只夠 3 次」這類提示，以及一個可以一次扣掉全部積分的輸入框 —— 而實際場景是加購一兩次。真的要加購十次，那是找管理員談的量級。
+- **D150**: 自助預約**沿用 `high_ticket_leads` 表**，以 `kind` 欄區分，不另開預約表。
+  `consultation_slots.lead_id`、週曆區塊合併、改期／取消、Zoom 建立／更新／刪除、`.ics` 的 UID 與 SEQUENCE、前一日提醒，全部以 lead 為主體。另開 `consultation_bookings` 等於讓這些路徑全部長出第二個分支（slot 要兩個 FK、週曆要合併兩種來源、改期取消各寫兩份），而兩種預約在時段上的行為完全一樣。
+  代價：一筆「付費客戶的諮詢預約」被放進名叫 lead 的表裡，名單、統計、匯出、新時段通知、去重這五個「業務漏斗」查詢必須明確排除它（FR-232，以一個 scope 收斂）。既有的三支批次（逾時清掃、續填提醒、7 天歸檔）都以 `screened_at` 或 `confirmed_at IS NULL` 篩選，credit lead 兩者都不符，天然不受影響 —— 測試各補一條釘住。
+- **D151**: 消耗模式**由課程類型推導**（FR-223）。高價課的諮詢是團體場、由管理員邀請後扣；一般課程的諮詢是 1 對 1、客戶自己約。兩者若用旗標表達，就會出現「高價課 + 自助預約」「一般課 + 管理員扣」兩種沒人要的組合要處理。使用者已確認高價課維持現狀，所以這條分界線就是課程類型。
+- **D152**: **扣次數發生在預約成立的同一個 transaction**，取消時退還（使用者決策：取消退次數）。先扣後約會在時段被搶時留下一筆要退的帳；先約後扣會在次數不足時留下一個要釋放的時段。合在一起，任一步失敗就整個沒發生。lead 上記 `credits_spent` 而不是查 purchase 當下是否無限次 —— 無限次旗標讀的是方案當下的值（D148），取消時它可能已經改過，只有預約當下實際扣了幾次才是要退的數字。
+- **D153**: 同時只能有 1 個未結束預約（使用者決策），以 `lockForUpdate` 鎖 purchase 列序列化同一人的並發請求：兩個分頁同時按下，第二個在鎖釋放後讀到第一個剛建立的預約而被擋，不會各扣一次各佔一格。
+- **D154**: 續購只走積分加購（使用者決策）。結帳的「已購買過」擋法不動，一般課程的諮詢用完後在「我的課程」以 `bundle_redeem_points` +1。後果要寫清楚：**沒有設加購點數的一般課程，次數用完就無法再約**，後台面板對一般課程在點數留空時提示這一點。
 
 ## Schema
 
@@ -2555,6 +2629,24 @@ US35 把追銷信做成一顆按鈕：按下去，AI 讀暱稱、摘要、逐字
   - `courses.bundle_name` 為空 ⇒ 該課程的 `bundle_default_quantity`、各方案 `bundle_quantity`、各 purchase 的兩個 `bundle_*` 一律無意義，前後端都 MUST NOT 顯示
   - 福利只應設在 `type = high_ticket` 的課程（Form Request 守門，DB 無約束 —— 比照 `course_plans` 的既有作法）
   - 方案存在時 `bundle_quantity` 優先，`bundle_default_quantity` 只在課程無方案時生效
+
+- **US38 schema 變更**：
+
+  `2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `kind` | enum('application','credit') default 'application'，`after('course_id')`，index | 業務漏斗申請 vs 付費客戶自助預約（D150）。default 讓既有列全部歸為 application |
+  | `purchase_id` | foreignId nullable，constrained `purchases` nullOnDelete，index | 這場預約用的是哪筆持有；FR-229 的未結束判斷與 FR-231 的退還都靠它 |
+  | `credits_spent` | unsignedTinyInteger default 0 | 這場預約實際扣了幾次（無限次為 0）；取消時退這個數並歸 0（D152） |
+
+  `2026_10_03_000002_install_consultation_credit_booking_template.php` — `email_templates` 缺才 insert `consultation_credit_booking_confirmation`（比照既有安裝 migration）。
+
+  不變量：
+  - `kind = 'credit'` ⇒ `purchase_id` 非 null、`confirmed_at` 非 null、`screened_at` / `confirm_token` / `resume_token` 皆 null
+  - 同一 `purchase_id` 在任一時刻至多一筆「未結束」的 credit lead（FR-229，應用層以 purchase 列鎖保證）
+  - `credits_spent > 0` ⇒ 該 lead 尚未取消；取消後恆為 0
+  - credit lead 的時段單位數恆為 4（60 分鐘）
 
 ## Tasks
 
@@ -3450,7 +3542,69 @@ Phase 4 — 驗證
 
 
 
+### US38 一般課程附諮詢次數與自助預約
+
+**Phase 1 — 資料與改名**
+- [x] T506 migration：`high_ticket_leads` 加 `kind` / `purchase_id` / `credits_spent` in `database/migrations/2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php`
+- [x] T507 [P] `HighTicketLead`：三欄入 `$fillable` / `casts()`、`purchase()` 關聯、`scopeApplications()`、`isCredit()` in `app/Models/HighTicketLead.php`
+- [x] T508 [P] 模板：`EmailTemplateSeeder` 加 `consultation_credit_booking_confirmation`（主旨／內文見本節末）+ 安裝 migration + `EmailTemplateController::$availableVariables`（`user_name` / `course_name` / `slot_time` / `consult_minutes` / `zoom_join_url` / `remaining_credits`）in `database/seeders/EmailTemplateSeeder.php`, `database/migrations/2026_10_03_000002_install_consultation_credit_booking_template.php`, `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T509 [P] 改名「福利」→「諮詢」：面板、名單、卡片文案與範例文字 in `resources/js/Components/Admin/CourseBundlePanel.vue`, `resources/js/Components/Admin/CourseRosterModal.vue`, `resources/js/Components/BundleCreditBlock.vue`
+- [x] T510 [P] 改名：會員詳情的諮詢行 in `resources/js/Components/MemberDetailModal.vue`〔touchpoint 008〕
+- [x] T511 [P] 改名：flash 與驗證訊息 in `app/Http/Controllers/Admin/CourseRosterController.php`, `app/Http/Controllers/Member/BundleRedemptionController.php`, `app/Services/BundleCreditService.php`, `app/Http/Requests/Admin/UpdateCourseRequest.php`〔touchpoint 004〕
+
+**Phase 2 — 一般課程可設定、付款即儲值**
+- [x] T512 `BundleCreditService::isSelfBooking(Course): bool`（FR-223）in `app/Services/BundleCreditService.php`
+- [x] T513 `UpdateCourseRequest` / `StoreCourseRequest`：守門改為 FR-222（drip 或售價 0 擋，high_ticket 與一般付費課放行）in `app/Http/Requests/Admin/UpdateCourseRequest.php`, `app/Http/Requests/Admin/StoreCourseRequest.php`〔touchpoint 004〕
+- [x] T514 `CourseForm.vue`：面板 `v-if` 放寬為「high_ticket，或非 drip 且售價 > 0」；一般課程沒有方案，面板只出單一預設次數欄 in `resources/js/Components/Admin/CourseForm.vue`〔touchpoint 004〕
+- [x] T515 [P] `CourseBundlePanel.vue`：一般課程點數留空時顯示「未設加購點數：次數用完後學員將無法再預約」（D154）in `resources/js/Components/Admin/CourseBundlePanel.vue`
+- [x] T516 授予接點：`fulfillOrder()` 的 `$created` 分支呼叫 `syncPlanGrant()`（`isSelfBooking()` 守門）in `app/Services/CheckoutService.php`〔touchpoint 005〕
+- [x] T517 [P] 授予接點：Portaly 建立 paid purchase 後同上 in `app/Services/PortalyWebhookService.php`〔touchpoint 005〕
+- [x] T518 [P] 授予接點：積分兌換整門課建立 purchase 後同上 in `app/Services/RedemptionService.php`〔touchpoint 007〕
+
+**Phase 3 — 預約核心**
+- [x] T519 `ConsultationSlotService::availableStarts()` 加 `?CarbonInterface $notBefore = null`（只濾起始時間）；`minNoticeHours(): int` 讀 `site_settings.consultation_credit_min_notice_hours`（預設 24）in `app/Services/ConsultationSlotService.php`
+- [x] T520 `ConsultationSlotService`：`CREDIT_MINUTES = 60`、`minutesForLead()`（實作時移到這裡：controller 與兩支 service 都已依賴它），`HighTicketBookingService` 取代全部 `minutesFor($lead->booking_code)` 呼叫（FR-225）；`createMeetingAndConfirm()` / `sendConfirmationMail()` 改收 event type 參數 in `app/Services/HighTicketBookingService.php`, `app/Http/Controllers/Admin/ConsultationSlotController.php`
+- [x] T521 `releaseBooking()` 對 credit lead 退還 `credits_spent`（FR-231）；`decline()` 對 credit lead 回失敗 in `app/Services/HighTicketBookingService.php`
+- [x] T522 新 `ConsultationCreditBookingService`：`book()`（FR-227 / FR-228）、`activeBookingFor(Purchase): ?HighTicketLead`（FR-229）、`slotsFor(Course): array`（FR-226）；transaction 後委派 `HighTicketBookingService` 的 Zoom + 信件（FR-230）in `app/Services/ConsultationCreditBookingService.php`
+- [x] T523 [P] `StoreConsultationBookingRequest`（`starts_at` required date）in `app/Http/Requests/StoreConsultationBookingRequest.php`
+- [x] T524 新 `ConsultationBookingController`：`slots()`（GET）、`store()`（POST，409 / 422 / 403 對應 FR-227）；路由兩條（auth，`store` 加 `throttle:10,1`）in `app/Http/Controllers/ConsultationBookingController.php`, `routes/web.php`〔touchpoint 000〕
+- [x] T525 `FR-232` 套用 `applications()` scope：Leads `index()`、`conversionStats()`、`exportRows()` 來源查詢、`notifySlot()`、`recordLead()` 去重 in `app/Http/Controllers/Admin/HighTicketLeadController.php`, `app/Services/HighTicketLeadService.php`, `app/Services/HighTicketBookingService.php`
+- [x] T526 [P] 最短提前時數設定：`UpdateConsultationSettingsRequest` 加欄位、`updateSettings()` 寫入、`index()` 下發 in `app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php`, `app/Http/Controllers/Admin/ConsultationSlotController.php`
+
+**Phase 4 — 前台與後台畫面**
+- [x] T527 `CourseController::show()` 下發 `consultationOffer` / `consultationBooking`（FR-233），eager load 不在迴圈補查 in `app/Http/Controllers/CourseController.php`〔touchpoint 002〕
+- [x] T528 新 `ConsultationCreditBooking.vue`：剩餘次數、日期分組時段按鈕、確認框、409 自動重查、未結束預約／已用完／無時段三種狀態 in `resources/js/Components/Course/ConsultationCreditBooking.vue`
+- [x] T529 銷售頁掛載：價格區塊「含 N 次 1 小時 1 對 1 諮詢」、持有者在原預約入口位置掛 `ConsultationCreditBooking`（錨點 `#consultation-booking`）in `resources/js/Pages/Course/Show.vue`〔touchpoint 002〕
+- [x] T530 [P] 「我的課程」：`LearningController` 的 `bundle` payload 多帶 `self_booking`、`course_slug`、`active_slot_label`；`BundleCreditBlock` 對 self_booking 顯示「預約諮詢」連結或已排定時間 in `app/Http/Controllers/Member/LearningController.php`〔touchpoint 003〕, `resources/js/Components/BundleCreditBlock.vue`
+- [x] T531 [P] 週曆：區塊 payload 加 `kind` / `course_name`；區塊標「諮詢 · 課程名」、credit 區塊不顯示「婉拒」；設定區加最短提前時數欄 in `app/Services/ConsultationSlotService.php`, `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [x] T532 [P] 學員名單：一般課程（`isSelfBooking`）不顯示「消費 1 次諮詢」（扣次數只發生在預約）；「補 1 次」「補發」保留 in `resources/js/Components/Admin/CourseRosterModal.vue`, `app/Http/Controllers/Admin/CourseRosterController.php`
+
+**Phase 5 — 驗證**
+- [x] T533 `ConsultationCreditBookingTest`：設定守門（一般付費課可設、drip／免費 422、high_ticket 不變）；結帳／Portaly／積分兌換儲值且重複 webhook 不重複、high_ticket 走結帳仍不儲值；預約成功（扣 1、時段 4 格確認、顧問快照、信件 CC 與 `.ics`、Zoom fake）；無限次不扣；次數不足 422 且時段未佔；時段被搶 409 且次數未扣；未滿提前時數／非 :00/:30 422；已有未結束預約 422、上一場結束後可再約；非持有者／退款後 403；取消退次數且重複取消不重複退；改期長度 60；Leads 名單／統計／匯出／notifySlot 不含 credit lead；三支批次不動 credit lead；不觸發 drip / CAPI / consultation note in `tests/Feature/HighTicket/ConsultationCreditBookingTest.php`
+- [x] T534 `php artisan test` 全綠、`npm run build` exit 0
+- [ ] T535 使用者實測：建一門一般付費課、設「1 對 1 諮詢」3 次＋加購點數 → 用測試帳號結帳 → 銷售頁看到剩 3 次與時段 → 預約一格 → 確認雙方收到信與 `.ics`、週曆出現「諮詢」區塊、剩 2 次、區塊改顯示已排定 → 後台取消 → 次數回到 3
+
+**模板預設值（T508）** — `subject` = `【諮詢預約成立】{{slot_time}}`，`body_md`：
+
+```
+您好 {{user_name}}，
+
+您的 1 對 1 諮詢已預約成功：
+
+- 課程：{{course_name}}
+- 時間：{{slot_time}}（{{consult_minutes}} 分鐘）
+- 會議連結：{{zoom_join_url}}
+
+附件為行事曆邀請，加入行事曆即可收到提醒。剩餘諮詢次數：{{remaining_credits}}。
+如需改期或取消，請直接回覆這封信。
+```
+
 ## 進度日誌
+
+- 2026-10-04: US38 實作完成（T506–T534，剩 T535 使用者實測）。一般付費課可附諮詢次數，結帳／Portaly／積分兌換整門課在同一 transaction 內儲值；持有者在銷售頁選 60 分鐘時段直接成立，扣次數與佔時段同一 transaction（409 不扣、422 不佔），取消退還 `credits_spent`；預約沿用 `high_ticket_leads`（`kind = credit`），Leads 名單／匯出／批次寄信／新時段通知／去重／續填 draft／backfill 一律套 `applications()` scope（故意拔掉 scope 確認三條把關測試會紅）。介面「福利」改稱「諮詢」。
+  **順手修掉 US37 留下的既有 bug**：課程表單恆送 `bundle_default_quantity=0` 與 `bundle_unlimited=0`（FormData 把預設值轉成 `"0"`），守門以 `filled()` 判斷「有設定」，於是 **9/27 起編輯任何非高價課都會被一個不顯示在畫面上的錯誤擋下**（錯誤落在沒渲染的欄位）。改以 `BundleCreditService::settingKeys()` 判斷（名稱／點數有填、次數 > 0、勾無限次才算），並補回歸測試 `test_saving_an_ineligible_course_with_the_forms_untouched_defaults_succeeds`（拿掉修正前跑一次確認會紅）。
+  與規劃的差異：`minutesForLead()` / `CREDIT_MINUTES` 落在 `ConsultationSlotService`；T510 會員詳情原本就沒有「福利」字樣，無需改動；學員名單的「消費 1 次諮詢」對一般課程另由後端回 422（不只前端隱藏）。
+  全套 **1163 passed**、`npm run build` exit 0。
 
 - 2026-09-27: US37 補充 —— 名單加「補 1 次」（T502–T505 / FR-221）。與「消費 1 次福利」對稱的手動 +1，是誤扣的唯一救援路徑：D141 之後沒有帳本可以回滾，而 FR-219 的補發是「補到方案預設值」，對已經領過的人一律算 unchanged，救不回剛被扣掉的那一次。
   `bundle_granted` 刻意不動（兩個理由，第二個才是硬的）：它的語意是「方案總共應該給過幾次」，手動調整不在其中；而且動了它會讓日後的補發（FR-203 補差）少給。副作用是手動 +1 可以讓餘額超過方案預設值 —— 那是對的，管理員知道自己在做什麼。

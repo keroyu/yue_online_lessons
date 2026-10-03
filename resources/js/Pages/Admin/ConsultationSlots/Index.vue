@@ -12,6 +12,7 @@ const props = defineProps({
   range: { type: Object, required: true },
   days: { type: Array, default: () => [] },
   bonusCodes: { type: String, default: '' },
+  minNoticeHours: { type: Number, default: 24 },
   consultants: { type: Array, default: () => [] },
   currentUserId: { type: Number, default: null },
   ownerId: { type: Number, default: null },
@@ -32,7 +33,7 @@ function pickOwner(id) {
   router.get('/admin/consultation-slots', { week: props.week.start, owner: id }, VISIT)
 }
 
-const settings = useForm({ bonus_codes: props.bonusCodes })
+const settings = useForm({ bonus_codes: props.bonusCodes, min_notice_hours: props.minNoticeHours })
 
 function saveSettings() {
   settings.put('/admin/consultation-slots/settings', { preserveScroll: true })
@@ -263,6 +264,26 @@ const ownerButtons = computed(() => {
         </button>
       </div>
       <p v-if="settings.errors.bonus_codes" class="text-sm text-red-600">{{ settings.errors.bonus_codes }}</p>
+
+      <div class="pt-2">
+        <label for="min_notice_hours" class="block text-sm font-semibold text-gray-800">付費諮詢最短提前預約</label>
+        <p class="mt-0.5 text-xs text-gray-500">
+          購買一般課程附贈諮詢的學員，最快只能預約幾小時之後的時段（每場 60 分鐘，佔 4 格）。填 0 表示不限制。
+        </p>
+        <div class="mt-1 flex items-center gap-2">
+          <input
+            id="min_notice_hours"
+            v-model.number="settings.min_notice_hours"
+            type="number"
+            min="0"
+            max="168"
+            class="w-24 rounded-lg border-gray-300 text-sm focus:border-brand-teal focus:ring-brand-teal"
+            :class="{ 'border-red-300': settings.errors.min_notice_hours }"
+          >
+          <span class="text-sm text-gray-600">小時</span>
+        </div>
+        <p v-if="settings.errors.min_notice_hours" class="text-sm text-red-600">{{ settings.errors.min_notice_hours }}</p>
+      </div>
     </form>
 
     <p class="text-xs text-gray-400">

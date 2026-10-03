@@ -37,7 +37,7 @@ class RedemptionService
                 // Atomic deduct — throws on insufficient balance, rolling back the whole tx.
                 $this->pointService->redeemDeduct($user, (int) $course->redeem_points, 'course', $course->id);
 
-                return Purchase::create([
+                $purchase = Purchase::create([
                     'user_id'             => $user->id,
                     'course_id'           => $course->id,
                     'buyer_email'         => $user->email,
@@ -48,6 +48,12 @@ class RedemptionService
                     'source'              => 'points',
                     'webhook_received_at' => now(),
                 ]);
+
+                // Buying the course with points is still buying it: its
+                // consultation credits come along (011 US38 / FR-224).
+                app(BundleCreditService::class)->grantOnStorefrontSale($purchase);
+
+                return $purchase;
             });
         } catch (\RuntimeException $e) {
             // Insufficient balance — do not leak the throw to the controller (constitution VII).

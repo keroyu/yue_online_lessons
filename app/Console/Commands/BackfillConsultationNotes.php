@@ -29,7 +29,8 @@ class BackfillConsultationNotes extends Command
     {
         $dryRun = (bool) $this->option('dry-run');
 
-        $leads = HighTicketLead::with(['course', 'slots'])
+        $leads = HighTicketLead::applications()
+            ->with(['course', 'slots'])
             ->whereNotNull('confirmed_at')
             ->whereNull('cancelled_at')
             ->orderBy('id')

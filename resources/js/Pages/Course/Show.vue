@@ -11,6 +11,7 @@ import ClaimConsentNotice from '@/Components/Course/ClaimConsentNotice.vue'
 import FreeSuccessBlock from '@/Components/Course/FreeSuccessBlock.vue'
 import SalesPromoBlock from '@/Components/Course/SalesPromoBlock.vue'
 import HighTicketBookingWizard from '@/Components/Course/HighTicketBookingWizard.vue'
+import ConsultationCreditBooking from '@/Components/Course/ConsultationCreditBooking.vue'
 import { useCart } from '@/composables/useCart'
 
 const page = usePage()
@@ -52,6 +53,14 @@ const props = defineProps({
   hasPreviewLessons: {
     type: Boolean,
     default: false,
+  },
+  consultationOffer: {
+    type: Object,
+    default: null,
+  },
+  consultationBooking: {
+    type: Object,
+    default: null,
   },
   hasPurchased: {
     type: Boolean,
@@ -485,6 +494,15 @@ const durationLabel = computed(() => {
 })
 
 const isHighTicket = computed(() => props.course.is_high_ticket === true)
+
+// 「含 N 次 1 小時 1 對 1 諮詢」 under the price (011 US38 / FR-233).
+const consultationOfferText = computed(() => {
+  const offer = props.consultationOffer
+  if (!offer) return ''
+  return offer.unlimited
+    ? `含不限次數 1 小時${offer.name}`
+    : `含 ${offer.quantity} 次 1 小時${offer.name}`
+})
 const highTicketHidePrice = computed(() => props.course.high_ticket_hide_price === true)
 
 // Funnel landing page: drip (collects an email) and hidden-price high ticket
@@ -702,6 +720,7 @@ const isFunnelLanding = computed(() =>
             :original-price="course.original_price"
             :promo-ends-at="course.promo_ends_at"
           />
+          <p v-if="consultationOfferText" class="text-sm font-medium text-brand-teal">{{ consultationOfferText }}</p>
           <div class="flex flex-row items-center gap-2 w-full sm:w-auto">
             <a
               v-if="hasPreviewLessons && !isDrip && !isPreviewMode && !isFunnelLanding"
@@ -908,6 +927,14 @@ const isFunnelLanding = computed(() =>
               前往學習
             </a>
           </div>
+
+          <!-- Self-booked consultation for holders (011 US38) -->
+          <ConsultationCreditBooking
+            v-if="consultationBooking"
+            :course-id="course.id"
+            :offer-name="consultationOffer?.name || '1 對 1 諮詢'"
+            :initial="consultationBooking"
+          />
         </div>
 
         <!-- ── High-ticket application wizard (011 US9–US11) ── -->
@@ -942,6 +969,7 @@ const isFunnelLanding = computed(() =>
               :original-price="course.original_price"
               :promo-ends-at="course.promo_ends_at"
             />
+            <p v-if="consultationOfferText" class="mt-2 text-sm font-medium text-brand-teal">{{ consultationOfferText }}</p>
           </div>
 
           <!-- Cart / Purchase Buttons -->

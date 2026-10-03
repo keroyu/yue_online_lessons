@@ -74,7 +74,8 @@
       "011.us-13",
       "011.us-15",
       "011.us-20",
-      "011.us-33"
+      "011.us-33",
+      "011.us-38"
     ],
     "app/Http/Controllers/Admin/CouponChainController.php": [
       "006.us-5"
@@ -111,7 +112,8 @@
       "004.us-7"
     ],
     "app/Http/Controllers/Admin/CourseRosterController.php": [
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7"
@@ -128,6 +130,7 @@
       "011.us-19",
       "011.us-26",
       "011.us-27",
+      "011.us-38",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -145,6 +148,7 @@
       "011.us-3",
       "011.us-31",
       "011.us-35",
+      "011.us-38",
       "011.us-4",
       "011.us-5",
       "011.us-8",
@@ -272,6 +276,9 @@
       "006.us-6",
       "007.us-7"
     ],
+    "app/Http/Controllers/ConsultationBookingController.php": [
+      "011.us-38"
+    ],
     "app/Http/Controllers/CouponController.php": [
       "006.us-1",
       "006.us-6"
@@ -288,6 +295,7 @@
       "011.us-10",
       "011.us-24",
       "011.us-26",
+      "011.us-38",
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
@@ -347,7 +355,8 @@
     "app/Http/Controllers/Member/LearningController.php": [
       "003.us-1",
       "011.us-21",
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "app/Http/Controllers/Member/NotificationController.php": [
       "003.us-8"
@@ -487,7 +496,8 @@
       "002.us-12",
       "004.us-1",
       "004.us-2",
-      "010.us-18"
+      "010.us-18",
+      "011.us-38"
     ],
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
@@ -523,7 +533,8 @@
     ],
     "app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php": [
       "011.us-10",
-      "011.us-13"
+      "011.us-13",
+      "011.us-38"
     ],
     "app/Http/Requests/Admin/UpdateCouponChainRequest.php": [
       "006.us-5"
@@ -537,7 +548,8 @@
       "004.us-1",
       "004.us-2",
       "010.us-18",
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -610,6 +622,9 @@
     ],
     "app/Http/Requests/RedeemCourseRequest.php": [
       "007.us-1"
+    ],
+    "app/Http/Requests/StoreConsultationBookingRequest.php": [
+      "011.us-38"
     ],
     "app/Http/Requests/StoreDripClaimRequest.php": [
       "010.us-15"
@@ -815,6 +830,7 @@
       "011.us-28",
       "011.us-3",
       "011.us-31",
+      "011.us-38",
       "011.us-9"
     ],
     "app/Models/HomepageFeaturedCourse.php": [
@@ -924,7 +940,8 @@
       "012.us-6"
     ],
     "app/Services/BundleCreditService.php": [
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "app/Services/CalendarInviteService.php": [
       "011.us-14"
@@ -942,10 +959,14 @@
       "007.us-2",
       "007.us-7",
       "010.us-4",
-      "010.us-5"
+      "010.us-5",
+      "011.us-38"
     ],
     "app/Services/CloudflareStreamService.php": [
       "003.us-9"
+    ],
+    "app/Services/ConsultationCreditBookingService.php": [
+      "011.us-38"
     ],
     "app/Services/ConsultationSlotService.php": [
       "011.us-10",
@@ -955,7 +976,8 @@
       "011.us-15",
       "011.us-17",
       "011.us-20",
-      "011.us-33"
+      "011.us-33",
+      "011.us-38"
     ],
     "app/Services/ConsultationTranscriptService.php": [
       "011.us-23",
@@ -1025,6 +1047,7 @@
       "011.us-24",
       "011.us-26",
       "011.us-27",
+      "011.us-38",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1037,6 +1060,7 @@
       "011.us-30",
       "011.us-31",
       "011.us-37",
+      "011.us-38",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -1093,7 +1117,8 @@
       "005.us-6",
       "010.us-4",
       "010.us-5",
-      "011.us-30"
+      "011.us-30",
+      "011.us-38"
     ],
     "app/Services/PostService.php": [
       "012.us-1",
@@ -1101,7 +1126,8 @@
     ],
     "app/Services/RedemptionService.php": [
       "007.us-1",
-      "010.us-5"
+      "010.us-5",
+      "011.us-38"
     ],
     "app/Services/ReferralService.php": [
       "007.us-2",
@@ -1531,6 +1557,12 @@
     "database/migrations/2026_09_28_000001_update_lesson_added_email_template_copy.php": [
       "004.us-6"
     ],
+    "database/migrations/2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php": [
+      "011.us-38"
+    ],
+    "database/migrations/2026_10_03_000002_install_consultation_credit_booking_template.php": [
+      "011.us-38"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "004.us-6",
       "011.us-10",
@@ -1539,6 +1571,7 @@
       "011.us-19",
       "011.us-26",
       "011.us-27",
+      "011.us-38",
       "011.us-6"
     ],
     "database/seeders/HomepageSettingsSeeder.php": [
@@ -1591,7 +1624,8 @@
       "011.us-15",
       "011.us-17",
       "011.us-20",
-      "011.us-33"
+      "011.us-33",
+      "011.us-38"
     ],
     "resources/js/Components/Admin/ConsultationSlots/consultantPalette.js": [
       "011.us-33"
@@ -1603,7 +1637,8 @@
       "006.us-2"
     ],
     "resources/js/Components/Admin/CourseBundlePanel.vue": [
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "resources/js/Components/Admin/CourseForm.vue": [
       "002.us-11",
@@ -1612,13 +1647,15 @@
       "006.us-5",
       "010.us-18",
       "010.us-8",
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
     ],
     "resources/js/Components/Admin/CourseRosterModal.vue": [
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "resources/js/Components/Admin/HintBox.vue": [
       "000.us-9"
@@ -1716,7 +1753,8 @@
       "012.us-3"
     ],
     "resources/js/Components/BundleCreditBlock.vue": [
-      "011.us-37"
+      "011.us-37",
+      "011.us-38"
     ],
     "resources/js/Components/Cart/CouponInput.vue": [
       "006.us-1",
@@ -1770,6 +1808,9 @@
     ],
     "resources/js/Components/Course/ClaimConsentNotice.vue": [
       "010.us-16"
+    ],
+    "resources/js/Components/Course/ConsultationCreditBooking.vue": [
+      "011.us-38"
     ],
     "resources/js/Components/Course/DripSubscribeForm.vue": [
       "010.us-1",
@@ -1929,7 +1970,8 @@
       "011.us-13",
       "011.us-14",
       "011.us-15",
-      "011.us-33"
+      "011.us-33",
+      "011.us-38"
     ],
     "resources/js/Pages/Admin/CouponChains/Create.vue": [
       "006.us-5"
@@ -2115,6 +2157,7 @@
       "011.us-1",
       "011.us-2",
       "011.us-24",
+      "011.us-38",
       "011.us-9"
     ],
     "resources/js/Pages/Drip/Unsubscribe.vue": [
@@ -2285,6 +2328,7 @@
       "011.us-34",
       "011.us-35",
       "011.us-37",
+      "011.us-38",
       "011.us-6",
       "011.us-8",
       "012.us-1",
@@ -2392,6 +2436,9 @@
     ],
     "tests/Feature/HighTicket/ConsultantAssignmentTest.php": [
       "011.us-15"
+    ],
+    "tests/Feature/HighTicket/ConsultationCreditBookingTest.php": [
+      "011.us-38"
     ],
     "tests/Feature/HighTicket/ConsultationFollowupEmailTest.php": [
       "011.us-35",

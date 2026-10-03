@@ -34,8 +34,8 @@ class StoreCoursePlanRequest extends FormRequest
             'name.max' => '方案名稱不可超過 50 個字',
             'price.integer' => '建議價格必須是整數',
             'price.min' => '建議價格不可為負數',
-            'bundle_quantity.integer' => '福利次數必須是整數',
-            'bundle_quantity.min' => '福利次數不可為負數',
+            'bundle_quantity.integer' => '諮詢次數必須是整數',
+            'bundle_quantity.min' => '諮詢次數不可為負數',
         ];
     }
 }

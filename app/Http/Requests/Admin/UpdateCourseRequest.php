@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Requests\Concerns\NormalizesTaipeiInput;
+use App\Services\BundleCreditService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -173,8 +174,8 @@ class UpdateCourseRequest extends FormRequest
      *
      * Two rules the field-level rules cannot express:
      *
-     * - Perks are high-ticket only (FR-200), for the same reason plans are
-     *   (D82): no other product type has a plan picker to sell them through.
+     * - Credits fit high-ticket courses and paid, non-drip ordinary courses
+     *   (FR-222): free claims never grant, drip courses have nowhere to book.
      * - Clearing the name while members still hold credits is refused (FR-212):
      *   those credits would become an unnamed number nobody can explain.
      *   Renaming stays allowed — that is only display text.
@@ -182,12 +183,11 @@ class UpdateCourseRequest extends FormRequest
     protected function validateBundle($validator): void
     {
         $course = $this->route('course');
-        $posted = ['bundle_name', 'bundle_redeem_points', 'bundle_default_quantity', 'bundle_unlimited'];
-        $touched = array_filter($posted, fn ($key) => filled($this->input($key)));
+        $touched = BundleCreditService::settingKeys($this->all());
 
-        if ($this->input('type') !== 'high_ticket') {
+        if (! BundleCreditService::canCarryBundle($this->input('type'), $this->input('course_type'), $this->input('price'))) {
             foreach ($touched as $key) {
-                $validator->errors()->add($key, '只有客製服務（高價課）可以設定附帶福利');
+                $validator->errors()->add($key, BundleCreditService::INELIGIBLE_MESSAGE);
             }
 
             return;
@@ -202,7 +202,7 @@ class UpdateCourseRequest extends FormRequest
             if ($holders > 0) {
                 $validator->errors()->add(
                     'bundle_name',
-                    "還有 {$holders} 位學員持有此福利次數，請先處理完再停用（改名不受限）",
+                    "還有 {$holders} 位學員持有諮詢次數，請先處理完再停用（改名不受限）",
                 );
             }
         }
@@ -247,7 +247,7 @@ class UpdateCourseRequest extends FormRequest
             'drip_days.*.max' => '發信天數不能超過 365 天',
             'target_course_ids.array' => '目標課程格式無效',
             'target_course_ids.*.exists' => '選擇的目標課程不存在',
-            'bundle_name.max' => '福利名稱不可超過 50 個字',
+            'bundle_name.max' => '諮詢名稱不可超過 50 個字',
             'bundle_redeem_points.integer' => '每次加購所需積分必須是整數',
             'bundle_redeem_points.min' => '每次加購所需積分至少為 1',
             'bundle_default_quantity.integer' => '預設次數必須是整數',

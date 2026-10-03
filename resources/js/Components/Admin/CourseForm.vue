@@ -105,6 +105,11 @@ const form = useForm({
 
 const isDrip = computed(() => form.course_type === 'drip')
 
+// Mirrors BundleCreditService::canCarryBundle() (011 FR-222).
+const canCarryBundle = computed(() =>
+  form.type === 'high_ticket' || (!isDrip.value && Number(form.price) > 0)
+)
+
 // Only these two flows have a "free claim" moment worth writing content for.
 const isFreeClaim = computed(() => isDrip.value || (!form.portaly_product_id && Number(form.price) === 0))
 const showPaymentGateway = computed(() => !form.portaly_product_id)
@@ -392,9 +397,9 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           </label>
         </div>
 
-        <!-- Bundle perk, high-ticket only (011 US37 / FR-200) -->
+        <!-- Consultation credits: high-ticket, or paid non-drip courses (011 FR-222) -->
         <CourseBundlePanel
-          v-if="form.type === 'high_ticket'"
+          v-if="canCarryBundle"
           :form="form"
           :plans="plans"
           :label-classes="labelClasses"

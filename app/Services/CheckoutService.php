@@ -208,6 +208,11 @@ class CheckoutService
                     if ($created) {
                         $purchases[] = $purchase;
 
+                        // Consultation credits arrive with the sale, inside this
+                        // transaction (011 US38 / FR-224); high-ticket courses
+                        // are skipped inside.
+                        app(BundleCreditService::class)->grantOnStorefrontSale($purchase);
+
                         if ($item->course && $item->course->course_type === 'drip') {
                             $dripService->subscribe($user, $item->course);
                         }

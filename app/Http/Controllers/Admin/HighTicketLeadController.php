@@ -285,7 +285,7 @@ class HighTicketLeadController extends Controller
                 $met,
             )->when($request->query('status'), fn ($q, $status) => $q->byStatus($status));
         } else {
-            $query = HighTicketLead::whereIn('id', array_map('intval', (array) $ids));
+            $query = HighTicketLead::applications()->whereIn('id', array_map('intval', (array) $ids));
         }
 
         $query->with(['course:id,name', 'slots:id,lead_id,starts_at'])
@@ -334,7 +334,8 @@ class HighTicketLeadController extends Controller
     {
         $metRange = $this->leadService->metRange($met);
 
-        return HighTicketLead::query()
+        // Self-booked consultations share the table, not the funnel (011 FR-232).
+        return HighTicketLead::applications()
             ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
@@ -480,7 +481,7 @@ class HighTicketLeadController extends Controller
             'body' => ['required', 'string', 'max:10000'],
         ]);
 
-        $leads = HighTicketLead::whereIn('id', $validated['lead_ids'])
+        $leads = HighTicketLead::applications()->whereIn('id', $validated['lead_ids'])
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->get();

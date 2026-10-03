@@ -698,6 +698,7 @@ main_files:
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/Admin/SettingsController.php
 - app/Http/Controllers/BookingConfirmController.php
+- app/Http/Controllers/ConsultationBookingController.php
 - app/Http/Controllers/CourseController.php
 - app/Http/Controllers/HighTicketBookingController.php
 - app/Http/Controllers/Member/BundleRedemptionController.php
@@ -710,6 +711,7 @@ main_files:
 - app/Http/Requests/Admin/RescheduleBookingRequest.php
 - app/Http/Requests/Admin/StoreConsultationSlotsRequest.php
 - app/Http/Requests/Admin/StoreCoursePlanRequest.php
+- app/Http/Requests/Admin/StoreCourseRequest.php
 - app/Http/Requests/Admin/SyncLessonPlansRequest.php
 - app/Http/Requests/Admin/SyncPlanLessonsRequest.php
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
@@ -721,6 +723,7 @@ main_files:
 - app/Http/Requests/CheckoutRequest.php
 - app/Http/Requests/HighTicketBookingRequest.php
 - app/Http/Requests/Member/UpdateProfileRequest.php
+- app/Http/Requests/StoreConsultationBookingRequest.php
 - app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/ProcessZoomTranscriptJob.php
 - app/Jobs/SendDripEmailJob.php
@@ -742,6 +745,8 @@ main_files:
 - app/Models/User.php
 - app/Services/BundleCreditService.php
 - app/Services/CalendarInviteService.php
+- app/Services/CheckoutService.php
+- app/Services/ConsultationCreditBookingService.php
 - app/Services/ConsultationSlotService.php
 - app/Services/ConsultationTranscriptService.php
 - app/Services/DripService.php
@@ -750,6 +755,7 @@ main_files:
 - app/Services/HighTicketLeadService.php
 - app/Services/PointService.php
 - app/Services/PortalyWebhookService.php
+- app/Services/RedemptionService.php
 - app/Services/TransactionService.php
 - app/Services/ZoomMeetingService.php
 - app/Services/ZoomTranscriptService.php
@@ -794,6 +800,8 @@ main_files:
 - database/migrations/2026_09_27_000003_add_bundle_credits_to_purchases_table.php
 - database/migrations/2026_09_27_000004_add_redeem_bundle_to_point_transactions_type.php
 - database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php
+- database/migrations/2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php
+- database/migrations/2026_10_03_000002_install_consultation_credit_booking_template.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -810,6 +818,7 @@ main_files:
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/BundleCreditBlock.vue
 - resources/js/Components/Course/BookingScreeningStep.vue
+- resources/js/Components/Course/ConsultationCreditBooking.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/MemberDetailModal.vue
 - resources/js/Components/MyCourseCard.vue
@@ -842,6 +851,7 @@ main_files:
 - tests/Feature/HighTicket/BundleCreditTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+- tests/Feature/HighTicket/ConsultationCreditBookingTest.php
 - tests/Feature/HighTicket/ConsultationFollowupEmailTest.php
 - tests/Feature/HighTicket/ConsultationNoteTest.php
 - tests/Feature/HighTicket/ConsultationReminderTest.php

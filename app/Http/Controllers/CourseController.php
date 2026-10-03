@@ -104,7 +104,32 @@ class CourseController extends Controller
             'screeningQuestions' => $course->is_high_ticket && $course->high_ticket_hide_price
                 ? \App\Support\BookingScreening::questionsForFront()
                 : null,
+            // Consultation credits on an ordinary course (011 US38 / FR-233):
+            // what every visitor is sold, and what a holder can book now.
+            'consultationOffer' => $this->consultationOffer($course),
+            'consultationBooking' => app(\App\Services\ConsultationCreditBookingService::class)->stateFor($user, $course),
         ]);
+    }
+
+    /**
+     * The credits that come with buying this course, for the price block
+     * (011 FR-233). Null unless the course is self-booking.
+     *
+     * @return array{name: string, quantity: int, unlimited: bool}|null
+     */
+    private function consultationOffer(Course $course): ?array
+    {
+        $credits = app(\App\Services\BundleCreditService::class);
+
+        if (! $credits->isSelfBooking($course)) {
+            return null;
+        }
+
+        return [
+            'name'      => $course->bundle_name,
+            'quantity'  => $credits->defaultQuantityFor($course, null),
+            'unlimited' => $credits->isUnlimitedFor($course, null),
+        ];
     }
 
     /**
@@ -152,7 +177,8 @@ class CourseController extends Controller
             return null;
         }
 
-        $lead = \App\Models\HighTicketLead::where('email', $user->email)
+        $lead = \App\Models\HighTicketLead::applications()
+            ->where('email', $user->email)
             ->where('course_id', $course->id)
             ->latest('id')
             ->first();

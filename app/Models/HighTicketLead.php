@@ -34,6 +34,9 @@ class HighTicketLead extends Model
         'name',
         'email',
         'course_id',
+        'kind',
+        'purchase_id',
+        'credits_spent',
         'consultant_id',
         'status',
         'notified_count',
@@ -116,12 +119,25 @@ class HighTicketLead extends Model
             'reminder_sent_at' => 'datetime',
             'resume_reminder_sent_at' => 'datetime',
             'calendar_sequence' => 'integer',
+            'credits_spent' => 'integer',
         ];
     }
 
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /** The holding a self-booked consultation spent its credit from (011 US38). */
+    public function purchase(): BelongsTo
+    {
+        return $this->belongsTo(Purchase::class);
+    }
+
+    /** A paying customer's self-booked consultation, not a sales application (D150). */
+    public function isCredit(): bool
+    {
+        return $this->kind === 'credit';
     }
 
     /**
@@ -172,6 +188,18 @@ class HighTicketLead extends Model
         return $this->confirmed_at === null
             && $this->confirm_expires_at !== null
             && $this->confirm_expires_at->isFuture();
+    }
+
+    /**
+     * The sales funnel only (011 FR-232).
+     *
+     * Self-booked consultations share this table for their slot mechanics, but
+     * they are customers, not leads: lists, conversion stats, exports, slot
+     * notifications and duplicate detection must never see them.
+     */
+    public function scopeApplications(Builder $query): Builder
+    {
+        return $query->where('kind', 'application');
     }
 
     public function scopeByStatus(Builder $query, string $status): Builder

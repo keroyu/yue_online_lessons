@@ -41,7 +41,7 @@ class HighTicketLeadService
             return ['success' => false, 'error' => '新時段通知 Email 模板不存在，請先建立 high_ticket_slot_available 模板'];
         }
 
-        $leads = HighTicketLead::whereIn('id', $leadIds)->get();
+        $leads = HighTicketLead::applications()->whereIn('id', $leadIds)->get();
 
         foreach ($leads as $lead) {
             NotifyHighTicketSlotJob::dispatch($lead->id, $template->id);
@@ -65,7 +65,7 @@ class HighTicketLeadService
         // guard that matters is the duplicate-subscription check below —
         // status told us nothing about whether the sequence would be a mistake,
         // it just quietly dropped 已面談 and 已取消 leads on the floor.
-        $leads = HighTicketLead::whereIn('id', $leadIds)->get();
+        $leads = HighTicketLead::applications()->whereIn('id', $leadIds)->get();
 
         $dispatched = 0;
         $skipped = 0;

@@ -10,6 +10,7 @@ use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
+use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Support\BookingScreening;
@@ -91,7 +92,8 @@ class HighTicketBookingService
             'screened_at'     => now(),
         ]);
 
-        $lead = HighTicketLead::where('email', $data['email'])
+        $lead = HighTicketLead::applications()
+            ->where('email', $data['email'])
             ->where('course_id', $course->id)
             ->latest('id')
             ->first();
@@ -379,12 +381,17 @@ class HighTicketBookingService
      *
      * Zoom failing MUST NOT cost the applicant the confirmation (FR-038).
      */
-    private function createMeetingAndConfirm(HighTicketLead $lead, Course $course, ?Carbon $startsAt): void
-    {
+    private function createMeetingAndConfirm(
+        HighTicketLead $lead,
+        Course $course,
+        ?Carbon $startsAt,
+        string $eventType = 'high_ticket_booking_confirmation',
+        array $extraVars = []
+    ): void {
         $zoom = app(ZoomMeetingService::class);
 
         if (!$zoom->isEnabled() || !$startsAt) {
-            $this->sendConfirmationMail($lead, $course);
+            $this->sendConfirmationMail($lead, $course, null, [], $eventType, $extraVars);
 
             return;
         }
@@ -392,7 +399,7 @@ class HighTicketBookingService
         try {
             $meeting = $zoom->createMeeting(
                 $startsAt,
-                $this->slots->minutesFor($lead->booking_code),
+                $this->slots->minutesForLead($lead),
                 "{$lead->name} 諮詢",
                 // Falls back to the owner's account when the consultant has no
                 // Zoom seat yet (FR-063).
@@ -404,7 +411,7 @@ class HighTicketBookingService
                 'zoom_join_url'   => $meeting['join_url'],
             ]);
 
-            $this->sendConfirmationMail($lead, $course, $meeting['join_url']);
+            $this->sendConfirmationMail($lead, $course, $meeting['join_url'], [], $eventType, $extraVars);
         } catch (\Exception $e) {
             // The booking is a settled fact — the applicant confirmed and the
             // slot is theirs — so the confirmation still goes out, just without
@@ -415,8 +422,26 @@ class HighTicketBookingService
                 'error'   => $e->getMessage(),
             ]);
 
-            $this->sendConfirmationMail($lead, $course, '（會議連結將另行寄出）');
+            $this->sendConfirmationMail($lead, $course, '（會議連結將另行寄出）', [], $eventType, $extraVars);
         }
+    }
+
+    /**
+     * What follows a self-booked consultation (011 US38 / FR-230): the meeting
+     * and the one mail that carries it, both best-effort like an application's.
+     *
+     * Deliberately not afterConfirmation(): a paying customer is not a lead, so
+     * no drip stop, no CAPI `Lead`, and no CRM note for a sales follow-up.
+     */
+    public function confirmCreditBooking(HighTicketLead $lead, Course $course, string $remainingCredits): void
+    {
+        $this->createMeetingAndConfirm(
+            $lead,
+            $course,
+            $lead->slots()->first()?->starts_at,
+            'consultation_credit_booking_confirmation',
+            ['{{remaining_credits}}' => $remainingCredits],
+        );
     }
 
     /**
@@ -459,11 +484,19 @@ class HighTicketBookingService
     }
 
     /**
-     * The real "客製服務預約確認" mail (FR-038).
+     * The real "客製服務預約確認" mail (FR-038), or — with `$eventType` — the
+     * self-booking "諮詢預約成立" mail (011 US38 / FR-230), which shares the
+     * recipients, CC rule and invite and differs only in wording.
      */
-    public function sendConfirmationMail(HighTicketLead $lead, Course $course, ?string $zoomUrl = null, array $extraCc = []): bool
-    {
-        $template = EmailTemplate::forEvent('high_ticket_booking_confirmation')->first();
+    public function sendConfirmationMail(
+        HighTicketLead $lead,
+        Course $course,
+        ?string $zoomUrl = null,
+        array $extraCc = [],
+        string $eventType = 'high_ticket_booking_confirmation',
+        array $extraVars = []
+    ): bool {
+        $template = EmailTemplate::forEvent($eventType)->first();
 
         if (!$template) {
             Log::warning('High ticket booking: confirmation template missing', ['lead_id' => $lead->id]);
@@ -478,8 +511,9 @@ class HighTicketBookingService
             '{{user_email}}'      => $lead->email,
             '{{course_name}}'     => $course->name,
             '{{slot_time}}'       => $slot ? $this->slots->label($slot->starts_at) : '',
-            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{consult_minutes}}' => (string) $this->slots->minutesForLead($lead),
             '{{zoom_join_url}}'   => $zoomUrl ?? ($lead->zoom_join_url ?? ''),
+            ...$extraVars,
         ];
 
         // The calendar entry goes out whether or not Zoom produced a link: the
@@ -597,7 +631,7 @@ class HighTicketBookingService
             '{{user_email}}'      => $lead->email,
             '{{course_name}}'     => $course->name,
             '{{slot_time}}'       => $this->slots->label($startsAt),
-            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{consult_minutes}}' => (string) $this->slots->minutesForLead($lead),
             '{{zoom_join_url}}'   => $lead->zoom_join_url ?? '',
         ];
 
@@ -650,7 +684,7 @@ class HighTicketBookingService
 
         $oldSlot = $lead->slots()->first();
         $oldLabel = $oldSlot ? $this->slots->label($oldSlot->starts_at) : '';
-        $minutes = $this->slots->minutesFor($lead->booking_code);
+        $minutes = $this->slots->minutesForLead($lead);
         $newStart = Carbon::instance($newStartsAt)->utc();
 
         // reserve() drops this lead's own units before it checks availability,
@@ -728,6 +762,12 @@ class HighTicketBookingService
      */
     public function decline(HighTicketLead $lead): array
     {
+        // A paying customer's consultation is cancelled, never refused: there
+        // is no application to turn down (011 FR-231).
+        if ($lead->isCredit()) {
+            return ['success' => false, 'message' => '付費諮詢預約只能取消，不能婉拒'];
+        }
+
         return $this->releaseBooking($lead, 'declined', 'high_ticket_booking_declined');
     }
 
@@ -769,6 +809,15 @@ class HighTicketBookingService
 
             if ($status === 'declined') {
                 $attributes['declined_at'] = now();
+            }
+
+            // The credit a self-booking spent goes back with the slot (011
+            // FR-231 / D152). credits_spent, not "is the tier unlimited now":
+            // that flag is read live and may have changed since the booking.
+            // isActiveBooking() above makes a second cancel a no-op.
+            if ($lead->isCredit() && $lead->credits_spent > 0 && $lead->purchase_id) {
+                Purchase::whereKey($lead->purchase_id)->increment('bundle_balance', $lead->credits_spent);
+                $attributes['credits_spent'] = 0;
             }
 
             $lead->update($attributes);
@@ -868,7 +917,7 @@ class HighTicketBookingService
             '{{user_name}}'       => $lead->name,
             '{{user_email}}'      => $lead->email,
             '{{course_name}}'     => $course->name,
-            '{{consult_minutes}}' => (string) $this->slots->minutesFor($lead->booking_code),
+            '{{consult_minutes}}' => (string) $this->slots->minutesForLead($lead),
             '{{zoom_join_url}}'   => $lead->zoom_join_url ?? '',
         ], $extraVars);
 
@@ -901,7 +950,7 @@ class HighTicketBookingService
             $lead,
             $course,
             $startsAt,
-            $this->slots->minutesFor($lead->booking_code),
+            $this->slots->minutesForLead($lead),
             $zoomUrl
         );
 
@@ -914,7 +963,7 @@ class HighTicketBookingService
             $lead,
             $course,
             $startsAt,
-            $this->slots->minutesFor($lead->booking_code)
+            $this->slots->minutesForLead($lead)
         );
 
         return $this->calendarAttachment($ics, 'CANCEL');
@@ -1188,7 +1237,8 @@ class HighTicketBookingService
     {
         $phone = PhoneNumber::normalise($data['phone'] ?? null);
 
-        return HighTicketLead::where('course_id', $course->id)
+        return HighTicketLead::applications()
+            ->where('course_id', $course->id)
             ->where(function ($query) use ($data, $phone) {
                 $query->where('email', $data['email']);
 
@@ -1250,7 +1300,8 @@ class HighTicketBookingService
             ]);
         }
 
-        $lead = HighTicketLead::where('email', $data['email'])
+        $lead = HighTicketLead::applications()
+            ->where('email', $data['email'])
             ->where('course_id', $course->id)
             ->latest('id')
             ->first();

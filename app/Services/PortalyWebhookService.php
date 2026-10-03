@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\DripService;
 
@@ -134,21 +135,28 @@ class PortalyWebhookService
             return null;
         }
 
-        // Create purchase record
-        $purchase = Purchase::create([
-            'user_id' => $user->id,
-            'course_id' => $course->id,
-            'portaly_order_id' => $portalyOrderId,
-            'buyer_email' => $data['customerData']['email'] ?? $user->email,
-            'amount' => $data['amount'] ?? 0,
-            'currency' => $data['currency'] ?? 'TWD',
-            'coupon_code' => !empty($data['couponCode']) ? $data['couponCode'] : null,
-            'discount_amount' => $data['discount'] ?? 0,
-            'status' => 'paid',
-            'type' => 'paid',
-            'source' => 'portaly',
-            'webhook_received_at' => now(),
-        ]);
+        // Create purchase record, with its consultation credits in the same
+        // transaction (011 US38 / FR-224)
+        $purchase = DB::transaction(function () use ($user, $course, $portalyOrderId, $data) {
+            $purchase = Purchase::create([
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'portaly_order_id' => $portalyOrderId,
+                'buyer_email' => $data['customerData']['email'] ?? $user->email,
+                'amount' => $data['amount'] ?? 0,
+                'currency' => $data['currency'] ?? 'TWD',
+                'coupon_code' => !empty($data['couponCode']) ? $data['couponCode'] : null,
+                'discount_amount' => $data['discount'] ?? 0,
+                'status' => 'paid',
+                'type' => 'paid',
+                'source' => 'portaly',
+                'webhook_received_at' => now(),
+            ]);
+
+            app(BundleCreditService::class)->grantOnStorefrontSale($purchase);
+
+            return $purchase;
+        });
 
         // CAPI-only Purchase: the sale happened off-site on Portaly, so there is
         // no browser pixel counterpart to dedupe against (000 US7).

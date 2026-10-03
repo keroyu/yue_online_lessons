@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Bundle credits: the perk (e.g. group consultations) sold alongside a
- * high-ticket course (011 US37).
+ * Consultation credits sold alongside a course: group sessions an admin
+ * deducts on high-ticket courses (011 US37), 1-on-1 sessions the customer
+ * self-books on ordinary ones (011 US38).
  *
  * Everything lives on existing tables (D141): the perk's name and per-credit
  * price are `courses` columns, the granted quantity is a `course_plans` column,
@@ -25,8 +26,82 @@ class BundleCreditService
 {
     public const DISPLAY_TZ = 'Asia/Taipei';
 
+    public const INELIGIBLE_MESSAGE = '只有付費的一般課程（非序列信）或客製服務可以設定諮詢次數';
+
     public function __construct(private PointService $pointService)
     {
+    }
+
+    /**
+     * Which courses may carry consultation credits at all (011 FR-222).
+     *
+     * High-ticket courses spend them through the admin roster (US37). Ordinary
+     * courses spend them by self-booking (US38), which only makes sense for
+     * something that was paid for: a free claim never grants, and a drip course
+     * is a mail sequence with no sales page to book from.
+     */
+    public static function canCarryBundle(?string $type, ?string $courseType, mixed $price): bool
+    {
+        if ($type === 'high_ticket') {
+            return true;
+        }
+
+        return $courseType !== 'drip' && (float) $price > 0;
+    }
+
+    /**
+     * The bundle fields in a course form submission that actually set
+     * something (011 FR-222).
+     *
+     * The course form always posts every bundle field, and FormData turns the
+     * untouched defaults into "0" — so "is it filled" would flag every save of
+     * an ineligible course, with the error landing on a field that is not even
+     * rendered. A zero quantity and an unticked unlimited box set nothing.
+     *
+     * @return array<int, string>
+     */
+    public static function settingKeys(array $input): array
+    {
+        return array_keys(array_filter([
+            'bundle_name'             => filled($input['bundle_name'] ?? null),
+            'bundle_redeem_points'    => filled($input['bundle_redeem_points'] ?? null),
+            'bundle_default_quantity' => (int) ($input['bundle_default_quantity'] ?? 0) > 0,
+            'bundle_unlimited'        => filter_var($input['bundle_unlimited'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        ]));
+    }
+
+    /**
+     * Whether credits on this course are spent by the customer booking a slot
+     * rather than by an admin deducting from the roster (011 FR-223 / D151).
+     *
+     * Derived from the course type rather than stored: a flag would admit two
+     * combinations nobody wants (self-booked group sessions, admin-deducted
+     * 1-on-1s).
+     */
+    public function isSelfBooking(Course $course): bool
+    {
+        return $course->has_bundle && $course->type !== 'high_ticket';
+    }
+
+    /**
+     * Grant credits for a storefront sale — checkout, Portaly, or redeeming the
+     * whole course with points (011 FR-224).
+     *
+     * High-ticket courses still grant nothing here: their credits follow the
+     * plan chosen at conversion, and storefront paths have no plan (US37).
+     * Callers MUST be inside the transaction that created the purchase.
+     *
+     * @return int credits actually granted
+     */
+    public function grantOnStorefrontSale(Purchase $purchase): int
+    {
+        $course = $purchase->course;
+
+        if (! $course || ! $this->isSelfBooking($course)) {
+            return 0;
+        }
+
+        return $this->syncPlanGrant($purchase);
     }
 
     /**
@@ -321,13 +396,13 @@ class BundleCreditService
         $cost = (int) ($course?->bundle_redeem_points ?? 0);
 
         if (! $course || ! $course->has_bundle || $cost <= 0) {
-            return ['success' => false, 'status' => 422, 'error' => '此課程的福利無法以積分加購'];
+            return ['success' => false, 'status' => 422, 'error' => '此課程的諮詢無法以積分加購'];
         }
 
         // Buying more of an uncapped perk is meaningless; the button is hidden,
         // and this is the guard behind it (FR-217).
         if ($this->isUnlimitedFor($course, $purchase->plan)) {
-            return ['success' => false, 'status' => 422, 'error' => '此方案的福利為無限次，無需加購'];
+            return ['success' => false, 'status' => 422, 'error' => '此方案的諮詢為無限次，無需加購'];
         }
 
         $user = $purchase->user;

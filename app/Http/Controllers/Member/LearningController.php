@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Member;
 use App\Http\Controllers\Controller;
 use App\Models\LessonProgress;
 use App\Services\BundleCreditService;
+use App\Services\ConsultationCreditBookingService;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,8 +13,12 @@ use Inertia\Response;
 
 class LearningController extends Controller
 {
-    public function index(Request $request, PointService $points, BundleCreditService $credits): Response
-    {
+    public function index(
+        Request $request,
+        PointService $points,
+        BundleCreditService $credits,
+        ConsultationCreditBookingService $consultations,
+    ): Response {
         $user = $request->user();
 
         // Get user's purchases with course data. Drip courses are reached via
@@ -32,8 +37,11 @@ class LearningController extends Controller
             ->flip()
             ->toArray();
 
+        // Upcoming self-booked consultations, one query for every card (011 US38).
+        $activeSlots = $consultations->activeSlotLabels($purchases->pluck('id')->all());
+
         // Map to MyCourse format for frontend
-        $courses = $purchases->map(function ($purchase) use ($progressMap, $user, $credits) {
+        $courses = $purchases->map(function ($purchase) use ($progressMap, $user, $credits, $activeSlots) {
             $course = $purchase->course;
             // Tiered purchases only count their own lessons (011 FR-091).
             $progress = $user->getCourseProgressSummary($course, $progressMap, $purchase->accessibleLessonIds());
@@ -58,6 +66,10 @@ class LearningController extends Controller
                     // Read off the tier, so a tier flipped to unlimited shows up
                     // here immediately (011 D148).
                     'unlimited' => $credits->isUnlimitedFor($course, $purchase->plan),
+                    // Ordinary courses book from the sales page (011 US38).
+                    'self_booking' => $credits->isSelfBooking($course),
+                    'booking_url' => route('course.show', $course) . '#consultation-booking',
+                    'active_slot_label' => $activeSlots[$purchase->id] ?? null,
                 ] : null,
             ];
         });

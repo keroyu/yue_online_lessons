@@ -24,6 +24,9 @@ class CourseRosterController extends Controller
         return response()->json([
             'has_bundle' => (bool) $course->has_bundle,
             'bundle_name' => $course->bundle_name,
+            // Credits on ordinary courses are spent by booking (011 FR-223), so
+            // the modal hides its deduct button for them.
+            'self_booking' => $credits->isSelfBooking($course),
             // The dropdown's options come with the list so the modal never has
             // to guess a tier id from a name.
             'plans' => $course->plans()->get(['id', 'name', 'bundle_unlimited']),
@@ -41,7 +44,13 @@ class CourseRosterController extends Controller
         BundleCreditService $credits,
     ): JsonResponse {
         if (! $course->has_bundle) {
-            return response()->json(['message' => '此課程未設定附帶福利'], 422);
+            return response()->json(['message' => '此課程未設定諮詢次數'], 422);
+        }
+
+        // Deducting by hand would spend a credit no booking stands behind
+        // (011 FR-223): on these courses only a booking spends one.
+        if ($credits->isSelfBooking($course)) {
+            return response()->json(['message' => '此課程的諮詢由學員自行預約時扣除'], 422);
         }
 
         return response()->json($credits->consume($course, $request->validated('user_ids')));
@@ -57,7 +66,7 @@ class CourseRosterController extends Controller
         BundleCreditService $credits,
     ): JsonResponse {
         if (! $course->has_bundle) {
-            return response()->json(['message' => '此課程未設定附帶福利'], 422);
+            return response()->json(['message' => '此課程未設定諮詢次數'], 422);
         }
 
         return response()->json($credits->grantToMembers($course, $request->validated('user_ids')));
@@ -73,7 +82,7 @@ class CourseRosterController extends Controller
         BundleCreditService $credits,
     ): JsonResponse {
         if (! $course->has_bundle) {
-            return response()->json(['message' => '此課程未設定附帶福利'], 422);
+            return response()->json(['message' => '此課程未設定諮詢次數'], 422);
         }
 
         return response()->json($credits->credit($course, $request->validated('user_ids')));

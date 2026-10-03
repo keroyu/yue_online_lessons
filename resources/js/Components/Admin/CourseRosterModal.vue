@@ -34,7 +34,9 @@ const crediting = ref(false)
 const confirmingCredit = ref(false)
 
 const hasBundle = computed(() => !!props.course?.has_bundle)
-const bundleName = computed(() => props.course?.bundle_name || '福利')
+// Ordinary courses spend credits by self-booking only (011 FR-223).
+const selfBooking = ref(false)
+const bundleName = computed(() => props.course?.bundle_name || '諮詢')
 
 const selectedStudents = computed(() =>
   students.value.filter(s => selected.value.includes(s.user_id)),
@@ -61,6 +63,7 @@ const load = async () => {
     })
     students.value = data.students
     plans.value = data.plans ?? []
+    selfBooking.value = !!data.self_booking
     // Drop ticks for rows that are no longer on the list.
     const ids = new Set(data.students.map(s => s.user_id))
     selected.value = selected.value.filter(id => ids.has(id))
@@ -329,7 +332,7 @@ const consume = async () => {
         </div>
 
         <button
-          v-if="!confirmingConsume"
+          v-if="!confirmingConsume && !selfBooking"
           type="button"
           :disabled="selected.length === 0"
           class="cursor-pointer rounded-lg border border-amber-600 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -337,7 +340,7 @@ const consume = async () => {
         >
           消費 1 次{{ bundleName }}
         </button>
-        <div v-else class="flex items-center gap-2 rounded-lg border border-amber-600 bg-amber-50 px-3 py-2">
+        <div v-else-if="!selfBooking" class="flex items-center gap-2 rounded-lg border border-amber-600 bg-amber-50 px-3 py-2">
           <span class="text-sm text-amber-900">
             將把 {{ selected.length }} 位學員的{{ bundleName }}各扣 1 次？
           </span>

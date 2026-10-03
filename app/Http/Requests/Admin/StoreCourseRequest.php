@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Http\Controllers\Admin\HomepageSettingController;
 use App\Http\Requests\Concerns\NormalizesTaipeiInput;
+use App\Services\BundleCreditService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -87,6 +88,24 @@ class StoreCourseRequest extends FormRequest
             'target_course_ids' => ['nullable', 'array'],
             'target_course_ids.*' => ['exists:courses,id'],
         ];
+    }
+
+    /**
+     * Consultation credits only fit courses that can spend them (011 FR-222).
+     * There are no holders yet on a new course, so this is the eligibility half
+     * of UpdateCourseRequest::validateBundle() only.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (BundleCreditService::canCarryBundle($this->input('type'), $this->input('course_type'), $this->input('price'))) {
+                return;
+            }
+
+            foreach (BundleCreditService::settingKeys($this->all()) as $key) {
+                $validator->errors()->add($key, BundleCreditService::INELIGIBLE_MESSAGE);
+            }
+        });
     }
 
     /**

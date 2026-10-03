@@ -30,6 +30,14 @@ class ConsultationSlotService
 
     public const BONUS_CODES_KEY = 'high_ticket_booking_bonus_codes';
 
+    /** A self-booked consultation on an ordinary course is always an hour (011 FR-225). */
+    public const CREDIT_MINUTES = 60;
+
+    /** How far ahead a self-booking must be made, in hours (011 FR-226). */
+    public const MIN_NOTICE_KEY = 'consultation_credit_min_notice_hours';
+
+    public const DEFAULT_MIN_NOTICE_HOURS = 24;
+
     /**
      * Consultation length for a submitted code. An unknown code is not an
      * error — it silently falls back to the default and the UI says so, rather
@@ -40,6 +48,24 @@ class ConsultationSlotService
         return $this->codeIsValid($code)
             ? self::DEFAULT_MINUTES + self::BONUS_MINUTES
             : self::DEFAULT_MINUTES;
+    }
+
+    /**
+     * Length of this lead's booking. Applications follow their bonus code;
+     * self-booked consultations are a fixed hour (011 FR-225) — every caller
+     * that sizes a meeting, an invite or a reschedule goes through here.
+     */
+    public function minutesForLead(HighTicketLead $lead): int
+    {
+        return $lead->isCredit() ? self::CREDIT_MINUTES : $this->minutesFor($lead->booking_code);
+    }
+
+    /** Minimum notice for a self-booking (011 FR-226); 0 means any future start. */
+    public function minNoticeHours(): int
+    {
+        $hours = SiteSetting::get(self::MIN_NOTICE_KEY);
+
+        return $hours === null || $hours === '' ? self::DEFAULT_MIN_NOTICE_HOURS : max(0, (int) $hours);
     }
 
     public function codeIsValid(?string $code): bool
@@ -138,7 +164,7 @@ class ConsultationSlotService
         $tz = self::DISPLAY_TZ;
         $monday = $this->parseWeek($week);
 
-        $rows = ConsultationSlot::with(['lead:id,name,email,zoom_join_url', 'consultant:id,nickname,email'])
+        $rows = ConsultationSlot::with(['lead:id,name,email,zoom_join_url,kind,course_id', 'lead.course:id,name', 'consultant:id,nickname,email'])
             ->where('starts_at', '>=', $monday->copy()->utc())
             ->where('starts_at', '<', $monday->copy()->addDays(7)->utc())
             ->orderBy('starts_at')
@@ -322,6 +348,9 @@ class ConsultationSlotService
             'name'          => $b['lead']?->name,
             'email'         => $b['lead']?->email,
             'zoom_join_url' => $b['lead']?->zoom_join_url,
+            // A paying customer's self-booked hour vs a sales application (011 US38).
+            'kind'          => $b['lead']?->kind,
+            'course_name'   => $b['lead']?->course?->name,
             'consultant_id' => $b['consultant']?->id,
             'consultant'    => $b['consultant']?->nickname ?: $b['consultant']?->email,
             'held_until'    => $held?->copy()->timezone(self::DISPLAY_TZ)->format('H:i'),
@@ -405,9 +434,13 @@ class ConsultationSlotService
      * sitting on the very units it would need to shift by 15 minutes — without
      * this, the most ordinary move on the list is the one that disappears.
      *
+     * `$notBefore` drops starts earlier than that instant — the self-booking
+     * notice (011 FR-226). It filters starts only; the units after it are
+     * looked up as usual.
+     *
      * @return array<int, Carbon> UTC instants, ascending
      */
-    public function availableStarts(int $minutes, ?HighTicketLead $ignoring = null): array
+    public function availableStarts(int $minutes, ?HighTicketLead $ignoring = null, ?CarbonInterface $notBefore = null): array
     {
         $units = $this->unitsFor($minutes);
 
@@ -454,6 +487,7 @@ class ConsultationSlotService
         $starts = array_values(array_filter(
             $starts,
             fn (Carbon $at) => in_array($at->copy()->timezone(self::DISPLAY_TZ)->minute, [0, 30], true)
+                && ($notBefore === null || $at->gte($notBefore))
         ));
 
         return $starts;
