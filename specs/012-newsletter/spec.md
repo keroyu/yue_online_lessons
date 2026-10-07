@@ -326,6 +326,7 @@ touchpoints:
 - **FR-034**: 純文字版由 `PostService::toEmailText(string $html, string $postUrl): string` 以 `league/html-to-markdown` 把 `toEmailHtml()` 的**最終 HTML** 轉回 Markdown（同 010 FR-041 的理由：UTM 只戳在 HTML 上）；影片區塊在 HTML 階段已帶 `data-email-video` 標記，轉換前先換成純文字行「▶ 影片請到網站觀看：{postUrl}」，避免轉出一個圖片 Markdown
 - **FR-035**: 開信像素 MUST 放在 `<body>` 內第一個元素（內文之前）。Gmail 對超過約 102KB 的 HTML 會截斷並顯示「[訊息已截斷]」，全文信很容易超過；像素若在尾端會隨之消失，開信數被低估、dormant 判定（FR-008）因此誤殺。像素為 `display:none` 1x1，放前面不影響版面
 - **FR-036**: `NewsletterBroadcastMail` 與 `NewsletterWelcomeMail` 的 `firstYoutubeThumb()` 與 `$videoThumbUrl` MUST 刪除 —— 影片縮圖改在內文原位出現，信首只放封面。FR-018 所列的模板變數相應改為 `$post` / `$postUrl` / `$bodyHtml` / `$bodyText` / `$unsubscribeUrl` / `$openPixelUrl`
+- **FR-037**（2026-10-07）: 文章 Markdown 的**單一換行即為換行**（`<br>`），不必空一行。`PostService` 的 CommonMark 設 `renderer.soft_break = "<br />\n"`，網頁（`toHtml`）與信件（`toEmailHtml`）共用同一個 `converter()`；後台 PostForm 預覽的 `marked` 同步設 `breaks: true`，讓預覽與實際輸出一致。比照 `EmailMarkdownService` 既有設定。段落仍以空行分隔；清單、標題等區塊語法不受影響
 
 ## 設計決策
 
@@ -449,6 +450,7 @@ Phase 3 — 驗證
 - [x] T047 `NewsletterFullTextTest`：信內含內文段落且無摘要／無「閱讀全文」按鈕；YouTube 行 → 縮圖 + 提示且連回文章；Vimeo 行 → 無圖提示區塊；原生 `<iframe>` → 提示區塊、HTML 內零 `<iframe>`；句中的 YouTube 網址不被替換；`/storage/...` 圖片轉絕對網址並有 max-width；站內連結帶 utm；像素出現在內文之前；純文字版含全文與「▶ 影片請到網站觀看」；歡迎信同樣是全文且無像素。既有 `BroadcastTest`／`WelcomePostTest` 若斷言摘要或縮圖，依新行為修正 in `tests/Feature/Newsletter/NewsletterFullTextTest.php`
 - [x] T048 `php artisan test` 全綠
 - [ ] T049 使用者實測：對自己寄一封含插圖與 YouTube 的文章，於 Gmail（網頁＋手機 App）確認全文可讀、插圖不爆版、影片縮圖點得回文章；長文出現「[訊息已截斷]」時開信仍有記錄
+- [x] T050 單一換行即換行（FR-037）：`PostService::converter()` 收斂兩處 CommonMark 並設 soft_break；`PostForm.vue` 預覽 `marked(..., { breaks: true })`；`PostServiceTest`、`NewsletterFullTextTest` 各補一條 in `app/Services/PostService.php`, `resources/js/Components/Admin/PostForm.vue`
 
 ## Tasks（歡迎信改寄指定文章 / US9）
 
@@ -474,6 +476,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-07: 文章 Markdown 單一換行即換行（FR-037）—— 網頁、電子報、後台預覽三處一致；PostService 兩處 CommonMark 收斂為 converter()
 - 2026-10-07: US10 完成（T043–T048，剩 T049 使用者實測）— 電子報與文章版歡迎信改寄全文：PostService::toEmailHtml/toEmailText（影片行沿用前台判定換成縮圖或回站提示、殘留 iframe 換提示、插圖限寬轉絕對網址、站內連結戳 UTM），開信像素移到內文前；純文字版影片網址在 Markdown 轉換後才填入，避免 `utm\_source` 被跳脫成壞連結；NewsletterFullTextTest 6 項
 - 2026-09-25: OG 卡片的品牌 logo 改讀後台上傳的網站圖示（000 US12），內建檔降為 fallback；logo 檔名一併進快取 key，換 logo 會重生舊卡片。
 

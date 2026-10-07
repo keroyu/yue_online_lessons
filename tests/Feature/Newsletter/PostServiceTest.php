@@ -68,4 +68,13 @@ class PostServiceTest extends TestCase
         $this->assertStringContainsString('<iframe', $html);
         $this->assertStringContainsString('看完影片你就懂了', $html);
     }
+
+    public function test_single_newline_is_a_line_break(): void
+    {
+        // Authors write one Enter for a new line, as in any chat box (012 FR-037).
+        $html = $this->service()->toHtml("第一行\n第二行\n\n新段落");
+
+        $this->assertMatchesRegularExpression('#<p>第一行<br\s*/?>\s*第二行</p>#u', $html);
+        $this->assertStringContainsString('<p>新段落</p>', $html);
+    }
 }

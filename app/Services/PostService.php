@@ -22,12 +22,7 @@ class PostService
     {
         $md = $this->embedVideoLines($md ?? '');
 
-        $converter = new CommonMarkConverter([
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-        ]);
-
-        return $this->sanitize($converter->convert($md)->getContent());
+        return $this->sanitize($this->converter()->convert($md)->getContent());
     }
 
     /**
@@ -117,12 +112,7 @@ class PostService
             return $this->videoNotice($href);
         });
 
-        $converter = new CommonMarkConverter([
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-        ]);
-
-        $html = $this->sanitize($converter->convert($md)->getContent());
+        $html = $this->sanitize($this->converter()->convert($md)->getContent());
 
         // Hand-written embeds cannot play in mail either.
         $html = preg_replace('#<iframe\b[^>]*>.*?</iframe>|<iframe\b[^>]*/?>#is', $this->videoNotice($href), $html);
@@ -162,6 +152,22 @@ class PostService
         ]))->convert($html));
 
         return str_replace($placeholder, $postUrl, $text);
+    }
+
+    /**
+     * One converter for the page and the mail so they never disagree.
+     *
+     * A single Enter is a line break (012 FR-037): authors type posts like a
+     * chat message, and CommonMark's default of folding it into a space made
+     * every intended line break vanish unless they pressed Enter twice.
+     */
+    private function converter(): CommonMarkConverter
+    {
+        return new CommonMarkConverter([
+            'html_input' => 'allow',
+            'allow_unsafe_links' => false,
+            'renderer' => ['soft_break' => "<br />\n"],
+        ]);
     }
 
     private function videoNotice(string $href): string

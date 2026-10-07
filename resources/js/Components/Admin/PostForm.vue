@@ -68,7 +68,8 @@ const removeRelated = (id) => {
 }
 
 const bodyRef = ref(null)
-const preview = computed(() => marked(form.body_md || ''))
+// breaks: one Enter is a line break, matching PostService (012 FR-037)
+const preview = computed(() => marked(form.body_md || '', { breaks: true }))
 
 // Tags currently entered (parsed from the comma-separated field)
 const selectedTags = computed(() =>

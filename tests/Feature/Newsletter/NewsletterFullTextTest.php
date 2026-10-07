@@ -127,4 +127,16 @@ MD;
         $this->assertStringNotContainsString('/newsletter/track/open', $html);
         $this->assertStringNotContainsString('<iframe', $html);
     }
+
+    public function test_single_newline_is_a_line_break_in_mail_too(): void
+    {
+        $post = Post::create([
+            'slug' => 'lines', 'title' => 't', 'body_md' => "第一行\n第二行",
+            'status' => 'published', 'published_at' => now()->subDay(),
+        ]);
+
+        $html = app(\App\Services\PostService::class)->toEmailHtml($post, url('/blog/lines'), []);
+
+        $this->assertMatchesRegularExpression('#第一行<br\s*/?>\s*第二行#u', $html);
+    }
 }
