@@ -1,9 +1,8 @@
 {{ $post->title }}
 
-@if($post->excerpt){{ $post->excerpt }}
+{!! $bodyText !!}
 
-@endif
-在網站上閱讀全文：
+在網站上閱讀這篇文章：
 {{ $postUrl }}
 
 ---

@@ -4,6 +4,7 @@ status: building
 owner_files:
   - app/Http/Requests/StoreQuickSubscriptionRequest.php
   - tests/Feature/Newsletter/WelcomePostTest.php
+  - tests/Feature/Newsletter/NewsletterFullTextTest.php
   # Models
   - app/Models/Post.php
   - app/Models/Tag.php
@@ -101,12 +102,15 @@ touchpoints:
   - file: resources/js/Components/BlogArticles.vue
     owner: 002-storefront
     why: 由 RSS 文章形狀改為原生 Post 形狀（title/excerpt/url/cover/published_at）
+  - file: app/Services/EmailLinkTagger.php
+    owner: 002-storefront
+    why: US10 全文信的內文連結以 `tagHtml()` 戳 UTM（與 `$postUrl` 同一組 utm）
   - file: app/Services/SidebarService.php
     owner: 002-storefront
     why: Blog/Show（部落格文章頁）共用首頁右側欄資料（BlogController@show 注入 widgets()）
   - file: app/Services/VideoEmbedService.php
     owner: 003-classroom
-    why: PostService::toHtml 把文章內獨立行的 YouTube/Vimeo 連結轉 responsive embed；NewsletterBroadcastMail 取首支 YouTube 縮圖
+    why: PostService::toHtml 把文章內獨立行的 YouTube/Vimeo 連結轉 responsive embed；US10 起 PostService::toEmailHtml 用它辨識影片行、換成縮圖＋回站觀看提示（取代原「取首支 YouTube 縮圖」）
   - file: resources/js/Components/Layout/Sidebar.vue
     owner: 002-storefront
     why: Blog/Show 渲染與首頁相同的右側欄 widget（精選/SNS/近期文章）
@@ -276,6 +280,25 @@ touchpoints:
 - [x] 測試：未指定時取最早發布那篇；指定後取指定那篇；指定的文章被刪除或退回草稿時退回最早那篇；一篇已發布文章都沒有時退回簡短模板且訂閱仍成功；歡迎信不寫入 `newsletter_email_events`；戳章 campaign 為 `welcome`；OTP 路徑與 hero 路徑寄出的是同一封
 
 
+### User Story 10 - 電子報寄出全文 (Priority: P1)
+
+目前電子報（與文章版歡迎信，兩者共用模板，FR-018）只寄**標題＋摘要＋「在網站上閱讀全文」按鈕**，
+訂閱者必須點回網站才讀得到內容，很不方便。改成信裡就是**整篇文章**。
+唯一讀不了的是影片（信件不能嵌入播放器），影片的位置保留一張縮圖，旁邊提示「到網站觀看」。
+
+**驗收**：
+- [x] 電子報與文章版歡迎信的內文為整篇 `body_md` 渲染結果；不再顯示摘要、不再有「在網站上閱讀全文」大按鈕
+- [x] 文章裡**獨立成行**的 YouTube 網址 → 在原位置換成縮圖（`img.youtube.com/vi/{id}/hqdefault.jpg`），縮圖與下方文字「▶ 這裡有一段影片，點此到網站觀看」都連回文章頁（FR-033）
+- [x] Vimeo 影片沒有免 API 的縮圖網址 → 原位置只放一塊灰底的「▶ 這裡有一段影片，點此到網站觀看」連結區塊（FR-033）
+- [x] 內文中以原生 HTML 寫的 `<iframe>` 同樣換成那塊連結區塊；信件內 MUST NOT 出現任何 `<iframe>`
+- [x] 一般插圖照常出現在信中，寬度不超出信件（`max-width:100%`），相對網址轉為絕對網址
+- [x] 封面圖（若有）放在標題下方；不再以「首支影片縮圖」取代封面
+- [x] 內文中連到本站的連結帶 UTM（與文章連結同一組：broadcast 為 `broadcast-{id}`、歡迎信為 `welcome`）
+- [x] 頁尾上方保留一行小字連結「在網站上閱讀這篇文章」
+- [x] 開信像素移到內文**之前**（長文會被 Gmail 截斷，像素在最後會一起被截掉，FR-035）
+- [x] 純文字版也是全文；影片位置寫成「▶ 影片請到網站觀看：{文章網址}」
+- [x] 測試：見 T047
+
 ## Requirements
 
 - **FR-001**: Post slug 必填、手動輸入英文 SEO 網址（`^[a-z0-9\-]+$`）、全站唯一；不自動由標題生成（中文標題 `Str::slug` 會產空字串）。前台一律 `/blog/{slug}`，與 `/course/{slug}` 不同命名空間。slug 變更不做自動 301（MVP）。
@@ -298,6 +321,11 @@ touchpoints:
 - **FR-017**: `newsletter_welcome_post_id` 是沒有外鍵保護的參照，寄信前 MUST 重驗（文章存在且 `status = 'published'`）。三層降級且 MUST 依序：指定文章 → 最早發布的文章 → 既有的 `newsletter-welcome.blade.php` 簡短模板（**MUST NOT 刪除該模板**，一篇文章都還沒發布的新站正是最需要歡迎信的時候）。任何一層失敗 MUST NOT 讓訂閱本身失敗 —— 寄信已經包在 try/catch 裡只記 log，這條規則只是要求降級寫在寄信之前而不是靠例外。
 - **FR-018**: 文章版歡迎信 MUST 沿用既有的 `newsletter-broadcast.blade.php` / `newsletter-broadcast-text.blade.php` 兩個模板（它們只吃 `$post` / `$postUrl` / `$unsubscribeUrl` / `$openPixelUrl` / `$videoThumbUrl`，沒有任何一處讀 `$broadcast`），主旨 = 文章標題。開信像素 MUST 省略（`$openPixelUrl` 傳 null、blade 以 `@if` 包起來）：`newsletter_email_events` 的 unique 是 `(broadcast_id, user_id, event_type)`，歡迎信沒有 broadcast 可掛，硬塞一個假 id 會讓那張表的語意崩掉，而歡迎信開信率不是任何一張報表在問的問題（D15）。連結戳章 `utm_campaign` MUST 為 `welcome`（`utm_content` 仍為 post slug），與 broadcast 的 `broadcast-{id}` 分得開。
 - **FR-019**: 設定入口 MUST 長在 `/admin/broadcasts` 既有的文章清單上（搜尋結果與最近 5 篇是同一段渲染，因此只要改一處），每列加一顆「設為歡迎信」。MUST NOT 用下拉選單 —— 文章會一直長，下拉在第三十篇之後就是一個要捲的清單，而那頁本來就已經有搜尋。切換走獨立端點 `PATCH /admin/broadcasts/welcome-post`，MUST NOT 併進寄送表單：那條路徑按下去會真的寄信給所有訂閱者，兩個後果差這麼遠的動作不該共用一個提交。
+- **FR-032**: 全文信的 HTML MUST 由單一函式 `PostService::toEmailHtml(Post $post, string $postUrl, array $utm): string` 產出，broadcast 與文章版歡迎信共用（兩個 Mailable 建構子各呼叫一次，結果存入 `$bodyHtml`）。流程：(1) 影片行替換（FR-033）→ (2) CommonMark（與 `toHtml()` 同設定）→ (3) 既有 `sanitize()` → (4) 殘留 `<iframe ...></iframe>` 一律換成影片連結區塊 → (5) `<img>` 補 `style="max-width:100%;height:auto;"`、以 `/` 開頭的 `src`/`href` 補成 `url()` 絕對網址 → (6) `EmailLinkTagger::tagHtml($html, $utm)`。前台 `toHtml()` 一行不動
+- **FR-033**: 影片辨識 MUST 沿用 `toHtml()` 的規則（獨立成行 + `VideoEmbedService::parse()` 認得），不得另寫一份 regex —— 前台會變成播放器的那一行，信裡就是縮圖那一行，兩邊判定必須一致。抽出 `private function replaceVideoLines(string $md, callable $render): string`，`embedVideoLines()` 與信件版各傳自己的 render。YouTube render 為縮圖 `<img>` + 提示文字，兩者皆以 `<a href="{$postUrl}">` 包起；Vimeo render 為無圖的灰底提示區塊
+- **FR-034**: 純文字版由 `PostService::toEmailText(string $html, string $postUrl): string` 以 `league/html-to-markdown` 把 `toEmailHtml()` 的**最終 HTML** 轉回 Markdown（同 010 FR-041 的理由：UTM 只戳在 HTML 上）；影片區塊在 HTML 階段已帶 `data-email-video` 標記，轉換前先換成純文字行「▶ 影片請到網站觀看：{postUrl}」，避免轉出一個圖片 Markdown
+- **FR-035**: 開信像素 MUST 放在 `<body>` 內第一個元素（內文之前）。Gmail 對超過約 102KB 的 HTML 會截斷並顯示「[訊息已截斷]」，全文信很容易超過；像素若在尾端會隨之消失，開信數被低估、dormant 判定（FR-008）因此誤殺。像素為 `display:none` 1x1，放前面不影響版面
+- **FR-036**: `NewsletterBroadcastMail` 與 `NewsletterWelcomeMail` 的 `firstYoutubeThumb()` 與 `$videoThumbUrl` MUST 刪除 —— 影片縮圖改在內文原位出現，信首只放封面。FR-018 所列的模板變數相應改為 `$post` / `$postUrl` / `$bodyHtml` / `$bodyText` / `$unsubscribeUrl` / `$openPixelUrl`
 
 ## 設計決策
 
@@ -320,6 +348,10 @@ touchpoints:
 - **D14**: 未指定時取**最早發布**的文章，不是最新（FR-016）。取最新的吸引力是「新訂閱者總是收到最近的內容」，但歡迎信是一封會寄很多年的信：內容隨每次發文而變，等於站主永遠不知道新訂閱者的第一印象是什麼，也沒辦法為它寫任何東西。最早那篇是固定的、通常也是「從這裡開始」那一類，而真的想換就指定一篇 —— 這正是這條故事提供的東西。否決「精選文章優先」是因為 `is_featured` 已經有另一個用途（首頁熱門文章排序，FR-031 才剛把兩個列表的排序責任分乾淨），再疊一個意思上去會讓那個欄位同時代表兩件事。
 
 - **D15**: 歡迎信不記開信追蹤（FR-018）。`newsletter_email_events` 的 unique 是 `(broadcast_id, user_id, event_type)`，歡迎信沒有 broadcast 可掛；要記就得放寬那個鍵或塞一個假 id，兩者都會讓「開信數」這個欄位的語意從「這次群發有多少人開」變成「某種信有多少人開」，而所有讀它的報表都是照前者寫的。歡迎信的開信率也不是任何一張報表在問的問題 —— 它問的是群發成效。連結戳章仍然照做（`utm_campaign=welcome`），所以歡迎信帶回站上的流量在課程／文章的來源報表裡看得見，那才是實際會被拿來決策的數字。
+- **D16**: 全文 HTML 在 Mailable 建構子裡算一次，不在 Job 或 blade 裡算（US10）。每位收件者各一個 Mailable（FR-010），所以一次群發會算 N 次 —— 但它是純 CPU 的字串轉換、無 I/O，幾百人量級可忽略；換到的是預覽、測試與兩種信都走同一條路。若日後收件者上萬，再改為 `BroadcastService` 先算好一次傳進 Job
+- **D17**: 影片位置用「縮圖＋回站提示」，不是整段拿掉或只留文字連結（US10，業主指定）。縮圖讓讀者知道這裡原本有東西、值得點；Vimeo 拿縮圖要打 oEmbed API（每封信一次外部請求，或另建快取欄），為了少數 Vimeo 文章不值得，降級成無圖的提示區塊
+- **D18**: 接受全文信較容易被 Gmail 截斷與分到「促銷」分頁的風險（US10）。截斷的實際後果只有兩個：讀者要點「查看完整訊息」，以及像素消失 —— 後者由 FR-035 解決。促銷分頁的訊號主要是大 CTA 按鈕、高圖文比、多欄版型（010 D34 的查證），全文信反而是**降低**圖文比、拿掉了大按鈕；插圖多的文章圖文比會上升，屬可接受
+- **D19**: 不保留摘要段（US10）。摘要的存在是為了在「只寄摘要」的格式裡讓人決定要不要點；信裡已經是全文時，它只是開頭重複一次。`excerpt` 欄位照樣服務列表、RSS 與 SEO，不動
 
 ## Schema
 
@@ -334,6 +366,8 @@ touchpoints:
 - `users` 增欄（本模組 migration，User model 屬 001 為 touchpoint）— `newsletter_status`(enum none/subscribed/unsubscribed/dormant, default none)、`newsletter_subscribed_at`(nullable)、`newsletter_unsubscribe_token`(uuid, nullable, unique)、`newsletter_last_opened_at`(nullable)、`newsletter_status_changed_at`(nullable)。index：newsletter_status。
 - site_settings 使用鍵（表屬 000-platform-core）：`newsletter_welcome_post_id`（US9 新增，post id 字串，空／失效 = 走 FR-017 的降級鏈）。**不變量**：這是一個沒有外鍵保護的參照，寄信前每次 MUST 重驗，MUST NOT 假設它指向一篇已發布文章。
 - **US9 無 migration、無結構變更** —— 只多一個 KV 鍵，信件沿用既有兩個 blade，`newsletter_email_events` 一個位元組不動（D15）。
+
+- **US10 無 migration、無 schema 變更** —— 只改信件產出
 
 ## Tasks
 
@@ -398,6 +432,24 @@ touchpoints:
 - [x] T042 `php artisan test --filter=AdminPostSearch` 全綠、`npm run build` exit 0
 
 
+## Tasks（電子報寄出全文 / US10）
+
+Phase 1 — 渲染（核心）
+
+- [x] T043 `PostService`：抽出 `replaceVideoLines(string $md, callable $render)`，`embedVideoLines()` 改為呼叫它（前台輸出 byte-for-byte 不變，`PostServiceTest` 零修改續過）in `app/Services/PostService.php`
+- [x] T044 `PostService::toEmailHtml(Post $post, string $postUrl, array $utm): string`（FR-032、FR-033）與 `toEmailText(string $html, string $postUrl): string`（FR-034）in `app/Services/PostService.php`
+
+Phase 2 — 信件（相依 T044）
+
+- [x] T045 `NewsletterBroadcastMail`、`NewsletterWelcomeMail`：建構子算 `$bodyHtml`／`$bodyText`（utm 沿用各自的 campaign），刪除 `firstYoutubeThumb()` 與 `$videoThumbUrl`（FR-036）in `app/Mail/NewsletterBroadcastMail.php`, `app/Mail/NewsletterWelcomeMail.php`
+- [x] T046 模板：`newsletter-broadcast.blade.php` 像素移到 body 開頭（FR-035）、標題 → 封面 → `{!! $bodyHtml !!}`（外層 div 設 15px／行高 1.8）→ 小字「在網站上閱讀這篇文章」→ 頁尾；刪摘要與大按鈕。`newsletter-broadcast-text.blade.php` 改為標題 + `$bodyText` + 文章網址 + 頁尾 in `resources/views/emails/newsletter-broadcast.blade.php`, `resources/views/emails/newsletter-broadcast-text.blade.php`
+
+Phase 3 — 驗證
+
+- [x] T047 `NewsletterFullTextTest`：信內含內文段落且無摘要／無「閱讀全文」按鈕；YouTube 行 → 縮圖 + 提示且連回文章；Vimeo 行 → 無圖提示區塊；原生 `<iframe>` → 提示區塊、HTML 內零 `<iframe>`；句中的 YouTube 網址不被替換；`/storage/...` 圖片轉絕對網址並有 max-width；站內連結帶 utm；像素出現在內文之前；純文字版含全文與「▶ 影片請到網站觀看」；歡迎信同樣是全文且無像素。既有 `BroadcastTest`／`WelcomePostTest` 若斷言摘要或縮圖，依新行為修正 in `tests/Feature/Newsletter/NewsletterFullTextTest.php`
+- [x] T048 `php artisan test` 全綠
+- [ ] T049 使用者實測：對自己寄一封含插圖與 YouTube 的文章，於 Gmail（網頁＋手機 App）確認全文可讀、插圖不爆版、影片縮圖點得回文章；長文出現「[訊息已截斷]」時開信仍有記錄
+
 ## Tasks（歡迎信改寄指定文章 / US9）
 
 Phase 1 — 選文與寄送
@@ -422,6 +474,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-07: US10 完成（T043–T048，剩 T049 使用者實測）— 電子報與文章版歡迎信改寄全文：PostService::toEmailHtml/toEmailText（影片行沿用前台判定換成縮圖或回站提示、殘留 iframe 換提示、插圖限寬轉絕對網址、站內連結戳 UTM），開信像素移到內文前；純文字版影片網址在 Markdown 轉換後才填入，避免 `utm\_source` 被跳脫成壞連結；NewsletterFullTextTest 6 項
 - 2026-09-25: OG 卡片的品牌 logo 改讀後台上傳的網站圖示（000 US12），內建檔降為 fallback；logo 檔名一併進快取 key，換 logo 會重生舊卡片。
 
 - 2026-09-25: 站名來源改為 `site_settings.site_name`（000 US12）— FR-013 原本規定電子報頁尾讀 `hero_title`，那是「站名」在還沒有自己的欄位時的暫代；三支電子報 blade、`BlogFeedController` 的 RSS 標題、`OgImageService` 的品牌 lockup 一律改讀 `SiteSetting::siteName()`（`hero_title` 留作 fallback，升級的站不會突然改名）。站名進了 OG 卡片的快取 key，改名才會重生舊卡片，`OgImageTest` 的檔名斷言與 `EmailBrandNameTest` 釘的規則同步改掉。

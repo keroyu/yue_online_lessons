@@ -55,6 +55,7 @@ class EmailBrandNameTest extends TestCase
         $text = view('emails.newsletter-broadcast-text', [
             'post' => $post,
             'postUrl' => 'https://example.test/blog/x',
+            'bodyText' => '內文',
             'unsubscribeUrl' => 'https://example.test/newsletter/unsubscribe/tok-123',
         ])->render();
         $this->assertStringContainsString('測試品牌名', $text);

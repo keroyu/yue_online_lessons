@@ -5,7 +5,7 @@ namespace App\Mail;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\EmailLinkTagger;
-use App\Services\VideoEmbedService;
+use App\Services\PostService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -17,8 +17,9 @@ use Illuminate\Queue\SerializesModels;
  * Welcome mail. Sends an existing article when there is one (012 US9).
  *
  * The article body reuses the broadcast templates rather than a second set of
- * its own — they read `$post` / `$postUrl` / `$unsubscribeUrl` / `$openPixelUrl`
- * / `$videoThumbUrl` and nothing else, with no reference to a Broadcast (FR-018).
+ * its own — they read `$post` / `$postUrl` / `$bodyHtml` / `$bodyText` /
+ * `$unsubscribeUrl` / `$openPixelUrl` and nothing else, with no reference to a
+ * Broadcast (FR-018, FR-036).
  * The short template stays as the last fallback: a site with no published posts
  * yet is exactly when a welcome mail matters most (FR-017).
  */
@@ -28,7 +29,8 @@ class NewsletterWelcomeMail extends Mailable
 
     public string $unsubscribeUrl;
     public ?string $postUrl = null;
-    public ?string $videoThumbUrl = null;
+    public string $bodyHtml = '';
+    public string $bodyText = '';
 
     /**
      * Always null here. `newsletter_email_events` keys opens on a broadcast id,
@@ -43,13 +45,18 @@ class NewsletterWelcomeMail extends Mailable
         $this->unsubscribeUrl = url('/newsletter/unsubscribe/' . $user->newsletter_unsubscribe_token);
 
         if ($post) {
-            $this->postUrl = app(EmailLinkTagger::class)->tagUrl(url("/blog/{$post->slug}"), [
+            $utm = [
                 'utm_source'   => 'newsletter',
                 'utm_medium'   => 'email',
                 'utm_campaign' => 'welcome',
                 'utm_content'  => $post->slug,
-            ]);
-            $this->videoThumbUrl = $this->firstYoutubeThumb($post->body_md);
+            ];
+            $this->postUrl = app(EmailLinkTagger::class)->tagUrl(url("/blog/{$post->slug}"), $utm);
+
+            // Same full-text body as a broadcast (012 US10, FR-018).
+            $posts = app(PostService::class);
+            $this->bodyHtml = $posts->toEmailHtml($post, $this->postUrl, $utm);
+            $this->bodyText = $posts->toEmailText($this->bodyHtml, $this->postUrl);
         }
     }
 
@@ -77,26 +84,5 @@ class NewsletterWelcomeMail extends Mailable
         }
 
         return new Content(view: 'emails.newsletter-welcome');
-    }
-
-    /**
-     * Thumbnail of the first YouTube video in the body (email can't embed iframes).
-     */
-    private function firstYoutubeThumb(?string $md): ?string
-    {
-        $embed = app(VideoEmbedService::class);
-
-        foreach (preg_split('/\r\n|\r|\n/', (string) $md) as $line) {
-            $line = trim($line);
-            if ($line === '' || ! preg_match('#^https?://\S+$#u', $line)) {
-                continue;
-            }
-            $parsed = $embed->parse($line);
-            if ($parsed && $parsed['platform'] === 'youtube') {
-                return "https://img.youtube.com/vi/{$parsed['video_id']}/hqdefault.jpg";
-            }
-        }
-
-        return null;
     }
 }

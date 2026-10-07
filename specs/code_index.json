@@ -712,10 +712,12 @@
     "app/Mail/NewsletterBroadcastMail.php": [
       "000.us-9",
       "002.us-14",
+      "012.us-10",
       "012.us-5"
     ],
     "app/Mail/NewsletterWelcomeMail.php": [
       "000.us-9",
+      "012.us-10",
       "012.us-4",
       "012.us-9"
     ],
@@ -1129,6 +1131,7 @@
     ],
     "app/Services/PostService.php": [
       "012.us-1",
+      "012.us-10",
       "012.us-2"
     ],
     "app/Services/RedemptionService.php": [
@@ -2273,9 +2276,11 @@
       "004.us-6"
     ],
     "resources/views/emails/newsletter-broadcast-text.blade.php": [
+      "012.us-10",
       "012.us-5"
     ],
     "resources/views/emails/newsletter-broadcast.blade.php": [
+      "012.us-10",
       "012.us-5",
       "012.us-9"
     ],
@@ -2555,7 +2560,11 @@
       "012.us-5"
     ],
     "tests/Feature/Newsletter/EmailBrandNameTest.php": [
+      "012.us-10",
       "012.us-5"
+    ],
+    "tests/Feature/Newsletter/NewsletterFullTextTest.php": [
+      "012.us-10"
     ],
     "tests/Feature/Newsletter/OgImageTest.php": [
       "000.us-14",

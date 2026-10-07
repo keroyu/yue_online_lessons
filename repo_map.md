@@ -963,6 +963,7 @@ main_files:
 - tests/Feature/Newsletter/AdminScreensTest.php
 - tests/Feature/Newsletter/BroadcastTest.php
 - tests/Feature/Newsletter/EmailBrandNameTest.php
+- tests/Feature/Newsletter/NewsletterFullTextTest.php
 - tests/Feature/Newsletter/OgImageTest.php
 - tests/Feature/Newsletter/PostServiceTest.php
 - tests/Feature/Newsletter/WelcomePostTest.php
