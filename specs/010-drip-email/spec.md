@@ -2,6 +2,8 @@
 id: 010-drip-email
 status: done
 owner_files:
+  - resources/js/Components/Admin/NewSubscriberStats.vue
+  - tests/Feature/Drip/NewSubscriberStatsTest.php
   - app/Http/Controllers/DripSubscriptionController.php
   - app/Http/Controllers/DripTrackingController.php
   - app/Http/Controllers/Admin/DripLessonPreviewController.php
@@ -42,6 +44,18 @@ owner_files:
   - tests/Feature/Drip/GuestClaimTest.php
   - tests/Feature/Drip/LessonEmailPreviewTest.php
 touchpoints:
+  - file: app/Http/Controllers/Admin/DashboardController.php
+    owner: 009-transactions-admin
+    why: US19 — `index()` 多下發 `newSubscriberStats`（呼叫 `DripService::newSubscriberCounts()`）
+  - file: resources/js/Pages/Admin/Dashboard.vue
+    owner: 009-transactions-admin
+    why: US19 — 統計卡片下方掛 `NewSubscriberStats`
+  - file: app/Http/Controllers/Admin/HighTicketLeadController.php
+    owner: 011-high-ticket
+    why: US19 — `index()` 兩個 render 分支（booking / subscribers）都下發 `newSubscriberStats`
+  - file: resources/js/Pages/Admin/HighTicketLeads/Index.vue
+    owner: 011-high-ticket
+    why: US19 — 標題與 tab 列之間掛 `NewSubscriberStats`，所有 tab 共用
   - file: resources/js/composables/useDelayedConfirm.js
     owner: 011-high-ticket
     why: 10 秒 Email 覆核的狀態機，正典為 011 FR-059；本模組領取表單共用（US15、D18）。US16 由 useEmailReview.js 更名為此（同一個狀態機，第三個用途不是 Email 覆核而是停止接收的二次確認，D22），並以 5 秒供停止接收確認頁使用
@@ -406,6 +420,20 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - [x] 進行中的訂閱不需遷移：改天數後下一次排程即依新天數計算應寄數，已寄出的信不重寄、不回收（FR-039）
 - [x] 測試：Day 0/3/7/14/30 的課程，訂閱後第 0/3/6/7/13/14/29/30 天各自算出正確應寄數；`drip_day` 全 null 的課程行為與改版前逐字相同；非遞增天數存檔回 422
 
+### User Story 19 - 後台顯示近期新增訂閱者數 (Priority: P2)
+
+業主想每天一眼看到名單成長速度（例如投廣告後有沒有起量），不必進訂閱者 tab 逐課切換加總。
+後台 Dashboard 與「Leads 名單」頁頂部各顯示一列三張卡：**本日 / 近 7 日 / 近 30 日 新增訂閱者**，合計全部 drip 課程。
+
+**驗收**：
+- [x] Dashboard（`/admin`）統計卡片下方顯示三張卡：本日、近 7 日、近 30 日新增訂閱者
+- [x] Leads 名單頁（`/admin/high-ticket-leads`）標題與 tab 列之間顯示同一組卡片，booking / subscribers 兩個 tab 都看得到
+- [x] 數字為**不重複人數**：同一人在區間內領了多門 drip 課只算 1（FR-043）
+- [x] 區間依**台北日曆日**切：本日 = 台北今天 00:00 起；近 7 日 = 含今天往回 7 個台北日；近 30 日同理（FR-044）
+- [x] 計入區間內所有領取，不論目前狀態（unsubscribed / converted 等也算）—— 這是流入量指標（FR-045）
+- [x] 兩頁數字來自同一個 Service 方法、同一個 Vue 元件，不得各自計算
+- [x] 測試：台北日界（UTC 16:00 前後）、跨課程同一人去重、退訂者仍計入、兩頁 props 皆存在
+
 ## Requirements
 
 - **FR-001**: 解鎖日由 `DripService::unlockDay(Lesson)` 單一入口決定 —— `lessons.drip_day` 有值即為該值，null 則 fallback 舊公式 `位次 × drip_interval_days`（位次見 FR-022，US18 修訂）；但個別 Lesson 的解鎖判定以 **emails_sent** 為準（信寄到哪、解鎖到哪），時間公式只用於排程計算應寄數與觀看期起算
@@ -463,6 +491,10 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-041**: 序列信 MUST 為 multipart（HTML + text/plain），兩版 MUST 由同一份 `lessons.content_md` 產出 —— 後台 MUST NOT 出現第二個內容欄位。純文字版由 `DripLessonMail::plainTextBody()` 拿**最終 HTML** 經 `league/html-to-markdown` 轉回 Markdown，不是直接取 `content_md`：`EmailLinkTagger` 的 UTM 戳章只發生在 HTML 上，取原始 md 會得到一份沒有歸因的連結。內文為空時純文字版走與 HTML 版相同的 fallback 文案
 
 - **FR-042**: 信的字級 MUST 宣告在 blade 的 wrapper `div` 上（16px / 行高 1.75 / 無襯線字型堆疊），MUST NOT 只寫在 `<body>` —— Gmail 會把 `<body>` 改寫成 div 並丟掉它的屬性，寫在那裡等於沒寫。段落間距走 `<head>` 的 `<style>`（`p { margin: 0 0 20px }`），被 strip 的客戶端退回預設 1em，是可接受的降級。內文的字級 MUST 靠 wrapper 繼承，MUST NOT 期待 `content_md` 自帶樣式 —— `stripStylesForEmail()` 會把它的 `style`/`class` 全部清掉（FR-030 那條鏈的一環）
+
+- **FR-043**: 「新增訂閱者」MUST 為區間內 `drip_subscriptions.subscribed_at` 落點的 **`COUNT(DISTINCT user_id)`**，跨所有 drip 課程合計（US19）。單一入口 `DripService::newSubscriberCounts(): array{today:int, last_7_days:int, last_30_days:int}`，以**一次查詢**的三個 `COUNT(DISTINCT CASE WHEN subscribed_at >= ? THEN user_id END)` 產出，外層 `WHERE subscribed_at >= 30 日起點`。三數必滿足 today ≤ 7d ≤ 30d
+- **FR-044**: 區間起點 MUST 以台北日曆計算後轉回 UTC 再查（CLAUDE.md Timezone「日曆邊界算台北的」）：`$start = now('Asia/Taipei')->startOfDay()`，7 日 = `->subDays(6)`、30 日 = `->subDays(29)`，綁進 query 前 `->utc()`（query binding 不轉時區）。**不適用** `course_daily_stats` 的 UTC 日例外 —— 這是新指標，沒有歷史連續性包袱
+- **FR-045**: 計數 MUST NOT 依 `status` 過濾 —— 區間內領取後又退訂或已成交的人仍是「那段期間新進的名單」。若改成只算 active，同一天的數字會隨時間往下掉，昨天看到 12 今天變 9，無法拿來對照廣告投放
 
 - **FR-017**: 前台對免費商品 MUST 用「領取／商品」語彙，不得出現「訂閱」；「退訂」對外一律說「停止接收信件」（徽章「已停止接收」）。電子報是全站例外（維持訂閱語彙）；後台（訂閱者頁、名單、廣播）維持「訂閱」等營運語彙，因為它對應資料表 `drip_subscriptions` 與 `status` 欄位值，文字跟著欄位走才查得動問題。資料庫欄位、路由 `/drip/unsubscribe/{token}`、狀態值 `unsubscribed` 皆不改。
 
@@ -530,7 +562,14 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 
 - **D35**: 不設 `max-width`（US3）。沒有外框的情況下寬度限制是「看不見的框」，桌機寬視窗下長行會偏寬，這是業主明確選擇後接受的取捨。要改是一行 `max-width:600px;margin:0 auto` 的事，且不動任何投遞訊號
 
+- **D36**: 「新增訂閱者」= 區間內**有領取動作的不重複人數**，不是「首次成為訂閱者的人數」（US19）。差別在老名單回頭領新課：前者算、後者不算。選前者的理由：查詢單純（不需對每人找 `MIN(subscribed_at)`），且業主看的是「這段期間有多少人被領取入口打中」—— 老名單回頭領新電子書同樣代表那個入口在運作。若日後要專看廣告帶進的**全新**名單，改為 `MIN(subscribed_at) GROUP BY user_id` 的子查詢即可，不動介面
+- **D37**: 卡片抽成 `NewSubscriberStats.vue` 由 010 擁有，兩頁以 touchpoint 掛載（US19）。資料定義屬 drip（FR-043），兩頁只是展示位置；若各自寫一份卡片，日後調區間或文案會只改到一邊
+- **D38**: Leads 頁所有 tab 共用頂部、不放進 `SubscriberListTab`（US19，業主選擇）。代價是 booking tab 每次載入多一條聚合查詢 —— 單表、走 `subscribed_at` 範圍，千級資料量可忽略（同 D7 不快取）。**不加 `subscribed_at` 索引**：目前規模全表掃描毫秒級，萬級以上再補 migration
+- **D39**: 只顯示數字，不做趨勢圖或分課程明細（US19）。分課程的累計已在訂閱者 tab 的狀態統計卡；這次要解的是「跨課程一眼看總量」
+
 ## Schema
+
+- **US19 無 migration、無 schema 變更** —— 純讀取 `drip_subscriptions.subscribed_at` / `user_id`
 
 - **US18** 新增 migration `2026_08_16_000003_add_drip_day_to_lessons_table.php` — `lessons` 加 `drip_day`（`unsignedSmallInteger`、nullable、`after('video_access_hours')`），語意為「訂閱後第幾天寄這封信」，null = 沿用 `位次 × drip_interval_days` 舊公式。**不回填、不動 `courses.drip_interval_days`**（D31）。不變量：同一門課程內非 null 的 `drip_day` 依 `sort_order` 嚴格遞增（由 FR-037 在寫入面守住，DB 不加 constraint —— 它是跨列條件，MySQL 表達不了）；位次 0 的值恆為 0
 
@@ -548,6 +587,23 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **US15 無 migration、無 schema 變更** —— 只改寫入行為：`users.email_verified_at` 由領取當下的 `now()` 改為 null（新列才適用，**既有列不回填** —— 那些人當初確實通過了驗證碼，改掉等於竄改歷史）；`users.nickname` 由「一律覆寫」改為「僅在空值時填入」。`verification_codes` 表**保留不動**，登入與電子報訂閱仍在用。
 
 - **US16 無 migration、無 schema 變更、無後端變更** —— 全部是前台文案與互動：新增一個共用文案元件、改寫停止接收確認頁、重新命名一支 composable。`DripSubscriptionController::unsubscribe()` 與路由**一行都不動**（FR-028）。
+
+## Tasks（US19 — 後台顯示近期新增訂閱者數）
+
+**Phase 1：Service**
+- [x] T167 `DripService::newSubscriberCounts(): array` — 依 FR-043/044 單一查詢回 `['today','last_7_days','last_30_days']`（int）in app/Services/DripService.php
+
+**Phase 2：下發 props（相依 T167）**
+- [x] T168 [P] `DashboardController::index()` 加 `'newSubscriberStats' => $dripService->newSubscriberCounts()`（method injection）in app/Http/Controllers/Admin/DashboardController.php〔touchpoint 009〕
+- [x] T169 [P] `HighTicketLeadController::index()` 的 subscribers 與 booking 兩個 `Inertia::render` 都加 `newSubscriberStats` in app/Http/Controllers/Admin/HighTicketLeadController.php〔touchpoint 011〕
+
+**Phase 3：前端（相依 T168、T169）**
+- [x] T170 新增 `NewSubscriberStats.vue`：prop `stats`（`{today,last_7_days,last_30_days}`），`grid grid-cols-3` 三張卡（標籤「本日新增」「近 7 日」「近 30 日」＋副標「新訂閱者（不重複人數）」），沿用 Dashboard 卡片樣式；mobile 同樣三欄、字級縮小 in resources/js/Components/Admin/NewSubscriberStats.vue
+- [x] T171 [P] `Dashboard.vue`：統計卡片 grid 下方掛 `<NewSubscriberStats :stats="newSubscriberStats" />` in resources/js/Pages/Admin/Dashboard.vue〔touchpoint 009〕
+- [x] T172 [P] `HighTicketLeads/Index.vue`：`<h1>` 與 tab nav 之間掛同一元件，props 加 `newSubscriberStats` in resources/js/Pages/Admin/HighTicketLeads/Index.vue〔touchpoint 011〕
+
+**Phase 4：測試（相依 T167–T169）**
+- [x] T173 `NewSubscriberStatsTest`：`Carbon::setTestNow` 固定時間；台北日界（UTC 前一天 15:59 不算本日、16:00 算）；同一人兩門課 → 1；第 7 / 8 個台北日邊界；unsubscribed 計入；`/admin` 與 `/admin/high-ticket-leads?tab=booking|subscribers` 的 Inertia props 皆含 `newSubscriberStats` in tests/Feature/Drip/NewSubscriberStatsTest.php
 
 ## Tasks（修正一般課程被發信排程擋住）
 
@@ -712,6 +768,8 @@ Phase 6 — 驗證
 - [x] T148 新增回歸測試：已登入會員 POST `/member/drip/subscribe/{course}` 回 302（非 500），訂閱成功建立 in tests/Feature/Drip/MemberSubscribeTest.php
 
 ## 進度日誌
+
+- 2026-10-07: US19 完成 — DripService::newSubscriberCounts()（台北日界、不重複人數、不分狀態）＋ NewSubscriberStats 元件掛上 Dashboard 與 Leads 名單頁頂部；NewSubscriberStatsTest 6 項
 
 - 2026-09-25: drip 訂閱表單的「來信者為「…」」文案改讀共享的 `site.name`，不再寫死品牌字串（000 US12）。
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\User;
 use App\Models\Purchase;
+use App\Services\DripService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,7 +15,7 @@ class DashboardController extends Controller
     /**
      * Display the admin dashboard.
      */
-    public function index(): Response
+    public function index(DripService $dripService): Response
     {
         $stats = [
             'total_courses' => Course::count(),
@@ -31,6 +32,7 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
             'recentCourses' => $recentCourses,
+            'newSubscriberStats' => $dripService->newSubscriberCounts(),
         ]);
     }
 }

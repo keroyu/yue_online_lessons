@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import BookingListTab from '@/Components/Admin/Leads/BookingListTab.vue'
 import SubscriberListTab from '@/Components/Admin/Leads/SubscriberListTab.vue'
+import NewSubscriberStats from '@/Components/Admin/NewSubscriberStats.vue'
 
 defineOptions({ layout: AdminLayout })
 
@@ -12,6 +13,8 @@ defineOptions({ layout: AdminLayout })
 const props = defineProps({
   tab: { type: String, default: 'booking' },
   filters: { type: Object, required: true },
+  // Shared by every tab (010 US19)
+  newSubscriberStats: { type: Object, default: () => ({ today: 0, last_7_days: 0, last_30_days: 0 }) },
 
   // Booking tab
   leads: { type: Object, default: null },
@@ -51,6 +54,8 @@ const switchTab = (value) => {
       <h1 class="text-2xl font-semibold text-gray-900">Leads 名單</h1>
       <p class="mt-1 text-sm text-gray-600">客製服務預約訪客與連鎖 Email 訂閱者管理</p>
     </div>
+
+    <NewSubscriberStats class="mb-6" :stats="newSubscriberStats" />
 
     <!-- Tab nav -->
     <div class="mb-6 border-b border-gray-200">

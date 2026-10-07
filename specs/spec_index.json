@@ -3685,6 +3685,40 @@
       "status": "implemented"
     },
     {
+      "id": "010.us-19",
+      "module": "010-drip-email",
+      "title": "後台顯示近期新增訂閱者數",
+      "summary": "後台 Dashboard 與 Leads 名單頁頂部顯示本日／近 7 日／近 30 日新增訂閱者（全部 drip 課程合計、不重複人數、台北日曆日），由 DripService::newSubscriberCounts() 單一入口與共用 NewSubscriberStats 元件產出",
+      "heading": "### User Story 19 - 後台顯示近期新增訂閱者數 (Priority: P2)",
+      "file": "specs/010-drip-email/spec.md",
+      "anchor": "user-story-19---後台顯示近期新增訂閱者數-priority-p2",
+      "keywords": [
+        "新增訂閱者",
+        "new subscribers",
+        "訂閱者統計",
+        "subscriber growth",
+        "本日",
+        "近7日",
+        "近30日",
+        "dashboard",
+        "Leads 名單",
+        "newSubscriberCounts",
+        "drip_subscriptions",
+        "subscribed_at",
+        "名單成長"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Http/Controllers/Admin/DashboardController.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Components/Admin/NewSubscriberStats.vue",
+        "resources/js/Pages/Admin/Dashboard.vue",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "tests/Feature/Drip/NewSubscriberStatsTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "010.us-2",
       "module": "010-drip-email",
       "title": "已登入會員一鍵訂閱",

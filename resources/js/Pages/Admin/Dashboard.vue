@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
+import NewSubscriberStats from '@/Components/Admin/NewSubscriberStats.vue'
 
 defineOptions({
   layout: AdminLayout
@@ -13,6 +14,10 @@ defineProps({
   },
   recentCourses: {
     type: Array,
+    required: true,
+  },
+  newSubscriberStats: {
+    type: Object,
     required: true,
   },
 })
@@ -124,6 +129,9 @@ const getStatusLabel = (status) => {
         </div>
       </div>
     </div>
+
+    <!-- New drip subscribers (010 US19) -->
+    <NewSubscriberStats class="mt-8" :stats="newSubscriberStats" />
 
     <!-- Recent courses -->
     <div class="mt-8">

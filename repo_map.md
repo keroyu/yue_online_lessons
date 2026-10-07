@@ -607,7 +607,9 @@ specs: specs/010-drip-email/
 main_files:
 - app/Console/Commands/ProcessDripEmails.php
 - app/Http/Controllers/Admin/CourseController.php
+- app/Http/Controllers/Admin/DashboardController.php
 - app/Http/Controllers/Admin/DripLessonPreviewController.php
+- app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/DripSubscriptionController.php
@@ -648,12 +650,15 @@ main_files:
 - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue
+- resources/js/Components/Admin/NewSubscriberStats.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
 - resources/js/Components/Classroom/VideoAccessNotice.vue
 - resources/js/Components/Course/ClaimConsentNotice.vue
 - resources/js/Components/Course/DripSubscribeForm.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/EmailReviewNotice.vue
+- resources/js/Pages/Admin/Dashboard.vue
+- resources/js/Pages/Admin/HighTicketLeads/Index.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
@@ -667,6 +672,7 @@ main_files:
 - tests/Feature/Drip/FunnelStopTest.php
 - tests/Feature/Drip/GuestClaimTest.php
 - tests/Feature/Drip/LessonEmailPreviewTest.php
+- tests/Feature/Drip/NewSubscriberStatsTest.php
 - tests/Feature/Drip/VariableScheduleTest.php
 - tests/Feature/Drip/VideoAccessAnchorTest.php
 

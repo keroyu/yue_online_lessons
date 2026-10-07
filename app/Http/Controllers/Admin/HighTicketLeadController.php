@@ -102,6 +102,7 @@ class HighTicketLeadController extends Controller
                 'dripCourseOptions' => $dripCourses,
                 'subscriberData'    => $subscriberData,
                 'leads'             => null,
+                'newSubscriberStats' => $this->dripService->newSubscriberCounts(),
             ]);
         }
 
@@ -236,6 +237,7 @@ class HighTicketLeadController extends Controller
         return Inertia::render('Admin/HighTicketLeads/Index', [
             'tab'               => $tab,
             'leads'             => $leads,
+            'newSubscriberStats' => $this->dripService->newSubscriberCounts(),
             'filters'           => $filters,
             'consultantOptions' => $consultantOptions,
             'dripCourses'       => $dripCourses,

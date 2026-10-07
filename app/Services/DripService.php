@@ -569,6 +569,39 @@ class DripService
     }
 
     /**
+     * Distinct people who claimed any drip course today / in the last 7 / 30
+     * Taipei calendar days (010 US19). Status is ignored on purpose: this is
+     * an inflow figure, so a day's number must not shrink as people later
+     * unsubscribe or convert (FR-045).
+     *
+     * @return array{today: int, last_7_days: int, last_30_days: int}
+     */
+    public function newSubscriberCounts(): array
+    {
+        // Calendar boundaries are Taipei's; bindings are not converted, so
+        // hand the query UTC instances (FR-044).
+        $today   = now('Asia/Taipei')->startOfDay();
+        $start7  = $today->copy()->subDays(6)->utc();
+        $start30 = $today->copy()->subDays(29)->utc();
+        $today->utc();
+
+        $row = DripSubscription::where('subscribed_at', '>=', $start30)
+            ->selectRaw(
+                'COUNT(DISTINCT CASE WHEN subscribed_at >= ? THEN user_id END) as today,
+                 COUNT(DISTINCT CASE WHEN subscribed_at >= ? THEN user_id END) as last_7_days,
+                 COUNT(DISTINCT user_id) as last_30_days',
+                [$today, $start7],
+            )
+            ->first();
+
+        return [
+            'today'        => (int) $row->today,
+            'last_7_days'  => (int) $row->last_7_days,
+            'last_30_days' => (int) $row->last_30_days,
+        ];
+    }
+
+    /**
      * Assemble everything the admin subscriber list needs for one drip course:
      * the paginated rows (with per-row event metrics), the unfiltered status
      * summary, and the per-lesson send/open/click analytics.
