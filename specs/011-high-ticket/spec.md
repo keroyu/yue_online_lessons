@@ -2,6 +2,9 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Support/RecentDayWindows.php
+  - resources/js/Components/Admin/LeadInflowStats.vue
+  - tests/Feature/HighTicket/NewBookingStatsTest.php
   - app/Services/ConsultationCreditBookingService.php
   - app/Http/Controllers/ConsultationBookingController.php
   - app/Http/Requests/StoreConsultationBookingRequest.php
@@ -162,6 +165,15 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: app/Http/Controllers/Admin/DashboardController.php
+    owner: 009-transactions-admin
+    why: US39 — `index()` 多下發 `newBookingStats`（`HighTicketLeadService::newBookingCounts()`）
+  - file: resources/js/Pages/Admin/Dashboard.vue
+    owner: 009-transactions-admin
+    why: US39 — 原 010 US19 的 `NewSubscriberStats` 換成 `LeadInflowStats`（預約＋訂閱合併）
+  - file: app/Services/DripService.php
+    owner: 010-drip-email
+    why: US39 — `newSubscriberCounts()` 的區間起點改吃 `RecentDayWindows::starts()`，與預約數共用同一組邊界（FR-236）；計數定義（FR-043~045）不動
   - file: app/Services/CheckoutService.php
     owner: 005-checkout
     why: US38 `fulfillOrder()` 首次建立 purchase 時，對一般課程（`isSelfBooking()`）在既有 transaction 內呼叫 `syncPlanGrant()`（FR-224）
@@ -1393,6 +1405,22 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；預約區塊與時段按鈕在手機寬度不破版
 - [ ] 測試：見 T533
 
+### User Story 39 - 新預約者／訂閱者合併顯示 (Priority: P2)
+
+010 US19 在 Leads 名單頁與 Dashboard 頂部放了「新訂閱者」三張卡，但 Leads 名單頁本身管的是**兩份名單**
+（預約名單、訂閱者名單），頂部卻只報其中一份的流入量。把新預約者一起放進同一組卡片，
+一眼看到「這段期間兩個入口各進來多少人」，兩頁都改。
+
+**驗收**：
+- [x] 卡片標題改為「新預約者／訂閱者」；三欄（本日／近 7 日／近 30 日）每欄各顯示兩個數字：預約、訂閱，各自帶小標
+- [x] 數字為 0 顯示紅色（`text-red-600`），大於 0 顯示綠色（`text-green-600`）
+- [x] 新預約者 = 區間內 `confirmed_at` 落點的**不重複 Email**，只算 `applications()`（不含學員用諮詢次數自助預約的 credit lead，FR-232）；之後取消／婉拒仍計入（FR-234、FR-235）
+- [x] 新訂閱者維持 010 US19 定義（FR-043~045），不改
+- [x] 兩組數字的區間邊界來自同一個 helper，不得各算一份（FR-236）
+- [x] Dashboard 與 Leads 名單頁（兩個 tab）顯示同一個元件；原 `NewSubscriberStats.vue` 刪除
+- [x] 手機寬度三欄不破版
+- [x] 測試：見 T541
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1949,6 +1977,11 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-232**: 新增 `HighTicketLead::scopeApplications()`（`where('kind','application')`）。Leads 名單 `index()`、`conversionStats()`、`exportRows()` 的來源查詢、`notifySlot()`、`recordLead()` 的去重查詢 MUST 套用；週曆、改期、取消、提醒信 MUST NOT 套用（兩種預約都要）。週曆區塊 payload 多帶 `kind` 與 `course_name`
 - **FR-233**: 銷售頁 props：`CourseController::show()` 對 `isSelfBooking()` 的課程多傳 `consultationOffer`（`{name, quantity, unlimited}`，所有訪客）與 `consultationBooking`（僅登入且持有 paid purchase 時：`{balance, unlimited, redeem_points, active: {slot_label, zoom_join_url}|null}`）。時段清單由 `GET /course/{course}/consultation-slots`（auth）即時取得，形狀沿用 `groupStarts()`
 
+- **FR-234**: 新預約者單一入口 `HighTicketLeadService::newBookingCounts(): array{today:int, last_7_days:int, last_30_days:int}`，形狀與 `DripService::newSubscriberCounts()` 相同。查詢：`HighTicketLead::applications()->where('confirmed_at', '>=', 30 日起點)`，三個 `COUNT(DISTINCT CASE WHEN confirmed_at >= ? THEN email END)`，一次查詢
+- **FR-235**: 「預約」以 `confirmed_at` 判定 —— 只填了資格問卷、沒選時段或沒按確認的申請 MUST NOT 計入。MUST NOT 依 `status` 或 `cancelled_at` 過濾，理由同 010 FR-045（流入量指標，昨天的數字不能因為今天有人取消而變小）。重新申請時 `recordLead()` 會把 `confirmed_at` 清空、再確認時寫入新值，所以同一人以最後一次確認的時間計，不重複
+- **FR-236**: 區間起點 MUST 由 `App\Support\RecentDayWindows::starts(): array{today: CarbonImmutable, last_7_days: CarbonImmutable, last_30_days: CarbonImmutable}` 產出（台北 `startOfDay` → `subDays(0/6/29)` → `utc()`）。兩個 count 方法都吃它 —— 一張卡上並排兩個數字，邊界差一天就是在比兩件不同的事
+- **FR-237**: 前端只有一個元件 `LeadInflowStats.vue`，props `bookings` 與 `subscribers`（各為 counts 形狀）。顏色規則（0 紅、>0 綠）只寫在這裡
+
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
 - **D134**: 追銷 Email **只在按鈕點下時生成**（使用者決策），不隨逐字稿到位自動產生。摘要是每場都要看的（顧問得知道談了什麼），信不是：當場成交的、明確拒絕的、沒出席的都不需要。自動產生是為每一場面談固定多付一次 token，而其中相當比例的輸出永遠不會被打開。同一條理由讓上傳替換逐字稿（FR-185）也不連帶重生信 —— 那條路徑重生的是摘要，信由顧問自己按；反過來說，逐字稿換過之後那封舊信確實可能過期，而「要不要重寫」正是按鈕存在的意義。
@@ -2349,6 +2382,10 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D153**: 同時只能有 1 個未結束預約（使用者決策），以 `lockForUpdate` 鎖 purchase 列序列化同一人的並發請求：兩個分頁同時按下，第二個在鎖釋放後讀到第一個剛建立的預約而被擋，不會各扣一次各佔一格。
 - **D154**: 續購只走積分加購（使用者決策）。結帳的「已購買過」擋法不動，一般課程的諮詢用完後在「我的課程」以 `bundle_redeem_points` +1。後果要寫清楚：**沒有設加購點數的一般課程，次數用完就無法再約**，後台面板對一般課程在點數留空時提示這一點。
 
+- **D155**: **計數分屬兩個模組、顯示合併在 011**（US39）。業主問「合併是否更正確」：在**顯示**層是 —— Leads 名單頁本來就是兩份名單的家，頂部只報一份是缺口；但**計數**不合併：預約數讀 `high_ticket_leads`（011）、訂閱數讀 `drip_subscriptions`（010），定義、資料表、「什麼算一次」（確認時間 vs 領取時間）都不同，塞進同一個 Service 方法等於讓 011 去懂 drip 的規則。所以各自的 Service 各算各的，controller 組兩個 prop，元件並排顯示。元件所有權由 010 移到 011（Leads 名單頁的擁有者），取代 010 D37
+- **D156**: 預約以 `confirmed_at` 計、不以 `created_at` 計（US39，業主選擇）。`created_at` 會把答完第一題就離開的人算進去（FR-125 讓每個人一進來就落一列），而且 `recordLead()` 的復活路徑重用舊列，`created_at` 可能是幾個月前 —— 兩種失真方向相反、都不可見。`confirmed_at` 是「真的會來談」那一刻
+- **D157**: 共用區間 helper 放 `app/Support/`，不放任一模組的 Service（US39）。兩個模組都要用，放 `DripService` 會讓 011 依賴 010 的 Service 只為了拿日期；它是純函式、無狀態，`Support` 是這類東西的既有位置（`PhoneNumber`、`BookingScreening`）
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2647,6 +2684,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   - 同一 `purchase_id` 在任一時刻至多一筆「未結束」的 credit lead（FR-229，應用層以 purchase 列鎖保證）
   - `credits_spent > 0` ⇒ 該 lead 尚未取消；取消後恆為 0
   - credit lead 的時段單位數恆為 4（60 分鐘）
+
+  **US39 無 migration、無 schema 變更** —— 純讀取 `high_ticket_leads.confirmed_at` / `email` / `kind`。不加 `confirmed_at` 索引（千級資料量，同 010 D38）
 
 ## Tasks
 
@@ -3599,8 +3638,26 @@ Phase 4 — 驗證
 如需改期或取消，請直接回覆這封信。
 ```
 
+### US39 新預約者／訂閱者合併顯示
+
+**Phase 1 — 共用邊界與計數**
+- [x] T536 新增 `RecentDayWindows::starts()`（FR-236）in `app/Support/RecentDayWindows.php`
+- [x] T537 `DripService::newSubscriberCounts()` 改吃 `RecentDayWindows::starts()`，行為不變（`NewSubscriberStatsTest` 零修改續過）in `app/Services/DripService.php`〔touchpoint 010〕
+- [x] T538 `HighTicketLeadService::newBookingCounts()`（FR-234、FR-235）in `app/Services/HighTicketLeadService.php`
+
+**Phase 2 — 下發 props（相依 T538）**
+- [x] T539 [P] `DashboardController::index()` 與 `HighTicketLeadController::index()` 兩個 render 分支加 `newBookingStats` in `app/Http/Controllers/Admin/DashboardController.php`〔touchpoint 009〕, `app/Http/Controllers/Admin/HighTicketLeadController.php`
+
+**Phase 3 — 前端**
+- [x] T540 新增 `LeadInflowStats.vue`（標題「新預約者／訂閱者」、三欄各兩數字＋小標「預約」「訂閱」、0 紅 >0 綠）；`Dashboard.vue` 與 `HighTicketLeads/Index.vue` 改掛它並加 `newBookingStats` prop；刪除 `NewSubscriberStats.vue`，並自 010 frontmatter 移除它的 owner_files 與 `Dashboard.vue`／`HighTicketLeads/Index.vue` 兩條 touchpoint in `resources/js/Components/Admin/LeadInflowStats.vue`, `resources/js/Pages/Admin/Dashboard.vue`〔touchpoint 009〕, `resources/js/Pages/Admin/HighTicketLeads/Index.vue`
+
+**Phase 4 — 驗證**
+- [x] T541 `NewBookingStatsTest`：台北日界；未確認（`confirmed_at` null）不算；credit lead 不算；同 Email 兩筆申請只算 1；確認後取消／婉拒仍算；`/admin` 與 Leads 兩個 tab 都有 `newBookingStats` in `tests/Feature/HighTicket/NewBookingStatsTest.php`
+- [x] T542 `php artisan test` 全綠、`npm run build` exit 0
+
 ## 進度日誌
 
+- 2026-10-07: US39 完成（T536–T542）— Dashboard／Leads 名單頂部改為「新預約者／訂閱者」合併卡（預約以 confirmed_at、不重複 Email、僅 applications；0 紅 >0 綠），區間邊界抽成 RecentDayWindows 兩邊共用，NewSubscriberStats.vue 刪除；NewBookingStatsTest 7 項
 - 2026-10-04: US38 實作完成（T506–T534，剩 T535 使用者實測）。一般付費課可附諮詢次數，結帳／Portaly／積分兌換整門課在同一 transaction 內儲值；持有者在銷售頁選 60 分鐘時段直接成立，扣次數與佔時段同一 transaction（409 不扣、422 不佔），取消退還 `credits_spent`；預約沿用 `high_ticket_leads`（`kind = credit`），Leads 名單／匯出／批次寄信／新時段通知／去重／續填 draft／backfill 一律套 `applications()` scope（故意拔掉 scope 確認三條把關測試會紅）。介面「福利」改稱「諮詢」。
   **順手修掉 US37 留下的既有 bug**：課程表單恆送 `bundle_default_quantity=0` 與 `bundle_unlimited=0`（FormData 把預設值轉成 `"0"`），守門以 `filled()` 判斷「有設定」，於是 **9/27 起編輯任何非高價課都會被一個不顯示在畫面上的錯誤擋下**（錯誤落在沒渲染的欄位）。改以 `BundleCreditService::settingKeys()` 判斷（名稱／點數有填、次數 > 0、勾無限次才算），並補回歸測試 `test_saving_an_ineligible_course_with_the_forms_untouched_defaults_succeeds`（拿掉修正前跑一次確認會紅）。
   與規劃的差異：`minutesForLead()` / `CREDIT_MINUTES` 落在 `ConsultationSlotService`；T510 會員詳情原本就沒有「福利」字樣，無需改動；學員名單的「消費 1 次諮詢」對一般課程另由後端回 422（不只前端隱藏）。

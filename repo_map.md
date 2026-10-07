@@ -650,15 +650,12 @@ main_files:
 - resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/LessonForm.vue
-- resources/js/Components/Admin/NewSubscriberStats.vue
 - resources/js/Components/Classroom/LessonPromoBlock.vue
 - resources/js/Components/Classroom/VideoAccessNotice.vue
 - resources/js/Components/Course/ClaimConsentNotice.vue
 - resources/js/Components/Course/DripSubscribeForm.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
 - resources/js/Components/EmailReviewNotice.vue
-- resources/js/Pages/Admin/Dashboard.vue
-- resources/js/Pages/Admin/HighTicketLeads/Index.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Drip/Unsubscribe.vue
 - resources/js/Pages/Member/Classroom.vue
@@ -698,6 +695,7 @@ main_files:
 - app/Http/Controllers/Admin/CourseController.php
 - app/Http/Controllers/Admin/CoursePlanController.php
 - app/Http/Controllers/Admin/CourseRosterController.php
+- app/Http/Controllers/Admin/DashboardController.php
 - app/Http/Controllers/Admin/EmailTemplateController.php
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/LessonController.php
@@ -768,6 +766,7 @@ main_files:
 - app/Services/ZoomWebhookService.php
 - app/Support/BookingScreening.php
 - app/Support/PhoneNumber.php
+- app/Support/RecentDayWindows.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
 - database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
@@ -817,6 +816,7 @@ main_files:
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/CourseRosterModal.vue
+- resources/js/Components/Admin/LeadInflowStats.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
@@ -833,6 +833,7 @@ main_files:
 - resources/js/Pages/Admin/Courses/Chapters.vue
 - resources/js/Pages/Admin/Courses/Edit.vue
 - resources/js/Pages/Admin/Courses/Index.vue
+- resources/js/Pages/Admin/Dashboard.vue
 - resources/js/Pages/Admin/EmailTemplates/Edit.vue
 - resources/js/Pages/Admin/EmailTemplates/Index.vue
 - resources/js/Pages/Admin/HighTicketLeads/Index.vue
@@ -873,6 +874,7 @@ main_files:
 - tests/Feature/HighTicket/LeadRefundSyncTest.php
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php
+- tests/Feature/HighTicket/NewBookingStatsTest.php
 - tests/Feature/HighTicket/PlanAccessTest.php
 - tests/Feature/HighTicket/PlanSwitchTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php

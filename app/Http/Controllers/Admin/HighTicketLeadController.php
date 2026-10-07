@@ -103,6 +103,7 @@ class HighTicketLeadController extends Controller
                 'subscriberData'    => $subscriberData,
                 'leads'             => null,
                 'newSubscriberStats' => $this->dripService->newSubscriberCounts(),
+                'newBookingStats'   => $this->leadService->newBookingCounts(),
             ]);
         }
 
@@ -238,6 +239,7 @@ class HighTicketLeadController extends Controller
             'tab'               => $tab,
             'leads'             => $leads,
             'newSubscriberStats' => $this->dripService->newSubscriberCounts(),
+            'newBookingStats'   => $this->leadService->newBookingCounts(),
             'filters'           => $filters,
             'consultantOptions' => $consultantOptions,
             'dripCourses'       => $dripCourses,

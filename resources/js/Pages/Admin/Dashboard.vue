@@ -1,7 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
-import NewSubscriberStats from '@/Components/Admin/NewSubscriberStats.vue'
+import LeadInflowStats from '@/Components/Admin/LeadInflowStats.vue'
 
 defineOptions({
   layout: AdminLayout
@@ -17,6 +17,10 @@ defineProps({
     required: true,
   },
   newSubscriberStats: {
+    type: Object,
+    required: true,
+  },
+  newBookingStats: {
     type: Object,
     required: true,
   },
@@ -130,8 +134,8 @@ const getStatusLabel = (status) => {
       </div>
     </div>
 
-    <!-- New drip subscribers (010 US19) -->
-    <NewSubscriberStats class="mt-8" :stats="newSubscriberStats" />
+    <!-- New bookings / drip subscribers (011 US39) -->
+    <LeadInflowStats class="mt-8" :bookings="newBookingStats" :subscribers="newSubscriberStats" />
 
     <!-- Recent courses -->
     <div class="mt-8">

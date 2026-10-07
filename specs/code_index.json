@@ -117,7 +117,8 @@
     ],
     "app/Http/Controllers/Admin/DashboardController.php": [
       "009.us-7",
-      "010.us-19"
+      "010.us-19",
+      "011.us-39"
     ],
     "app/Http/Controllers/Admin/DripLessonPreviewController.php": [
       "010.us-17"
@@ -151,6 +152,7 @@
       "011.us-31",
       "011.us-35",
       "011.us-38",
+      "011.us-39",
       "011.us-4",
       "011.us-5",
       "011.us-8",
@@ -1018,6 +1020,7 @@
       "010.us-4",
       "010.us-5",
       "010.us-7",
+      "011.us-39",
       "011.us-5",
       "011.us-8"
     ],
@@ -1064,6 +1067,7 @@
       "011.us-31",
       "011.us-37",
       "011.us-38",
+      "011.us-39",
       "011.us-4",
       "011.us-5",
       "011.us-9"
@@ -1191,6 +1195,9 @@
     ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
+    ],
+    "app/Support/RecentDayWindows.php": [
+      "011.us-39"
     ],
     "bootstrap/app.php": [
       "000.us-6",
@@ -1679,6 +1686,9 @@
     "resources/js/Components/Admin/ImageGalleryModal.vue": [
       "004.us-4"
     ],
+    "resources/js/Components/Admin/LeadInflowStats.vue": [
+      "011.us-39"
+    ],
     "resources/js/Components/Admin/Leads/BookingListTab.vue": [
       "000.us-9",
       "011.us-14",
@@ -1730,9 +1740,6 @@
       "006.us-5",
       "010.us-8",
       "010.us-9"
-    ],
-    "resources/js/Components/Admin/NewSubscriberStats.vue": [
-      "010.us-19"
     ],
     "resources/js/Components/Admin/PostForm.vue": [
       "012.us-1"
@@ -2038,7 +2045,7 @@
     ],
     "resources/js/Pages/Admin/Dashboard.vue": [
       "009.us-7",
-      "010.us-19"
+      "011.us-39"
     ],
     "resources/js/Pages/Admin/EmailTemplates/Edit.vue": [
       "011.us-14",
@@ -2051,12 +2058,12 @@
       "011.us-6"
     ],
     "resources/js/Pages/Admin/HighTicketLeads/Index.vue": [
-      "010.us-19",
       "011.us-18",
       "011.us-22",
       "011.us-27",
       "011.us-28",
       "011.us-3",
+      "011.us-39",
       "011.us-4",
       "011.us-5",
       "011.us-8"
@@ -2507,6 +2514,9 @@
       "011.us-28",
       "011.us-8",
       "011.us-9"
+    ],
+    "tests/Feature/HighTicket/NewBookingStatsTest.php": [
+      "011.us-39"
     ],
     "tests/Feature/HighTicket/PlanAccessTest.php": [
       "011.us-21"

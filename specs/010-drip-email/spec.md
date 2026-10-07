@@ -2,7 +2,6 @@
 id: 010-drip-email
 status: done
 owner_files:
-  - resources/js/Components/Admin/NewSubscriberStats.vue
   - tests/Feature/Drip/NewSubscriberStatsTest.php
   - app/Http/Controllers/DripSubscriptionController.php
   - app/Http/Controllers/DripTrackingController.php
@@ -47,15 +46,9 @@ touchpoints:
   - file: app/Http/Controllers/Admin/DashboardController.php
     owner: 009-transactions-admin
     why: US19 — `index()` 多下發 `newSubscriberStats`（呼叫 `DripService::newSubscriberCounts()`）
-  - file: resources/js/Pages/Admin/Dashboard.vue
-    owner: 009-transactions-admin
-    why: US19 — 統計卡片下方掛 `NewSubscriberStats`
   - file: app/Http/Controllers/Admin/HighTicketLeadController.php
     owner: 011-high-ticket
     why: US19 — `index()` 兩個 render 分支（booking / subscribers）都下發 `newSubscriberStats`
-  - file: resources/js/Pages/Admin/HighTicketLeads/Index.vue
-    owner: 011-high-ticket
-    why: US19 — 標題與 tab 列之間掛 `NewSubscriberStats`，所有 tab 共用
   - file: resources/js/composables/useDelayedConfirm.js
     owner: 011-high-ticket
     why: 10 秒 Email 覆核的狀態機，正典為 011 FR-059；本模組領取表單共用（US15、D18）。US16 由 useEmailReview.js 更名為此（同一個狀態機，第三個用途不是 Email 覆核而是停止接收的二次確認，D22），並以 5 秒供停止接收確認頁使用
@@ -563,7 +556,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **D35**: 不設 `max-width`（US3）。沒有外框的情況下寬度限制是「看不見的框」，桌機寬視窗下長行會偏寬，這是業主明確選擇後接受的取捨。要改是一行 `max-width:600px;margin:0 auto` 的事，且不動任何投遞訊號
 
 - **D36**: 「新增訂閱者」= 區間內**有領取動作的不重複人數**，不是「首次成為訂閱者的人數」（US19）。差別在老名單回頭領新課：前者算、後者不算。選前者的理由：查詢單純（不需對每人找 `MIN(subscribed_at)`），且業主看的是「這段期間有多少人被領取入口打中」—— 老名單回頭領新電子書同樣代表那個入口在運作。若日後要專看廣告帶進的**全新**名單，改為 `MIN(subscribed_at) GROUP BY user_id` 的子查詢即可，不動介面
-- **D37**: 卡片抽成 `NewSubscriberStats.vue` 由 010 擁有，兩頁以 touchpoint 掛載（US19）。資料定義屬 drip（FR-043），兩頁只是展示位置；若各自寫一份卡片，日後調區間或文案會只改到一邊
+- **D37**: 卡片抽成 `NewSubscriberStats.vue` 由 010 擁有，兩頁以 touchpoint 掛載（US19）。資料定義屬 drip（FR-043），兩頁只是展示位置；若各自寫一份卡片，日後調區間或文案會只改到一邊。**（2026-10-07 起由 011 US39 的 `LeadInflowStats.vue` 取代，所有權移至 011，見 011 D155）**
 - **D38**: Leads 頁所有 tab 共用頂部、不放進 `SubscriberListTab`（US19，業主選擇）。代價是 booking tab 每次載入多一條聚合查詢 —— 單表、走 `subscribed_at` 範圍，千級資料量可忽略（同 D7 不快取）。**不加 `subscribed_at` 索引**：目前規模全表掃描毫秒級，萬級以上再補 migration
 - **D39**: 只顯示數字，不做趨勢圖或分課程明細（US19）。分課程的累計已在訂閱者 tab 的狀態統計卡；這次要解的是「跨課程一眼看總量」
 

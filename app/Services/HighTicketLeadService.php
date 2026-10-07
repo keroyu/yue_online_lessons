@@ -13,6 +13,7 @@ use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
 use App\Models\User;
+use App\Support\RecentDayWindows;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -89,6 +90,38 @@ class HighTicketLeadService
         }
 
         return ['dispatched' => $dispatched, 'skipped' => $skipped];
+    }
+
+    /**
+     * Distinct emails whose booking was confirmed today / in the last 7 / 30
+     * Taipei calendar days (011 US39).
+     *
+     * Counted at `confirmed_at` so a screening-only row never counts (FR-235),
+     * applications only so self-booked credit consultations stay out (FR-232),
+     * and regardless of status: a later cancel or decline must not shrink a
+     * past day's inflow.
+     *
+     * @return array{today: int, last_7_days: int, last_30_days: int}
+     */
+    public function newBookingCounts(): array
+    {
+        $starts = RecentDayWindows::starts();
+
+        $row = HighTicketLead::applications()
+            ->where('confirmed_at', '>=', $starts['last_30_days'])
+            ->selectRaw(
+                'COUNT(DISTINCT CASE WHEN confirmed_at >= ? THEN email END) as today,
+                 COUNT(DISTINCT CASE WHEN confirmed_at >= ? THEN email END) as last_7_days,
+                 COUNT(DISTINCT email) as last_30_days',
+                [$starts['today'], $starts['last_7_days']],
+            )
+            ->first();
+
+        return [
+            'today'        => (int) $row->today,
+            'last_7_days'  => (int) $row->last_7_days,
+            'last_30_days' => (int) $row->last_30_days,
+        ];
     }
 
     /**

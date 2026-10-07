@@ -11,6 +11,7 @@ use App\Models\DripSubscription;
 use App\Models\EmailSuppression;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Support\RecentDayWindows;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -578,19 +579,16 @@ class DripService
      */
     public function newSubscriberCounts(): array
     {
-        // Calendar boundaries are Taipei's; bindings are not converted, so
-        // hand the query UTC instances (FR-044).
-        $today   = now('Asia/Taipei')->startOfDay();
-        $start7  = $today->copy()->subDays(6)->utc();
-        $start30 = $today->copy()->subDays(29)->utc();
-        $today->utc();
+        // Taipei calendar edges as UTC instants (FR-044), shared with the
+        // booking counts shown beside these (011 FR-236).
+        $starts = RecentDayWindows::starts();
 
-        $row = DripSubscription::where('subscribed_at', '>=', $start30)
+        $row = DripSubscription::where('subscribed_at', '>=', $starts['last_30_days'])
             ->selectRaw(
                 'COUNT(DISTINCT CASE WHEN subscribed_at >= ? THEN user_id END) as today,
                  COUNT(DISTINCT CASE WHEN subscribed_at >= ? THEN user_id END) as last_7_days,
                  COUNT(DISTINCT user_id) as last_30_days',
-                [$today, $start7],
+                [$starts['today'], $starts['last_7_days']],
             )
             ->first();
 

@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\Purchase;
 use App\Services\DripService;
+use App\Services\HighTicketLeadService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +16,7 @@ class DashboardController extends Controller
     /**
      * Display the admin dashboard.
      */
-    public function index(DripService $dripService): Response
+    public function index(DripService $dripService, HighTicketLeadService $leadService): Response
     {
         $stats = [
             'total_courses' => Course::count(),
@@ -33,6 +34,7 @@ class DashboardController extends Controller
             'stats' => $stats,
             'recentCourses' => $recentCourses,
             'newSubscriberStats' => $dripService->newSubscriberCounts(),
+            'newBookingStats' => $leadService->newBookingCounts(),
         ]);
     }
 }

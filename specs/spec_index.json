@@ -3711,9 +3711,6 @@
         "app/Services/DripService.php",
         "app/Http/Controllers/Admin/DashboardController.php",
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
-        "resources/js/Components/Admin/NewSubscriberStats.vue",
-        "resources/js/Pages/Admin/Dashboard.vue",
-        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
         "tests/Feature/Drip/NewSubscriberStatsTest.php"
       ],
       "status": "implemented"
@@ -5340,6 +5337,44 @@
         "tests/Feature/HighTicket/ConsultationCreditBookingTest.php"
       ],
       "status": "partial"
+    },
+    {
+      "id": "011.us-39",
+      "module": "011-high-ticket",
+      "title": "新預約者／訂閱者合併顯示",
+      "summary": "Dashboard 與 Leads 名單頁頂部卡片改為「新預約者／訂閱者」：本日／近 7 日／近 30 日各顯示預約（confirmed_at、不重複 Email、僅 applications）與訂閱（010 US19）兩數，0 紅 >0 綠；兩者共用 RecentDayWindows 區間邊界",
+      "heading": "### User Story 39 - 新預約者／訂閱者合併顯示 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-39---新預約者／訂閱者合併顯示-priority-p2",
+      "keywords": [
+        "新預約者",
+        "new bookings",
+        "新訂閱者",
+        "new subscribers",
+        "名單流入",
+        "lead inflow",
+        "本日",
+        "近7日",
+        "近30日",
+        "dashboard",
+        "Leads 名單",
+        "newBookingCounts",
+        "confirmed_at",
+        "LeadInflowStats",
+        "RecentDayWindows"
+      ],
+      "code_files": [
+        "app/Support/RecentDayWindows.php",
+        "app/Services/HighTicketLeadService.php",
+        "app/Services/DripService.php",
+        "app/Http/Controllers/Admin/DashboardController.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "resources/js/Components/Admin/LeadInflowStats.vue",
+        "resources/js/Pages/Admin/Dashboard.vue",
+        "resources/js/Pages/Admin/HighTicketLeads/Index.vue",
+        "tests/Feature/HighTicket/NewBookingStatsTest.php"
+      ],
+      "status": "implemented"
     },
     {
       "id": "011.us-4",
