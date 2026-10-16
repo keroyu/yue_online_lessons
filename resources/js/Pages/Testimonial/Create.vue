@@ -47,7 +47,7 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
 
   <!-- Form page: the band sits above the form; below it, it went unseen
        (FR-251, revised at the owner's request). -->
-  <div v-if="!submitted && testimonials.length" class="bg-brand-cream border-b border-gray-200 px-4 py-10 sm:py-12">
+  <div v-if="!submitted && testimonials.length" class="bg-brand-cream border-b border-gray-200 px-4 pt-10 pb-5 sm:pt-12 sm:pb-6">
     <div class="max-w-4xl mx-auto">
       <TestimonialCarousel :testimonials="testimonials" />
       <div v-if="course_url" class="mt-6 text-center">
@@ -61,7 +61,13 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
     </div>
   </div>
 
-  <div class="max-w-lg mx-auto px-4 pt-12 sm:pt-16" :class="submitted && testimonials.length ? 'pb-10' : 'pb-12 sm:pb-16'">
+  <div
+    class="max-w-lg mx-auto px-4"
+    :class="[
+      !submitted && testimonials.length ? 'pt-6 sm:pt-8' : 'pt-12 sm:pt-16',
+      submitted && testimonials.length ? 'pb-10' : 'pb-12 sm:pb-16',
+    ]"
+  >
     <!-- Thank-you state -->
     <div v-if="submitted" class="rounded-2xl border border-green-200 bg-green-50 p-8 text-center text-green-800">
       <div class="w-12 h-12 mx-auto rounded-full bg-white/70 flex items-center justify-center text-2xl font-bold">✓</div>
