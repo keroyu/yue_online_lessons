@@ -2036,7 +2036,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-237**: 前端只有一個元件 `LeadInflowStats.vue`，props `bookings` 與 `subscribers`（各為 counts 形狀）。顏色規則（0 紅、>0 綠）只寫在這裡
 
 - **FR-238**: 可發評語連結的 lead =`HighTicketLead::isTestimonialEligible(): bool`：`kind = application` 且 `isActiveBooking()` 且 `slots` 的最早 `starts_at` < now。名單 payload 每列多帶 `testimonial_eligible`（布林）與 `testimonial`（`{id, status}|null`）；判斷在後端做一次，前端不重算。**不看 `status`**：顧問常忘了把狀態改成「已談」，時段時間已過就足以說明面談發生過
-- **FR-239**: `POST /admin/high-ticket-leads/{lead}/testimonial-link`（admin + staff 皆可，比照 Leads 名單權限）→ `TestimonialService::issueLink(HighTicketLead $lead): string`：不符 FR-238 回 422；`testimonial_token` 為 null 時以 `Str::random(40)` 補發並落庫，已有則沿用；回傳 `route('testimonials.create', $token)` 絕對網址。token 永久有效（同 `resume_token` 作法，D44）
+- **FR-239**: `POST /admin/high-ticket-leads/{lead}/testimonial-link`（admin + staff 皆可，比照 Leads 名單權限）→ `TestimonialService::issueLink(HighTicketLead $lead): string`：不符 FR-238 回 422；`testimonial_token` 為 null 時以 `Str::random(40)` 補發並落庫，已有則沿用；回傳 `route('testimonials.create', $token)` 絕對網址。token 永久有效（同 `resume_token` 作法，D44）。**前端複製 MUST 在 click 當下同步啟動**：以 `navigator.clipboard.write([new ClipboardItem({'text/plain': urlPromise})])` 把尚未回來的 URL 以 promise 交給剪貼簿；`await` 請求後才 `writeText()` 在 Safari 會因 user activation 失效而被拒（使用者回報「按了沒反應」）。仍失敗時退回 `writeText`，再失敗則就地開 modal 顯示已全選的連結＋「複製」鈕，MUST NOT 只在列表頂端顯示訊息
 - **FR-240**: 前台 `GET /testimonials/{token}`（name `testimonials.create`，無 auth）→ `Pages/Testimonial/Create.vue`。以 `testimonial_token` 查 lead（查無 404）；props：`course_name`、`consulted_at`（ISO）、`default_nickname`（lead 姓名）、`submitted`（布林）、`reward_points`（目前設定值）、`awarded_points`（已提交時為該則實際發出的點數，感謝頁顯示這個值而非目前設定）。頁面 `noindex`。booking 已取消且尚未提交（無時段可快照）時回 404
 - **FR-241**: `POST /testimonials/{token}`（`throttle:10,1`），驗證走 `StoreTestimonialRequest`（nickname `required|string|max:20`、title `nullable|string|max:40`、content `required|string|min:10|max:500`，字數以 `mb_strlen` 計）。委派 `TestimonialService::submit(HighTicketLead $lead, array $data): Testimonial`，單一 `DB::transaction`：`lockForUpdate` 重讀 lead → 已有評語回 422「你已經留過評語」→ `User::firstOrCreate(['email' => $lead->email], [nickname/phone/password])`（與 `convert()` 同建立屬性，既有會員不覆寫）→ 建立 testimonial（`consulted_at` / `course_id` 自 lead 快照，`status = pending`）→ 點數 > 0 時 `PointService::award($user, $points, 'earn_testimonial', 'testimonial', $testimonial->id, '諮詢評語回饋')` 並把點數寫回 `testimonials.reward_points`。成功後導向同一 GET 頁顯示感謝狀態
 - **FR-242**: 一 lead 一則評語以 `testimonials.lead_id` **unique 索引**為最終防線（FR-241 的鎖擋正常並發，unique 擋任何繞過 service 的寫入）；積分以 testimonial 為 reference，評語建不起來則積分整筆回滾
@@ -3802,9 +3802,11 @@ Phase 4 — 驗證
 - [x] T566 `php artisan test` 全綠、`npm run build` exit 0、瀏覽器確認輪播標籤與 modal 切換
 - [x] T567 輪播評語 6 行截斷＋「看全文」／「收起」（FR-250）in `resources/js/Components/Course/TestimonialCarousel.vue`
 - [x] T568 「看全文」由就地展開改為 modal（FR-250 修訂）in `resources/js/Components/Course/TestimonialCarousel.vue`
+- [x] T569 修正「評語連結」在 Safari 按了沒反應：click 內以 ClipboardItem(promise) 寫剪貼簿，失敗退回手動複製 modal（FR-239 補充）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 
 ## 進度日誌
 
+- 2026-10-17: 修正「評語連結」按了沒反應（T569）— 正式站已發出 2 個 token，表示請求成功、是剪貼簿寫入被拒：先 `await` API 再 `writeText()`，Safari 已收回 user activation；而錯誤訊息落在列表頂端的 banner，捲動後看不到，看起來就是沒反應。改為 click 當下以 `ClipboardItem` 帶 URL promise 寫入，失敗退回 `writeText`，再失敗就開 modal 顯示已全選連結＋「複製」。Chrome 實測：正常路徑剪貼簿內容為完整連結、約 0.2 秒顯示「已複製」；以 stub 模擬剪貼簿拒絕時開出手動複製 modal。Safari 無法在本機自動化實測，待業主確認。
 - 2026-10-17: FR-250 修訂（T568）— 使用者回報就地展開／收起破壞版面，改為 modal 看全文（Teleport 到 body，手機底部彈出、桌機置中，內文可捲動、鎖頁面捲動，Esc／背景／✕ 關閉）。瀏覽器實測：開啟期間卡片高度不變（315px）、三種關閉方式皆可、關閉後解除捲動鎖。
 - 2026-10-17: US40 追加 FR-250（T567）— 長評語原本會把卡片撐高（500 字在手機約 700px），且整列卡片被拉到同高；改為 6 行截斷＋逐張「看全文」，展開時軌道改 `items-start` 讓其他卡片不被拉長。瀏覽器實測桌機與手機：500 字卡片截斷後 315px、展開 861px 時鄰卡維持自身高度、收起後恢復等高。
 - 2026-10-17: US40 修正完成（T560–T566）— `testimonials.identity`（加入原 create migration，本機已 rollback 重跑）；送出時依該課有效購買判定諮詢客戶／課程學員並落庫，填寫頁與銷售頁以身份取代諮詢時間（銷售頁不再下發 `consulted_at`），審核 modal 可切換身份（不動積分與上架狀態）。TestimonialTest 27 項（新增 7：無購買／持有／已退款／他課購買、改身份、非法值與空 body、名單帶 identity），全套 1211 passed、`npm run build` 綠；瀏覽器確認卡片標籤、modal 切換後銷售頁即時更新、填寫頁顯示身份。

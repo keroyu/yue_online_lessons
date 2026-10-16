@@ -806,21 +806,63 @@ const copyEmail = async (lead) => {
 // issued server-side on the first copy; later copies return the same URL.
 const copiedTestimonialId = ref(null)
 const copyTestimonialLink = async (lead) => {
+  const urlPromise = axios
+    .post(`/admin/high-ticket-leads/${lead.id}/testimonial-link`)
+    .then((res) => res.data.url)
+
+  // The clipboard write has to start inside the click: Safari withdraws the
+  // permission once the request returns, so writeText() after `await` fails
+  // there. ClipboardItem takes the pending URL as a promise instead.
+  let copied = false
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'text/plain': urlPromise.then((u) => new Blob([u], { type: 'text/plain' })) }),
+      ])
+      copied = true
+    } catch (e) {
+      // Fall through to writeText, then to the manual-copy dialog.
+    }
+  }
+
   let url
   try {
-    const res = await axios.post(`/admin/high-ticket-leads/${lead.id}/testimonial-link`)
-    url = res.data.url
+    url = await urlPromise
   } catch (e) {
     actionResult.value = `無法產生評語連結：${e.response?.data?.message || e.message}`
     return
   }
-  try {
-    await navigator.clipboard.writeText(url)
+
+  if (!copied) {
+    try {
+      await navigator.clipboard.writeText(url)
+      copied = true
+    } catch (e) {
+      // Handled below.
+    }
+  }
+
+  if (copied) {
     copiedTestimonialId.value = lead.id
     setTimeout(() => { if (copiedTestimonialId.value === lead.id) copiedTestimonialId.value = null }, 1500)
+  } else {
+    // Clipboard refused: show the link right here, selected, instead of a
+    // banner at the top of the list that is easy to miss.
+    testimonialLinkFallback.value = { name: lead.name, url }
+  }
+}
+
+const testimonialLinkFallback = ref(null)
+const fallbackCopied = ref(false)
+const selectAll = (e) => e.target.select()
+const copyFallbackLink = async () => {
+  try {
+    // A fresh click, with the URL already known — writeText works here.
+    await navigator.clipboard.writeText(testimonialLinkFallback.value.url)
+    fallbackCopied.value = true
+    setTimeout(() => { fallbackCopied.value = false }, 1500)
   } catch (e) {
-    // Clipboard refused (no https, permission): show the link so it can be copied by hand.
-    actionResult.value = `評語連結：${url}`
+    // Leave the selected text for Cmd/Ctrl+C.
   }
 }
 
@@ -1406,6 +1448,41 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
         :last-page="leads.last_page"
         @change="goToPage"
       />
+    </div>
+  </div>
+
+  <!-- Manual copy when the browser refuses the clipboard (011 US40). -->
+  <div v-if="testimonialLinkFallback" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black/40" @click="testimonialLinkFallback = null" />
+    <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
+      <h3 class="text-lg font-semibold text-gray-900">評語連結</h3>
+      <p class="mt-1 text-sm text-gray-600">
+        給 {{ testimonialLinkFallback.name }}。瀏覽器未允許自動複製，請按「複製」或手動複製下方連結。
+      </p>
+      <input
+        :value="testimonialLinkFallback.url"
+        readonly
+        autofocus
+        class="mt-4 w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-800 bg-gray-50"
+        @focus="selectAll"
+        @click="selectAll"
+      />
+      <div class="mt-5 flex justify-end gap-3">
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          @click="testimonialLinkFallback = null"
+        >
+          關閉
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90"
+          @click="copyFallbackLink"
+        >
+          {{ fallbackCopied ? '已複製' : '複製' }}
+        </button>
+      </div>
     </div>
   </div>
 
