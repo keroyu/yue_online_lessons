@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layout/AppLayout.vue'
+import TestimonialCarousel from '@/Components/Course/TestimonialCarousel.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -13,6 +14,10 @@ const props = defineProps({
   submitted: { type: Boolean, default: false },
   reward_points: { type: Number, default: 0 },
   awarded_points: { type: Number, default: null },
+  // Others' testimonials and the way back to the course — consultation
+  // clients only, so a student gets neither (011 FR-251).
+  testimonials: { type: Array, default: () => [] },
+  course_url: { type: String, default: null },
 })
 
 const form = useForm({
@@ -24,7 +29,11 @@ const form = useForm({
 const contentLength = computed(() => form.content.trim().length)
 
 const submit = () => {
-  form.post(window.location.pathname, { preserveScroll: true })
+  // Keep the scroll on validation errors; on success the thank-you card must
+  // be in view, not wherever the long form left the page.
+  form.post(window.location.pathname, {
+    preserveScroll: (page) => Object.keys(page.props.errors || {}).length > 0,
+  })
 }
 
 const labelClasses = 'block text-sm font-medium text-gray-700 mb-1'
@@ -36,7 +45,7 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
     <meta name="robots" content="noindex, nofollow" />
   </Head>
 
-  <div class="max-w-lg mx-auto px-4 py-12 sm:py-16">
+  <div class="max-w-lg mx-auto px-4 pt-12 sm:pt-16" :class="testimonials.length ? 'pb-10' : 'pb-12 sm:pb-16'">
     <!-- Thank-you state -->
     <div v-if="submitted" class="rounded-2xl border border-green-200 bg-green-50 p-8 text-center text-green-800">
       <div class="w-12 h-12 mx-auto rounded-full bg-white/70 flex items-center justify-center text-2xl font-bold">✓</div>
@@ -48,12 +57,21 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
         <p class="mt-1 text-sm leading-relaxed">可用這次預約的 Email 登入，在「我的積分」查看。</p>
       </template>
       <p v-else class="mt-3 text-sm leading-relaxed">你的回饋對我們很重要。</p>
-      <Link
-        href="/"
-        class="inline-block mt-6 text-sm text-brand-teal underline cursor-pointer hover:opacity-70 transition"
+      <a
+        v-if="course_url"
+        :href="course_url"
+        class="inline-block mt-6 px-6 py-2.5 rounded-lg text-sm font-semibold bg-brand-teal text-white hover:bg-brand-teal/90 transition-colors"
       >
-        回首頁
-      </Link>
+        看課程介紹
+      </a>
+      <div>
+        <Link
+          href="/"
+          class="inline-block mt-4 text-sm text-brand-teal underline cursor-pointer hover:opacity-70 transition"
+        >
+          回首頁
+        </Link>
+      </div>
     </div>
 
     <!-- Form -->
@@ -117,6 +135,23 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
           {{ form.processing ? '送出中…' : '送出評語' }}
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- Below the form, never above it: read first and the testimonial tends to
+       echo the others (FR-251). Wider than the form so the cards match the
+       sales page. -->
+  <div v-if="testimonials.length" class="bg-brand-cream border-t border-gray-200 px-4 py-10 sm:py-12">
+    <div class="max-w-4xl mx-auto">
+      <TestimonialCarousel :testimonials="testimonials" />
+      <div v-if="course_url" class="mt-6 text-center">
+        <a
+          :href="course_url"
+          class="inline-block text-sm font-medium text-brand-teal underline hover:opacity-70 transition"
+        >
+          看課程介紹
+        </a>
+      </div>
     </div>
   </div>
 </template>

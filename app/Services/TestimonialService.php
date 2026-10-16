@@ -68,6 +68,25 @@ class TestimonialService
         return $course?->hasPaidAccessForUser($user) ? 'student' : 'consultation';
     }
 
+    /**
+     * Published testimonials of one course in public shape — no consultation
+     * time (FR-248). The sales page and the testimonial form both read this,
+     * so the two lists can never drift (FR-245, FR-251).
+     *
+     * @return list<array{id: int, nickname: string, title: ?string, content: string, identity_label: string}>
+     */
+    public function publishedFor(int $courseId, ?int $exceptId = null): array
+    {
+        return Testimonial::published()
+            ->where('course_id', $courseId)
+            ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
+            ->orderByDesc('consulted_at')
+            ->limit(30)
+            ->get(['id', 'nickname', 'title', 'content', 'identity'])
+            ->map(fn (Testimonial $t) => $t->only(['id', 'nickname', 'title', 'content', 'identity_label']))
+            ->all();
+    }
+
     /** When the consultation began — the first unit the lead held, in UTC. */
     public function consultedAt(HighTicketLead $lead): ?\Illuminate\Support\Carbon
     {

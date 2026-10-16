@@ -488,6 +488,63 @@ class TestimonialTest extends TestCase
                     ->firstWhere('id', $testimonial->lead_id)['testimonial']['identity'] === 'consultation'));
     }
 
+    // ── Others' testimonials on the form page (FR-251) ──────────
+
+    public function test_consultation_client_sees_published_testimonials_and_course_link(): void
+    {
+        $course = $this->makeCourse();
+        $other = $this->makeCourse();
+        $shown = $this->submitted($course, 'a@example.com');
+        $shown->update(['status' => 'published', 'published_at' => now()]);
+        $this->submitted($course, 'b@example.com'); // pending
+        $elsewhere = $this->submitted($other, 'c@example.com');
+        $elsewhere->update(['status' => 'published', 'published_at' => now()]);
+
+        $lead = $this->makeLead($course, null, ['email' => 'client@example.com']);
+        $this->issueLink($lead);
+
+        $this->get('/testimonials/' . $lead->fresh()->testimonial_token)
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('testimonials', 1)
+                ->where('testimonials.0.id', $shown->id)
+                ->where('testimonials.0.identity_label', '諮詢客戶')
+                ->missing('testimonials.0.consulted_at')
+                ->where('course_url', route('course.show', $course)));
+    }
+
+    public function test_own_testimonial_is_not_listed_on_the_thank_you_page(): void
+    {
+        $course = $this->makeCourse();
+        $mine = $this->submitted($course);
+        $mine->update(['status' => 'published', 'published_at' => now()]);
+        $theirs = $this->submitted($course, 'other@example.com');
+        $theirs->update(['status' => 'published', 'published_at' => now()]);
+
+        $token = HighTicketLead::find($mine->lead_id)->testimonial_token;
+
+        $this->get("/testimonials/{$token}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('submitted', true)
+                ->has('testimonials', 1)
+                ->where('testimonials.0.id', $theirs->id));
+    }
+
+    public function test_students_are_not_shown_sales_testimonials(): void
+    {
+        $course = $this->makeCourse();
+        $this->submitted($course, 'a@example.com')->update(['status' => 'published', 'published_at' => now()]);
+        $this->buy($course, 'lead@example.com');
+
+        $lead = $this->makeLead($course);
+        $this->issueLink($lead);
+
+        $this->get('/testimonials/' . $lead->fresh()->testimonial_token)
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('identity_label', '課程學員')
+                ->where('testimonials', [])
+                ->where('course_url', null));
+    }
+
     // ── Settings (FR-243) ───────────────────────────────────────
 
     public function test_points_settings_page_reads_and_saves_the_reward(): void
