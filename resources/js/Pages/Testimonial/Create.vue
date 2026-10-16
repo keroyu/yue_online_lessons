@@ -45,7 +45,23 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
     <meta name="robots" content="noindex, nofollow" />
   </Head>
 
-  <div class="max-w-lg mx-auto px-4 pt-12 sm:pt-16" :class="testimonials.length ? 'pb-10' : 'pb-12 sm:pb-16'">
+  <!-- Form page: the band sits above the form; below it, it went unseen
+       (FR-251, revised at the owner's request). -->
+  <div v-if="!submitted && testimonials.length" class="bg-brand-cream border-b border-gray-200 px-4 py-10 sm:py-12">
+    <div class="max-w-4xl mx-auto">
+      <TestimonialCarousel :testimonials="testimonials" />
+      <div v-if="course_url" class="mt-6 text-center">
+        <a
+          :href="course_url"
+          class="inline-block text-sm font-medium text-brand-teal underline hover:opacity-70 transition"
+        >
+          看課程介紹
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-lg mx-auto px-4 pt-12 sm:pt-16" :class="submitted && testimonials.length ? 'pb-10' : 'pb-12 sm:pb-16'">
     <!-- Thank-you state -->
     <div v-if="submitted" class="rounded-2xl border border-green-200 bg-green-50 p-8 text-center text-green-800">
       <div class="w-12 h-12 mx-auto rounded-full bg-white/70 flex items-center justify-center text-2xl font-bold">✓</div>
@@ -138,10 +154,8 @@ const inputClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:r
     </div>
   </div>
 
-  <!-- Below the form, never above it: read first and the testimonial tends to
-       echo the others (FR-251). Wider than the form so the cards match the
-       sales page. -->
-  <div v-if="testimonials.length" class="bg-brand-cream border-t border-gray-200 px-4 py-10 sm:py-12">
+  <!-- Thank-you page: the band follows the short thank-you card (FR-251). -->
+  <div v-if="submitted && testimonials.length" class="bg-brand-cream border-t border-gray-200 px-4 py-10 sm:py-12">
     <div class="max-w-4xl mx-auto">
       <TestimonialCarousel :testimonials="testimonials" />
       <div v-if="course_url" class="mt-6 text-center">
