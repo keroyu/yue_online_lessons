@@ -701,6 +701,7 @@ main_files:
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
 - app/Http/Controllers/Admin/SettingsController.php
+- app/Http/Controllers/Admin/TestimonialController.php
 - app/Http/Controllers/BookingConfirmController.php
 - app/Http/Controllers/ConsultationBookingController.php
 - app/Http/Controllers/CourseController.php
@@ -708,6 +709,7 @@ main_files:
 - app/Http/Controllers/Member/BundleRedemptionController.php
 - app/Http/Controllers/Member/ClassroomController.php
 - app/Http/Controllers/Member/LearningController.php
+- app/Http/Controllers/TestimonialController.php
 - app/Http/Controllers/Webhook/ZoomController.php
 - app/Http/Requests/Admin/ConsumeBundleCreditRequest.php
 - app/Http/Requests/Admin/DestroyConsultationSlotsRequest.php
@@ -722,12 +724,14 @@ main_files:
 - app/Http/Requests/Admin/UpdateCourseRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php
+- app/Http/Requests/Admin/UpdateTestimonialRequest.php
 - app/Http/Requests/Admin/UploadTranscriptRequest.php
 - app/Http/Requests/BookingScreeningRequest.php
 - app/Http/Requests/CheckoutRequest.php
 - app/Http/Requests/HighTicketBookingRequest.php
 - app/Http/Requests/Member/UpdateProfileRequest.php
 - app/Http/Requests/StoreConsultationBookingRequest.php
+- app/Http/Requests/StoreTestimonialRequest.php
 - app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/ProcessZoomTranscriptJob.php
 - app/Jobs/SendDripEmailJob.php
@@ -746,6 +750,7 @@ main_files:
 - app/Models/Lesson.php
 - app/Models/Purchase.php
 - app/Models/SiteSetting.php
+- app/Models/Testimonial.php
 - app/Models/User.php
 - app/Services/BundleCreditService.php
 - app/Services/CalendarInviteService.php
@@ -760,6 +765,7 @@ main_files:
 - app/Services/PointService.php
 - app/Services/PortalyWebhookService.php
 - app/Services/RedemptionService.php
+- app/Services/TestimonialService.php
 - app/Services/TransactionService.php
 - app/Services/ZoomMeetingService.php
 - app/Services/ZoomTranscriptService.php
@@ -807,6 +813,9 @@ main_files:
 - database/migrations/2026_09_27_000005_add_bundle_unlimited_flags.php
 - database/migrations/2026_10_03_000001_add_credit_booking_to_high_ticket_leads_table.php
 - database/migrations/2026_10_03_000002_install_consultation_credit_booking_template.php
+- database/migrations/2026_10_17_000001_create_testimonials_table.php
+- database/migrations/2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php
+- database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -822,10 +831,13 @@ main_files:
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
 - resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
+- resources/js/Components/Admin/Leads/TestimonialModal.vue
+- resources/js/Components/Admin/ReferrerDetailModal.vue
 - resources/js/Components/BundleCreditBlock.vue
 - resources/js/Components/Course/BookingScreeningStep.vue
 - resources/js/Components/Course/ConsultationCreditBooking.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
+- resources/js/Components/Course/TestimonialCarousel.vue
 - resources/js/Components/MemberDetailModal.vue
 - resources/js/Components/MyCourseCard.vue
 - resources/js/Layouts/AdminLayout.vue
@@ -838,9 +850,12 @@ main_files:
 - resources/js/Pages/Admin/EmailTemplates/Index.vue
 - resources/js/Pages/Admin/HighTicketLeads/Index.vue
 - resources/js/Pages/Admin/Settings/Payment.vue
+- resources/js/Pages/Admin/Settings/Points.vue
 - resources/js/Pages/Booking/Confirm.vue
 - resources/js/Pages/Course/Show.vue
 - resources/js/Pages/Member/Learning.vue
+- resources/js/Pages/Member/Points.vue
+- resources/js/Pages/Testimonial/Create.vue
 - resources/views/emails/booking-verify-text.blade.php
 - resources/views/emails/booking-verify.blade.php
 - resources/views/emails/high-ticket-booking.blade.php
@@ -879,6 +894,7 @@ main_files:
 - tests/Feature/HighTicket/PlanSwitchTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
 - tests/Feature/HighTicket/SupportEmailTest.php
+- tests/Feature/HighTicket/TestimonialTest.php
 - tests/Feature/HighTicket/TranscriptUploadTest.php
 - tests/Feature/HighTicket/ZoomMeetingTest.php
 - tests/Support/BooksHighTicket.php

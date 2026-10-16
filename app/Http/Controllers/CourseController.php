@@ -108,6 +108,16 @@ class CourseController extends Controller
             // what every visitor is sold, and what a holder can book now.
             'consultationOffer' => $this->consultationOffer($course),
             'consultationBooking' => app(\App\Services\ConsultationCreditBookingService::class)->stateFor($user, $course),
+            // Reviewed client testimonials above the booking block (011 US40 / FR-245).
+            'testimonials' => $course->is_high_ticket
+                ? \App\Models\Testimonial::published()
+                    ->where('course_id', $course->id)
+                    ->orderByDesc('consulted_at')
+                    ->limit(30)
+                    ->get(['id', 'nickname', 'title', 'content', 'identity'])
+                    // Identity replaces the consultation time publicly (011 FR-248).
+                    ->map(fn ($t) => $t->only(['id', 'nickname', 'title', 'content', 'identity_label']))
+                : [],
         ]);
     }
 

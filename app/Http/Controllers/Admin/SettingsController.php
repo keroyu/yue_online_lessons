@@ -205,6 +205,8 @@ class SettingsController extends Controller
                 'homework_reward_points'    => (int) SiteSetting::get('homework_reward_points', 100),
                 'referral_maturity_days'    => (int) SiteSetting::get('referral_maturity_days', 14),
                 'referral_discount_amount'  => (int) SiteSetting::get('referral_discount_amount', 150),
+                // 011 US40 / FR-243
+                'testimonial_reward_points' => app(\App\Services\TestimonialService::class)->rewardPoints(),
             ],
             'referral' => [
                 'rows'  => app(\App\Services\ReferralService::class)->performanceRows($days),
@@ -221,6 +223,7 @@ class SettingsController extends Controller
             'homework_reward_points'    => ['required', 'integer', 'min:0'],
             'referral_maturity_days'    => ['required', 'integer', 'min:0'],
             'referral_discount_amount'  => ['required', 'integer', 'min:0'],
+            'testimonial_reward_points' => ['sometimes', 'required', 'integer', 'min:0'],
         ]);
 
         // New values apply only to points generated afterwards; existing ledger is snapshotted (FR-027).

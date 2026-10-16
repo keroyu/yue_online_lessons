@@ -21,6 +21,7 @@ const form = useForm({
   homework_reward_points: props.points.homework_reward_points,
   referral_maturity_days: props.points.referral_maturity_days,
   referral_discount_amount: props.points.referral_discount_amount,
+  testimonial_reward_points: props.points.testimonial_reward_points,
 })
 
 const submit = () => {
@@ -129,6 +130,12 @@ const closeDetail = () => { detailReferrerId.value = null }
             <input type="number" min="0" v-model.number="form.homework_reward_points" :class="inputClasses" />
             <p class="mt-1 text-xs text-gray-400">學員每完成一份作業可獲得的積分。</p>
             <p v-if="form.errors.homework_reward_points" class="mt-1 text-sm text-red-600">{{ form.errors.homework_reward_points }}</p>
+          </div>
+          <div>
+            <label :class="labelClasses">客戶評語獎勵點數</label>
+            <input type="number" min="0" v-model.number="form.testimonial_reward_points" :class="inputClasses" />
+            <p class="mt-1 text-xs text-gray-400">高價課諮詢後，客戶透過評語連結送出評語即獲得的積分；設為 0 則不發。</p>
+            <p v-if="form.errors.testimonial_reward_points" class="mt-1 text-sm text-red-600">{{ form.errors.testimonial_reward_points }}</p>
           </div>
         </div>
 

@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\ConsultationNoteController;
 use App\Http\Controllers\Admin\ConsultationSlotController;
 use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\HighTicketLeadController;
+use App\Http\Controllers\Admin\TestimonialController as AdminTestimonialController;
 use App\Http\Controllers\Admin\HomepageFeaturedCourseController;
 use App\Http\Controllers\Admin\HomepageWidgetController;
 use App\Http\Controllers\Admin\HomepageSettingController;
@@ -49,6 +50,7 @@ use App\Http\Controllers\Payment\NewebpayController;
 use App\Http\Controllers\Payment\PayuniController;
 use App\Http\Controllers\Payment\SuccessController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\TestimonialController;
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\BlogFeedController;
 use App\Http\Controllers\NewsletterSubscriptionController;
@@ -82,6 +84,11 @@ Route::get('/course/{course}/booking-slots', [HighTicketBookingController::class
 // Emailed confirmation link — public by design, the token is the credential (011 FR-034).
 Route::get('/booking/confirm/{token}', [BookingConfirmController::class, 'show'])
     ->name('booking.confirm');
+// Testimonial form behind the follow-up email link — the token is the credential (011 US40).
+Route::get('/testimonials/{token}', [TestimonialController::class, 'create'])->name('testimonials.create');
+Route::post('/testimonials/{token}', [TestimonialController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('testimonials.store');
 // Self-booked consultations for holders of an ordinary course (011 US38).
 Route::middleware('auth')->group(function () {
     Route::get('/course/{course}/consultation-slots', [ConsultationBookingController::class, 'slots'])
@@ -275,6 +282,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::delete('/high-ticket-leads/{lead}/booking', [HighTicketLeadController::class, 'cancelBooking'])->name('high-ticket-leads.cancel-booking');
         // Decline + cancel in one action, from the leads list (011 US27 / FR-138)
         Route::post('/high-ticket-leads/{lead}/decline', [HighTicketLeadController::class, 'decline'])->name('high-ticket-leads.decline');
+        // Testimonials (011 US40) — link copied from the list, reviewed in its modal.
+        Route::post('/high-ticket-leads/{lead}/testimonial-link', [AdminTestimonialController::class, 'link'])->name('high-ticket-leads.testimonial-link');
+        Route::patch('/testimonials/{testimonial}', [AdminTestimonialController::class, 'update'])->name('testimonials.update');
+        Route::delete('/testimonials/{testimonial}', [AdminTestimonialController::class, 'destroy'])->name('testimonials.destroy');
 
         // Consultation records (011 US23) — edited from the leads page, so staff.
         Route::patch('/consultation-notes/{note}/summary', [ConsultationNoteController::class, 'updateSummary'])->name('consultation-notes.summary');

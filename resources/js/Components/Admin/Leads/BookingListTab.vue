@@ -5,6 +5,7 @@ import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 import ConsultationNotesPanel from '@/Components/Admin/Leads/ConsultationNotesPanel.vue'
 import ConsultationNoteEditorModal from '@/Components/Admin/Leads/ConsultationNoteEditorModal.vue'
+import TestimonialModal from '@/Components/Admin/Leads/TestimonialModal.vue'
 import Pagination from '@/Components/Pagination.vue'
 
 const props = defineProps({
@@ -801,6 +802,35 @@ const copyEmail = async (lead) => {
   }
 }
 
+// Testimonial link for the follow-up email (011 US40 / FR-239). The token is
+// issued server-side on the first copy; later copies return the same URL.
+const copiedTestimonialId = ref(null)
+const copyTestimonialLink = async (lead) => {
+  let url
+  try {
+    const res = await axios.post(`/admin/high-ticket-leads/${lead.id}/testimonial-link`)
+    url = res.data.url
+  } catch (e) {
+    actionResult.value = `無法產生評語連結：${e.response?.data?.message || e.message}`
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(url)
+    copiedTestimonialId.value = lead.id
+    setTimeout(() => { if (copiedTestimonialId.value === lead.id) copiedTestimonialId.value = null }, 1500)
+  } catch (e) {
+    // Clipboard refused (no https, permission): show the link so it can be copied by hand.
+    actionResult.value = `評語連結：${url}`
+  }
+}
+
+const TESTIMONIAL_BADGES = {
+  pending: { text: '評語待審', class: 'bg-amber-100 text-amber-800 hover:bg-amber-200' },
+  published: { text: '評語已顯示', class: 'bg-green-100 text-green-800 hover:bg-green-200' },
+  hidden: { text: '評語已隱藏', class: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
+}
+const testimonialTarget = ref(null)
+
 // Batch copy of selected emails as a mail-client friendly ", " joined list.
 // Deduped because the same email may book the same course more than once.
 const selectedEmails = computed(() =>
@@ -1155,6 +1185,28 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                   </svg>
                   {{ summarised(lead).length }}
                 </button>
+
+                <!-- 011 US40: review the testimonial, or copy the link to ask for one. -->
+                <button
+                  v-if="lead.testimonial"
+                  type="button"
+                  class="inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-normal cursor-pointer transition-colors"
+                  :class="TESTIMONIAL_BADGES[lead.testimonial.status]?.class"
+                  title="查看評語"
+                  @click="testimonialTarget = lead"
+                >
+                  {{ TESTIMONIAL_BADGES[lead.testimonial.status]?.text }}
+                </button>
+                <button
+                  v-else-if="lead.testimonial_eligible"
+                  type="button"
+                  class="inline-flex items-center gap-0.5 rounded-full border border-gray-200 px-1.5 py-0.5 text-xs font-normal cursor-pointer transition-colors"
+                  :class="copiedTestimonialId === lead.id ? 'border-green-300 bg-green-50 text-green-700' : 'text-gray-500 hover:border-brand-teal hover:text-brand-teal'"
+                  title="複製評語連結，貼到追銷信讓客戶填寫"
+                  @click="copyTestimonialLink(lead)"
+                >
+                  {{ copiedTestimonialId === lead.id ? '已複製' : '評語連結' }}
+                </button>
               </div>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-600">
@@ -1356,6 +1408,13 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
       />
     </div>
   </div>
+
+  <TestimonialModal
+    v-if="testimonialTarget?.testimonial"
+    :lead="testimonialTarget"
+    :testimonial="testimonialTarget.testimonial"
+    @close="testimonialTarget = null"
+  />
 
   <!-- Decline confirmation (US27 / FR-141). Quotes the real template body:
        this mail cannot be taken back, so it has to be readable before the click. -->

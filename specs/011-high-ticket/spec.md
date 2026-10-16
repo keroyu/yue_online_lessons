@@ -2,6 +2,19 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Models/Testimonial.php
+  - app/Services/TestimonialService.php
+  - app/Http/Controllers/TestimonialController.php
+  - app/Http/Controllers/Admin/TestimonialController.php
+  - app/Http/Requests/StoreTestimonialRequest.php
+  - app/Http/Requests/Admin/UpdateTestimonialRequest.php
+  - resources/js/Pages/Testimonial/Create.vue
+  - resources/js/Components/Course/TestimonialCarousel.vue
+  - resources/js/Components/Admin/Leads/TestimonialModal.vue
+  - database/migrations/2026_10_17_000001_create_testimonials_table.php
+  - database/migrations/2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php
+  - database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php
+  - tests/Feature/HighTicket/TestimonialTest.php
   - app/Support/RecentDayWindows.php
   - resources/js/Components/Admin/LeadInflowStats.vue
   - tests/Feature/HighTicket/NewBookingStatsTest.php
@@ -165,6 +178,15 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: resources/js/Pages/Admin/Settings/Points.vue
+    owner: 007-points-referral
+    why: US40 — 新增「客戶評語獎勵點數」欄位
+  - file: resources/js/Pages/Member/Points.vue
+    owner: 007-points-referral
+    why: US40 — 類型標籤加 `earn_testimonial: 評語獎勵`
+  - file: resources/js/Components/Admin/ReferrerDetailModal.vue
+    owner: 007-points-referral
+    why: US40 — 類型標籤加 `earn_testimonial: 評語獎勵`
   - file: app/Http/Controllers/Admin/DashboardController.php
     owner: 009-transactions-admin
     why: US39 — `index()` 多下發 `newBookingStats`（`HighTicketLeadService::newBookingCounts()`）
@@ -212,7 +234,7 @@ touchpoints:
     why: US37 `updatePurchasePlan()`（換方案）與 `grantCourse()`（贈課／匯入）在既有 transaction 內呼叫 `BundleCreditService::syncPlanGrant()`（FR-203）
   - file: app/Services/PointService.php
     owner: 007-points-referral
-    why: US37 為 `redeemDeduct()` 加 `string $type = 'redeem_course'` 參數，福利加購傳 `redeem_bundle`；`users.points` 仍只由這支寫入（007 FR-003 不變）
+    why: US37 為 `redeemDeduct()` 加 `string $type = 'redeem_course'` 參數，福利加購傳 `redeem_bundle`；`users.points` 仍只由這支寫入（007 FR-003 不變）；US40 — `TestimonialService::submit()` 以 `award(..., 'earn_testimonial', 'testimonial', id)` 發點，不改 PointService 本身
   - file: database/migrations/2026_06_30_000001_create_point_transactions_table.php
     owner: 007-points-referral
     why: US37 為 `type` enum 新增 `redeem_bundle`（第 6 個值），以獨立 alter migration 進行，不改建表 migration
@@ -233,10 +255,10 @@ touchpoints:
     why: US30 退款回寫的第二條路徑 —— `handleRefund()` 寫入 `refunded` 之後呼叫同一個方法，形狀與 009 那條一致（FR-152）；US38 建立 paid purchase 改包進 `DB::transaction`，同一 transaction 內呼叫 `BundleCreditService::grantOnStorefrontSale()`（FR-224）
   - file: resources/js/Pages/Course/Show.vue
     owner: 002-storefront
-    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈；US38 價格區塊下顯示「含 N 次 1 小時…」、已購買區塊掛 `ConsultationCreditBooking.vue`（錨點 `#consultation-booking`）
+    why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈；US38 價格區塊下顯示「含 N 次 1 小時…」、已購買區塊掛 `ConsultationCreditBooking.vue`（錨點 `#consultation-booking`）；US40 — 預約區塊上方掛 `TestimonialCarousel`，無評語不渲染
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）；US40 — `show()` 對高價課下發已顯示的 `testimonials`（FR-245）
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
     why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
@@ -278,7 +300,7 @@ touchpoints:
     why: US21 會員詳情的擁有課程加方案欄位，並新增 `updatePurchasePlan()` 供匯款升級時切換方案 + 記補價
   - file: resources/js/Components/MemberDetailModal.vue
     owner: 008-members-admin
-    why: US21 擁有課程卡片加方案下拉 + 補價金額欄
+    why: US21 擁有課程卡片加方案下拉 + 補價金額欄；US40 — 類型標籤加 `earn_testimonial: 評語獎勵`
   - file: app/Services/DripService.php
     owner: 010-drip-email
     why: SubscribeDripLeadJob 呼叫 DripService::subscribe() 建立訂閱並立即發送第一封序列信；US8 起新增 `subscriberPageData()`，把原 `CourseController@subscribers` 的資料組裝下沉至此，供本模組的名單管理頁「訂閱者名單」tab 呼叫
@@ -305,7 +327,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`；US38 新增 auth 群組內的 `GET /course/{course}/consultation-slots`（throttle:30,1）與 `POST /course/{course}/consultation-bookings`（throttle:10,1）
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`；US38 新增 auth 群組內的 `GET /course/{course}/consultation-slots`（throttle:30,1）與 `POST /course/{course}/consultation-bookings`（throttle:10,1）；US40 — 前台 `GET/POST /testimonials/{token}`（throttle）與後台 `POST /admin/high-ticket-leads/{lead}/testimonial-link`、`PATCH/DELETE /admin/testimonials/{testimonial}`
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -332,7 +354,7 @@ touchpoints:
     why: 預約通知 CC 清單存於 `site_settings.high_ticket_lead_notify_cc`（FR-014），US10/US12 另加 `high_ticket_booking_bonus_codes` 與三組 `zoom_*` 憑證，沿用 000 的全站設定機制，未新增欄位；2026-08-05 起另在此類別上新增 `SUPPORT_EMAIL_KEY` 常數與 `supportEmail()` helper（FR-057）—— 客服信箱是跨模組都要印的值，放在 SiteSetting 比放在任一功能 service 合理
   - file: app/Http/Controllers/Admin/SettingsController.php
     owner: 000-platform-core
-    why: US12 在「API 設定」頁（`showPayment` / `updatePayment`）加一組 Zoom 憑證欄位，沿用該頁既有的 `maskSecret()` 與「留白即維持原值」的 secret 處理（D41），不新增頁面與路由
+    why: US12 在「API 設定」頁（`showPayment` / `updatePayment`）加一組 Zoom 憑證欄位，沿用該頁既有的 `maskSecret()` 與「留白即維持原值」的 secret 處理（D41），不新增頁面與路由；US40 — `showPoints()` / `updatePoints()` 加 `testimonial_reward_points`（FR-243）
   - file: resources/js/Pages/Admin/Settings/Payment.vue
     owner: 000-platform-core
     why: US12 新增「Zoom 會議」設定卡（account_id / client_id 明文、client_secret 遮罩），版面比照同頁既有的金流與 Meta CAPI 卡片；US23 於同卡再加 `zoom_webhook_secret_token` 遮罩欄位與唯讀的 webhook URL 供複製
@@ -1421,6 +1443,36 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [x] 手機寬度三欄不破版
 - [x] 測試：見 T541
 
+### User Story 40 - 客戶評語收集與銷售頁輪播 (Priority: P2)
+
+高價課銷售頁目前只有顧問自己說的話。談過的人怎麼說，比任何文案都有說服力，但現在沒有收集管道，
+也沒有地方放。
+
+流程：面談結束後，顧問在 Leads 名單上按「評語連結」複製一條專屬網址，貼進追銷信。客戶點開看到
+**已帶好的諮詢時間**（不可改）和課程名，填暱稱、頭銜、評語送出（2026-10-17 修正：頁面與輪播以「身份」取代「諮詢時間」，見 FR-246–FR-249） → 當下自動發積分（數額在「積分與推薦」頁設定），
+感謝頁告訴他可以用這個 Email 登入查看積分。評語**預設不公開**，管理員在後台審過按「顯示」才會出現在
+該課程銷售頁「填寫預約」區塊上方的左右滑動輪播裡。
+
+**驗收**：
+- [x] Leads 名單（預約名單 tab）對**已面談過**的 lead（`kind = application`、已確認、未取消、第一個時段的開始時間已過）每列顯示「評語連結」按鈕；點下複製 `https://…/testimonials/{token}` 到剪貼簿，按鈕短暫變「已複製」；未面談的 lead 不顯示按鈕（FR-238）
+- [x] 同一個 lead 多次複製拿到同一條連結（token 首次複製時才產生，之後沿用）
+- [x] 開啟連結：顯示課程名、**身份**（「諮詢客戶」或「課程學員」，唯讀，FR-247）與表單：暱稱（預填 lead 姓名，可改）、頭銜（選填）、評語；不需登入（FR-240）
+- [x] 驗證：暱稱必填 ≤ 20 字、頭銜選填 ≤ 40 字、評語必填 10–500 字，錯誤訊息中文
+- [x] 送出後：建立評語（狀態「待審核」）、依 lead Email 找或建會員、發放「積分與推薦」頁設定的點數，三者在同一 transaction；顯示感謝頁「已獲得 N 點積分，可用此 Email 登入查看」（設定為 0 時不提積分、不寫帳本）（FR-241、FR-242）
+- [x] 一個 lead 只能提交一次：已提交過再開連結顯示「你已經留過評語，謝謝！」，不顯示表單；重送（雙擊、重整重送）MUST NOT 重複建立評語或重複發積分
+- [x] 無效 token 回 404
+- [x] 「積分與推薦」頁新增「客戶評語獎勵點數」欄位（整數 ≥ 0，預設 100），與既有欄位一起儲存；改值只影響之後的提交（FR-243）
+- [x] 會員「我的積分」、後台會員詳情、推薦人詳情的交易類型顯示「評語獎勵」
+- [x] Leads 名單已提交評語的列，按鈕改為「查看評語」，開 modal 顯示暱稱／頭銜／諮詢時間／評語／提交時間，以及「顯示於銷售頁 / 隱藏」切換與「刪除」（刪除不收回積分）（FR-244）
+- [x] 送出時系統自動判定身份：該 Email 的會員持有這門課的有效購買 → 課程學員，否則 → 諮詢客戶（FR-246）
+- [x] 審核 modal 顯示身份，可一鍵切換「諮詢客戶 ⇄ 課程學員」（例：諮詢後才成交）；切換不影響積分與上架狀態（FR-249）
+- [x] 預約名單列上以小徽章區分評語狀態：未提交（無）、待審核、已顯示
+- [x] 銷售頁（高價課）在預約區塊**正上方**顯示「客戶評語」區，只列**該課程**已顯示的評語，依諮詢時間新到舊；沒有任何已顯示評語時整區不渲染（FR-245）
+- [x] 輪播：手機一次一張、`sm` 以上一次兩張、`lg` 以上三張；可用手指左右滑動（CSS scroll-snap）；`sm` 以上兩側有左右箭頭按鈕（到頭時停用）
+- [x] 卡片顯示評語、暱稱、頭銜（有填才顯示）與**身份標籤**（「諮詢客戶」／「課程學員」），**不顯示諮詢時間**（FR-248）
+- [x] 評語文字一律純文字輸出（不渲染 HTML / Markdown）
+- [x] 所有新增可點元素 `cursor-pointer` + hover 回饋；表單頁與輪播在手機寬度不破版
+- [x] 測試：見 T557、T565
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1982,6 +2034,20 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-236**: 區間起點 MUST 由 `App\Support\RecentDayWindows::starts(): array{today: CarbonImmutable, last_7_days: CarbonImmutable, last_30_days: CarbonImmutable}` 產出（台北 `startOfDay` → `subDays(0/6/29)` → `utc()`）。兩個 count 方法都吃它 —— 一張卡上並排兩個數字，邊界差一天就是在比兩件不同的事
 - **FR-237**: 前端只有一個元件 `LeadInflowStats.vue`，props `bookings` 與 `subscribers`（各為 counts 形狀）。顏色規則（0 紅、>0 綠）只寫在這裡
 
+- **FR-238**: 可發評語連結的 lead =`HighTicketLead::isTestimonialEligible(): bool`：`kind = application` 且 `isActiveBooking()` 且 `slots` 的最早 `starts_at` < now。名單 payload 每列多帶 `testimonial_eligible`（布林）與 `testimonial`（`{id, status}|null`）；判斷在後端做一次，前端不重算。**不看 `status`**：顧問常忘了把狀態改成「已談」，時段時間已過就足以說明面談發生過
+- **FR-239**: `POST /admin/high-ticket-leads/{lead}/testimonial-link`（admin + staff 皆可，比照 Leads 名單權限）→ `TestimonialService::issueLink(HighTicketLead $lead): string`：不符 FR-238 回 422；`testimonial_token` 為 null 時以 `Str::random(40)` 補發並落庫，已有則沿用；回傳 `route('testimonials.create', $token)` 絕對網址。token 永久有效（同 `resume_token` 作法，D44）
+- **FR-240**: 前台 `GET /testimonials/{token}`（name `testimonials.create`，無 auth）→ `Pages/Testimonial/Create.vue`。以 `testimonial_token` 查 lead（查無 404）；props：`course_name`、`consulted_at`（ISO）、`default_nickname`（lead 姓名）、`submitted`（布林）、`reward_points`（目前設定值）、`awarded_points`（已提交時為該則實際發出的點數，感謝頁顯示這個值而非目前設定）。頁面 `noindex`。booking 已取消且尚未提交（無時段可快照）時回 404
+- **FR-241**: `POST /testimonials/{token}`（`throttle:10,1`），驗證走 `StoreTestimonialRequest`（nickname `required|string|max:20`、title `nullable|string|max:40`、content `required|string|min:10|max:500`，字數以 `mb_strlen` 計）。委派 `TestimonialService::submit(HighTicketLead $lead, array $data): Testimonial`，單一 `DB::transaction`：`lockForUpdate` 重讀 lead → 已有評語回 422「你已經留過評語」→ `User::firstOrCreate(['email' => $lead->email], [nickname/phone/password])`（與 `convert()` 同建立屬性，既有會員不覆寫）→ 建立 testimonial（`consulted_at` / `course_id` 自 lead 快照，`status = pending`）→ 點數 > 0 時 `PointService::award($user, $points, 'earn_testimonial', 'testimonial', $testimonial->id, '諮詢評語回饋')` 並把點數寫回 `testimonials.reward_points`。成功後導向同一 GET 頁顯示感謝狀態
+- **FR-242**: 一 lead 一則評語以 `testimonials.lead_id` **unique 索引**為最終防線（FR-241 的鎖擋正常並發，unique 擋任何繞過 service 的寫入）；積分以 testimonial 為 reference，評語建不起來則積分整筆回滾
+- **FR-243**: 獎勵點數存 `site_settings.testimonial_reward_points`（預設 100），由 `SettingsController::showPoints()` / `updatePoints()` 一併讀寫（`sometimes|required|integer|min:0` —— `sometimes` 讓未帶此欄位的既有呼叫端照舊儲存其他欄位）。`point_transactions.type` enum 新增 `earn_testimonial`；三處類型標籤對照表（`Member/Points.vue`、`MemberDetailModal.vue`、`ReferrerDetailModal.vue`）加「評語獎勵」
+- **FR-244**: 後台管理端點（admin + staff）：`PATCH /admin/testimonials/{testimonial}`（body `status: published|hidden`）、`DELETE /admin/testimonials/{testimonial}`。`published` 時寫 `published_at = now()`（首次）；刪除為硬刪，MUST NOT 動已發積分（積分是填寫的回報，不是上架的回報）。查看 modal 的內容隨 Leads 名單 payload 一起下發（`testimonial` 物件擴充為完整欄位），不另開 GET 端點
+- **FR-245**: 銷售頁 props：`CourseController::show()` 對 `is_high_ticket` 課程多傳 `testimonials`：`Testimonial::published()->where('course_id', $course->id)->orderByDesc('consulted_at')->limit(30)->get(['id','nickname','title','content','consulted_at'])`。元件 `Components/Course/TestimonialCarousel.vue` 放在 `Show.vue` 中 `HighTicketBookingWizard`（及 `ConsultationCreditBooking`）區塊之前；`testimonials` 為空時 `v-if` 不渲染
+
+- **FR-246**（US40 修正）: `testimonials.identity` enum('consultation','student')。`TestimonialService::submit()` 在建立會員後判定：`$lead->course->hasPaidAccessForUser($user)` → `student`，否則 `consultation`；寫入後即為儲存值，**MUST NOT** 在顯示時重算（D165）。顯示文字對照只存在一處：`Testimonial::IDENTITY_LABELS = ['consultation' => '諮詢客戶', 'student' => '課程學員']`，並以 `identity_label` accessor 下發
+- **FR-247**（US40 修正）: 填寫頁 props 移除 `consulted_at`，改傳 `identity_label`：未提交時以 `TestimonialService::identityFor(HighTicketLead $lead): string` 預判（以 lead Email 查既有會員，無會員即 `consultation`；與 `submit()` 共用同一判斷），已提交時讀該則的儲存值。頁面只顯示、不提供選擇
+- **FR-248**（US40 修正）: 銷售頁 `testimonials` 每則改為 `{id, nickname, title, content, identity_label}`，MUST NOT 帶 `consulted_at`。排序仍依 `consulted_at` desc（欄位保留作排序與後台參考，不再對外顯示）
+- **FR-249**（US40 修正）: `PATCH /admin/testimonials/{testimonial}` 接受 `status` 與 `identity` 任一或兩者（`UpdateTestimonialRequest`：兩者皆 `sometimes`，至少一個，`identity` ∈ 兩值）；`TestimonialService::update(Testimonial, array)` 取代 `setStatus()`，`published_at` 規則不變。改身份 MUST NOT 動積分與 `status`。Leads 名單的 `testimonial` 物件多帶 `identity`
+
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
 - **D134**: 追銷 Email **只在按鈕點下時生成**（使用者決策），不隨逐字稿到位自動產生。摘要是每場都要看的（顧問得知道談了什麼），信不是：當場成交的、明確拒絕的、沒出席的都不需要。自動產生是為每一場面談固定多付一次 token，而其中相當比例的輸出永遠不會被打開。同一條理由讓上傳替換逐字稿（FR-185）也不連帶重生信 —— 那條路徑重生的是摘要，信由顧問自己按；反過來說，逐字稿換過之後那封舊信確實可能過期，而「要不要重寫」正是按鈕存在的意義。
@@ -2385,6 +2451,16 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D155**: **計數分屬兩個模組、顯示合併在 011**（US39）。業主問「合併是否更正確」：在**顯示**層是 —— Leads 名單頁本來就是兩份名單的家，頂部只報一份是缺口；但**計數**不合併：預約數讀 `high_ticket_leads`（011）、訂閱數讀 `drip_subscriptions`（010），定義、資料表、「什麼算一次」（確認時間 vs 領取時間）都不同，塞進同一個 Service 方法等於讓 011 去懂 drip 的規則。所以各自的 Service 各算各的，controller 組兩個 prop，元件並排顯示。元件所有權由 010 移到 011（Leads 名單頁的擁有者），取代 010 D37
 - **D156**: 預約以 `confirmed_at` 計、不以 `created_at` 計（US39，業主選擇）。`created_at` 會把答完第一題就離開的人算進去（FR-125 讓每個人一進來就落一列），而且 `recordLead()` 的復活路徑重用舊列，`created_at` 可能是幾個月前 —— 兩種失真方向相反、都不可見。`confirmed_at` 是「真的會來談」那一刻
 - **D157**: 共用區間 helper 放 `app/Support/`，不放任一模組的 Service（US39）。兩個模組都要用，放 `DripService` 會讓 011 依賴 010 的 Service 只為了拿日期；它是純函式、無狀態，`Support` 是這類東西的既有位置（`PhoneNumber`、`BookingScreening`）
+- **D158**: 評語存**獨立 `testimonials` 表**，不塞進 `high_ticket_leads`（US40）。評語有自己的生命週期（待審 → 顯示 → 隱藏 → 刪除）與自己的讀者（銷售頁），而 lead 表已有 40 多欄；且 lead 被重新申請時 `recordLead()` 會重用並清空欄位，評語不能跟著被洗掉。`lead_id` nullOnDelete、`course_id` 與 `consulted_at` 快照，lead 消失評語照樣能顯示
+- **D159**: 連結身分只憑 token，**不要求登入**（使用者決策）。追銷信的收件人多半還不是會員，要他先 OTP 登入才能留評語，填寫率會掉一大截。代價是持有連結者可代填 —— 但 token 只寄給本人、一次性提交、評語又要人工審，這個風險可接受
+- **D160**: 積分在**提交當下**發、不等審核（使用者描述）。承諾的是「填了就給」，若審核後才發，被隱藏的評語等於拿不到獎勵，對客戶是失信。審核只決定要不要放上銷售頁
+- **D161**: 會員以 lead Email `firstOrCreate`（使用者決策），與成交開通 `convert()` 同一套建立屬性。積分只能存在 user 身上；不建會員就得另設一個「待領取積分」機制，為一次性的小額獎勵不值得
+- **D162**: token 於**首次複製連結時**才產生（lazy），不 backfill、不在預約時產生。只有真的被邀請的 lead 才有 token，表上 null 就代表「從沒發過連結」，不必再加一個欄位記這件事
+- **D163**: 合格條件看「時段時間已過」而非 `status`（FR-238）。狀態靠顧問手動切，漏切是常態；時段時間是系統事實。credit lead（付費客戶自助預約）本輪不開放：它們不在 Leads 名單上，沒有入口可複製
+- **D164**: 輪播用 **CSS scroll-snap + 原生捲動**，不引套件。手機滑動手感由瀏覽器原生提供，箭頭按鈕只是 `scrollBy` 一張卡寬；不自動輪播（自動輪播會在讀到一半時把字拿走）
+- **D165**: 身份**送出當下判定並落庫**、後台可改，不在顯示時即時重算（使用者決策）。即時重算看似永遠正確，但退款會讓一則「課程學員」的評語在銷售頁上無聲變回「諮詢客戶」，而且管理員無從修正；落庫值則有一個明確的人可以負責它。諮詢後才成交的人，由審核者在 modal 裡改一下即可
+- **D166**: 用「課程學員」不用「完課學員」（使用者決策）。高價課沒有完課判定，上課中的學員佔大多數；「完課」會讓系統把上到一半的人標成不實身份，或逼出一套手動完課標記
+- **D167**: `consulted_at` 欄位保留、只是不再對外顯示。輪播排序與後台 modal 仍需要它，且 US40 尚未部署，`identity` 直接加進原 create migration（本機需 rollback 重跑），不另開 alter migration
 
 ## Schema
 
@@ -2686,6 +2762,38 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   - credit lead 的時段單位數恆為 4（60 分鐘）
 
   **US39 無 migration、無 schema 變更** —— 純讀取 `high_ticket_leads.confirmed_at` / `email` / `kind`。不加 `confirmed_at` 索引（千級資料量，同 010 D38）
+
+- **US40 schema 變更（三支 migration）**：
+
+  `2026_10_17_000001_create_testimonials_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `id` | bigint PK | |
+  | `lead_id` | foreignId nullable，constrained `high_ticket_leads` nullOnDelete，**unique** | 一 lead 一則（FR-242） |
+  | `user_id` | foreignId nullable，constrained `users` nullOnDelete | 收積分的會員 |
+  | `course_id` | foreignId，constrained `courses` cascadeOnDelete | 快照；銷售頁以此篩選（FR-245） |
+  | `nickname` | varchar(20) | |
+  | `title` | varchar(40) nullable | 頭銜 |
+  | `content` | text | 評語（≤ 500 字，應用層驗證） |
+  | `consulted_at` | timestamp | 快照自 lead 最早時段 `starts_at`（UTC）；僅供排序與後台參考，不對外顯示（FR-248） |
+  | `identity` | enum('consultation','student') default 'consultation' | 身份標籤（FR-246）；US40 修正時加入原 create migration（D167） |
+  | `status` | enum('pending','published','hidden') default 'pending' | |
+  | `reward_points` | unsignedInteger default 0 | 實際發出的點數（設定可能之後改變） |
+  | `published_at` | timestamp nullable | 首次顯示時間 |
+  | timestamps | | |
+
+  索引：`(course_id, status, consulted_at)` 供銷售頁查詢。
+
+  `2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php` — `testimonial_token` varchar(64) nullable unique，`after('resume_token')`。
+
+  `2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php` — `type` enum 加 `earn_testimonial`，`Schema::change()`（比照 `2026_09_27_000004`，down 時先把新值折回 `admin_grant` 再收窄）。
+
+  不變量：
+  - 每個 `lead_id` 至多一則 testimonial
+  - `reward_points > 0` ⇔ 存在一筆 `point_transactions`（`type = earn_testimonial`、`reference_type = 'testimonial'`、`reference_id = testimonials.id`）
+  - `status = published` ⇒ `published_at` 非 null
+  - `consulted_at` 寫入時為 UTC instance；顯示一律 `timezone('Asia/Taipei')` 或前端 ISO 解析
 
 ## Tasks
 
@@ -3655,8 +3763,49 @@ Phase 4 — 驗證
 - [x] T541 `NewBookingStatsTest`：台北日界；未確認（`confirmed_at` null）不算；credit lead 不算；同 Email 兩筆申請只算 1；確認後取消／婉拒仍算；`/admin` 與 Leads 兩個 tab 都有 `newBookingStats` in `tests/Feature/HighTicket/NewBookingStatsTest.php`
 - [x] T542 `php artisan test` 全綠、`npm run build` exit 0
 
+### US40 客戶評語收集與銷售頁輪播
+
+**Phase 1 — Schema 與模型**
+- [x] T543 [P] migration：`testimonials` 表 in `database/migrations/2026_10_17_000001_create_testimonials_table.php`
+- [x] T544 [P] migration：`high_ticket_leads.testimonial_token` in `database/migrations/2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php`
+- [x] T545 [P] migration：`point_transactions.type` 加 `earn_testimonial` in `database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php`
+- [x] T546 新 `Testimonial` model（`scopePublished`、`lead()`/`course()`/`user()`）；`HighTicketLead` 加 fillable `testimonial_token`、`testimonial()` hasOne、`isTestimonialEligible()`（FR-238）in `app/Models/Testimonial.php`, `app/Models/HighTicketLead.php`
+
+**Phase 2 — Service 與端點（相依 Phase 1）**
+- [x] T547 新 `TestimonialService`：`issueLink()`（FR-239）、`submit()`（FR-241、FR-242）、`setStatus()`、`delete()`（FR-244）in `app/Services/TestimonialService.php`
+- [x] T548 [P] `StoreTestimonialRequest`、`UpdateTestimonialRequest` in `app/Http/Requests/StoreTestimonialRequest.php`, `app/Http/Requests/Admin/UpdateTestimonialRequest.php`
+- [x] T549 前台 `TestimonialController`（`create` / `store`）與後台 `Admin\TestimonialController`（`link` / `update` / `destroy`）；路由註冊 in `app/Http/Controllers/TestimonialController.php`, `app/Http/Controllers/Admin/TestimonialController.php`, `routes/web.php`〔touchpoint 000〕
+- [x] T550 `SettingsController::showPoints()` / `updatePoints()` 加 `testimonial_reward_points`（FR-243）in `app/Http/Controllers/Admin/SettingsController.php`〔touchpoint 000〕
+- [x] T551 Leads `index()` 每列帶 `testimonial_eligible` 與 `testimonial`（eager load `testimonial`、`slots`，不在迴圈補查）in `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T552 `CourseController::show()` 對高價課下發 `testimonials`（FR-245）in `app/Http/Controllers/CourseController.php`〔touchpoint 002〕
+
+**Phase 3 — 前端（相依 Phase 2）**
+- [x] T553 [P] 新頁 `Testimonial/Create.vue`：課程名、諮詢時間（台北）、表單、已提交／感謝狀態、`noindex` in `resources/js/Pages/Testimonial/Create.vue`
+- [x] T554 [P] 新元件 `TestimonialCarousel.vue`（scroll-snap、RWD 1/2/3 張、箭頭）並掛入 `Show.vue` 預約區塊上方 in `resources/js/Components/Course/TestimonialCarousel.vue`, `resources/js/Pages/Course/Show.vue`〔touchpoint 002〕
+- [x] T555 [P] `BookingListTab.vue`：「評語連結」複製按鈕、狀態徽章、「查看評語」modal（顯示／隱藏／刪除）in `resources/js/Components/Admin/Leads/BookingListTab.vue`, `resources/js/Components/Admin/Leads/TestimonialModal.vue`
+- [x] T556 [P] 「積分與推薦」頁加欄位；三處類型標籤加 `earn_testimonial: '評語獎勵'` in `resources/js/Pages/Admin/Settings/Points.vue`〔touchpoint 007〕, `resources/js/Pages/Member/Points.vue`〔touchpoint 007〕, `resources/js/Components/MemberDetailModal.vue`〔touchpoint 008〕, `resources/js/Components/Admin/ReferrerDetailModal.vue`〔touchpoint 007〕
+
+**Phase 4 — 驗證**
+- [x] T557 `TestimonialTest`：未面談 lead 422、token 沿用、無效 token 404、提交建會員＋發點（新會員／既有會員）、點數 0 不寫帳本、重複提交 422 且不重發、驗證錯誤、銷售頁只列該課程 published、hidden/pending 不出現、刪除不收回積分、設定頁儲存 in `tests/Feature/HighTicket/TestimonialTest.php`
+- [x] T558 `php artisan test` 全綠、`npm run build` exit 0
+- [x] T559 瀏覽器實測：手機滑動、桌機箭頭、表單頁手機版、後台複製與審核
+
+**Phase 5 — US40 修正：身份取代諮詢時間（FR-246–FR-249 / D165–D167）**
+- [x] T560 `testimonials` create migration 加 `identity` 欄位（未部署，直接改原檔；本機 `migrate:rollback --step=3` 後重跑）in `database/migrations/2026_10_17_000001_create_testimonials_table.php`
+- [x] T561 `Testimonial`：fillable `identity`、`IDENTITY_LABELS`、`identity_label` accessor in `app/Models/Testimonial.php`
+- [x] T562 `TestimonialService`：`identityFor()`、`submit()` 寫入 identity、`setStatus()` 改為 `update()`（FR-246、FR-249）；`UpdateTestimonialRequest` 改 `status`/`identity` 皆 sometimes 至少一個 in `app/Services/TestimonialService.php`, `app/Http/Requests/Admin/UpdateTestimonialRequest.php`, `app/Http/Controllers/Admin/TestimonialController.php`
+- [x] T563 填寫頁改傳 `identity_label`、移除 `consulted_at`；銷售頁 testimonials 改帶 `identity_label`（FR-247、FR-248）；Leads 名單 testimonial 多帶 `identity` in `app/Http/Controllers/TestimonialController.php`, `app/Http/Controllers/CourseController.php`〔touchpoint 002〕, `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T564 [P] 前端：填寫頁「諮詢時間」改「身份」；輪播「諮詢於 YYYY/MM」改身份標籤（兩種顏色區分）；審核 modal 加身份切換 in `resources/js/Pages/Testimonial/Create.vue`, `resources/js/Components/Course/TestimonialCarousel.vue`, `resources/js/Components/Admin/Leads/TestimonialModal.vue`
+- [x] T565 `TestimonialTest` 增修：無購買 → consultation、持有 paid purchase → student、已退款 → consultation、填寫頁與銷售頁不帶 `consulted_at` 而帶 `identity_label`、後台改身份不動積分與 status、`identity` 非法值 422、PATCH 空 body 422 in `tests/Feature/HighTicket/TestimonialTest.php`
+- [x] T566 `php artisan test` 全綠、`npm run build` exit 0、瀏覽器確認輪播標籤與 modal 切換
+
 ## 進度日誌
 
+- 2026-10-17: US40 修正完成（T560–T566）— `testimonials.identity`（加入原 create migration，本機已 rollback 重跑）；送出時依該課有效購買判定諮詢客戶／課程學員並落庫，填寫頁與銷售頁以身份取代諮詢時間（銷售頁不再下發 `consulted_at`），審核 modal 可切換身份（不動積分與上架狀態）。TestimonialTest 27 項（新增 7：無購買／持有／已退款／他課購買、改身份、非法值與空 body、名單帶 identity），全套 1211 passed、`npm run build` 綠；瀏覽器確認卡片標籤、modal 切換後銷售頁即時更新、填寫頁顯示身份。
+- 2026-10-17: US40 修正規劃（已審核，開始實作）— 評語對外改顯示身份（諮詢客戶／課程學員）取代諮詢時間；送出時依是否持有該課有效購買自動判定並落庫，後台 modal 可切換（D165）；用「課程學員」不用「完課學員」（D166）；`consulted_at` 保留作排序（D167）。發送對象維持只從 Leads 名單。
+- 2026-10-17: US40 瀏覽器實測完成（T559）— 桌機 3 張＋箭頭到底停用、手機 1 張＋露出下一張且無橫向捲動、snap 滑動；填寫頁台北時間正確、驗證訊息、感謝頁顯示點數、重開顯示已留過、noindex；後台複製連結（token 落庫、「已複製」回饋）、徽章三態、審核 modal 顯示後銷售頁即出現。實測修正兩處：手機 snap 後卡片貼齊螢幕邊（補 `scroll-px-4`）、modal 背景全黑（Tailwind v4 無 `bg-opacity-*`，改 `bg-black/40`；既有 10 個檔案仍用舊寫法，未動）。
+- 2026-10-17: US40 實作完成（T543–T558，剩 T559 瀏覽器實測）— 新 `testimonials` 表＋lead `testimonial_token`＋point type `earn_testimonial`；Leads 名單「評語連結」複製／評語狀態徽章／審核 modal，前台 `/testimonials/{token}` 免登入表單與感謝頁，提交即 firstOrCreate 會員並發點（同一 transaction，lead 列鎖＋lead_id unique 防重），銷售頁預約區上方 scroll-snap 輪播；「積分與推薦」頁加獎勵點數欄位。TestimonialTest 20 項（拿掉重複提交檢查確認會紅），全套 1204 passed、`npm run build` 綠。實作中注意：FormRequest 內 `$this->content` 是 Request 原始 body，改用 `input()`。
+- 2026-10-17: 規劃 US40 客戶評語收集與銷售頁輪播（已審核，開始實作；使用者確認：預設 100 點、顧問可審核、送出後只在感謝頁告知積分、不寄通知信）— 顧問在 Leads 名單對已面談的 lead 複製專屬連結（token 首次複製才產生，D162），客戶免登入填暱稱／頭銜／評語，諮詢時間由系統帶入不可改；提交當下以 lead Email firstOrCreate 會員並發積分（數額在「積分與推薦」頁設定，D159–D161），評語預設待審、後台顯示後才上該課程銷售頁預約區塊上方的 scroll-snap 輪播（D164）。新 `testimonials` 表（lead_id unique）、lead 加 `testimonial_token`、point type 加 `earn_testimonial`。
 - 2026-10-07: US39 完成（T536–T542）— Dashboard／Leads 名單頂部改為「新預約者／訂閱者」合併卡（預約以 confirmed_at、不重複 Email、僅 applications；0 紅 >0 綠），區間邊界抽成 RecentDayWindows 兩邊共用，NewSubscriberStats.vue 刪除；NewBookingStatsTest 7 項
 - 2026-10-04: US38 實作完成（T506–T534，剩 T535 使用者實測）。一般付費課可附諮詢次數，結帳／Portaly／積分兌換整門課在同一 transaction 內儲值；持有者在銷售頁選 60 分鐘時段直接成立，扣次數與佔時段同一 transaction（409 不扣、422 不佔），取消退還 `credits_spent`；預約沿用 `high_ticket_leads`（`kind = credit`），Leads 名單／匯出／批次寄信／新時段通知／去重／續填 draft／backfill 一律套 `applications()` scope（故意拔掉 scope 確認三條把關測試會紅）。介面「福利」改稱「諮詢」。
   **順手修掉 US37 留下的既有 bug**：課程表單恆送 `bundle_default_quantity=0` 與 `bundle_unlimited=0`（FormData 把預設值轉成 `"0"`），守門以 `filled()` 判斷「有設定」，於是 **9/27 起編輯任何非高價課都會被一個不顯示在畫面上的錯誤擋下**（錯誤落在沒渲染的欄位）。改以 `BundleCreditService::settingKeys()` 判斷（名稱／點數有填、次數 > 0、勾無限次才算），並補回歸測試 `test_saving_an_ineligible_course_with_the_forms_untouched_defaults_succeeds`（拿掉修正前跑一次確認會紅）。
@@ -3692,7 +3841,7 @@ Phase 4 — 驗證
 - 2026-09-27: [draft] 規劃 US37 補充 —— 無限次福利（FR-213–FR-217 / D148）。方案（或無方案課程）可勾「無限次」，勾了之後該方案的學員不再有次數概念。
   唯一真正的設計選擇是 D148：**旗標讀方案當下的值，不快照到 purchase**，與次數的處理刻意相反。次數要快照（已給出去的是他的），但「無限」不是一批東西而是一個持續資格。這個選擇直接滿足使用者補充的那條要求 —— 補差價切到無限次方案的人當下就是無限次，不必為此多寫一段搬旗標的程式；反過來做成快照的話，把某個方案改成無限次時既有學員不會跟著變，那是要一個個重開才修得好的狀態。
   四個連帶行為：成交不授予（`bundle_granted` 維持 0，切回有限方案時因此會拿到完整次數，這是對的）、我的課程顯示「無限次」且隱藏加購按鈕（端點另回 422，前端點不到不等於擋住）、學員名單的「只列還有次數的人」要納入無限次的人、以及批次消費對他們不扣但**必須在結果文案講出來**（默默跳過會被讀成已扣）。
-  代價寫在 D148：名單篩選不再是單欄比較，要先取該課程「無限次的方案 id」再 `orWhereIn`（一次小查詢，仍不是 join）；以及無限次沒有歷史，曾經無限後來改回有限看不出來（與 D141 不做帳本同一個取捨）。status: draft 待審核。
+  代價寫在 D148：名單篩選不再是單欄比較，要先取該課程「無限次的方案 id」再 `orWhereIn`（一次小查詢，仍不是 join）；以及無限次沒有歷史，曾經無限後來改回有限看不出來（與 D141 不做帳本同一個取捨）。
 
 - 2026-09-27: US37 課程福利次數與學員名單完成（T449–T474，僅剩 T475 使用者實測）— 四支 alter migration、零新表、零新 model，設定端也沒有新 controller：三個 `bundle_*` 欄位隨 `CourseForm` 送出（`UpdateCourseRequest` 驗證 + 兩道守門），各方案次數走既有的 `PUT /admin/plans/{plan}`。
   三個授予入口全部接上並各有一條端點層測試（規劃時只打算測 service，那樣測不到接線）：`convertLead()`、`MemberController::updatePurchasePlan()`、`giftCourse()`／`grantCourse()`。**`giftCourse()` 是規劃時漏掉的第四個寫入點** —— spec 只寫了 `grantCourse()`（匯入用），但贈課 modal 走的是另一支 `Purchase::updateOrCreate`，漏掉它會讓「贈課有選方案卻沒拿到次數」，所以兩處都接。
@@ -3704,7 +3853,7 @@ Phase 4 — 驗證
   `purchases` 承載餘額不是妥協而是正確歸屬：它本來就 `unique(user_id, course_id)`、本來就帶 `course_plan_id`，於是「買哪個方案、剩幾次、何時加入」是同一列的三個欄位 —— 學員名單因此是單表查詢，批次扣次數是一句條件 UPDATE（FR-209 / FR-205）。代價寫進 D141：福利與 purchase 同生共死，**無法跨課程共用**；以及一門課只能一種福利（D142），要加第二種得改 schema。
   授予仍是 `max(0, 方案預設 - bundle_granted)` 的補差（D143）：一個累計欄位同時答完「重複開通不重複發」與「升級補差額」，天然 idempotent，降級不回收。餘額欄位落在 `purchases` 之後多出一條必須守的規則（FR-204）：`Purchase::updateOrCreate` 的屬性陣列**不得**含 `bundle_*`，否則每次重複開通都會把餘額重設回 0 —— 這是這個 schema 選擇帶來的唯一新陷阱，驗收與測試各有一條盯它。
   使用者亦決定不做異動帳本（D141）：只留 `bundle_granted` 與 `bundle_balance` 兩個數字，中間每一次是誰哪天扣的補不回來。相應地 FR-205 的條件 UPDATE 與 unsigned 欄位一起留下，因為沒有帳本之後一個寫錯的餘額沒有任何東西可以對帳。
-  名單與批次扣次數走後端（D144）：那顆按鈕會改動別人的福利，端點必須自己重查 purchase 與餘額；批次以「跳過餘額不足者並回報」收尾，不整批失敗。贈課與 CSV 匯入也授予（D143），前台結帳／免費領取／積分兌換整門課一律不授予，維持 FR-090 的立場。status: draft 待審核。
+  名單與批次扣次數走後端（D144）：那顆按鈕會改動別人的福利，端點必須自己重查 purchase 與餘額；批次以「跳過餘額不足者並回報」收尾，不整批失敗。贈課與 CSV 匯入也授予（D143），前台結帳／免費領取／積分兌換整門課一律不授予，維持 FR-090 的立場。
 
 - 2026-09-25: 信件模板新增全域變數 `{{site_name}}`（000 US12）— 注入點與 `{{support_email}}` / `{{app_url}}` 同一處，編輯頁變數清單同步列出。`EmailTemplateSeeder` 與 `2026_08_06_000003_insert_booking_change_email_templates` 裡九處＋二處署名的「經營者時間銀行」改成該變數，`booking-verify` 的 HTML / 純文字版署名改讀 `SiteSetting::siteName()` —— 這些文字只在乾淨 DB 上會被寫進去，正式站既有的模板列一個字都沒動（兩支安裝 migration 本來就「缺才插、永不 update」）。
 
@@ -3725,7 +3874,7 @@ Phase 4 — 驗證
 
 - 2026-09-10: [draft] 規劃 US35 追銷 Email 獨立成欄（FR-186–FR-192 / D133–D136）— 這是對 US29 的一次修正而不是加功能：那封信當初被塞進摘要的第 8 節，於是它與七節內部判斷共用 instructions、模型、`max_output_tokens` 與**同一個編輯鎖**。最後一項是實際會咬人的地方 —— 把信改到剛好可以寄，接著按「重新產生摘要」，那封信就沒了，而畫面上看不出剛剛失去了什麼。
   三個關鍵決策：（1）D133 拆開之後兩支 prompt 各自可選模型，信可以跑貴的、校訂繼續跑最便宜的；（2）D134 生成只綁按鈕、不隨逐字稿到位自動跑 —— 摘要每場都要看，信不是（成交的、拒絕的、沒出席的都不需要），自動跑等於為每場固定多付一次 token；（3）D135 兩支不複製 modal，`ConsultationSummaryModal.vue` 改名並收 `mode` prop，因為那支元件的實質是背景 mousedown/mouseup 判定、中文 IME 的 ESC、dirty 攔截這些修過的 bug，複製等於複製成兩份。
-  輸入同時餵摘要與逐字稿（FR-189）：摘要裡的主要異議與預算決策權已經是購買障礙的結論，逐字稿提供可引用的原話，少了任一邊信不是抓不到重點就是變成通用範本。摘要 prompt 那一節的移除只改**安裝來源**、不寫 update migration（沿用 FR-149 / D115），正式站的內文要由使用者自己刪 —— 這也是 T435 的一部分。新 prompt 需要兩支安裝路徑（FR-188），因為正式站的建表 migration 早就跑過了。一支 schema migration、一支 install migration。status: draft 待審核。
+  輸入同時餵摘要與逐字稿（FR-189）：摘要裡的主要異議與預算決策權已經是購買障礙的結論，逐字稿提供可引用的原話，少了任一邊信不是抓不到重點就是變成通用範本。摘要 prompt 那一節的移除只改**安裝來源**、不寫 update migration（沿用 FR-149 / D115），正式站的內文要由使用者自己刪 —— 這也是 T435 的一部分。新 prompt 需要兩支安裝路徑（FR-188），因為正式站的建表 migration 早就跑過了。一支 schema migration、一支 install migration。
 
 - 2026-09-09: US34 上傳替換逐字稿完成（T414–T421，僅剩 T422 使用者實測）— 落地後最值得記的是**沒有寫新的 parser**：`vttToDialogue()` 只是更名為 `toDialogue()`，一行解析邏輯都沒改就吃得下 SRT，因為它濾掉的 `-->` 時間軸行與純數字序號行正好就是 SRT 的形狀（差別只在毫秒前是 `,` 還是 `.`，而那個字元從來沒被檢查過）；純 txt/md 沒有這兩種行，直接成為對話行。測試特地斷言 `/^\d+$/m` 不存在於輸出中 —— SRT 的序號行如果沒被濾掉，會變成一行只有「1」的台詞混進逐字稿裡。
   兩處寫入 `transcript` 的路徑收斂成一支 private `storeTranscript()`，Zoom 與上傳都經過它（FR-183）。這不只是去重：只要有兩個地方能寫那個欄位，「表裡每份逐字稿都已匿名化」這條不變量就得靠兩處各自守好。端點在派工**之前**先跑一次 `toDialogue()` 當驗證 —— 副檔名只是提示，真正的判準是解析得出東西沒有；先驗再寫，一個壞檔案才不會把好紀錄毀掉。
@@ -3733,7 +3882,7 @@ Phase 4 — 驗證
 
 - 2026-09-09: [draft] 規劃 US34 上傳替換逐字稿（FR-182–FR-185 / D130–D132）— 一場面談錄了兩次時，`findTranscriptFile()` 可能挑中十分鐘的那一段，而畫面上看不出異常：有逐字稿、有摘要、有追蹤信草稿，只是講的是另一場會議。現有兩條路都救不了 —— `抓取逐字稿` 只在沒有逐字稿時出現，`重新產生摘要` 重跑的是同一份錯的原料。
   設計上最重要的一條是 FR-183：**上傳的是原料不是成品**，必須走完 `toDialogue → normaliseSpeakers → proofread` 才落庫。`consultation_notes` 的不變量是「裡面每一份逐字稿都已匿名化」，開一個直接寫入的後門等於取消這條規則。相對地解析器不新寫（D132）：現有 `vttToDialogue()` 濾掉的 `-->` 時間軸與純數字序號行，正好就是 SRT 的形狀，純 txt 沒有這兩種行會直接通過 —— 要做的是把名字改成它實際的行為。再寫一支等於有兩份 `/u` 修飾子，而那個修飾子在中文逐字稿上是「會不會整份壞掉」的差別。
-  兩個守門在這條路徑上要**主動略過**（FR-185）：`transcriptIsSettled()` 與 `summaryIsLocked()` 防的都是「同一份逐字稿被重複處理」，而上傳的前提正是逐字稿換了一份。人工編修過的摘要照樣覆蓋（D130，使用者決策）—— 那份摘要是從錯的逐字稿長出來、再由人在錯的基礎上修過的，留著只會讓畫面上有兩份互相矛盾又分不出誰錯的東西。原始檔不落地（D131）。無 schema 變更。status: draft 待審核。
+  兩個守門在這條路徑上要**主動略過**（FR-185）：`transcriptIsSettled()` 與 `summaryIsLocked()` 防的都是「同一份逐字稿被重複處理」，而上傳的前提正是逐字稿換了一份。人工編修過的摘要照樣覆蓋（D130，使用者決策）—— 那份摘要是從錯的逐字稿長出來、再由人在錯的基礎上修過的，留著只會讓畫面上有兩份互相矛盾又分不出誰錯的東西。原始檔不落地（D131）。無 schema 變更。
 
 - 2026-09-08: 正式站實測通過，T413 勾選，本批全數完成。
 
@@ -3741,14 +3890,14 @@ Phase 4 — 驗證
   文案結構寫成 `{ label, text }` 物件而不是含 `**粗體**` 的字串：Vue 不會渲染 markdown，寫成字串就得 `v-html`，為了一個粗體開一道 XSS 的門不划算。`expired` / `invalid` 沒有 `reminders` 鍵，`reminders.length` 自然為 0，不必額外的狀態判斷。`npm run build` exit 0、`--filter=SlotHold` 14 passed、全站 `php artisan test` **871 passed（3630 assertions）**。
 
 - 2026-09-07: [draft] 規劃預約確認頁的行前提醒（FR-181 / D129）— 確認成功頁現在只有一句「相關資料已寄出，建議在諮詢時間以前看完」，而這一頁是整段預約流程裡對方最後一次專心看畫面的時刻，三件該做的事（收信、排行程、讀資料）值得各佔一行。「排進行程」這句站得住是因為 `.ics` 由 `sendConfirmationMail()` 固定附加（FR-046），與模板無關。
-  刻意不寫「影片」也不寫「已附於確認信中」（D129）：確認信本文存在 `email_templates`、後台隨時可改，程式碼這側看不到正式站當前那一版；把頁面文案綁在一段別人改得動的內容上，會在某次改模板之後變成叫人去信裡找一個不存在的東西，而且沒有任何測試會紅。依使用者決策改用通用的「前置資料」。提醒同時出現在 `confirmed` 與 `already`：重複點連結回來的人往往正是不確定自己該做什麼的那群。純前端、無 schema 變更、不動 email 模板。status: draft 待審核。
+  刻意不寫「影片」也不寫「已附於確認信中」（D129）：確認信本文存在 `email_templates`、後台隨時可改，程式碼這側看不到正式站當前那一版；把頁面文案綁在一段別人改得動的內容上，會在某次改模板之後變成叫人去信裡找一個不存在的東西，而且沒有任何測試會紅。依使用者決策改用通用的「前置資料」。提醒同時出現在 `confirmed` 與 `already`：重複點連結回來的人往往正是不確定自己該做什麼的那群。純前端、無 schema 變更、不動 email 模板。
 
 - 2026-09-05: 「不確定」上限由 7 下修為 6 完成（T406–T409，僅剩 T410 使用者實測）— 只改 `cap` 的值與一支回填 migration，`score()` 的「取最低者再 `min()`」邏輯與 `unsure` 的 1 分、不否決全部不動。
   回填條件寫成 `unsure 且 screening_score > 6`，一次收掉兩批：本來就是 8/9 分的，以及上一版回填寫成 7 的 —— 分數在資料庫裡沒有記錄它是哪一版規則算出來的，所以「大於新上限」既是最簡單的條件，也是唯一不需要知道來源的條件。
   測試只有一條需要改期望值：另兩條（5 分不被上限墊高、有講預算者仍是 10 分）都在新上限之下，原樣通過本身就是正確的驗證。全站 `php artisan test` **859 passed（3580 assertions）**，無前端變更。
 
 - 2026-09-05: [draft] 規劃「不確定」上限由 7 下修為 6（FR-172 修訂，使用者決策）— 機制不動，只改 `cap` 的值。7 與 6 同屬「值得談」（5–7），所以徽章不變；變的是**排序與比較**：名單依分數排時，講得出數字的 6 分和講不出數字的 6 分不該並列，而 7 分讓後者永遠排在多數前者之上，6 分把它壓到及格線上方一步。
-  需要注意的是回填要涵蓋**兩批**：原本就是 8/9 分的，以及上一版回填時被寫成 7 的 —— 條件寫成 `unsure 且 >6` 兩批一起收，不必區分。這也是把「每次調整上限都要附回填」寫進 FR-172 的原因：分數在列上看不出是哪一版的規則算出來的。無 schema 變更、無前端變更。status: draft 待審核。
+  需要注意的是回填要涵蓋**兩批**：原本就是 8/9 分的，以及上一版回填時被寫成 7 的 —— 條件寫成 `unsure 且 >6` 兩批一起收，不必區分。這也是把「每次調整上限都要附回填」寫進 FR-172 的原因：分數在列上看不出是哪一版的規則算出來的。無 schema 變更、無前端變更。
 
 - 2026-09-04: US33 實作完成（T396–T404，僅剩 T405 使用者實測）— 「時段歸屬」下拉換成色票按鈕列 `[ Yue Yu (30) ] [ Eileen (12) ]`，選擇存進 `?owner=`，換週由 `goToWeek()` 一併帶上；格線的可預約格依歸屬上色，暫留／已預約／未釋出三態不動。
   伺服器端三件事：`openCountsByConsultant()` 一次 `groupBy` 取全部計數（PHP 的 null group key 會變成空字串鍵，`unassignedCount` 讀的就是它）；`weekView()` 的 `owners` 由暱稱字串改成 `consultant_id`（FR-178）；`index()` 的名冊改為**對所有 staff 都下發全員**、依 `id` 排序並附 `color_index` / `open_count` / `selectable` —— 非管理員只是不能選，但看得到別人的顏色，否則格線上會出現一種他查不到是誰的顏色。`?owner=` 的正規化刻意不報錯：值不在名冊、或顧問指向他人，一律落回自己，因為那是介面狀態不是使用者資料，把它變成錯誤頁會讓每一條分享出去的連結都是陷阱（FR-174）。
@@ -3757,7 +3906,7 @@ Phase 4 — 驗證
 
 - 2026-09-04: [draft] 規劃 US33 顧問色票按鈕與可預約時段計數 — 「時段歸屬」下拉換成一列色票按鈕 `[ Yue Yu (30) ] [ Eileen (12) ]`，顏色即該顧問在格線上可預約格的顏色，數字是他名下未來未被預約的時段數。主要動機是**換週就掉**：週曆換週是 `preserveState: false` 的完整 visit，選單回到預設值，而選錯歸屬的後果（時段開在別人名下、通知寄給別人）在畫面上看不出來 —— 所以選擇改存網址 `?owner=`，伺服器正規化後回傳 `ownerId`，前端不留本地狀態（FR-174）。
   三個使用者決策：顧問色**只染可預約**（狀態色保留給另外三態，D127 —— 一格 14px 撐不起「能不能賣」與「是誰的」兩層編碼）；計數為**全站未來**而非當前週（D128 —— 與正下方圖例同基準，兩種基準並排會讓讀者以為其中一個壞了）；**不做「只看某位顧問」的篩選**（排班時看不到同事已開的時間，正是重複開在同一格的原因）。
-  實作上兩個容易踩的點寫進 FR-176：顏色序號依 `users.id` 而非暱稱（改暱稱不得讓整排顏色重排，顏色是拿來認人的），以及 class 對照表必須放**前端靜態表** —— Tailwind v4 掃原始碼產生 class，伺服器組出來的字串不會被掃到，結果是本機 dev 正常、正式站顏色整組消失。另外名冊改為對所有 staff 都下發全員（非管理員只是不能選），否則格線上會出現一種他查不到是誰的顏色。無 schema 變更、無新路由。status: draft 待審核。
+  實作上兩個容易踩的點寫進 FR-176：顏色序號依 `users.id` 而非暱稱（改暱稱不得讓整排顏色重排，顏色是拿來認人的），以及 class 對照表必須放**前端靜態表** —— Tailwind v4 掃原始碼產生 class，伺服器組出來的字串不會被掃到，結果是本機 dev 正常、正式站顏色整組消失。另外名冊改為對所有 staff 都下發全員（非管理員只是不能選），否則格線上會出現一種他查不到是誰的顏色。無 schema 變更、無新路由。
 
 - 2026-09-04: 預算答「不確定」的總分上限 7（T391–T394，僅剩 T395 使用者實測，FR-172）— 新增 `cap` 旗標，與既有的 `veto` 同層而語意較軟：`veto` 是無論如何不通過，`cap` 是可以通過但不得進入最高分級。`unsure` 搭配其餘四題滿分原本是 9 分（後台顯示「高購買意願」），現在一律 7 分（「值得談」）。它的 1 分與不否決都沒動 —— 銷售頁隱藏價格，「想先知道多少錢」仍是誠實回答，變的只是天花板。
   上限套在 `score()` 內而非 `tier()` 或前端：落庫的 `screening_score` 只有一個，分級、展開列的 `N/10` 與日後任何報表都讀它，規則放在讀取端就等於每個讀取端都要記得再套一次。多個 `cap` 取最低者，這樣日後再加一個只會收緊不會放寬。
@@ -3779,7 +3928,7 @@ Phase 4 — 驗證
 
 - 2026-08-31: US31 實作完成（T369–T375，僅剩 T376 使用者實測）— 預約名單批次動作列的「複製 Email」右邊多一顆「匯出 CSV」，勾選或跨頁全選後輸出九欄。端點 `GET /admin/high-ticket-leads/export`（staff，宣告在 `/{lead}` 之前否則被 model binding 吃掉），`select_all` 直接重建 `bookingLeadsQuery()` + `byStatus()`，與畫面名單同一個組裝（FR-156）。列的組裝收在 `HighTicketLeadService::exportRows()`，收一個 chunk 而不是單筆 —— 成交紀錄與序列信訂閱各一次批次查詢，逐筆會變成 2N 次。金額是總和的純數字、課程是明細（D120）：兩欄都串成文字會讓 Excel 的 `SUM` **靜默略過**那些格子，得到一個看起來正常卻少算的合計。成交比對同時取 `users.email` 與 `buyer_email`（會員改過信箱後兩者分岔，理由同 FR-153），且一筆購買同時掛在兩個地址時去重，不讓同一單被算兩次。時間全部走 `Asia/Taipei`，天數以台北日曆日相減、終點沿用展開列既有的 `confirmed_at` 規則 —— 同一個數字在兩個畫面上必須一樣。順手加了 `orderBy('id')` 當第二排序鍵：`chunk()` 用 offset 分頁，`booked_at` 相同的列在不確定的順序下會在某一塊重複、在下一塊消失。`STATUS_LABELS` 放模型、前端保留自己那份（D122），鍵集合由測試釘死為七個 enum 值。無 schema 變更。`LeadExportTest` 20 條、全站 `php artisan test` **820 passed（3393 assertions）**、`npm run build` exit 0。
 
-- 2026-08-31: [draft] 規劃 US31 預約名單勾選匯出 CSV — 一個 lead 的資料現在攤在四個地方（列上、展開列的手機、展開列的序列信、右上角**整批的**成交摘要），要把一批人拉進試算表排一排只能逐列展開手抄。「複製 Email」右邊補一顆「匯出 CSV」，輸出九欄：姓名／Email／手機電話／諮詢時段／狀態／成交金額／課程／序列信起始時間／已經過天數。範圍沿用交易管理的 `ids[]` + `select_all` 雙模式（使用者決策），且 `select_all` **重建的是同一個 `bookingLeadsQuery()`** —— 匯出與畫面各寫一份篩選，不一致在下載下來的 CSV 裡沒有任何跡象（FR-156）。課程與金額讀實際成交紀錄（`lead_conversion` + `paid`，退款不計，使用者決策），但金額是**總和**而課程是明細：兩欄都串成文字會讓 Excel 的 `SUM` 靜默略過那些格子，得到一個看起來正常卻少算的合計（D120）。序列信拆兩欄而非合併一欄，理由同樣是「匯出來就是要拿去排序與篩選」（D121，使用者決策）；天數的終點沿用展開列既有的 `confirmed_at` 規則，同一個數字不能在兩個畫面上不一樣（FR-160）。無 schema 變更。status: draft 待審核。
+- 2026-08-31: [draft] 規劃 US31 預約名單勾選匯出 CSV — 一個 lead 的資料現在攤在四個地方（列上、展開列的手機、展開列的序列信、右上角**整批的**成交摘要），要把一批人拉進試算表排一排只能逐列展開手抄。「複製 Email」右邊補一顆「匯出 CSV」，輸出九欄：姓名／Email／手機電話／諮詢時段／狀態／成交金額／課程／序列信起始時間／已經過天數。範圍沿用交易管理的 `ids[]` + `select_all` 雙模式（使用者決策），且 `select_all` **重建的是同一個 `bookingLeadsQuery()`** —— 匯出與畫面各寫一份篩選，不一致在下載下來的 CSV 裡沒有任何跡象（FR-156）。課程與金額讀實際成交紀錄（`lead_conversion` + `paid`，退款不計，使用者決策），但金額是**總和**而課程是明細：兩欄都串成文字會讓 Excel 的 `SUM` 靜默略過那些格子，得到一個看起來正常卻少算的合計（D120）。序列信拆兩欄而非合併一欄，理由同樣是「匯出來就是要拿去排序與篩選」（D121，使用者決策）；天數的終點沿用展開列既有的 `confirmed_at` 規則，同一個數字不能在兩個畫面上不一樣（FR-160）。無 schema 變更。
 
 
 - 2026-08-23: 「諮詢時段」欄的台北今日／明日標底色（T361 / FR-151）— 順手修掉一個既有的隱性錯誤：這欄原本用 `getHours()` 以**瀏覽器本地時區**算日期，在一台設定為台北的機器上完全看不出來，但只要管理員的機器不是台北，底色就會標在一列顯示著別天日期的時段上。顯示與判定一起改用 `Intl.DateTimeFormat` 指定 `Asia/Taipei`，與 `?met=` 快篩共用同一套日曆日定義，顏色與篩選結果永遠是同一批列。今天／明天每次 render 重算而不快取 —— 這頁會一直開著，跨午夜後一個快取的「今天」不會有任何畫面變化提示它已經在說謊。`formatSlotRange` 拆出 `slotBounds()` 給顏色判定共用；婉拒確認框與展開列的「諮詢時段」一併變成台北時間。`npm run build` exit 0、011 測試 444 passed。
@@ -3792,7 +3941,7 @@ Phase 4 — 驗證
 
 - 2026-08-23: US28 完成（T338–T347）— 預約名單篩選列的課程下拉換成 `[今日][近 7 日]` 兩顆互斥快篩（`?met=today` / `7d`），以該 lead 佔用的 `consultation_slots.starts_at` 判定，追銷名單終於能一鍵撈出「這幾天談過的人」，不必再靠展開列目視比對或繞到週曆挑人。區間定義收在 `HighTicketLeadService::metRange()`（台北日曆日建構再轉 UTC，沿用 FR-098 的作法），上界固定為明日 00:00 而非 `now()` —— 用 `now()` 會讓下午三點的場次在早上看不到、下午看得到，同一顆按鈕一天內給出兩份名單；固定上界同時讓 `today` 成為 `7d` 的子集。命中判定為 `HighTicketLead::scopeMetWithin()`（`whereHas('slots')` 半開區間，`whereBetween` 的雙端閉區間會讓午夜整點的場次同時屬於兩天）。條件加在 `bookingLeadsQuery()` 第四個參數，三個呼叫端（列表、`statusCounts`、`conversionStats`）一起帶入，列表、漏斗百分比與成交摘要恆定描述同一批人（FR-146）。無法辨識的 `met` 值正規化為 null 視為不篩選 —— 那是介面預設鍵不是使用者資料，把打錯的鍵變成空名單會被讀成「這週沒人談」。取消／婉拒已釋出時段，那些 lead 自然落在快篩之外，正是追銷名單要的結果。同時依 FR-147 拆掉課程篩選介面（select、清除鈕、`highTicketCourses` 查詢與整條 prop 傳遞），後端 `course_id` 條件與其既有測試原樣保留，`?course_id=` 仍可用。無 schema 變更。LeadsTabsTest +8、ConversionStatsTest +1，全站 `php artisan test` **789 passed（3282 assertions）**、`npm run build` exit 0。T348 使用者瀏覽器實測待確認。
 
-- 2026-08-22: [draft] 規劃 US28 預約名單依面談時間快篩 — 追銷名單的實際定義是「這幾天談過的人」，但名單只能依 `booked_at`（申請時間）排序，於是只能靠展開列目視比對、或繞到週曆按日期挑人再用 US17 勾選複製撈 Email。篩選列加兩顆互斥快篩 `[今日][近 7 日]`（`?met=today` / `?met=7d`），以 `consultation_slots.starts_at` 為準（使用者決策，不用只有 Zoom 逐字稿才生得出來的 `consultation_notes.met_at`，D110）；區間以台北日曆日切分、上界固定為明日 00:00，讓同一顆按鈕在早上與晚上給出同一份名單（FR-144 / D111）。條件放進 `bookingLeadsQuery()`（使用者決策），狀態 pill 的漏斗百分比與右側成交摘要一起收斂到同一批人（FR-146 / D112）。同一次把課程篩選的介面拆掉（含 `highTicketCourses` 查詢與 prop），後端 `course_id` 條件與其既有測試保留 —— 使用者的說法是「暫時無意義」，留著三行不執行的 `when()` 是成本最低的保留方式（FR-147 / D113）。無 schema 變更。status: draft 待審核。
+- 2026-08-22: [draft] 規劃 US28 預約名單依面談時間快篩 — 追銷名單的實際定義是「這幾天談過的人」，但名單只能依 `booked_at`（申請時間）排序，於是只能靠展開列目視比對、或繞到週曆按日期挑人再用 US17 勾選複製撈 Email。篩選列加兩顆互斥快篩 `[今日][近 7 日]`（`?met=today` / `?met=7d`），以 `consultation_slots.starts_at` 為準（使用者決策，不用只有 Zoom 逐字稿才生得出來的 `consultation_notes.met_at`，D110）；區間以台北日曆日切分、上界固定為明日 00:00，讓同一顆按鈕在早上與晚上給出同一份名單（FR-144 / D111）。條件放進 `bookingLeadsQuery()`（使用者決策），狀態 pill 的漏斗百分比與右側成交摘要一起收斂到同一批人（FR-146 / D112）。同一次把課程篩選的介面拆掉（含 `highTicketCourses` 查詢與 prop），後端 `course_id` 條件與其既有測試保留 —— 使用者的說法是「暫時無意義」，留著三行不執行的 `when()` 是成本最低的保留方式（FR-147 / D113）。無 schema 變更。
 
 - 2026-08-22: 客戶摘要 modal 編輯中會自己關掉（T336 / FR-143）— 成因不是 modal「自動」關閉，是**選字被判成點背景**：在 textarea 裡拖曳選字、手指滑出面板才放開，瀏覽器會把 `click` 派送到 mousedown 與 mouseup 的共同祖先，也就是 modal 根節點，於是 `e.target === e.currentTarget` 成立、背景關閉被觸發，整段編輯無聲消失。改成 mousedown 與 click 都必須落在背景上才算數。查的過程順手發現反方向也是壞的：背景那層是獨立的 `fixed` 節點且疊在 flex 容器之上，點背景時 `e.target` 從來就不是根節點 —— **背景關閉其實一直沒作用**，現在一併正確了。另補兩道：ESC 略過輸入法組字（中文輸入時的 Esc 是取消候選字，`isComposing` / keyCode 229），以及草稿與已存內容不同時，三個出口都先 `confirm` —— 這個 modal 裡的東西在按下儲存前全部是未存的。`npm run build` exit 0。同樣的背景判定寫法還存在於 `BatchEmailModal`（有 textarea，008 領域），尚未處理。
 
@@ -3882,17 +4031,17 @@ Phase 4 — 驗證
 - 2026-08-05: 「加入序列信」不再依狀態過濾（T127 / FR-007）+ `.ics` 移除聯絡管道指示（T126）— 序列信的狀態白名單會**靜靜吃掉勾選**：`已面談` / `已成交` / `已取消` 被無聲丟棄，勾 6 位只加了 3 位，前端按鈕還會在選到他們時變灰不說原因。改為完全由管理員勾選決定（比照 FR-006 的既有原則），真正的守門留給去重（active 訂閱即 skip）；唯一會尷尬的 `converted` 改為在確認 modal 提示而非擋下 —— 把既有客戶推向另一門課是合理操作，只有管理員分得出誤勾。此路徑原本**零測試覆蓋**，補 LeadSubscribeDripTest（5 tests）。另修一個 US14 帶進來的矛盾：`.ics` 的 `DESCRIPTION` 寫「需要改期或取消，請直接回覆預約確認信」，但線上那封確認信（業主 2026-08-04 編輯過）結尾寫的是「**請勿直接回覆此信**，請寄信到客服信箱」。D50 說「不做自助入口、靠文案告訴對方怎麼聯絡」，對著實際模板是失效的。`.ics` 改為中性的「如需改期或取消，請與我們聯繫」—— 聯絡管道是業主在可編輯模板裡設定的政策，`.ics` 不該複製一份會漂移的版本。
 - 2026-08-05: 狀態顯示名稱改為面談語彙（T125 / FR-055）— US14 之後每一筆 lead 都是「約了 1v1 面談」，「待聯繫 / 已聯繫」描述的是錯的事件。改為 **待面談 / 已面談**，`no_response` 由「未回應」改為 **未出席**（no-show），取其中性標準（「爽約」帶指責、「缺席」偏機構用語），且與預約表單第 4 步警語「無故**不出席**」同一個詞 —— 申請人送出前讀到的就是它。**DB 值刻意不動**（使用者決策）：改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no_show 等於把那段歷史重新貼標。代價是 `contacted` / `no_response` 的字面意思與顯示不符，以 FR-055 的對照表 + `statusButtons` 每個值旁的註解承擔。行為零變化（重新預約回 pending 對 no-show 同樣成立）。
 - 2026-08-05: US14 完成（T104–T122、T124）— 確認信改為附 `.ics`（`METHOD:REQUEST`），並補上後台改期／取消。`CalendarInviteService` 自己產生 iCalendar，folding 按 byte 累計、按 UTF-8 字元邊界斷 —— 測試直接斷言中文長行 fold 後 `mb_check_encoding` 仍為合法 UTF-8 且可解回原字串（天真的 `wordwrap()` 在這裡會切出亂碼）。`UID` 由 lead id 推導、`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`。改期只需把 `reserve()` 的 `$holdUntil` 放寬為 nullable —— 它本來就先 `release($lead)` 再檢查可用性，**自我重疊因此不必特例**（10:00 改 10:15 直接可行）。Zoom 走 `PATCH` 保住 `join_url`（D52），刪除的 404 視同成功。週曆的改期採兩段式：點區塊 → 上方動作列出現 → 點「改期」後只有能容納 N 格連續空檔的起始格可點，其餘變灰；改期模式下所有區塊設 `pointer-events-none`，否則區塊會蓋住自己底下那幾格，而 15 分鐘的微調正好要點在那裡。**實作中補了 FR-054**：`updateStatus` 原本會接受 `cancelled`，那條路只貼標籤、不釋時段不刪會議不寄信，狀態會是假的 —— 改為拒絕，名單上的「已取消」降為唯讀徽章。另修一個測試層面的真實風險：`event_type` 沒有 unique 索引，migration 若用 `insertOrIgnore` 重跑會多一列而 `forEvent()->first()` 沉默取錯（測試 seeder 也一併改 `updateOrCreate`）。新增 CalendarInviteTest（13）與 BookingChangeTest（29），全套 391 passed（1945 assertions）、`npm run build` exit 0。T123 瀏覽器／真實信箱實測待業主確認。
-- 2026-08-05: 規劃 US14 行事曆邀請與預約異動（已審核，開始實作）— 確認信附 `.ics`（`METHOD:REQUEST`，D49），並補上後台改期／取消。兩件事綁在同一個 US 是因為它們是同一件事的兩半：REQUEST 型的邀請一旦發出就欠對方一套生命週期，只做 `.ics` 而不做取消，會把 US12 的已知限制（FR-040/D42：Zoom 後台有殘留）升級成「對方手機在你早就取消的時間跳提醒」。`UID` 由 lead id 推導不落庫（沿用 D33），`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`（FR-047）。ics 自己產生不引套件，難點只有 CRLF 與 **UTF-8 安全的 75-octet folding** —— 中文一字 3 bytes，天真折行會把 `DESCRIPTION` 切成亂碼（D51）。改期走 Zoom `PATCH` 而非刪除重建，`join_url` 因此不變、已發出的連結全部繼續有效（D52）；刪除時 404 視同成功。**申請人端不做任何自助入口**（使用者決策，D50）：改期／取消一律經由聯絡管理員，於是門檻與次數上限都不需要，`rescheduled_count` 欄位取消 —— 代價是懶得聯絡的人會直接 no-show，緩解靠信件與 ics 內文明確寫「需異動請直接回信」。後台入口放週曆的預約區塊而非 Leads 名單（改期要看的是哪裡還有空，只有週曆有那張圖），手勢用兩段式而非拖放，避免與 D45 的拖曳語意打架（D53）。`status` 加第六值 `cancelled`（與 closed 分開，否則看不出誰其實根本沒談過）。三支 migration，其中新模板同時進 seeder 與 `insertOrIgnore` 的資料 migration —— 正式站只跑 migrate 不跑 seeder（D54）。status: draft 待審核。
+- 2026-08-05: 規劃 US14 行事曆邀請與預約異動（已審核，開始實作）— 確認信附 `.ics`（`METHOD:REQUEST`，D49），並補上後台改期／取消。兩件事綁在同一個 US 是因為它們是同一件事的兩半：REQUEST 型的邀請一旦發出就欠對方一套生命週期，只做 `.ics` 而不做取消，會把 US12 的已知限制（FR-040/D42：Zoom 後台有殘留）升級成「對方手機在你早就取消的時間跳提醒」。`UID` 由 lead id 推導不落庫（沿用 D33），`SEQUENCE` 落庫遞增，改期送同 UID 的更新、取消送 `METHOD:CANCEL`（FR-047）。ics 自己產生不引套件，難點只有 CRLF 與 **UTF-8 安全的 75-octet folding** —— 中文一字 3 bytes，天真折行會把 `DESCRIPTION` 切成亂碼（D51）。改期走 Zoom `PATCH` 而非刪除重建，`join_url` 因此不變、已發出的連結全部繼續有效（D52）；刪除時 404 視同成功。**申請人端不做任何自助入口**（使用者決策，D50）：改期／取消一律經由聯絡管理員，於是門檻與次數上限都不需要，`rescheduled_count` 欄位取消 —— 代價是懶得聯絡的人會直接 no-show，緩解靠信件與 ics 內文明確寫「需異動請直接回信」。後台入口放週曆的預約區塊而非 Leads 名單（改期要看的是哪裡還有空，只有週曆有那張圖），手勢用兩段式而非拖放，避免與 D45 的拖曳語意打架（D53）。`status` 加第六值 `cancelled`（與 closed 分開，否則看不出誰其實根本沒談過）。三支 migration，其中新模板同時進 seeder 與 `insertOrIgnore` 的資料 migration —— 正式站只跑 migrate 不跑 seeder（D54）。
 - 2026-08-05: 社群網址改為 scheme 限定（FR-027）— 原本的 `url` 規則擋得掉沒有 scheme 的 `instagram.com/someone`，但 `ftp://`、`javascript:alert(1)`、`data:text/html,...` 全部放行，而這個值會直接成為後台 Leads 名單裡的 `href`。改為 `url:http,https`，錯誤訊息改寫成「須為完整網址，並以 http:// 或 https:// 開頭」。新增 4 個測試（無 scheme 擋下、三種非 http scheme 擋下、http/https 皆放行、留空仍可）。
 - 2026-08-05: 補 FR-031 的後台介面缺口（T103）— 預約優惠碼從 US10 起就只存在 `site_settings.high_ticket_booking_bonus_codes`，程式讀得到、但**後台從來沒有填它的畫面**，只能 tinker 或直接改 DB。US10 的驗收條款只寫「填入命中 `site_settings...` 的碼」，沒有要求介面，所以測試全綠也照樣漏掉 —— 驗收寫的是資料在哪，不是人怎麼設定它。「諮詢時段」頁加設定欄位（諮詢長度是它改變的東西，放這裡比放「API 設定」語意連貫，比照 `high_ticket_lead_notify_cc` 放在 Email 模板頁的既有作法），儲存時以 `parseRecipients()` 正規化為逗號分隔字串。新增 5 個測試，全套 345 passed。
 - 2026-08-05: 前台第 3 步版面調整 — 優惠碼由時段清單上方的整寬欄位改為左右兩欄（`sm:grid-cols-[minmax(0,14rem)_1fr]`，手機堆疊），金色虛線卡片 + 「填入可將諮詢延長為 45 分鐘」說明。原本只標「（選填）」，看不出填了有什麼好處，那才是它被略過的原因。後台週曆同步修三處版面 bug：頁面缺水平留白（AdminLayout 只給 `py-6`）、時間標籤用 `-mt-2` 導致整欄被負 margin 壓縮（56 格差約 450px，看起來像格子超出 22:00）、格線畫在 `border-b` 使整點線落在自己標籤的下一格。拖曳讀數由格內文字框改為格線上方浮條 —— 格內版本在單格選取時只有 20px 高卻要放兩行字，文字擠爛且蓋住游標。
 - 2026-08-05: US13 完成（T092–T101）— 後台諮詢時段從「日期 + 起訖時間」表單改為週曆格線。`weekView()` 在後端把該週資料組成前端能直接畫的形狀：以**台北日期**分桶（23:30 台北是同日 15:30 UTC，用原始 UTC 分桶會落到錯的欄、跨午夜甚至錯的週）、同 lead 連續單位併為一個 booking 區塊（D46）、顯示範圍 08:00–22:00 會被範圍外的既有時段自動撐開（D47）。新增 `releaseRange()` 與 `DELETE /admin/consultation-slots` 批次收回，只刪未佔用者、佔用者計入 skipped 而非中止整段（FR-045）；路由置於單筆 `{slot}` 之前避免被 model binding 吃掉。前端 `WeekGrid.vue` 以 Pointer Events 單一路徑處理滑鼠與觸控，**拖曳命中改用 `elementFromPoint()`** —— 原本掛 `pointerenter` 在手機上會靜默失效（觸控指標被起始元素捕獲，經過的格不觸發 enter），只選得到一格。舊表單與日期分組清單整組移除，controller 的 `state()` 私有方法一併清掉。新增 ConsultationSlotAdminTest（17 tests），全套 340 passed（1761 assertions）、`npm run build` exit 0。T102 瀏覽器實測待業主確認，尤其手機觸控拖曳與捲動的取捨（見 D45 末段）。
-- 2026-08-05: 規劃 US13 諮詢時段週曆化（已審核，status: building） — 現行「日期 + 起訖時間」表單改為週曆格線（1 格 = 15 分鐘）拖曳操作。**拖曳起點決定意圖**（空白格起手 = 釋出、已釋出格起手 = 收回、已佔用格不可起手，D45），避免「新增能一次拖、收回要點十六次 ✕」的不對稱。預約區塊在**後端聚合**（同 lead 連續單位併為一塊），前端不重寫一次連續性判斷（D46）。顯示範圍固定 08:00–22:00 但會被範圍外的既有時段自動撐開，不做成可設定（D47）。四狀態配色 + 圖例，已確認的區塊直接顯示暱稱與 Zoom 連結；手機改單日檢視。無 schema 變更 —— 新增的只有一個批次收回端點 `DELETE /admin/consultation-slots` 與一種呈現方式。明確不做複製上週 / 週期性班表（D48）。status: draft 待審核。
+- 2026-08-05: 規劃 US13 諮詢時段週曆化（已審核，status: building） — 現行「日期 + 起訖時間」表單改為週曆格線（1 格 = 15 分鐘）拖曳操作。**拖曳起點決定意圖**（空白格起手 = 釋出、已釋出格起手 = 收回、已佔用格不可起手，D45），避免「新增能一次拖、收回要點十六次 ✕」的不對稱。預約區塊在**後端聚合**（同 lead 連續單位併為一塊），前端不重寫一次連續性判斷（D46）。顯示範圍固定 08:00–22:00 但會被範圍外的既有時段自動撐開，不做成可設定（D47）。四狀態配色 + 圖例，已確認的區塊直接顯示暱稱與 Zoom 連結；手機改單日檢視。無 schema 變更 —— 新增的只有一個批次收回端點 `DELETE /admin/consultation-slots` 與一種呈現方式。明確不做複製上週 / 週期性班表（D48）。
 - 2026-08-05: 候補回訪連結（FR-042 / D44）— 沒有時段時仍收申請，但「通知新時段」信只帶 `{{user_name}}`／`{{course_name}}`，**連個入口都沒有**（`$availableVariables` 甚至沒有這個 event_type 的條目）；候補者自己回課程頁也是從第 1 步重來，因為問卷預填只給「已登入且 email 相符」的人，而候補者多半不是會員。新增永久 `resume_token`（與一小時到期的 `confirm_token` 分開，D44），信中 `{{booking_url}}` 深連結直接把精靈開在第 3 步、承諾自動視為已接受。身分只憑持有 token，不要求登入；token 與 course 綁定，重複候補沿用同一組使舊信不失效。token 改為**寄送當下補發**（不做全表 backfill），所以 FR-042 之前就在名單上的舊 lead 一樣拿得到深連結；問卷不齊全者仍由第 1 步開始，避免把人丟在後面的步驟而前面是空的。另補一支資料 migration 把變數**附加**到正式站既有模板（seeder 的 `updateOrCreate` 會蓋掉業主改過的文案）。draft 一併帶回當初命中的 `booking_code` —— 少帶這一欄，等於把對方已取得的 45 分鐘悄悄縮回 30。新增 10 個測試，全套 323 passed（1702 assertions）、`npm run build` 綠。
 - 2026-08-05: 問卷手機號碼接上會員資料（FR-041 / D43）— 原本號碼只留在 `high_ticket_leads.phone`，lead 被開通或加序列信而變成會員時不會帶過去，會員的 `phone` 永遠是空的。改為在兩個轉換點以 `firstOrCreate` 的建立屬性帶入（既有會員不覆寫，帳號設定填的值權威性較高）。連帶把 `users.phone` 與 `orders.buyer_phone` 從 varchar(20) 加寬到 30，與 lead 表及 Form Request 對齊 —— 順手修掉既有的截斷風險：`FreePurchaseController` 早就收 `max:30`。新增 4 個測試，全套 313 passed。
 - 2026-08-05: US9–US12 完成（T053–T084）— 預約由「姓名 + Email 一步送出」改為四步驟申請 + Email 二次確認 + Zoom。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，可用性由 `lead_id` + `held_until` 推導、不設 status 欄，D33）與 lead 的 12 個申請/確認欄位。送出申請在單一 transaction 內寫 lead 並以 `lockForUpdate` 佔用連續 N 個單位（撞車回 409），寄「預約待確認」信；點信中 token 才 `confirmed_at` 落地、時段轉正、寄原本的確認信、停 drip、送 CAPI（D35 行為變更，既有 5 支測試同步改寫）。逾時釋出走查詢時 lazy 判定，`booking:release-holds` 每 10 分鐘只做資料整理。Zoom 走 Server-to-Server OAuth、憑證放後台「API 設定」頁，確認信改由 `CreateZoomMeetingJob` 帶著 join_url 寄出（D38）；未設定憑證整條跳過（D40），三次失敗仍寄出 fallback 文案並 CC 內部（D39）。前台流程抽成 `HighTicketBookingWizard.vue`，舊表單整組移除（D29/D36）。**規劃外補了兩項驗收缺口**：沒有可預約時段時的候補申請路徑（`POST /course/{course}/waitlist`，伺服器端擋「其實有時段」），以及重新申請的問卷預填 —— 後者改由 `CourseController` 傳 prop 而非開查詢端點，因為以 email 查既有 lead 會變成「這個信箱申請過嗎」的探測器。新增 BookingWizardTest（20）、SlotHoldTest（12）、ZoomMeetingTest（6），全套 309 passed（1607 assertions）、`npm run build` 綠。T084 瀏覽器實測與真實 Zoom 建會議待業主確認。
 
-- 2026-08-05: [draft] 規劃 US9–US12 預約門檻提升 — 一步式表單（姓名 + Email）改為四步驟申請：問卷（手機／職業與從事時長／事業瓶頸／專長／社群連結）→ 五條承諾清單全勾 → 選定顧問時段（15 分鐘為單位，預設 30 分鐘，預約優惠碼 +15 分鐘）→ 資料覆核與不出席警語。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，狀態由 `lead_id` + `held_until` 推導，D33）與 lead 的問卷／確認欄位。送出後時段暫留 1 小時並寄「預約待確認」信，點信中連結完成確認才正式保留、才寄原本的「客製服務預約確認」信、才觸發 drip 停信與 Meta CAPI（D35）；逾時釋出以查詢時 lazy 判定為正確性來源、排程只做清理（D33/FR-035）。確認後串 Zoom Server-to-Server OAuth 自動建會議，`{{zoom_join_url}}` 寫進確認信，憑證放後台「API 設定」頁（D41），未設定即整條跳過、行為等同無 Zoom（D40）。舊表單整組移除不留開關（D36）；黑名單只做警示文案不做系統實作（D37）；改期／取消同步明確不做（D42/FR-040）。status: draft 待審核。
+- 2026-08-05: [draft] 規劃 US9–US12 預約門檻提升 — 一步式表單（姓名 + Email）改為四步驟申請：問卷（手機／職業與從事時長／事業瓶頸／專長／社群連結）→ 五條承諾清單全勾 → 選定顧問時段（15 分鐘為單位，預設 30 分鐘，預約優惠碼 +15 分鐘）→ 資料覆核與不出席警語。新增 `consultation_slots`（一列 = 一個 15 分鐘單位，狀態由 `lead_id` + `held_until` 推導，D33）與 lead 的問卷／確認欄位。送出後時段暫留 1 小時並寄「預約待確認」信，點信中連結完成確認才正式保留、才寄原本的「客製服務預約確認」信、才觸發 drip 停信與 Meta CAPI（D35）；逾時釋出以查詢時 lazy 判定為正確性來源、排程只做清理（D33/FR-035）。確認後串 Zoom Server-to-Server OAuth 自動建會議，`{{zoom_join_url}}` 寫進確認信，憑證放後台「API 設定」頁（D41），未設定即整條跳過、行為等同無 Zoom（D40）。舊表單整組移除不留開關（D36）；黑名單只做警示文案不做系統實作（D37）；改期／取消同步明確不做（D42/FR-040）。
 - 2026-08-04: US8 完成（T041–T052）— `/admin/high-ticket-leads` 合併為兩個 tab：預約名單（原樣搬入 `Components/Admin/Leads/BookingListTab.vue`，行為零變化）與訂閱者名單（新 `SubscriberListTab.vue`，課程改頁內下拉、只列 drip 課）。tab 走 `?tab=` server-side 分派、只組裝該 tab 資料（D24）；訂閱者資料組裝下沉為 `DripService::subscriberPageData()`，`CourseController@subscribers`、`GET /admin/courses/{course}/subscribers`、`Pages/Admin/Courses/Subscribers.vue` 與課程編輯頁「訂閱者」按鈕四者一併移除（FR-025）。訂閱者資料改對銷售顧問開放（D27）。新增 LeadsTabsTest（10 tests），全套 269 passed（1422 assertions）、`npx vite build` 綠。實際 tab 操作待業主以瀏覽器確認。
 - 2026-08-04: 開通功能補強完成（T010–T020）— 後台開通自 D13 起是唯一成交入口，補齊三項比照金流路徑的保證：（1）**覆寫守門**（FR-015/D14）：既有 Purchase 非 `lead_conversion` 且非 `refunded` 時回 409 並附原類型與金額，帶 `force=true` 才放行；守門為 transaction 外的唯讀查詢，被擋下時連 user 都不建。（2）**交易一致性**（FR-016）：user / purchase / lead 三步寫入包 `DB::transaction()`，drip 停信與通知信移到外面各自 try/catch。（3）**成交通知信**（FR-017）：新增第 5 個模板 `lead_converted`（引導以 Email 驗證碼登入），不 CC 任何內部信箱，缺模板或寄送失敗只回 `mail_sent: false` 不擋成交（D15）。Mailable 決策推翻 T010：`HighTicketBookingMail` 更名 `TemplatedMail` 並重用，不另開類別（D23）。前端開通 modal 加既有購買警告卡 + 覆寫確認勾選（D16，比對 `index()` 新傳的 `purchasesByEmail`）。LeadConvertTest 5 → 14 tests，全套 259 passed、`npx vite build` 綠、seeder 後後台可見 5 個模板。
 - 2026-08-03: US7 完成（T028a–T039a）— Email 模板加 `body_type`（markdown / html），HTML 模式原樣寄出、編輯頁加格式切換鈕與 sandbox iframe 預覽；渲染收斂到 `EmailTemplate::renderBody()` / `renderText()`，四個呼叫端不再各自 `new CommonMarkConverter()`，`HighTicketBookingMail` 改收已渲染的 HTML + 純文字；四封模板信改 `multipart/alternative` 補純文字段（FR-020，解 MIME_HTML_ONLY）。另修長期存在的換行 bug：新增 `EmailMarkdownService::toHtml()` 設 `soft_break`，單次 Enter 即真換行，同步套用 008 `BatchEmailMail` 與 010 `SendDripEmailJob`（FR-021 / D21 / D22）。查驗本機既有內容：4 個模板中 3 個、16 篇 drip 小節中 3 篇會多出換行，全部是作者手動斷行卻被吃掉的位置，屬修正。新增 EmailTemplateHtmlModeTest（12 tests），全套 249 passed（1249 assertions）、`npx vite build` 綠。T040 實寄驗證待業主操作。

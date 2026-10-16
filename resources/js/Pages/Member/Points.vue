@@ -26,6 +26,7 @@ const TYPE_LABELS = {
   earn_referral:   '推薦回饋',
   refund_reversal: '退款回收',
   admin_grant:     '後台派發',
+  earn_testimonial: '評語獎勵',
 }
 
 const typeLabel = (t) => TYPE_LABELS[t] ?? t

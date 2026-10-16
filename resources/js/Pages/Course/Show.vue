@@ -12,6 +12,7 @@ import FreeSuccessBlock from '@/Components/Course/FreeSuccessBlock.vue'
 import SalesPromoBlock from '@/Components/Course/SalesPromoBlock.vue'
 import HighTicketBookingWizard from '@/Components/Course/HighTicketBookingWizard.vue'
 import ConsultationCreditBooking from '@/Components/Course/ConsultationCreditBooking.vue'
+import TestimonialCarousel from '@/Components/Course/TestimonialCarousel.vue'
 import { useCart } from '@/composables/useCart'
 
 const page = usePage()
@@ -89,6 +90,11 @@ const props = defineProps({
   },
   // The five qualifying questions in front of the wizard (011 US24) — titles
   // and option labels only, the scoring stays on the server.
+  // Reviewed client testimonials, high-ticket courses only (011 US40)
+  testimonials: {
+    type: Array,
+    default: () => [],
+  },
   screeningQuestions: {
     type: Array,
     default: () => [],
@@ -886,6 +892,13 @@ const isFunnelLanding = computed(() =>
     <!-- ============================================================ -->
     <div v-else ref="purchaseSectionRef" class="bg-brand-cream py-8 px-4 border-t border-gray-200">
       <div class="max-w-4xl mx-auto">
+
+        <!-- ── Client testimonials, right above the booking block (011 US40) ── -->
+        <TestimonialCarousel
+          v-if="isHighTicket && testimonials.length"
+          :testimonials="testimonials"
+          class="mb-8"
+        />
 
         <!-- ── Free enrollment success ── -->
         <div v-if="freeSuccess" class="bg-white rounded-xl border border-green-100 shadow-sm px-6 py-6 text-center max-w-lg mx-auto">

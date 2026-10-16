@@ -136,11 +136,19 @@ class HighTicketLeadController extends Controller
                         DB::raw('LENGTH(transcript) AS transcript_bytes'),
                     ]),
                 'consultationNotes.course:id,name',
+                // 011 US40 — the review modal reads it straight off the row.
+                'testimonial:id,lead_id,nickname,title,content,consulted_at,identity,status,reward_points,published_at,created_at',
             ])
             ->when($status, fn ($q) => $q->byStatus($status))
             ->orderBy('booked_at', 'desc')
             ->paginate(20)
             ->withQueryString();
+
+        // Decided once on the server from the already-loaded slots (FR-238),
+        // so the list does not carry a second copy of the rule.
+        $leads->getCollection()->each(
+            fn (HighTicketLead $lead) => $lead->setAttribute('testimonial_eligible', $lead->isTestimonialEligible())
+        );
 
         // Funnel share behind each status pill (FR-067). Counted over the whole
         // filtered set rather than the current page, and deliberately without

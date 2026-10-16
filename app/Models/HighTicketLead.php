@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class HighTicketLead extends Model
 {
@@ -67,6 +68,7 @@ class HighTicketLead extends Model
         'cancelled_at',
         'reminder_sent_at',
         'resume_reminder_sent_at',
+        'testimonial_token',
     ];
 
     /**
@@ -168,6 +170,31 @@ class HighTicketLead extends Model
     public function slots(): HasMany
     {
         return $this->hasMany(ConsultationSlot::class, 'lead_id')->orderBy('starts_at');
+    }
+
+    /** The client's testimonial for this consultation, if they left one (011 US40). */
+    public function testimonial(): HasOne
+    {
+        return $this->hasOne(Testimonial::class, 'lead_id');
+    }
+
+    /**
+     * Whether the consultant may hand this lead a testimonial link (011 FR-238).
+     *
+     * Read from the slot time, not `status`: consultants often forget to flip
+     * a lead to 已談, and the clock already says the meeting happened (D163).
+     * Uses the loaded `slots` relation when present, so the leads list stays
+     * one query.
+     */
+    public function isTestimonialEligible(): bool
+    {
+        if ($this->isCredit() || !$this->isActiveBooking()) {
+            return false;
+        }
+
+        $firstStart = $this->slots->min('starts_at');
+
+        return $firstStart !== null && $firstStart->isPast();
     }
 
     /** The booking is only real once the visitor clicked the emailed link (FR-033). */

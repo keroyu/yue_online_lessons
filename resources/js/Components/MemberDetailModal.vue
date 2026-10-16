@@ -219,6 +219,7 @@ const submitGrant = async () => {
 
 const POINT_TYPE_LABELS = {
   earn_homework: '作業獎勵',
+  earn_testimonial: '評語獎勵',
   redeem_course: '兌換課程',
   earn_referral: '推薦回饋',
   refund_reversal: '退款回收',
