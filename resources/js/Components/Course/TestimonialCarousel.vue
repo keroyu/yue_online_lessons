@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 // 011 US40 / D164 — native horizontal scroll with snap points: the browser
 // gives touch swiping for free, the arrows only scroll by one card. No
@@ -24,29 +24,30 @@ const updateEdges = () => {
   atEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
 }
 
-// Long testimonials clamp to 6 lines with a per-card 「看全文」 toggle (011
-// FR-250). The toggle only appears where the text actually overflows, which
-// depends on card width, so it is measured rather than guessed from length.
+// Long testimonials clamp to 6 lines; 「看全文」 opens the whole text in a
+// modal so the row never changes height (011 FR-250). The link only appears
+// where the text actually overflows, which depends on card width, so it is
+// measured rather than guessed from length.
 const contentEls = {}
 const overflowing = ref({})
-const expanded = ref({})
+const active = ref(null)
 
 const measureOverflow = () => {
   const next = {}
   for (const [id, el] of Object.entries(contentEls)) {
-    if (el && !expanded.value[id]) next[id] = el.scrollHeight > el.clientHeight + 1
-    else next[id] = overflowing.value[id] ?? false
+    next[id] = !!el && el.scrollHeight > el.clientHeight + 1
   }
   overflowing.value = next
 }
 
-// While a card is open the row stops equalising heights, or every neighbour
-// would stretch to the long one and show a screen of blank card.
-const anyExpanded = () => Object.values(expanded.value).some(Boolean)
+const openFull = (t) => { active.value = t }
+const closeFull = () => { active.value = null }
+const onKeydown = (e) => { if (e.key === 'Escape') closeFull() }
 
-const toggleExpanded = (id) => {
-  expanded.value = { ...expanded.value, [id]: !expanded.value[id] }
-}
+// Lock page scroll behind the modal, so a swipe inside it does not scroll the page.
+watch(active, (t) => {
+  document.body.style.overflow = t ? 'hidden' : ''
+})
 
 const onResize = () => {
   updateEdges()
@@ -66,8 +67,13 @@ onMounted(async () => {
   await nextTick()
   measureOverflow()
   window.addEventListener('resize', onResize)
+  window.addEventListener('keydown', onKeydown)
 })
-onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
@@ -102,7 +108,6 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
     <div
       ref="track"
-      :class="{ 'items-start': anyExpanded() }"
       class="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-3 -mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0 [scrollbar-width:thin]"
       @scroll.passive="updateEdges"
     >
@@ -119,19 +124,16 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
         <div class="mt-3 flex-1">
           <p
             :ref="(el) => { contentEls[t.id] = el }"
-            :id="`testimonial-${t.id}`"
-            class="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words"
-            :class="{ 'line-clamp-6': !expanded[t.id] }"
+            class="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words line-clamp-6"
           >{{ t.content }}</p>
           <button
             v-if="overflowing[t.id]"
             type="button"
             class="mt-1 text-sm font-medium text-brand-teal hover:text-brand-teal/70 hover:underline"
-            :aria-expanded="!!expanded[t.id]"
-            :aria-controls="`testimonial-${t.id}`"
-            @click="toggleExpanded(t.id)"
+            aria-haspopup="dialog"
+            @click="openFull(t)"
           >
-            {{ expanded[t.id] ? '收起' : '看全文' }}
+            看全文
           </button>
         </div>
         <div class="mt-4 pt-4 border-t border-gray-100">
@@ -146,5 +148,43 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
         </div>
       </article>
     </div>
+
+    <!-- Full text (FR-250). Teleported so no ancestor's overflow or stacking clips it. -->
+    <Teleport to="body">
+      <div
+        v-if="active"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`${active.nickname} 的評語`"
+      >
+        <div class="absolute inset-0 bg-black/50" @click="closeFull" />
+        <div class="relative w-full sm:max-w-lg max-h-[85vh] flex flex-col bg-white rounded-t-2xl sm:rounded-2xl shadow-xl">
+          <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-gray-100">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <p class="font-semibold text-gray-900 truncate">{{ active.nickname }}</p>
+                <span
+                  class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="identityClass(active.identity_label)"
+                >{{ active.identity_label }}</span>
+              </div>
+              <p v-if="active.title" class="text-xs text-gray-500 mt-0.5">{{ active.title }}</p>
+            </div>
+            <button
+              type="button"
+              aria-label="關閉"
+              class="shrink-0 w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              @click="closeFull"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p class="px-5 py-4 overflow-y-auto overscroll-contain text-[15px] text-gray-700 leading-relaxed whitespace-pre-line break-words">{{ active.content }}</p>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>

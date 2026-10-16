@@ -1471,7 +1471,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [x] 輪播：手機一次一張、`sm` 以上一次兩張、`lg` 以上三張；可用手指左右滑動（CSS scroll-snap）；`sm` 以上兩側有左右箭頭按鈕（到頭時停用）
 - [x] 卡片顯示評語、暱稱、頭銜（有填才顯示）與**身份標籤**（「諮詢客戶」／「課程學員」），**不顯示諮詢時間**（FR-248）
 - [x] 評語文字一律純文字輸出（不渲染 HTML / Markdown）
-- [x] 評語超過 6 行時截斷（行尾省略號）並顯示「看全文」，點了只展開該張、可再「收起」；展開期間其他卡片維持原本高度，不被拉長（FR-250）
+- [x] 評語超過 6 行時截斷（行尾省略號）並顯示「看全文」，點了以 **modal** 顯示全文（暱稱／身份／頭銜＋全文，內文可捲動）；卡片與輪播高度永不改變；Esc、點背景、✕ 皆可關閉；手機為底部彈出、桌機置中（FR-250）
 - [x] 所有新增可點元素 `cursor-pointer` + hover 回饋；表單頁與輪播在手機寬度不破版
 - [x] 測試：見 T557、T565
 ## Requirements
@@ -2048,7 +2048,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-247**（US40 修正）: 填寫頁 props 移除 `consulted_at`，改傳 `identity_label`：未提交時以 `TestimonialService::identityFor(HighTicketLead $lead): string` 預判（以 lead Email 查既有會員，無會員即 `consultation`；與 `submit()` 共用同一判斷），已提交時讀該則的儲存值。頁面只顯示、不提供選擇
 - **FR-248**（US40 修正）: 銷售頁 `testimonials` 每則改為 `{id, nickname, title, content, identity_label}`，MUST NOT 帶 `consulted_at`。排序仍依 `consulted_at` desc（欄位保留作排序與後台參考，不再對外顯示）
 - **FR-249**（US40 修正）: `PATCH /admin/testimonials/{testimonial}` 接受 `status` 與 `identity` 任一或兩者（`UpdateTestimonialRequest`：兩者皆 `sometimes`，至少一個，`identity` ∈ 兩值）；`TestimonialService::update(Testimonial, array)` 取代 `setStatus()`，`published_at` 規則不變。改身份 MUST NOT 動積分與 `status`。Leads 名單的 `testimonial` 物件多帶 `identity`
-- **FR-250**（US40 追加）: 輪播卡片評語預設 `line-clamp-6`；是否顯示「看全文」以實測 `scrollHeight > clientHeight` 判定（依卡片寬度而定，不以字數猜），掛載後與 resize 時重測。展開狀態逐張獨立（`aria-expanded` / `aria-controls`）；任一張展開時軌道改 `items-start`，避免同列卡片被拉到展開高度
+- **FR-250**（US40 追加，2026-10-17 改為 modal）: 輪播卡片評語固定 `line-clamp-6`；是否顯示「看全文」以實測 `scrollHeight > clientHeight` 判定（依卡片寬度而定，不以字數猜），掛載後與 resize 時重測。「看全文」開啟 `Teleport` 到 body 的 dialog（`role=dialog`、`aria-modal`），顯示暱稱／身份／頭銜與全文，內文區 `overflow-y-auto`、開啟時鎖住頁面捲動；Esc、背景、✕ 關閉。**MUST NOT 就地展開**：就地展開會改變卡片與整列高度，破壞版面（使用者回報）
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -3801,9 +3801,11 @@ Phase 4 — 驗證
 - [x] T565 `TestimonialTest` 增修：無購買 → consultation、持有 paid purchase → student、已退款 → consultation、填寫頁與銷售頁不帶 `consulted_at` 而帶 `identity_label`、後台改身份不動積分與 status、`identity` 非法值 422、PATCH 空 body 422 in `tests/Feature/HighTicket/TestimonialTest.php`
 - [x] T566 `php artisan test` 全綠、`npm run build` exit 0、瀏覽器確認輪播標籤與 modal 切換
 - [x] T567 輪播評語 6 行截斷＋「看全文」／「收起」（FR-250）in `resources/js/Components/Course/TestimonialCarousel.vue`
+- [x] T568 「看全文」由就地展開改為 modal（FR-250 修訂）in `resources/js/Components/Course/TestimonialCarousel.vue`
 
 ## 進度日誌
 
+- 2026-10-17: FR-250 修訂（T568）— 使用者回報就地展開／收起破壞版面，改為 modal 看全文（Teleport 到 body，手機底部彈出、桌機置中，內文可捲動、鎖頁面捲動，Esc／背景／✕ 關閉）。瀏覽器實測：開啟期間卡片高度不變（315px）、三種關閉方式皆可、關閉後解除捲動鎖。
 - 2026-10-17: US40 追加 FR-250（T567）— 長評語原本會把卡片撐高（500 字在手機約 700px），且整列卡片被拉到同高；改為 6 行截斷＋逐張「看全文」，展開時軌道改 `items-start` 讓其他卡片不被拉長。瀏覽器實測桌機與手機：500 字卡片截斷後 315px、展開 861px 時鄰卡維持自身高度、收起後恢復等高。
 - 2026-10-17: US40 修正完成（T560–T566）— `testimonials.identity`（加入原 create migration，本機已 rollback 重跑）；送出時依該課有效購買判定諮詢客戶／課程學員並落庫，填寫頁與銷售頁以身份取代諮詢時間（銷售頁不再下發 `consulted_at`），審核 modal 可切換身份（不動積分與上架狀態）。TestimonialTest 27 項（新增 7：無購買／持有／已退款／他課購買、改身份、非法值與空 body、名單帶 identity），全套 1211 passed、`npm run build` 綠；瀏覽器確認卡片標籤、modal 切換後銷售頁即時更新、填寫頁顯示身份。
 - 2026-10-17: US40 修正規劃（已審核，開始實作）— 評語對外改顯示身份（諮詢客戶／課程學員）取代諮詢時間；送出時依是否持有該課有效購買自動判定並落庫，後台 modal 可切換（D165）；用「課程學員」不用「完課學員」（D166）；`consulted_at` 保留作排序（D167）。發送對象維持只從 Leads 名單。
