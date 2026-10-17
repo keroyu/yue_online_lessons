@@ -35,6 +35,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Placeholder for the screening refusal copy (011 FR-259).
+  defaultDeclineHtml: {
+    type: String,
+    default: '',
+  },
   // Tiers of this course (011 US37) — the bundle panel needs their names.
   plans: {
     type: Array,
@@ -153,6 +158,7 @@ const unpublish = () => {
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
         :coupon-chains="couponChains"
+        :default-decline-html="defaultDeclineHtml"
         :plans="plans"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"

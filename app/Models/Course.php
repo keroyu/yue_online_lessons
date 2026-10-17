@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Support\BookingScreening;
 
 class Course extends Model
 {
@@ -37,6 +38,7 @@ class Course extends Model
         'content_category',
         'high_ticket_hide_price',
         'high_ticket_screening',
+        'high_ticket_decline_html',
         'is_published',
         'status',
         'is_visible',
@@ -265,6 +267,15 @@ class Course extends Model
         return Attribute::make(
             get: fn () => $this->type === 'high_ticket'
         );
+    }
+
+    /**
+     * The refusal shown after a failed screen: this course's own HTML, or the
+     * shared default when none is set (011 FR-259).
+     */
+    public function declineHtml(): string
+    {
+        return $this->high_ticket_decline_html ?? BookingScreening::DEFAULT_DECLINE_HTML;
     }
 
     public function scopeOrdered(Builder $query): Builder

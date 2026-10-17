@@ -17,6 +17,11 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  // Placeholder for the screening refusal copy (011 FR-259).
+  defaultDeclineHtml: {
+    type: String,
+    default: '',
+  },
   // Selectable drip conversion targets — same list the edit page receives
   availableCourses: {
     type: Array,
@@ -38,6 +43,7 @@ defineProps({
         :gateway-configured="gatewayConfigured"
         :content-categories="contentCategories"
         :coupon-chains="couponChains"
+        :default-decline-html="defaultDeclineHtml"
         :available-courses="availableCourses"
         submit-url="/admin/courses"
         method="post"

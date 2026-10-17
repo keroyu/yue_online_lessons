@@ -817,6 +817,7 @@ main_files:
 - database/migrations/2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php
 - database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php
 - database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php
+- database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -845,6 +846,7 @@ main_files:
 - resources/js/Layouts/AdminLayout.vue
 - resources/js/Pages/Admin/ConsultationSlots/Index.vue
 - resources/js/Pages/Admin/Courses/Chapters.vue
+- resources/js/Pages/Admin/Courses/Create.vue
 - resources/js/Pages/Admin/Courses/Edit.vue
 - resources/js/Pages/Admin/Courses/Index.vue
 - resources/js/Pages/Admin/Dashboard.vue
@@ -870,6 +872,7 @@ main_files:
 - tests/Feature/HighTicket/BookingDeclineTest.php
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
+- tests/Feature/HighTicket/BookingScreeningDeclineCopyTest.php
 - tests/Feature/HighTicket/BookingScreeningTest.php
 - tests/Feature/HighTicket/BookingScreeningToggleTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php

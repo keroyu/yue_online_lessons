@@ -35,6 +35,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Placeholder for the screening refusal copy (011 FR-259).
+  defaultDeclineHtml: {
+    type: String,
+    default: '',
+  },
   // Tiers of this course, read-only — the bundle panel labels one quantity
   // input per tier (011 US37 / D145).
   plans: {
@@ -87,6 +92,7 @@ const form = useForm({
   content_category: props.course?.content_category || props.contentCategories[0]?.slug || 'monetization',
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   high_ticket_screening: props.course?.high_ticket_screening ?? true,
+  high_ticket_decline_html: props.course?.high_ticket_decline_html ?? '',
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   payment_gateway: props.course?.payment_gateway || 'payuni',
@@ -228,6 +234,7 @@ const fieldLabels = {
   content_category: '內容分類',
   high_ticket_hide_price: '隱藏價格',
   high_ticket_screening: '資格審核',
+  high_ticket_decline_html: '婉拒告知文字',
   duration_minutes: '時間總長',
   sale_at: '開賣時間',
   portaly_product_id: 'Portaly 商品 ID',
@@ -413,6 +420,21 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
               <span class="text-sm text-gray-700">預約前先做資格審核</span>
             </label>
             <p class="mt-1 text-xs text-gray-500">關閉時，預約流程省去資格審核，直接從填寫資料開始。</p>
+
+            <!-- Hidden with the switch off, but the value stays and is still
+                 posted — turning screening back on restores it (011 FR-259). -->
+            <div v-if="form.high_ticket_screening" data-field="high_ticket_decline_html" class="mt-3">
+              <label for="high_ticket_decline_html" class="block text-sm text-gray-700">婉拒告知文字（支援 HTML）</label>
+              <textarea
+                id="high_ticket_decline_html"
+                v-model="form.high_ticket_decline_html"
+                rows="4"
+                :placeholder="defaultDeclineHtml"
+                class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              />
+              <p class="mt-1 text-xs text-gray-500">未通過資格審核時顯示。換行請用 &lt;br&gt; 或 &lt;p&gt;；留空使用預設文案。</p>
+              <p v-if="form.errors.high_ticket_decline_html" :class="errorTextClasses">{{ form.errors.high_ticket_decline_html }}</p>
+            </div>
           </div>
         </div>
 

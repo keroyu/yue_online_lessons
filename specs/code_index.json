@@ -100,6 +100,7 @@
       "010.us-18",
       "011.us-37",
       "011.us-41",
+      "011.us-42",
       "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
@@ -330,6 +331,7 @@
       "011.us-2",
       "011.us-20",
       "011.us-24",
+      "011.us-42",
       "011.us-9"
     ],
     "app/Http/Controllers/HomeController.php": [
@@ -513,7 +515,8 @@
       "004.us-2",
       "010.us-18",
       "011.us-38",
-      "011.us-41"
+      "011.us-41",
+      "011.us-42"
     ],
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
@@ -566,7 +569,8 @@
       "010.us-18",
       "011.us-37",
       "011.us-38",
-      "011.us-41"
+      "011.us-41",
+      "011.us-42"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -801,7 +805,8 @@
       "004.us-7",
       "011.us-21",
       "011.us-37",
-      "011.us-41"
+      "011.us-41",
+      "011.us-42"
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
@@ -1081,6 +1086,7 @@
       "011.us-27",
       "011.us-38",
       "011.us-41",
+      "011.us-42",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1222,7 +1228,8 @@
       "011.us-23"
     ],
     "app/Support/BookingScreening.php": [
-      "011.us-24"
+      "011.us-24",
+      "011.us-42"
     ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
@@ -1616,6 +1623,9 @@
     "database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php": [
       "011.us-41"
     ],
+    "database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php": [
+      "011.us-42"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "004.us-6",
       "011.us-10",
@@ -1702,7 +1712,8 @@
       "010.us-8",
       "011.us-37",
       "011.us-38",
-      "011.us-41"
+      "011.us-41",
+      "011.us-42"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
@@ -1870,7 +1881,8 @@
     ],
     "resources/js/Components/Course/BookingScreeningStep.vue": [
       "011.us-24",
-      "011.us-41"
+      "011.us-41",
+      "011.us-42"
     ],
     "resources/js/Components/Course/ClaimConsentNotice.vue": [
       "010.us-16"
@@ -2075,11 +2087,13 @@
     ],
     "resources/js/Pages/Admin/Courses/Create.vue": [
       "004.us-1",
-      "004.us-2"
+      "004.us-2",
+      "011.us-42"
     ],
     "resources/js/Pages/Admin/Courses/Edit.vue": [
       "004.us-1",
       "011.us-37",
+      "011.us-42",
       "011.us-8"
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
@@ -2505,6 +2519,9 @@
     "tests/Feature/HighTicket/BookingMailFailureTest.php": [
       "011.us-1",
       "011.us-2"
+    ],
+    "tests/Feature/HighTicket/BookingScreeningDeclineCopyTest.php": [
+      "011.us-42"
     ],
     "tests/Feature/HighTicket/BookingScreeningTest.php": [
       "011.us-24"

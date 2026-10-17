@@ -29,6 +29,8 @@ const errors = ref({})
 const submitting = ref(false)
 const remaining = ref(0)
 const declined = ref(false)
+// Course-specific refusal copy, sent only with a failed screen (011 FR-259).
+const declineHtml = ref('')
 let timer = null
 
 // Everyone waits the same 60 seconds, pass or fail (D99): letting the accepted
@@ -122,6 +124,7 @@ async function submit() {
       ...Object.fromEntries(props.questions.map(q => [q.field, props.form[q.field]])),
     })
 
+    declineHtml.value = data?.decline_html ?? ''
     startReview(data?.passed === true)
   } catch (e) {
     const fields = e.response?.data?.errors
@@ -156,10 +159,12 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
     </div>
     <p class="text-base font-bold text-gray-900">審核結果</p>
     <!-- Grey, not red: nothing here was filled in wrongly. And deliberately no
-         score and no reason — that would read as a guide to the retry. -->
-    <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-gray-600">
-      感謝您的申請。根據您的現況，我們判斷現階段可能不是最適合安排一對一諮詢和推進下一步計劃的時機，因此此次先不安排預約。謝謝您的理解，祝您接下來的規劃順利。
-    </p>
+         score and no reason — that would read as a guide to the retry.
+         Admin-authored HTML, rendered as-is (011 FR-259 / D174). -->
+    <div
+      class="mx-auto mt-3 max-w-md break-words text-sm leading-relaxed text-gray-600 [&_a]:text-brand-teal [&_a]:underline [&_a:hover]:text-brand-teal/80 [&_img]:mx-auto [&_img]:mt-3 [&_img]:h-auto [&_img]:max-w-full [&_p+p]:mt-2"
+      v-html="declineHtml"
+    />
   </div>
 
   <!-- ── Automatic review in progress ── -->

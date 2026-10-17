@@ -75,7 +75,7 @@ class HighTicketBookingService
      * touched. A refusal stops the drip sequence that led here (FR-257,
      * revising FR-126); a pass leaves it running until the booking is confirmed.
      *
-     * @return array{success: bool, message?: string, passed?: bool}
+     * @return array{success: bool, message?: string, passed?: bool, decline_html?: string}
      */
     public function screen(Course $course, array $data): array
     {
@@ -113,7 +113,7 @@ class HighTicketBookingService
 
             $this->stopDripIfDeclined($passed, $data['email'], $course);
 
-            return ['success' => true, 'passed' => $passed];
+            return $this->screenResult($course, $passed);
         }
 
         // Whose status this is allowed to rewrite. A confirmed booking or a
@@ -143,7 +143,21 @@ class HighTicketBookingService
 
         $this->stopDripIfDeclined($passed, $data['email'], $course);
 
-        return ['success' => true, 'passed' => $passed];
+        return $this->screenResult($course, $passed);
+    }
+
+    /**
+     * The refusal copy rides only on a failed result: whoever passed has no
+     * use for it, and the sales page props must not show anyone in advance
+     * what being turned away looks like (011 FR-259 / D174).
+     *
+     * @return array{success: true, passed: bool, decline_html?: string}
+     */
+    private function screenResult(Course $course, bool $passed): array
+    {
+        return $passed
+            ? ['success' => true, 'passed' => true]
+            : ['success' => true, 'passed' => false, 'decline_html' => $course->declineHtml()];
     }
 
     /**

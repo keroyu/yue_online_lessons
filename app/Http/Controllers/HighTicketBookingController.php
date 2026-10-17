@@ -53,7 +53,10 @@ class HighTicketBookingController extends Controller
             return response()->json(['message' => $result['message']], 422);
         }
 
-        return response()->json(['passed' => $result['passed']]);
+        return response()->json(array_filter([
+            'passed'       => $result['passed'],
+            'decline_html' => $result['decline_html'] ?? null,
+        ], fn ($v) => $v !== null));
     }
 
     public function store(HighTicketBookingRequest $request, Course $course): JsonResponse

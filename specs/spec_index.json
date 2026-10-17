@@ -5501,6 +5501,42 @@
       "status": "partial"
     },
     {
+      "id": "011.us-42",
+      "module": "011-high-ticket",
+      "title": "自訂資格審核婉拒文案",
+      "summary": "客製服務設定開啟資格審核時，可自訂自動婉拒畫面的告知文字（支援 HTML），留空沿用預設；文案只隨 /screen 未通過回應下發",
+      "heading": "### User Story 42 - 自訂資格審核婉拒文案 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-42---自訂資格審核婉拒文案-priority-p2",
+      "keywords": [
+        "婉拒",
+        "婉拒文案",
+        "資格審核",
+        "自動婉拒",
+        "客製服務設定",
+        "decline",
+        "screening",
+        "decline_html",
+        "HTML"
+      ],
+      "code_files": [
+        "database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php",
+        "app/Models/Course.php",
+        "app/Support/BookingScreening.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Services/HighTicketBookingService.php",
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "resources/js/Components/Course/BookingScreeningStep.vue",
+        "tests/Feature/HighTicket/BookingScreeningDeclineCopyTest.php",
+        "resources/js/Pages/Admin/Courses/Edit.vue",
+        "resources/js/Pages/Admin/Courses/Create.vue"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",

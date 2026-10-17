@@ -48,6 +48,7 @@ owner_files:
   - database/migrations/2026_10_17_000004_add_experience_and_learning_to_high_ticket_leads_table.php
   - database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php
   - database/migrations/2026_10_18_000003_remap_screen_learning_options.php
+  - database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php
   - resources/js/Components/Course/BookingScopeNotice.vue
   - tests/Feature/HighTicket/BookingScreeningToggleTest.php
   - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
@@ -215,28 +216,31 @@ touchpoints:
     why: US38 積分兌換整門課建立 purchase 後，對一般課程呼叫 `syncPlanGrant()`（FR-224）
   - file: app/Http/Requests/Admin/StoreCourseRequest.php
     owner: 004-course-admin
-    why: US38 諮詢欄位守門改為 FR-222（drip / 免費擋，high_ticket 與一般付費課放行）
+    why: US38 諮詢欄位守門改為 FR-222（drip / 免費擋，high_ticket 與一般付費課放行）；US42 加 `high_ticket_decline_html` 驗證與空白轉 null（FR-259）
   - file: app/Models/Course.php
     owner: 004-course-admin
-    why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）
+    why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）；US42 `$fillable` 加 `high_ticket_decline_html`、新增 `declineHtml()`（自訂或預設文案，FR-259）
   - file: app/Models/Purchase.php
     owner: 005-checkout
     why: US37 `bundle_balance` / `bundle_granted` 兩欄落在這張表（一人一課一列，天然就是餘額的粒度）；`$fillable` 與 `casts()` 補上，寫入一律經 `BundleCreditService`
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
-    why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`
+    why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`；US42 `edit()` 帶出 `high_ticket_decline_html` 與頁面層 `defaultDeclineHtml`（placeholder 用）
   - file: app/Http/Requests/Admin/UpdateCourseRequest.php
     owner: 004-course-admin
-    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔
+    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔；US42 同 StoreCourseRequest
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
-    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）
+    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）；US42 在「預約前先做資格審核」之下加婉拒告知文字 textarea
   - file: resources/js/Pages/Admin/Courses/Index.vue
     owner: 004-course-admin
     why: US37 每列加「學員名單」按鈕並掛 `CourseRosterModal.vue`（FR-208）
   - file: resources/js/Pages/Admin/Courses/Edit.vue
     owner: 004-course-admin
-    why: US37 多收一個 `plans` prop 並透傳給 `CourseForm`，供福利面板標示各方案（新增課程頁不傳，因此不顯示方案次數）
+    why: US37 多收一個 `plans` prop 並透傳給 `CourseForm`，供福利面板標示各方案（新增課程頁不傳，因此不顯示方案次數）；US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder）
+  - file: resources/js/Pages/Admin/Courses/Create.vue
+    owner: 004-course-admin
+    why: US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder，FR-259）
   - file: phpunit.xml
     owner: 000-platform-core
     why: US37 加 `<ini name="memory_limit" value="512M">` —— 測試套件峰值約 133MB，超過 PHP 預設 128M，`php artisan test` 會在 mime 猜測處以配置失敗中斷而非回報結果（此檔原先無 owner 宣告，暫記在平台核心）
@@ -1511,6 +1515,22 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；手機寬度不破版
 - [x] 測試：見 T588
 
+### User Story 42 - 自訂資格審核婉拒文案 (Priority: P2)
+
+自動婉拒畫面的文案（FR-128 定版）目前寫死在前端，所有課程都同一段話。不同課程的受眾與後續路徑不同 ——
+有的想把人導去電子書或低價課，有的想附一個社群連結讓他繼續留在生態系裡。後台「客製服務設定」在
+「預約前先做資格審核」開啟時，多一個「婉拒告知文字」欄位，支援 HTML，留空則沿用預設文案。
+
+**驗收**：
+- [x] 後台課程編輯：「預約前先做資格審核」勾選時，其下顯示「婉拒告知文字（支援 HTML）」多行輸入框；取消勾選時隱藏，但已填的值保留不清（FR-259）
+- [x] 輸入框 placeholder 顯示預設文案；留空（含只有空白）存為 null，代表沿用預設文案
+- [x] 既有課程 migration 後一律為 null，婉拒畫面與現行**完全相同**
+- [x] 銷售頁自動婉拒畫面以 HTML 渲染該課程的自訂文案（可含連結、粗體、`<br>`／`<p>`、圖片）；圖示、「審核結果」標題與中性灰版面不變
+- [x] 文案**只在** `POST /course/{course}/screen` 回 `passed: false` 時隨回應下發（`decline_html`），MUST NOT 出現在銷售頁 props 或頁面原始碼
+- [x] 自訂內容裡的連結有可見樣式（teal + 底線）與 hover 回饋；長網址與圖片在手機寬度不撐破版面
+- [x] 前端 MUST NOT 再寫死預設文案：預設值只存在後端一處
+- [x] 測試：見 T608
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2125,6 +2145,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-257**（US24 修訂，使用者決策 2026-10-18）: `HighTicketBookingService::screen()` 判定**未通過**時，MUST 呼叫 `DripService::checkAndDecline(string $email, Course $course)`：與 `checkAndBook()` 同一條路徑（依 Email 找會員 → 找以本課為 `DripConversionTarget` 的序列信 → 只動 `active` 訂閱），把狀態改為 **`declined`** 並寫 `status_changed_at`。找不到會員或沒有對應序列信時靜默略過；失敗只記 log、MUST NOT 影響審核回應（比照 `checkAndBook()` 的 try/catch）。**通過**時不動序列信（維持現行：點確認連結才停，D35）。`declined` MUST 列入 `DripSubscription::STOPS_SENDING`（已排程的下一封在發送前會被擋下）；MUST NOT 列入 `FUNNEL_DONE`（他沒有預約也沒有購買）。**後續轉換**：已婉拒者之後重新審核通過並確認預約 → `checkAndBook()` 的來源狀態 MUST 加入 `declined`，改為 `booked`；之後購買 → `checkAndConvert` 的來源狀態 MUST 加入 `declined`，改為 `converted`。重新審核通過但尚未確認預約時，序列信**不恢復**。管理員手動婉拒（US27）不在本條範圍，維持 D107。**已知風險**：審核當下 Email 未驗證，填別人的 Email 並故意答到被婉拒，可以停掉對方的序列信；業主接受此風險（影響僅止於少收行銷信）
 - **FR-258**（US24 修訂，使用者決策 2026-10-18）: Q7 `screen_learning` 改版，題目與選項定版見 FR-123。原題問「通常怎麼處理」是問習慣，申請人一律挑最體面的答案，`self_only` 實際無人選、幾乎全選 `free_only`，分不出「有意識地針對自己的問題找社群與教學」與「隨緣看免費內容」。新題問**針對當前卡關做過最深入的一步**，選項為依深度排序的具體行為。**組合否決改為 Q7 ∈ {`passive`, `searched`}**（方案 A：沒進過社群、沒聽過體驗課的都算），Q6 條件與 FR-254 修訂的例外（預算 `6k_10k` 以上且總分 ≥ 7）不變。Q7 仍 0 分、仍必答。**舊資料**：以一支資料 migration 改寫既有值 —— `free_only` → `passive`（使用者決策）、`self_only` → `passive`、`free_active` → `searched`；改寫後程式中移除三個舊鍵（不標 `retired`），正式站 2026-10-18 僅 2 筆 `free_only`、無其他舊值。**不回溯審核結果**：只改寫答案欄，不重算 `screening_score`（Q7 本就 0 分）、不改 lead 狀態（同 FR-253）。草稿回訪若帶著不在新選項內的值，精靈既有的 `draftScreening()` 會清空讓他重選
 - **FR-255**（US41）: `courses.high_ticket_screening`（boolean，預設 true）控制高價課預約精靈是否有資格審核步驟。關閉時：(1) `CourseController@show` 的 `screeningQuestions` 為 `[]`，`course` payload 帶 `high_ticket_screening: false`；(2) `HighTicketBookingService::screen()` 回 `success: false`「此課程不需資格審核」；(3) `book()`／`waitlist()` 跳過 `screeningRefusal()`，且 `application` 陣列 MUST NOT 合併審核答案、`screening_score`、`screened_at`（以 `screen_*` 為 null 表達「此課程沒有審核」，後台展開列沿用 FR-131 的無審核說明）；(4) 精靈以四步進行，Email／暱稱移到資料步驟、`BookingScopeNotice` 移到承諾步驟（使用者決策）。範圍勾選在關閉時**只在前端把關**：沿用 FR-165「不進 book payload」的立場，它是告知不是驗證。**連帶影響**：關閉時沒有審核階段先建的 lead，FR-137 的續填提醒信對該課程自然不會發出 —— lead 只在送出申請時建立。開關切換不回溯既有 lead
+- **FR-259**（US42）: `courses.high_ticket_decline_html`（`text` nullable）為資格審核未通過時顯示的告知文字，HTML 原樣渲染（`v-html`，不 sanitize，見 D174）。(1) 後台：Store／UpdateCourseRequest `nullable|string|max:10000`；只有空白的值由全域 `TrimStrings`＋`ConvertEmptyStringsToNull` 中介層轉成 null（不另寫 `prepareForValidation()`）；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示欄位，隱藏時照常送出原值（不清空）。(2) 預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`（內容為 FR-128 定版文字），`Course::declineHtml(): string` 回自訂值或預設值。(3) `HighTicketBookingService::screen()` 未通過時結果加 `decline_html => $course->declineHtml()`，`HighTicketBookingController@screen` 回 `{passed: false, decline_html}`；通過時回應維持 `{passed: true}`。(4) `BookingScreeningStep` 拿掉寫死文案，改存回應的 `decline_html` 並以 `v-html` 渲染。不影響 FR-128 其他規則（8 秒倒數、不顯示分數與原因）—— 自訂文案寫什麼由管理員負責
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2545,6 +2566,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D171**: 只動前端。`ConsultationSlotService` 的區塊 payload 早已帶 `consultant_id`，`WeekGrid` 也已有 `ownerOf(id)` 查表；只需在 `consultantPalette.js` 每個色系加第五個角色 `booked`（完整寫出的 class 字串，理由同 FR-176：Tailwind v4 掃描原始碼，執行期組字串會在正式站消失），`BLOCK_CLASS` 的 `booked` 改由 `ownerOf(booking.consultant_id).colors.booked` 取得。不新增 API、不改 schema
 - **D172**: 用新狀態 `declined` 而非沿用 `unsubscribed`／`booked`（使用者決策）：沿用前者會灌高退訂率、後者會把被拒的人算成預約成功，兩者都讓 010 的漏斗統計失真。新增狀態 MUST 同步：enum migration、`STOPS_SENDING`、`DripService` 的狀態篩選白名單與統計 `SUM(CASE…)`、`SubscriberListTab` 的標籤／色彩／統計卡／篩選選項、`BookingListTab` 的序列信徽章提示文字、銷售頁 `Show.vue` 對訂閱者顯示的狀態（對使用者顯示中性的「已停止接收」，MUST NOT 對本人顯示「已婉拒」）
 - **D173**: 舊鍵用資料 migration 改寫後**直接刪除**，不走 FR-252 的 `retired` 旗標。`retired` 是為了「舊答案仍要在後台顯示原文案」而存在；這次舊值全部對映到新鍵，表上不會再有舊值，留著舊鍵只是讓規則表多三個永遠用不到的選項。對映 `self_only` → `passive`、`free_active` → `searched`（「追蹤社群、搜尋、參考對標」是自己找，沒有與人互動，對到 `searched` 而非 `engaged`）。Migration `down()` 不還原（新舊不是一對一，`passive` 分不回兩個來源），寫成 no-op 並註明
+- **D174**: 婉拒文案（FR-259）的四個決定。**存 `courses`**：理由同 D170，婉拒後要把人導去哪裡取決於這門課的受眾，不是全站政策；欄位與開關同列，後台也巢狀在開關之下。**從 `/screen` 回應下發，不放 props**：通過的人用不到；放進 props 等於讓每位訪客在頁面原始碼看到「被擋下時會看到什麼」，FR-128「不給修改指南」的立場同樣適用。**不 sanitize**：課程編輯只有 admin 能進（`routes/web.php` 的 `admin` 群組），與 `description`／`lead_intro` 的 `v-html` 同一信任等級；後台作者要嵌按鈕、連結、圖片正是需求，白名單過濾只會在某天默默吃掉一個 `<iframe>`。**不自動轉換換行**：以 HTML 為準，換行請用 `<br>` 或 `<p>`（欄位說明文字寫明）；若同時支援「純文字自動換行」，貼一段帶縮排的 HTML 會多出一堆空行，兩種輸入方式只能擇一
 - **D170**: 開關存在 `courses` 而非 `site_settings` —— 是否需要分流取決於該課程的流量來源，不是全站政策。只在 `high_ticket_hide_price = true` 時有意義（價格公開的高價課沒有預約精靈），故後台開關巢狀在「隱藏價格」之下而非獨立一區。精靈以 `props.course.high_ticket_screening !== false` 判斷（舊快取頁面缺欄位時視為開啟，與 DB 預設一致）；步驟編號維持內部 `n = 2..5` 不重編，只在進度指示**顯示**時以 `i + 1` 編號 —— `canLeave()`、`routeFieldErrors()`、`goTo()` 等全部以 `n` 運作，重編會牽動整支精靈。範圍勾選與顧問說明抽成 `BookingScopeNotice.vue`（props：`form`、`errors`），避免兩份文案漂移
 
 ## Schema
@@ -2584,6 +2606,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   **不變量修訂**：`screened_at` 非 null ⇒ Q1–Q5 與 `screening_score` 非 null；Q6/Q7 只對 FR-254 上線後審核者保證非 null。`down()` 卸掉兩欄
 
 - **FR-255 schema 變更**：`2026_10_18_000001_add_high_ticket_screening_to_courses_table.php` — `courses.high_ticket_screening` boolean NOT NULL default true，`after('high_ticket_hide_price')`。`down()` 卸掉該欄。不變量：既有列 migration 後全為 true
+
+- **FR-259 schema 變更**：`2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php` — `courses.high_ticket_decline_html` text nullable，`after('high_ticket_screening')`。`down()` 卸掉該欄。不變量：null = 使用 `BookingScreening::DEFAULT_DECLINE_HTML`；MUST NOT 存空字串
 
 - **US23 schema 變更（一支 migration）**：
 
@@ -3949,8 +3973,21 @@ Phase 4 — 驗證
 - [x] T601 測試：`passive`／`searched` ＋ 時間短 → 婉拒；`engaged` ＋ 時間短 → 通過；例外仍解除；舊鍵送出 → 422；migration 改寫舊值；既有測試的 Q7 預設值與舊鍵改用新鍵 in `tests/Feature/HighTicket/BookingScreeningTest.php`, `tests/Feature/HighTicket/BookingScreeningToggleTest.php`, `tests/Feature/HighTicket/StaleApplicationCancelTest.php`
 - [x] T602 `php artisan test` 全綠、`npm run build`
 
+### 自訂資格審核婉拒文案（US42 / FR-259）
+
+- [x] T603 Migration `courses.high_ticket_decline_html`；`Course` fillable + `declineHtml()`〔touchpoint 004〕in `database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php`, `app/Models/Course.php`
+- [x] T604 `BookingScreening::DEFAULT_DECLINE_HTML`（FR-128 定版文字）in `app/Support/BookingScreening.php`
+- [x] T605 後台：Store/UpdateCourseRequest 驗證（空白轉 null 由全域中介層處理）；Admin `CourseController@edit` 帶出欄位與 `defaultDeclineHtml`；`CourseForm` 在資格審核開關下加 textarea（placeholder 為預設文案、說明「支援 HTML，換行請用 `<br>`；留空使用預設文案」）〔touchpoint 004〕in `app/Http/Requests/Admin/StoreCourseRequest.php`, `app/Http/Requests/Admin/UpdateCourseRequest.php`, `app/Http/Controllers/Admin/CourseController.php`, `resources/js/Components/Admin/CourseForm.vue`
+- [x] T606 `screen()` 未通過時結果帶 `decline_html`；`HighTicketBookingController@screen` 未通過時回應加 `decline_html` in `app/Services/HighTicketBookingService.php`, `app/Http/Controllers/HighTicketBookingController.php`
+- [x] T607 [P] `BookingScreeningStep`：拿掉寫死文案，存回應的 `decline_html` 並 `v-html` 渲染；容器加連結樣式（`[&_a]:text-brand-teal [&_a]:underline hover`）與 `break-words`、`[&_img]:max-w-full mt-3` in `resources/js/Components/Course/BookingScreeningStep.vue`
+- [x] T608 測試：未設定 → `/screen` 未通過回預設文案；設定後回自訂 HTML（原樣）；通過時回應無 `decline_html`；銷售頁 props 不含 `high_ticket_decline_html`；後台存檔空白 → null、超過 10000 字 → 422 in `tests/Feature/HighTicket/BookingScreeningDeclineCopyTest.php`
+- [x] T609 `php artisan test` 全綠、`npm run build`；瀏覽器確認後台欄位顯示／隱藏、銷售頁婉拒畫面的自訂 HTML（含連結、圖片，桌機＋手機）
+
 ## 進度日誌
 
+- 2026-10-18: US42 T609 瀏覽器確認 — 後台欄位隨資格審核開關顯示／隱藏、存檔成功；銷售頁答「沒有預算」後 8 秒倒數接自訂 HTML（段落、連結 teal 底線＋hover、粗體、圖片），頁面原始碼無文案；358px 寬度無溢出、圖片縮放。圖片與文字間補 `mt-3`。視窗縮放工具未生效，手機寬度以壓窄卡片模擬。
+- 2026-10-18: US42 / FR-259 完成 T603–T608 — `courses.high_ticket_decline_html` + `Course::declineHtml()`，預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`；`/screen` 未通過回應帶 `decline_html`，通過時不帶；後台在資格審核開關下加 HTML textarea（placeholder 為預設文案）；`BookingScreeningStep` 改以 `v-html` 渲染回應文案。新增 7 條測試，實作前 5 紅（2 條是守門測試，原本就綠）。全站 1255 passed（5586 assertions），`npm run build` 綠。T609 瀏覽器確認待做。
+- 2026-10-18: [draft] 規劃 US42 自訂資格審核婉拒文案（FR-259，D174）— `courses.high_ticket_decline_html`（text nullable，null = 預設文案）；後台在資格審核開關下加 HTML textarea；文案只隨 `/screen` 未通過回應下發，不進 props；預設文案移到後端 `BookingScreening::DEFAULT_DECLINE_HTML` 單一來源；admin 專屬欄位不 sanitize。
 - 2026-10-18: [sync] 課程編輯頁「諮詢次數」面板（`CourseBundlePanel.vue`）降低存在感：琥珀底框改灰框、標題列可收合並顯示諮詢名稱或「未附諮詢」；諮詢名稱留空（未附諮詢）時預設收起，`bundle_*` 有驗證錯誤時自動展開。純前端，瀏覽器已確認收起／展開。
 - 2026-10-18: FR-258 完成（T599–T602）— Q7 改問「針對當前卡關做過最深入的一步」，選項 `passive`/`searched`/`engaged`/`cheap_paid`/`paid_course`；組合否決 Q7 條件改 `passive`/`searched`；資料 migration 把 `free_only`/`self_only` → `passive`、`free_active` → `searched` 後刪舊鍵。新增 3 條測試（engaged 解除否決、舊鍵 422、migration 對映），實作前皆紅。全站 1247 passed（5556 assertions），`npm run build` 綠。
 - 2026-10-18: [draft] 規劃 Q7 改版（FR-258，修訂 FR-254，D173）— 題目改問「針對當前卡關做過最深入的一步」，選項 `passive`/`searched`/`engaged`/`cheap_paid`/`paid_course`；組合否決改為 `passive`/`searched`；舊值 migration 改寫後刪除舊鍵。

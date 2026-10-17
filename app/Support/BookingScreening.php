@@ -23,6 +23,13 @@ class BookingScreening
     public const PASS_SCORE = 5;
 
     /**
+     * What a turned-away applicant reads when the course sets no copy of its
+     * own (FR-128 wording, FR-259). Kept here, not in the wizard, so the
+     * front end never carries a second copy that can drift.
+     */
+    public const DEFAULT_DECLINE_HTML = '感謝您的申請。根據您的現況，我們判斷現階段可能不是最適合安排一對一諮詢和推進下一步計劃的時機，因此此次先不安排預約。謝謝您的理解，祝您接下來的規劃順利。';
+
+    /**
      * Every question, option, label and score.
      *
      * Budget bands are tied to the actual plan prices (entry 8,888 / standard

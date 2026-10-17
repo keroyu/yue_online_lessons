@@ -12,6 +12,7 @@ use App\Models\SiteSetting;
 use App\Services\CouponChainService;
 use App\Services\DripService;
 use App\Services\TrafficSourceService;
+use App\Support\BookingScreening;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -79,6 +80,8 @@ class CourseController extends Controller
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
             'availableCourses' => $this->availableTargetCourses(),
             'couponChains' => $this->couponChainService->editorOptions(),
+            // Placeholder for the refusal-copy field (011 FR-259).
+            'defaultDeclineHtml' => BookingScreening::DEFAULT_DECLINE_HTML,
         ]);
     }
 
@@ -217,6 +220,7 @@ class CourseController extends Controller
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
                 'high_ticket_screening' => $course->high_ticket_screening,
+                'high_ticket_decline_html' => $course->high_ticket_decline_html,
                 'is_high_ticket' => $course->is_high_ticket,
                 'payment_gateway' => $course->payment_gateway,
             ],
@@ -238,6 +242,8 @@ class CourseController extends Controller
             'gatewayConfigured' => $this->gatewayConfigured(),
             'contentCategories' => \App\Http\Controllers\Admin\HomepageSettingController::contentCategories(),
             'couponChains' => $this->couponChainService->editorOptions(),
+            // Placeholder for the refusal-copy field (011 FR-259).
+            'defaultDeclineHtml' => BookingScreening::DEFAULT_DECLINE_HTML,
         ]);
     }
 

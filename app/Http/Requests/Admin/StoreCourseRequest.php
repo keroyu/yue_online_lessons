@@ -79,6 +79,9 @@ class StoreCourseRequest extends FormRequest
             'content_category' => $this->contentCategoryRule(),
             'high_ticket_hide_price' => ['nullable', 'boolean'],
             'high_ticket_screening' => ['nullable', 'boolean'],
+            // Rendered as-is on the refusal screen (011 FR-259). Blank arrives as
+            // null via the global TrimStrings/ConvertEmptyStringsToNull pair.
+            'high_ticket_decline_html' => ['nullable', 'string', 'max:10000'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
