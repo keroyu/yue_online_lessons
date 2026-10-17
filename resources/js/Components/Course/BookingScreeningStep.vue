@@ -40,7 +40,7 @@ const allAnswered = computed(() => props.questions.every(q => !!props.form[q.fie
 
 const ready = computed(() => identityFilled.value && allAnswered.value && props.form.screen_ack)
 
-// Five questions with five options each is a wall of text to open a page with,
+// Seven questions with up to five options each is a wall of text to open a page with,
 // and the first thing a visitor sees should still be two fields. The
 // questionnaire is revealed once there is a name and address to attach it to,
 // and then one question at a time — each answer uncovers the next, so the
@@ -207,7 +207,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
 
     <template v-else>
       <div class="flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
-        <p class="text-xs text-gray-500">以下五題請據實回答。</p>
+        <p class="text-xs text-gray-500">以下各題請據實回答。</p>
         <p class="shrink-0 text-xs font-medium tabular-nums text-gray-400">{{ answeredCount }} / {{ questions.length }}</p>
       </div>
 
@@ -215,6 +215,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <p class="text-sm font-semibold text-gray-900">
           {{ questions.indexOf(q) + 1 }}. {{ q.title }} <span class="text-red-500">*</span>
         </p>
+        <p v-if="q.hint" class="text-xs leading-relaxed text-gray-500">{{ q.hint }}</p>
 
         <div class="space-y-1.5">
           <label

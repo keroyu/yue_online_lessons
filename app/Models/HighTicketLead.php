@@ -53,6 +53,8 @@ class HighTicketLead extends Model
         'screen_authority',
         'screen_pain',
         'screen_next_step',
+        'screen_experience',
+        'screen_learning',
         'screening_score',
         'screened_at',
         'declined_at',

@@ -45,6 +45,7 @@ owner_files:
   - app/Http/Requests/Admin/UploadTranscriptRequest.php
   - tests/Feature/HighTicket/TranscriptUploadTest.php
   - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
+  - database/migrations/2026_10_17_000004_add_experience_and_learning_to_high_ticket_leads_table.php
   - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
   - database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php
   - app/Console/Commands/CancelStaleApplications.php
@@ -958,6 +959,8 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - [ ] 後台展開列新增「資格審核」區：分數（`N/10`）、分級標籤（8–10 高意願 / 5–7 值得談 / 0–4 培育名單）與五題答案的中文標籤；無審核紀錄的舊 lead 顯示說明而非一排「—」
 - [ ] 逾時清掃 MUST NOT 刪到只完成審核、尚未送出申請的 lead（`confirm_expires_at` 為 null 即已排除，FR-126）
 - [ ] 測試：計分表逐題、5 分邊界、「沒有預算」一票否決、未通過不寄信／不停 drip／不佔時段、通過者照常走完既有流程、重新審核可翻案、送出時重新計分、舊 lead 無答案仍可送出
+- [x] Q5 下一步選 `diy`（想先自己嘗試一段時間）或 `advice_only`（目前主要是想獲得一些建議，暫時沒有合作打算）時一律婉拒，無論總分（FR-253）
+- [x] 新增 Q6 社群摸索時間、Q7 卡關時的學習方式兩題（只記錄、0 分）；Q6 題目下方顯示附註。Q6 ∈ {還沒開始、偶爾發文、累積不到 1 年} **且** Q7 ∈ {靠自己摸索、看免費資源} 時一律婉拒（FR-254）
 - [x] 第五題答完後顯示顧問分派說明（灰色小字，不必勾，FR-166）與必勾的服務範圍告知（文案與版面見 FR-162），未勾時「送出審核」為 disabled；`?resume=` 回訪者與舊 lead **MUST NOT** 被這個勾選擋住（FR-164）
 - [x] 伺服器端以 `accepted` 驗證 `screen_ack`，繞過前端直接打 `POST /course/{course}/screen` 而未帶勾選者回 422（FR-163）；該欄位不落庫、不加欄位
 - [x] 回到第一步再往前 MUST NOT 要求重勾（狀態在精靈的 `form` 上，FR-165）
@@ -1823,10 +1826,36 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   | `start_now` | 希望盡快確認合作方式並開始 | 2 |
   | `evaluate` | 願意認真評估方案與費用後決定 | 2 |
   | `compare` | 需要再比較其他選項 | 1 |
-  | `diy` | 想先自己嘗試一段時間 | 0 |
-  | `advice_only` | 目前主要是想獲得一些建議，暫時沒有合作打算 | 0 |
+  | `diy` | 想先自己嘗試一段時間 | 0 **· 否決（FR-253）** |
+  | `advice_only` | 目前主要是想獲得一些建議，暫時沒有合作打算 | 0 **· 否決（FR-253）** |
 
   分級（僅供後台顯示，不影響通過與否）：8–10 高購買意願、5–7 值得談但需 qualification、0–4 培育名單。
+
+  **否決**（FR-253）：Q5 = `diy` 或 `advice_only` 時一律不通過，同 `none` 的單選項否決。
+
+  **Q6 `screen_experience` — 你在經營社群這件事上，認真摸索多久了？**（FR-254，0 分）
+
+  附註：一對一諮詢最能幫上忙的，是已經動手嘗試過、對社群經營有基本認知的人 —— 這樣我們才能針對你實際卡住的地方討論，而不是從零講起。
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `not_started` | 還沒開始 | 0 |
+  | `casual` | 偶爾發文，沒有特別花心思研究 | 0 |
+  | `under_1y` | 認真摸索過，累積不到 1 年 | 0 |
+  | `1_3y` | 認真摸索過，累積 1–3 年 | 0 |
+  | `over_3y` | 認真摸索過，累積 3 年以上 | 0 |
+
+  **Q7 `screen_learning` — 遇到卡關時，你通常怎麼處理？**（FR-254，0 分）
+
+  | 儲存值 | 選項文案 | 分數 |
+  |--------|---------|------|
+  | `self_only` | 靠自己慢慢摸索，不太找外部資源 | 0 |
+  | `free_only` | 看免費資源（YouTube、文章、Podcast） | 0 |
+  | `free_active` | 追蹤免費教學社群、進行關鍵字搜尋和參考對標帳號 | 0 |
+  | `cheap_paid` | 買過專門書籍、講座，或數千元的課程 | 0 |
+  | `paid_course` | 上過中高價課程或找過顧問 | 0 |
+
+  **組合否決**（FR-254）：Q6 ∈ {`not_started`, `casual`, `under_1y`} 且 Q7 ∈ {`self_only`, `free_only`} 時一律不通過。
 - **FR-124**: 五題**全部必答**。未作答在計分制下只能算 0 分，把它留成選填等於做一題「答不答都算你錯」的扣分題，而使用者永遠不會知道自己被什麼擋住。
   題目與選項文字由後端下發（單一來源見 D101），**分數與否決旗標 MUST NOT 出現在任何前端 payload**：把評分表放進網頁原始碼，等於在閘門旁邊貼上答案。審核回應同理只回 `{passed}`，**不回分數** —— 分數是給顧問看的，不是給申請人看的。
 - **FR-125**: `POST /course/{course}/screen`（throttle:10,1）：驗證 Email／暱稱／五題 → 伺服器端計分 → 建立或更新該 `email + course_id` 的 lead，寫入五題答案、`screening_score`、`screened_at`，回 `{passed: bool}`。
@@ -2052,6 +2081,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-250**（US40 追加，2026-10-17 改為 modal）: 輪播卡片評語固定 `line-clamp-6`；是否顯示「看全文」以實測 `scrollHeight > clientHeight` 判定（依卡片寬度而定，不以字數猜），掛載後與 resize 時重測。「看全文」開啟 `Teleport` 到 body 的 dialog（`role=dialog`、`aria-modal`），顯示暱稱／身份／頭銜與全文，內文區 `overflow-y-auto`、開啟時鎖住頁面捲動；Esc、背景、✕ 關閉。**MUST NOT 就地展開**：就地展開會改變卡片與整列高度，破壞版面（使用者回報）
 - **FR-251**（US40 追加）: `Testimonial/Create` 多帶 `testimonials` 與 `course_url`：僅當身份（已提交讀儲存值，否則 `identityFor()`）為 `consultation` 時才有值，學員為 `[]` / `null`。清單一律經 `TestimonialService::publishedFor(int $courseId, ?int $exceptId)`（銷售頁同用，排除自己那則），沿用 `TestimonialCarousel`。輪播在填寫頁放表單**之前**、在感謝頁放感謝卡之後。原本放表單之後（顧慮先讀別人的評語、寫出來會跟著同一個調子），業主回報放下方容易被忽略，改到上方 —— 讓未購買者看到評語的目的優先於評語的獨立性。送出成功不保留捲動位置，讓感謝卡（含「看課程介紹」按鈕）在視窗內；驗證錯誤時才保留
 - **FR-252**（US24 修訂）: Q2 預算題的 `unsure`（不確定，希望先了解方案內容與價格）**下架**（使用者決策，2026-10-17）：申請者必須選一個預算級距。以選項上的 `retired` 旗標實作而非刪除 —— 已選過它的舊 lead 在後台仍要讀得到文案、重算仍要拿到同樣的分數（1 分、上限 6，FR-172 不動）。`retired` 選項 MUST NOT 出現在 `questionsForFront()`，且 `/screen`（`rules()` required）MUST 拒收；但預約送出（`rules(required: false)`）MUST 仍接受 —— 下架前已通過審核的草稿會跳過步驟 1，無從改答。前台 wizard 載入草稿時，若尚未通過審核且草稿答案不在現行選項中，MUST 清空該題，否則它會被算成「已作答」卻沒有任何選項被選取
+- **FR-253**（US24 追加）: Q5 `screen_next_step` 的 `diy`（想先自己嘗試一段時間）與 `advice_only`（目前主要是想獲得一些建議，暫時沒有合作打算）改為**一票否決**（使用者決策，2026-10-17）：`BookingScreening::vetoed()` MUST 回 true，無論總分。兩者原本是 0 分但不否決，其餘四題滿分仍可得 8 分而通過。依據：正式站 32 筆有作答的成交／未成交 lead 中，選這兩項者 0/6 成交（其中含管理員確認預約後手動婉拒者）。原規劃的「預算 NT$5,999 以下 ＋ 痛點不足」組合否決**不採用**：該組合 3 筆中 1 筆成交，且「影響不大」的成交率（57%）不低於其他痛點選項。實作沿用既有選項上的 `veto` 旗標，MUST NOT 隨 `questionsForFront()` 下發（FR-124 / D101）。婉拒流程同既有否決（FR-126 / FR-128）。**不回溯**：已落庫的 lead 不批次改狀態；但凡經過 `passes()` 的路徑自然套用 —— 草稿回訪的 `screening_cleared`、送出申請時的重新計分（FR-129）
+- **FR-254**（US24 追加）: 資格審核新增 Q6 `screen_experience`（社群摸索時間）與 Q7 `screen_learning`（卡關時的學習方式），題目、選項與附註定版見 FR-123（使用者決策，2026-10-17）。兩題**皆 0 分**：滿分維持 10、`PASS_SCORE` 維持 5、後台分級邊界不變 —— 它們的價值在組合，不在單題高低（摸索中等時間又不找資源的人最不會買，但摸得夠久、夠痛的人即使沒找過資源反而會買，是 U 型而非單調）。**組合否決**：Q6 ∈ {`not_started`, `casual`, `under_1y`} 且 Q7 ∈ {`self_only`, `free_only`} 時 `vetoed()` MUST 回 true；只成立其一 MUST NOT 觸發。Q6 附註 MUST 顯示在題目下方（由後端隨題目下發 `hint`），否決規則 MUST NOT 下發（FR-124 / D101）。題序放在 Q5 之後。**七題全部必答**（FR-124 延伸）。**舊資料不回溯**：本功能前已審核的 lead Q6/Q7 為 null —— 草稿回訪時 `passes()` 以五題答案判定（null 不命中任何否決），已通過者照常跳過第一步；送出申請時答案不完整則依 FR-129 放行；後台兩題顯示「—」
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2466,6 +2497,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D165**: 身份**送出當下判定並落庫**、後台可改，不在顯示時即時重算（使用者決策）。即時重算看似永遠正確，但退款會讓一則「課程學員」的評語在銷售頁上無聲變回「諮詢客戶」，而且管理員無從修正；落庫值則有一個明確的人可以負責它。諮詢後才成交的人，由審核者在 modal 裡改一下即可
 - **D166**: 用「課程學員」不用「完課學員」（使用者決策）。高價課沒有完課判定，上課中的學員佔大多數；「完課」會讓系統把上到一半的人標成不實身份，或逼出一套手動完課標記
 - **D167**: `consulted_at` 欄位保留、只是不再對外顯示。輪播排序與後台 modal 仍需要它，且 US40 尚未部署，`identity` 直接加進原 create migration（本機需 rollback 重跑），不另開 alter migration
+- **D168**: FR-253 直接在 `diy`、`advice_only` 兩個選項加 `veto => true`，不新增機制 —— 單選項否決正是既有 `none` 的形狀，`vetoed()` 與前台過濾都不必改。`score` 維持 0（否決不改分數，`screening_score` 仍是「他是哪一種」的紀錄）。不做回溯 migration：否決只影響通不通過，而 lead 狀態一律由審核當下決定（同 FR-125）
+- **D169**: 組合否決以 `BookingScreening::VETO_COMBOS` 常數表達：`list<array<field, list<value>>>`，同一組內所有欄位皆命中才成立，任一組成立即否決；`vetoed()` 先查單選項 `veto`、再查各組。單選項旗標表達不了「A 且 B」，寫死成 `vetoed()` 裡的 if 又會讓規則跟 `QUESTIONS` 這張事實表分家。選項的 `hint` 改為**題目層級**的可選鍵（`QUESTIONS[field]['hint']`），`questionsForFront()` 有才帶；`BookingScreeningStep` 在題目標題下以小字灰色渲染。新欄位用獨立 alter migration（US24 已上線，不能改原 migration），`after('screen_next_step')`、varchar(20) nullable、不設 enum 約束（沿用 US24 的理由）
 
 ## Schema
 
@@ -2493,6 +2526,15 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   - `declined_at` 非 null ⇒ `status = declined`、`confirm_token` 為 null、名下無 `consultation_slots`（FR-126）；重新審核通過時兩者一起清
   - `screening_score` 為 null ⇒ 舊 lead 或 resume 回訪，送出申請時放行（FR-129）
   - 所有欄位對舊資料一律 null，後台顯示一句說明而非五排「—」（FR-131）
+
+- **FR-254 schema 變更**：`2026_10_17_000004_add_experience_and_learning_to_high_ticket_leads_table.php`
+
+  | 欄位 | 型別 | 用途 |
+  |------|------|------|
+  | `screen_experience` | varchar(20) nullable，`after('screen_next_step')` | Q6 社群摸索時間 |
+  | `screen_learning` | varchar(20) nullable | Q7 卡關時的學習方式 |
+
+  **不變量修訂**：`screened_at` 非 null ⇒ Q1–Q5 與 `screening_score` 非 null；Q6/Q7 只對 FR-254 上線後審核者保證非 null。`down()` 卸掉兩欄
 
 - **US23 schema 變更（一支 migration）**：
 
@@ -3810,8 +3852,26 @@ Phase 4 — 驗證
 - [x] T571 填寫頁評語輪播由表單下方移到上方（FR-251 修訂）in `resources/js/Pages/Testimonial/Create.vue`
 - [x] T572 Q2 預算題「不確定」下架：`retired` 旗標、`questionsForFront()` 與 required `rules()` 排除、wizard 草稿清空已下架答案（FR-252）in `app/Support/BookingScreening.php`, `resources/js/Components/Course/HighTicketBookingWizard.vue`, `tests/Feature/HighTicket/BookingScreeningTest.php`
 
+### 下一步「想先自己試／只要建議」一票否決（US24 追加 / FR-253）
+
+- [x] T573 `screen_next_step` 的 `diy`、`advice_only` 加 `veto => true` in `app/Support/BookingScreening.php`
+- [x] T574 `BookingScreeningTest` 補測試：`diy`／`advice_only` 其餘滿分（8 分）仍不通過且分數不變、`compare` 照常計分通過、`/screen` 回 `passed:false` 且 lead 為 `declined`、送出預約時帶此答案被拒；FR-123 計分表測試同步 in `tests/Feature/HighTicket/BookingScreeningTest.php`
+- [x] T575 `php artisan test` 全綠；拿掉 `veto` 旗標確認新測試會紅
+
+### 新增 Q6 社群摸索時間、Q7 學習方式與組合否決（US24 追加 / FR-254）
+
+- [x] T576 Migration：`high_ticket_leads` 加 `screen_experience`、`screen_learning` in `database/migrations/2026_10_17_000004_add_experience_and_learning_to_high_ticket_leads_table.php`
+- [x] T577 `HighTicketLead` fillable 加兩欄 in `app/Models/HighTicketLead.php`
+- [x] T578 `BookingScreening`：`QUESTIONS` 加 Q6（含 `hint`）、Q7；新增 `VETO_COMBOS` 並於 `vetoed()` 檢查；`questionsForFront()` 帶出 `hint`（有才帶）；更新類別註解「五題」→「七題」in `app/Support/BookingScreening.php`
+- [x] T579 [P] 前端：wizard `form` 加兩欄（經 `draftScreening()`）；`BookingScreeningStep` 在題目下渲染 `hint`、註解「Five questions」更新 in `resources/js/Components/Course/HighTicketBookingWizard.vue`, `resources/js/Components/Course/BookingScreeningStep.vue`
+- [x] T580 測試：FR-123 計分表加 Q6/Q7（皆 0 分、選項數）；三個測試檔的作答 helper 補兩題預設（`1_3y`、`paid_course`）；組合否決四象限（短＋不找資源擋、短＋`free_active` 過、`1_3y`＋`self_only` 過、`over_3y`＋`free_only` 過）；`questionsForFront()` 帶 `hint` 但不含 `VETO_COMBOS` 內容；舊 lead 只有五題答案時 `passes()` 照舊、後台 Q6/Q7 顯示「—」in `tests/Feature/HighTicket/BookingScreeningTest.php`, `tests/Feature/HighTicket/StaleApplicationCancelTest.php`, `tests/Feature/HighTicket/ApplicationResumeReminderTest.php`
+- [ ] T581 `php artisan test` 全綠、`npm run build`；拿掉 `VETO_COMBOS` 確認組合測試會紅；瀏覽器確認 Q6 附註與七題漸進顯示（桌機＋手機）
+
 ## 進度日誌
 
+- 2026-10-17: FR-253／FR-254 完成（T573–T580，T581 僅剩瀏覽器實測）— Q5「想先自己試／只要建議」一票否決；新增 Q6 社群摸索時間（含附註）、Q7 學習方式（皆 0 分）與 `VETO_COMBOS` 組合否決；migration `..._000004` 加兩欄；前台題目下渲染 `hint`、wizard 帶兩欄。`BookingScreeningTest` +8，作答 helper 補兩題；拿掉兩個否決時 4 條新測試轉紅。全站 1226 passed（5464 assertions），`npm run build` 綠。
+- 2026-10-17: [draft] 規劃 Q6 社群摸索時間、Q7 學習方式（FR-254，D169）— 兩題 0 分只記錄，搭配組合否決：摸索不到 1 年（含還沒開始、偶爾發文）且只靠自己或只看免費資源者婉拒。業主觀察為 U 型：中等時間又不找資源最不會買，摸得夠久夠痛者即使沒找資源也會買，故不以單題計分表達。
+- 2026-10-17: [draft] 規劃 Q5 否決（FR-253，D168）— 依正式站 32 筆成交／未成交資料，原案「預算 NT$5,999 以下＋痛點不足」改為「下一步選想先自己試／只要建議即否決」（0/6 成交）。沿用單選項 `veto` 旗標，不改分數、不回溯。
 - 2026-10-17: Q2 預算題「不確定，希望先了解方案內容與價格」下架（T572，FR-252，業主要求）— 不刪選項而加 `retired` 旗標：舊 lead 的後台文案與分數不變，新申請在表單上看不到、`/screen` 拒收；已通過審核的草稿送出預約時仍接受。wizard 對未通過的草稿清空已下架答案。新增 4 測試；拿掉旗標時其中 2 條會紅（另 2 條守的是舊資料相容，本來就該綠）。HighTicket 測試 657 passed。
 - 2026-10-17: 填寫頁評語輪播與表單的間距減半（業主要求）— 輪播區下 padding 40/48 → 20/24px、表單上 padding 48/64 → 24/32px（手機/桌機），合計 88/112 → 44/56px；感謝頁不變。瀏覽器實測桌機「看課程介紹」到表單卡 58px。
 - 2026-10-17: FR-251 修訂（T571）— 業主回報填寫頁的評語輪播放在表單下方容易被忽略，改放表單上方；感謝頁維持感謝卡在前。瀏覽器確認兩頁的順序。

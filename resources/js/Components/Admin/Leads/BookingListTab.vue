@@ -1393,7 +1393,7 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
               </p>
               <p v-else class="text-sm text-gray-400 border-t border-gray-200 pt-4">—　這筆預約在申請問卷上線前送出，沒有問卷內容。</p>
 
-              <!-- 011 US24：第一步的五題資格審核。分數只在這裡出現，申請人永遠看不到 -->
+              <!-- 011 US24：第一步的資格審核。分數只在這裡出現，申請人永遠看不到 -->
               <div class="border-t border-gray-200 pt-4">
                 <div v-if="lead.screened_at" class="space-y-3">
                   <div class="flex flex-wrap items-center gap-2">

@@ -160,6 +160,8 @@ class StaleApplicationCancelTest extends TestCase
             'screen_authority' => 'self',
             'screen_pain'      => 'moderate',
             'screen_next_step' => 'start_now',
+            'screen_experience' => '1_3y',
+            'screen_learning'   => 'paid_course',
             'screen_ack'       => true,
         ])->assertOk()->assertJson(['passed' => true]);
 

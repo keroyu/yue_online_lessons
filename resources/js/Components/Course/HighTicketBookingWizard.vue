@@ -82,6 +82,8 @@ const form = reactive({
   screen_authority: draftScreening('screen_authority'),
   screen_pain: draftScreening('screen_pain'),
   screen_next_step: draftScreening('screen_next_step'),
+  screen_experience: draftScreening('screen_experience'),
+  screen_learning: draftScreening('screen_learning'),
   // Step 1's scope acknowledgement (FR-165). Kept on the wizard's form rather
   // than inside the step so that stepping back and forward does not ask for it
   // again; it rides along on the screen POST only — `book` / `waitlist` list

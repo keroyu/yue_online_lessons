@@ -5,13 +5,13 @@ namespace App\Support;
 use Illuminate\Validation\Rule;
 
 /**
- * The five-question gate in front of the booking wizard (011 US24 / FR-123).
+ * The seven-question gate in front of the booking wizard (011 US24 / FR-123).
  *
  * One definition, on the server. The questions are shipped to the browser for
  * rendering — the scores are not (FR-124): a rubric in the page source is a
  * rubric with the answer key attached.
  *
- * Scoring is a lookup table, deliberately not a model call (D100). Five
+ * Scoring is a lookup table, deliberately not a model call (D100). Seven
  * single-choice answers carry no language to interpret, and a model would buy
  * latency, cost and a score that can differ between two runs of the same
  * answers — which is exactly what you cannot have when somebody asks why they
@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
  */
 class BookingScreening
 {
-    /** Out of a possible 10. Five questions, 2 points each at best. */
+    /** Out of a possible 10. Q1–Q5 score up to 2 each; Q6/Q7 score nothing (FR-254). */
     public const PASS_SCORE = 5;
 
     /**
@@ -37,6 +37,9 @@ class BookingScreening
      * `cap` is the softer version of the same idea: the answer does not
      * disqualify, but it puts a ceiling on the total however good the other
      * four are (FR-172).
+     *
+     * `hint` (question level, optional) is a line of small print under the
+     * title, shipped to the front with it (FR-254).
      *
      * `retired` takes an option off the form without orphaning the leads that
      * already chose it: it is no longer rendered or accepted on the screen
@@ -104,13 +107,55 @@ class BookingScreening
                 'start_now'   => ['label' => '希望盡快確認合作方式並開始', 'score' => 2],
                 'evaluate'    => ['label' => '願意認真評估方案與費用後決定', 'score' => 2],
                 'compare'     => ['label' => '需要再比較其他選項', 'score' => 1],
-                'diy'         => ['label' => '想先自己嘗試一段時間', 'score' => 0],
-                'advice_only' => ['label' => '目前主要是想獲得一些建議，暫時沒有合作打算', 'score' => 0],
+                // Nobody who picked either has bought (0/6 on 2026-10-17) — FR-253.
+                'diy'         => ['label' => '想先自己嘗試一段時間', 'score' => 0, 'veto' => true],
+                'advice_only' => ['label' => '目前主要是想獲得一些建議，暫時沒有合作打算', 'score' => 0, 'veto' => true],
+            ],
+        ],
+        // Q6 and Q7 score nothing on their own: the signal is the pair, and it
+        // is not monotonic — somebody who has struggled alone for years has
+        // felt the cost and buys, somebody a few months in who will not look
+        // for help does not (FR-254, 使用者決策). See VETO_COMBOS.
+        'screen_experience' => [
+            'title'   => '你在經營社群這件事上，認真摸索多久了？',
+            'hint'    => '一對一諮詢最能幫上忙的，是已經動手嘗試過、對社群經營有基本認知的人 —— 這樣我們才能針對你實際卡住的地方討論，而不是從零講起。',
+            'options' => [
+                'not_started' => ['label' => '還沒開始', 'score' => 0],
+                'casual'      => ['label' => '偶爾發文，沒有特別花心思研究', 'score' => 0],
+                'under_1y'    => ['label' => '認真摸索過，累積不到 1 年', 'score' => 0],
+                '1_3y'        => ['label' => '認真摸索過，累積 1–3 年', 'score' => 0],
+                'over_3y'     => ['label' => '認真摸索過，累積 3 年以上', 'score' => 0],
+            ],
+        ],
+        'screen_learning' => [
+            'title'   => '遇到卡關時，你通常怎麼處理？',
+            'options' => [
+                'self_only'   => ['label' => '靠自己慢慢摸索，不太找外部資源', 'score' => 0],
+                'free_only'   => ['label' => '看免費資源（YouTube、文章、Podcast）', 'score' => 0],
+                'free_active' => ['label' => '追蹤免費教學社群、進行關鍵字搜尋和參考對標帳號', 'score' => 0],
+                'cheap_paid'  => ['label' => '買過專門書籍、講座，或數千元的課程', 'score' => 0],
+                'paid_course' => ['label' => '上過中高價課程或找過顧問', 'score' => 0],
             ],
         ],
     ];
 
-    /** The five column names, which are also the five request keys. */
+    /**
+     * Vetoes that only hold in combination (FR-254 / D169).
+     *
+     * Each entry is one rule: it fires when every listed field's answer is in
+     * its list. Any rule firing vetoes, exactly like an option's `veto` flag.
+     * Kept here, beside QUESTIONS, so the rubric stays one table on the server
+     * and never travels to the browser (FR-124).
+     */
+    public const VETO_COMBOS = [
+        // A short time in, and not looking beyond themselves or free content.
+        [
+            'screen_experience' => ['not_started', 'casual', 'under_1y'],
+            'screen_learning'   => ['self_only', 'free_only'],
+        ],
+    ];
+
+    /** The answer column names, which are also the request keys. */
     public static function fields(): array
     {
         return array_keys(self::QUESTIONS);
@@ -123,7 +168,7 @@ class BookingScreening
      * is the method every front end must go through, so there is one place to
      * be right about it (FR-124 / D101). Retired options are dropped (FR-252).
      *
-     * @return array<int, array{field: string, title: string, options: array<int, array{value: string, label: string}>}>
+     * @return array<int, array{field: string, title: string, hint?: string, options: array<int, array{value: string, label: string}>}>
      */
     public static function questionsForFront(): array
     {
@@ -132,22 +177,23 @@ class BookingScreening
         foreach (self::QUESTIONS as $field => $question) {
             $options = self::activeOptions($question);
 
-            $out[] = [
+            $out[] = array_filter([
                 'field'   => $field,
                 'title'   => $question['title'],
+                'hint'    => $question['hint'] ?? null,
                 'options' => array_values(array_map(
                     fn ($value, $option) => ['value' => $value, 'label' => $option['label']],
                     array_keys($options),
                     $options,
                 )),
-            ];
+            ], fn ($value) => $value !== null);
         }
 
         return $out;
     }
 
     /**
-     * Validation rules for the five answers.
+     * Validation rules for the answers.
      *
      * @param bool $required false on the booking submit, where a resumed draft
      *                       or a pre-feature lead legitimately carries none
@@ -207,11 +253,26 @@ class BookingScreening
         return $cap === null ? $total : min($total, $cap);
     }
 
-    /** An answer that disqualifies on its own, whatever the total (FR-123). */
+    /** An answer, or a pair of answers, that disqualifies whatever the total (FR-123 / FR-254). */
     public static function vetoed(array $answers): bool
     {
         foreach (self::QUESTIONS as $field => $question) {
             if (($question['options'][$answers[$field] ?? null]['veto'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        foreach (self::VETO_COMBOS as $combo) {
+            $fires = true;
+
+            foreach ($combo as $field => $values) {
+                if (!in_array($answers[$field] ?? null, $values, true)) {
+                    $fires = false;
+                    break;
+                }
+            }
+
+            if ($fires) {
                 return true;
             }
         }
@@ -236,7 +297,7 @@ class BookingScreening
         return true;
     }
 
-    /** Only the five answers, for handing to `update()` / `create()`. */
+    /** Only the screening answers, for handing to `update()` / `create()`. */
     public static function only(array $answers): array
     {
         return array_intersect_key($answers, array_flip(self::fields()));

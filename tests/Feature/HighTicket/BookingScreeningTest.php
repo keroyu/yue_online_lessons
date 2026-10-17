@@ -68,6 +68,9 @@ class BookingScreeningTest extends TestCase
             'screen_authority' => 'self',
             'screen_pain'      => 'severe',
             'screen_next_step' => 'start_now',
+            // Neither scores (FR-254); these two simply stay clear of the combo veto.
+            'screen_experience' => '1_3y',
+            'screen_learning'   => 'paid_course',
         ], $overrides);
     }
 
@@ -96,6 +99,8 @@ class BookingScreeningTest extends TestCase
             'screen_authority' => ['self' => 2, 'discuss' => 2, 'approval' => 1, 'none' => 0, 'not_considered' => 0],
             'screen_pain'      => ['severe' => 2, 'high' => 2, 'moderate' => 1, 'low' => 0, 'curious' => 0],
             'screen_next_step' => ['start_now' => 2, 'evaluate' => 2, 'compare' => 1, 'diy' => 0, 'advice_only' => 0],
+            'screen_experience' => ['not_started' => 0, 'casual' => 0, 'under_1y' => 0, '1_3y' => 0, 'over_3y' => 0],
+            'screen_learning'   => ['self_only' => 0, 'free_only' => 0, 'free_active' => 0, 'cheap_paid' => 0, 'paid_course' => 0],
         ];
 
         foreach ($expected as $field => $options) {
@@ -185,8 +190,117 @@ class BookingScreeningTest extends TestCase
         $this->assertStringNotContainsString('score', $encoded);
         $this->assertStringNotContainsString('veto', $encoded);
         $this->assertStringNotContainsString('cap', $encoded);
-        $this->assertCount(5, BookingScreening::questionsForFront());
+        $this->assertCount(7, BookingScreening::questionsForFront());
         $this->assertStringContainsString('目前沒有預算', $encoded, '選項文字仍要送出去讓前台渲染');
+    }
+
+    // ── 下一步一票否決（FR-253） ───────────────────────────────────────────
+
+    public function test_wanting_to_try_alone_or_only_advice_is_vetoed(): void
+    {
+        foreach (['diy', 'advice_only'] as $value) {
+            $answers = $this->answers(['screen_next_step' => $value]);
+
+            $this->assertSame(8, BookingScreening::score($answers), '否決不改分數');
+            $this->assertTrue(BookingScreening::vetoed($answers), "{$value} 應一票否決");
+            $this->assertFalse(BookingScreening::passes($answers));
+        }
+
+        $this->assertTrue(BookingScreening::passes($this->answers(['screen_next_step' => 'compare'])));
+    }
+
+    public function test_a_vetoed_next_step_is_declined_on_the_screen_post(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/screen", $this->screeningPayload(['screen_next_step' => 'diy']))
+            ->assertOk()
+            ->assertJson(['passed' => false]);
+
+        $this->assertSame('declined', HighTicketLead::first()->status);
+    }
+
+    // ── 社群摸索時間 × 學習方式的組合否決（FR-254） ───────────────────────
+
+    public function test_short_experience_without_seeking_resources_is_vetoed(): void
+    {
+        foreach (['not_started', 'casual', 'under_1y'] as $experience) {
+            foreach (['self_only', 'free_only'] as $learning) {
+                $answers = $this->answers(['screen_experience' => $experience, 'screen_learning' => $learning]);
+
+                $this->assertSame(10, BookingScreening::score($answers), '兩題皆 0 分，否決不改分數');
+                $this->assertFalse(BookingScreening::passes($answers), "{$experience} + {$learning} 應婉拒");
+            }
+        }
+    }
+
+    public function test_either_half_of_the_combo_alone_passes(): void
+    {
+        $cases = [
+            ['under_1y', 'free_active'],   // short, but actively seeking
+            ['under_1y', 'cheap_paid'],
+            ['1_3y', 'self_only'],         // long enough, even alone
+            ['over_3y', 'free_only'],
+        ];
+
+        foreach ($cases as [$experience, $learning]) {
+            $this->assertTrue(
+                BookingScreening::passes($this->answers(['screen_experience' => $experience, 'screen_learning' => $learning])),
+                "{$experience} + {$learning} 不應被否決"
+            );
+        }
+    }
+
+    public function test_the_combo_veto_declines_on_the_screen_post(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/screen", $this->screeningPayload([
+            'screen_experience' => 'casual',
+            'screen_learning'   => 'self_only',
+        ]))->assertOk()->assertJson(['passed' => false]);
+
+        $lead = HighTicketLead::first();
+        $this->assertSame('declined', $lead->status);
+        $this->assertSame('casual', $lead->screen_experience);
+        $this->assertSame('self_only', $lead->screen_learning);
+    }
+
+    public function test_the_new_questions_are_required_on_the_screen_post(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $payload = $this->screeningPayload();
+        unset($payload['screen_experience'], $payload['screen_learning']);
+
+        $this->postJson("/course/{$course->id}/screen", $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['screen_experience', 'screen_learning']);
+    }
+
+    public function test_the_experience_hint_is_sent_but_the_combo_rule_is_not(): void
+    {
+        $questions = collect(BookingScreening::questionsForFront())->keyBy('field');
+
+        $this->assertStringContainsString('基本認知', $questions['screen_experience']['hint']);
+        $this->assertArrayNotHasKey('hint', $questions['screen_timeline']);
+
+        $encoded = json_encode(BookingScreening::questionsForFront(), JSON_UNESCAPED_UNICODE);
+        $this->assertStringNotContainsString('veto', $encoded);
+    }
+
+    /** Leads screened before FR-254 carry five answers; their verdict must not change. */
+    public function test_a_five_answer_lead_keeps_its_verdict(): void
+    {
+        $old = $this->answers();
+        unset($old['screen_experience'], $old['screen_learning']);
+
+        $this->assertTrue(BookingScreening::passes($old));
+
+        $lead = new HighTicketLead($old);
+        $lead->screened_at = now();
+        $answers = collect($lead->screening_answers)->pluck('answer', 'title');
+
+        $this->assertSame('—', $answers[BookingScreening::QUESTIONS['screen_experience']['title']]);
     }
 
     // ── 下架選項（FR-252） ────────────────────────────────────────────────
@@ -583,7 +697,7 @@ class BookingScreeningTest extends TestCase
         $lead = HighTicketLead::first()->toArray();
 
         $this->assertSame('hot', $lead['screening_tier']);
-        $this->assertCount(5, $lead['screening_answers']);
+        $this->assertCount(7, $lead['screening_answers']);
         $this->assertSame('NT$10,000–49,999', $lead['screening_answers'][1]['answer']);
     }
 
