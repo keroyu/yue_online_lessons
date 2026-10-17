@@ -4,6 +4,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import ImageGalleryModal from './ImageGalleryModal.vue'
 import CouponChainInserter from './CouponChainInserter.vue'
 import CourseBundlePanel from './CourseBundlePanel.vue'
+import DateTimeInput from './DateTimeInput.vue'
 
 const props = defineProps({
   course: {
@@ -300,6 +301,8 @@ const submit = () => {
 
 // Input classes for consistent styling
 const inputClasses = 'mt-2 block w-full rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm transition-colors focus:border-brand-teal focus:ring-brand-teal'
+// DateTimeInput puts the top margin on its wrapper so the clear button lines up.
+const dateInputClasses = inputClasses.replace('mt-2 ', '')
 const inputErrorClasses = 'border-red-300 focus:border-red-500 focus:ring-red-500'
 const labelClasses = 'block text-sm font-semibold text-gray-900'
 const helpTextClasses = 'mt-2 text-sm text-gray-500'
@@ -711,11 +714,11 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           <!-- Promo Ends At -->
           <div data-field="promo_ends_at">
             <label for="promo_ends_at" :class="labelClasses">優惠到期時間</label>
-            <input
+            <DateTimeInput
               id="promo_ends_at"
               v-model="form.promo_ends_at"
-              type="datetime-local"
-              :class="[inputClasses, form.errors.promo_ends_at ? inputErrorClasses : '']"
+              wrapper-class="mt-2"
+              :class="[dateInputClasses, form.errors.promo_ends_at ? inputErrorClasses : '']"
             />
             <p :class="helpTextClasses">新增時若填原價但未填到期時間，預設為 30 天後</p>
             <p v-if="form.errors.promo_ends_at" :class="errorTextClasses">{{ form.errors.promo_ends_at }}</p>
@@ -740,11 +743,11 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
           <!-- Sale At -->
           <div data-field="sale_at">
             <label for="sale_at" :class="labelClasses">預購開賣時間（選填）</label>
-            <input
+            <DateTimeInput
               id="sale_at"
               v-model="form.sale_at"
-              type="datetime-local"
-              :class="[inputClasses, form.errors.sale_at ? inputErrorClasses : '']"
+              wrapper-class="mt-2"
+              :class="[dateInputClasses, form.errors.sale_at ? inputErrorClasses : '']"
             />
             <p :class="helpTextClasses">設定後，發佈時將自動設為「預購中」，時間到會自動切換為「熱賣中」。</p>
             <p v-if="form.errors.sale_at" :class="errorTextClasses">{{ form.errors.sale_at }}</p>

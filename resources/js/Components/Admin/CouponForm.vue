@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useForm, Link } from '@inertiajs/vue3'
+import DateTimeInput from './DateTimeInput.vue'
 
 const props = defineProps({
   coupon: { type: Object, default: null },
@@ -121,9 +122,8 @@ const submit = () => {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">到期日（可留空 = 永不過期）</label>
-        <input
+        <DateTimeInput
           v-model="form.expires_at"
-          type="datetime-local"
           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-teal focus:ring-1 focus:ring-brand-teal outline-none"
         />
         <p v-if="form.errors.expires_at" class="text-sm text-red-600 mt-1">{{ form.errors.expires_at }}</p>

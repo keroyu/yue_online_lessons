@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { marked } from 'marked'
+import DateTimeInput from './DateTimeInput.vue'
 
 const props = defineProps({
   post: { type: Object, default: null },
@@ -209,7 +210,7 @@ const insertImage = (url) => {
           </div>
           <div v-if="form.status !== 'draft'">
             <label class="block text-sm font-medium text-gray-700">發佈時間</label>
-            <input v-model="form.published_at" type="datetime-local" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+            <DateTimeInput v-model="form.published_at" wrapper-class="mt-1" class="w-full rounded-md border border-gray-300 px-2 py-2" />
             <p v-if="form.errors.published_at" class="text-sm text-red-600 mt-1">{{ form.errors.published_at }}</p>
           </div>
         </div>
