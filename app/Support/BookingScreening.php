@@ -37,6 +37,11 @@ class BookingScreening
      * `cap` is the softer version of the same idea: the answer does not
      * disqualify, but it puts a ceiling on the total however good the other
      * four are (FR-172).
+     *
+     * `retired` takes an option off the form without orphaning the leads that
+     * already chose it: it is no longer rendered or accepted on the screen
+     * POST, but its label and scoring stay so old rows still read and re-score
+     * the way they did (FR-252).
      */
     public const QUESTIONS = [
         'screen_timeline' => [
@@ -68,7 +73,9 @@ class BookingScreening
                 // badge never moved. What moved is the ordering — a named 6 and
                 // an unnamed 6 must not read as the same application, and at 7
                 // the unnamed one outranked most of the named ones.
-                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1, 'cap' => 6],
+                //
+                // Retired on 2026-10-17 (FR-252): applicants now have to name a band.
+                'unsure'    => ['label' => '不確定，希望先了解方案內容與價格', 'score' => 1, 'cap' => 6, 'retired' => true],
             ],
         ],
         'screen_authority' => [
@@ -114,7 +121,7 @@ class BookingScreening
      *
      * `score` and `veto` are stripped here rather than in the controller: this
      * is the method every front end must go through, so there is one place to
-     * be right about it (FR-124 / D101).
+     * be right about it (FR-124 / D101). Retired options are dropped (FR-252).
      *
      * @return array<int, array{field: string, title: string, options: array<int, array{value: string, label: string}>}>
      */
@@ -123,13 +130,15 @@ class BookingScreening
         $out = [];
 
         foreach (self::QUESTIONS as $field => $question) {
+            $options = self::activeOptions($question);
+
             $out[] = [
                 'field'   => $field,
                 'title'   => $question['title'],
                 'options' => array_values(array_map(
                     fn ($value, $option) => ['value' => $value, 'label' => $option['label']],
-                    array_keys($question['options']),
-                    $question['options'],
+                    array_keys($options),
+                    $options,
                 )),
             ];
         }
@@ -142,20 +151,31 @@ class BookingScreening
      *
      * @param bool $required false on the booking submit, where a resumed draft
      *                       or a pre-feature lead legitimately carries none
-     *                       (FR-129)
+     *                       (FR-129). It still accepts retired options:
+     *                       a draft that cleared the gate before the option
+     *                       was retired skips step 1 and could not fix it
+     *                       (FR-252).
      */
     public static function rules(bool $required = true): array
     {
         $rules = [];
 
         foreach (self::QUESTIONS as $field => $question) {
+            $options = $required ? self::activeOptions($question) : $question['options'];
+
             $rules[$field] = [
                 $required ? 'required' : 'nullable',
-                Rule::in(array_keys($question['options'])),
+                Rule::in(array_keys($options)),
             ];
         }
 
         return $rules;
+    }
+
+    /** The options a new applicant may still pick (FR-252). */
+    private static function activeOptions(array $question): array
+    {
+        return array_filter($question['options'], fn ($option) => !($option['retired'] ?? false));
     }
 
     /**

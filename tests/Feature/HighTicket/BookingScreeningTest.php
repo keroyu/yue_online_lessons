@@ -189,6 +189,49 @@ class BookingScreeningTest extends TestCase
         $this->assertStringContainsString('目前沒有預算', $encoded, '選項文字仍要送出去讓前台渲染');
     }
 
+    // ── 下架選項（FR-252） ────────────────────────────────────────────────
+
+    /** 「不確定」不再出現在表單上 —— 申請者必須選一個預算級距。 */
+    public function test_a_retired_option_is_not_sent_to_the_front(): void
+    {
+        $encoded = json_encode(BookingScreening::questionsForFront(), JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringNotContainsString('unsure', $encoded);
+        $this->assertStringNotContainsString('不確定，希望先了解方案內容與價格', $encoded);
+        $this->assertStringNotContainsString('retired', $encoded);
+    }
+
+    public function test_a_retired_option_is_rejected_on_the_screen_post(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/screen", $this->screeningPayload(['screen_budget' => 'unsure']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['screen_budget']);
+    }
+
+    /** A draft that already cleared the gate skips step 1, so the submit must still take it. */
+    public function test_a_retired_option_is_still_accepted_on_the_booking_submit(): void
+    {
+        $this->assertArrayNotHasKey('screen_budget', validator(
+            ['screen_budget' => 'unsure'],
+            BookingScreening::rules(required: false),
+        )->errors()->toArray());
+    }
+
+    /** Leads that answered before the retirement keep their label in the admin. */
+    public function test_a_retired_answer_still_reads_on_old_leads(): void
+    {
+        $lead = new HighTicketLead([
+            'screen_budget' => 'unsure',
+        ]);
+        $lead->screened_at = now();
+
+        $budget = collect($lead->screening_answers)->firstWhere('title', BookingScreening::QUESTIONS['screen_budget']['title']);
+
+        $this->assertSame('不確定，希望先了解方案內容與價格', $budget['answer']);
+    }
+
     // ── 審核端點（FR-125 / FR-126） ─────────────────────────────────────────
 
     public function test_passing_records_the_answers_and_lets_the_applicant_through(): void

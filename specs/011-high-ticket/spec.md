@@ -1792,7 +1792,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   | `6k_10k` | NT$6,000–9,999 | 1 |
   | `under_6k` | NT$5,999 以下 | 0 |
   | `none` | 目前沒有預算 | 0 **· 否決** |
-  | `unsure` | 不確定，希望先了解方案內容與價格 | 1 **· 上限 6** |
+  | ~~`unsure`~~ | ~~不確定，希望先了解方案內容與價格~~ | 1 **· 上限 6 · 已下架（FR-252）** |
 
   級距對應實際方案定價（入門 8,888 / 一般 36,000 / 旗艦 58,000）：**買得起主力方案的門檻在 1 萬以上，故 `10k_50k` 給滿分**；`6k_10k` 只買得起入門級，是客戶但不是最該佔用 1v1 的那種，給 1 分。`unsure` 給 1 分而非 0 —— 銷售頁本來就隱藏價格，「想先知道多少錢」是誠實回答，不是低意圖。但它同時是**總分上限 7** 的觸發條件，見 FR-172。
 
@@ -2051,6 +2051,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-249**（US40 修正）: `PATCH /admin/testimonials/{testimonial}` 接受 `status` 與 `identity` 任一或兩者（`UpdateTestimonialRequest`：兩者皆 `sometimes`，至少一個，`identity` ∈ 兩值）；`TestimonialService::update(Testimonial, array)` 取代 `setStatus()`，`published_at` 規則不變。改身份 MUST NOT 動積分與 `status`。Leads 名單的 `testimonial` 物件多帶 `identity`
 - **FR-250**（US40 追加，2026-10-17 改為 modal）: 輪播卡片評語固定 `line-clamp-6`；是否顯示「看全文」以實測 `scrollHeight > clientHeight` 判定（依卡片寬度而定，不以字數猜），掛載後與 resize 時重測。「看全文」開啟 `Teleport` 到 body 的 dialog（`role=dialog`、`aria-modal`），顯示暱稱／身份／頭銜與全文，內文區 `overflow-y-auto`、開啟時鎖住頁面捲動；Esc、背景、✕ 關閉。**MUST NOT 就地展開**：就地展開會改變卡片與整列高度，破壞版面（使用者回報）
 - **FR-251**（US40 追加）: `Testimonial/Create` 多帶 `testimonials` 與 `course_url`：僅當身份（已提交讀儲存值，否則 `identityFor()`）為 `consultation` 時才有值，學員為 `[]` / `null`。清單一律經 `TestimonialService::publishedFor(int $courseId, ?int $exceptId)`（銷售頁同用，排除自己那則），沿用 `TestimonialCarousel`。輪播在填寫頁放表單**之前**、在感謝頁放感謝卡之後。原本放表單之後（顧慮先讀別人的評語、寫出來會跟著同一個調子），業主回報放下方容易被忽略，改到上方 —— 讓未購買者看到評語的目的優先於評語的獨立性。送出成功不保留捲動位置，讓感謝卡（含「看課程介紹」按鈕）在視窗內；驗證錯誤時才保留
+- **FR-252**（US24 修訂）: Q2 預算題的 `unsure`（不確定，希望先了解方案內容與價格）**下架**（使用者決策，2026-10-17）：申請者必須選一個預算級距。以選項上的 `retired` 旗標實作而非刪除 —— 已選過它的舊 lead 在後台仍要讀得到文案、重算仍要拿到同樣的分數（1 分、上限 6，FR-172 不動）。`retired` 選項 MUST NOT 出現在 `questionsForFront()`，且 `/screen`（`rules()` required）MUST 拒收；但預約送出（`rules(required: false)`）MUST 仍接受 —— 下架前已通過審核的草稿會跳過步驟 1，無從改答。前台 wizard 載入草稿時，若尚未通過審核且草稿答案不在現行選項中，MUST 清空該題，否則它會被算成「已作答」卻沒有任何選項被選取
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -3807,9 +3808,11 @@ Phase 4 — 驗證
 - [x] T569 修正「評語連結」在 Safari 按了沒反應：click 內以 ClipboardItem(promise) 寫剪貼簿，失敗退回手動複製 modal（FR-239 補充）in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [x] T570 填寫頁／感謝頁顯示其他評語＋看課程介紹（僅諮詢客戶，FR-251）；銷售頁查詢改走共用 `publishedFor()` in `app/Services/TestimonialService.php`, `app/Http/Controllers/TestimonialController.php`, `app/Http/Controllers/CourseController.php`〔touchpoint 002〕, `resources/js/Pages/Testimonial/Create.vue`, `tests/Feature/HighTicket/TestimonialTest.php`
 - [x] T571 填寫頁評語輪播由表單下方移到上方（FR-251 修訂）in `resources/js/Pages/Testimonial/Create.vue`
+- [x] T572 Q2 預算題「不確定」下架：`retired` 旗標、`questionsForFront()` 與 required `rules()` 排除、wizard 草稿清空已下架答案（FR-252）in `app/Support/BookingScreening.php`, `resources/js/Components/Course/HighTicketBookingWizard.vue`, `tests/Feature/HighTicket/BookingScreeningTest.php`
 
 ## 進度日誌
 
+- 2026-10-17: Q2 預算題「不確定，希望先了解方案內容與價格」下架（T572，FR-252，業主要求）— 不刪選項而加 `retired` 旗標：舊 lead 的後台文案與分數不變，新申請在表單上看不到、`/screen` 拒收；已通過審核的草稿送出預約時仍接受。wizard 對未通過的草稿清空已下架答案。新增 4 測試；拿掉旗標時其中 2 條會紅（另 2 條守的是舊資料相容，本來就該綠）。HighTicket 測試 657 passed。
 - 2026-10-17: 填寫頁評語輪播與表單的間距減半（業主要求）— 輪播區下 padding 40/48 → 20/24px、表單上 padding 48/64 → 24/32px（手機/桌機），合計 88/112 → 44/56px；感謝頁不變。瀏覽器實測桌機「看課程介紹」到表單卡 58px。
 - 2026-10-17: FR-251 修訂（T571）— 業主回報填寫頁的評語輪播放在表單下方容易被忽略，改放表單上方；感謝頁維持感謝卡在前。瀏覽器確認兩頁的順序。
 - 2026-10-17: US40 追加 FR-251（T570）— 目的是讓尚未購買的諮詢客戶在填評語時再看一次別人的評語。採業主認可的建議：填寫頁送出鈕下方＋感謝頁都放輪播與「看課程介紹」，只對諮詢客戶、排除自己那則；銷售頁與填寫頁共用 `publishedFor()`。新增 3 測試（諮詢客戶看得到且只有該課程已顯示者、感謝頁排除自己、學員兩者皆無）。瀏覽器實測桌機與手機。

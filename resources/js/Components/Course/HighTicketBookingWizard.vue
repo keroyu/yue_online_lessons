@@ -54,6 +54,18 @@ const step = ref(resuming ? 4 : (screeningCleared ? 2 : 1))
 // re-screening somebody we invited back by email would be absurd (FR-129).
 const screeningPassed = ref(resuming || screeningCleared)
 
+// A draft answer whose option has since been retired (FR-252) is not on the
+// form any more, so on step 1 it would count as answered while showing nothing
+// selected. Blank it there; past the gate it rides along untouched, since the
+// applicant never sees step 1 again to replace it.
+const draftScreening = (field) => {
+  const value = props.draft?.[field] || ''
+  if (screeningPassed.value) return value
+  const question = props.screeningQuestions.find(q => q.field === field)
+
+  return question?.options.some(o => o.value === value) ? value : ''
+}
+
 const form = reactive({
   name: props.draft?.name || page.props.auth?.user?.real_name || page.props.auth?.user?.nickname || '',
   email: props.draft?.email || page.props.auth?.user?.email || '',
@@ -65,11 +77,11 @@ const form = reactive({
   code: props.draft?.code || '',
   slot_starts_at: '',
   // Carried through to the submit so the server can re-score them (FR-129).
-  screen_timeline: props.draft?.screen_timeline || '',
-  screen_budget: props.draft?.screen_budget || '',
-  screen_authority: props.draft?.screen_authority || '',
-  screen_pain: props.draft?.screen_pain || '',
-  screen_next_step: props.draft?.screen_next_step || '',
+  screen_timeline: draftScreening('screen_timeline'),
+  screen_budget: draftScreening('screen_budget'),
+  screen_authority: draftScreening('screen_authority'),
+  screen_pain: draftScreening('screen_pain'),
+  screen_next_step: draftScreening('screen_next_step'),
   // Step 1's scope acknowledgement (FR-165). Kept on the wizard's form rather
   // than inside the step so that stepping back and forward does not ask for it
   // again; it rides along on the screen POST only — `book` / `waitlist` list
