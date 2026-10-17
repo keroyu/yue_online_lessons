@@ -78,6 +78,7 @@ class StoreCourseRequest extends FormRequest
             'type' => ['required', 'in:lecture,mini,full,high_ticket,ebook'],
             'content_category' => $this->contentCategoryRule(),
             'high_ticket_hide_price' => ['nullable', 'boolean'],
+            'high_ticket_screening' => ['nullable', 'boolean'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date', 'after:now'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],

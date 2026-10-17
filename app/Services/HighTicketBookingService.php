@@ -72,8 +72,8 @@ class HighTicketBookingService
      * Records the answers whatever the verdict — the output of this step IS
      * "which kind of person is this", and the people who walk away halfway are
      * exactly the ones worth having on file. Nothing is emailed, no slot is
-     * touched, and a refusal deliberately does NOT stop the drip sequence these
-     * applicants arrived from (FR-126).
+     * touched. A refusal stops the drip sequence that led here (FR-257,
+     * revising FR-126); a pass leaves it running until the booking is confirmed.
      *
      * @return array{success: bool, message?: string, passed?: bool}
      */
@@ -81,6 +81,10 @@ class HighTicketBookingService
     {
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
+        }
+
+        if (!$course->high_ticket_screening) {
+            return ['success' => false, 'message' => '此課程不需資格審核'];
         }
 
         $answers = BookingScreening::only($data);
@@ -106,6 +110,8 @@ class HighTicketBookingService
                 'declined_at' => $passed ? null : now(),
                 'booked_at'   => now(),
             ]));
+
+            $this->stopDripIfDeclined($passed, $data['email'], $course);
 
             return ['success' => true, 'passed' => $passed];
         }
@@ -135,7 +141,31 @@ class HighTicketBookingService
 
         $lead->update($attributes);
 
+        $this->stopDripIfDeclined($passed, $data['email'], $course);
+
         return ['success' => true, 'passed' => $passed];
+    }
+
+    /**
+     * A refusal stops the sequence that led here (011 FR-257). Best-effort like
+     * the booking's drip stop: the verdict has been recorded, and a drip hiccup
+     * must not turn it into an error page.
+     */
+    private function stopDripIfDeclined(bool $passed, string $email, Course $course): void
+    {
+        if ($passed) {
+            return;
+        }
+
+        try {
+            app(DripService::class)->checkAndDecline($email, $course);
+        } catch (\Exception $e) {
+            Log::error('High ticket screening: drip stop failed', [
+                'email'     => $email,
+                'course_id' => $course->id,
+                'error'     => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -154,6 +184,8 @@ class HighTicketBookingService
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
+
+        $data = $this->withoutScreeningWhenOff($course, $data);
 
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
@@ -243,6 +275,8 @@ class HighTicketBookingService
         if (!$course->is_high_ticket || !$course->high_ticket_hide_price) {
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
+
+        $data = $this->withoutScreeningWhenOff($course, $data);
 
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
@@ -1175,6 +1209,24 @@ class HighTicketBookingService
      *
      * @param array<string, mixed> $data
      */
+    /**
+     * A course with screening off has no gate (011 FR-255): drop any answers
+     * the request carries, so they are neither judged by `screeningRefusal()`
+     * nor stored by the application — an unanswered row is how the admin
+     * tells "this course does not screen" apart from a score.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function withoutScreeningWhenOff(Course $course, array $data): array
+    {
+        if ($course->high_ticket_screening) {
+            return $data;
+        }
+
+        return array_diff_key($data, array_flip(BookingScreening::fields()));
+    }
+
     /**
      * Re-run the gate on the answers this very request carries (011 FR-129).
      *

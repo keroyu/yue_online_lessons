@@ -46,6 +46,9 @@ owner_files:
   - tests/Feature/HighTicket/TranscriptUploadTest.php
   - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
   - database/migrations/2026_10_17_000004_add_experience_and_learning_to_high_ticket_leads_table.php
+  - database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php
+  - resources/js/Components/Course/BookingScopeNotice.vue
+  - tests/Feature/HighTicket/BookingScreeningToggleTest.php
   - resources/js/Components/Admin/ConsultationSlots/consultantPalette.js
   - database/migrations/2026_09_04_000001_cap_unsure_budget_screening_scores.php
   - app/Console/Commands/CancelStaleApplications.php
@@ -179,6 +182,12 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: app/Models/DripSubscription.php
+    owner: 010-drip-email
+    why: FR-257 — 新增 `declined` 狀態並列入 `STOPS_SENDING`
+  - file: database/migrations/2026_10_18_000002_add_declined_to_drip_subscriptions_status.php
+    owner: 010-drip-email
+    why: FR-257 — `drip_subscriptions.status` enum 加 `declined`
   - file: resources/js/Pages/Admin/Settings/Points.vue
     owner: 007-points-referral
     why: US40 — 新增「客戶評語獎勵點數」欄位
@@ -950,6 +959,7 @@ webhook 的對照鍵是 `consultation_notes.zoom_meeting_id`。
 - [ ] 審核當下即建立／更新該 email 的 lead：五題答案、`screening_score`、`screened_at` 落庫（FR-125）—— 這是「他是哪一種」的紀錄，中途離開也留得住
 - [ ] 未通過者：`status = declined`、`declined_at = now()`、**不寄任何信**（不寄婉拒信、不寄內部 CC）、不佔時段、不產 `confirm_token`（FR-126）
 - [ ] 未通過者 MUST NOT 被停掉序列信 —— 他們正是要留在加溫名單裡的那群（FR-126）
+- [x] **（2026-10-18 修訂，FR-257）** 上條作廢：資格審核自動婉拒時，MUST 停發該 Email 在「以本課為轉換目標」的序列信，訂閱狀態記為新的 `declined`（已婉拒）
 - [ ] 審核 MUST NOT 覆寫已有進行中預約的 lead 狀態：`confirmed_at` 非 null 或 `status` 已被管理員改動者，只更新答案與分數，`status` 不動（FR-125）
 - [ ] 送出申請（`book` / `waitlist`）時伺服器**以送上來的答案重新計分**：帶了答案就必須通過，沒帶答案（`?resume=` 回訪、本功能上線前的舊 lead）則放行（FR-129 / D97）
 - [ ] `?resume=` 回訪者直接開在時段步驟，MUST NOT 被要求重做資格審核；已存的答案由 `draftAnswers()` 帶回（FR-129）
@@ -1224,6 +1234,7 @@ US26 的續填提醒已經在 3 小時～7 天內寄過**唯一一封**信。過
 - [ ] 伺服器 MUST 驗證 `?owner=`：不在名冊內、或非管理員指定他人時一律落回自己，MUST NOT 出錯頁（FR-174）
 - [ ] 非管理員只有自己那顆可按；其他顧問的色票仍 MUST 渲染（不可點、`cursor-default`），否則格線上出現一種他查不到是誰的顏色
 - [ ] 格線上**只有「可預約」的格子**依顧問上色；未釋出（白）、暫留中（琥珀）、已預約（靛藍）維持現狀（FR-177，使用者決策）
+- [ ] **（2026-10-18 修訂，FR-256）** 「已預約」區塊也依所屬顧問上色，用比「可預約」更深的同色系區分；暫留中維持琥珀
 - [ ] `consultant_id` 為 null 的既有時段以灰色呈現，色票列 MUST 只在其數量 > 0 時出現「未指派 (N)」，且該色票 MUST NOT 可選為歸屬（FR-179）
 - [ ] 拖曳釋出時的預覽色 MUST 是目前選定顧問的顏色（現為固定 teal），收回仍為紅（FR-180）
 - [ ] 顏色 MUST 在同一位顧問身上跨週、跨頁、跨重新整理保持一致；改暱稱 MUST NOT 讓顏色重排（FR-176）
@@ -1478,6 +1489,26 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [x] 評語超過 6 行時截斷（行尾省略號）並顯示「看全文」，點了以 **modal** 顯示全文（暱稱／身份／頭銜＋全文，內文可捲動）；卡片與輪播高度永不改變；Esc、點背景、✕ 皆可關閉；手機為底部彈出、桌機置中（FR-250）
 - [x] 所有新增可點元素 `cursor-pointer` + hover 回饋；表單頁與輪播在手機寬度不破版
 - [x] 測試：見 T557、T565
+### User Story 41 - 資格審核可依課程開關 (Priority: P2)
+
+資格審核（US24）是為「名單來自電子書序列信、需要分流」的課程設計的。有些高價課的流量本來就精準
+（例如老學員升級、轉介紹），再讓他們答七題、看 8 秒倒數，只是多一道摩擦。後台課程設定新增
+「資格審核」開關：關閉時精靈**省去第一步**，直接從資料填寫開始。
+
+**驗收**：
+- [x] 後台課程編輯：類型為高價課且勾選「隱藏價格」時，於其下方顯示「資格審核」開關（預設開啟）；未勾隱藏價格時不顯示（沒有預約精靈，開關無意義）（FR-255）
+- [x] 既有高價課 migration 後一律為**開啟**，行為完全不變
+- [x] 關閉時，銷售頁精靈的進度指示為**四格**（1 資料 / 2 承諾 / 3 時段 / 4 確認），一開始就在「資料」步驟
+- [x] 關閉時，「資料」步驟最上方多出 **Email、暱稱**（必填，Email 格式驗證）；「下一步」在兩者未填時停用
+- [x] 關閉時，顧問分派說明（FR-166 文案不變）與服務範圍勾選（FR-162 文案不變）移到「承諾」步驟，置於承諾清單**下方**；範圍勾選未勾時「下一步」停用
+- [x] 第五步「聯絡方式」的「修改」回到「資料」步驟（而非已不存在的第一步）；送出時 `name`／`email` 的 422 也落在「資料」步驟
+- [x] 關閉時，`POST /course/{course}/screen` 回 422「此課程不需資格審核」；`book`／`waitlist` MUST NOT 依審核答案拒絕，也 MUST NOT 寫入任何審核答案或分數（即使請求帶了）
+- [x] 關閉時，銷售頁 props 的 `screeningQuestions` 為空陣列（題目不下發）
+- [x] 開啟時，所有行為與 US24 完全相同（七題、倒數、婉拒、續填提醒）
+- [x] 範圍勾選與顧問說明抽成共用元件 `BookingScopeNotice`，兩處（第一步／承諾步驟）文案與樣式一致
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋；手機寬度不破版
+- [x] 測試：見 T588
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1862,6 +1893,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   **審核即落地**是刻意的：這一步的產出就是「這個人是哪一種」，而中途離開的人正是最需要留住的資料。通過者以 `status = pending` 存在（尚無 `confirm_token`、無時段），未通過者見 FR-126。
   **MUST NOT 覆寫進行中的預約**：`confirmed_at` 非 null 或 `status` 已非 `pending` / `declined` 者，只更新答案與分數，`status` 與 `declined_at` 一律不動 —— 一個已確認的客人回來把玩表單，不該把自己的預約洗成婉拒。
 - **FR-126**: 未通過者的落庫形狀：`status = declined`、`declined_at = now()`、`confirm_token` 與 `confirm_expires_at` 皆 null、名下無 `consultation_slots`。並且 MUST NOT：寄出任何信件（婉拒信與內部 CC 通知都不寄，使用者決策）、觸發 `DripService::checkAndBook()`、送出 Meta CAPI 事件。
+  - **FR-126 修訂 → FR-257**（2026-10-18，使用者決策）：未通過者「不停序列信」作廢，改為停發，見 FR-257。
   **不停序列信是重點而非疏漏**：這些人來自電子書名單，婉拒的意思是「現在不排 1v1」，不是「不要再聯絡」—— 停掉序列信等於把唯一還在運作的加溫管道也關掉。
 - **FR-127**: `declined` 是 `high_ticket_leads.status` 的第 7 個值，新增時 MUST 同步四處，漏一處就是一個安靜的錯誤：enum migration、`HighTicketLeadController::updateStatus()` 的 `in:` 驗證清單（漏了則管理員改不回其他狀態）、`BookingListTab.vue` 的 `statusButtons`（漏了則該列狀態方塊全部呈現未選中）、`HighTicketBookingService::recordLead()` 的可復活清單（漏了則婉拒過的人永遠停在 declined，見 D97）。
 - **FR-128**: 送出審核後 MUST **一律**顯示「自動審核中」畫面（進度條 + 倒數秒數），通過與否都一樣 —— 只有被擋的人要等，會讓兩條路徑的速度差自己說出答案。倒數長度為 **8 秒**（`REVIEW_SECONDS`，2026-08-17 由 60 秒縮短為 15 秒、2026-09-04 再縮短為 8 秒，皆為使用者決策：60 秒足以讓通過的人以為當掉了，15 秒仍偏長）。倒數 MUST 由前端執行，伺服器 MUST NOT sleep、MUST NOT 延遲回應：掛住一個 request 會佔用 PHP-FPM worker，而中途斷線會把已經完成的判定顯示成失敗。
@@ -1988,6 +2020,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   兩件事各有理由。序號依 **id** 而非暱稱或 email：改暱稱不得讓整排顏色重新洗牌，顏色是用來認人的，換一次就等於重新學一次。映射放**前端的靜態表**：Tailwind v4 掃描原始碼產生 class，伺服器組出來的 class 字串不會被掃到，於是顏色在正式站（build 過的 CSS）整組消失，而在本機 dev 看起來是好的 —— 這是最難查的那種壞法。
   色票至少 8 色（藍／綠／紫／粉／橘／青／萊姆／玫瑰），顧問數超過色票數時以取餘數重複使用，重複時仍以 tooltip 與按鈕文字區辨。
 - **FR-177**: 格線上 MUST 只有「可預約」狀態的格子依顧問上色（使用者決策）。未釋出（白）、暫留中（琥珀）、已預約（靛藍）三種狀態色 MUST 維持現狀。
+  - **FR-177 修訂 → FR-256**（2026-10-18，使用者決策）：「已預約」不再一律靛藍，改依該筆預約的顧問上色。
   理由是這兩組顏色回答的是不同問題：狀態色回答「這格能不能賣」，顧問色回答「這格是誰的」。把兩者疊在同一個色相軸上，就得再發明第二套視覺變數（底紋、邊框）去承接被擠掉的那一組，而週曆的一格只有 14px 高，撐不起兩層編碼。
 - **FR-178**: `weekView()` 的 `owners[date][HH:mm]` MUST 由「顧問暱稱字串」改為 **`consultant_id`**（未指派為 null），顯示名稱由前端查名冊。同一個名字在 payload 裡出現上百次是白付的頻寬，而真正的理由是格子要染色需要的是 id 不是名字 —— 兩者都送等於讓同一件事有兩個來源。
 - **FR-179**: `consultant_id` 為 null 的時段（FR-062 的合法狀態、以及本功能之前的舊資料）MUST 以灰色呈現；色票列 MUST 只在其數量 > 0 時顯示「未指派 (N)」，且該色票 MUST NOT 可被選為歸屬 —— 新建時段一律有主人（`StoreConsultationSlotsRequest::consultantId()` 預設為建立者），提供一個「開成沒有人的」選項只會製造 FR-062 的 fallback 路徑。
@@ -2084,6 +2117,9 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-253**（US24 追加）: Q5 `screen_next_step` 的 `diy`（想先自己嘗試一段時間）與 `advice_only`（目前主要是想獲得一些建議，暫時沒有合作打算）改為**一票否決**（使用者決策，2026-10-17）：`BookingScreening::vetoed()` MUST 回 true，無論總分。兩者原本是 0 分但不否決，其餘四題滿分仍可得 8 分而通過。依據：正式站 32 筆有作答的成交／未成交 lead 中，選這兩項者 0/6 成交（其中含管理員確認預約後手動婉拒者）。原規劃的「預算 NT$5,999 以下 ＋ 痛點不足」組合否決**不採用**：該組合 3 筆中 1 筆成交，且「影響不大」的成交率（57%）不低於其他痛點選項。實作沿用既有選項上的 `veto` 旗標，MUST NOT 隨 `questionsForFront()` 下發（FR-124 / D101）。婉拒流程同既有否決（FR-126 / FR-128）。**不回溯**：已落庫的 lead 不批次改狀態；但凡經過 `passes()` 的路徑自然套用 —— 草稿回訪的 `screening_cleared`、送出申請時的重新計分（FR-129）
 - **FR-254**（US24 追加）: 資格審核新增 Q6 `screen_experience`（社群摸索時間）與 Q7 `screen_learning`（卡關時的學習方式），題目、選項與附註定版見 FR-123（使用者決策，2026-10-17）。兩題**皆 0 分**：滿分維持 10、`PASS_SCORE` 維持 5、後台分級邊界不變 —— 它們的價值在組合，不在單題高低（摸索中等時間又不找資源的人最不會買，但摸得夠久、夠痛的人即使沒找過資源反而會買，是 U 型而非單調）。**組合否決**：Q6 ∈ {`not_started`, `casual`, `under_1y`} 且 Q7 ∈ {`self_only`, `free_only`} 時 `vetoed()` MUST 回 true；只成立其一 MUST NOT 觸發。Q6 附註 MUST 顯示在題目下方（由後端隨題目下發 `hint`），否決規則 MUST NOT 下發（FR-124 / D101）。題序放在 Q5 之後。**七題全部必答**（FR-124 延伸）。**舊資料不回溯**：本功能前已審核的 lead Q6/Q7 為 null —— 草稿回訪時 `passes()` 以五題答案判定（null 不命中任何否決），已通過者照常跳過第一步；送出申請時答案不完整則依 FR-129 放行；後台兩題顯示「—」
   - **FR-254 修訂**（2026-10-17，使用者決策）：組合否決加**例外** —— 預算為 `6k_10k` 以上且 `screening_score` ≥ 7 時，組合否決不成立。例外**只解除 FR-254 的組合否決**，MUST NOT 解除單選項否決（`none`、FR-253 的 `diy`／`advice_only`）。分數仍以 Q1–Q5 計（Q6/Q7 0 分），已套 FR-172 上限
+- **FR-256**（US33 修訂）: 後台諮詢時段週曆上，`state = booked` 的區塊 MUST 依 `booking.consultant_id` 上色，取該顧問 `color_index` 對應的色系；無顧問或顧問不在名冊者用灰色（`UNASSIGNED_COLOR`）。顏色 MUST 比同色系的「可預約」格子（`-100`）**明顯更深**（底 `-300`、框 `-500`、字 `-950`），一眼分得出「這是某顧問的空檔」與「這是某顧問已被約走的時段」。`state = held`（暫留中）MUST 維持琥珀 —— 它是會自己消失的暫時狀態，跟顧問無關的重點是「還沒成交」。圖例「已預約」改為深色漸層色票（同「可預約」的做法：顏色已由顧問按鈕列說明）。區塊的 `title` 提示 MUST 加上顧問名稱。點選後的詳情浮層維持現行靛藍樣式（它是面板，不是色碼）
+- **FR-257**（US24 修訂，使用者決策 2026-10-18）: `HighTicketBookingService::screen()` 判定**未通過**時，MUST 呼叫 `DripService::checkAndDecline(string $email, Course $course)`：與 `checkAndBook()` 同一條路徑（依 Email 找會員 → 找以本課為 `DripConversionTarget` 的序列信 → 只動 `active` 訂閱），把狀態改為 **`declined`** 並寫 `status_changed_at`。找不到會員或沒有對應序列信時靜默略過；失敗只記 log、MUST NOT 影響審核回應（比照 `checkAndBook()` 的 try/catch）。**通過**時不動序列信（維持現行：點確認連結才停，D35）。`declined` MUST 列入 `DripSubscription::STOPS_SENDING`（已排程的下一封在發送前會被擋下）；MUST NOT 列入 `FUNNEL_DONE`（他沒有預約也沒有購買）。**後續轉換**：已婉拒者之後重新審核通過並確認預約 → `checkAndBook()` 的來源狀態 MUST 加入 `declined`，改為 `booked`；之後購買 → `checkAndConvert` 的來源狀態 MUST 加入 `declined`，改為 `converted`。重新審核通過但尚未確認預約時，序列信**不恢復**。管理員手動婉拒（US27）不在本條範圍，維持 D107。**已知風險**：審核當下 Email 未驗證，填別人的 Email 並故意答到被婉拒，可以停掉對方的序列信；業主接受此風險（影響僅止於少收行銷信）
+- **FR-255**（US41）: `courses.high_ticket_screening`（boolean，預設 true）控制高價課預約精靈是否有資格審核步驟。關閉時：(1) `CourseController@show` 的 `screeningQuestions` 為 `[]`，`course` payload 帶 `high_ticket_screening: false`；(2) `HighTicketBookingService::screen()` 回 `success: false`「此課程不需資格審核」；(3) `book()`／`waitlist()` 跳過 `screeningRefusal()`，且 `application` 陣列 MUST NOT 合併審核答案、`screening_score`、`screened_at`（以 `screen_*` 為 null 表達「此課程沒有審核」，後台展開列沿用 FR-131 的無審核說明）；(4) 精靈以四步進行，Email／暱稱移到資料步驟、`BookingScopeNotice` 移到承諾步驟（使用者決策）。範圍勾選在關閉時**只在前端把關**：沿用 FR-165「不進 book payload」的立場，它是告知不是驗證。**連帶影響**：關閉時沒有審核階段先建的 lead，FR-137 的續填提醒信對該課程自然不會發出 —— lead 只在送出申請時建立。開關切換不回溯既有 lead
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2501,6 +2537,9 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D168**: FR-253 直接在 `diy`、`advice_only` 兩個選項加 `veto => true`，不新增機制 —— 單選項否決正是既有 `none` 的形狀，`vetoed()` 與前台過濾都不必改。`score` 維持 0（否決不改分數，`screening_score` 仍是「他是哪一種」的紀錄）。不做回溯 migration：否決只影響通不通過，而 lead 狀態一律由審核當下決定（同 FR-125）
 - **D169**: 組合否決以 `BookingScreening::VETO_COMBOS` 常數表達：`list<array<field, list<value>>>`，同一組內所有欄位皆命中才成立，任一組成立即否決；`vetoed()` 先查單選項 `veto`、再查各組。單選項旗標表達不了「A 且 B」，寫死成 `vetoed()` 裡的 if 又會讓規則跟 `QUESTIONS` 這張事實表分家。選項的 `hint` 改為**題目層級**的可選鍵（`QUESTIONS[field]['hint']`），`questionsForFront()` 有才帶；`BookingScreeningStep` 在題目標題下以小字灰色渲染。新欄位用獨立 alter migration（US24 已上線，不能改原 migration），`after('screen_next_step')`、varchar(20) nullable、不設 enum 約束（沿用 US24 的理由）
   - **D169 修訂**：`VETO_COMBOS` 每組改為 `{match, unless?: {match, min_score}}`。`unless` 與 `match` 同形狀，再加一個總分門檻；`vetoed()` 因此會呼叫 `score()`（純查表、無遞迴），比在 `passes()` 外層另寫例外更能讓規則和它的例外待在同一筆資料裡
+- **D171**: 只動前端。`ConsultationSlotService` 的區塊 payload 早已帶 `consultant_id`，`WeekGrid` 也已有 `ownerOf(id)` 查表；只需在 `consultantPalette.js` 每個色系加第五個角色 `booked`（完整寫出的 class 字串，理由同 FR-176：Tailwind v4 掃描原始碼，執行期組字串會在正式站消失），`BLOCK_CLASS` 的 `booked` 改由 `ownerOf(booking.consultant_id).colors.booked` 取得。不新增 API、不改 schema
+- **D172**: 用新狀態 `declined` 而非沿用 `unsubscribed`／`booked`（使用者決策）：沿用前者會灌高退訂率、後者會把被拒的人算成預約成功，兩者都讓 010 的漏斗統計失真。新增狀態 MUST 同步：enum migration、`STOPS_SENDING`、`DripService` 的狀態篩選白名單與統計 `SUM(CASE…)`、`SubscriberListTab` 的標籤／色彩／統計卡／篩選選項、`BookingListTab` 的序列信徽章提示文字、銷售頁 `Show.vue` 對訂閱者顯示的狀態（對使用者顯示中性的「已停止接收」，MUST NOT 對本人顯示「已婉拒」）
+- **D170**: 開關存在 `courses` 而非 `site_settings` —— 是否需要分流取決於該課程的流量來源，不是全站政策。只在 `high_ticket_hide_price = true` 時有意義（價格公開的高價課沒有預約精靈），故後台開關巢狀在「隱藏價格」之下而非獨立一區。精靈以 `props.course.high_ticket_screening !== false` 判斷（舊快取頁面缺欄位時視為開啟，與 DB 預設一致）；步驟編號維持內部 `n = 2..5` 不重編，只在進度指示**顯示**時以 `i + 1` 編號 —— `canLeave()`、`routeFieldErrors()`、`goTo()` 等全部以 `n` 運作，重編會牽動整支精靈。範圍勾選與顧問說明抽成 `BookingScopeNotice.vue`（props：`form`、`errors`），避免兩份文案漂移
 
 ## Schema
 
@@ -2537,6 +2576,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
   | `screen_learning` | varchar(20) nullable | Q7 卡關時的學習方式 |
 
   **不變量修訂**：`screened_at` 非 null ⇒ Q1–Q5 與 `screening_score` 非 null；Q6/Q7 只對 FR-254 上線後審核者保證非 null。`down()` 卸掉兩欄
+
+- **FR-255 schema 變更**：`2026_10_18_000001_add_high_ticket_screening_to_courses_table.php` — `courses.high_ticket_screening` boolean NOT NULL default true，`after('high_ticket_hide_price')`。`down()` 卸掉該欄。不變量：既有列 migration 後全為 true
 
 - **US23 schema 變更（一支 migration）**：
 
@@ -3870,8 +3911,39 @@ Phase 4 — 驗證
 - [ ] T581 `php artisan test` 全綠、`npm run build`；拿掉 `VETO_COMBOS` 確認組合測試會紅；瀏覽器確認 Q6 附註與七題漸進顯示（桌機＋手機）
 - [x] T582 組合否決加例外：預算 `6k_10k` 以上且總分 ≥ 7 不否決（FR-254 修訂）；`VETO_COMBOS` 改 `match`／`unless` 結構、抽 `matches()`；測試：四個預算級距恰 7 分解除、6 分不解除、預算不足 8 分不解除、例外不解除 FR-253 in `app/Support/BookingScreening.php`, `tests/Feature/HighTicket/BookingScreeningTest.php`
 
+### US41 資格審核可依課程開關（FR-255）
+
+- [x] T583 Migration `courses.high_ticket_screening`；`Course` fillable + boolean cast〔touchpoint 004〕in `database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php`, `app/Models/Course.php`
+- [x] T584 後台：Store/UpdateCourseRequest 加 `high_ticket_screening` nullable boolean；Admin `CourseController@edit` payload 帶出；`CourseForm` 在「隱藏價格」勾選時其下顯示開關（預設開）〔touchpoint 004〕in `app/Http/Requests/Admin/StoreCourseRequest.php`, `app/Http/Requests/Admin/UpdateCourseRequest.php`, `app/Http/Controllers/Admin/CourseController.php`, `resources/js/Components/Admin/CourseForm.vue`
+- [x] T585 前台 props：`CourseController@show` 關閉時 `screeningQuestions = []`、`course.high_ticket_screening` 帶出〔touchpoint 002〕in `app/Http/Controllers/CourseController.php`
+- [x] T586 Service：`screen()` 關閉時拒絕；`book()`／`waitlist()` 關閉時跳過 `screeningRefusal()` 且不合併審核答案 in `app/Services/HighTicketBookingService.php`
+- [x] T587 [P] 前端：抽 `BookingScopeNotice.vue`（顧問說明＋範圍勾選）並由 `BookingScreeningStep` 改用；精靈關閉時 `STEPS` 去掉第一格、顯示編號 `i + 1`、起始步驟為 2、`screeningPassed = true`、資料步驟加 Email／暱稱且納入 `questionnaireFilled`、承諾步驟加 `BookingScopeNotice` 且 `screen_ack` 納入可離開條件、第五步身份「修改」與 `name`／`email` 錯誤路由改到 2 in `resources/js/Components/Course/BookingScopeNotice.vue`, `resources/js/Components/Course/BookingScreeningStep.vue`, `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T588 測試：關閉時 `screeningQuestions` 為空、`/screen` 被拒、`book` 不帶答案成功且 lead 的 `screen_*`／`screened_at` 為 null、`book` 帶會被否決的答案仍成功且不落庫；開啟時既有行為不變（既有測試全綠）；後台更新開關會存檔；migration 後既有課程為 true in `tests/Feature/HighTicket/BookingScreeningToggleTest.php`
+- [ ] T589 `php artisan test` 全綠、`npm run build`；瀏覽器確認開關兩種狀態下的精靈（桌機＋手機）
+
+### 已預約區塊依顧問上色（US33 修訂 / FR-256）
+
+- [x] T590 `consultantPalette.js` 八個色系與 `UNASSIGNED_COLOR` 各加 `booked` 角色（`bg-*-300 border-*-500 text-*-950`，完整字串）in `resources/js/Components/Admin/ConsultationSlots/consultantPalette.js`
+- [x] T591 `WeekGrid`：`booked` 區塊改用 `ownerOf(booking.consultant_id).colors.booked`，`held` 維持琥珀；區塊 `title` 加顧問名；`Index.vue` 圖例「已預約」改深色漸層 in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`, `resources/js/Pages/Admin/ConsultationSlots/Index.vue`
+- [ ] T592 `npm run build`；瀏覽器確認兩位以上顧問的已預約區塊顏色不同、與同色「可預約」格子分得出、暫留中仍為琥珀（桌機＋手機）
+
+### 自動婉拒時停發序列信（US24 修訂 / FR-257）
+
+- [x] T593 Migration：`drip_subscriptions.status` enum 加 `declined`（寫法比照 `2026_07_31_000002_add_booked_…`）；`DripSubscription::STOPS_SENDING` 加 `declined` in `database/migrations/2026_10_18_000002_add_declined_to_drip_subscriptions_status.php`, `app/Models/DripSubscription.php`〔touchpoint 010〕
+- [x] T594 `DripService`：新增 `checkAndDecline()`（`reachGoal($user, $course, 'declined', ['active'])`）；`checkAndBook()` 來源加 `declined`、購買轉換來源加 `declined`；`subscriberPageData()` 狀態白名單與統計加 `declined` in `app/Services/DripService.php`〔touchpoint 010〕
+- [x] T595 `screen()` 未通過時 try/catch 呼叫 `checkAndDecline()`；更新類別註解（FR-126 → FR-257）in `app/Services/HighTicketBookingService.php`
+- [x] T596 [P] 前端：`SubscriberListTab` 加「已婉拒」標籤／色彩／統計卡／篩選；`BookingListTab` 序列信徽章提示加 `declined: '已婉拒停信'`；`Show.vue` 對本人顯示「已停止接收」in `resources/js/Components/Admin/Leads/SubscriberListTab.vue`, `resources/js/Components/Admin/Leads/BookingListTab.vue`, `resources/js/Pages/Course/Show.vue`〔touchpoint 010 / 002〕
+- [x] T597 測試：未通過 → 對應序列信 `active` 變 `declined`、通過不動、無會員／無轉換目標時靜默、非 `active`（已退訂）不動、`declined` 不再寄信、之後確認預約 → `booked`、之後購買 → `converted`；既有「未通過不停 drip」測試改寫為新規則 in `tests/Feature/HighTicket/BookingScreeningTest.php`
+- [x] T598 `php artisan test` 全綠、`npm run build`
+
 ## 進度日誌
 
+- 2026-10-18: FR-257 完成（T593–T598）— drip `status` 加 `declined`（列入 `STOPS_SENDING`、不入 `FUNNEL_DONE`）；`DripService::checkAndDecline()`，`screen()` 未通過時 best-effort 呼叫；`checkAndBook`／`checkAndConvert` 來源加 `declined`；訂閱者列表加標籤／統計卡／篩選，預約名單徽章加「已婉拒停信」，銷售頁對本人顯示「已停止接收」。原「未通過不停 drip」測試改寫，新增 6 條；拿掉停信呼叫時主測試轉紅。全站 1244 passed（5538 assertions），`npm run build` 綠。
+- 2026-10-18: [draft] 規劃自動婉拒時停發序列信（FR-257，修訂 FR-126，D172）— 新增 drip 狀態 `declined`（使用者決策），走與 `checkAndBook()` 同一條路徑；通過者仍維持點確認連結才停。
+- 2026-10-18: FR-256 完成（T590–T591，T592 僅剩瀏覽器實測）— palette 八色系＋未指派各加 `booked`（`-300/-500/-950`）；`WeekGrid` 已預約區塊依 `consultant_id` 上色、暫留中維持琥珀、`title` 加顧問名；圖例「已預約」改深色漸層。確認新 class 皆出現在 build CSS。全站 1238 passed，`npm run build` 綠。
+- 2026-10-18: [draft] 規劃已預約區塊依顧問上色（FR-256，修訂 FR-177，D171）— 純前端：palette 加 `booked` 深色角色，暫留中維持琥珀。
+- 2026-10-18: US41 完成（T583–T588，T589 僅剩瀏覽器實測）— `courses.high_ticket_screening`（預設開）；後台開關巢狀在「隱藏價格」下；關閉時 `screeningQuestions=[]`、`/screen` 422、`apply()`／`waitlist()` 以 `withoutScreeningWhenOff()` 剝除答案（不審、不存）；精靈四步、Email／暱稱移到資料步驟、`BookingScopeNotice`（新抽共用元件）移到承諾步驟。新增 `BookingScreeningToggleTest` 9 條；讓剝除失效時 2 條轉紅。全站 1238 passed（5523 assertions），`npm run build` 綠。
+- 2026-10-17: [draft] 規劃 US41 資格審核可依課程開關（FR-255，D170）— `courses.high_ticket_screening` 預設開；關閉時精靈四步，Email／暱稱移到資料步驟、範圍勾選與顧問說明移到承諾步驟（使用者決策：拆開放）。
 - 2026-10-17: FR-254 修訂（T582）— 組合否決加例外：預算 NT$6,000 以上且總分 ≥ 7 時不婉拒；例外只作用於組合否決，FR-253 單選項否決不受影響。`VETO_COMBOS` 改為 `match`／`unless` 結構。`BookingScreeningTest` +3（原組合測試改用 `under_6k` 預算以避開例外）；把門檻改成 99 時 2 條新測試轉紅。全站 1229 passed（5480 assertions）。
 - 2026-10-17: FR-253／FR-254 完成（T573–T580，T581 僅剩瀏覽器實測）— Q5「想先自己試／只要建議」一票否決；新增 Q6 社群摸索時間（含附註）、Q7 學習方式（皆 0 分）與 `VETO_COMBOS` 組合否決；migration `..._000004` 加兩欄；前台題目下渲染 `hint`、wizard 帶兩欄。`BookingScreeningTest` +8，作答 helper 補兩題；拿掉兩個否決時 4 條新測試轉紅。全站 1226 passed（5464 assertions），`npm run build` 綠。
 - 2026-10-17: [draft] 規劃 Q6 社群摸索時間、Q7 學習方式（FR-254，D169）— 兩題 0 分只記錄，搭配組合否決：摸索不到 1 年（含還沒開始、偶爾發文）且只靠自己或只看免費資源者婉拒。業主觀察為 U 型：中等時間又不找資源最不會買，摸得夠久夠痛者即使沒找資源也會買，故不以單題計分表達。

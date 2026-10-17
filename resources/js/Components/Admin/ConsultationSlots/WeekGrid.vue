@@ -461,10 +461,13 @@ function ownerTitle(dIndex, label) {
   return id === undefined ? '' : `${label} · ${ownerOf(id).label}`
 }
 
-const BLOCK_CLASS = {
-  held: 'bg-amber-100 border-amber-300 text-amber-900',
-  booked: 'bg-indigo-100 border-indigo-300 text-indigo-900',
-}
+// Booked blocks wear their consultant's colour (FR-256, revising FR-177);
+// a hold stays amber — it lapses on its own, and what matters about it is
+// that it is not yet a booking, not whose it is.
+const HELD_CLASS = 'bg-amber-100 border-amber-300 text-amber-900'
+
+const blockClass = (booking) =>
+  booking.state === 'held' ? HELD_CLASS : ownerOf(booking.consultant_id).colors.booked
 
 const STATE_LABEL = { held: '暫留中', booked: '已預約' }
 
@@ -884,7 +887,7 @@ function isHalf(label) {
             :key="`${day.date}-${booking.start}-${booking.lead_id}`"
             class="z-10 m-px flex min-w-0 items-center overflow-hidden rounded border px-1 text-[10px] leading-none cursor-pointer transition"
             :class="[
-              BLOCK_CLASS[booking.state],
+              blockClass(booking),
               isSelected(booking) ? 'ring-2 ring-brand-teal' : 'hover:brightness-95',
               rescheduling && !isSelected(booking) ? 'opacity-40' : '',
               // Blocks sit above the cells, so while picking they would swallow
@@ -893,7 +896,7 @@ function isHalf(label) {
               rescheduling ? 'pointer-events-none' : '',
             ]"
             :style="blockStyle(booking)"
-            :title="`${booking.start}–${booking.end} ${booking.kind === 'credit' ? `諮詢 · ${booking.course_name} · ` : ''}${booking.name}（${STATE_LABEL[booking.state]}）`"
+            :title="`${booking.start}–${booking.end} ${booking.kind === 'credit' ? `諮詢 · ${booking.course_name} · ` : ''}${booking.name}（${STATE_LABEL[booking.state]} · ${ownerOf(booking.consultant_id).label}）`"
             @click="selectBooking(dIndex, booking, $event)"
           >
             <!-- Picking a recipient must not open the panel the rest of the

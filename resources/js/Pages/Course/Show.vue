@@ -486,6 +486,9 @@ const subscriptionStatusLabel = computed(() => {
     converted: '已轉換',
     completed: '已完成',
     unsubscribed: '已停止接收',
+    // Turned away by a high-ticket screening (011 FR-257). Never said to the
+    // person themselves — to them the mails simply stopped.
+    declined: '已停止接收',
   }
   return labels[props.userSubscription] || props.userSubscription
 })
@@ -844,6 +847,7 @@ const isFunnelLanding = computed(() =>
               'bg-blue-100 text-blue-800': userSubscription === 'converted',
               'bg-gray-100 text-gray-800': userSubscription === 'completed',
               'bg-red-100 text-red-800': userSubscription === 'unsubscribed',
+              'bg-gray-100 text-gray-800': userSubscription === 'declined',
             }"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

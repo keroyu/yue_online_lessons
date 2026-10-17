@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import BookingScreeningStep from '@/Components/Course/BookingScreeningStep.vue'
+import BookingScopeNotice from '@/Components/Course/BookingScopeNotice.vue'
 import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
 import { useDelayedConfirm } from '@/composables/useDelayedConfirm'
 
@@ -22,13 +23,23 @@ const page = usePage()
 // The qualifying questions come first and are answered in seconds: somebody who
 // is not going to be offered a slot should find that out before writing five
 // minutes of prose, not after (D96).
+// A course can switch screening off (011 FR-255). Missing on a stale page
+// means on, matching the column default.
+const screeningEnabled = props.course.high_ticket_screening !== false
+
+// With screening off, step 1 simply does not exist. Steps keep their internal
+// numbers (2–5) so navigation and error routing stay as they are; only the
+// progress indicator renumbers what it shows (D170).
 const STEPS = [
   { n: 1, label: '資格' },
   { n: 2, label: '資料' },
   { n: 3, label: '承諾' },
   { n: 4, label: '時段' },
   { n: 5, label: '確認' },
-]
+].filter(s => screeningEnabled || s.n !== 1)
+
+/** Where name and email are edited: the gate, or the questionnaire when there is none. */
+const IDENTITY_STEP = screeningEnabled ? 1 : 2
 
 // Changing the length here means changing `size:` in HighTicketBookingRequest —
 // the server counts the boxes and will reject the form otherwise.
@@ -48,11 +59,11 @@ const resuming = props.draft?.resume === true
 // questions and watch the same countdown would be asking them to prove it twice.
 const screeningCleared = props.draft?.screening_cleared === true
 
-const step = ref(resuming ? 4 : (screeningCleared ? 2 : 1))
+const step = ref(resuming ? 4 : (screeningCleared || !screeningEnabled ? 2 : 1))
 
 // Resuming means this applicant already cleared the gate (or predates it) —
 // re-screening somebody we invited back by email would be absurd (FR-129).
-const screeningPassed = ref(resuming || screeningCleared)
+const screeningPassed = ref(resuming || screeningCleared || !screeningEnabled)
 
 // A draft answer whose option has since been retired (FR-252) is not on the
 // form any more, so on step 1 it would count as answered while showing nothing
@@ -88,7 +99,9 @@ const form = reactive({
   // than inside the step so that stepping back and forward does not ask for it
   // again; it rides along on the screen POST only — `book` / `waitlist` list
   // their fields one by one and never pick it up.
-  screen_ack: false,
+  // Pre-ticked only for a resumed draft on a course without step 1: the
+  // acknowledgement then sits on step 3, which a resumed draft skips (FR-255).
+  screen_ack: resuming && !screeningEnabled,
 })
 
 const screeningFields = props.screeningQuestions.map(q => q.field)
@@ -111,8 +124,18 @@ onMounted(() => {
 
 // ---- step 2 ----------------------------------------------------------------
 
+// Loose on purpose — the server's `email` rule and the step-5 double-check
+// (FR-059) are the real checks; this only keeps 下一步 honest.
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Without step 1, identity is collected here (FR-255).
+const identityFilled = computed(() =>
+  screeningEnabled || (form.name.trim() !== '' && EMAIL_SHAPE.test(form.email.trim()))
+)
+
 const questionnaireFilled = computed(() =>
-  form.phone.trim() !== ''
+  identityFilled.value
+  && form.phone.trim() !== ''
   && form.occupation.trim() !== ''
   && form.bottleneck.trim() !== ''
   && form.expertise.trim() !== ''
@@ -140,6 +163,9 @@ const socialUrlInvalid = computed(() => {
 // ---- step 3 ----------------------------------------------------------------
 
 const allCommitted = computed(() => commitments.value.every(Boolean))
+
+// Without step 1 the scope acknowledgement moves here (FR-255).
+const commitmentsReady = computed(() => allCommitted.value && (screeningEnabled || form.screen_ack))
 
 /**
  * Split the server's `8/6（週三）` into two lines for a narrow column header.
@@ -273,7 +299,7 @@ async function goTo(n) {
 function canLeave(n) {
   if (n === 1) return screeningPassed.value
   if (n === 2) return questionnaireFilled.value && !socialUrlInvalid.value
-  if (n === 3) return allCommitted.value
+  if (n === 3) return commitmentsReady.value
   if (n === 4) return form.slot_starts_at !== ''
   return true
 }
@@ -320,7 +346,7 @@ function routeFieldErrors(e) {
   const keys = Object.keys(fields)
 
   if (keys.some(k => ['name', 'email', ...screeningFields].includes(k))) {
-    step.value = 1
+    step.value = IDENTITY_STEP
   } else if (keys.some(k => ['phone', 'occupation', 'bottleneck', 'expertise', 'social_url'].includes(k))) {
     step.value = 2
   } else if (keys.includes('commitments')) {
@@ -359,7 +385,7 @@ function requestSubmit() {
 
 function editEmail() {
   resetEmailConfirm()
-  step.value = 1
+  step.value = IDENTITY_STEP
 }
 
 async function submit() {
@@ -589,7 +615,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
             <span
               class="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold"
               :class="s.n === step ? 'bg-brand-teal text-white' : (s.n < step ? 'bg-brand-teal/15 text-brand-teal' : 'bg-gray-100 text-gray-400')"
-            >{{ s.n }}</span>
+            >{{ i + 1 }}</span>
             <span class="hidden sm:inline">{{ s.label }}</span>
           </button>
           <div v-if="i < STEPS.length - 1" class="flex-1 h-px mx-2" :class="s.n < step ? 'bg-brand-teal/30' : 'bg-gray-200'" />
@@ -609,6 +635,20 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
       <!-- ── Step 2: the questionnaire ── -->
       <div v-show="step === 2" class="mt-6 space-y-4">
         <p class="text-xs text-gray-500"><span class="text-red-500">*</span> 為必填。</p>
+
+        <!-- Step 1 holds these when the course screens; without it they start the form (FR-255). -->
+        <div v-if="!screeningEnabled" class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
+            <input v-model="form.email" type="email" placeholder="your@email.com" :class="[inputClass, { 'border-red-300': errors.email }]" />
+            <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ firstError('email') }}</p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">暱稱 <span class="text-red-500">*</span></label>
+            <input v-model="form.name" type="text" placeholder="怎麼稱呼你" :class="[inputClass, { 'border-red-300': errors.name }]" />
+            <p v-if="errors.name" class="mt-1 text-sm text-red-600">{{ firstError('name') }}</p>
+          </div>
+        </div>
 
         <div>
           <label class="block text-xs font-medium text-gray-600 mb-1">手機電話 <span class="text-red-500">*</span></label>
@@ -668,13 +708,16 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         </div>
 
         <p v-if="errors.commitments" class="text-sm text-red-600">{{ firstError('commitments') }}</p>
-        <p v-if="!allCommitted" class="text-xs text-gray-500">請確認全部項目後繼續。</p>
+
+        <BookingScopeNotice v-if="!screeningEnabled" :form="form" />
+
+        <p v-if="!commitmentsReady" class="text-xs text-gray-500">請確認全部項目後繼續。</p>
 
         <div class="flex gap-3">
           <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-600 border border-gray-200 cursor-pointer hover:bg-gray-50 transition" @click="goTo(2)">上一步</button>
           <button
             type="button"
-            :disabled="!allCommitted"
+            :disabled="!commitmentsReady"
             class="flex-1 px-4 py-3 rounded-lg font-semibold bg-brand-gold hover:bg-brand-gold-dark text-brand-navy border border-brand-gold-dark/50 transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             @click="goTo(4)"
           >
@@ -841,7 +884,7 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         <div class="rounded-lg border border-gray-200 overflow-hidden">
           <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2">
             <p class="text-xs font-semibold text-gray-600">聯絡方式</p>
-            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(1)">
+            <button type="button" class="text-xs text-brand-teal cursor-pointer hover:opacity-70 transition" @click="editFrom(IDENTITY_STEP)">
               修改
             </button>
           </div>

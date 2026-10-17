@@ -2,6 +2,7 @@
 id: 010-drip-email
 status: done
 owner_files:
+  - database/migrations/2026_10_18_000002_add_declined_to_drip_subscriptions_status.php
   - tests/Feature/Drip/NewSubscriberStatsTest.php
   - app/Http/Controllers/DripSubscriptionController.php
   - app/Http/Controllers/DripTrackingController.php

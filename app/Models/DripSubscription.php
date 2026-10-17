@@ -16,7 +16,7 @@ class DripSubscription extends Model
      * set at the same moment the final email is dispatched, so that last job
      * must still run.
      */
-    public const STOPS_SENDING = ['booked', 'converted', 'unsubscribed'];
+    public const STOPS_SENDING = ['booked', 'declined', 'converted', 'unsubscribed'];
 
     /**
      * Statuses meaning the subscriber reached the funnel goal (booked or bought).

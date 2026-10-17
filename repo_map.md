@@ -816,6 +816,7 @@ main_files:
 - database/migrations/2026_10_17_000001_create_testimonials_table.php
 - database/migrations/2026_10_17_000002_add_testimonial_token_to_high_ticket_leads_table.php
 - database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php
+- database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -834,6 +835,7 @@ main_files:
 - resources/js/Components/Admin/Leads/TestimonialModal.vue
 - resources/js/Components/Admin/ReferrerDetailModal.vue
 - resources/js/Components/BundleCreditBlock.vue
+- resources/js/Components/Course/BookingScopeNotice.vue
 - resources/js/Components/Course/BookingScreeningStep.vue
 - resources/js/Components/Course/ConsultationCreditBooking.vue
 - resources/js/Components/Course/HighTicketBookingWizard.vue
@@ -869,6 +871,7 @@ main_files:
 - tests/Feature/HighTicket/BookingLeadRecordTest.php
 - tests/Feature/HighTicket/BookingMailFailureTest.php
 - tests/Feature/HighTicket/BookingScreeningTest.php
+- tests/Feature/HighTicket/BookingScreeningToggleTest.php
 - tests/Feature/HighTicket/BookingWizardTest.php
 - tests/Feature/HighTicket/BundleCreditTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php

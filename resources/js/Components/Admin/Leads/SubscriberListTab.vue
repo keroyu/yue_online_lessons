@@ -64,6 +64,7 @@ const lessonStats = computed(() => props.data?.lessonStats ?? [])
 const statusLabels = {
   active: '發信中',
   booked: '已預約',
+  declined: '已婉拒',
   converted: '已轉換',
   completed: '已完成',
   unsubscribed: '已退訂',
@@ -72,6 +73,7 @@ const statusLabels = {
 const statusClasses = {
   active: 'bg-green-100 text-green-800',
   booked: 'bg-amber-100 text-amber-800',
+  declined: 'bg-rose-100 text-rose-800',
   converted: 'bg-blue-100 text-blue-800',
   completed: 'bg-gray-100 text-gray-800',
   unsubscribed: 'bg-red-100 text-red-800',
@@ -131,7 +133,7 @@ const suppressionLabel = (reason) => {
       </div>
 
       <!-- Stats Cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-6 gap-4 mb-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm p-4">
           <p class="text-sm text-gray-500">全部</p>
           <p class="text-2xl font-semibold text-gray-900">{{ stats.total }}</p>
@@ -143,6 +145,11 @@ const suppressionLabel = (reason) => {
         <div class="bg-white rounded-lg shadow-sm p-4">
           <p class="text-sm text-amber-600">已預約</p>
           <p class="text-2xl font-semibold text-amber-700">{{ stats.booked }}</p>
+        </div>
+        <!-- Turned away by the high-ticket screening (011 FR-257). -->
+        <div class="bg-white rounded-lg shadow-sm p-4">
+          <p class="text-sm text-rose-600">已婉拒</p>
+          <p class="text-2xl font-semibold text-rose-700">{{ stats.declined ?? 0 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm p-4">
           <p class="text-sm text-blue-600">已轉換</p>
@@ -219,6 +226,7 @@ const suppressionLabel = (reason) => {
           <option value="">所有狀態</option>
           <option value="active">發信中</option>
           <option value="booked">已預約</option>
+          <option value="declined">已婉拒</option>
           <option value="converted">已轉換</option>
           <option value="completed">已完成</option>
           <option value="unsubscribed">已退訂</option>

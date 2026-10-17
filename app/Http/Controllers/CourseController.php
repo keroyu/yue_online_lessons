@@ -85,6 +85,7 @@ class CourseController extends Controller
                 'display_price' => (float) $course->display_price,
                 'is_high_ticket' => $course->is_high_ticket,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
+                'high_ticket_screening' => $course->high_ticket_screening,
             ],
             'hasPurchased' => $course->hasPaidAccessForUser($user),
             'isOwned'      => $course->hasPaidAccessForUser($user),
@@ -100,9 +101,10 @@ class CourseController extends Controller
             'canSubscribe' => $canSubscribe,
             'bookingDraft' => $this->bookingDraft($request, $course),
             // Titles and option labels only — the scores stay on the server
-            // (011 FR-124 / D101).
+            // (011 FR-124 / D101). Empty when the course has screening off, so
+            // the wizard starts on the questionnaire (FR-255).
             'screeningQuestions' => $course->is_high_ticket && $course->high_ticket_hide_price
-                ? \App\Support\BookingScreening::questionsForFront()
+                ? ($course->high_ticket_screening ? \App\Support\BookingScreening::questionsForFront() : [])
                 : null,
             // Consultation credits on an ordinary course (011 US38 / FR-233):
             // what every visitor is sold, and what a holder can book now.

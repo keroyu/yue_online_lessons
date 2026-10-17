@@ -104,7 +104,8 @@ const LEGEND = computed(() => [
   // would be a lie; the ownership buttons above are its legend.
   { label: '可預約', class: 'bg-gradient-to-r from-sky-200 to-violet-200 border-gray-300', count: props.statusCounts.available },
   { label: '暫留中', class: 'bg-amber-100 border-amber-300', count: props.statusCounts.held },
-  { label: '已預約', class: 'bg-indigo-100 border-indigo-300', count: props.statusCounts.booked },
+  // Booked blocks are coloured by consultant too (FR-256) — deeper tones.
+  { label: '已預約', class: 'bg-gradient-to-r from-sky-300 to-violet-300 border-gray-500', count: props.statusCounts.booked },
 ])
 
 // The button row doubles as the colour key for the grid, so every consultant

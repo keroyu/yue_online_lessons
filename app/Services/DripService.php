@@ -339,7 +339,7 @@ class DripService
      */
     public function checkAndConvert(User $user, Course $purchasedCourse): void
     {
-        $this->reachGoal($user, $purchasedCourse, 'converted', ['active', 'booked']);
+        $this->reachGoal($user, $purchasedCourse, 'converted', ['active', 'booked', 'declined']);
     }
 
     /**
@@ -357,7 +357,24 @@ class DripService
             return;
         }
 
-        $this->reachGoal($user, $bookedCourse, 'booked', ['active']);
+        // 'declined' too: turned away once, later re-screened and confirmed (011 FR-257).
+        $this->reachGoal($user, $bookedCourse, 'booked', ['active', 'declined']);
+    }
+
+    /**
+     * Stop the sequence for somebody the high-ticket screening turned away
+     * (011 FR-257). Same path as checkAndBook(): only drips that convert into
+     * this course, only active subscriptions.
+     */
+    public function checkAndDecline(string $email, Course $course): void
+    {
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return;
+        }
+
+        $this->reachGoal($user, $course, 'declined', ['active']);
     }
 
     /**
@@ -615,7 +632,7 @@ class DripService
         $query = DripSubscription::where('course_id', $course->id)
             ->with('user:id,email,nickname');
 
-        if ($status && in_array($status, ['active', 'booked', 'converted', 'completed', 'unsubscribed'], true)) {
+        if ($status && in_array($status, ['active', 'booked', 'declined', 'converted', 'completed', 'unsubscribed'], true)) {
             $query->where('status', $status);
         }
 
@@ -629,6 +646,7 @@ class DripService
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
                 SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked_count,
+                SUM(CASE WHEN status = 'declined' THEN 1 ELSE 0 END) as declined_count,
                 SUM(CASE WHEN status = 'converted' THEN 1 ELSE 0 END) as converted_count,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
                 SUM(CASE WHEN status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count
@@ -664,6 +682,7 @@ class DripService
                 'total' => (int) $statusStats->total,
                 'active' => (int) $statusStats->active_count,
                 'booked' => (int) $statusStats->booked_count,
+                'declined' => (int) $statusStats->declined_count,
                 'converted' => (int) $statusStats->converted_count,
                 'completed' => (int) $statusStats->completed_count,
                 'unsubscribed' => (int) $statusStats->unsubscribed_count,

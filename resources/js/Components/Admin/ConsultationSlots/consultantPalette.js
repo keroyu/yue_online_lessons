@@ -12,11 +12,13 @@
 // (D126).
 
 /**
- * Eight hues, each in three roles:
+ * Eight hues, each in five roles:
  *  - `solid`  the selected ownership button
  *  - `soft`   an unselected button (tint + matching border)
  *  - `cell`   an open slot in the grid
  *  - `drag`   the drag preview while releasing time for this consultant
+ *  - `booked` a booked block — deeper than `cell`, so a consultant's taken time
+ *             never reads as their open time (FR-256)
  */
 export const CONSULTANT_COLORS = [
   {
@@ -24,48 +26,56 @@ export const CONSULTANT_COLORS = [
     soft: 'bg-sky-50 text-sky-800 border-sky-300',
     cell: 'bg-sky-100 hover:bg-sky-200 cursor-pointer',
     drag: '!bg-sky-400/60',
+    booked: 'bg-sky-300 border-sky-500 text-sky-950',
   },
   {
     solid: 'bg-emerald-600 text-white border-emerald-600 ring-emerald-300',
     soft: 'bg-emerald-50 text-emerald-800 border-emerald-300',
     cell: 'bg-emerald-100 hover:bg-emerald-200 cursor-pointer',
     drag: '!bg-emerald-400/60',
+    booked: 'bg-emerald-300 border-emerald-500 text-emerald-950',
   },
   {
     solid: 'bg-violet-600 text-white border-violet-600 ring-violet-300',
     soft: 'bg-violet-50 text-violet-800 border-violet-300',
     cell: 'bg-violet-100 hover:bg-violet-200 cursor-pointer',
     drag: '!bg-violet-400/60',
+    booked: 'bg-violet-300 border-violet-500 text-violet-950',
   },
   {
     solid: 'bg-pink-600 text-white border-pink-600 ring-pink-300',
     soft: 'bg-pink-50 text-pink-800 border-pink-300',
     cell: 'bg-pink-100 hover:bg-pink-200 cursor-pointer',
     drag: '!bg-pink-400/60',
+    booked: 'bg-pink-300 border-pink-500 text-pink-950',
   },
   {
     solid: 'bg-orange-600 text-white border-orange-600 ring-orange-300',
     soft: 'bg-orange-50 text-orange-800 border-orange-300',
     cell: 'bg-orange-100 hover:bg-orange-200 cursor-pointer',
     drag: '!bg-orange-400/60',
+    booked: 'bg-orange-300 border-orange-500 text-orange-950',
   },
   {
     solid: 'bg-cyan-600 text-white border-cyan-600 ring-cyan-300',
     soft: 'bg-cyan-50 text-cyan-800 border-cyan-300',
     cell: 'bg-cyan-100 hover:bg-cyan-200 cursor-pointer',
     drag: '!bg-cyan-400/60',
+    booked: 'bg-cyan-300 border-cyan-500 text-cyan-950',
   },
   {
     solid: 'bg-lime-600 text-white border-lime-600 ring-lime-300',
     soft: 'bg-lime-50 text-lime-800 border-lime-300',
     cell: 'bg-lime-100 hover:bg-lime-200 cursor-pointer',
     drag: '!bg-lime-400/60',
+    booked: 'bg-lime-300 border-lime-500 text-lime-950',
   },
   {
     solid: 'bg-rose-600 text-white border-rose-600 ring-rose-300',
     soft: 'bg-rose-50 text-rose-800 border-rose-300',
     cell: 'bg-rose-100 hover:bg-rose-200 cursor-pointer',
     drag: '!bg-rose-400/60',
+    booked: 'bg-rose-300 border-rose-500 text-rose-950',
   },
 ]
 
@@ -75,6 +85,7 @@ export const UNASSIGNED_COLOR = {
   soft: 'bg-gray-50 text-gray-600 border-gray-300',
   cell: 'bg-gray-200 hover:bg-gray-300 cursor-pointer',
   drag: '!bg-gray-400/60',
+  booked: 'bg-gray-300 border-gray-500 text-gray-950',
 }
 
 /**

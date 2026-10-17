@@ -216,6 +216,7 @@ class CourseController extends Controller
                 'drip_interval_days' => $course->drip_interval_days,
                 'target_course_ids' => $targetCourseIds,
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
+                'high_ticket_screening' => $course->high_ticket_screening,
                 'is_high_ticket' => $course->is_high_ticket,
                 'payment_gateway' => $course->payment_gateway,
             ],

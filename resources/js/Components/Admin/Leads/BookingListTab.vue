@@ -377,6 +377,7 @@ const slotDayClass = (lead) => {
 const dripStatusLabels = {
   active: '訂閱中',
   booked: '已預約停信',
+  declined: '已婉拒停信',
   completed: '已完成',
   converted: '已轉換',
   unsubscribed: '已退訂',
@@ -1341,6 +1342,7 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                     :class="{
                       'bg-blue-100 text-blue-800':    sub.status === 'active',
                       'bg-purple-100 text-purple-800': sub.status === 'booked',
+                      'bg-rose-100 text-rose-800':     sub.status === 'declined',
                       'bg-green-100 text-green-800':   sub.status === 'completed',
                       'bg-yellow-100 text-yellow-800': sub.status === 'converted',
                       'bg-gray-100 text-gray-500':     sub.status === 'unsubscribed',

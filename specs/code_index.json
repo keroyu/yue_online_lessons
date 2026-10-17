@@ -99,6 +99,7 @@
       "010.us-13",
       "010.us-18",
       "011.us-37",
+      "011.us-41",
       "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
@@ -306,6 +307,7 @@
       "011.us-26",
       "011.us-38",
       "011.us-40",
+      "011.us-41",
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
@@ -510,7 +512,8 @@
       "004.us-1",
       "004.us-2",
       "010.us-18",
-      "011.us-38"
+      "011.us-38",
+      "011.us-41"
     ],
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
@@ -562,7 +565,8 @@
       "004.us-2",
       "010.us-18",
       "011.us-37",
-      "011.us-38"
+      "011.us-38",
+      "011.us-41"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -796,7 +800,8 @@
       "004.us-5",
       "004.us-7",
       "011.us-21",
-      "011.us-37"
+      "011.us-37",
+      "011.us-41"
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
@@ -1075,6 +1080,7 @@
       "011.us-26",
       "011.us-27",
       "011.us-38",
+      "011.us-41",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1607,6 +1613,9 @@
     "database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php": [
       "011.us-40"
     ],
+    "database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php": [
+      "011.us-41"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "004.us-6",
       "011.us-10",
@@ -1692,7 +1701,8 @@
       "010.us-18",
       "010.us-8",
       "011.us-37",
-      "011.us-38"
+      "011.us-38",
+      "011.us-41"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
@@ -1855,8 +1865,12 @@
       "003.us-2",
       "003.us-9"
     ],
+    "resources/js/Components/Course/BookingScopeNotice.vue": [
+      "011.us-41"
+    ],
     "resources/js/Components/Course/BookingScreeningStep.vue": [
-      "011.us-24"
+      "011.us-24",
+      "011.us-41"
     ],
     "resources/js/Components/Course/ClaimConsentNotice.vue": [
       "010.us-16"
@@ -1879,6 +1893,7 @@
       "011.us-16",
       "011.us-24",
       "011.us-26",
+      "011.us-41",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -2493,6 +2508,9 @@
     ],
     "tests/Feature/HighTicket/BookingScreeningTest.php": [
       "011.us-24"
+    ],
+    "tests/Feature/HighTicket/BookingScreeningToggleTest.php": [
+      "011.us-41"
     ],
     "tests/Feature/HighTicket/BookingWizardTest.php": [
       "011.us-10",

@@ -85,6 +85,7 @@ const form = useForm({
   type: props.course?.product_type || props.course?.type || 'lecture',
   content_category: props.course?.content_category || props.contentCategories[0]?.slug || 'monetization',
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
+  high_ticket_screening: props.course?.high_ticket_screening ?? true,
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   payment_gateway: props.course?.payment_gateway || 'payuni',
@@ -225,6 +226,7 @@ const fieldLabels = {
   type: '產品類型',
   content_category: '內容分類',
   high_ticket_hide_price: '隱藏價格',
+  high_ticket_screening: '資格審核',
   duration_minutes: '時間總長',
   sale_at: '開賣時間',
   portaly_product_id: 'Portaly 商品 ID',
@@ -395,6 +397,20 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             />
             <span class="text-sm text-gray-700">隱藏原價／優惠價，改顯示「立即預約」按鈕</span>
           </label>
+
+          <!-- Only meaningful with the booking wizard, which only exists when
+               the price is hidden (011 FR-255). -->
+          <div v-if="form.high_ticket_hide_price" data-field="high_ticket_screening" class="mt-3 ml-7 border-l-2 border-brand-teal/30 pl-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="form.high_ticket_screening"
+                class="h-4 w-4 border-gray-300 text-brand-teal rounded focus:ring-brand-teal"
+              />
+              <span class="text-sm text-gray-700">預約前先做資格審核</span>
+            </label>
+            <p class="mt-1 text-xs text-gray-500">關閉時，預約流程省去資格審核，直接從填寫資料開始。</p>
+          </div>
         </div>
 
         <!-- Consultation credits: high-ticket, or paid non-drip courses (011 FR-222) -->

@@ -5464,6 +5464,43 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-41",
+      "module": "011-high-ticket",
+      "title": "資格審核可依課程開關",
+      "summary": "高價課課程設定新增資格審核開關（courses.high_ticket_screening，預設開）；關閉時預約精靈省去第一步，Email／暱稱移到資料步驟、範圍勾選與顧問說明移到承諾步驟，伺服器不審核也不存答案",
+      "heading": "### User Story 41 - 資格審核可依課程開關 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-41---資格審核可依課程開關-priority-p2",
+      "keywords": [
+        "資格審核",
+        "開關",
+        "screening",
+        "toggle",
+        "high_ticket_screening",
+        "預約精靈",
+        "wizard",
+        "課程設定",
+        "高價課",
+        "high ticket",
+        "跳過第一步"
+      ],
+      "code_files": [
+        "database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php",
+        "app/Models/Course.php",
+        "app/Http/Requests/Admin/StoreCourseRequest.php",
+        "app/Http/Requests/Admin/UpdateCourseRequest.php",
+        "app/Http/Controllers/Admin/CourseController.php",
+        "resources/js/Components/Admin/CourseForm.vue",
+        "app/Http/Controllers/CourseController.php",
+        "app/Services/HighTicketBookingService.php",
+        "resources/js/Components/Course/BookingScopeNotice.vue",
+        "resources/js/Components/Course/BookingScreeningStep.vue",
+        "resources/js/Components/Course/HighTicketBookingWizard.vue",
+        "tests/Feature/HighTicket/BookingScreeningToggleTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",

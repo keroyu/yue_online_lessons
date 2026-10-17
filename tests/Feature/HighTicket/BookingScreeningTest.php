@@ -461,15 +461,9 @@ class BookingScreeningTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    /**
-     * FR-126 — these people came from the ebook sequence and are staying in it.
-     * Declining means "not a 1v1 right now", not "stop talking to them".
-     */
-    public function test_declining_does_not_stop_the_drip_sequence(): void
+    /** A drip course that converts into $target, and an active subscriber on it. */
+    private function makeDripSubscriber(Course $target, string $status = 'active'): DripSubscription
     {
-        Mail::fake();
-        $target = $this->makeHighTicketCourse();
-
         $drip = Course::create([
             'name' => 'Drip', 'slug' => 'drip-' . uniqid(), 'tagline' => 't', 'description' => 'd',
             'price' => 0, 'instructor_name' => 'I', 'type' => 'lecture', 'status' => 'selling',
@@ -478,20 +472,103 @@ class BookingScreeningTest extends TestCase
         ]);
         DripConversionTarget::create(['drip_course_id' => $drip->id, 'target_course_id' => $target->id]);
 
-        $user = User::create(['email' => 'applicant@example.com', 'role' => 'member']);
-        $sub = DripSubscription::create([
+        $user = User::firstOrCreate(['email' => 'applicant@example.com'], ['role' => 'member']);
+
+        return DripSubscription::create([
             'user_id'       => $user->id,
             'course_id'     => $drip->id,
             'subscribed_at' => now()->subDays(6),
             'emails_sent'   => 2,
-            'status'        => 'active',
+            'status'        => $status,
         ]);
+    }
+
+    /** FR-257 (revising FR-126) — a refusal stops the sequence that led here. */
+    public function test_declining_stops_the_drip_sequence(): void
+    {
+        Mail::fake();
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target);
 
         $this->postJson("/course/{$target->id}/screen", $this->screeningPayload([
             'screen_budget' => 'none',
         ]))->assertOk()->assertJson(['passed' => false]);
 
-        $this->assertSame('active', $sub->fresh()->status, '被婉拒的人要留在加溫名單裡');
+        $sub->refresh();
+        $this->assertSame('declined', $sub->status);
+        $this->assertNotNull($sub->status_changed_at);
+        $this->assertContains('declined', DripSubscription::STOPS_SENDING);
+        $this->assertNotContains('declined', DripSubscription::FUNNEL_DONE);
+    }
+
+    /** Passing changes nothing: the drip still stops only on the confirmation click (D35). */
+    public function test_passing_leaves_the_drip_sequence_alone(): void
+    {
+        Mail::fake();
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target);
+
+        $this->postJson("/course/{$target->id}/screen", $this->screeningPayload())
+            ->assertOk()->assertJson(['passed' => true]);
+
+        $this->assertSame('active', $sub->fresh()->status);
+    }
+
+    public function test_declining_leaves_an_unsubscribed_sequence_alone(): void
+    {
+        Mail::fake();
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target, 'unsubscribed');
+
+        $this->postJson("/course/{$target->id}/screen", $this->screeningPayload(['screen_budget' => 'none']))
+            ->assertOk();
+
+        $this->assertSame('unsubscribed', $sub->fresh()->status);
+    }
+
+    /** No member behind the address, or no drip pointing here: nothing to stop, nothing breaks. */
+    public function test_declining_without_a_member_or_a_sequence_is_silent(): void
+    {
+        $target = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$target->id}/screen", $this->screeningPayload(['screen_budget' => 'none']))
+            ->assertOk()->assertJson(['passed' => false]);
+
+        User::create(['email' => 'applicant@example.com', 'role' => 'member']);
+
+        $this->postJson("/course/{$target->id}/screen", $this->screeningPayload(['screen_budget' => 'none']))
+            ->assertOk()->assertJson(['passed' => false]);
+    }
+
+    /** Somebody declined, later re-screened and confirmed, counts as booked. */
+    public function test_a_declined_subscriber_who_later_books_becomes_booked(): void
+    {
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target, 'declined');
+
+        app(\App\Services\DripService::class)->checkAndBook('applicant@example.com', $target);
+
+        $this->assertSame('booked', $sub->fresh()->status);
+    }
+
+    public function test_a_declined_subscriber_who_later_buys_becomes_converted(): void
+    {
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target, 'declined');
+
+        app(\App\Services\DripService::class)->checkAndConvert($sub->user, $target);
+
+        $this->assertSame('converted', $sub->fresh()->status);
+    }
+
+    public function test_the_subscriber_list_counts_and_filters_declined(): void
+    {
+        $target = $this->makeHighTicketCourse();
+        $sub = $this->makeDripSubscriber($target, 'declined');
+
+        $data = app(\App\Services\DripService::class)->subscriberPageData($sub->course, 'declined');
+
+        $this->assertSame(1, $data['stats']['declined']);
     }
 
     public function test_all_five_answers_are_required(): void
