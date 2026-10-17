@@ -142,16 +142,26 @@ class BookingScreening
     /**
      * Vetoes that only hold in combination (FR-254 / D169).
      *
-     * Each entry is one rule: it fires when every listed field's answer is in
-     * its list. Any rule firing vetoes, exactly like an option's `veto` flag.
-     * Kept here, beside QUESTIONS, so the rubric stays one table on the server
-     * and never travels to the browser (FR-124).
+     * Each entry is one rule. `match` fires when every listed field's answer
+     * is in its list; `unless`, when present, lifts it again if its own
+     * `match` holds and the total reaches `min_score`. Any rule left firing
+     * vetoes, exactly like an option's `veto` flag. Kept here, beside
+     * QUESTIONS, so the rubric stays one table on the server and never travels
+     * to the browser (FR-124).
      */
     public const VETO_COMBOS = [
-        // A short time in, and not looking beyond themselves or free content.
+        // A short time in, and not looking beyond themselves or free content —
+        // unless they name a real budget and the rest of the answers are
+        // strong (7+): that applicant is worth a conversation (使用者決策).
         [
-            'screen_experience' => ['not_started', 'casual', 'under_1y'],
-            'screen_learning'   => ['self_only', 'free_only'],
+            'match' => [
+                'screen_experience' => ['not_started', 'casual', 'under_1y'],
+                'screen_learning'   => ['self_only', 'free_only'],
+            ],
+            'unless' => [
+                'match'     => ['screen_budget' => ['6k_10k', '10k_50k', '50k_100k', 'over_100k']],
+                'min_score' => 7,
+            ],
         ],
     ];
 
@@ -263,21 +273,33 @@ class BookingScreening
         }
 
         foreach (self::VETO_COMBOS as $combo) {
-            $fires = true;
-
-            foreach ($combo as $field => $values) {
-                if (!in_array($answers[$field] ?? null, $values, true)) {
-                    $fires = false;
-                    break;
-                }
+            if (!self::matches($answers, $combo['match'])) {
+                continue;
             }
 
-            if ($fires) {
+            $unless = $combo['unless'] ?? null;
+            $lifted = $unless !== null
+                && self::matches($answers, $unless['match'])
+                && self::score($answers) >= $unless['min_score'];
+
+            if (!$lifted) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /** Every listed field's answer is one of its listed values. */
+    private static function matches(array $answers, array $conditions): bool
+    {
+        foreach ($conditions as $field => $values) {
+            if (!in_array($answers[$field] ?? null, $values, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static function passes(array $answers): bool

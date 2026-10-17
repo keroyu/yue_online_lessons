@@ -226,12 +226,68 @@ class BookingScreeningTest extends TestCase
     {
         foreach (['not_started', 'casual', 'under_1y'] as $experience) {
             foreach (['self_only', 'free_only'] as $learning) {
-                $answers = $this->answers(['screen_experience' => $experience, 'screen_learning' => $learning]);
+                // A budget under 6k keeps the exception (below) out of play.
+                $answers = $this->answers([
+                    'screen_experience' => $experience,
+                    'screen_learning'   => $learning,
+                    'screen_budget'     => 'under_6k',
+                ]);
 
-                $this->assertSame(10, BookingScreening::score($answers), '兩題皆 0 分，否決不改分數');
+                $this->assertSame(8, BookingScreening::score($answers), '兩題皆 0 分，否決不改分數');
                 $this->assertFalse(BookingScreening::passes($answers), "{$experience} + {$learning} 應婉拒");
             }
         }
+    }
+
+    /** A real budget and a strong total outweigh the combo (FR-254 修訂). */
+    public function test_a_named_budget_with_seven_or_more_lifts_the_combo_veto(): void
+    {
+        $combo = ['screen_experience' => 'under_1y', 'screen_learning' => 'self_only'];
+
+        foreach (['6k_10k', '10k_50k', '50k_100k', 'over_100k'] as $budget) {
+            // Pinned at exactly 7 for every band: the floor is what is being tested.
+            $answers = $this->answers($combo + [
+                'screen_budget'   => $budget,
+                'screen_timeline' => $budget === '6k_10k' ? 'immediate' : '3_6m',
+                'screen_pain'     => 'low',
+            ]);
+
+            $this->assertSame(7, BookingScreening::score($answers));
+            $this->assertTrue(BookingScreening::passes($answers), "{$budget} 且 7 分以上不應婉拒");
+        }
+    }
+
+    public function test_the_exception_needs_both_the_budget_and_the_score(): void
+    {
+        $combo = ['screen_experience' => 'casual', 'screen_learning' => 'free_only'];
+
+        // Score 6 with a named budget: still vetoed.
+        $six = $this->answers($combo + ['screen_timeline' => '6m_plus', 'screen_pain' => 'low']);
+        $this->assertSame(6, BookingScreening::score($six));
+        $this->assertFalse(BookingScreening::passes($six), '6 分不適用例外');
+
+        // Score 7 exactly with a named budget: lifted.
+        $seven = $this->answers($combo + ['screen_timeline' => '3_6m', 'screen_pain' => 'low']);
+        $this->assertSame(7, BookingScreening::score($seven));
+        $this->assertTrue(BookingScreening::passes($seven), '7 分適用例外');
+
+        // Score 8 but budget under 6k: still vetoed.
+        $low = $this->answers($combo + ['screen_budget' => 'under_6k']);
+        $this->assertSame(8, BookingScreening::score($low));
+        $this->assertFalse(BookingScreening::passes($low), '預算不足不適用例外');
+    }
+
+    /** The exception belongs to the combo only — FR-253 still turns these away. */
+    public function test_the_exception_does_not_lift_the_next_step_veto(): void
+    {
+        $answers = $this->answers([
+            'screen_experience' => 'under_1y',
+            'screen_learning'   => 'self_only',
+            'screen_next_step'  => 'diy',
+        ]);
+
+        $this->assertSame(8, BookingScreening::score($answers));
+        $this->assertFalse(BookingScreening::passes($answers));
     }
 
     public function test_either_half_of_the_combo_alone_passes(): void
@@ -258,6 +314,7 @@ class BookingScreeningTest extends TestCase
         $this->postJson("/course/{$course->id}/screen", $this->screeningPayload([
             'screen_experience' => 'casual',
             'screen_learning'   => 'self_only',
+            'screen_budget'     => 'under_6k',
         ]))->assertOk()->assertJson(['passed' => false]);
 
         $lead = HighTicketLead::first();
