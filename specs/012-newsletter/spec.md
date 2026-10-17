@@ -476,6 +476,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-18: `PostForm` 的「發佈時間」改用 000 的 `DateTimeInput`（附「清除」按鈕；已發佈狀態留空 = 現在發佈），窄側欄輸入框內距改 `px-2` 讓時間完整顯示。純前端，瀏覽器已確認。
 - 2026-10-07: 文章 Markdown 單一換行即換行（FR-037）—— 網頁、電子報、後台預覽三處一致；PostService 兩處 CommonMark 收斂為 converter()
 - 2026-10-07: US10 完成（T043–T048，剩 T049 使用者實測）— 電子報與文章版歡迎信改寄全文：PostService::toEmailHtml/toEmailText（影片行沿用前台判定換成縮圖或回站提示、殘留 iframe 換提示、插圖限寬轉絕對網址、站內連結戳 UTM），開信像素移到內文前；純文字版影片網址在 Markdown 轉換後才填入，避免 `utm\_source` 被跳脫成壞連結；NewsletterFullTextTest 6 項
 - 2026-09-25: OG 卡片的品牌 logo 改讀後台上傳的網站圖示（000 US12），內建檔降為 fallback；logo 檔名一併進快取 key，換 logo 會重生舊卡片。

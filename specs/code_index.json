@@ -1722,6 +1722,9 @@
       "011.us-37",
       "011.us-38"
     ],
+    "resources/js/Components/Admin/DateTimeInput.vue": [
+      "000.us-2"
+    ],
     "resources/js/Components/Admin/HintBox.vue": [
       "000.us-9"
     ],
@@ -2434,6 +2437,9 @@
     "tests/Feature/Admin/AdminDateInputTimezoneTest.php": [
       "000.us-11",
       "004.us-2",
+      "006.us-2"
+    ],
+    "tests/Feature/Admin/CouponExpiryClearTest.php": [
       "006.us-2"
     ],
     "tests/Feature/Admin/CourseCreateFieldsTest.php": [

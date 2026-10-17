@@ -75,6 +75,7 @@ main_files:
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/ColorSchemePicker.vue
+- resources/js/Components/Admin/DateTimeInput.vue
 - resources/js/Components/Admin/HintBox.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
@@ -504,6 +505,7 @@ main_files:
 - resources/js/Pages/Checkout/Index.vue
 - routes/web.php
 - tests/Feature/Admin/AdminDateInputTimezoneTest.php
+- tests/Feature/Admin/CouponExpiryClearTest.php
 - tests/Feature/Storefront/SalesPromoCouponChainTest.php
 
 related_specs:

@@ -2,6 +2,7 @@
 id: 000-platform-core
 status: building
 owner_files:
+  - resources/js/Components/Admin/DateTimeInput.vue
   - app/Models/AiPrompt.php
   - app/Services/OpenAiService.php
   - config/ai.php
@@ -867,6 +868,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-10-18: 新增共用元件 `Components/Admin/DateTimeInput.vue`（`datetime-local` ＋「清除」按鈕）— Chrome 原生輸入框沒有清除鈕，只刪一格會進入 `badInput` 並被瀏覽器原生驗證擋下送出；按鈕直接重設 DOM 值。`inheritAttrs: false`，`class`/`id` 落在 input 上、`wrapper-class` 給外層，input 加 `min-w-0 flex-1` 避免窄欄把按鈕擠出。目前用於 006 折扣碼到期日、004 課程優惠到期／預購開賣、012 文章發佈時間；必填或不該留空的日期欄位（如電子報排程）不使用。
 - 2026-09-25: 重新設計 墨竹／苔原／玫瑰石英 三組配色（使用者回報「對比太高、導覽列與按鈕都是深色底、重複性高」）— 查證後根因有兩層，都在我這邊：初版的 `navy` 亮度只有 0.018–0.025，而當時 7:1 的門檻其實允許到 0.083（**我選得比自己訂的規則更保守**）；而 7:1 這條門檻本身也選錯了，因為 `navy` 同時是內文色與導覽列／側欄底色，把內文推到 AAA 等於把一大片色塊推到近黑，再配上同樣要承載白字的主要按鈕，整頁就是兩塊黑板。
   降到 AA 4.5 後重新配色：墨竹改宣紙＋淡墨（navy `#262521` → `#585149`）、苔原改亞麻＋石灰岩讓苔綠退成小面積重點（`#262E21` → `#525948`）、玫瑰石英的深梅底改灰褐玫瑰（`#3A2430` → `#63505A`）。三組 navy 亮度升到 0.084–0.094，約為原來的 4 倍。
   **提亮 navy 有個相反方向的連鎖**：`navy` 是 gold CTA 上的文字，navy 每亮一分 gold 就要跟著亮才維持 4.5 —— 量過之後亮度 0.15 時 gold 會亮到與 cream 幾乎無法區分，CTA 等於消失；0.07–0.09 是兩邊都站得住的區間。gold 因此一併改成淡赭／淡麥／淡蜜桃，反而正是「輕盈」要的。gold 的 hover 步階（1.25 倍）在淡色上視窗極窄，是解聯立算出來的不是試出來的（苔原的視窗一度是空的，改為提亮 gold 才打開）。

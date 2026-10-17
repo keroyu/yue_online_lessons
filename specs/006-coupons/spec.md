@@ -2,6 +2,7 @@
 id: 006-coupons
 status: done
 owner_files:
+  - tests/Feature/Admin/CouponExpiryClearTest.php
   - app/Http/Controllers/CouponController.php
   - app/Http/Controllers/Admin/CouponController.php
   - app/Http/Controllers/Admin/CouponChainController.php
@@ -192,6 +193,7 @@ touchpoints:
 
 ## 進度日誌
 
+- 2026-10-18: 修「編輯折扣碼到期日無法留空」— 後端本就允許 null（新增 `CouponExpiryClearTest` 守住），根因是 Chrome `datetime-local` 刪一格即 `badInput`、原生驗證擋下送出。`CouponForm` 到期日改用 000 的 `DateTimeInput`（附「清除」按鈕），瀏覽器實測刪一格 → 清除 → 儲存成功顯示「永不過期」。
 - 2026-09-25: 修 `expires_at` 的 8 小時偏差 — 折扣碼原本晚 8 小時才過期，且 `after:now` 比對的是 UTC 的現在（台北 07:00 建立、設當天 09:00 到期會被誤判為未來）。改走 000 的 `NormalizesTaipeiInput`，編輯頁與 `expires_label` 輸出補 `->timezone('Asia/Taipei')`
 
 - 2026-08-02: 去除銷售頁接線帶進來的重複 — chain 清單查詢上移到 `CouponChainService::editorOptions()`（ChapterController 與 Admin\CourseController 共用）、插入器抽成 `CouponChainInserter.vue`（LessonForm 與 CourseForm 共用），記為 D5。行為不變，212 passed、npm build 綠。

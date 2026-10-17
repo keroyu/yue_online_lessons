@@ -257,7 +257,8 @@
         "resources/js/Layouts/AdminLayout.vue",
         "app/Providers/AppServiceProvider.php",
         "routes/web.php",
-        "tests/Feature/Platform/AdminLayoutChromeTest.php"
+        "tests/Feature/Platform/AdminLayoutChromeTest.php",
+        "resources/js/Components/Admin/DateTimeInput.vue"
       ],
       "status": "implemented"
     },
@@ -2551,7 +2552,8 @@
         "resources/js/Pages/Admin/Coupons/Edit.vue",
         "database/migrations/2026_06_09_000001_create_coupon_codes_table.php",
         "app/Http/Requests/Concerns/NormalizesTaipeiInput.php",
-        "tests/Feature/Admin/AdminDateInputTimezoneTest.php"
+        "tests/Feature/Admin/AdminDateInputTimezoneTest.php",
+        "tests/Feature/Admin/CouponExpiryClearTest.php"
       ],
       "status": "implemented"
     },
