@@ -100,7 +100,7 @@ class BookingScreeningTest extends TestCase
             'screen_pain'      => ['severe' => 2, 'high' => 2, 'moderate' => 1, 'low' => 0, 'curious' => 0],
             'screen_next_step' => ['start_now' => 2, 'evaluate' => 2, 'compare' => 1, 'diy' => 0, 'advice_only' => 0],
             'screen_experience' => ['not_started' => 0, 'casual' => 0, 'under_1y' => 0, '1_3y' => 0, 'over_3y' => 0],
-            'screen_learning'   => ['self_only' => 0, 'free_only' => 0, 'free_active' => 0, 'cheap_paid' => 0, 'paid_course' => 0],
+            'screen_learning'   => ['passive' => 0, 'searched' => 0, 'engaged' => 0, 'cheap_paid' => 0, 'paid_course' => 0],
         ];
 
         foreach ($expected as $field => $options) {
@@ -225,7 +225,7 @@ class BookingScreeningTest extends TestCase
     public function test_short_experience_without_seeking_resources_is_vetoed(): void
     {
         foreach (['not_started', 'casual', 'under_1y'] as $experience) {
-            foreach (['self_only', 'free_only'] as $learning) {
+            foreach (['passive', 'searched'] as $learning) {
                 // A budget under 6k keeps the exception (below) out of play.
                 $answers = $this->answers([
                     'screen_experience' => $experience,
@@ -242,7 +242,7 @@ class BookingScreeningTest extends TestCase
     /** A real budget and a strong total outweigh the combo (FR-254 修訂). */
     public function test_a_named_budget_with_seven_or_more_lifts_the_combo_veto(): void
     {
-        $combo = ['screen_experience' => 'under_1y', 'screen_learning' => 'self_only'];
+        $combo = ['screen_experience' => 'under_1y', 'screen_learning' => 'passive'];
 
         foreach (['6k_10k', '10k_50k', '50k_100k', 'over_100k'] as $budget) {
             // Pinned at exactly 7 for every band: the floor is what is being tested.
@@ -259,7 +259,7 @@ class BookingScreeningTest extends TestCase
 
     public function test_the_exception_needs_both_the_budget_and_the_score(): void
     {
-        $combo = ['screen_experience' => 'casual', 'screen_learning' => 'free_only'];
+        $combo = ['screen_experience' => 'casual', 'screen_learning' => 'searched'];
 
         // Score 6 with a named budget: still vetoed.
         $six = $this->answers($combo + ['screen_timeline' => '6m_plus', 'screen_pain' => 'low']);
@@ -282,7 +282,7 @@ class BookingScreeningTest extends TestCase
     {
         $answers = $this->answers([
             'screen_experience' => 'under_1y',
-            'screen_learning'   => 'self_only',
+            'screen_learning'   => 'passive',
             'screen_next_step'  => 'diy',
         ]);
 
@@ -293,10 +293,10 @@ class BookingScreeningTest extends TestCase
     public function test_either_half_of_the_combo_alone_passes(): void
     {
         $cases = [
-            ['under_1y', 'free_active'],   // short, but actively seeking
+            ['under_1y', 'engaged'],   // short, but actively seeking
             ['under_1y', 'cheap_paid'],
-            ['1_3y', 'self_only'],         // long enough, even alone
-            ['over_3y', 'free_only'],
+            ['1_3y', 'passive'],         // long enough, even alone
+            ['over_3y', 'searched'],
         ];
 
         foreach ($cases as [$experience, $learning]) {
@@ -313,14 +313,14 @@ class BookingScreeningTest extends TestCase
 
         $this->postJson("/course/{$course->id}/screen", $this->screeningPayload([
             'screen_experience' => 'casual',
-            'screen_learning'   => 'self_only',
+            'screen_learning'   => 'passive',
             'screen_budget'     => 'under_6k',
         ]))->assertOk()->assertJson(['passed' => false]);
 
         $lead = HighTicketLead::first();
         $this->assertSame('declined', $lead->status);
         $this->assertSame('casual', $lead->screen_experience);
-        $this->assertSame('self_only', $lead->screen_learning);
+        $this->assertSame('passive', $lead->screen_learning);
     }
 
     public function test_the_new_questions_are_required_on_the_screen_post(): void
@@ -332,6 +332,60 @@ class BookingScreeningTest extends TestCase
         $this->postJson("/course/{$course->id}/screen", $payload)
             ->assertStatus(422)
             ->assertJsonValidationErrors(['screen_experience', 'screen_learning']);
+    }
+
+    // ── Q7 改版：卡關時做過最深入的一步（FR-258） ─────────────────────────
+
+    /** Reaching people — a community, a trial class — is the line, not searching alone. */
+    public function test_engaging_with_a_community_or_trial_class_clears_a_short_experience(): void
+    {
+        foreach (['not_started', 'casual', 'under_1y'] as $experience) {
+            $answers = $this->answers([
+                'screen_experience' => $experience,
+                'screen_learning'   => 'engaged',
+                'screen_budget'     => 'under_6k',
+            ]);
+
+            $this->assertTrue(BookingScreening::passes($answers), "{$experience} + engaged 不應婉拒");
+        }
+    }
+
+    public function test_the_retired_learning_options_are_refused(): void
+    {
+        $course = $this->makeHighTicketCourse();
+
+        foreach (['self_only', 'free_only', 'free_active'] as $old) {
+            $this->postJson("/course/{$course->id}/screen", $this->screeningPayload(['screen_learning' => $old]))
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['screen_learning']);
+        }
+    }
+
+    public function test_the_migration_maps_old_learning_answers_onto_the_new_options(): void
+    {
+        $course = $this->makeHighTicketCourse();
+        $ids = [];
+
+        foreach (['free_only', 'self_only', 'free_active', 'cheap_paid', null] as $i => $value) {
+            $ids[$value ?? 'null'] = HighTicketLead::create([
+                'email'           => "old{$i}@example.com",
+                'name'            => 'Old',
+                'course_id'       => $course->id,
+                'status'          => 'declined',
+                'booked_at'       => now(),
+                'screen_learning' => $value,
+            ])->id;
+        }
+
+        (require database_path('migrations/2026_10_18_000003_remap_screen_learning_options.php'))->up();
+
+        $after = fn (string $key) => HighTicketLead::find($ids[$key])->screen_learning;
+        $this->assertSame('passive', $after('free_only'));
+        $this->assertSame('passive', $after('self_only'));
+        $this->assertSame('searched', $after('free_active'));
+        $this->assertSame('cheap_paid', $after('cheap_paid'), '未改版的選項不動');
+        $this->assertNull($after('null'));
+        $this->assertSame('declined', HighTicketLead::find($ids['free_only'])->status, '只改答案，不改狀態');
     }
 
     public function test_the_experience_hint_is_sent_but_the_combo_rule_is_not(): void

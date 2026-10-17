@@ -76,7 +76,7 @@ class BookingScreeningToggleTest extends TestCase
             'screen_pain'       => 'curious',
             'screen_next_step'  => 'advice_only',
             'screen_experience' => 'not_started',
-            'screen_learning'   => 'self_only',
+            'screen_learning'   => 'passive',
         ];
     }
 

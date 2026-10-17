@@ -128,11 +128,14 @@ class BookingScreening
             ],
         ],
         'screen_learning' => [
-            'title'   => '遇到卡關時，你通常怎麼處理？',
+            // Asks for the furthest step actually taken on the current problem,
+            // not a habit — a habit question lets everyone pick the respectable
+            // answer (FR-258). Options are ordered by depth.
+            'title'   => '針對你現在卡住的問題，你做過最深入的一步是？',
             'options' => [
-                'self_only'   => ['label' => '靠自己慢慢摸索，不太找外部資源', 'score' => 0],
-                'free_only'   => ['label' => '看免費資源（YouTube、文章、Podcast）', 'score' => 0],
-                'free_active' => ['label' => '追蹤免費教學社群、進行關鍵字搜尋和參考對標帳號', 'score' => 0],
+                'passive'     => ['label' => '平常滑到相關內容會看，但還沒特別針對這個問題去找', 'score' => 0],
+                'searched'    => ['label' => '針對這個問題主動搜尋過教學、文章或影片，並試著照做', 'score' => 0],
+                'engaged'     => ['label' => '加入相關社群發問交流，或聽過免費講座、直播、體驗課', 'score' => 0],
                 'cheap_paid'  => ['label' => '買過專門書籍、講座，或數千元的課程', 'score' => 0],
                 'paid_course' => ['label' => '上過中高價課程或找過顧問', 'score' => 0],
             ],
@@ -150,13 +153,13 @@ class BookingScreening
      * to the browser (FR-124).
      */
     public const VETO_COMBOS = [
-        // A short time in, and not looking beyond themselves or free content —
+        // A short time in, and never reached a community or a trial class —
         // unless they name a real budget and the rest of the answers are
         // strong (7+): that applicant is worth a conversation (使用者決策).
         [
             'match' => [
                 'screen_experience' => ['not_started', 'casual', 'under_1y'],
-                'screen_learning'   => ['self_only', 'free_only'],
+                'screen_learning'   => ['passive', 'searched'],
             ],
             'unless' => [
                 'match'     => ['screen_budget' => ['6k_10k', '10k_50k', '50k_100k', 'over_100k']],
