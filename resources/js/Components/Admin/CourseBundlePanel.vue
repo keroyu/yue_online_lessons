@@ -14,7 +14,7 @@
  * Tiers themselves are read-only here: they are created on the chapters page,
  * where lesson assignment lives. This panel only labels them.
  */
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   form: { type: Object, required: true },   // the parent CourseForm's useForm object
@@ -24,6 +24,17 @@ const props = defineProps({
   helpTextClasses: { type: String, default: '' },
   errorTextClasses: { type: String, default: '' },
 })
+
+// Most courses carry no consultation, so the panel starts folded unless one is
+// already named (an empty name means "no bundle").
+const open = ref(Boolean(props.form.bundle_name))
+
+// A validation error inside a folded panel would be invisible.
+watch(
+  () => Object.keys(props.form.errors).some(key => key.startsWith('bundle_')),
+  (hasError) => { if (hasError) open.value = true },
+  { immediate: true },
+)
 
 // Ordinary courses spend credits by self-booking (FR-223).
 const selfBooking = computed(() => props.form.type !== 'high_ticket')
@@ -44,115 +55,133 @@ const rowFor = (planId) => {
 </script>
 
 <template>
-  <div data-field="bundle_name" class="border border-amber-300 bg-amber-50 rounded-lg p-4">
-    <p class="text-sm font-semibold text-amber-800 mb-1">
-      諮詢次數
-    </p>
-    <p v-if="selfBooking" class="text-sm text-amber-800/80 mb-4">
-      學員購買後取得的 1 對 1 諮詢次數（每次 1 小時），可在銷售頁自行選時段預約，預約成功即扣 1 次。諮詢名稱留空即代表此課程不附諮詢。
-    </p>
-    <p v-else class="text-sm text-amber-800/80 mb-4">
-      成交時隨方案一起儲值的諮詢次數，由管理員在學員名單扣除。諮詢名稱留空即代表此課程不附諮詢。
-    </p>
+  <div data-field="bundle_name" class="rounded-lg border border-gray-200">
+    <button
+      type="button"
+      class="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left hover:bg-gray-50"
+      :aria-expanded="open"
+      @click="open = !open"
+    >
+      <span class="text-sm font-medium text-gray-700">
+        諮詢次數
+        <span class="ml-2 font-normal text-gray-400">{{ form.bundle_name || '未附諮詢' }}</span>
+      </span>
+      <svg
+        class="h-4 w-4 shrink-0 text-gray-400 transition-transform"
+        :class="open ? 'rotate-180' : ''"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label for="bundle_name" :class="labelClasses">諮詢名稱</label>
-        <input
-          id="bundle_name"
-          v-model="form.bundle_name"
-          type="text"
-          maxlength="50"
-          placeholder="例如：1 對 1 諮詢"
-          :class="[inputClasses, form.errors.bundle_name ? 'border-red-300' : '']"
-        />
-        <p v-if="form.errors.bundle_name" :class="errorTextClasses">
-          {{ form.errors.bundle_name }}
-        </p>
-      </div>
+    <div v-show="open" class="border-t border-gray-200 px-4 pb-4 pt-3">
+      <p v-if="selfBooking" class="text-sm text-gray-500 mb-4">
+        學員購買後取得的 1 對 1 諮詢次數（每次 1 小時），可在銷售頁自行選時段預約，預約成功即扣 1 次。諮詢名稱留空即代表此課程不附諮詢。
+      </p>
+      <p v-else class="text-sm text-gray-500 mb-4">
+        成交時隨方案一起儲值的諮詢次數，由管理員在學員名單扣除。諮詢名稱留空即代表此課程不附諮詢。
+      </p>
 
-      <div>
-        <label for="bundle_redeem_points" :class="labelClasses">每次加購所需積分</label>
-        <input
-          id="bundle_redeem_points"
-          v-model="form.bundle_redeem_points"
-          type="number"
-          min="1"
-          placeholder="留空 = 不可用積分加購"
-          :class="[inputClasses, form.errors.bundle_redeem_points ? 'border-red-300' : '']"
-        />
-        <p :class="helpTextClasses">
-          學員在「我的課程」可用積分加購，一次 +1 次。
-        </p>
-        <p v-if="noTopUp" class="mt-1 text-sm text-amber-700">
-          未設加購點數：次數用完後學員將無法再預約。
-        </p>
-        <p v-if="form.errors.bundle_redeem_points" :class="errorTextClasses">
-          {{ form.errors.bundle_redeem_points }}
-        </p>
-      </div>
-    </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="bundle_name" :class="labelClasses">諮詢名稱</label>
+          <input
+            id="bundle_name"
+            v-model="form.bundle_name"
+            type="text"
+            maxlength="50"
+            placeholder="例如：1 對 1 諮詢"
+            :class="[inputClasses, form.errors.bundle_name ? 'border-red-300' : '']"
+          />
+          <p v-if="form.errors.bundle_name" :class="errorTextClasses">
+            {{ form.errors.bundle_name }}
+          </p>
+        </div>
 
-    <!-- Per-tier quantities, saved with the course form -->
-    <div v-if="plans.length > 0" class="mt-5">
-      <p :class="labelClasses">各方案成交時儲值次數</p>
-      <div class="mt-2 space-y-2">
-        <div
-          v-for="plan in plans"
-          :key="plan.id"
-          class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-amber-200"
-        >
-          <span class="flex-1 text-sm font-medium text-gray-900">{{ plan.name }}</span>
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              v-model="rowFor(plan.id).quantity"
-              type="number"
-              min="0"
-              :disabled="rowFor(plan.id).unlimited"
-              class="w-24 rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-            />
-            <span class="text-sm text-gray-500">{{ rowFor(plan.id).unlimited ? '不計次' : '次' }}</span>
-            <label class="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700">
-              <input
-                v-model="rowFor(plan.id).unlimited"
-                type="checkbox"
-                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-              />
-              無限次
-            </label>
-          </div>
+        <div>
+          <label for="bundle_redeem_points" :class="labelClasses">每次加購所需積分</label>
+          <input
+            id="bundle_redeem_points"
+            v-model="form.bundle_redeem_points"
+            type="number"
+            min="1"
+            placeholder="留空 = 不可用積分加購"
+            :class="[inputClasses, form.errors.bundle_redeem_points ? 'border-red-300' : '']"
+          />
+          <p :class="helpTextClasses">
+            學員在「我的課程」可用積分加購，一次 +1 次。
+          </p>
+          <p v-if="noTopUp" class="mt-1 text-sm text-amber-700">
+            未設加購點數：次數用完後學員將無法再預約。
+          </p>
+          <p v-if="form.errors.bundle_redeem_points" :class="errorTextClasses">
+            {{ form.errors.bundle_redeem_points }}
+          </p>
         </div>
       </div>
-      <p :class="helpTextClasses">
-        方案本身在「章節編輯」頁新增或刪除。勾「無限次」後該方案的學員不再計次，且既有學員立刻生效。
-      </p>
-    </div>
 
-    <!-- No tiers: one number covers every sale of this course (FR-202). -->
-    <div v-else class="mt-5">
-      <label for="bundle_default_quantity" :class="labelClasses">預設儲值次數</label>
-      <input
-        id="bundle_default_quantity"
-        v-model="form.bundle_default_quantity"
-        type="number"
-        min="0"
-        :disabled="form.bundle_unlimited"
-        class="mt-2 block w-32 rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-      />
-      <label class="mt-2 flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-700">
+      <!-- Per-tier quantities, saved with the course form -->
+      <div v-if="plans.length > 0" class="mt-5">
+        <p :class="labelClasses">各方案成交時儲值次數</p>
+        <div class="mt-2 space-y-2">
+          <div
+            v-for="plan in plans"
+            :key="plan.id"
+            class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-gray-200"
+          >
+            <span class="flex-1 text-sm font-medium text-gray-900">{{ plan.name }}</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                v-model="rowFor(plan.id).quantity"
+                type="number"
+                min="0"
+                :disabled="rowFor(plan.id).unlimited"
+                class="w-24 rounded-lg border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              />
+              <span class="text-sm text-gray-500">{{ rowFor(plan.id).unlimited ? '不計次' : '次' }}</span>
+              <label class="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700">
+                <input
+                  v-model="rowFor(plan.id).unlimited"
+                  type="checkbox"
+                  class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                無限次
+              </label>
+            </div>
+          </div>
+        </div>
+        <p :class="helpTextClasses">
+          方案本身在「章節編輯」頁新增或刪除。勾「無限次」後該方案的學員不再計次，且既有學員立刻生效。
+        </p>
+      </div>
+
+      <!-- No tiers: one number covers every sale of this course (FR-202). -->
+      <div v-else class="mt-5">
+        <label for="bundle_default_quantity" :class="labelClasses">預設儲值次數</label>
         <input
-          v-model="form.bundle_unlimited"
-          type="checkbox"
-          class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+          id="bundle_default_quantity"
+          v-model="form.bundle_default_quantity"
+          type="number"
+          min="0"
+          :disabled="form.bundle_unlimited"
+          class="mt-2 block w-32 rounded-lg border-gray-300 px-4 py-3 text-base shadow-sm focus:border-brand-teal focus:ring-brand-teal disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
         />
-        無限次（不計次）
-      </label>
-      <p :class="helpTextClasses">
-        此課程尚未設定方案，成交時一律給這個次數。設定方案後改為各方案分別設定（無限次也改由方案決定）。
-      </p>
-      <p v-if="form.errors.bundle_default_quantity" :class="errorTextClasses">
-        {{ form.errors.bundle_default_quantity }}
-      </p>
+        <label class="mt-2 flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-700">
+          <input
+            v-model="form.bundle_unlimited"
+            type="checkbox"
+            class="h-4 w-4 cursor-pointer rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+          />
+          無限次（不計次）
+        </label>
+        <p :class="helpTextClasses">
+          此課程尚未設定方案，成交時一律給這個次數。設定方案後改為各方案分別設定（無限次也改由方案決定）。
+        </p>
+        <p v-if="form.errors.bundle_default_quantity" :class="errorTextClasses">
+          {{ form.errors.bundle_default_quantity }}
+        </p>
+      </div>
     </div>
   </div>
 </template>

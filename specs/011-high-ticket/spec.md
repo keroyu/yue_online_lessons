@@ -3951,6 +3951,7 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-10-18: [sync] 課程編輯頁「諮詢次數」面板（`CourseBundlePanel.vue`）降低存在感：琥珀底框改灰框、標題列可收合並顯示諮詢名稱或「未附諮詢」；諮詢名稱留空（未附諮詢）時預設收起，`bundle_*` 有驗證錯誤時自動展開。純前端，瀏覽器已確認收起／展開。
 - 2026-10-18: FR-258 完成（T599–T602）— Q7 改問「針對當前卡關做過最深入的一步」，選項 `passive`/`searched`/`engaged`/`cheap_paid`/`paid_course`；組合否決 Q7 條件改 `passive`/`searched`；資料 migration 把 `free_only`/`self_only` → `passive`、`free_active` → `searched` 後刪舊鍵。新增 3 條測試（engaged 解除否決、舊鍵 422、migration 對映），實作前皆紅。全站 1247 passed（5556 assertions），`npm run build` 綠。
 - 2026-10-18: [draft] 規劃 Q7 改版（FR-258，修訂 FR-254，D173）— 題目改問「針對當前卡關做過最深入的一步」，選項 `passive`/`searched`/`engaged`/`cheap_paid`/`paid_course`；組合否決改為 `passive`/`searched`；舊值 migration 改寫後刪除舊鍵。
 - 2026-10-18: FR-257 完成（T593–T598）— drip `status` 加 `declined`（列入 `STOPS_SENDING`、不入 `FUNNEL_DONE`）；`DripService::checkAndDecline()`，`screen()` 未通過時 best-effort 呼叫；`checkAndBook`／`checkAndConvert` 來源加 `declined`；訂閱者列表加標籤／統計卡／篩選，預約名單徽章加「已婉拒停信」，銷售頁對本人顯示「已停止接收」。原「未通過不停 drip」測試改寫，新增 6 條；拿掉停信呼叫時主測試轉紅。全站 1244 passed（5538 assertions），`npm run build` 綠。
