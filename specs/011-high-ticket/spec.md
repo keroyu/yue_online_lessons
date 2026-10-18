@@ -4024,6 +4024,7 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-10-18: 資格審核送出偶發紅字「CSRF token mismatch」無法前進 — 根因在 000 的 `bootstrap.js`（見 000 進度日誌）；`BookingScreeningStep.vue` 另對 419 顯示「頁面已過期，請重新整理頁面後再送出。」取代英文訊息。
 - 2026-10-18: US43 / FR-260 完成 T610–T616 — `SendScreeningDeclineMailJob`（延遲 60 分鐘、原子認領重查狀態、課程 Markdown 內文覆寫、marketing 標記、失敗清回並 rethrow）；`screen()` 未通過且未寄過時排程；新模板 `high_ticket_screening_declined` 經 seeder＋資料 migration 安裝；後台在婉拒告知文字下加通知信內文 textarea（placeholder 為模板內文）。新增 `ScreeningDeclineMailTest` 16 條（實作前 14 紅）；FR-126 舊測試改為「不立即寄、排程延遲 job」。全站 1271 passed（5633 assertions），`npm run build` 綠。T617 瀏覽器確認與本機 `queue:work` 實寄待做。
 - 2026-10-18: [draft] 規劃 US43 資格審核婉拒後自動寄通知信（FR-260，D175，修訂 FR-126）— 未通過後延遲 60 分鐘寄新模板 `high_ticket_screening_declined`；寄前原子認領重查狀態、每筆 lead 只寄一次（`high_ticket_leads.screening_decline_mailed_at`）；課程可用 `courses.high_ticket_decline_email_md`（Markdown）覆寫內文、主旨沿用全站；標 marketing 走抑制名單。
 - 2026-10-18: US42 T609 瀏覽器確認 — 後台欄位隨資格審核開關顯示／隱藏、存檔成功；銷售頁答「沒有預算」後 8 秒倒數接自訂 HTML（段落、連結 teal 底線＋hover、粗體、圖片），頁面原始碼無文案；358px 寬度無溢出、圖片縮放。圖片與文字間補 `mt-3`。視窗縮放工具未生效，手機寬度以壓窄卡片模擬。

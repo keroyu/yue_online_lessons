@@ -131,6 +131,9 @@ async function submit() {
 
     if (fields) {
       errors.value = fields
+    } else if (e.response?.status === 419) {
+      // Session gone (cookies cleared, in-app browser): only a reload recovers.
+      errors.value = { submit: '頁面已過期，請重新整理頁面後再送出。' }
     } else {
       errors.value = { submit: e.response?.data?.message || '送出失敗，請稍後再試。' }
     }

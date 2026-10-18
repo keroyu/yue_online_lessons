@@ -575,7 +575,7 @@ US12 把站名、經營者、logo 搬進設定，讓這份程式碼開得了第�
 - **FR-001**: `routes/web.php` 是全站路由總表；購物車/結帳 API 必須放 web.php 的 `api` prefix 群組而非 `routes/api.php`（api 群組無 StartSession，結帳需讀 session 的 `traffic_source`）
 - **FR-002**: `routes/api.php` 僅放無 session 需求的端點：金流 NotifyURL webhooks、Portaly webhook、免費課程報名、付款結果輪詢
 - **FR-003**: 金流 ReturnURL（瀏覽器 redirect）放 web.php 並豁免 CSRF（`withoutMiddleware(ValidateCsrfToken)`）
-- **FR-004**: `bootstrap.js` 為 axios 設定 `X-Requested-With` 與 `X-CSRF-TOKEN`（讀 `<meta name="csrf-token">`），所有前端 axios 呼叫依賴此設定
+- **FR-004**: `bootstrap.js` 為 axios 設定 `X-Requested-With`；CSRF 由 axios 內建機制從 `XSRF-TOKEN` cookie 帶 `X-XSRF-TOKEN`（Laravel 每個回應都會更新該 cookie），**不可**再設定讀 `<meta name="csrf-token">` 的 `X-CSRF-TOKEN` 預設 header —— Inertia 不會更新 meta，token 重產後凍結的 header 會讓所有 axios POST 419，且 Laravel 先比對 `X-CSRF-TOKEN`，舊值會壓過正確的 cookie
 - **FR-005**: `cartCount`、`notifications` 等共享 props 用 closure 延遲求值，僅在頁面實際回傳時查詢
 - **FR-006**: `php artisan content:html-to-markdown` 為一次性維運指令：將 `courses.description_md`、`lessons.content_md` 內殘留 HTML 轉為 Markdown（`saveQuietly` 不觸發事件）
 - **FR-007**: `welcome.blade.php` 為 Laravel 預設樣板，未被任何路由使用（`/` 由 HomeController 接管），保留不動
@@ -868,6 +868,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-10-18: 修正 axios 偶發「CSRF token mismatch」（419）— `bootstrap.js` 拿掉頁面載入時從 meta 凍結的 `X-CSRF-TOKEN` 預設 header（token 重產後如在另一分頁登出，舊值優先於 `X-XSRF-TOKEN` 被比對而 419），改由 axios 從 `XSRF-TOKEN` cookie 自動帶。FR-004 已改。curl 驗證：舊 header＋有效 cookie → 419；只帶 cookie → 通過 CSRF（422 驗證錯誤）。
 - 2026-10-18: 新增共用元件 `Components/Admin/DateTimeInput.vue`（`datetime-local` ＋「清除」按鈕）— Chrome 原生輸入框沒有清除鈕，只刪一格會進入 `badInput` 並被瀏覽器原生驗證擋下送出；按鈕直接重設 DOM 值。`inheritAttrs: false`，`class`/`id` 落在 input 上、`wrapper-class` 給外層，input 加 `min-w-0 flex-1` 避免窄欄把按鈕擠出。目前用於 006 折扣碼到期日、004 課程優惠到期／預購開賣、012 文章發佈時間；必填或不該留空的日期欄位（如電子報排程）不使用。
 - 2026-09-25: 重新設計 墨竹／苔原／玫瑰石英 三組配色（使用者回報「對比太高、導覽列與按鈕都是深色底、重複性高」）— 查證後根因有兩層，都在我這邊：初版的 `navy` 亮度只有 0.018–0.025，而當時 7:1 的門檻其實允許到 0.083（**我選得比自己訂的規則更保守**）；而 7:1 這條門檻本身也選錯了，因為 `navy` 同時是內文色與導覽列／側欄底色，把內文推到 AAA 等於把一大片色塊推到近黑，再配上同樣要承載白字的主要按鈕，整頁就是兩塊黑板。
   降到 AA 4.5 後重新配色：墨竹改宣紙＋淡墨（navy `#262521` → `#585149`）、苔原改亞麻＋石灰岩讓苔綠退成小面積重點（`#262E21` → `#525948`）、玫瑰石英的深梅底改灰褐玫瑰（`#3A2430` → `#63505A`）。三組 navy 亮度升到 0.084–0.094，約為原來的 4 倍。
