@@ -101,10 +101,10 @@ class CourseController extends Controller
             'canSubscribe' => $canSubscribe,
             'bookingDraft' => $this->bookingDraft($request, $course),
             // Titles and option labels only — the scores stay on the server
-            // (011 FR-124 / D101). Empty when the course has screening off, so
-            // the wizard starts on the questionnaire (FR-255).
+            // (011 FR-124 / D101). Shipped whether screening is strict or
+            // lenient — only the server knows which rule applies (FR-261).
             'screeningQuestions' => $course->is_high_ticket && $course->high_ticket_hide_price
-                ? ($course->high_ticket_screening ? \App\Support\BookingScreening::questionsForFront() : [])
+                ? \App\Support\BookingScreening::questionsForFront()
                 : null,
             // Consultation credits on an ordinary course (011 US38 / FR-233):
             // what every visitor is sold, and what a holder can book now.

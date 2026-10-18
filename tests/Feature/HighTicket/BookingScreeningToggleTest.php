@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\HighTicket;
 
+use App\Jobs\SendScreeningDeclineMailJob;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\HighTicketLead;
@@ -10,11 +11,13 @@ use App\Services\ConsultationSlotService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
- * 011 US41 / FR-255 — screening can be switched off per course. Off means no
- * step 1 at all: no questions shipped, no gate on the submit, no answers kept.
+ * 011 US44 / FR-261 (replacing US41's "off skips step 1") — the switch picks
+ * strict or lenient screening. Both run the same wizard; lenient only refuses
+ * no budget or a total of 4 and under.
  */
 class BookingScreeningToggleTest extends TestCase
 {
@@ -80,98 +83,179 @@ class BookingScreeningToggleTest extends TestCase
         ];
     }
 
-    public function test_existing_and_new_courses_default_to_screening_on(): void
+    /** 10/10 and clear of every veto; override single answers from here. */
+    private function strongAnswers(array $overrides = []): array
+    {
+        return array_merge([
+            'screen_timeline'   => 'immediate',
+            'screen_budget'     => '10k_50k',
+            'screen_authority'  => 'self',
+            'screen_pain'       => 'severe',
+            'screen_next_step'  => 'start_now',
+            'screen_experience' => '1_3y',
+            'screen_learning'   => 'paid_course',
+        ], $overrides);
+    }
+
+    /** 1 + 1 + 1 + $pain + 1, no veto: `moderate` totals 5, `low` totals 4. */
+    private function borderlineAnswers(string $pain): array
+    {
+        return $this->strongAnswers([
+            'screen_timeline'  => '3_6m',
+            'screen_budget'    => '6k_10k',
+            'screen_authority' => 'approval',
+            'screen_pain'      => $pain,
+            'screen_next_step' => 'compare',
+        ]);
+    }
+
+    private function screen(Course $course, array $answers)
+    {
+        return $this->postJson("/course/{$course->id}/screen", array_merge([
+            'name'       => 'Applicant',
+            'email'      => 'applicant@example.com',
+            'screen_ack' => true,
+        ], $answers));
+    }
+
+    private function lenientCourse(): Course
+    {
+        return $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+    }
+
+    public function test_existing_and_new_courses_default_to_strict(): void
     {
         $this->assertTrue($this->makeHighTicketCourse()->high_ticket_screening);
     }
 
-    public function test_the_sales_page_ships_no_questions_when_off(): void
+    public function test_the_sales_page_ships_the_questions_either_way(): void
     {
-        $course = $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+        foreach ([true, false] as $strict) {
+            $course = $this->makeHighTicketCourse(['high_ticket_screening' => $strict]);
 
-        $this->get("/course/{$course->slug}")
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('screeningQuestions', [])
-                ->where('course.high_ticket_screening', false));
+            $this->get("/course/{$course->slug}")
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page->has('screeningQuestions', 7));
+        }
     }
 
-    public function test_the_sales_page_ships_the_questions_when_on(): void
-    {
-        $course = $this->makeHighTicketCourse();
+    // ── lenient (switch off): only no budget or a total of 4 and under ──
 
-        $this->get("/course/{$course->slug}")
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->has('screeningQuestions', 7)
-                ->where('course.high_ticket_screening', true));
+    public function test_lenient_declines_no_budget(): void
+    {
+        Queue::fake();
+        $course = $this->lenientCourse();
+
+        $this->screen($course, $this->strongAnswers(['screen_budget' => 'none']))
+            ->assertOk()->assertJson(['passed' => false]);
+
+        $this->assertSame('declined', HighTicketLead::sole()->status);
     }
 
-    public function test_the_screen_endpoint_refuses_when_off(): void
+    public function test_lenient_declines_a_total_of_four(): void
     {
-        $course = $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+        Queue::fake();
+        $course = $this->lenientCourse();
 
-        $this->postJson("/course/{$course->id}/screen", array_merge([
-            'name'       => 'Applicant',
-            'email'      => 'applicant@example.com',
-            'screen_ack' => true,
-        ], $this->failingAnswers()))->assertStatus(422);
+        $this->screen($course, $this->borderlineAnswers('low'))
+            ->assertOk()->assertJson(['passed' => false]);
 
-        $this->assertSame(0, HighTicketLead::count());
+        $this->assertSame(4, HighTicketLead::sole()->screening_score);
     }
 
-    public function test_booking_without_answers_succeeds_and_keeps_no_screening_when_off(): void
+    public function test_lenient_passes_a_total_of_five(): void
     {
-        Mail::fake();
-        $start = $this->makeSlots();
-        $course = $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+        $course = $this->lenientCourse();
 
-        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start))->assertOk();
+        $this->screen($course, $this->borderlineAnswers('moderate'))
+            ->assertOk()->assertJson(['passed' => true]);
 
         $lead = HighTicketLead::sole();
-        $this->assertNull($lead->screened_at);
-        $this->assertNull($lead->screening_score);
-        $this->assertNotNull($lead->confirm_token);
+        $this->assertSame('pending', $lead->status);
+        $this->assertSame(5, $lead->screening_score);
+        $this->assertNotNull($lead->screened_at, '寬鬆審核照樣留下答案與分數');
     }
 
-    /** Off means off: answers that would be vetoed are neither judged nor stored. */
-    public function test_booking_ignores_answers_when_off(): void
+    /** The answer vetoes and the Q6×Q7 combo are strict-only. */
+    public function test_lenient_ignores_the_other_vetoes_that_strict_applies(): void
+    {
+        $cases = [
+            'diy'         => $this->strongAnswers(['screen_next_step' => 'diy']),
+            'advice_only' => $this->strongAnswers(['screen_next_step' => 'advice_only']),
+            'combo'       => $this->strongAnswers([
+                'screen_budget'     => 'under_6k',
+                'screen_experience' => 'not_started',
+                'screen_learning'   => 'passive',
+            ]),
+        ];
+
+        foreach ($cases as $label => $answers) {
+            HighTicketLead::query()->delete();
+            $this->screen($this->makeHighTicketCourse(), $answers)
+                ->assertOk()->assertJson(['passed' => false], "嚴格：{$label} 應婉拒");
+
+            HighTicketLead::query()->delete();
+            $this->screen($this->lenientCourse(), $answers)
+                ->assertOk()->assertJson(['passed' => true], "寬鬆：{$label} 應通過");
+        }
+    }
+
+    public function test_a_lenient_refusal_schedules_the_decline_email(): void
+    {
+        Queue::fake();
+        $course = $this->lenientCourse();
+
+        $this->screen($course, $this->failingAnswers())->assertOk();
+
+        Queue::assertPushed(SendScreeningDeclineMailJob::class);
+    }
+
+    public function test_lenient_booking_refuses_no_budget(): void
     {
         Mail::fake();
         $start = $this->makeSlots();
-        $course = $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+        $course = $this->lenientCourse();
 
-        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start, $this->failingAnswers()))
-            ->assertOk();
-
-        $lead = HighTicketLead::sole();
-        $this->assertNull($lead->screen_budget);
-        $this->assertNull($lead->screen_next_step);
-        $this->assertNull($lead->screening_score);
-        $this->assertNull($lead->screened_at);
-    }
-
-    public function test_booking_with_failing_answers_is_still_refused_when_on(): void
-    {
-        Mail::fake();
-        $start = $this->makeSlots();
-        $course = $this->makeHighTicketCourse();
-
-        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start, $this->failingAnswers()))
+        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start, $this->strongAnswers(['screen_budget' => 'none'])))
             ->assertStatus(422);
     }
 
-    public function test_the_waitlist_ignores_answers_when_off(): void
+    public function test_lenient_booking_accepts_and_keeps_answers_strict_would_veto(): void
     {
         Mail::fake();
-        $course = $this->makeHighTicketCourse(['high_ticket_screening' => false]);
+        $start = $this->makeSlots();
+        $course = $this->lenientCourse();
 
-        $payload = $this->bookingPayload(Carbon::now(), $this->failingAnswers());
+        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start, $this->strongAnswers(['screen_next_step' => 'diy'])))
+            ->assertOk();
+
+        $lead = HighTicketLead::sole();
+        $this->assertSame('diy', $lead->screen_next_step);
+        $this->assertSame(8, $lead->screening_score);
+        $this->assertNotNull($lead->screened_at);
+    }
+
+    public function test_lenient_waitlist_refuses_no_budget(): void
+    {
+        Mail::fake();
+        $course = $this->lenientCourse();
+
+        $payload = $this->bookingPayload(Carbon::now(), $this->strongAnswers(['screen_budget' => 'none']));
         unset($payload['slot_starts_at']);
 
-        $this->postJson("/course/{$course->id}/waitlist", $payload)->assertOk();
+        $this->postJson("/course/{$course->id}/waitlist", $payload)->assertStatus(422);
+    }
 
-        $this->assertNull(HighTicketLead::sole()->screened_at);
+    // ── strict (switch on): unchanged ──
+
+    public function test_strict_booking_with_failing_answers_is_still_refused(): void
+    {
+        Mail::fake();
+        $start = $this->makeSlots();
+        $course = $this->makeHighTicketCourse();
+
+        $this->postJson("/course/{$course->id}/book", $this->bookingPayload($start, $this->strongAnswers(['screen_next_step' => 'diy'])))
+            ->assertStatus(422);
     }
 
     public function test_admin_can_switch_screening_off(): void

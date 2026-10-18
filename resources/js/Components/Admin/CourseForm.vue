@@ -239,7 +239,7 @@ const fieldLabels = {
   type: '產品類型',
   content_category: '內容分類',
   high_ticket_hide_price: '隱藏價格',
-  high_ticket_screening: '資格審核',
+  high_ticket_screening: '嚴格資格審核',
   high_ticket_decline_html: '婉拒告知文字',
   high_ticket_decline_email_md: '婉拒通知信內文',
   duration_minutes: '時間總長',
@@ -424,13 +424,13 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
                 v-model="form.high_ticket_screening"
                 class="h-4 w-4 border-gray-300 text-brand-teal rounded focus:ring-brand-teal"
               />
-              <span class="text-sm text-gray-700">預約前先做資格審核</span>
+              <span class="text-sm text-gray-700">嚴格資格審核</span>
             </label>
-            <p class="mt-1 text-xs text-gray-500">關閉時，預約流程省去資格審核，直接從填寫資料開始。</p>
+            <p class="mt-1 text-xs text-gray-500">關閉時仍需填答，只婉拒「目前沒有預算」或總分 4 分以下的申請者。</p>
 
-            <!-- Hidden with the switch off, but the value stays and is still
-                 posted — turning screening back on restores it (011 FR-259). -->
-            <div v-if="form.high_ticket_screening" data-field="high_ticket_decline_html" class="mt-3">
+            <!-- Shown whichever way the switch is: lenient screening refuses
+                 people too (011 FR-261). -->
+            <div data-field="high_ticket_decline_html" class="mt-3">
               <label for="high_ticket_decline_html" class="block text-sm text-gray-700">婉拒告知文字（支援 HTML）</label>
               <textarea
                 id="high_ticket_decline_html"
@@ -443,8 +443,8 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
               <p v-if="form.errors.high_ticket_decline_html" :class="errorTextClasses">{{ form.errors.high_ticket_decline_html }}</p>
             </div>
 
-            <!-- Same show/hide rule as the copy above (011 FR-260). -->
-            <div v-if="form.high_ticket_screening" data-field="high_ticket_decline_email_md" class="mt-3">
+            <!-- Same as the copy above (011 FR-260 / FR-261). -->
+            <div data-field="high_ticket_decline_email_md" class="mt-3">
               <label for="high_ticket_decline_email_md" class="block text-sm text-gray-700">婉拒通知信內文（Markdown）</label>
               <textarea
                 id="high_ticket_decline_email_md"

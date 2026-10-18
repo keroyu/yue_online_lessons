@@ -2,7 +2,6 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import BookingScreeningStep from '@/Components/Course/BookingScreeningStep.vue'
-import BookingScopeNotice from '@/Components/Course/BookingScopeNotice.vue'
 import EmailReviewNotice from '@/Components/EmailReviewNotice.vue'
 import { useDelayedConfirm } from '@/composables/useDelayedConfirm'
 
@@ -23,23 +22,18 @@ const page = usePage()
 // The qualifying questions come first and are answered in seconds: somebody who
 // is not going to be offered a slot should find that out before writing five
 // minutes of prose, not after (D96).
-// A course can switch screening off (011 FR-255). Missing on a stale page
-// means on, matching the column default.
-const screeningEnabled = props.course.high_ticket_screening !== false
-
-// With screening off, step 1 simply does not exist. Steps keep their internal
-// numbers (2–5) so navigation and error routing stay as they are; only the
-// progress indicator renumbers what it shows (D170).
+// Strict or lenient, every course runs all five steps; only the server knows
+// which rule judges step 1 (011 FR-261, replacing FR-255's skipped step).
 const STEPS = [
   { n: 1, label: '資格' },
   { n: 2, label: '資料' },
   { n: 3, label: '承諾' },
   { n: 4, label: '時段' },
   { n: 5, label: '確認' },
-].filter(s => screeningEnabled || s.n !== 1)
+]
 
-/** Where name and email are edited: the gate, or the questionnaire when there is none. */
-const IDENTITY_STEP = screeningEnabled ? 1 : 2
+/** Where name and email are edited: the gate. */
+const IDENTITY_STEP = 1
 
 // Changing the length here means changing `size:` in HighTicketBookingRequest —
 // the server counts the boxes and will reject the form otherwise.
@@ -59,11 +53,11 @@ const resuming = props.draft?.resume === true
 // questions and watch the same countdown would be asking them to prove it twice.
 const screeningCleared = props.draft?.screening_cleared === true
 
-const step = ref(resuming ? 4 : (screeningCleared || !screeningEnabled ? 2 : 1))
+const step = ref(resuming ? 4 : (screeningCleared ? 2 : 1))
 
 // Resuming means this applicant already cleared the gate (or predates it) —
 // re-screening somebody we invited back by email would be absurd (FR-129).
-const screeningPassed = ref(resuming || screeningCleared || !screeningEnabled)
+const screeningPassed = ref(resuming || screeningCleared)
 
 // A draft answer whose option has since been retired (FR-252) is not on the
 // form any more, so on step 1 it would count as answered while showing nothing
@@ -99,9 +93,7 @@ const form = reactive({
   // than inside the step so that stepping back and forward does not ask for it
   // again; it rides along on the screen POST only — `book` / `waitlist` list
   // their fields one by one and never pick it up.
-  // Pre-ticked only for a resumed draft on a course without step 1: the
-  // acknowledgement then sits on step 3, which a resumed draft skips (FR-255).
-  screen_ack: resuming && !screeningEnabled,
+  screen_ack: false,
 })
 
 const screeningFields = props.screeningQuestions.map(q => q.field)
@@ -124,18 +116,8 @@ onMounted(() => {
 
 // ---- step 2 ----------------------------------------------------------------
 
-// Loose on purpose — the server's `email` rule and the step-5 double-check
-// (FR-059) are the real checks; this only keeps 下一步 honest.
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// Without step 1, identity is collected here (FR-255).
-const identityFilled = computed(() =>
-  screeningEnabled || (form.name.trim() !== '' && EMAIL_SHAPE.test(form.email.trim()))
-)
-
 const questionnaireFilled = computed(() =>
-  identityFilled.value
-  && form.phone.trim() !== ''
+  form.phone.trim() !== ''
   && form.occupation.trim() !== ''
   && form.bottleneck.trim() !== ''
   && form.expertise.trim() !== ''
@@ -164,8 +146,7 @@ const socialUrlInvalid = computed(() => {
 
 const allCommitted = computed(() => commitments.value.every(Boolean))
 
-// Without step 1 the scope acknowledgement moves here (FR-255).
-const commitmentsReady = computed(() => allCommitted.value && (screeningEnabled || form.screen_ack))
+const commitmentsReady = computed(() => allCommitted.value)
 
 /**
  * Split the server's `8/6（週三）` into two lines for a narrow column header.
@@ -636,20 +617,6 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
       <div v-show="step === 2" class="mt-6 space-y-4">
         <p class="text-xs text-gray-500"><span class="text-red-500">*</span> 為必填。</p>
 
-        <!-- Step 1 holds these when the course screens; without it they start the form (FR-255). -->
-        <div v-if="!screeningEnabled" class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Email <span class="text-red-500">*</span></label>
-            <input v-model="form.email" type="email" placeholder="your@email.com" :class="[inputClass, { 'border-red-300': errors.email }]" />
-            <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ firstError('email') }}</p>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">暱稱 <span class="text-red-500">*</span></label>
-            <input v-model="form.name" type="text" placeholder="怎麼稱呼你" :class="[inputClass, { 'border-red-300': errors.name }]" />
-            <p v-if="errors.name" class="mt-1 text-sm text-red-600">{{ firstError('name') }}</p>
-          </div>
-        </div>
-
         <div>
           <label class="block text-xs font-medium text-gray-600 mb-1">手機電話 <span class="text-red-500">*</span></label>
           <input v-model="form.phone" type="tel" placeholder="0912345678" :class="[inputClass, { 'border-red-300': errors.phone }]" />
@@ -708,8 +675,6 @@ const inputClass = 'block w-full rounded-lg border-gray-300 px-3 py-2 text-sm sh
         </div>
 
         <p v-if="errors.commitments" class="text-sm text-red-600">{{ firstError('commitments') }}</p>
-
-        <BookingScopeNotice v-if="!screeningEnabled" :form="form" />
 
         <p v-if="!commitmentsReady" class="text-xs text-gray-500">請確認全部項目後繼續。</p>
 

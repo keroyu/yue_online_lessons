@@ -312,9 +312,20 @@ class BookingScreening
         return true;
     }
 
-    public static function passes(array $answers): bool
+    /**
+     * Strict is the full rubric. Lenient (a course with strict screening off,
+     * 011 FR-261 / D176) refuses only no budget or a short total — the same
+     * PASS_SCORE, so switching strict off can only ever let more people through.
+     */
+    public static function passes(array $answers, bool $strict = true): bool
     {
-        return !self::vetoed($answers) && self::score($answers) >= self::PASS_SCORE;
+        if (self::score($answers) < self::PASS_SCORE) {
+            return false;
+        }
+
+        return $strict
+            ? !self::vetoed($answers)
+            : ($answers['screen_budget'] ?? null) !== 'none';
     }
 
     /** True when the payload carries a complete set of answers to judge. */

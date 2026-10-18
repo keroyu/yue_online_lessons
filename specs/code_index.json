@@ -311,6 +311,7 @@
       "011.us-38",
       "011.us-40",
       "011.us-41",
+      "011.us-44",
       "011.us-9"
     ],
     "app/Http/Controllers/DripSubscriptionController.php": [
@@ -1097,6 +1098,7 @@
       "011.us-41",
       "011.us-42",
       "011.us-43",
+      "011.us-44",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1239,7 +1241,8 @@
     ],
     "app/Support/BookingScreening.php": [
       "011.us-24",
-      "011.us-42"
+      "011.us-42",
+      "011.us-44"
     ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
@@ -1734,7 +1737,8 @@
       "011.us-38",
       "011.us-41",
       "011.us-42",
-      "011.us-43"
+      "011.us-43",
+      "011.us-44"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
@@ -1930,6 +1934,7 @@
       "011.us-24",
       "011.us-26",
       "011.us-41",
+      "011.us-44",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -2557,7 +2562,8 @@
       "011.us-43"
     ],
     "tests/Feature/HighTicket/BookingScreeningToggleTest.php": [
-      "011.us-41"
+      "011.us-41",
+      "011.us-44"
     ],
     "tests/Feature/HighTicket/BookingWizardTest.php": [
       "011.us-10",

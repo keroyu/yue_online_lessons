@@ -84,12 +84,8 @@ class HighTicketBookingService
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
 
-        if (!$course->high_ticket_screening) {
-            return ['success' => false, 'message' => '此課程不需資格審核'];
-        }
-
         $answers = BookingScreening::only($data);
-        $passed = BookingScreening::passes($answers);
+        $passed = BookingScreening::passes($answers, $course->high_ticket_screening);
 
         $attributes = array_merge($answers, [
             'name'            => $data['name'],
@@ -220,13 +216,11 @@ class HighTicketBookingService
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
 
-        $data = $this->withoutScreeningWhenOff($course, $data);
-
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
         }
 
-        if ($refused = $this->screeningRefusal($data)) {
+        if ($refused = $this->screeningRefusal($course, $data)) {
             return $refused;
         }
 
@@ -311,13 +305,11 @@ class HighTicketBookingService
             return ['success' => false, 'message' => '此課程不接受預約'];
         }
 
-        $data = $this->withoutScreeningWhenOff($course, $data);
-
         if ($blocked = $this->duplicateMessage($course, $data)) {
             return ['success' => false, 'message' => $blocked];
         }
 
-        if ($refused = $this->screeningRefusal($data)) {
+        if ($refused = $this->screeningRefusal($course, $data)) {
             return $refused;
         }
 
@@ -1245,24 +1237,6 @@ class HighTicketBookingService
      * @param array<string, mixed> $data
      */
     /**
-     * A course with screening off has no gate (011 FR-255): drop any answers
-     * the request carries, so they are neither judged by `screeningRefusal()`
-     * nor stored by the application — an unanswered row is how the admin
-     * tells "this course does not screen" apart from a score.
-     *
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
-     */
-    private function withoutScreeningWhenOff(Course $course, array $data): array
-    {
-        if ($course->high_ticket_screening) {
-            return $data;
-        }
-
-        return array_diff_key($data, array_flip(BookingScreening::fields()));
-    }
-
-    /**
      * Re-run the gate on the answers this very request carries (011 FR-129).
      *
      * Trusting the `screened_at` already on the lead is not enough: screening
@@ -1277,9 +1251,9 @@ class HighTicketBookingService
      * @param array<string, mixed> $data
      * @return array{success: bool, message: string}|null
      */
-    private function screeningRefusal(array $data): ?array
+    private function screeningRefusal(Course $course, array $data): ?array
     {
-        if (!BookingScreening::answered($data) || BookingScreening::passes($data)) {
+        if (!BookingScreening::answered($data) || BookingScreening::passes($data, $course->high_ticket_screening)) {
             return null;
         }
 

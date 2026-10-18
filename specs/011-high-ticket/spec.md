@@ -236,7 +236,7 @@ touchpoints:
     why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔；US42 同 StoreCourseRequest；US43 同 StoreCourseRequest
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
-    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）；US42 在「預約前先做資格審核」之下加婉拒告知文字 textarea；US43 再加「婉拒通知信內文（Markdown）」textarea
+    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）；US42 在「預約前先做資格審核」之下加婉拒告知文字 textarea；US43 再加「婉拒通知信內文（Markdown）」textarea；US44 開關改名「嚴格資格審核」、兩個婉拒欄位改依隱藏價格顯示
   - file: resources/js/Pages/Admin/Courses/Index.vue
     owner: 004-course-admin
     why: US37 每列加「學員名單」按鈕並掛 `CourseRosterModal.vue`（FR-208）
@@ -278,7 +278,7 @@ touchpoints:
     why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈；US38 價格區塊下顯示「含 N 次 1 小時…」、已購買區塊掛 `ConsultationCreditBooking.vue`（錨點 `#consultation-booking`）；US40 — 預約區塊上方掛 `TestimonialCarousel`，無評語不渲染
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）；US40 — `show()` 對高價課下發已顯示的 `testimonials`（FR-245）
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）；US40 — `show()` 對高價課下發已顯示的 `testimonials`（FR-245）；US44 `screeningQuestions` 不再依 `high_ticket_screening` 清空，高價課＋隱藏價格一律下發（FR-261）
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
     why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
@@ -1506,6 +1506,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 （例如老學員升級、轉介紹），再讓他們答七題、看 8 秒倒數，只是多一道摩擦。後台課程設定新增
 「資格審核」開關：關閉時精靈**省去第一步**，直接從資料填寫開始。
 
+> **2026-10-19 起由 US44 取代**：關閉不再省略步驟，改為寬鬆審核（FR-261）。以下驗收中與「四步／省去第一步」相關者已失效。
+
 **驗收**：
 - [x] 後台課程編輯：類型為高價課且勾選「隱藏價格」時，於其下方顯示「資格審核」開關（預設開啟）；未勾隱藏價格時不顯示（沒有預約精靈，開關無意義）（FR-255）
 - [x] 既有高價課 migration 後一律為**開啟**，行為完全不變
@@ -1553,6 +1555,23 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [x] 不寄內部 CC；後台手動婉拒（US27 `high_ticket_booking_declined`）行為不變
 - [x] 全站模板不存在時只記 warning log，不報錯；審核回應與 8 秒倒數完全不受影響
 - [x] 測試：見 T616
+
+### User Story 44 - 資格審核關閉改為寬鬆審核 (Priority: P2)
+
+US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩。改為：開啟或關閉**都走同樣的五步精靈**
+（七題、8 秒倒數、婉拒畫面、婉拒信都在），差別只在判定規則 —— 開啟＝現行嚴格規則；關閉＝**寬鬆規則**，
+只婉拒「目前沒有預算」或總分 ≤ 4 的申請者（≥ 5 通過，分數門檻與嚴格規則相同，關閉一定比開啟寬鬆）。
+
+**驗收**：
+- [x] 開關關閉時，銷售頁精靈與開啟時**完全相同**：五步進度指示、第一步七題＋Email／暱稱＋服務範圍勾選、8 秒倒數（FR-261）
+- [x] 關閉時判定：Q2 選「目前沒有預算」→ 婉拒；總分 ≤ 4 → 婉拒；其餘一律通過 —— 「想先自己嘗試」「只想獲得建議」的單題否決與 Q6×Q7 組合否決**不適用**
+- [x] 開啟時判定與現行完全相同（`passes()` 行為不變）
+- [x] 關閉時婉拒的後果與開啟時相同：lead 落 `declined`、顯示該課程婉拒告知文字、停序列信（FR-257）、1 小時後寄婉拒通知信（FR-260）
+- [x] 關閉時答案與分數照常寫入 lead，後台展開列照常顯示分數與答案
+- [x] `book()`／`waitlist()` 的伺服器端重審（FR-129）依課程開關套用同一套規則
+- [x] 後台：開關文字改為「嚴格資格審核」，說明改為「關閉時仍需填答，只婉拒『目前沒有預算』或總分 4 分以下的申請者」；婉拒告知文字與婉拒通知信內文**不再隨開關隱藏**（關閉時一樣會婉拒）
+- [x] 既有資料不動：欄位名維持 `high_ticket_screening`，現有值原樣沿用（正式站唯一高價課為開啟）
+- [x] 測試：見 T622
 
 ## Requirements
 
@@ -2170,6 +2189,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-255**（US41）: `courses.high_ticket_screening`（boolean，預設 true）控制高價課預約精靈是否有資格審核步驟。關閉時：(1) `CourseController@show` 的 `screeningQuestions` 為 `[]`，`course` payload 帶 `high_ticket_screening: false`；(2) `HighTicketBookingService::screen()` 回 `success: false`「此課程不需資格審核」；(3) `book()`／`waitlist()` 跳過 `screeningRefusal()`，且 `application` 陣列 MUST NOT 合併審核答案、`screening_score`、`screened_at`（以 `screen_*` 為 null 表達「此課程沒有審核」，後台展開列沿用 FR-131 的無審核說明）；(4) 精靈以四步進行，Email／暱稱移到資料步驟、`BookingScopeNotice` 移到承諾步驟（使用者決策）。範圍勾選在關閉時**只在前端把關**：沿用 FR-165「不進 book payload」的立場，它是告知不是驗證。**連帶影響**：關閉時沒有審核階段先建的 lead，FR-137 的續填提醒信對該課程自然不會發出 —— lead 只在送出申請時建立。開關切換不回溯既有 lead
 - **FR-259**（US42）: `courses.high_ticket_decline_html`（`text` nullable）為資格審核未通過時顯示的告知文字，HTML 原樣渲染（`v-html`，不 sanitize，見 D174）。(1) 後台：Store／UpdateCourseRequest `nullable|string|max:10000`；只有空白的值由全域 `TrimStrings`＋`ConvertEmptyStringsToNull` 中介層轉成 null（不另寫 `prepareForValidation()`）；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示欄位，隱藏時照常送出原值（不清空）。(2) 預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`（內容為 FR-128 定版文字），`Course::declineHtml(): string` 回自訂值或預設值。(3) `HighTicketBookingService::screen()` 未通過時結果加 `decline_html => $course->declineHtml()`，`HighTicketBookingController@screen` 回 `{passed: false, decline_html}`；通過時回應維持 `{passed: true}`。(4) `BookingScreeningStep` 拿掉寫死文案，改存回應的 `decline_html` 並以 `v-html` 渲染。不影響 FR-128 其他規則（8 秒倒數、不顯示分數與原因）—— 自訂文案寫什麼由管理員負責
 - **FR-260**（US43，修訂 FR-126）: `HighTicketBookingService::screen()` 判定**未通過**且該 lead `screening_decline_mailed_at` 為 null 時，MUST `SendScreeningDeclineMailJob::dispatch($lead->id)->delay(now()->addMinutes(SendScreeningDeclineMailJob::DELAY_MINUTES))`（`DELAY_MINUTES = 60`）。通過時不排程。Job `handle()`：(1) **原子認領** — `HighTicketLead::whereKey($id)->where('status', 'declined')->whereNull('confirmed_at')->whereNull('screening_decline_mailed_at')->update(['screening_decline_mailed_at' => now()])`，影響 0 列即 return（已通過、已寄、或另一個重複排程的 job 搶先）；(2) 取 `EmailTemplate::forEvent('high_ticket_screening_declined')->first()`，不存在 → 清回認領、記 warning、return；(3) 課程 `high_ticket_decline_email_md` 非 null 時以 `$template->replicate()->forceFill(['body_md' => 該值, 'body_type' => 'markdown'])`（不存檔）渲染內文，主旨一律用全站模板；(4) 變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`（+ 全域變數）；(5) `TemplatedMail` 加 `X-Mail-Class: marketing` header，不 CC；(6) 寄送例外 → 清回 `screening_decline_mailed_at = null` 並 rethrow，交給 `$tries = 3` / `$backoff = [60, 300, 900]` 重試。`courses.high_ticket_decline_email_md`：Store／UpdateCourseRequest `nullable|string|max:10000`，空白由全域中介層轉 null；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示，隱藏時照送原值。模板 MUST 同時登記於 `EmailTemplateSeeder::templates()`、一支資料 migration（沿用「缺才 insert、永不 update」迴圈）與 `EmailTemplateController::$availableVariables`（含中文標籤）。**已知風險**：審核當下 Email 未驗證，填別人的 Email 可讓對方收到一封婉拒信；以 `/screen` 的 throttle:10,1 與「每筆 lead 一封」為上限，業主接受
+- **FR-261**（US44，取代 FR-255 的 (1)(2)(3)(4)，使用者決策 2026-10-19）: `courses.high_ticket_screening` 語意改為「嚴格（true）／寬鬆（false）審核」，不再控制步驟有無。(1) `BookingScreening::passes(array $answers, bool $strict = true): bool` —— strict 維持現行（無否決且 `score() >= PASS_SCORE`）；寬鬆 = `($answers['screen_budget'] ?? null) !== 'none' && score() >= PASS_SCORE`（不看 `veto` 旗標其他選項、不看 `VETO_COMBOS`；`score()` 的 `cap` 照常生效）。(2) `HighTicketBookingService::screen()` 移除「此課程不需資格審核」守門，改以 `passes($answers, $course->high_ticket_screening)` 判定；其餘落庫、停序列信、排程婉拒信不變。(3) `screeningRefusal(Course $course, array $data)` 多收課程並以同一個 strict 旗標判定；`withoutScreeningWhenOff()` 刪除 —— 關閉時答案照常合併進 application。(4) `CourseController@show` 的 `screeningQuestions` 一律下發（高價課＋隱藏價格時）。(5) `HighTicketBookingWizard` 移除 `screeningEnabled` 全部分支，恆為五步；`BookingScopeNotice` 只留第一步一處。(6) `CourseForm`：開關標籤與說明改文案；`high_ticket_decline_html`／`high_ticket_decline_email_md` 兩欄改為只依 `high_ticket_hide_price` 顯示。規則表維持只存在伺服器（FR-124），前端不知道寬鬆或嚴格
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2595,6 +2615,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 
 - **D175**: 審核婉拒通知信（FR-260）的五個決定。**延遲 60 分鐘**（使用者決策）：倒數一結束信就到，等於明說「這是機器判的」；延遲也給「這一小時內改答案並通過」的人一個不收到婉拒信的窗口 —— 所以寄前必須重查狀態，不能在排程當下就決定要寄。**認領式去重而非排程時去重**：一小時內重答多次會排多個 job，排程時查 `mailed_at` 擋不住；以單一 `UPDATE ... WHERE mailed_at IS NULL` 認領，誰搶到誰寄，失敗時清回讓重試接手。**每筆 lead 只寄一次、不因復活清零**：同一個人反覆被擋收到多封一模一樣的拒絕信，比沒收到更傷；他日再申請的 nurture 交給信裡導去的路徑。**新 event_type 而非沿用 `high_ticket_booking_declined`**：後者是「已確認的預約被人工取消」，內文提時段與 `.ics`，這裡沒有時段也沒有行事曆；兩種情境的話術也不同（一個是人複查後的決定，一個是申請階段的分流）。**課程覆寫只覆寫內文、用 Markdown**：與 D174 同理，導流目標依課程受眾而定；主旨通常只差課程名，`{{course_name}}` 已足夠，多一個欄位只是多一個要維護的地方；格式跟 email_templates 一致用 Markdown，不沿用 US42 的 HTML —— 信件 HTML 要 inline style，後台作者手寫只會在某些信箱破版。**標 marketing**：這封信的目的是 nurture，且收件地址未經驗證，進抑制名單判斷可保護寄件信譽
 
+- **D176**: 寬鬆審核（FR-261）的三個決定。**沿用 `high_ticket_screening` 欄位、不改名不加欄**：值域仍是二元，只是語意從「有無審核」變「嚴格／寬鬆」；改名要動 migration、Request、payload、測試一整串，換來的只是欄位名比較準 —— 用 `passes()` 參數名 `$strict` 與後台文案把語意講清楚即可。**分數門檻沿用 `PASS_SCORE`（≥5 通過）**（使用者決策）：寬鬆只是拿掉其他否決，保證關閉永遠不會比開啟更嚴。**寬鬆規則寫成 `passes()` 的分支而非 QUESTIONS 上的第二組旗標**：只有一個例外選項（`screen_budget = none`），為它在每個選項上加 `lenient_veto` 是把一條規則攤成二十幾個欄位；日後寬鬆規則若長出第二、三條再抽表
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2636,6 +2658,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-259 schema 變更**：`2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php` — `courses.high_ticket_decline_html` text nullable，`after('high_ticket_screening')`。`down()` 卸掉該欄。不變量：null = 使用 `BookingScreening::DEFAULT_DECLINE_HTML`；MUST NOT 存空字串
 
 - **FR-260 schema 變更（兩支欄位 migration + 一支資料 migration）**：`2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php` — `courses.high_ticket_decline_email_md` text nullable，`after('high_ticket_decline_html')`；`2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php` — `high_ticket_leads.screening_decline_mailed_at` timestamp nullable（UTC），`after('declined_at')`；`2026_10_18_000007_install_screening_declined_template.php` — 沿用「讀 `EmailTemplateSeeder::templates()`、缺才 insert、永不 update」迴圈，`down()` no-op。不變量：`high_ticket_decline_email_md` null = 使用全站模板內文、MUST NOT 存空字串；`screening_decline_mailed_at` 非 null ⇒ 該 lead 曾被婉拒且信已寄出（或正在寄送中），`recordLead()` 復活 lead 時 MUST NOT 清掉它
+
+- **FR-261 schema 變更：無**。`courses.high_ticket_screening` 欄位與預設值（true）不動，只改語意。不變量修訂：`screened_at` 非 null 不再隱含「該課程開啟審核」—— 關閉的課程也會有審核答案
 
 - **US23 schema 變更（一支 migration）**：
 
@@ -4022,8 +4046,19 @@ Phase 4 — 驗證
 - [x] T616 測試：未通過 → `Queue::fake` 斷言 job 帶 60 分鐘 delay；通過 → 不排程；已寄過再被婉拒 → 不排程；job：狀態已轉 pending／已 confirmed → 不寄；兩個 job 只寄一封；課程自訂內文 → 內文用課程版、主旨用全站；留空 → 全站內文；變數替換；marketing header；模板缺失 → 不寄且 `mailed_at` 仍 null；寄送例外 → `mailed_at` 清回；後台空白 → null、超過 10000 → 422 in `tests/Feature/HighTicket/ScreeningDeclineMailTest.php`
 - [ ] T617 `php artisan test` 全綠、`npm run build`；瀏覽器確認後台欄位顯示／隱藏與存檔；本機把 `DELAY_MINUTES` 情境用 `queue:work` 跑一次確認信件內容（Mailpit／log mailer）
 
+### 資格審核關閉改為寬鬆審核（US44 / FR-261）
+
+- [x] T618 `BookingScreening::passes(array $answers, bool $strict = true)` 加寬鬆分支 in `app/Support/BookingScreening.php`
+- [x] T619 `screen()` 移除關閉守門、改傳 strict 旗標；`screeningRefusal()` 收 `Course`；刪 `withoutScreeningWhenOff()` 與其呼叫點 in `app/Services/HighTicketBookingService.php`
+- [x] T620 [P] `CourseController@show` 一律下發 `screeningQuestions`（高價課＋隱藏價格）in `app/Http/Controllers/CourseController.php`
+- [x] T621 [P] 前端：`HighTicketBookingWizard` 移除 `screeningEnabled` 分支（恆五步、身分欄位與 `BookingScopeNotice` 只在第一步）；`CourseForm` 開關改名「嚴格資格審核」與新說明，兩個婉拒欄位改依 `high_ticket_hide_price` 顯示〔touchpoint 004〕in `resources/js/Components/Course/HighTicketBookingWizard.vue`, `resources/js/Components/Admin/CourseForm.vue`
+- [x] T622 測試：`BookingScreeningToggleTest` 改寫 —— 關閉時銷售頁有題目、`/screen` 可用；關閉時「沒有預算」→ 婉拒、總分 4 → 婉拒、總分 5 → 通過、`diy`／`advice_only`／組合否決 → 通過；開啟時同一組答案照舊婉拒；關閉時 `book()`／`waitlist()` 帶「沒有預算」→ 拒、帶 `diy` → 收且答案落庫；關閉時婉拒會排程婉拒信 in `tests/Feature/HighTicket/BookingScreeningToggleTest.php`
+- [x] T623 `php artisan test` 全綠、`npm run build`
+
 ## 進度日誌
 
+- 2026-10-19: US44 / FR-261 完成 T618–T623 — `BookingScreening::passes($answers, $strict)` 加寬鬆分支（只看「沒有預算」與 PASS_SCORE）；`screen()` 移除關閉守門、`screeningRefusal()` 依課程開關判定、刪 `withoutScreeningWhenOff()`；銷售頁一律下發題目；精靈移除四步模式；後台開關改名「嚴格資格審核」、婉拒兩欄不再隨開關隱藏。`BookingScreeningToggleTest` 改寫為 12 條（實作前 9 紅）。全站 1274 passed（5647 assertions），`npm run build` 綠。瀏覽器未實測。
+- 2026-10-19: [draft] 規劃 US44 資格審核關閉改為寬鬆審核（FR-261，D176，取代 FR-255 的省略步驟）— 開關改為嚴格／寬鬆，兩者都走五步；寬鬆只婉拒「目前沒有預算」或總分 ≤ 4；`passes()` 加 `$strict` 參數，欄位不改名。
 - 2026-10-18: 資格審核送出偶發紅字「CSRF token mismatch」無法前進 — 根因在 000 的 `bootstrap.js`（見 000 進度日誌）；`BookingScreeningStep.vue` 另對 419 顯示「頁面已過期，請重新整理頁面後再送出。」取代英文訊息。
 - 2026-10-18: US43 / FR-260 完成 T610–T616 — `SendScreeningDeclineMailJob`（延遲 60 分鐘、原子認領重查狀態、課程 Markdown 內文覆寫、marketing 標記、失敗清回並 rethrow）；`screen()` 未通過且未寄過時排程；新模板 `high_ticket_screening_declined` 經 seeder＋資料 migration 安裝；後台在婉拒告知文字下加通知信內文 textarea（placeholder 為模板內文）。新增 `ScreeningDeclineMailTest` 16 條（實作前 14 紅）；FR-126 舊測試改為「不立即寄、排程延遲 job」。全站 1271 passed（5633 assertions），`npm run build` 綠。T617 瀏覽器確認與本機 `queue:work` 實寄待做。
 - 2026-10-18: [draft] 規劃 US43 資格審核婉拒後自動寄通知信（FR-260，D175，修訂 FR-126）— 未通過後延遲 60 分鐘寄新模板 `high_ticket_screening_declined`；寄前原子認領重查狀態、每筆 lead 只寄一次（`high_ticket_leads.screening_decline_mailed_at`）；課程可用 `courses.high_ticket_decline_email_md`（Markdown）覆寫內文、主旨沿用全站；標 marketing 走抑制名單。
