@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendScreeningDeclineMailJob;
 use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\DripConversionTarget;
+use App\Models\EmailTemplate;
 use App\Models\Purchase;
 use App\Models\SiteSetting;
 use App\Services\CouponChainService;
@@ -82,6 +84,8 @@ class CourseController extends Controller
             'couponChains' => $this->couponChainService->editorOptions(),
             // Placeholder for the refusal-copy field (011 FR-259).
             'defaultDeclineHtml' => BookingScreening::DEFAULT_DECLINE_HTML,
+            // Placeholder for the refusal-email field: the site-wide body it overrides (011 FR-260).
+            'defaultDeclineEmailMd' => $this->defaultDeclineEmailMd(),
         ]);
     }
 
@@ -221,6 +225,7 @@ class CourseController extends Controller
                 'high_ticket_hide_price' => $course->high_ticket_hide_price,
                 'high_ticket_screening' => $course->high_ticket_screening,
                 'high_ticket_decline_html' => $course->high_ticket_decline_html,
+                'high_ticket_decline_email_md' => $course->high_ticket_decline_email_md,
                 'is_high_ticket' => $course->is_high_ticket,
                 'payment_gateway' => $course->payment_gateway,
             ],
@@ -244,7 +249,14 @@ class CourseController extends Controller
             'couponChains' => $this->couponChainService->editorOptions(),
             // Placeholder for the refusal-copy field (011 FR-259).
             'defaultDeclineHtml' => BookingScreening::DEFAULT_DECLINE_HTML,
+            // Placeholder for the refusal-email field: the site-wide body it overrides (011 FR-260).
+            'defaultDeclineEmailMd' => $this->defaultDeclineEmailMd(),
         ]);
+    }
+
+    private function defaultDeclineEmailMd(): string
+    {
+        return (string) EmailTemplate::forEvent(SendScreeningDeclineMailJob::EVENT_TYPE)->value('body_md');
     }
 
     private function gatewayConfigured(): array

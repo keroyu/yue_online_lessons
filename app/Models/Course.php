@@ -39,6 +39,7 @@ class Course extends Model
         'high_ticket_hide_price',
         'high_ticket_screening',
         'high_ticket_decline_html',
+        'high_ticket_decline_email_md',
         'is_published',
         'status',
         'is_visible',

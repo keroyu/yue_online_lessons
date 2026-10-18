@@ -90,6 +90,12 @@ class EmailTemplateSeeder extends Seeder
                 'body_md' => "您好 {{user_name}}，\n\n關於您原訂於 {{slot_time}} 的「{{course_name}}」1v1 諮詢，我們在複查申請內容後決定不安排這次面談，該場次的會議連結同時失效。\n\n一對一諮詢很吃時機。從您目前的規劃與準備來看，現在談能幫上的忙有限，我們認為還不是最好的時候，因此這次容我們婉拒。\n\n本信附有行事曆取消檔案，開啟後即可從您的日曆移除這筆行程。\n\n日後若您的規劃更具體，歡迎再與我們聯繫。\n\n{{site_name}}",
             ],
             [
+                'name' => '資格審核婉拒通知',
+                'event_type' => 'high_ticket_screening_declined',
+                'subject' => '【關於您的 1v1 諮詢申請】{{course_name}}',
+                'body_md' => "您好 {{user_name}}，\n\n謝謝您申請「{{course_name}}」的 1v1 諮詢，也謝謝您花時間把問卷填完。\n\n一對一諮詢很吃時機。從您目前的規劃與準備來看，現在談能幫上的忙有限，因此這次我們先不安排面談。\n\n這不代表您的方向不對，只是現階段有更適合的起點。日後若您的規劃更具體，歡迎再與我們聯繫。\n\n{{site_name}}",
+            ],
+            [
                 'name' => '諮詢預約成立',
                 'event_type' => 'consultation_credit_booking_confirmation',
                 'subject' => '【諮詢預約成立】{{slot_time}}',

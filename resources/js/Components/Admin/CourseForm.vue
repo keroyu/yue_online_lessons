@@ -40,6 +40,11 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  // Placeholder for the refusal email body: the site-wide template (011 FR-260).
+  defaultDeclineEmailMd: {
+    type: String,
+    default: '',
+  },
   // Tiers of this course, read-only — the bundle panel labels one quantity
   // input per tier (011 US37 / D145).
   plans: {
@@ -93,6 +98,7 @@ const form = useForm({
   high_ticket_hide_price: props.course?.high_ticket_hide_price ?? false,
   high_ticket_screening: props.course?.high_ticket_screening ?? true,
   high_ticket_decline_html: props.course?.high_ticket_decline_html ?? '',
+  high_ticket_decline_email_md: props.course?.high_ticket_decline_email_md ?? '',
   sale_at: props.course?.sale_at || '',
   portaly_product_id: props.course?.portaly_product_id || '',
   payment_gateway: props.course?.payment_gateway || 'payuni',
@@ -235,6 +241,7 @@ const fieldLabels = {
   high_ticket_hide_price: '隱藏價格',
   high_ticket_screening: '資格審核',
   high_ticket_decline_html: '婉拒告知文字',
+  high_ticket_decline_email_md: '婉拒通知信內文',
   duration_minutes: '時間總長',
   sale_at: '開賣時間',
   portaly_product_id: 'Portaly 商品 ID',
@@ -434,6 +441,20 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
               />
               <p class="mt-1 text-xs text-gray-500">未通過資格審核時顯示。換行請用 &lt;br&gt; 或 &lt;p&gt;；留空使用預設文案。</p>
               <p v-if="form.errors.high_ticket_decline_html" :class="errorTextClasses">{{ form.errors.high_ticket_decline_html }}</p>
+            </div>
+
+            <!-- Same show/hide rule as the copy above (011 FR-260). -->
+            <div v-if="form.high_ticket_screening" data-field="high_ticket_decline_email_md" class="mt-3">
+              <label for="high_ticket_decline_email_md" class="block text-sm text-gray-700">婉拒通知信內文（Markdown）</label>
+              <textarea
+                id="high_ticket_decline_email_md"
+                v-model="form.high_ticket_decline_email_md"
+                rows="6"
+                :placeholder="defaultDeclineEmailMd"
+                class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+              />
+              <p class="mt-1 text-xs text-gray-500">未通過資格審核 1 小時後寄出，每人只寄一次。可用 <code v-pre>{{user_name}}</code>、<code v-pre>{{course_name}}</code>；主旨沿用 Email 模板「資格審核婉拒通知」；留空使用該模板內文。</p>
+              <p v-if="form.errors.high_ticket_decline_email_md" :class="errorTextClasses">{{ form.errors.high_ticket_decline_email_md }}</p>
             </div>
           </div>
         </div>

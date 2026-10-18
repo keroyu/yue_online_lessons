@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\HighTicket;
 
+use App\Jobs\SendScreeningDeclineMailJob;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\DripConversionTarget;
@@ -14,6 +15,7 @@ use App\Support\BookingScreening;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -490,9 +492,10 @@ class BookingScreeningTest extends TestCase
         $this->assertSame(['passed' => true], $json, '回應只有通過與否，分數是給顧問看的');
     }
 
-    public function test_failing_declines_without_sending_anything_or_taking_a_slot(): void
+    public function test_failing_declines_without_mailing_now_or_taking_a_slot(): void
     {
         Mail::fake();
+        Queue::fake();
         $this->makeSlots();
         $course = $this->makeHighTicketCourse();
 
@@ -508,11 +511,14 @@ class BookingScreeningTest extends TestCase
         $this->assertSame('declined', $lead->status);
         $this->assertNotNull($lead->declined_at);
         $this->assertSame(0, $lead->screening_score);
-        $this->assertNull($lead->confirm_token, '沒有信要寄，token 只會是死連結');
+        $this->assertNull($lead->confirm_token, '沒有確認信要寄，token 只會是死連結');
         $this->assertSame(0, $lead->slots()->count());
         $this->assertSame(0, ConsultationSlot::whereNotNull('lead_id')->count());
 
+        // Nothing goes out now and no CC ever does; the one refusal email is
+        // queued for an hour later (FR-260, revising FR-126).
         Mail::assertNothingSent();
+        Queue::assertPushed(SendScreeningDeclineMailJob::class, fn ($job) => $job->leadId === $lead->id && $job->delay !== null);
     }
 
     /** A drip course that converts into $target, and an active subscriber on it. */

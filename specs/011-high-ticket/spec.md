@@ -2,6 +2,11 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Jobs/SendScreeningDeclineMailJob.php
+  - database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php
+  - database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php
+  - database/migrations/2026_10_18_000007_install_screening_declined_template.php
+  - tests/Feature/HighTicket/ScreeningDeclineMailTest.php
   - app/Models/Testimonial.php
   - app/Services/TestimonialService.php
   - app/Http/Controllers/TestimonialController.php
@@ -216,31 +221,31 @@ touchpoints:
     why: US38 積分兌換整門課建立 purchase 後，對一般課程呼叫 `syncPlanGrant()`（FR-224）
   - file: app/Http/Requests/Admin/StoreCourseRequest.php
     owner: 004-course-admin
-    why: US38 諮詢欄位守門改為 FR-222（drip / 免費擋，high_ticket 與一般付費課放行）；US42 加 `high_ticket_decline_html` 驗證與空白轉 null（FR-259）
+    why: US38 諮詢欄位守門改為 FR-222（drip / 免費擋，high_ticket 與一般付費課放行）；US42 加 `high_ticket_decline_html` 驗證與空白轉 null（FR-259）；US43 加 `high_ticket_decline_email_md` 同規則驗證（FR-260）
   - file: app/Models/Course.php
     owner: 004-course-admin
-    why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）；US42 `$fillable` 加 `high_ticket_decline_html`、新增 `declineHtml()`（自訂或預設文案，FR-259）
+    why: US37 `$fillable` 加三個 `bundle_*` 欄位與 `hasBundle` accessor（`bundle_name` 非空即有福利）；US42 `$fillable` 加 `high_ticket_decline_html`、新增 `declineHtml()`（自訂或預設文案，FR-259）；US43 `$fillable` 加 `high_ticket_decline_email_md`（FR-260）
   - file: app/Models/Purchase.php
     owner: 005-checkout
     why: US37 `bundle_balance` / `bundle_granted` 兩欄落在這張表（一人一課一列，天然就是餘額的粒度）；`$fillable` 與 `casts()` 補上，寫入一律經 `BundleCreditService`
   - file: app/Http/Controllers/Admin/CourseController.php
     owner: 004-course-admin
-    why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`；US42 `edit()` 帶出 `high_ticket_decline_html` 與頁面層 `defaultDeclineHtml`（placeholder 用）
+    why: US37 `edit()` 多下發 `plans`（含 `bundle_quantity`）供福利面板；`update()` 經 `UpdateCourseRequest` 收三個 `bundle_*` 欄位；`index()` 的 payload 多帶 `has_bundle`；US42 `edit()` 帶出 `high_ticket_decline_html` 與頁面層 `defaultDeclineHtml`（placeholder 用）；US43 `edit()`／`create()` 帶出 `high_ticket_decline_email_md` 與 `defaultDeclineEmailMd`（全站模板內文，placeholder 用）
   - file: app/Http/Requests/Admin/UpdateCourseRequest.php
     owner: 004-course-admin
-    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔；US42 同 StoreCourseRequest
+    why: US37 加 `bundle_name` / `bundle_redeem_points` / `bundle_default_quantity` 驗證與非高價課守門（FR-200）；US38 守門改為 `BundleCreditService::canCarryBundle()`（FR-222），「有設定」改以 `settingKeys()` 判斷，表單恆送的 `0` 預設值不再誤擋非高價課存檔；US42 同 StoreCourseRequest；US43 同 StoreCourseRequest
   - file: resources/js/Components/Admin/CourseForm.vue
     owner: 004-course-admin
-    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）；US42 在「預約前先做資格審核」之下加婉拒告知文字 textarea
+    why: US37 在高價課設定區塊底下掛 `CourseBundlePanel.vue`（`v-if` product_type=high_ticket）；三個 `bundle_*` 欄位隨本表單送出，各方案次數由面板走既有 plan update 端點；US38 面板 `v-if` 改為 `canCarryBundle`（high_ticket，或非 drip 且售價 > 0）；US42 在「預約前先做資格審核」之下加婉拒告知文字 textarea；US43 再加「婉拒通知信內文（Markdown）」textarea
   - file: resources/js/Pages/Admin/Courses/Index.vue
     owner: 004-course-admin
     why: US37 每列加「學員名單」按鈕並掛 `CourseRosterModal.vue`（FR-208）
   - file: resources/js/Pages/Admin/Courses/Edit.vue
     owner: 004-course-admin
-    why: US37 多收一個 `plans` prop 並透傳給 `CourseForm`，供福利面板標示各方案（新增課程頁不傳，因此不顯示方案次數）；US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder）
+    why: US37 多收一個 `plans` prop 並透傳給 `CourseForm`，供福利面板標示各方案（新增課程頁不傳，因此不顯示方案次數）；US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder）；US43 同樣透傳 `defaultDeclineEmailMd`
   - file: resources/js/Pages/Admin/Courses/Create.vue
     owner: 004-course-admin
-    why: US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder，FR-259）
+    why: US42 多收 `defaultDeclineHtml` 並透傳給 `CourseForm`（婉拒文案 placeholder，FR-259）；US43 同樣透傳 `defaultDeclineEmailMd`（FR-260）
   - file: phpunit.xml
     owner: 000-platform-core
     why: US37 加 `<ini name="memory_limit" value="512M">` —— 測試套件峰值約 133MB，超過 PHP 預設 128M，`php artisan test` 會在 mime 猜測處以配置失敗中斷而非回報結果（此檔原先無 owner 宣告，暫記在平台核心）
@@ -1531,6 +1536,24 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - [x] 前端 MUST NOT 再寫死預設文案：預設值只存在後端一處
 - [x] 測試：見 T608
 
+### User Story 43 - 資格審核婉拒後自動寄通知信 (Priority: P2)
+
+銷售頁的資格審核目前婉拒後一封信都不寄（FR-126 原決策），被擋下的人關掉頁面就斷線了。改為婉拒後
+**延遲 1 小時**自動寄一封模板信，讓業主在信裡把人導去電子書、低價課、社群等後續 nurture 路徑。
+內容預設用全站模板「資格審核婉拒通知」，各課程可在客製服務設定裡自訂內文覆寫。
+
+**驗收**：
+- [x] 銷售頁資格審核未通過 → 排程一封婉拒通知信，**60 分鐘後**寄到申請時填的 Email（FR-260）
+- [x] 寄送前重查：該 lead 若已不是 `declined`（例如這一小時內重答並通過）或已確認預約，MUST NOT 寄出
+- [x] 同一筆 lead 最多寄一次：一小時內重答多次都失敗、或日後再次被婉拒，都不重寄（`screening_decline_mailed_at`）
+- [x] 新全站模板 `high_ticket_screening_declined`（「資格審核婉拒通知」）出現在後台 Email 模板頁，可編輯主旨與內文，變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`
+- [x] 後台課程編輯：「預約前先做資格審核」勾選時，「婉拒告知文字」下方多一個「婉拒通知信內文（Markdown，留空使用全站模板）」textarea，placeholder 為全站模板內文；取消勾選時隱藏但值保留
+- [x] 課程有自訂內文 → 信件內文用課程版（同樣支援變數），主旨仍用全站模板；留空 → 全站模板內文
+- [x] 信件帶 `X-Mail-Class: marketing`：已在退信／投訴抑制名單的 Email 會被既有 `BlockSuppressedRecipients` 擋下
+- [x] 不寄內部 CC；後台手動婉拒（US27 `high_ticket_booking_declined`）行為不變
+- [x] 全站模板不存在時只記 warning log，不報錯；審核回應與 8 秒倒數完全不受影響
+- [x] 測試：見 T616
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1916,7 +1939,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-125**: `POST /course/{course}/screen`（throttle:10,1）：驗證 Email／暱稱／五題 → 伺服器端計分 → 建立或更新該 `email + course_id` 的 lead，寫入五題答案、`screening_score`、`screened_at`，回 `{passed: bool}`。
   **審核即落地**是刻意的：這一步的產出就是「這個人是哪一種」，而中途離開的人正是最需要留住的資料。通過者以 `status = pending` 存在（尚無 `confirm_token`、無時段），未通過者見 FR-126。
   **MUST NOT 覆寫進行中的預約**：`confirmed_at` 非 null 或 `status` 已非 `pending` / `declined` 者，只更新答案與分數，`status` 與 `declined_at` 一律不動 —— 一個已確認的客人回來把玩表單，不該把自己的預約洗成婉拒。
-- **FR-126**: 未通過者的落庫形狀：`status = declined`、`declined_at = now()`、`confirm_token` 與 `confirm_expires_at` 皆 null、名下無 `consultation_slots`。並且 MUST NOT：寄出任何信件（婉拒信與內部 CC 通知都不寄，使用者決策）、觸發 `DripService::checkAndBook()`、送出 Meta CAPI 事件。
+- **FR-126**: 未通過者的落庫形狀：`status = declined`、`declined_at = now()`、`confirm_token` 與 `confirm_expires_at` 皆 null、名下無 `consultation_slots`。並且 MUST NOT：寄出任何信件（婉拒信與內部 CC 通知都不寄，使用者決策）、觸發 `DripService::checkAndBook()`、送出 Meta CAPI 事件。**US43 修訂（使用者決策 2026-10-18）**：婉拒通知信改為延遲寄出，見 FR-260；內部 CC 通知仍不寄。
   - **FR-126 修訂 → FR-257**（2026-10-18，使用者決策）：未通過者「不停序列信」作廢，改為停發，見 FR-257。
   **不停序列信是重點而非疏漏**：這些人來自電子書名單，婉拒的意思是「現在不排 1v1」，不是「不要再聯絡」—— 停掉序列信等於把唯一還在運作的加溫管道也關掉。
 - **FR-127**: `declined` 是 `high_ticket_leads.status` 的第 7 個值，新增時 MUST 同步四處，漏一處就是一個安靜的錯誤：enum migration、`HighTicketLeadController::updateStatus()` 的 `in:` 驗證清單（漏了則管理員改不回其他狀態）、`BookingListTab.vue` 的 `statusButtons`（漏了則該列狀態方塊全部呈現未選中）、`HighTicketBookingService::recordLead()` 的可復活清單（漏了則婉拒過的人永遠停在 declined，見 D97）。
@@ -2146,6 +2169,7 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-258**（US24 修訂，使用者決策 2026-10-18）: Q7 `screen_learning` 改版，題目與選項定版見 FR-123。原題問「通常怎麼處理」是問習慣，申請人一律挑最體面的答案，`self_only` 實際無人選、幾乎全選 `free_only`，分不出「有意識地針對自己的問題找社群與教學」與「隨緣看免費內容」。新題問**針對當前卡關做過最深入的一步**，選項為依深度排序的具體行為。**組合否決改為 Q7 ∈ {`passive`, `searched`}**（方案 A：沒進過社群、沒聽過體驗課的都算），Q6 條件與 FR-254 修訂的例外（預算 `6k_10k` 以上且總分 ≥ 7）不變。Q7 仍 0 分、仍必答。**舊資料**：以一支資料 migration 改寫既有值 —— `free_only` → `passive`（使用者決策）、`self_only` → `passive`、`free_active` → `searched`；改寫後程式中移除三個舊鍵（不標 `retired`），正式站 2026-10-18 僅 2 筆 `free_only`、無其他舊值。**不回溯審核結果**：只改寫答案欄，不重算 `screening_score`（Q7 本就 0 分）、不改 lead 狀態（同 FR-253）。草稿回訪若帶著不在新選項內的值，精靈既有的 `draftScreening()` 會清空讓他重選
 - **FR-255**（US41）: `courses.high_ticket_screening`（boolean，預設 true）控制高價課預約精靈是否有資格審核步驟。關閉時：(1) `CourseController@show` 的 `screeningQuestions` 為 `[]`，`course` payload 帶 `high_ticket_screening: false`；(2) `HighTicketBookingService::screen()` 回 `success: false`「此課程不需資格審核」；(3) `book()`／`waitlist()` 跳過 `screeningRefusal()`，且 `application` 陣列 MUST NOT 合併審核答案、`screening_score`、`screened_at`（以 `screen_*` 為 null 表達「此課程沒有審核」，後台展開列沿用 FR-131 的無審核說明）；(4) 精靈以四步進行，Email／暱稱移到資料步驟、`BookingScopeNotice` 移到承諾步驟（使用者決策）。範圍勾選在關閉時**只在前端把關**：沿用 FR-165「不進 book payload」的立場，它是告知不是驗證。**連帶影響**：關閉時沒有審核階段先建的 lead，FR-137 的續填提醒信對該課程自然不會發出 —— lead 只在送出申請時建立。開關切換不回溯既有 lead
 - **FR-259**（US42）: `courses.high_ticket_decline_html`（`text` nullable）為資格審核未通過時顯示的告知文字，HTML 原樣渲染（`v-html`，不 sanitize，見 D174）。(1) 後台：Store／UpdateCourseRequest `nullable|string|max:10000`；只有空白的值由全域 `TrimStrings`＋`ConvertEmptyStringsToNull` 中介層轉成 null（不另寫 `prepareForValidation()`）；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示欄位，隱藏時照常送出原值（不清空）。(2) 預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`（內容為 FR-128 定版文字），`Course::declineHtml(): string` 回自訂值或預設值。(3) `HighTicketBookingService::screen()` 未通過時結果加 `decline_html => $course->declineHtml()`，`HighTicketBookingController@screen` 回 `{passed: false, decline_html}`；通過時回應維持 `{passed: true}`。(4) `BookingScreeningStep` 拿掉寫死文案，改存回應的 `decline_html` 並以 `v-html` 渲染。不影響 FR-128 其他規則（8 秒倒數、不顯示分數與原因）—— 自訂文案寫什麼由管理員負責
+- **FR-260**（US43，修訂 FR-126）: `HighTicketBookingService::screen()` 判定**未通過**且該 lead `screening_decline_mailed_at` 為 null 時，MUST `SendScreeningDeclineMailJob::dispatch($lead->id)->delay(now()->addMinutes(SendScreeningDeclineMailJob::DELAY_MINUTES))`（`DELAY_MINUTES = 60`）。通過時不排程。Job `handle()`：(1) **原子認領** — `HighTicketLead::whereKey($id)->where('status', 'declined')->whereNull('confirmed_at')->whereNull('screening_decline_mailed_at')->update(['screening_decline_mailed_at' => now()])`，影響 0 列即 return（已通過、已寄、或另一個重複排程的 job 搶先）；(2) 取 `EmailTemplate::forEvent('high_ticket_screening_declined')->first()`，不存在 → 清回認領、記 warning、return；(3) 課程 `high_ticket_decline_email_md` 非 null 時以 `$template->replicate()->forceFill(['body_md' => 該值, 'body_type' => 'markdown'])`（不存檔）渲染內文，主旨一律用全站模板；(4) 變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`（+ 全域變數）；(5) `TemplatedMail` 加 `X-Mail-Class: marketing` header，不 CC；(6) 寄送例外 → 清回 `screening_decline_mailed_at = null` 並 rethrow，交給 `$tries = 3` / `$backoff = [60, 300, 900]` 重試。`courses.high_ticket_decline_email_md`：Store／UpdateCourseRequest `nullable|string|max:10000`，空白由全域中介層轉 null；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示，隱藏時照送原值。模板 MUST 同時登記於 `EmailTemplateSeeder::templates()`、一支資料 migration（沿用「缺才 insert、永不 update」迴圈）與 `EmailTemplateController::$availableVariables`（含中文標籤）。**已知風險**：審核當下 Email 未驗證，填別人的 Email 可讓對方收到一封婉拒信；以 `/screen` 的 throttle:10,1 與「每筆 lead 一封」為上限，業主接受
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2569,6 +2593,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **D174**: 婉拒文案（FR-259）的四個決定。**存 `courses`**：理由同 D170，婉拒後要把人導去哪裡取決於這門課的受眾，不是全站政策；欄位與開關同列，後台也巢狀在開關之下。**從 `/screen` 回應下發，不放 props**：通過的人用不到；放進 props 等於讓每位訪客在頁面原始碼看到「被擋下時會看到什麼」，FR-128「不給修改指南」的立場同樣適用。**不 sanitize**：課程編輯只有 admin 能進（`routes/web.php` 的 `admin` 群組），與 `description`／`lead_intro` 的 `v-html` 同一信任等級；後台作者要嵌按鈕、連結、圖片正是需求，白名單過濾只會在某天默默吃掉一個 `<iframe>`。**不自動轉換換行**：以 HTML 為準，換行請用 `<br>` 或 `<p>`（欄位說明文字寫明）；若同時支援「純文字自動換行」，貼一段帶縮排的 HTML 會多出一堆空行，兩種輸入方式只能擇一
 - **D170**: 開關存在 `courses` 而非 `site_settings` —— 是否需要分流取決於該課程的流量來源，不是全站政策。只在 `high_ticket_hide_price = true` 時有意義（價格公開的高價課沒有預約精靈），故後台開關巢狀在「隱藏價格」之下而非獨立一區。精靈以 `props.course.high_ticket_screening !== false` 判斷（舊快取頁面缺欄位時視為開啟，與 DB 預設一致）；步驟編號維持內部 `n = 2..5` 不重編，只在進度指示**顯示**時以 `i + 1` 編號 —— `canLeave()`、`routeFieldErrors()`、`goTo()` 等全部以 `n` 運作，重編會牽動整支精靈。範圍勾選與顧問說明抽成 `BookingScopeNotice.vue`（props：`form`、`errors`），避免兩份文案漂移
 
+- **D175**: 審核婉拒通知信（FR-260）的五個決定。**延遲 60 分鐘**（使用者決策）：倒數一結束信就到，等於明說「這是機器判的」；延遲也給「這一小時內改答案並通過」的人一個不收到婉拒信的窗口 —— 所以寄前必須重查狀態，不能在排程當下就決定要寄。**認領式去重而非排程時去重**：一小時內重答多次會排多個 job，排程時查 `mailed_at` 擋不住；以單一 `UPDATE ... WHERE mailed_at IS NULL` 認領，誰搶到誰寄，失敗時清回讓重試接手。**每筆 lead 只寄一次、不因復活清零**：同一個人反覆被擋收到多封一模一樣的拒絕信，比沒收到更傷；他日再申請的 nurture 交給信裡導去的路徑。**新 event_type 而非沿用 `high_ticket_booking_declined`**：後者是「已確認的預約被人工取消」，內文提時段與 `.ics`，這裡沒有時段也沒有行事曆；兩種情境的話術也不同（一個是人複查後的決定，一個是申請階段的分流）。**課程覆寫只覆寫內文、用 Markdown**：與 D174 同理，導流目標依課程受眾而定；主旨通常只差課程名，`{{course_name}}` 已足夠，多一個欄位只是多一個要維護的地方；格式跟 email_templates 一致用 Markdown，不沿用 US42 的 HTML —— 信件 HTML 要 inline style，後台作者手寫只會在某些信箱破版。**標 marketing**：這封信的目的是 nurture，且收件地址未經驗證，進抑制名單判斷可保護寄件信譽
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2608,6 +2634,8 @@ US37 把「成交附帶的諮詢次數」記進系統，但只開給高價課，
 - **FR-255 schema 變更**：`2026_10_18_000001_add_high_ticket_screening_to_courses_table.php` — `courses.high_ticket_screening` boolean NOT NULL default true，`after('high_ticket_hide_price')`。`down()` 卸掉該欄。不變量：既有列 migration 後全為 true
 
 - **FR-259 schema 變更**：`2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php` — `courses.high_ticket_decline_html` text nullable，`after('high_ticket_screening')`。`down()` 卸掉該欄。不變量：null = 使用 `BookingScreening::DEFAULT_DECLINE_HTML`；MUST NOT 存空字串
+
+- **FR-260 schema 變更（兩支欄位 migration + 一支資料 migration）**：`2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php` — `courses.high_ticket_decline_email_md` text nullable，`after('high_ticket_decline_html')`；`2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php` — `high_ticket_leads.screening_decline_mailed_at` timestamp nullable（UTC），`after('declined_at')`；`2026_10_18_000007_install_screening_declined_template.php` — 沿用「讀 `EmailTemplateSeeder::templates()`、缺才 insert、永不 update」迴圈，`down()` no-op。不變量：`high_ticket_decline_email_md` null = 使用全站模板內文、MUST NOT 存空字串；`screening_decline_mailed_at` 非 null ⇒ 該 lead 曾被婉拒且信已寄出（或正在寄送中），`recordLead()` 復活 lead 時 MUST NOT 清掉它
 
 - **US23 schema 變更（一支 migration）**：
 
@@ -3983,8 +4011,21 @@ Phase 4 — 驗證
 - [x] T608 測試：未設定 → `/screen` 未通過回預設文案；設定後回自訂 HTML（原樣）；通過時回應無 `decline_html`；銷售頁 props 不含 `high_ticket_decline_html`；後台存檔空白 → null、超過 10000 字 → 422 in `tests/Feature/HighTicket/BookingScreeningDeclineCopyTest.php`
 - [x] T609 `php artisan test` 全綠、`npm run build`；瀏覽器確認後台欄位顯示／隱藏、銷售頁婉拒畫面的自訂 HTML（含連結、圖片，桌機＋手機）
 
+### 資格審核婉拒後自動寄通知信（US43 / FR-260）
+
+- [x] T610 Migrations：`courses.high_ticket_decline_email_md`、`high_ticket_leads.screening_decline_mailed_at`；`Course` fillable〔touchpoint 004〕、`HighTicketLead` fillable + datetime cast in `database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php`, `database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php`, `app/Models/Course.php`, `app/Models/HighTicketLead.php`
+- [x] T611 [P] 模板 `high_ticket_screening_declined`（「資格審核婉拒通知」）登記於 seeder、資料 migration、`$availableVariables`＋中文標籤 in `database/seeders/EmailTemplateSeeder.php`, `database/migrations/2026_10_18_000007_install_screening_declined_template.php`, `app/Http/Controllers/Admin/EmailTemplateController.php`
+- [x] T612 `SendScreeningDeclineMailJob`：`DELAY_MINUTES = 60`、原子認領、課程內文覆寫、marketing header、失敗清回並 rethrow in `app/Jobs/SendScreeningDeclineMailJob.php`
+- [x] T613 `screen()` 未通過且 `screening_decline_mailed_at` null 時 delay dispatch（兩個分支都要：新建 lead 與更新既有 lead）in `app/Services/HighTicketBookingService.php`
+- [x] T614 [P] 後台：Store/UpdateCourseRequest 驗證；Admin `CourseController@create/edit` 帶出欄位與 `defaultDeclineEmailMd`；Create/Edit 頁透傳；`CourseForm` 在婉拒告知文字下加 textarea（說明「Markdown，可用 {{user_name}}、{{course_name}}；留空使用全站模板」）〔touchpoint 004〕in `app/Http/Requests/Admin/StoreCourseRequest.php`, `app/Http/Requests/Admin/UpdateCourseRequest.php`, `app/Http/Controllers/Admin/CourseController.php`, `resources/js/Pages/Admin/Courses/Create.vue`, `resources/js/Pages/Admin/Courses/Edit.vue`, `resources/js/Components/Admin/CourseForm.vue`
+- [x] T615 修正 FR-126 舊測試中「未通過不寄任何信」的斷言（改為：不立即寄、排程一個延遲 job、不寄 CC）in `tests/Feature/HighTicket/BookingScreeningTest.php`
+- [x] T616 測試：未通過 → `Queue::fake` 斷言 job 帶 60 分鐘 delay；通過 → 不排程；已寄過再被婉拒 → 不排程；job：狀態已轉 pending／已 confirmed → 不寄；兩個 job 只寄一封；課程自訂內文 → 內文用課程版、主旨用全站；留空 → 全站內文；變數替換；marketing header；模板缺失 → 不寄且 `mailed_at` 仍 null；寄送例外 → `mailed_at` 清回；後台空白 → null、超過 10000 → 422 in `tests/Feature/HighTicket/ScreeningDeclineMailTest.php`
+- [ ] T617 `php artisan test` 全綠、`npm run build`；瀏覽器確認後台欄位顯示／隱藏與存檔；本機把 `DELAY_MINUTES` 情境用 `queue:work` 跑一次確認信件內容（Mailpit／log mailer）
+
 ## 進度日誌
 
+- 2026-10-18: US43 / FR-260 完成 T610–T616 — `SendScreeningDeclineMailJob`（延遲 60 分鐘、原子認領重查狀態、課程 Markdown 內文覆寫、marketing 標記、失敗清回並 rethrow）；`screen()` 未通過且未寄過時排程；新模板 `high_ticket_screening_declined` 經 seeder＋資料 migration 安裝；後台在婉拒告知文字下加通知信內文 textarea（placeholder 為模板內文）。新增 `ScreeningDeclineMailTest` 16 條（實作前 14 紅）；FR-126 舊測試改為「不立即寄、排程延遲 job」。全站 1271 passed（5633 assertions），`npm run build` 綠。T617 瀏覽器確認與本機 `queue:work` 實寄待做。
+- 2026-10-18: [draft] 規劃 US43 資格審核婉拒後自動寄通知信（FR-260，D175，修訂 FR-126）— 未通過後延遲 60 分鐘寄新模板 `high_ticket_screening_declined`；寄前原子認領重查狀態、每筆 lead 只寄一次（`high_ticket_leads.screening_decline_mailed_at`）；課程可用 `courses.high_ticket_decline_email_md`（Markdown）覆寫內文、主旨沿用全站；標 marketing 走抑制名單。
 - 2026-10-18: US42 T609 瀏覽器確認 — 後台欄位隨資格審核開關顯示／隱藏、存檔成功；銷售頁答「沒有預算」後 8 秒倒數接自訂 HTML（段落、連結 teal 底線＋hover、粗體、圖片），頁面原始碼無文案；358px 寬度無溢出、圖片縮放。圖片與文字間補 `mt-3`。視窗縮放工具未生效，手機寬度以壓窄卡片模擬。
 - 2026-10-18: US42 / FR-259 完成 T603–T608 — `courses.high_ticket_decline_html` + `Course::declineHtml()`，預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`；`/screen` 未通過回應帶 `decline_html`，通過時不帶；後台在資格審核開關下加 HTML textarea（placeholder 為預設文案）；`BookingScreeningStep` 改以 `v-html` 渲染回應文案。新增 7 條測試，實作前 5 紅（2 條是守門測試，原本就綠）。全站 1255 passed（5586 assertions），`npm run build` 綠。T609 瀏覽器確認待做。
 - 2026-10-18: [draft] 規劃 US42 自訂資格審核婉拒文案（FR-259，D174）— `courses.high_ticket_decline_html`（text nullable，null = 預設文案）；後台在資格審核開關下加 HTML textarea；文案只隨 `/screen` 未通過回應下發，不進 props；預設文案移到後端 `BookingScreening::DEFAULT_DECLINE_HTML` 單一來源；admin 專屬欄位不 sanitize。

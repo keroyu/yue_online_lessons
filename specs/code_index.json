@@ -101,6 +101,7 @@
       "011.us-37",
       "011.us-41",
       "011.us-42",
+      "011.us-43",
       "011.us-8"
     ],
     "app/Http/Controllers/Admin/CourseImageController.php": [
@@ -135,6 +136,7 @@
       "011.us-26",
       "011.us-27",
       "011.us-38",
+      "011.us-43",
       "011.us-6"
     ],
     "app/Http/Controllers/Admin/HighTicketLeadController.php": [
@@ -516,7 +518,8 @@
       "010.us-18",
       "011.us-38",
       "011.us-41",
-      "011.us-42"
+      "011.us-42",
+      "011.us-43"
     ],
     "app/Http/Requests/Admin/StoreFeaturedCourseRequest.php": [
       "002.us-6"
@@ -570,7 +573,8 @@
       "011.us-37",
       "011.us-38",
       "011.us-41",
-      "011.us-42"
+      "011.us-42",
+      "011.us-43"
     ],
     "app/Http/Requests/Admin/UpdateFeaturedCourseRequest.php": [
       "002.us-6"
@@ -697,6 +701,9 @@
     "app/Jobs/SendMetaConversionJob.php": [
       "000.us-7"
     ],
+    "app/Jobs/SendScreeningDeclineMailJob.php": [
+      "011.us-43"
+    ],
     "app/Jobs/SubscribeDripLeadJob.php": [
       "010.us-4",
       "011.us-5",
@@ -806,7 +813,8 @@
       "011.us-21",
       "011.us-37",
       "011.us-41",
-      "011.us-42"
+      "011.us-42",
+      "011.us-43"
     ],
     "app/Models/CourseDailyStat.php": [
       "002.us-10",
@@ -863,6 +871,7 @@
       "011.us-31",
       "011.us-38",
       "011.us-40",
+      "011.us-43",
       "011.us-9"
     ],
     "app/Models/HomepageFeaturedCourse.php": [
@@ -1087,6 +1096,7 @@
       "011.us-38",
       "011.us-41",
       "011.us-42",
+      "011.us-43",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1626,6 +1636,15 @@
     "database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php": [
       "011.us-42"
     ],
+    "database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php": [
+      "011.us-43"
+    ],
+    "database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php": [
+      "011.us-43"
+    ],
+    "database/migrations/2026_10_18_000007_install_screening_declined_template.php": [
+      "011.us-43"
+    ],
     "database/seeders/EmailTemplateSeeder.php": [
       "004.us-6",
       "011.us-10",
@@ -1635,6 +1654,7 @@
       "011.us-26",
       "011.us-27",
       "011.us-38",
+      "011.us-43",
       "011.us-6"
     ],
     "database/seeders/HomepageSettingsSeeder.php": [
@@ -1713,7 +1733,8 @@
       "011.us-37",
       "011.us-38",
       "011.us-41",
-      "011.us-42"
+      "011.us-42",
+      "011.us-43"
     ],
     "resources/js/Components/Admin/CoursePlanPanel.vue": [
       "011.us-21"
@@ -2091,12 +2112,14 @@
     "resources/js/Pages/Admin/Courses/Create.vue": [
       "004.us-1",
       "004.us-2",
-      "011.us-42"
+      "011.us-42",
+      "011.us-43"
     ],
     "resources/js/Pages/Admin/Courses/Edit.vue": [
       "004.us-1",
       "011.us-37",
       "011.us-42",
+      "011.us-43",
       "011.us-8"
     ],
     "resources/js/Pages/Admin/Courses/Gallery.vue": [
@@ -2530,7 +2553,8 @@
       "011.us-42"
     ],
     "tests/Feature/HighTicket/BookingScreeningTest.php": [
-      "011.us-24"
+      "011.us-24",
+      "011.us-43"
     ],
     "tests/Feature/HighTicket/BookingScreeningToggleTest.php": [
       "011.us-41"
@@ -2616,6 +2640,9 @@
     ],
     "tests/Feature/HighTicket/PlanSwitchTest.php": [
       "011.us-21"
+    ],
+    "tests/Feature/HighTicket/ScreeningDeclineMailTest.php": [
+      "011.us-43"
     ],
     "tests/Feature/HighTicket/SlotHoldTest.php": [
       "011.us-10",

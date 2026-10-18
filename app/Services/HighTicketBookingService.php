@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\SlotUnavailableException;
+use App\Jobs\SendScreeningDeclineMailJob;
 use App\Mail\BookingVerifyMail;
 use App\Mail\TemplatedMail;
 use App\Models\ConsultationNote;
@@ -103,7 +104,7 @@ class HighTicketBookingService
             ->first();
 
         if (!$lead) {
-            HighTicketLead::create(array_merge($attributes, [
+            $lead = HighTicketLead::create(array_merge($attributes, [
                 'email'       => $data['email'],
                 'course_id'   => $course->id,
                 'status'      => $passed ? 'pending' : 'declined',
@@ -112,6 +113,7 @@ class HighTicketBookingService
             ]));
 
             $this->stopDripIfDeclined($passed, $data['email'], $course);
+            $this->scheduleDeclineMail($passed, $lead);
 
             return $this->screenResult($course, $passed);
         }
@@ -142,8 +144,27 @@ class HighTicketBookingService
         $lead->update($attributes);
 
         $this->stopDripIfDeclined($passed, $data['email'], $course);
+        $this->scheduleDeclineMail($passed, $lead);
 
         return $this->screenResult($course, $passed);
+    }
+
+    /**
+     * A refusal is followed by one email, an hour later (011 FR-260). Whether it
+     * still applies is the job's call at send time; this only skips the leads
+     * that already had theirs.
+     *
+     * Checks the stored status, not $passed alone: a confirmed booking that
+     * re-answers badly keeps its status (FR-125) and is no refusal.
+     */
+    private function scheduleDeclineMail(bool $passed, HighTicketLead $lead): void
+    {
+        if ($passed || $lead->status !== 'declined' || $lead->screening_decline_mailed_at !== null) {
+            return;
+        }
+
+        SendScreeningDeclineMailJob::dispatch($lead->id)
+            ->delay(now()->addMinutes(SendScreeningDeclineMailJob::DELAY_MINUTES));
     }
 
     /**

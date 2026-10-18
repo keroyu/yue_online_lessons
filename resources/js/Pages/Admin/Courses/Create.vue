@@ -22,6 +22,11 @@ defineProps({
     type: String,
     default: '',
   },
+  // Placeholder for the refusal email body: the site-wide template (011 FR-260).
+  defaultDeclineEmailMd: {
+    type: String,
+    default: '',
+  },
   // Selectable drip conversion targets — same list the edit page receives
   availableCourses: {
     type: Array,
@@ -44,6 +49,7 @@ defineProps({
         :content-categories="contentCategories"
         :coupon-chains="couponChains"
         :default-decline-html="defaultDeclineHtml"
+        :default-decline-email-md="defaultDeclineEmailMd"
         :available-courses="availableCourses"
         submit-url="/admin/courses"
         method="post"

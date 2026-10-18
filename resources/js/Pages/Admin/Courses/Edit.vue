@@ -40,6 +40,11 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  // Placeholder for the refusal email body: the site-wide template (011 FR-260).
+  defaultDeclineEmailMd: {
+    type: String,
+    default: '',
+  },
   // Tiers of this course (011 US37) — the bundle panel needs their names.
   plans: {
     type: Array,
@@ -159,6 +164,7 @@ const unpublish = () => {
         :content-categories="contentCategories"
         :coupon-chains="couponChains"
         :default-decline-html="defaultDeclineHtml"
+        :default-decline-email-md="defaultDeclineEmailMd"
         :plans="plans"
         :submit-url="`/admin/courses/${course.id}`"
         method="put"

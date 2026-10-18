@@ -737,6 +737,7 @@ main_files:
 - app/Jobs/NotifyHighTicketSlotJob.php
 - app/Jobs/ProcessZoomTranscriptJob.php
 - app/Jobs/SendDripEmailJob.php
+- app/Jobs/SendScreeningDeclineMailJob.php
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/BookingVerifyMail.php
@@ -820,6 +821,9 @@ main_files:
 - database/migrations/2026_10_17_000003_add_earn_testimonial_to_point_transactions_type.php
 - database/migrations/2026_10_18_000001_add_high_ticket_screening_to_courses_table.php
 - database/migrations/2026_10_18_000004_add_high_ticket_decline_html_to_courses_table.php
+- database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php
+- database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php
+- database/migrations/2026_10_18_000007_install_screening_declined_template.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -900,6 +904,7 @@ main_files:
 - tests/Feature/HighTicket/NewBookingStatsTest.php
 - tests/Feature/HighTicket/PlanAccessTest.php
 - tests/Feature/HighTicket/PlanSwitchTest.php
+- tests/Feature/HighTicket/ScreeningDeclineMailTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
 - tests/Feature/HighTicket/SupportEmailTest.php
 - tests/Feature/HighTicket/TestimonialTest.php

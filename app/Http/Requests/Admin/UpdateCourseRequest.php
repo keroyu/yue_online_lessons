@@ -98,6 +98,7 @@ class UpdateCourseRequest extends FormRequest
             // Rendered as-is on the refusal screen (011 FR-259). Blank arrives as
             // null via the global TrimStrings/ConvertEmptyStringsToNull pair.
             'high_ticket_decline_html' => ['nullable', 'string', 'max:10000'],
+            'high_ticket_decline_email_md' => ['nullable', 'string', 'max:10000'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'sale_at' => ['nullable', 'date'],
             'portaly_product_id' => ['nullable', 'string', 'max:100'],
