@@ -328,6 +328,37 @@ class BookingScreening
             : ($answers['screen_budget'] ?? null) !== 'none';
     }
 
+    /** Routing to the chief starts here (011 FR-264); 7 and under may go to the others. */
+    public const CHIEF_MIN_SCORE = 8;
+
+    /** NT$6,000 and up. */
+    public const CHIEF_BUDGETS = ['6k_10k', '10k_50k', '50k_100k', 'over_100k'];
+
+    /** Under NT$6,000. `none` is refused outright, so it never reaches routing. */
+    public const OTHERS_BUDGETS = ['under_6k'];
+
+    /**
+     * Whose slots this applicant is offered (011 US45 / FR-264): `chief`,
+     * `others` or `all`. Kept beside the rubric so the bands and the budget
+     * cut stay one table on the server; whether routing applies at all (more
+     * than one consultant) is the slot service's call, not the rubric's.
+     */
+    public static function consultantPool(array $answers): string
+    {
+        if (!self::answered($answers)) {
+            return 'all';
+        }
+
+        $score = self::score($answers);
+        $budget = $answers['screen_budget'];
+
+        return match (true) {
+            $score >= self::CHIEF_MIN_SCORE && in_array($budget, self::CHIEF_BUDGETS, true) => 'chief',
+            $score < self::CHIEF_MIN_SCORE && in_array($budget, self::OTHERS_BUDGETS, true) => 'others',
+            default => 'all',
+        };
+    }
+
     /** True when the payload carries a complete set of answers to judge. */
     public static function answered(array $answers): bool
     {

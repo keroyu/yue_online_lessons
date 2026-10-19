@@ -69,6 +69,33 @@ class ConsultationSlot extends Model
         return $query->where('starts_at', '>', now());
     }
 
+    /**
+     * Restrict to one routing pool (011 FR-264). Unassigned slots count as the
+     * chief's: they were opened by the admin before consultants existed.
+     */
+    public function scopeInPool(Builder $query, string $pool): Builder
+    {
+        return match ($pool) {
+            'chief' => $query->where(function (Builder $q) {
+                $q->whereNull('consultant_id')
+                    ->orWhereHas('consultant', fn (Builder $u) => $u->where('role', 'admin'));
+            }),
+            'others' => $query->whereNotNull('consultant_id')
+                ->whereHas('consultant', fn (Builder $u) => $u->where('role', '!=', 'admin')),
+            default => $query,
+        };
+    }
+
+    /** Mirror of scopeInPool for an already-loaded row. */
+    public function isInPool(string $pool): bool
+    {
+        return match ($pool) {
+            'chief'  => $this->consultant_id === null || $this->consultant?->role === 'admin',
+            'others' => $this->consultant_id !== null && $this->consultant !== null && $this->consultant->role !== 'admin',
+            default  => true,
+        };
+    }
+
     /** Mirror of scopeAvailable for an already-loaded row. */
     public function isAvailable(): bool
     {

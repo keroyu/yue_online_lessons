@@ -335,6 +335,7 @@
       "011.us-20",
       "011.us-24",
       "011.us-42",
+      "011.us-45",
       "011.us-9"
     ],
     "app/Http/Controllers/HomeController.php": [
@@ -794,7 +795,8 @@
     ],
     "app/Models/ConsultationSlot.php": [
       "011.us-10",
-      "011.us-15"
+      "011.us-15",
+      "011.us-45"
     ],
     "app/Models/CouponChain.php": [
       "006.us-5"
@@ -1022,7 +1024,8 @@
       "011.us-17",
       "011.us-20",
       "011.us-33",
-      "011.us-38"
+      "011.us-38",
+      "011.us-45"
     ],
     "app/Services/ConsultationTranscriptService.php": [
       "011.us-23",
@@ -1099,6 +1102,7 @@
       "011.us-42",
       "011.us-43",
       "011.us-44",
+      "011.us-45",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1242,7 +1246,8 @@
     "app/Support/BookingScreening.php": [
       "011.us-24",
       "011.us-42",
-      "011.us-44"
+      "011.us-44",
+      "011.us-45"
     ],
     "app/Support/PhoneNumber.php": [
       "011.us-16"
@@ -1935,6 +1940,7 @@
       "011.us-26",
       "011.us-41",
       "011.us-44",
+      "011.us-45",
       "011.us-9"
     ],
     "resources/js/Components/Course/PriceDisplay.vue": [
@@ -2577,6 +2583,9 @@
     ],
     "tests/Feature/HighTicket/ConsultantAssignmentTest.php": [
       "011.us-15"
+    ],
+    "tests/Feature/HighTicket/ConsultantPoolTest.php": [
+      "011.us-45"
     ],
     "tests/Feature/HighTicket/ConsultationCreditBookingTest.php": [
       "011.us-38"

@@ -2,6 +2,7 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - tests/Feature/HighTicket/ConsultantPoolTest.php
   - app/Jobs/SendScreeningDeclineMailJob.php
   - tests/Feature/HighTicket/LeadDealAmountTest.php
   - database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php
@@ -1574,6 +1575,26 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [x] 既有資料不動：欄位名維持 `high_ticket_screening`，現有值原樣沿用（正式站唯一高價課為開啟）
 - [x] 測試：見 T622
 
+### User Story 45 - 依資格審核分數與預算分流顧問時段 (Priority: P2)
+
+預約精靈第 4 步（選時段）依申請人的資格審核結果決定看得到哪些顧問的時段：
+**總分 ≥ 8 且預算 NT$6,000 以上** → 只看到首席顧問（管理員）的時段；
+**總分 ≤ 7 且預算 NT$5,999 以下** → 只看到其他顧問的時段；其餘情況兩邊的時段都看得到。
+讓最有成交可能的申請者由首席親自面談，預算不足者交給其他顧問。
+**僅在顧問多於 1 位時生效**（使用者決策）；只有一位顧問時一律顯示全部時段，與現行相同。
+
+**驗收**：
+- [x] 總分 ≥ 8 且 Q2 為 `6k_10k`／`10k_50k`／`50k_100k`／`over_100k` → 時段清單只含首席時段（`consultant` 為管理員，或未指派）（FR-264）
+- [x] 總分 ≤ 7 且 Q2 為 `under_6k` → 時段清單只含其他顧問（非管理員）的時段
+- [x] 其餘組合（如總分 8 但預算 5,999 以下、總分 6 但預算 1 萬以上）→ 兩邊時段都顯示，與現行相同
+- [x] 沒有完整答案（`?resume=` 回訪的舊 lead、本功能前的草稿）→ 兩邊都顯示
+- [x] 顧問名冊（`role = admin` 或 `is_sales_consultant = true`）只有 1 人 → 不分流，任何答案都顯示全部時段
+- [x] 分到的那一組目前沒有任何可預約時段 → 精靈顯示「目前沒有可預約時段」並走候補名單流程（使用者決策）；`waitlist()` 的「有時段就不准候補」守門依同一組判斷
+- [x] `apply()` 送出時伺服器依送上來的答案重算分組，所選時段不在該組 → 409「該時段剛被預約，請重新選擇」並重抓清單（防止直接改請求繞過）
+- [x] 嚴格／寬鬆審核（US44）都套用；後台改期（US20）、諮詢點數預約不受影響
+- [x] 申請人看不到任何分組資訊（不顯示「首席」字樣、不回傳分組）
+- [x] 測試：見 T633
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2193,6 +2214,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-261**（US44，取代 FR-255 的 (1)(2)(3)(4)，使用者決策 2026-10-19）: `courses.high_ticket_screening` 語意改為「嚴格（true）／寬鬆（false）審核」，不再控制步驟有無。(1) `BookingScreening::passes(array $answers, bool $strict = true): bool` —— strict 維持現行（無否決且 `score() >= PASS_SCORE`）；寬鬆 = `($answers['screen_budget'] ?? null) !== 'none' && score() >= PASS_SCORE`（不看 `veto` 旗標其他選項、不看 `VETO_COMBOS`；`score()` 的 `cap` 照常生效）。(2) `HighTicketBookingService::screen()` 移除「此課程不需資格審核」守門，改以 `passes($answers, $course->high_ticket_screening)` 判定；其餘落庫、停序列信、排程婉拒信不變。(3) `screeningRefusal(Course $course, array $data)` 多收課程並以同一個 strict 旗標判定；`withoutScreeningWhenOff()` 刪除 —— 關閉時答案照常合併進 application。(4) `CourseController@show` 的 `screeningQuestions` 一律下發（高價課＋隱藏價格時）。(5) `HighTicketBookingWizard` 移除 `screeningEnabled` 全部分支，恆為五步；`BookingScopeNotice` 只留第一步一處。(6) `CourseForm`：開關標籤與說明改文案；`high_ticket_decline_html`／`high_ticket_decline_email_md` 兩欄改為只依 `high_ticket_hide_price` 顯示。規則表維持只存在伺服器（FR-124），前端不知道寬鬆或嚴格
 - **FR-262**（取代 FR-068，使用者決策 2026-10-19）: 逾時未確認的申請 MUST **保留**，不再刪除。`HighTicketBookingService::expireUnconfirmedApplications()`（取代 `purgeExpiredApplications()`，仍由 `booking:release-holds` 每 10 分鐘呼叫）先 `releaseExpired()` 釋出時段，再對 `confirmed_at IS NULL AND confirm_token IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'` 的 lead 把 `confirm_token` 設為 null（舊連結作廢、第二輪不重複計數），`status` 維持 `pending`，`confirm_expires_at` 原樣保留作為標記。後台名單在 `confirmed_at` 為空且 `confirm_expires_at` 已過時，於暱稱旁顯示琥珀色「未完成 Email 確認」標籤，展開列的「Email 確認」顯示「逾時未確認（時段已釋出）」。同一人再次送出申請時，既有 lead 經 `recordLead()` 更新並取得新連結（非 live 狀態，不觸發重複預約阻擋）。理由：FR-068 訂定時尚無資格審核；US24 起只填審核的 lead 一律保留，走得更遠的人反而被刪，順序顛倒。FR-068 當初的顧慮（待處理清單堆積）以標籤區分，不再以刪除處理。已被 FR-068 刪除的歷史資料無法回復
 - **FR-263**（2026-10-19）: 預約名單（`BookingListTab`）「課程」欄：`status = converted` 時不顯示「開通」按鈕（現行行為，維持），改在同一位置顯示綠色「成交 $N」標籤。N MUST 與 CSV 匯出的「成交金額」同一定義（FR-158：該 Email 名下所有 `type=lead_conversion` 且 `status=paid` 的 `purchases.amount` 總和，`buyer_email` 或 `users.email` 任一相符），以千分位顯示。實作：`HighTicketLeadController@index` 對當頁 leads 呼叫 `HighTicketLeadService::dealAmountsByEmail($emails): array<string,int>`（由既有 `conversionsByEmail()` 加總而來，與匯出共用同一查詢，一頁一次查詢、不逐列查）並 `setAttribute('deal_amount', int|null)`；標籤 `title` 列出各筆課程（方案）與金額（沿用 `conversionsByEmail()` 的 `course` 字串）。**同步更新**：升級方案時於「會員管理 → 會員詳情」填的補價差已直接加進 `purchases.amount`（`MemberController@updatePurchasePlan`），故每次載入即為最新數字，不需快取或額外欄位；退款（`status = refunded`）的那筆不計。`converted` 但查無成交紀錄（例如手動點狀態方塊轉成交）→ 不顯示標籤、也不顯示開通按鈕；其他狀態維持顯示「開通」
+- **FR-264**（US45，使用者決策 2026-10-19）: 公開預約流程的時段 MUST 依申請人答案分流。(1) `BookingScreening::consultantPool(array $answers): string` 回 `'chief'`／`'others'`／`'all'`：未 `answered()` → `all`；`score() >= CHIEF_MIN_SCORE (8)` 且 `screen_budget ∈ CHIEF_BUDGETS (['6k_10k','10k_50k','50k_100k','over_100k'])` → `chief`；`score() <= 7` 且 `screen_budget ∈ OTHERS_BUDGETS (['under_6k'])` → `others`；其餘 `all`（`none` 已被婉拒、`unsure` 已退役，兩者皆落 `all`）。(1b) 分流只在顧問多於 1 位時生效：`ConsultationSlotService::poolFor(array $answers): string` —— 名冊人數（與 FR-075 同一條件：`role = admin OR is_sales_consultant = true`）≤ 1 → `all`，否則回 `BookingScreening::consultantPool($answers)`；所有呼叫點一律經 `poolFor()`，不直接呼叫 `consultantPool()`。(2) `ConsultationSlot::scopeInPool(Builder, string $pool)`：`chief` = `consultant_id IS NULL OR consultant.role = 'admin'`（未指派算首席，使用者決策）；`others` = `consultant_id IS NOT NULL AND consultant.role != 'admin'`；`all` 不加條件。(3) `ConsultationSlotService::availableStarts()` 加第四參數 `string $pool = 'all'`，在撈 free units 的查詢上套 `inPool()` —— 連續單位檢查自然只在同組內成立。(4) `reserve()` 加 `string $pool = 'all'`，鎖定後逐列以 `isInPool($pool)` 重驗，不符 → `SlotUnavailableException`（沿用 409 與前端重抓）。(5) `HighTicketBookingController@slots` 以 `poolFor(BookingScreening::only($request->query()))` 算 pool；精靈 `fetchSlots()` 把 `screeningAnswers()` 併入 query string。(6) `HighTicketBookingService::apply()` 以 `poolFor($data)` 算 pool 傳給 `reserve()`；`waitlist()` 的守門改為 `availableStarts(DEFAULT_MINUTES, null, null, $pool) !== []`。(7) 其他呼叫點（後台改期 `ConsultationSlotController`、`ConsultationCreditBookingService`、`reschedule()`）維持預設 `all`。回應 MUST NOT 帶出 pool 值
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2619,6 +2641,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **D175**: 審核婉拒通知信（FR-260）的五個決定。**延遲 60 分鐘**（使用者決策）：倒數一結束信就到，等於明說「這是機器判的」；延遲也給「這一小時內改答案並通過」的人一個不收到婉拒信的窗口 —— 所以寄前必須重查狀態，不能在排程當下就決定要寄。**認領式去重而非排程時去重**：一小時內重答多次會排多個 job，排程時查 `mailed_at` 擋不住；以單一 `UPDATE ... WHERE mailed_at IS NULL` 認領，誰搶到誰寄，失敗時清回讓重試接手。**每筆 lead 只寄一次、不因復活清零**：同一個人反覆被擋收到多封一模一樣的拒絕信，比沒收到更傷；他日再申請的 nurture 交給信裡導去的路徑。**新 event_type 而非沿用 `high_ticket_booking_declined`**：後者是「已確認的預約被人工取消」，內文提時段與 `.ics`，這裡沒有時段也沒有行事曆；兩種情境的話術也不同（一個是人複查後的決定，一個是申請階段的分流）。**課程覆寫只覆寫內文、用 Markdown**：與 D174 同理，導流目標依課程受眾而定；主旨通常只差課程名，`{{course_name}}` 已足夠，多一個欄位只是多一個要維護的地方；格式跟 email_templates 一致用 Markdown，不沿用 US42 的 HTML —— 信件 HTML 要 inline style，後台作者手寫只會在某些信箱破版。**標 marketing**：這封信的目的是 nurture，且收件地址未經驗證，進抑制名單判斷可保護寄件信譽
 
 - **D176**: 寬鬆審核（FR-261）的三個決定。**沿用 `high_ticket_screening` 欄位、不改名不加欄**：值域仍是二元，只是語意從「有無審核」變「嚴格／寬鬆」；改名要動 migration、Request、payload、測試一整串，換來的只是欄位名比較準 —— 用 `passes()` 參數名 `$strict` 與後台文案把語意講清楚即可。**分數門檻沿用 `PASS_SCORE`（≥5 通過）**（使用者決策）：寬鬆只是拿掉其他否決，保證關閉永遠不會比開啟更嚴。**寬鬆規則寫成 `passes()` 的分支而非 QUESTIONS 上的第二組旗標**：只有一個例外選項（`screen_budget = none`），為它在每個選項上加 `lenient_veto` 是把一條規則攤成二十幾個欄位；日後寬鬆規則若長出第二、三條再抽表
+
+- **D177**: 顧問分流（FR-264）的四個決定。**分組規則放 `BookingScreening`**：門檻與預算分段都綁在同一張評分表上，放在 slot service 等於讓規則表分家；它也和 `passes()` 一樣只在伺服器，前端只送答案、拿回已過濾的清單，看不出自己被分到哪一組（FR-124 同理）。**答案從請求帶、不查 lead**：`/booking-slots` 是匿名 GET，申請人在第 1 步之後才有 lead，且 `apply()` 本來就以送上來的答案重審（FR-129）；兩處同一個來源，分組才不會在選時段與送出之間變掉。改答案就能換組 —— 但同一個人在表單上本來就能改答案，這不是新的破口，`reserve()` 的重驗只防「直接改 slot 請求」。**「首席」= `role = admin`、未指派算首席**（使用者決策）：未指派時段是早期管理員自己開的，通知也回退管理員；不新增「首席」旗標，等真的有第二位管理員再談。**該組沒時段就候補、不退回全部**（使用者決策）：退回會讓分流在最忙的那幾週失效，正好是最需要分流的時候。**名冊 ≤ 1 人不分流**（使用者決策）：只有管理員一人時，`others` 組必然為空，低分低預算者會被永遠卡在候補；判斷放在 service 的 `poolFor()` 而非 `BookingScreening`，讓評分表維持純函式、不碰 DB
 
 ## Schema
 
@@ -4071,8 +4095,17 @@ Phase 4 — 驗證
 - [x] T629 測試：converted lead 帶出成交金額；升級補價差後金額增加；退款那筆不計；同 Email 兩筆成交加總；未成交 lead `deal_amount` 為 null；與 CSV 匯出數字一致 in `tests/Feature/HighTicket/LeadDealAmountTest.php`
 - [x] T630 `php artisan test` 全綠、`npm run build`
 
+### 依資格審核分數與預算分流顧問時段（US45 / FR-264）
+
+- [x] T631 `BookingScreening::consultantPool()` + 常數 `CHIEF_MIN_SCORE`／`CHIEF_BUDGETS`／`OTHERS_BUDGETS` in `app/Support/BookingScreening.php`
+- [x] T632 `ConsultationSlotService::poolFor()`（名冊 ≤ 1 → `all`）；`ConsultationSlot::scopeInPool()`／`isInPool()`；`availableStarts()`、`reserve()` 加 `$pool` 參數；`slots()`、`apply()`、`waitlist()` 傳入 pool；精靈 `fetchSlots()` 帶答案 in `app/Models/ConsultationSlot.php`, `app/Services/ConsultationSlotService.php`, `app/Http/Controllers/HighTicketBookingController.php`, `app/Services/HighTicketBookingService.php`, `resources/js/Components/Course/HighTicketBookingWizard.vue`
+- [x] T633 測試（先行）：`consultantPool()` 邊界（8+6k_10k→chief、7+over_100k→all、8+under_6k→all、7+under_6k→others、缺答案→all）；名冊只有 1 人時高分高預算仍回全部時段；`/booking-slots` 依答案只回對應顧問時段、未指派歸首席；該組無時段 → 空清單且 `waitlist()` 放行；`apply()` 選到別組時段 → 409；後台改期與點數預約不受影響 in `tests/Feature/HighTicket/ConsultantPoolTest.php`
+- [x] T634 `php artisan test` 全綠、`npm run build`
+
 ## 進度日誌
 
+- 2026-10-19: US45 / FR-264 完成 T631–T634 — `BookingScreening::consultantPool()`（≥8 且 ≥6,000 → chief、≤7 且 <6,000 → others、其餘 all）；`ConsultationSlotService::poolFor()` 名冊 ≤1 人不分流；`ConsultationSlot::scopeInPool()`／`isInPool()`（未指派歸首席）；`availableStarts()`／`reserve()` 加 `$pool`，`/booking-slots` 依 query 答案過濾、`apply()` 重驗（別組 → 409）、`waitlist()` 守門只看本組；精靈抓時段時帶答案。新增 `ConsultantPoolTest` 10 條（實作前 5 紅）。全站 1291 passed（5698 assertions），`npm run build` 綠。瀏覽器未實測。
+- 2026-10-19: [draft] 規劃 US45 依資格審核分數與預算分流顧問時段（FR-264，D177）— 僅顧問 >1 位時生效；總分 ≥8 且預算 ≥6,000 只看首席（管理員＋未指派）、≤7 且 <6,000 只看其他顧問、其餘全看；該組無時段走候補；`availableStarts()`／`reserve()` 加 `$pool`，答案由請求帶入；無 schema 變更。
 - 2026-10-19: FR-263 完成 T627–T630 — `HighTicketLeadService::dealsByEmail()`（沿用 CSV 的 `conversionsByEmail()`）；名單 `deal_amount`／`deal_lines`；已成交列以綠色「成交 $N」標籤（tooltip 列各筆課程與金額）取代開通按鈕位置。新增 `LeadDealAmountTest` 6 條（實作前全紅）。全站 1281 passed（5666 assertions），`npm run build` 綠。瀏覽器未實測。
 - 2026-10-19: [draft] 規劃 FR-263 預約名單成交金額標籤 — 已成交者以「成交 $N」取代開通按鈕位置；金額與 CSV 匯出同定義（FR-158），每次載入即時加總 purchases，升級補價差自動反映；無 schema 變更。
 - 2026-10-19: FR-262（取代 FR-068）逾時未確認的申請改為保留 — `expireUnconfirmedApplications()` 只釋出時段並作廢舊連結，lead 留在待處理；後台加「未完成 Email 確認」標籤。`ExpiredApplicationTest` 9 條（改寫前全紅）。全站 1275 passed（5649 assertions），`npm run build` 綠。

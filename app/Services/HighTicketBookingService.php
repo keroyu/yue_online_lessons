@@ -231,9 +231,12 @@ class HighTicketBookingService
 
         // The lead and the hold are one fact: a lead that thinks it booked a slot
         // it does not hold is worse than no lead at all (FR-032).
-        $lead = DB::transaction(function () use ($course, $data, $code, $minutes, $startsAt, $expiresAt) {
+        // Same answers, same routing as the picker that offered the slot (FR-264).
+        $pool = $this->slots->poolFor($data);
+
+        $lead = DB::transaction(function () use ($course, $data, $code, $minutes, $startsAt, $expiresAt, $pool) {
             $lead = $this->recordLead($course, $data, $code, $expiresAt);
-            $this->slots->reserve($lead, $startsAt, $minutes, $expiresAt);
+            $this->slots->reserve($lead, $startsAt, $minutes, $expiresAt, $pool);
 
             return $lead;
         });
@@ -310,7 +313,11 @@ class HighTicketBookingService
             return $refused;
         }
 
-        if ($this->slots->availableStarts(ConsultationSlotService::DEFAULT_MINUTES) !== []) {
+        // "Open slots" means open to this applicant's pool: an empty pool is
+        // exactly the case the waitlist is for (FR-264).
+        $pool = $this->slots->poolFor($data);
+
+        if ($this->slots->availableStarts(ConsultationSlotService::DEFAULT_MINUTES, null, null, $pool) !== []) {
             return ['success' => false, 'message' => '目前有可預約的時段，請直接選擇時段完成申請'];
         }
 

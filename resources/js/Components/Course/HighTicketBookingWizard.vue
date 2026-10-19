@@ -172,8 +172,10 @@ const slotsLoading = ref(false)
 async function fetchSlots() {
   slotsLoading.value = true
   try {
-    const query = form.code.trim() ? `?code=${encodeURIComponent(form.code.trim())}` : ''
-    const { data } = await window.axios.get(`/course/${props.course.id}/booking-slots${query}`)
+    // The answers route the list to the right consultants (011 FR-264).
+    const params = { ...screeningAnswers() }
+    if (form.code.trim()) params.code = form.code.trim()
+    const { data } = await window.axios.get(`/course/${props.course.id}/booking-slots`, { params })
     slotGroups.value = data.slots
     slotMinutes.value = data.minutes
     codeApplied.value = data.code_applied

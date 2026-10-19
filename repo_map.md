@@ -885,6 +885,7 @@ main_files:
 - tests/Feature/HighTicket/BundleCreditTest.php
 - tests/Feature/HighTicket/CalendarInviteTest.php
 - tests/Feature/HighTicket/ConsultantAssignmentTest.php
+- tests/Feature/HighTicket/ConsultantPoolTest.php
 - tests/Feature/HighTicket/ConsultationCreditBookingTest.php
 - tests/Feature/HighTicket/ConsultationFollowupEmailTest.php
 - tests/Feature/HighTicket/ConsultationNoteTest.php

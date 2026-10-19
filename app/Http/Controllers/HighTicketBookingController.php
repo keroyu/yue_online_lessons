@@ -6,6 +6,7 @@ use App\Exceptions\SlotUnavailableException;
 use App\Http\Requests\BookingScreeningRequest;
 use App\Http\Requests\HighTicketBookingRequest;
 use App\Models\Course;
+use App\Support\BookingScreening;
 use App\Services\ConsultationSlotService;
 use App\Services\HighTicketBookingService;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,14 @@ class HighTicketBookingController extends Controller
             'code_applied' => $this->slots->codeIsValid($code),
             // Same shaping as the admin reschedule panel (US20) — one copy, in
             // the service, so the two pickers cannot drift apart.
-            'slots'        => $this->slots->groupStarts($this->slots->availableStarts($minutes)),
+            // The wizard sends its screening answers along so the list can be
+            // routed (FR-264); the pool itself never leaves the server.
+            'slots'        => $this->slots->groupStarts($this->slots->availableStarts(
+                $minutes,
+                null,
+                null,
+                $this->slots->poolFor(BookingScreening::only($request->query())),
+            )),
         ]);
     }
 

@@ -6,6 +6,8 @@ use App\Exceptions\SlotUnavailableException;
 use App\Models\ConsultationSlot;
 use App\Models\HighTicketLead;
 use App\Models\SiteSetting;
+use App\Models\User;
+use App\Support\BookingScreening;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -438,9 +440,12 @@ class ConsultationSlotService
      * notice (011 FR-226). It filters starts only; the units after it are
      * looked up as usual.
      *
+     * `$pool` limits the offer to one consultant group (011 FR-264); see
+     * poolFor(). Only the public booking wizard passes anything but `all`.
+     *
      * @return array<int, Carbon> UTC instants, ascending
      */
-    public function availableStarts(int $minutes, ?HighTicketLead $ignoring = null, ?CarbonInterface $notBefore = null): array
+    public function availableStarts(int $minutes, ?HighTicketLead $ignoring = null, ?CarbonInterface $notBefore = null, string $pool = 'all'): array
     {
         $units = $this->unitsFor($minutes);
 
@@ -452,6 +457,9 @@ class ConsultationSlotService
                     $query->orWhere('lead_id', $ignoring->id);
                 }
             })
+            // Filtering the units themselves means a start only qualifies when
+            // every unit it needs sits in the same pool (FR-264).
+            ->inPool($pool)
             ->upcoming()
             ->orderBy('starts_at')
             ->pluck('starts_at');
@@ -505,9 +513,11 @@ class ConsultationSlotService
      * an already-confirmed booking has nothing left to verify, so going through
      * a hold and an immediate confirm() would just be two writes for one fact.
      *
+     * `$pool` re-checks the routing the picker applied (011 FR-264).
+     *
      * @throws SlotUnavailableException
      */
-    public function reserve(HighTicketLead $lead, CarbonInterface $startsAt, int $minutes, ?CarbonInterface $holdUntil): void
+    public function reserve(HighTicketLead $lead, CarbonInterface $startsAt, int $minutes, ?CarbonInterface $holdUntil, string $pool = 'all'): void
     {
         $units = $this->unitsFor($minutes);
         $start = Carbon::instance($startsAt)->utc();
@@ -517,10 +527,11 @@ class ConsultationSlotService
             $wanted[] = $start->copy()->addMinutes($i * ConsultationSlot::UNIT_MINUTES);
         }
 
-        DB::transaction(function () use ($lead, $wanted, $units, $holdUntil) {
+        DB::transaction(function () use ($lead, $wanted, $units, $holdUntil, $pool) {
             $this->release($lead);
 
-            $rows = ConsultationSlot::whereIn('starts_at', $wanted)
+            $rows = ConsultationSlot::with('consultant:id,role')
+                ->whereIn('starts_at', $wanted)
                 ->lockForUpdate()
                 ->get();
 
@@ -529,7 +540,9 @@ class ConsultationSlotService
             }
 
             foreach ($rows as $row) {
-                if (!$row->isAvailable()) {
+                // The picker only offered this pool; a start from outside it
+                // means the request was edited, and reads as "already taken".
+                if (!$row->isAvailable() || !$row->isInPool($pool)) {
                     throw new SlotUnavailableException();
                 }
             }
@@ -540,6 +553,19 @@ class ConsultationSlotService
                 'updated_at' => now(),
             ]);
         });
+    }
+
+    /**
+     * Which consultant group an applicant with these answers is offered
+     * (011 US45 / FR-264). Routing needs somebody to route to: with one
+     * consultant on the roster (same definition as the admin pickers), the
+     * `others` pool is empty by construction, so nobody is routed at all.
+     */
+    public function poolFor(array $answers): string
+    {
+        $roster = User::where(fn ($q) => $q->where('role', 'admin')->orWhere('is_sales_consultant', true))->count();
+
+        return $roster > 1 ? BookingScreening::consultantPool($answers) : 'all';
     }
 
     /** Give back every unit this lead holds. */

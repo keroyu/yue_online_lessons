@@ -5613,6 +5613,43 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-45",
+      "module": "011-high-ticket",
+      "title": "依資格審核分數與預算分流顧問時段",
+      "summary": "選時段步驟依審核答案分流：總分 ≥8 且預算 ≥6,000 只看首席（管理員＋未指派）時段、≤7 且 <6,000 只看其他顧問、其餘兩邊都看；該組無時段走候補；reserve() 重驗防繞過",
+      "heading": "### User Story 45 - 依資格審核分數與預算分流顧問時段 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-45---依資格審核分數與預算分流顧問時段-priority-p2",
+      "keywords": [
+        "顧問分流",
+        "首席顧問",
+        "consultant pool",
+        "routing",
+        "分數",
+        "score",
+        "預算",
+        "budget",
+        "時段",
+        "slot",
+        "availableStarts",
+        "reserve",
+        "候補",
+        "waitlist",
+        "管理員",
+        "admin"
+      ],
+      "code_files": [
+        "app/Support/BookingScreening.php",
+        "app/Models/ConsultationSlot.php",
+        "app/Services/ConsultationSlotService.php",
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "app/Services/HighTicketBookingService.php",
+        "resources/js/Components/Course/HighTicketBookingWizard.vue",
+        "tests/Feature/HighTicket/ConsultantPoolTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",
