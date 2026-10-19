@@ -8,6 +8,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Member\LearningController;
 use App\Http\Controllers\Member\SettingsController;
 use App\Http\Controllers\Member\ClassroomController;
+use App\Http\Controllers\Admin\FunnelSettingsController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DripLessonPreviewController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
@@ -479,6 +480,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Points settings
     Route::get('/settings/points', [AdminSettingsController::class, 'showPoints'])->name('settings.points');
     Route::post('/settings/points', [AdminSettingsController::class, 'updatePoints'])->name('settings.points.update');
+
+    // 1v1 漏斗設定 — screening questions, rules and consultant routing (011 US46).
+    // Admin-only: every save changes who is turned away site-wide.
+    Route::get('/funnel-settings', [FunnelSettingsController::class, 'edit'])->name('funnel-settings.edit');
+    Route::put('/funnel-settings', [FunnelSettingsController::class, 'update'])->name('funnel-settings.update');
 
     // Homework / grading
     Route::get('/homework', [HomeworkController::class, 'index'])->name('homework.index');

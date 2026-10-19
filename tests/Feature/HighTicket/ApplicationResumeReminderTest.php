@@ -54,20 +54,26 @@ class ApplicationResumeReminderTest extends TestCase
     /** A lead that cleared step 1 and never reached step 2. */
     private function abandoned(Course $course, array $overrides = []): HighTicketLead
     {
-        return HighTicketLead::create(array_merge([
-            'name'             => 'Applicant',
-            'email'            => 'applicant@example.com',
-            'course_id'        => $course->id,
-            'status'           => 'pending',
-            'booked_at'        => now()->subHours(5),
-            'screened_at'      => now()->subHours(5),
-            'screening_score'  => 7,
+        // Screening answers live in one JSON map (FR-266); `screen_*`
+        // overrides are folded into it.
+        $answers = array_merge([
             'screen_timeline'  => 'immediate',
             'screen_budget'    => '10k_50k',
             'screen_authority' => 'self',
             'screen_pain'      => 'moderate',
             'screen_next_step' => 'start_now',
-        ], $overrides));
+        ], array_filter($overrides, fn ($key) => str_starts_with($key, 'screen_'), ARRAY_FILTER_USE_KEY));
+
+        return HighTicketLead::create(array_merge([
+            'name'            => 'Applicant',
+            'email'           => 'applicant@example.com',
+            'course_id'       => $course->id,
+            'status'          => 'pending',
+            'booked_at'       => now()->subHours(5),
+            'screened_at'     => now()->subHours(5),
+            'screening_score' => 7,
+            'screen_answers'  => $answers,
+        ], array_filter($overrides, fn ($key) => !str_starts_with($key, 'screen_'), ARRAY_FILTER_USE_KEY)));
     }
 
     private function sendNudges(): int

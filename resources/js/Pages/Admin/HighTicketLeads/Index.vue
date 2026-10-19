@@ -31,6 +31,7 @@ const props = defineProps({
   // No `year` in the default: it is admin-only (011 FR-193), and a default
   // would draw a fabricated 年度 0 on a consultant's page.
   conversionStats: { type: Object, default: () => ({ month: { people: 0, amount: 0 } }) },
+  screeningMaxScore: { type: Number, default: 10 },
 
   // Subscriber tab
   dripCourseOptions: { type: Array, default: () => [] },
@@ -88,6 +89,7 @@ const switchTab = (value) => {
       :grantable-courses="grantableCourses"
       :status-counts="statusCounts"
       :conversion-stats="conversionStats"
+      :screening-max-score="screeningMaxScore"
     />
 
     <SubscriberListTab

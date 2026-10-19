@@ -87,11 +87,12 @@ class HighTicketBookingService
         $answers = BookingScreening::only($data);
         $passed = BookingScreening::passes($answers, $course->high_ticket_screening);
 
-        $attributes = array_merge($answers, [
+        $attributes = [
+            'screen_answers'  => $answers,
             'name'            => $data['name'],
             'screening_score' => BookingScreening::score($answers),
             'screened_at'     => now(),
-        ]);
+        ];
 
         $lead = HighTicketLead::applications()
             ->where('email', $data['email'])
@@ -1358,7 +1359,8 @@ class HighTicketBookingService
         if (BookingScreening::answered($data)) {
             $answers = BookingScreening::only($data);
 
-            $application = array_merge($application, $answers, [
+            $application = array_merge($application, [
+                'screen_answers'  => $answers,
                 'screening_score' => BookingScreening::score($answers),
                 'screened_at'     => now(),
                 'declined_at'     => null,

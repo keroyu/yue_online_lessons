@@ -29,6 +29,17 @@ class BookingScreeningTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** One question of the current rubric, by key (011 FR-265). */
+    private function question(string $key): array
+    {
+        return collect(BookingScreening::questions())->firstWhere('key', $key);
+    }
+
+    private function option(string $question, string $key): array
+    {
+        return BookingScreening::option($this->question($question), $key);
+    }
+
     private function makeHighTicketCourse(): Course
     {
         return Course::create([
@@ -109,12 +120,12 @@ class BookingScreeningTest extends TestCase
             foreach ($options as $value => $score) {
                 $this->assertSame(
                     $score,
-                    BookingScreening::QUESTIONS[$field]['options'][$value]['score'],
+                    $this->option($field, $value)['score'],
                     "{$field}.{$value} 的分數與 FR-123 的表不符"
                 );
             }
 
-            $this->assertCount(count($options), BookingScreening::QUESTIONS[$field]['options'], "{$field} 的選項數量與 FR-123 不符");
+            $this->assertCount(count($options), $this->question($field)['options'], "{$field} 的選項數量與 FR-123 不符");
         }
 
         $this->assertSame(10, BookingScreening::score($this->answers()), '五題滿分應為 10');
@@ -321,8 +332,8 @@ class BookingScreeningTest extends TestCase
 
         $lead = HighTicketLead::first();
         $this->assertSame('declined', $lead->status);
-        $this->assertSame('casual', $lead->screen_experience);
-        $this->assertSame('passive', $lead->screen_learning);
+        $this->assertSame('casual', $lead->screen_answers['screen_experience']);
+        $this->assertSame('passive', $lead->screen_answers['screen_learning']);
     }
 
     public function test_the_new_questions_are_required_on_the_screen_post(): void
@@ -363,33 +374,6 @@ class BookingScreeningTest extends TestCase
         }
     }
 
-    public function test_the_migration_maps_old_learning_answers_onto_the_new_options(): void
-    {
-        $course = $this->makeHighTicketCourse();
-        $ids = [];
-
-        foreach (['free_only', 'self_only', 'free_active', 'cheap_paid', null] as $i => $value) {
-            $ids[$value ?? 'null'] = HighTicketLead::create([
-                'email'           => "old{$i}@example.com",
-                'name'            => 'Old',
-                'course_id'       => $course->id,
-                'status'          => 'declined',
-                'booked_at'       => now(),
-                'screen_learning' => $value,
-            ])->id;
-        }
-
-        (require database_path('migrations/2026_10_18_000003_remap_screen_learning_options.php'))->up();
-
-        $after = fn (string $key) => HighTicketLead::find($ids[$key])->screen_learning;
-        $this->assertSame('passive', $after('free_only'));
-        $this->assertSame('passive', $after('self_only'));
-        $this->assertSame('searched', $after('free_active'));
-        $this->assertSame('cheap_paid', $after('cheap_paid'), '未改版的選項不動');
-        $this->assertNull($after('null'));
-        $this->assertSame('declined', HighTicketLead::find($ids['free_only'])->status, '只改答案，不改狀態');
-    }
-
     public function test_the_experience_hint_is_sent_but_the_combo_rule_is_not(): void
     {
         $questions = collect(BookingScreening::questionsForFront())->keyBy('field');
@@ -409,11 +393,11 @@ class BookingScreeningTest extends TestCase
 
         $this->assertTrue(BookingScreening::passes($old));
 
-        $lead = new HighTicketLead($old);
+        $lead = new HighTicketLead(['screen_answers' => $old]);
         $lead->screened_at = now();
         $answers = collect($lead->screening_answers)->pluck('answer', 'title');
 
-        $this->assertSame('—', $answers[BookingScreening::QUESTIONS['screen_experience']['title']]);
+        $this->assertSame('—', $answers[$this->question('screen_experience')['title']]);
     }
 
     // ── 下架選項（FR-252） ────────────────────────────────────────────────
@@ -450,11 +434,11 @@ class BookingScreeningTest extends TestCase
     public function test_a_retired_answer_still_reads_on_old_leads(): void
     {
         $lead = new HighTicketLead([
-            'screen_budget' => 'unsure',
+            'screen_answers' => ['screen_budget' => 'unsure'],
         ]);
         $lead->screened_at = now();
 
-        $budget = collect($lead->screening_answers)->firstWhere('title', BookingScreening::QUESTIONS['screen_budget']['title']);
+        $budget = collect($lead->screening_answers)->firstWhere('title', $this->question('screen_budget')['title']);
 
         $this->assertSame('不確定，希望先了解方案內容與價格', $budget['answer']);
     }
@@ -474,7 +458,7 @@ class BookingScreeningTest extends TestCase
         $lead = HighTicketLead::first();
         $this->assertSame('pending', $lead->status);
         $this->assertSame(10, $lead->screening_score);
-        $this->assertSame('10k_50k', $lead->screen_budget);
+        $this->assertSame('10k_50k', $lead->screen_answers['screen_budget']);
         $this->assertNotNull($lead->screened_at);
         $this->assertNull($lead->declined_at);
         $this->assertNull($lead->confirm_token, '審核通過還不是預約');
@@ -698,7 +682,7 @@ class BookingScreeningTest extends TestCase
         $this->assertNotNull($lead->confirmed_at);
         $this->assertNotSame('declined', $lead->status, '已確認的預約不得被自己的重測洗掉');
         $this->assertNull($lead->declined_at);
-        $this->assertSame('none', $lead->screen_budget, '答案還是要記下來');
+        $this->assertSame('none', $lead->screen_answers['screen_budget'], '答案還是要記下來');
     }
 
     /** An admin-managed lead is somebody's work in progress. */

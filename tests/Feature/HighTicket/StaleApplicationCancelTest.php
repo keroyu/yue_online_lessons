@@ -49,11 +49,13 @@ class StaleApplicationCancelTest extends TestCase
             'booked_at'        => now()->subDays(8),
             'screened_at'      => now()->subDays(8),
             'screening_score'  => 7,
-            'screen_timeline'  => 'immediate',
-            'screen_budget'    => '10k_50k',
-            'screen_authority' => 'self',
-            'screen_pain'      => 'moderate',
-            'screen_next_step' => 'start_now',
+            'screen_answers'   => [
+                'screen_timeline'  => 'immediate',
+                'screen_budget'    => '10k_50k',
+                'screen_authority' => 'self',
+                'screen_pain'      => 'moderate',
+                'screen_next_step' => 'start_now',
+            ],
         ], $overrides));
     }
 
@@ -123,11 +125,7 @@ class StaleApplicationCancelTest extends TestCase
         $lead = $this->abandoned($this->makeHighTicketCourse(), [
             'screened_at'      => null,
             'screening_score'  => null,
-            'screen_timeline'  => null,
-            'screen_budget'    => null,
-            'screen_authority' => null,
-            'screen_pain'      => null,
-            'screen_next_step' => null,
+            'screen_answers'   => null,
         ]);
 
         $this->assertSame(0, $this->sweep());

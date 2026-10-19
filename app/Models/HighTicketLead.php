@@ -48,13 +48,7 @@ class HighTicketLead extends Model
         'bottleneck',
         'expertise',
         'social_url',
-        'screen_timeline',
-        'screen_budget',
-        'screen_authority',
-        'screen_pain',
-        'screen_next_step',
-        'screen_experience',
-        'screen_learning',
+        'screen_answers',
         'screening_score',
         'screened_at',
         'declined_at',
@@ -89,19 +83,34 @@ class HighTicketLead extends Model
         return BookingScreening::tier($this->screening_score);
     }
 
-    /** @return array<int, array{title: string, answer: string}> */
+    /**
+     * Every question this lead was asked, with the label of what they picked.
+     * Read against the current rubric including retired items (FR-252 /
+     * FR-266), so a question removed after the fact still shows its wording.
+     * An active question they have no answer to (asked before it existed)
+     * reads 「—」; a retired one they never answered is left out.
+     *
+     * @return array<int, array{title: string, answer: string}>
+     */
     public function getScreeningAnswersAttribute(): array
     {
         if ($this->screened_at === null) {
             return [];
         }
 
+        $stored = (array) ($this->screen_answers ?? []);
         $out = [];
 
-        foreach (BookingScreening::QUESTIONS as $field => $question) {
+        foreach (BookingScreening::questions() as $question) {
+            $answered = array_key_exists($question['key'], $stored);
+
+            if (($question['retired'] ?? false) && !$answered) {
+                continue;
+            }
+
             $out[] = [
                 'title'  => $question['title'],
-                'answer' => $question['options'][$this->{$field}]['label'] ?? '—',
+                'answer' => BookingScreening::option($question, $stored[$question['key']] ?? null)['label'] ?? '—',
             ];
         }
 
@@ -115,6 +124,7 @@ class HighTicketLead extends Model
             'last_notified_at' => 'datetime',
             'notified_count' => 'integer',
             'commitments_accepted_at' => 'datetime',
+            'screen_answers' => 'array',
             'screening_score' => 'integer',
             'screened_at' => 'datetime',
             'declined_at' => 'datetime',

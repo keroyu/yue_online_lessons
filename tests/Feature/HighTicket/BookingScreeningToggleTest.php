@@ -230,7 +230,7 @@ class BookingScreeningToggleTest extends TestCase
             ->assertOk();
 
         $lead = HighTicketLead::sole();
-        $this->assertSame('diy', $lead->screen_next_step);
+        $this->assertSame('diy', $lead->screen_answers['screen_next_step']);
         $this->assertSame(8, $lead->screening_score);
         $this->assertNotNull($lead->screened_at);
     }

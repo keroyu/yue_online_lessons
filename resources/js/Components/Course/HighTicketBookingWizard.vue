@@ -10,8 +10,8 @@ const props = defineProps({
   // Previous answers — either for the logged-in owner of the lead, or for
   // whoever holds the resume token from a 「通知新時段」 mail (`draft.resume`).
   draft: { type: Object, default: null },
-  // Step 1's five questions, titles and option labels only — the scoring stays
-  // on the server (011 FR-124).
+  // Step 1's questions, titles and option labels only — the scoring stays on
+  // the server (011 FR-124).
   screeningQuestions: { type: Array, default: () => [] },
 })
 
@@ -82,13 +82,9 @@ const form = reactive({
   code: props.draft?.code || '',
   slot_starts_at: '',
   // Carried through to the submit so the server can re-score them (FR-129).
-  screen_timeline: draftScreening('screen_timeline'),
-  screen_budget: draftScreening('screen_budget'),
-  screen_authority: draftScreening('screen_authority'),
-  screen_pain: draftScreening('screen_pain'),
-  screen_next_step: draftScreening('screen_next_step'),
-  screen_experience: draftScreening('screen_experience'),
-  screen_learning: draftScreening('screen_learning'),
+  // One key per question the server sent — the set is edited on 1v1 漏斗設定
+  // (011 US46), so it is never spelled out here.
+  ...Object.fromEntries(props.screeningQuestions.map(q => [q.field, draftScreening(q.field)])),
   // Step 1's scope acknowledgement (FR-165). Kept on the wizard's form rather
   // than inside the step so that stepping back and forward does not ask for it
   // again; it rides along on the screen POST only — `book` / `waitlist` list

@@ -26,6 +26,11 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  // Best total the current rubric allows (011 US46) — the N/滿分 denominator.
+  screeningMaxScore: {
+    type: Number,
+    default: 10,
+  },
   notifyTemplate: {
     type: Object,
     default: null,
@@ -1423,7 +1428,7 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                   <div class="flex flex-wrap items-center gap-2">
                     <p class="text-xs font-semibold text-gray-600">資格審核</p>
                     <span class="rounded px-1.5 py-0.5 text-xs font-bold tabular-nums text-gray-700 bg-gray-100">
-                      {{ lead.screening_score }}/10
+                      {{ lead.screening_score }}/{{ screeningMaxScore }}
                     </span>
                     <span
                       v-if="screeningTier(lead)"

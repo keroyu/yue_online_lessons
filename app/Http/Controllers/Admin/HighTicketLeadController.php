@@ -270,6 +270,8 @@ class HighTicketLeadController extends Controller
             'dripCourseOptions' => $dripCourses,
             'subscriberData'    => null,
             'conversionStats'   => $conversionStats,
+            // The denominator of the N/滿分 score — the rubric is editable (011 US46).
+            'screeningMaxScore' => \App\Support\BookingScreening::maxScore(),
             // Cast so an empty result still reaches Vue as {} rather than [].
             'statusCounts'      => (object) $statusCounts,
         ]);

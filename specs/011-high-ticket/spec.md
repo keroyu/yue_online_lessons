@@ -2,6 +2,16 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Support/ScreeningRubric.php
+  - app/Http/Controllers/Admin/FunnelSettingsController.php
+  - app/Http/Requests/Admin/UpdateFunnelSettingsRequest.php
+  - resources/js/Pages/Admin/FunnelSettings/Edit.vue
+  - resources/js/Components/Admin/FunnelSettings/QuestionEditor.vue
+  - resources/js/Components/Admin/FunnelSettings/ComboRuleEditor.vue
+  - resources/js/Components/Admin/FunnelSettings/RoutingRuleEditor.vue
+  - resources/js/Components/Admin/FunnelSettings/ConditionList.vue
+  - database/migrations/2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php
+  - tests/Feature/HighTicket/FunnelSettingsTest.php
   - tests/Feature/HighTicket/ConsultantPoolTest.php
   - app/Jobs/SendScreeningDeclineMailJob.php
   - tests/Feature/HighTicket/LeadDealAmountTest.php
@@ -280,10 +290,10 @@ touchpoints:
     why: 隱藏價格模式的銷售頁展示（價格區塊替換為預約須知、按鈕改「立即預約」）與右欄預約表單（axios POST + inline 成功提示）實作於此；`isFunnelLanding` 的 landing page 隱藏規則（hero 時長行、第 3 區整塊、免費試閱）與預約成功文案依 mail_sent 分岔亦在此；US24 起多接一個 `screeningQuestions` prop 並透傳給精靈；US38 價格區塊下顯示「含 N 次 1 小時…」、已購買區塊掛 `ConsultationCreditBooking.vue`（錨點 `#consultation-booking`）；US40 — 預約區塊上方掛 `TestimonialCarousel`，無評語不渲染
   - file: app/Http/Controllers/CourseController.php
     owner: 002-storefront
-    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）；US40 — `show()` 對高價課下發已顯示的 `testimonials`（FR-245）；US44 `screeningQuestions` 不再依 `high_ticket_screening` 清空，高價課＋隱藏價格一律下發（FR-261）
+    why: show() 傳遞 is_high_ticket / high_ticket_hide_price props 給銷售頁；US9 起另傳 `bookingDraft`（已登入且為該 lead 本人時的既有問卷答覆），FR-042 起另接受 `?resume=` token 免登入回傳完整 draft；US24 起另傳 `screeningQuestions`（`BookingScreening::questionsForFront()`，已剝除分數）且 `draftAnswers()` 多帶五題資格審核答案；US38 `show()` 另傳 `consultationOffer`（`consultationOffer()` 私有方法）與 `consultationBooking`（`ConsultationCreditBookingService::stateFor()`），`bookingDraft()` 的 lead 查詢套 `applications()` scope（FR-232 / FR-233）；US40 — `show()` 對高價課下發已顯示的 `testimonials`（FR-245）；US44 `screeningQuestions` 不再依 `high_ticket_screening` 清空，高價課＋隱藏價格一律下發（FR-261）；US46 草稿回帶改讀 `screen_answers` JSON（FR-266）
   - file: resources/js/Layouts/AdminLayout.vue
     owner: 000-platform-core
-    why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）
+    why: US10 側欄新增「諮詢時段」項目（staff 可見，位置在 Leads 名單與折扣碼之間）；US46 新增管理員專屬側欄項目「1v1 漏斗設定」（FR-267）
   - file: database/migrations/2026_04_09_000001_add_high_ticket_fields_to_courses_table.php
     owner: 004-course-admin
     why: courses.type enum 擴充 high_ticket + high_ticket_hide_price 欄位；課程表單的類別/開關 UI 歸課程管理模組
@@ -349,7 +359,7 @@ touchpoints:
     why: 讀取本模組 email_templates（event_type=lesson_added）
   - file: routes/web.php
     owner: 000-platform-core
-    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`；US38 新增 auth 群組內的 `GET /course/{course}/consultation-slots`（throttle:30,1）與 `POST /course/{course}/consultation-bookings`（throttle:10,1）；US40 — 前台 `GET/POST /testimonials/{token}`（throttle）與後台 `POST /admin/high-ticket-leads/{lead}/testimonial-link`、`PATCH/DELETE /admin/testimonials/{testimonial}`
+    why: 預約 API（`POST /course/{course}/book`，throttle:5,1）、Leads 後台與 Email 模板路由（含 `PUT /admin/email-templates/notify-cc`，須宣告在 `{template}` 之前）；US8 移除 admin 群組內的 `GET /admin/courses/{course}/subscribers`；US10/US11 新增 `GET /course/{course}/booking-slots`（throttle:30,1）、`GET /booking/confirm/{token}`（公開、無 auth）與 staff 群組內的 `/admin/consultation-slots` 三條；US14 新增 staff 群組內的 `PUT /admin/high-ticket-leads/{lead}/booking`（改期）與 `DELETE /admin/high-ticket-leads/{lead}/booking`（取消）；FR-057 新增 `PUT /admin/email-templates/support-email`（須宣告在 `{template}` 之前）；US20 新增 staff 群組內的 `GET /admin/consultation-slots/reschedule-options/{lead}`（須宣告在 `{consultationSlot}` 之前）；US24 新增公開的 `POST /course/{course}/screen`（throttle:10,1）；US21 新增 admin 群組內的方案 CRUD 五條（`POST /admin/courses/{course}/plans`、`PUT|DELETE /admin/plans/{plan}`、`PUT /admin/lessons/{lesson}/plans`、`PUT /admin/plans/{plan}/lessons`）與 `PATCH /admin/members/{member}/purchases/{purchase}/plan`；US27 新增 staff 群組內的 `POST /admin/high-ticket-leads/{lead}/decline`（婉拒並取消）；US31 新增 staff 群組內的 `GET /admin/high-ticket-leads/export`（須宣告在 `/{lead}` 系列之前）；US34 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/upload-transcript`（throttle:10,1）；US35 新增 staff 群組內的 `POST /admin/consultation-notes/{note}/generate-followup-email`（throttle:10,1）與 `PATCH /admin/consultation-notes/{note}/followup-email`；US38 新增 auth 群組內的 `GET /course/{course}/consultation-slots`（throttle:30,1）與 `POST /course/{course}/consultation-bookings`（throttle:10,1）；US40 — 前台 `GET/POST /testimonials/{token}`（throttle）與後台 `POST /admin/high-ticket-leads/{lead}/testimonial-link`、`PATCH/DELETE /admin/testimonials/{testimonial}`；US46 新增 admin 群組內的 `GET|PUT /admin/funnel-settings`（FR-267）
   - file: app/Http/Middleware/HandleInertiaRequests.php
     owner: 000-platform-core
     why: FR-057 新增 shared prop `supportEmail`（`SiteSetting::supportEmail()`）—— 法律條款 modal 掛在 footer，每一頁都可能要印客服信箱，沒有單一 controller 可傳
@@ -1595,6 +1605,28 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [x] 申請人看不到任何分組資訊（不顯示「首席」字樣、不回傳分組）
 - [x] 測試：見 T633
 
+### User Story 46 - 1v1 漏斗設定：資格審核題目、審核規則與顧問分流可自訂 (Priority: P2)
+
+資格審核的題目、選項、分數，以及「誰會被婉拒」「誰分給哪位顧問」的規則目前都寫死在程式碼（`BookingScreening`），
+每次調整都要改 code 部署。新增後台頁面「1v1 漏斗設定」（僅管理員），把三件事放在同一頁編輯：
+**題目與選項**（可新增／刪除／排序題目與選項）、**資格審核規則**（通過分數、單選項否決、分數上限、組合否決規則）、
+**顧問分流規則**（US45 的首席／其他顧問條件）。全站一套（使用者決策）；課程上的「嚴格／寬鬆」開關維持在課程設定。
+
+**驗收**：
+- [x] 後台側欄新增「1v1 漏斗設定」（`/admin/funnel-settings`），僅 `role = admin` 可進；銷售顧問看不到選單、直接進網址被 `admin` 中介層導回首頁（全站既有行為）
+- [x] 尚未儲存過時，頁面與前台行為**與現行完全相同**（預設值 = 現行 `QUESTIONS`／`VETO_COMBOS`／`PASS_SCORE`／US45 分流條件）（FR-265）
+- [x] **題目**：可新增、刪除、上下移動；每題可編輯標題、提示（選填）；至少保留 1 題、每題至少 2 個選項
+- [x] **選項**：可新增、刪除、上下移動；每個選項可編輯文字、分數（0–10 整數）、否決方式（不否決／僅嚴格審核否決／一律否決）、分數上限（選填）
+- [x] 刪除**已有人作答過**的題目或選項 → 改為「停用」：前台不再顯示、不再接受，但後台舊名單仍顯示原題目與原答案文字（沿用 FR-252 的 retired 語意）；未被作答過的直接刪除
+- [x] **審核規則**：可編輯通過分數（≥ N 通過）、名單標籤門檻（高購買意願 ≥ X、值得談 ≥ Y）；頁面顯示目前滿分（各題最高分加總）
+- [x] **組合否決規則**：可新增多條「當〔題目 A 選了 a1/a2〕且〔題目 B 選了 b1〕→ 婉拒，除非〔題目 C 選了 c1/c2〕且總分 ≥ N」；「除非」區塊選填；僅嚴格審核套用（同現行）
+- [x] **顧問分流規則**：首席條件「總分 ≥ N 且〔某題〕選了〔選項…〕」、其他顧問條件「總分 ≤ M 且〔某題〕選了〔選項…〕」各可編輯或停用；「顧問多於 1 位才分流」維持固定，不開放設定（頁面以說明文字標示）
+- [x] 儲存時伺服器驗證：規則引用的題目／選項必須存在且未停用、分數範圍、通過分數 ≤ 滿分、門檻順序（高 > 值得談）；錯誤逐欄顯示
+- [x] 儲存後立即生效：銷售頁題目、`/screen` 判定、送出申請時重審（FR-129）、選時段分流、後台名單答案顯示全部讀同一份設定
+- [x] 已落庫的 `screening_score` **不回算**：改規則只影響之後的作答；後台分數顯示改為 `N/滿分`（滿分取目前設定）
+- [x] 題目的評分與規則仍只在伺服器，前台只拿到題目文字與選項文字（FR-124 不變）
+- [x] 測試：見 T643
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2215,6 +2247,9 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-262**（取代 FR-068，使用者決策 2026-10-19）: 逾時未確認的申請 MUST **保留**，不再刪除。`HighTicketBookingService::expireUnconfirmedApplications()`（取代 `purgeExpiredApplications()`，仍由 `booking:release-holds` 每 10 分鐘呼叫）先 `releaseExpired()` 釋出時段，再對 `confirmed_at IS NULL AND confirm_token IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'` 的 lead 把 `confirm_token` 設為 null（舊連結作廢、第二輪不重複計數），`status` 維持 `pending`，`confirm_expires_at` 原樣保留作為標記。後台名單在 `confirmed_at` 為空且 `confirm_expires_at` 已過時，於暱稱旁顯示琥珀色「未完成 Email 確認」標籤，展開列的「Email 確認」顯示「逾時未確認（時段已釋出）」。同一人再次送出申請時，既有 lead 經 `recordLead()` 更新並取得新連結（非 live 狀態，不觸發重複預約阻擋）。理由：FR-068 訂定時尚無資格審核；US24 起只填審核的 lead 一律保留，走得更遠的人反而被刪，順序顛倒。FR-068 當初的顧慮（待處理清單堆積）以標籤區分，不再以刪除處理。已被 FR-068 刪除的歷史資料無法回復
 - **FR-263**（2026-10-19）: 預約名單（`BookingListTab`）「課程」欄：`status = converted` 時不顯示「開通」按鈕（現行行為，維持），改在同一位置顯示綠色「成交 $N」標籤。N MUST 與 CSV 匯出的「成交金額」同一定義（FR-158：該 Email 名下所有 `type=lead_conversion` 且 `status=paid` 的 `purchases.amount` 總和，`buyer_email` 或 `users.email` 任一相符），以千分位顯示。實作：`HighTicketLeadController@index` 對當頁 leads 呼叫 `HighTicketLeadService::dealAmountsByEmail($emails): array<string,int>`（由既有 `conversionsByEmail()` 加總而來，與匯出共用同一查詢，一頁一次查詢、不逐列查）並 `setAttribute('deal_amount', int|null)`；標籤 `title` 列出各筆課程（方案）與金額（沿用 `conversionsByEmail()` 的 `course` 字串）。**同步更新**：升級方案時於「會員管理 → 會員詳情」填的補價差已直接加進 `purchases.amount`（`MemberController@updatePurchasePlan`），故每次載入即為最新數字，不需快取或額外欄位；退款（`status = refunded`）的那筆不計。`converted` 但查無成交紀錄（例如手動點狀態方塊轉成交）→ 不顯示標籤、也不顯示開通按鈕；其他狀態維持顯示「開通」
 - **FR-264**（US45，使用者決策 2026-10-19）: 公開預約流程的時段 MUST 依申請人答案分流。(1) `BookingScreening::consultantPool(array $answers): string` 回 `'chief'`／`'others'`／`'all'`：未 `answered()` → `all`；`score() >= CHIEF_MIN_SCORE (8)` 且 `screen_budget ∈ CHIEF_BUDGETS (['6k_10k','10k_50k','50k_100k','over_100k'])` → `chief`；`score() <= 7` 且 `screen_budget ∈ OTHERS_BUDGETS (['under_6k'])` → `others`；其餘 `all`（`none` 已被婉拒、`unsure` 已退役，兩者皆落 `all`）。(1b) 分流只在顧問多於 1 位時生效：`ConsultationSlotService::poolFor(array $answers): string` —— 名冊人數（與 FR-075 同一條件：`role = admin OR is_sales_consultant = true`）≤ 1 → `all`，否則回 `BookingScreening::consultantPool($answers)`；所有呼叫點一律經 `poolFor()`，不直接呼叫 `consultantPool()`。(2) `ConsultationSlot::scopeInPool(Builder, string $pool)`：`chief` = `consultant_id IS NULL OR consultant.role = 'admin'`（未指派算首席，使用者決策）；`others` = `consultant_id IS NOT NULL AND consultant.role != 'admin'`；`all` 不加條件。(3) `ConsultationSlotService::availableStarts()` 加第四參數 `string $pool = 'all'`，在撈 free units 的查詢上套 `inPool()` —— 連續單位檢查自然只在同組內成立。(4) `reserve()` 加 `string $pool = 'all'`，鎖定後逐列以 `isInPool($pool)` 重驗，不符 → `SlotUnavailableException`（沿用 409 與前端重抓）。(5) `HighTicketBookingController@slots` 以 `poolFor(BookingScreening::only($request->query()))` 算 pool；精靈 `fetchSlots()` 把 `screeningAnswers()` 併入 query string。(6) `HighTicketBookingService::apply()` 以 `poolFor($data)` 算 pool 傳給 `reserve()`；`waitlist()` 的守門改為 `availableStarts(DEFAULT_MINUTES, null, null, $pool) !== []`。(7) 其他呼叫點（後台改期 `ConsultationSlotController`、`ConsultationCreditBookingService`、`reschedule()`）維持預設 `all`。回應 MUST NOT 帶出 pool 值
+- **FR-265**（US46，使用者決策 2026-10-19）: 資格審核設定（rubric）改為可由後台編輯的資料，全站一份。(1) 儲存於 `site_settings` 的 `booking_screening_rubric`（JSON）；不存在時 `ScreeningRubric::default()` 回傳與現行常數等值的結構（現行 `QUESTIONS`／`VETO_COMBOS` 搬為 `default()` 的內容，`PASS_SCORE`／`CHIEF_*`／`OTHERS_*` 常數移除）。(2) 結構：`{version: 1, pass_score: int, tiers: {hot: int, warm: int}, questions: [{key, title, hint?, retired?, options: [{key, label, score, veto: 'none'|'strict'|'always', cap?: int, retired?}]}], combos: [{match: {qkey: [okey…]}, unless?: {match: {…}, min_score}}], routing: {chief: {enabled, min_score, question, options[]}, others: {enabled, max_score, question, options[]}}}`。陣列順序即顯示順序。(3) `key` 在新增當下由頁面產生（`screen_` + 6 碼小寫英數，選項為 6 碼）—— 同一次儲存裡的組合規則與分流規則要能引用剛新增的題目，所以不能等伺服器指派；伺服器驗證格式（`^screen_[a-z0-9_]{1,24}$`／`^[a-z0-9_]{1,24}$`）與唯一性，送上 `key: null` 時才由伺服器補發。建立後頁面不提供修改；現有七題沿用原 key（`screen_timeline` 等）、原選項 key（`immediate` 等）。保留字 `screen_ack` 不得被產生。(4) `BookingScreening` 所有靜態方法改讀 `ScreeningRubric::current()`（單次請求內記憶，儲存時清除）：`fields()` = 未停用題目 key；`questionsForFront()` 濾除停用題目與選項；`rules($required)` 依未停用（`$required = false` 時含停用）選項；`score()` 加總後套最低 `cap`；`vetoed($answers, $strict)`：`always` 選項任一命中即否決，`strict` 選項與 `combos` 只在 strict 生效；`passes($answers, $strict) = score >= pass_score && !vetoed($answers, $strict)`（寬鬆＝只看 `always` 否決 —— 現行「目前沒有預算」即為 `always`，`diy`／`advice_only` 為 `strict`，行為與 FR-261 等值）；`tier()` 讀 `tiers`；`maxScore()` = 未停用題目各自最高選項分數加總；`consultantPool()` 讀 `routing`（停用或引用題目已停用 → 該組不成立）。(5) `answered()` 判定「每個未停用題目都有答案」。(6) 刪除語意由前端送出完整 rubric、伺服器比對：被移除的題目／選項若在 `high_ticket_leads.screen_answers` 中出現過（`ScreeningRubric::answeredKeys()` 以 `chunkById` 掃描所有非空答案，sqlite 與 MySQL 同一套 PHP 邏輯，不依賴 JSON 查詢方言），伺服器 MUST 把它改寫回 `retired: true` 保留，否則真的刪除。(7) 存檔為整份覆寫（last write wins，單一管理員使用，不做版本鎖）
+- **FR-266**（US46）: 答案改存 JSON。`high_ticket_leads.screen_answers`（json nullable）取代七個 `screen_*` 欄位：migration 先加欄、以 `{key: value}` 回填（只填非 null 值），再刪七欄；`down()` 重建七欄並由 JSON 回填。`HighTicketLead` 改 `$casts['screen_answers' => 'array']`、fillable 移除七欄；既有 accessor `screening_answers`（後台顯示用 `[{title, answer}]`）改為依 rubric（**含停用題目**）逐題讀 `screen_answers[key]`，找不到選項 → `—`，題目在作答後才新增者不列。所有 `$lead->only(BookingScreening::fields())` 呼叫點改讀 `$lead->screen_answers ?? []`；`recordLead()`／`screen()` 寫入 `screen_answers => BookingScreening::only($data)`。請求格式維持扁平（`screen_xxx` 為頂層欄位），精靈與既有測試 payload 不變
+- **FR-267**（US46）: 後台頁面 `GET /admin/funnel-settings`（`Admin\FunnelSettingsController@edit`，Inertia `Admin/FunnelSettings/Edit`）與 `PUT /admin/funnel-settings`（`@update`，`UpdateFunnelSettingsRequest`），放 `admin` middleware 群組；側欄項目「1v1 漏斗設定」只對管理員顯示。props：`rubric`（含停用項、每項附 `answered: bool` 供前端標示「已有作答，刪除會改為停用」）、`maxScore`、`consultantCount`。驗證（Form Request + `after()`）：題目 1–20、選項 2–12（未停用者計）、`title` 1–200、`hint` ≤ 500、`label` 1–100、`score` 0–10、`cap` null 或 0–`maxScore`、`pass_score` 0–`maxScore`、`tiers.hot > tiers.warm >= 0`、combos ≤ 20 條且每條 `match` 至少 1 題、引用的 key 必須存在於本次送出的 rubric 且未停用、`routing.*.options` 至少 1 個；新增項目以 `key: null` 送上，伺服器指派 key
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2644,6 +2679,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **D177**: 顧問分流（FR-264）的四個決定。**分組規則放 `BookingScreening`**：門檻與預算分段都綁在同一張評分表上，放在 slot service 等於讓規則表分家；它也和 `passes()` 一樣只在伺服器，前端只送答案、拿回已過濾的清單，看不出自己被分到哪一組（FR-124 同理）。**答案從請求帶、不查 lead**：`/booking-slots` 是匿名 GET，申請人在第 1 步之後才有 lead，且 `apply()` 本來就以送上來的答案重審（FR-129）；兩處同一個來源，分組才不會在選時段與送出之間變掉。改答案就能換組 —— 但同一個人在表單上本來就能改答案，這不是新的破口，`reserve()` 的重驗只防「直接改 slot 請求」。**「首席」= `role = admin`、未指派算首席**（使用者決策）：未指派時段是早期管理員自己開的，通知也回退管理員；不新增「首席」旗標，等真的有第二位管理員再談。**該組沒時段就候補、不退回全部**（使用者決策）：退回會讓分流在最忙的那幾週失效，正好是最需要分流的時候。**名冊 ≤ 1 人不分流**（使用者決策）：只有管理員一人時，`others` 組必然為空，低分低預算者會被永遠卡在候補；判斷放在 service 的 `poolFor()` 而非 `BookingScreening`，讓評分表維持純函式、不碰 DB
 
+- **D178**: 1v1 漏斗設定（FR-265–267）的五個決定。**存 `site_settings` JSON，不開新表**：全站一份（使用者決策）、整份讀整份寫、不需要查詢單題，一列 JSON 就是最直接的形狀；與 AI 設定、積分設定同一套儲存。**預設值留在程式碼**：未儲存 = 現行規則，上線當天不需要資料 migration，測試環境也不用 seed；`default()` 就是今天的 `QUESTIONS`，回歸測試能直接證明「沒改設定時行為不變」。**否決改三態 `none/strict/always`**：寬鬆審核（FR-261）原本寫死「預算 = none」，題目可自訂後這條規則沒有地方掛；把它變成選項上的屬性，嚴格／寬鬆就只是「看不看 `strict`」，`passes()` 不再認得任何題目名稱。**分流條件綁「某一題」而非寫死預算**：題目可刪改，寫死 `screen_budget` 等於讓分流在有人刪掉預算題那天靜默失效；引用的題目停用時該組視為不成立（全部人看全部時段），比報錯擋住整個預約流程安全。**答案改 JSON**（使用者決策：可新增題目）：固定七欄無法承載新題；請求維持扁平鍵、key 前綴 `screen_` 不撞其他表單欄位，精靈與 FR-129 重審完全不用改形狀。**已有作答的不真刪、改停用**：沿用 FR-252，否則後台舊名單會出現一排「—」，看不出當初被問了什麼；**舊分數不回算**：分數是當下規則的判決，回算會讓「當時為什麼通過」無從解釋
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2993,6 +3030,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
   - `reward_points > 0` ⇔ 存在一筆 `point_transactions`（`type = earn_testimonial`、`reference_type = 'testimonial'`、`reference_id = testimonials.id`）
   - `status = published` ⇒ `published_at` 非 null
   - `consulted_at` 寫入時為 UTC instance；顯示一律 `timezone('Asia/Taipei')` 或前端 ISO 解析
+
+  **US46 / FR-266**：`2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php` — 加 `screen_answers` json nullable（`after('social_url')`），回填 `{screen_timeline: …, …}`（只含非 null 值），刪 `screen_timeline`／`screen_budget`／`screen_authority`／`screen_pain`／`screen_next_step`／`screen_experience`／`screen_learning`；`down()` 反向。不變量：`screened_at` 非 null ⇔ `screen_answers` 非 null；`screen_answers` 的 key 必為 rubric 中（含停用）存在過的題目 key。rubric 本身存在 `site_settings`（`key = booking_screening_rubric`），無 schema 變更。
 
 ## Tasks
 
@@ -4102,8 +4141,23 @@ Phase 4 — 驗證
 - [x] T633 測試（先行）：`consultantPool()` 邊界（8+6k_10k→chief、7+over_100k→all、8+under_6k→all、7+under_6k→others、缺答案→all）；名冊只有 1 人時高分高預算仍回全部時段；`/booking-slots` 依答案只回對應顧問時段、未指派歸首席；該組無時段 → 空清單且 `waitlist()` 放行；`apply()` 選到別組時段 → 409；後台改期與點數預約不受影響 in `tests/Feature/HighTicket/ConsultantPoolTest.php`
 - [x] T634 `php artisan test` 全綠、`npm run build`
 
+### 1v1 漏斗設定（US46 / FR-265–267）
+
+- [x] T635 migration：`screen_answers` json 回填並刪七欄（含 `down()`）；`HighTicketLead` casts／fillable／`screening_answers` accessor 改讀 JSON + rubric in `database/migrations/2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php`, `app/Models/HighTicketLead.php`
+- [x] T636 `ScreeningRubric`：`default()`（現行規則）、`current()`（site_settings + 記憶）、`save(array)`（指派新 key、已作答項改停用、清記憶）、`maxScore()`、`answeredKeys()` in `app/Support/ScreeningRubric.php`
+- [x] T637 `BookingScreening` 全面改讀 rubric（`fields`/`questionsForFront`/`rules`/`score`/`vetoed($strict)`/`passes`/`tier`/`consultantPool`/`answered`），移除 `QUESTIONS`／`VETO_COMBOS`／`PASS_SCORE`／`CHIEF_*` 常數 in `app/Support/BookingScreening.php`
+- [x] T638 呼叫點改 `screen_answers`：`screen()`／`recordLead()`／草稿回帶（`CourseController` L218–224）in `app/Services/HighTicketBookingService.php`, `app/Http/Controllers/CourseController.php`
+- [x] T639 路由、`FunnelSettingsController@edit/update`、`UpdateFunnelSettingsRequest`（FR-267 驗證）、側欄項目（admin only）in `routes/web.php`, `app/Http/Controllers/Admin/FunnelSettingsController.php`, `app/Http/Requests/Admin/UpdateFunnelSettingsRequest.php`, `resources/js/Layouts/AdminLayout.vue`
+- [x] T640 [P] 頁面：四區塊（題目與選項／審核門檻／組合否決規則／顧問分流規則），題目與選項可增刪排序、已作答項標示「刪除會改為停用」、停用項可「恢復」；滿分即時計算 in `resources/js/Pages/Admin/FunnelSettings/Edit.vue`, `resources/js/Components/Admin/FunnelSettings/QuestionEditor.vue`, `resources/js/Components/Admin/FunnelSettings/ComboRuleEditor.vue`, `resources/js/Components/Admin/FunnelSettings/RoutingRuleEditor.vue`
+- [x] T641 [P] 精靈 `form` 的審核欄位改由 `props.screeningQuestions` 動態產生（移除寫死七個 key）；名單分數顯示 `N/滿分`（`HighTicketLeadController@index` 帶 `screeningMaxScore`）in `resources/js/Components/Course/HighTicketBookingWizard.vue`, `resources/js/Components/Admin/Leads/BookingListTab.vue`, `app/Http/Controllers/Admin/HighTicketLeadController.php`
+- [x] T642 既有測試改寫：直接讀 `$lead->screen_*` 欄位的斷言改讀 `screen_answers`；引用已移除常數者改讀 rubric in `tests/Feature/HighTicket/*.php`
+- [x] T643 測試（先行）`FunnelSettingsTest`：未儲存時 `current() == default()` 且既有判定不變；新增題目 → 銷售頁出現、`/screen` 必填、計分；刪除已作答選項 → 變停用、前台消失、後台舊答案仍顯示原文；刪除未作答選項 → 真刪；`always` 否決在寬鬆生效、`strict` 不生效；新增組合規則生效；改分流條件 → `/booking-slots` 跟著變；分流引用停用題目 → `all`；驗證錯誤（引用不存在 key、pass_score > 滿分、hot ≤ warm、選項 < 2）；銷售顧問 403；migration 回填正確 in `tests/Feature/HighTicket/FunnelSettingsTest.php`
+- [x] T644 `php artisan test` 全綠、`npm run build`
+
 ## 進度日誌
 
+- 2026-10-19: US46 / FR-265–267 完成 T635–T644 — `ScreeningRubric`（`default()`＝原常數、`current()` 讀 site_settings 並記憶在 container、`save()` 補 key 與把已作答項改停用、`maxScore()`、`answeredKeys()`）；`BookingScreening` 全面改讀 rubric，否決改三態 `none/strict/always`（寬鬆＝只看 `always`）、分流讀 `routing`；migration 七欄→`screen_answers` JSON（MySQL 本機 up/down/up 驗證）；後台「1v1 漏斗設定」頁（題目／選項增刪排序、審核門檻、組合規則、分流規則）；精靈審核欄位改由題目動態產生；名單分數改 `N/滿分`。key 改為頁面新增時產生（同次儲存的規則才能引用新題）；非管理員進入被 `admin` 中介層導回首頁（非 403）。新增 `FunnelSettingsTest` 15 條；**未嚴格先紅**：伺服器端先寫、測試後補（頁面元件不存在時 2 條紅，其餘直接綠）。既有測試改讀 `screen_answers`、刪除已過時的 `remap_screen_learning` migration 測試。全站 1305 passed（5781 assertions），`npm run build` 綠。瀏覽器未實測。
+- 2026-10-19: [draft] 規劃 US46「1v1 漏斗設定」（FR-265–267，D178）— 資格審核題目／選項／分數、審核規則（通過分、三態否決、上限、組合否決）與顧問分流條件改為後台可編輯的全站 rubric（site_settings JSON，預設＝現行規則）；答案由七欄改存 `screen_answers` JSON；已作答項刪除改停用、舊分數不回算。
 - 2026-10-19: US45 / FR-264 完成 T631–T634 — `BookingScreening::consultantPool()`（≥8 且 ≥6,000 → chief、≤7 且 <6,000 → others、其餘 all）；`ConsultationSlotService::poolFor()` 名冊 ≤1 人不分流；`ConsultationSlot::scopeInPool()`／`isInPool()`（未指派歸首席）；`availableStarts()`／`reserve()` 加 `$pool`，`/booking-slots` 依 query 答案過濾、`apply()` 重驗（別組 → 409）、`waitlist()` 守門只看本組；精靈抓時段時帶答案。新增 `ConsultantPoolTest` 10 條（實作前 5 紅）。全站 1291 passed（5698 assertions），`npm run build` 綠。瀏覽器未實測。
 - 2026-10-19: [draft] 規劃 US45 依資格審核分數與預算分流顧問時段（FR-264，D177）— 僅顧問 >1 位時生效；總分 ≥8 且預算 ≥6,000 只看首席（管理員＋未指派）、≤7 且 <6,000 只看其他顧問、其餘全看；該組無時段走候補；`availableStarts()`／`reserve()` 加 `$pool`，答案由請求帶入；無 schema 變更。
 - 2026-10-19: FR-263 完成 T627–T630 — `HighTicketLeadService::dealsByEmail()`（沿用 CSV 的 `conversionsByEmail()`）；名單 `deal_amount`／`deal_lines`；已成交列以綠色「成交 $N」標籤（tooltip 列各筆課程與金額）取代開通按鈕位置。新增 `LeadDealAmountTest` 6 條（實作前全紅）。全站 1281 passed（5666 assertions），`npm run build` 綠。瀏覽器未實測。

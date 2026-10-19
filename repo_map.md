@@ -699,6 +699,7 @@ main_files:
 - app/Http/Controllers/Admin/CourseRosterController.php
 - app/Http/Controllers/Admin/DashboardController.php
 - app/Http/Controllers/Admin/EmailTemplateController.php
+- app/Http/Controllers/Admin/FunnelSettingsController.php
 - app/Http/Controllers/Admin/HighTicketLeadController.php
 - app/Http/Controllers/Admin/LessonController.php
 - app/Http/Controllers/Admin/MemberController.php
@@ -724,6 +725,7 @@ main_files:
 - app/Http/Requests/Admin/SyncPlanLessonsRequest.php
 - app/Http/Requests/Admin/UpdateConsultationSettingsRequest.php
 - app/Http/Requests/Admin/UpdateCourseRequest.php
+- app/Http/Requests/Admin/UpdateFunnelSettingsRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Http/Requests/Admin/UpdatePurchasePlanRequest.php
 - app/Http/Requests/Admin/UpdateTestimonialRequest.php
@@ -776,6 +778,7 @@ main_files:
 - app/Support/BookingScreening.php
 - app/Support/PhoneNumber.php
 - app/Support/RecentDayWindows.php
+- app/Support/ScreeningRubric.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
 - database/migrations/2026_08_03_000001_add_body_type_to_email_templates_table.php
@@ -824,6 +827,7 @@ main_files:
 - database/migrations/2026_10_18_000005_add_high_ticket_decline_email_md_to_courses_table.php
 - database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php
 - database/migrations/2026_10_18_000007_install_screening_declined_template.php
+- database/migrations/2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -833,6 +837,10 @@ main_files:
 - resources/js/Components/Admin/CourseForm.vue
 - resources/js/Components/Admin/CoursePlanPanel.vue
 - resources/js/Components/Admin/CourseRosterModal.vue
+- resources/js/Components/Admin/FunnelSettings/ComboRuleEditor.vue
+- resources/js/Components/Admin/FunnelSettings/ConditionList.vue
+- resources/js/Components/Admin/FunnelSettings/QuestionEditor.vue
+- resources/js/Components/Admin/FunnelSettings/RoutingRuleEditor.vue
 - resources/js/Components/Admin/LeadInflowStats.vue
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
@@ -858,6 +866,7 @@ main_files:
 - resources/js/Pages/Admin/Dashboard.vue
 - resources/js/Pages/Admin/EmailTemplates/Edit.vue
 - resources/js/Pages/Admin/EmailTemplates/Index.vue
+- resources/js/Pages/Admin/FunnelSettings/Edit.vue
 - resources/js/Pages/Admin/HighTicketLeads/Index.vue
 - resources/js/Pages/Admin/Settings/Payment.vue
 - resources/js/Pages/Admin/Settings/Points.vue
@@ -897,6 +906,7 @@ main_files:
 - tests/Feature/HighTicket/CourseRosterTest.php
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
+- tests/Feature/HighTicket/FunnelSettingsTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 - tests/Feature/HighTicket/LeadExportTest.php
 - tests/Feature/HighTicket/LeadRefundSyncTest.php
