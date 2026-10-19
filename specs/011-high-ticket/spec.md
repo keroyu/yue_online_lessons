@@ -171,7 +171,7 @@ owner_files:
   - tests/Feature/HighTicket/BookingLeadRecordTest.php
   - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
   - tests/Feature/HighTicket/LeadsTabsTest.php
-  - tests/Feature/HighTicket/ExpiredApplicationPurgeTest.php
+  - tests/Feature/HighTicket/ExpiredApplicationTest.php
   - app/Models/ConsultationNote.php
   - app/Http/Controllers/Admin/ConsultationNoteController.php
   - app/Http/Controllers/Webhook/ZoomController.php
@@ -1791,7 +1791,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **FR-025**: 舊入口 MUST 完整移除，不留轉址：`GET /admin/courses/{course}/subscribers` 路由、`CourseController@subscribers` action、`Pages/Admin/Courses/Subscribers.vue`、課程編輯頁的「訂閱者」按鈕四者一起刪。保留半套等於兩份 UI 要各自維護（使用者決策）
 
-- **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者
+- **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者**〔2026-10-19 由 FR-262 取代：不再刪除〕**
 
 - **FR-070**: 週曆的 Email 複製 MUST 為**純前端**功能：勾選狀態存在 `WeekGrid.vue` 的本地 state，地址來源為既有 props（`day.bookings[].email`），MUST NOT 新增端點、MUST NOT 新增請求。後端唯一的責任是繼續在 booked／held 區塊吐出 `email`（FR-071）
 - **FR-071**: 可勾選的區塊限 `state ∈ {booked, held}` —— 這兩種才有申請人。暫留中一併納入是刻意的：那是「送了申請但還沒點確認信」的人，正是最需要被催的一批（使用者決策）。空格（未釋出／可預約）沒有 checkbox，不是 disabled 而是根本不渲染
@@ -2190,6 +2190,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-259**（US42）: `courses.high_ticket_decline_html`（`text` nullable）為資格審核未通過時顯示的告知文字，HTML 原樣渲染（`v-html`，不 sanitize，見 D174）。(1) 後台：Store／UpdateCourseRequest `nullable|string|max:10000`；只有空白的值由全域 `TrimStrings`＋`ConvertEmptyStringsToNull` 中介層轉成 null（不另寫 `prepareForValidation()`）；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示欄位，隱藏時照常送出原值（不清空）。(2) 預設文案移到 `BookingScreening::DEFAULT_DECLINE_HTML`（內容為 FR-128 定版文字），`Course::declineHtml(): string` 回自訂值或預設值。(3) `HighTicketBookingService::screen()` 未通過時結果加 `decline_html => $course->declineHtml()`，`HighTicketBookingController@screen` 回 `{passed: false, decline_html}`；通過時回應維持 `{passed: true}`。(4) `BookingScreeningStep` 拿掉寫死文案，改存回應的 `decline_html` 並以 `v-html` 渲染。不影響 FR-128 其他規則（8 秒倒數、不顯示分數與原因）—— 自訂文案寫什麼由管理員負責
 - **FR-260**（US43，修訂 FR-126）: `HighTicketBookingService::screen()` 判定**未通過**且該 lead `screening_decline_mailed_at` 為 null 時，MUST `SendScreeningDeclineMailJob::dispatch($lead->id)->delay(now()->addMinutes(SendScreeningDeclineMailJob::DELAY_MINUTES))`（`DELAY_MINUTES = 60`）。通過時不排程。Job `handle()`：(1) **原子認領** — `HighTicketLead::whereKey($id)->where('status', 'declined')->whereNull('confirmed_at')->whereNull('screening_decline_mailed_at')->update(['screening_decline_mailed_at' => now()])`，影響 0 列即 return（已通過、已寄、或另一個重複排程的 job 搶先）；(2) 取 `EmailTemplate::forEvent('high_ticket_screening_declined')->first()`，不存在 → 清回認領、記 warning、return；(3) 課程 `high_ticket_decline_email_md` 非 null 時以 `$template->replicate()->forceFill(['body_md' => 該值, 'body_type' => 'markdown'])`（不存檔）渲染內文，主旨一律用全站模板；(4) 變數 `{{user_name}}` / `{{user_email}}` / `{{course_name}}`（+ 全域變數）；(5) `TemplatedMail` 加 `X-Mail-Class: marketing` header，不 CC；(6) 寄送例外 → 清回 `screening_decline_mailed_at = null` 並 rethrow，交給 `$tries = 3` / `$backoff = [60, 300, 900]` 重試。`courses.high_ticket_decline_email_md`：Store／UpdateCourseRequest `nullable|string|max:10000`，空白由全域中介層轉 null；`CourseForm` 只在 `high_ticket_screening` 勾選時顯示，隱藏時照送原值。模板 MUST 同時登記於 `EmailTemplateSeeder::templates()`、一支資料 migration（沿用「缺才 insert、永不 update」迴圈）與 `EmailTemplateController::$availableVariables`（含中文標籤）。**已知風險**：審核當下 Email 未驗證，填別人的 Email 可讓對方收到一封婉拒信；以 `/screen` 的 throttle:10,1 與「每筆 lead 一封」為上限，業主接受
 - **FR-261**（US44，取代 FR-255 的 (1)(2)(3)(4)，使用者決策 2026-10-19）: `courses.high_ticket_screening` 語意改為「嚴格（true）／寬鬆（false）審核」，不再控制步驟有無。(1) `BookingScreening::passes(array $answers, bool $strict = true): bool` —— strict 維持現行（無否決且 `score() >= PASS_SCORE`）；寬鬆 = `($answers['screen_budget'] ?? null) !== 'none' && score() >= PASS_SCORE`（不看 `veto` 旗標其他選項、不看 `VETO_COMBOS`；`score()` 的 `cap` 照常生效）。(2) `HighTicketBookingService::screen()` 移除「此課程不需資格審核」守門，改以 `passes($answers, $course->high_ticket_screening)` 判定；其餘落庫、停序列信、排程婉拒信不變。(3) `screeningRefusal(Course $course, array $data)` 多收課程並以同一個 strict 旗標判定；`withoutScreeningWhenOff()` 刪除 —— 關閉時答案照常合併進 application。(4) `CourseController@show` 的 `screeningQuestions` 一律下發（高價課＋隱藏價格時）。(5) `HighTicketBookingWizard` 移除 `screeningEnabled` 全部分支，恆為五步；`BookingScopeNotice` 只留第一步一處。(6) `CourseForm`：開關標籤與說明改文案；`high_ticket_decline_html`／`high_ticket_decline_email_md` 兩欄改為只依 `high_ticket_hide_price` 顯示。規則表維持只存在伺服器（FR-124），前端不知道寬鬆或嚴格
+- **FR-262**（取代 FR-068，使用者決策 2026-10-19）: 逾時未確認的申請 MUST **保留**，不再刪除。`HighTicketBookingService::expireUnconfirmedApplications()`（取代 `purgeExpiredApplications()`，仍由 `booking:release-holds` 每 10 分鐘呼叫）先 `releaseExpired()` 釋出時段，再對 `confirmed_at IS NULL AND confirm_token IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'` 的 lead 把 `confirm_token` 設為 null（舊連結作廢、第二輪不重複計數），`status` 維持 `pending`，`confirm_expires_at` 原樣保留作為標記。後台名單在 `confirmed_at` 為空且 `confirm_expires_at` 已過時，於暱稱旁顯示琥珀色「未完成 Email 確認」標籤，展開列的「Email 確認」顯示「逾時未確認（時段已釋出）」。同一人再次送出申請時，既有 lead 經 `recordLead()` 更新並取得新連結（非 live 狀態，不觸發重複預約阻擋）。理由：FR-068 訂定時尚無資格審核；US24 起只填審核的 lead 一律保留，走得更遠的人反而被刪，順序顛倒。FR-068 當初的顧慮（待處理清單堆積）以標籤區分，不再以刪除處理。已被 FR-068 刪除的歷史資料無法回復
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -4055,8 +4056,15 @@ Phase 4 — 驗證
 - [x] T622 測試：`BookingScreeningToggleTest` 改寫 —— 關閉時銷售頁有題目、`/screen` 可用；關閉時「沒有預算」→ 婉拒、總分 4 → 婉拒、總分 5 → 通過、`diy`／`advice_only`／組合否決 → 通過；開啟時同一組答案照舊婉拒；關閉時 `book()`／`waitlist()` 帶「沒有預算」→ 拒、帶 `diy` → 收且答案落庫；關閉時婉拒會排程婉拒信 in `tests/Feature/HighTicket/BookingScreeningToggleTest.php`
 - [x] T623 `php artisan test` 全綠、`npm run build`
 
+### 逾時未確認的申請改為保留（FR-262）
+
+- [x] T624 `expireUnconfirmedApplications()` 取代 `purgeExpiredApplications()`：釋出時段、清 `confirm_token`、保留 lead；指令文案同步 in `app/Services/HighTicketBookingService.php`, `app/Console/Commands/ReleaseExpiredBookingHolds.php`
+- [x] T625 [P] 後台名單「未完成 Email 確認」標籤與展開列文案 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [x] T626 測試：`ExpiredApplicationPurgeTest` 改名 `ExpiredApplicationTest` 並改寫為保留語意（含再次申請沿用同一筆 lead）；其餘呼叫點改名 in `tests/Feature/HighTicket/ExpiredApplicationTest.php`, `tests/Feature/HighTicket/BookingScreeningTest.php`, `tests/Feature/HighTicket/ConsultationCreditBookingTest.php`
+
 ## 進度日誌
 
+- 2026-10-19: FR-262（取代 FR-068）逾時未確認的申請改為保留 — `expireUnconfirmedApplications()` 只釋出時段並作廢舊連結，lead 留在待處理；後台加「未完成 Email 確認」標籤。`ExpiredApplicationTest` 9 條（改寫前全紅）。全站 1275 passed（5649 assertions），`npm run build` 綠。
 - 2026-10-19: US44 / FR-261 完成 T618–T623 — `BookingScreening::passes($answers, $strict)` 加寬鬆分支（只看「沒有預算」與 PASS_SCORE）；`screen()` 移除關閉守門、`screeningRefusal()` 依課程開關判定、刪 `withoutScreeningWhenOff()`；銷售頁一律下發題目；精靈移除四步模式；後台開關改名「嚴格資格審核」、婉拒兩欄不再隨開關隱藏。`BookingScreeningToggleTest` 改寫為 12 條（實作前 9 紅）。全站 1274 passed（5647 assertions），`npm run build` 綠。瀏覽器未實測。
 - 2026-10-19: [draft] 規劃 US44 資格審核關閉改為寬鬆審核（FR-261，D176，取代 FR-255 的省略步驟）— 開關改為嚴格／寬鬆，兩者都走五步；寬鬆只婉拒「目前沒有預算」或總分 ≤ 4；`passes()` 加 `$strict` 參數，欄位不改名。
 - 2026-10-18: 資格審核送出偶發紅字「CSRF token mismatch」無法前進 — 根因在 000 的 `bootstrap.js`（見 000 進度日誌）；`BookingScreeningStep.vue` 另對 419 顯示「頁面已過期，請重新整理頁面後再送出。」取代英文訊息。

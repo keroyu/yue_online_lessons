@@ -573,7 +573,7 @@ class ConsultationCreditBookingTest extends TestCase
         $this->travel(10)->days();
 
         $bookings = app(HighTicketBookingService::class);
-        $bookings->purgeExpiredApplications();
+        $bookings->expireUnconfirmedApplications();
         $bookings->cancelStaleApplications();
         $bookings->sendApplicationResumeReminders();
 

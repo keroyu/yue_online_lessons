@@ -923,7 +923,7 @@ class BookingScreeningTest extends TestCase
 
         $this->travel(2)->hours();
 
-        $this->service()->purgeExpiredApplications();
+        $this->service()->expireUnconfirmedApplications();
 
         $this->assertSame(2, HighTicketLead::count(), '只完成審核的人沒有待確認的信，不該被清掉');
     }

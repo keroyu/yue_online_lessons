@@ -16,13 +16,13 @@ class ReleaseExpiredBookingHolds extends Command
 {
     protected $signature = 'booking:release-holds';
 
-    protected $description = '釋出逾時未確認的預約時段，並刪除該筆未完成的申請';
+    protected $description = '釋出逾時未確認的預約時段，申請保留為未完成 Email 確認';
 
     public function handle(HighTicketBookingService $booking): int
     {
-        $purged = $booking->purgeExpiredApplications();
+        $expired = $booking->expireUnconfirmedApplications();
 
-        $this->info("已釋出逾時暫留時段，並刪除 {$purged} 筆未完成的申請");
+        $this->info("已釋出逾時暫留時段，{$expired} 筆申請標為未完成 Email 確認");
 
         return self::SUCCESS;
     }

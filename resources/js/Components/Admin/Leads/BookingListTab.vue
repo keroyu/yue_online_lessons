@@ -161,6 +161,10 @@ const allStatuses = [...statusButtons, cancelledStatus, declinedStatus]
 
 const hasLiveBooking = (lead) => Boolean(lead.confirmed_at) && !lead.cancelled_at
 
+// Chose a slot, never confirmed it, and the hour ran out (011 FR-262).
+const missedConfirmation = (lead) =>
+  !lead.confirmed_at && Boolean(lead.confirm_expires_at) && new Date(lead.confirm_expires_at) <= new Date()
+
 // Filter tabs — status pills inherit the colour coding above; only 全部 is neutral
 const tabs = [
   {
@@ -447,7 +451,7 @@ const bookingRows = (lead) => {
   if (lead.confirmed_at) {
     rows.push({ label: 'Email 確認時間', value: formatDateTime(lead.confirmed_at) })
   } else {
-    rows.push({ label: 'Email 確認', value: '尚未確認' })
+    rows.push({ label: 'Email 確認', value: missedConfirmation(lead) ? '逾時未確認（時段已釋出）' : '尚未確認' })
   }
   const dripStart = firstDripSubscribedAt(lead)
   if (dripStart) {
@@ -1210,6 +1214,14 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                   </svg>
                   {{ lead.name }}
                 </button>
+
+                <!-- 011 FR-262: picked a slot but never clicked the emailed
+                     link in time — kept for follow-up instead of deleted. -->
+                <span
+                  v-if="missedConfirmation(lead)"
+                  class="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-normal text-amber-700"
+                  title="已選時段但未在 1 小時內點 Email 確認連結，時段已釋出"
+                >未完成 Email 確認</span>
 
                 <!-- 011 US23: how many summaries sit behind this row, and a
                      shortcut straight into the newest one. A sibling of the

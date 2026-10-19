@@ -256,35 +256,32 @@ class HighTicketBookingService
     }
 
     /**
-     * Drop applications whose confirmation hour ran out (011 FR-068).
+     * Retire applications whose confirmation hour ran out (011 FR-262, revising FR-068).
      *
-     * Releasing the slot was never the whole cleanup: the lead row stayed, so
-     * the Leads list filled up with people who filled in the wizard and then
-     * never clicked the emailed link. Those are not bookings and not anybody's
-     * follow-up, so they leave no trace.
+     * The slot goes back and the link dies, but the lead stays at `pending`:
+     * somebody who filled in the whole wizard and picked a time is at least as
+     * worth a follow-up as somebody who only got through the screening, and
+     * those were always kept. FR-068 used to delete these rows, which meant
+     * going further through the wizard was the one way to vanish from the list.
      *
-     * Two guards decide what survives:
-     *  - `confirmed_at` — a booking that was ever confirmed keeps its history,
-     *    including one later cancelled.
-     *  - `status = pending` — the moment an admin moves the lead anywhere else
-     *    they are working it by hand, and a sweeper must not delete that.
+     * `confirm_expires_at` is left as it was — together with a null
+     * `confirmed_at` it is what the admin list reads as 未完成 Email 確認.
+     * Clearing `confirm_token` is what makes a second pass count nothing.
      *
-     * Waitlist entries carry no `confirm_expires_at` at all (they had nothing
-     * to confirm), so they fall outside this entirely.
-     *
-     * Holds are released first: `consultation_slots.lead_id` has no foreign
-     * key, so deleting in the other order would leave units pointing at a row
-     * that no longer exists and the admin calendar would show a phantom owner.
+     * Only `pending` rows are touched: once an admin has moved a lead they are
+     * working it by hand. Waitlist entries have no `confirm_expires_at` and
+     * fall outside this entirely.
      */
-    public function purgeExpiredApplications(): int
+    public function expireUnconfirmedApplications(): int
     {
         $this->slots->releaseExpired();
 
         return HighTicketLead::whereNull('confirmed_at')
+            ->whereNotNull('confirm_token')
             ->whereNotNull('confirm_expires_at')
             ->where('confirm_expires_at', '<=', now())
             ->where('status', 'pending')
-            ->delete();
+            ->update(['confirm_token' => null]);
     }
 
     /**
