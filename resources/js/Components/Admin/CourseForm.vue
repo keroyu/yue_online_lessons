@@ -811,7 +811,8 @@ const cardBodyClasses = 'px-6 py-6 sm:p-8 space-y-6'
             />
             <p :class="helpTextClasses">
               請先到 Portaly 建立該商品，再把商品 ID 貼到這裡。系統會以此 ID 連到既有的 Portaly 購買頁：
-              <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">https://portaly.cc/kyontw/product/{ID}</code>
+              <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">https://portaly.cc/{商店帳號}/product/{ID}</code>
+              （商店帳號在「API 設定 → Portaly」填寫）
             </p>
             <p v-if="form.errors.portaly_product_id" :class="errorTextClasses">{{ form.errors.portaly_product_id }}</p>
           </div>

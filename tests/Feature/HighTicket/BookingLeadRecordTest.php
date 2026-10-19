@@ -109,6 +109,7 @@ class BookingLeadRecordTest extends TestCase
     {
         Mail::fake();
         $this->bookingTemplate();
+        User::create(['email' => 'owner@example.com', 'role' => 'admin']);
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, 'sales@example.com, boss@example.com');
 
         // The confirmation is the only mail that copies anybody (FR-062).
@@ -118,20 +119,23 @@ class BookingLeadRecordTest extends TestCase
             return str_contains($mail->emailSubject, '預約確認')
                 && $mail->hasCc('sales@example.com')
                 && $mail->hasCc('boss@example.com')
-                && !$mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]);
+                && !$mail->hasCc('owner@example.com');
         });
     }
 
-    public function test_blank_setting_falls_back_to_the_default_recipient(): void
+    public function test_blank_setting_falls_back_to_every_administrator(): void
     {
         Mail::fake();
         $this->bookingTemplate();
+        User::create(['email' => 'owner@example.com', 'role' => 'admin']);
+        User::create(['email' => 'partner@example.com', 'role' => 'admin']);
         SiteSetting::set(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, '');
 
         $this->applyAndConfirm($this->makeHighTicketCourse());
 
         Mail::assertSent(\App\Mail\TemplatedMail::class, fn ($mail) => str_contains($mail->emailSubject, '預約確認')
-            && $mail->hasCc(HighTicketBookingService::DEFAULT_NOTIFY_CC[0]));
+            && $mail->hasCc('owner@example.com')
+            && $mail->hasCc('partner@example.com'));
     }
 
     public function test_admin_can_save_the_cc_list_and_bad_emails_are_rejected(): void

@@ -39,7 +39,6 @@ owner_files:
   - app/Console/Commands/SendScheduledBroadcasts.php
   # Email views
   - resources/fonts/NotoSansTC.ttf
-  - resources/images/og-logo.png
   - resources/views/emails/newsletter-broadcast.blade.php
   - resources/views/emails/newsletter-broadcast-text.blade.php
   - resources/views/emails/newsletter-welcome.blade.php
@@ -176,7 +175,7 @@ touchpoints:
 - [ ] `/blog` 列出 published 文章（分頁、封面+標題+摘要+日期），依 published_at desc
 - [ ] `/blog/{slug}` render `PostService::toHtml`（v-html 吃 server-render HTML）、封面、tags、published_at、YouTube embed；底部顯示同 tag 相關文章（≤4，內部連結）
 - [ ] `view()->share('og', …)` 輸出 type=article、og image（og_image ?: cover ?: 自動生成 OG 卡片）、meta_description、canonical=`/blog/{slug}`
-- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo 取後台上傳的網站圖示，未上傳才用內建的 `resources/images/og-logo.png` + 站名 `SiteSetting::siteName()`＋teal 底線；站名與 logo 檔名都是快取 key 的一部分，換任一個都會重生所有卡片），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
+- [ ] 無上傳 OG 圖也無封面時，`Post::og_url` fallback 到 `GET /blog/{slug}/og.png`：`OgImageService`（GD + 內建繁中 TTF）即時產 1200×630 navy 底＋左上大標題（faux-bold 加粗、自動換行/縮放≤4 行）＋右下品牌 lockup（logo 取後台上傳的網站圖示，未上傳則只有站名（不再內建 logo，見 000 US12）+ 站名 `SiteSetting::siteName()`＋teal 底線；站名與 logo 檔名都是快取 key 的一部分，換任一個都會重生所有卡片），快取於 public disk（key 含標題 hash，改標題自動重生），檔案 ~70KB（<150KB）
 - [ ] app.blade.php 追加 `article:published_time` 與 BlogPosting JSON-LD（headline/datePublished/image/author）
 - [ ] `/blog/tag/{slug}` 列出該 tag 的 published 文章；tag 不存在或無文章顯示空狀態（非錯誤頁）
 - [ ] `/blog/feed` 輸出 RSS 2.0（最新 20 篇，title/link/description=excerpt/pubDate），`Content-Type: application/rss+xml`
@@ -476,6 +475,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: OG 卡片不再 fallback 到內建 `og-logo.png`（檔案移至 `database/legacy/`，歸 000），未上傳 logo 時 lockup 只有站名；OgImageTest 快取 key 同步（000 US12）。
 - 2026-10-18: `PostForm` 的「發佈時間」改用 000 的 `DateTimeInput`（附「清除」按鈕；已發佈狀態留空 = 現在發佈），窄側欄輸入框內距改 `px-2` 讓時間完整顯示。純前端，瀏覽器已確認。
 - 2026-10-07: 文章 Markdown 單一換行即換行（FR-037）—— 網頁、電子報、後台預覽三處一致；PostService 兩處 CommonMark 收斂為 converter()
 - 2026-10-07: US10 完成（T043–T048，剩 T049 使用者實測）— 電子報與文章版歡迎信改寄全文：PostService::toEmailHtml/toEmailText（影片行沿用前台判定換成縮圖或回站提示、殘留 iframe 換提示、插圖限寬轉絕對網址、站內連結戳 UTM），開信像素移到內文前；純文字版影片網址在 Markdown 轉換後才填入，避免 `utm\_source` 被跳脫成壞連結；NewsletterFullTextTest 6 項

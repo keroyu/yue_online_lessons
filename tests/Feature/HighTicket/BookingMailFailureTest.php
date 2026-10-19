@@ -75,6 +75,8 @@ class BookingMailFailureTest extends TestCase
     {
         Mail::fake();
         $this->bookingTemplate();
+        \App\Models\User::create(['email' => 'owner@example.com', 'role' => 'admin']);
+        \App\Models\SiteSetting::set(\App\Models\SiteSetting::SUPPORT_EMAIL_KEY, 'help@example.com');
 
         // Only the confirmation copies anybody now (FR-062).
         $this->applyAndConfirm($this->makeHighTicketCourse());
@@ -83,8 +85,8 @@ class BookingMailFailureTest extends TestCase
             // The customer-service address is not a lead recipient
             return str_contains($mail->emailSubject, '預約確認')
                 && $mail->hasTo('booker@example.com')
-                && $mail->hasCc('themustbig+leads@gmail.com')
-                && !$mail->hasCc('themustbig+learn@gmail.com');
+                && $mail->hasCc('owner@example.com')
+                && !$mail->hasCc('help@example.com');
         });
     }
 

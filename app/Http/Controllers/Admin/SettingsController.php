@@ -34,6 +34,7 @@ class SettingsController extends Controller
                 'env'              => SiteSetting::get('newebpay_env', config('services.newebpay.env', 'sandbox')),
             ],
             'portaly' => [
+                'store_slug'          => SiteSetting::get(SiteSetting::PORTALY_STORE_SLUG_KEY, ''),
                 'webhook_key'         => '',
                 'webhook_key_preview' => $this->maskSecret(SiteSetting::get('portaly_webhook_key', '')),
             ],
@@ -75,6 +76,7 @@ class SettingsController extends Controller
             'newebpay_hash_iv'     => ['nullable', 'string', 'max:200'],
             'newebpay_env'         => ['nullable', 'string', 'in:sandbox,production'],
             'portaly_webhook_key'  => ['nullable', 'string', 'max:200'],
+            'portaly_store_slug'   => ['nullable', 'string', 'max:100', 'alpha_dash'],
             'resend_webhook_secret' => ['nullable', 'string', 'max:200'],
             'meta_pixel_id'        => ['nullable', 'string', 'max:30', 'regex:/^[0-9]*$/'],
             'meta_capi_access_token'    => ['nullable', 'string', 'max:500'],
@@ -85,7 +87,7 @@ class SettingsController extends Controller
             'zoom_webhook_secret_token' => ['nullable', 'string', 'max:200'],
         ]);
 
-        $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env', 'zoom_account_id', 'zoom_client_id'];
+        $plainFields = ['payuni_merchant_id', 'newebpay_merchant_id', 'newebpay_env', 'portaly_store_slug', 'zoom_account_id', 'zoom_client_id'];
         foreach ($plainFields as $key) {
             if ($request->has($key)) {
                 SiteSetting::set($key, $request->input($key, ''));

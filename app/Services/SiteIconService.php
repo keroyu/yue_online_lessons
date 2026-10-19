@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * The two images that identify the site: the navbar logo and the favicon.
  *
- * Both used to be files in the repo (`resources/images/og-logo.png` imported by
+ * Both used to be files in the repo (`og-logo.png` under resources/images, imported by
  * Vite, and an empty `public/favicon.ico`), which is fine for one install and
  * useless for a second one — a customer cannot replace an asset that is baked
  * into the JS bundle. They are settings now, stored on the public disk.

@@ -149,13 +149,8 @@ const getTypeLabel = (type) => {
   return labels[type] || type
 }
 
-// Generate Portaly URL from product_id
-const portalyUrl = computed(() => {
-  if (!props.course.portaly_product_id) {
-    return null
-  }
-  return `https://portaly.cc/kyontw/product/${props.course.portaly_product_id}`
-})
+// Built server-side from the store handle in 後台 → API 設定
+const portalyUrl = computed(() => props.course.portaly_url || null)
 
 // Payment method flags
 const usePayuni = computed(() => props.course.use_payuni === true)

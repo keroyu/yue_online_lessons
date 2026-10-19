@@ -24,6 +24,7 @@ const form = useForm({
   newebpay_hash_key: '',
   newebpay_hash_iv: '',
   newebpay_env: props.newebpay.env,
+  portaly_store_slug: props.portaly.store_slug ?? '',
   portaly_webhook_key: '',
   resend_webhook_secret: '',
   meta_pixel_id: props.meta_pixel_id,
@@ -331,7 +332,14 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
 
       <!-- Portaly -->
       <div :class="sectionClasses">
-        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Portaly（Webhook）</h2>
+        <h2 class="text-base font-semibold text-gray-800 border-b pb-2">Portaly</h2>
+
+        <div>
+          <label :class="labelClasses">商店帳號</label>
+          <input type="text" v-model="form.portaly_store_slug" :class="inputClasses" placeholder="例如：mystore" />
+          <p class="mt-1 text-xs text-gray-500">Portaly 商店網址 portaly.cc/<strong>商店帳號</strong> 的那一段。未填時，設定了 Portaly 商品 ID 的課程不會顯示購買按鈕</p>
+          <p v-if="form.errors.portaly_store_slug" class="mt-1 text-sm text-red-600">{{ form.errors.portaly_store_slug }}</p>
+        </div>
 
         <div>
           <label :class="labelClasses">Webhook 金鑰</label>
@@ -347,7 +355,7 @@ const sectionClasses = 'bg-white shadow-sm rounded-lg p-6 space-y-4'
 
         <div>
           <label :class="labelClasses">Pixel ID</label>
-          <input type="text" v-model="form.meta_pixel_id" :class="inputClasses" placeholder="1287511383482442" />
+          <input type="text" v-model="form.meta_pixel_id" :class="inputClasses" placeholder="例如：123456789012345" />
           <p class="mt-1 text-xs text-gray-500">留空表示停用 Meta Pixel（頁面不輸出任何 fbq 代碼）</p>
           <p v-if="form.errors.meta_pixel_id" class="mt-1 text-sm text-red-600">{{ form.errors.meta_pixel_id }}</p>
         </div>

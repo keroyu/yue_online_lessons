@@ -112,9 +112,9 @@ class EmailTemplateController extends Controller
         return Inertia::render('Admin/EmailTemplates/Index', [
             'templates' => $templates,
             'notifyCc' => (string) SiteSetting::get(HighTicketBookingService::NOTIFY_CC_SETTING_KEY, ''),
-            'notifyCcDefault' => implode(', ', HighTicketBookingService::DEFAULT_NOTIFY_CC),
+            'notifyCcDefault' => implode(', ', HighTicketBookingService::defaultNotifyCc()),
             'supportEmail' => (string) SiteSetting::get(SiteSetting::SUPPORT_EMAIL_KEY, ''),
-            'supportEmailDefault' => SiteSetting::DEFAULT_SUPPORT_EMAIL,
+            'supportEmailDefault' => SiteSetting::defaultSupportEmail(),
         ]);
     }
 

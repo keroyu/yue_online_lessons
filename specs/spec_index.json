@@ -142,7 +142,16 @@
         "tests/Feature/Storefront/SiteIdentityTest.php",
         "app/Services/SiteIconService.php",
         "app/Http/Controllers/FaviconController.php",
-        "tests/Feature/Platform/SiteIconTest.php"
+        "tests/Feature/Platform/SiteIconTest.php",
+        "database/migrations/2026_10_20_000001_install_legacy_owner_defaults.php",
+        "database/legacy/og-logo.png",
+        "tests/Feature/Platform/LegacyOwnerDefaultsTest.php",
+        "public/robots.txt",
+        "app/Services/HighTicketBookingService.php",
+        "app/Http/Controllers/CourseController.php",
+        "resources/js/Pages/Course/Show.vue",
+        "resources/js/Pages/Admin/Settings/Payment.vue",
+        "app/Http/Controllers/Admin/SettingsController.php"
       ],
       "status": "implemented"
     },
@@ -6049,7 +6058,6 @@
         "app/Services/PostService.php",
         "app/Services/HomepageWidgetService.php",
         "resources/fonts/NotoSansTC.ttf",
-        "resources/images/og-logo.png",
         "resources/js/Components/Layout/WidgetColumn.vue",
         "resources/js/Components/Newsletter/PostCard.vue",
         "resources/js/Pages/Blog/Index.vue",

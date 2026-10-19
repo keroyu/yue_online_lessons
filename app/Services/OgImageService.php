@@ -26,9 +26,9 @@ class OgImageService
     public function __construct(private SiteIconService $icons, private ThemeService $theme)
     {
         $this->font = resource_path('fonts/NotoSansTC.ttf');
-        // The uploaded logo wins; the bundled file only covers installs that
-        // have not set one (000 US12).
-        $this->logo = $this->icons->logoPath() ?: resource_path('images/og-logo.png');
+        // Only an uploaded logo is drawn; without one the lockup is the name
+        // alone (000 US12) — no bundled mark that belongs to another install.
+        $this->logo = $this->icons->logoPath() ?? '';
     }
 
     /**
@@ -132,7 +132,7 @@ class OgImageService
         $box = imagettfbbox($brandSize, 0, $this->font, $brand);
         $textWidth = abs($box[2] - $box[0]);
 
-        $logoImg = @imagecreatefrompng($this->logo);
+        $logoImg = $this->logo !== '' ? @imagecreatefrompng($this->logo) : false;
         $hasLogo = (bool) $logoImg;
         $lockupWidth = ($hasLogo ? $logoSize + $gap : 0) + $textWidth;
         $lockupLeft = self::W - self::MARGIN - $lockupWidth;

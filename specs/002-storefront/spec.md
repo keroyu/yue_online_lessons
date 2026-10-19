@@ -1394,6 +1394,7 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: 課程銷售頁的 Portaly 購買連結改讀後端 `course.portaly_url`（商店帳號來自 API 設定，不再寫死）（000 US12）。
 - 2026-09-25: FR-091 完成。色票提示加一顆「複製整組配色」，複製出「一行給 AI 的指示句 ＋ 名稱／CSS 變數／目前 hex 三欄對齊純文字」。對齊用顯示寬度計算（CJK 算兩格）而非 `padEnd`，否則中文與 ASCII 混排的標籤在等寬字型下會歪掉。hex 這次一起附上（與 FR-079「hex 不給複製」刻意不同）：AI 需要實際色值判斷對比，指示句負責擋掉它寫死 hex。逐個色票的點擊複製維持只給變數。實測：在後台開「新增自訂區塊」確認按鈕位置與 swatch 版面，並以頁面實際 props 重跑一次組字邏輯，輸出與預期逐字相符。全套 1048 passed、`npm run build` exit 0。
   已知限制：自動化分頁 `document.hasFocus()` 為 false，`navigator.clipboard.writeText` 會丟 NotAllowedError（元件既有的 try/catch 靜默吞掉），所以「真的複製進剪貼簿」這一步只能由使用者在一般分頁確認。
 

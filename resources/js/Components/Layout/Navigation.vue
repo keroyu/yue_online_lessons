@@ -3,15 +3,14 @@ import { Link, usePage, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { useCart } from '@/composables/useCart'
 import { useNotifications } from '@/composables/useNotifications'
-import bundledLogoUrl from '../../../images/og-logo.png'
 
 const page = usePage()
 const auth = computed(() => page.props.auth)
 const user = computed(() => auth.value?.user)
 const siteName = computed(() => page.props.site?.name ?? '')
-// The bundled file is the fallback, not the default: a second install replaces
-// the logo from 後台 and must never fall back to this one's mark.
-const logoUrl = computed(() => page.props.site?.logoUrl || bundledLogoUrl)
+// No bundled fallback: an install that has not uploaded a logo shows its name
+// only, never another install's mark.
+const logoUrl = computed(() => page.props.site?.logoUrl || null)
 const mobileMenuOpen = ref(false)
 const notificationOpen = ref(false)
 
@@ -55,7 +54,7 @@ const formatNotificationTime = (d) => {
         <!-- Logo -->
         <div class="flex items-center">
           <Link href="/" class="flex items-center gap-2.5 text-xl font-bold text-white tracking-wide">
-            <img :src="logoUrl" :alt="siteName" class="h-9 w-9 object-contain" />
+            <img v-if="logoUrl" :src="logoUrl" :alt="siteName" class="h-9 w-9 object-contain" />
             {{ siteName }}
           </Link>
         </div>

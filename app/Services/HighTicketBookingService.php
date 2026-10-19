@@ -27,16 +27,12 @@ use Illuminate\Support\Str;
 class HighTicketBookingService
 {
     /**
-     * Fallback recipients copied on every booking confirmation — a new lead has
-     * to reach a human even if nobody is watching the admin panel. Editable in
-     * 後台 → Email 模板管理; this list is only what an unconfigured site uses
-     * (the customer-service address used on the payment and legal pages is a
-     * different role, not a lead recipient).
+     * Fallback recipients copied on every booking confirmation live in this
+     * setting — a new lead has to reach a human even if nobody is watching the
+     * admin panel. Editable in 後台 → Email 模板管理; an unconfigured site uses
+     * every administrator (see defaultNotifyCc()). The customer-service address
+     * is a different role, not a lead recipient.
      */
-    public const DEFAULT_NOTIFY_CC = [
-        'themustbig+leads@gmail.com',  // 管理員
-    ];
-
     public const NOTIFY_CC_SETTING_KEY = 'high_ticket_lead_notify_cc';
 
     /** How long a slot stays reserved while we wait for the emailed click. */
@@ -1430,7 +1426,15 @@ class HighTicketBookingService
     {
         $configured = self::parseRecipients((string) SiteSetting::get(self::NOTIFY_CC_SETTING_KEY, ''));
 
-        return $configured ?: self::DEFAULT_NOTIFY_CC;
+        return $configured ?: self::defaultNotifyCc();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function defaultNotifyCc(): array
+    {
+        return User::where('role', 'admin')->orderBy('id')->pluck('email')->filter()->values()->all();
     }
 
     /**

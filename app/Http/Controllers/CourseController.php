@@ -79,6 +79,7 @@ class CourseController extends Controller
                 'duration_formatted' => $course->duration_formatted,
                 'lessons_count' => $course->lessons()->count(),
                 'portaly_product_id' => $course->portaly_product_id,
+                'portaly_url' => SiteSetting::portalyProductUrl($course->portaly_product_id),
                 'payment_gateway' => $course->payment_gateway,
                 'use_payuni' => !$course->portaly_product_id && $course->price > 0,
                 'is_free' => !$course->portaly_product_id && $course->price == 0,

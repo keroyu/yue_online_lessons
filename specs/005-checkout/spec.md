@@ -98,7 +98,7 @@ guest cart 存 localStorage，登入後自動合併至 server-side 購物車。
 - [x] 統編選填，填寫時必為 8 位數字（前後端 `regex:/^\d{8}$/` 雙重驗證），寫入 orders.tax_id
 - [x] Email blur 時呼叫 `POST /api/checkout/check-email`，同時比對 purchases.buyer_email 與 users.email→purchases.user_id 雙路徑；已購買任一車內課程則紅字提示並 disable 送出
 - [x] 資料不完整或未勾選同意時「前往付款」保持 disabled
-- [x] 付款失敗返回 `/cart` 時讀取 flash `payment_failed` 顯示紅色橫幅（含客服 Email themustbig+learn@gmail.com）
+- [x] 付款失敗返回 `/cart` 時讀取 flash `payment_failed` 顯示紅色橫幅（含客服 Email，取自 `supportEmail`）
 
 ### User Story 3 - 建立訂單與金流付款 (Priority: P1)
 
@@ -206,6 +206,7 @@ price = 0 且無 portaly_product_id 的課程，銷售頁展開 inline 表單（
 
 ## 進度日誌
 
+- 2026-10-20: API 設定頁 Portaly 區塊新增「商店帳號」欄位（`portaly_store_slug`），課程頁的 Portaly 購買連結改由後端組出（000 US12）。
 - 2026-07-12: AddToCart Pixel 事件時機修正（useCart.js）— 原本進函式就送（失敗/重複也計數），改為 API 成功或 guest cart 實際新增後才送。
 - 2026-07-11: 金流設定頁（Payment.vue）標題改名「API 設定」（含 PayUni/NewebPay/Portaly/Meta Pixel 憑證，頁面已不只金流）。憑證讀取為 SiteSetting 優先、config/.env fallback（PayuniService/NewebpayService/PortalyWebhookService 建構子）。
 - 2026-07-06: 領域重組 — 合併 009+001(購買流程) 重寫，依實際 codebase 校正

@@ -68,7 +68,7 @@ const eventTypeLabels = {
           <p class="mt-1 text-sm text-gray-500">
             預約確認信原則上只副本給<strong>該時段的負責顧問</strong>；這份清單只在
             <strong>該筆預約沒有指派顧問</strong>時作為後備，避免沒有任何人收到通知。
-            多筆用逗號分隔，留空則使用預設值
+            多筆用逗號分隔，留空則寄給所有管理員
             <span class="font-mono text-gray-600">{{ notifyCcDefault }}</span>。
           </p>
           <div class="mt-auto flex flex-col sm:flex-row gap-3 pt-3">
@@ -97,7 +97,7 @@ const eventTypeLabels = {
           <p class="mt-1 text-sm text-gray-500">
             系統信件與模板中請訪客聯絡的對外信箱。可在下方任何模板插入
             <code class="font-mono text-gray-600">&#123;&#123;support_email&#125;&#125;</code>
-            變數，改這裡就會一起更新。留空則使用預設值
+            變數，改這裡就會一起更新。留空則使用第一位管理員的信箱
             <span class="font-mono text-gray-600">{{ supportEmailDefault }}</span>。
             <br>
             <span class="text-gray-400">這與「預約通知收件者」是不同角色：那是誰接手這條 lead，這是訪客有問題時寫給誰。</span>

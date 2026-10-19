@@ -2,6 +2,10 @@
 id: 000-platform-core
 status: building
 owner_files:
+  - database/migrations/2026_10_20_000001_install_legacy_owner_defaults.php
+  - database/legacy/og-logo.png
+  - tests/Feature/Platform/LegacyOwnerDefaultsTest.php
+  - public/robots.txt
   - resources/js/Components/Admin/DateTimeInput.vue
   - app/Models/AiPrompt.php
   - app/Services/OpenAiService.php
@@ -221,9 +225,21 @@ touchpoints:
   - file: app/Models/Order.php
     owner: 005-checkout
     why: US7 — fillable 增加 meta_fbp / meta_fbc（結帳時的 pixel cookie 快照欄位）
-  - file: resources/images/og-logo.png
-    owner: 012-newsletter
-    why: 前台 Navigation 左上角品牌 logo（Vite import，與 OG 卡片共用同一支品牌圖）
+  - file: resources/js/Components/Admin/CourseForm.vue
+    owner: 004-course-admin
+    why: US12 — Portaly 商品 ID 說明文字不再寫死原站商店帳號
+  - file: resources/js/Pages/Admin/EmailTemplates/Index.vue
+    owner: 011-high-ticket
+    why: US12 — CC 名單／客服信箱「留空時」的說明改為管理員信箱
+  - file: tests/Feature/HighTicket/SupportEmailTest.php
+    owner: 011-high-ticket
+    why: US12 — fallback 改為管理員信箱；原始碼掃描擴大為原站長身分（信箱、Portaly 商店）
+  - file: tests/Feature/HighTicket/BookingLeadRecordTest.php
+    owner: 011-high-ticket
+    why: US12 — CC fallback 改為所有管理員
+  - file: tests/Feature/HighTicket/BookingMailFailureTest.php
+    owner: 011-high-ticket
+    why: US12 — CC fallback 改為所有管理員
   - file: app/Http/Controllers/Admin/HomepageSettingController.php
     owner: 002-storefront
     why: US12 站台資訊的後台編輯端點放在「首頁設定」頁（見 002 US22）
@@ -485,12 +501,15 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] 信件模板新增全域變數 `{{site_name}}`（注入點同 `{{support_email}}` / `{{app_url}}`，見 011 FR-057）；`EmailTemplateSeeder` 與自帶模板本文的 migration 的署名改用該變數，乾淨 DB 不再帶入本站品牌字串
 - [x] 資料遷移 `2026_09_25_000001_install_site_identity_settings`：**只有既有安裝**（判斷依據是 `site_settings` 已有 `hero_title` 列）才把現行的站名／公司／地址寫進去；乾淨 DB MUST 什麼都不插 —— 條款頁的法定資訊不能在升級時無聲消失，但也不能把本站的公司帶到別人的站上。既有列一律不覆寫（後台從此是唯一權威）
 - [x] 站名必填（`max:100`）；經營者與地址可留空，留空時條款頁整行不渲染
-- [x] **網站圖示（導覽列左上角）與 favicon 皆為後台上傳**，存在 public disk 的 `site-icons/`；限 `png,jpg,jpeg,webp`、2MB。導覽列的 `resources/images/og-logo.png` 降為 fallback —— 第二個安裝不可能替換打包進 JS bundle 的檔案
+- [x] **網站圖示（導覽列左上角）與 favicon 皆為後台上傳**，存在 public disk 的 `site-icons/`；限 `png,jpg,jpeg,webp`、2MB。**程式碼不帶任何內建 logo**：未上傳時導覽列只顯示站名、OG 卡片 lockup 只有站名 —— 第二個安裝不可能替換打包進 JS bundle 的檔案，也不該顯示別人的標誌
 - [x] favicon **只上傳一張 PNG**，由 `SiteIconService` 自動派生 32×32、180×180（apple-touch-icon）與 `.ico`。縮圖前 MUST 先 `imagealphablending(false)` + `imagesavealpha(true)` + 填透明底，否則 GD 會把 alpha 壓在黑底上，淺色分頁上就是一塊黑
 - [x] `.ico` 由 PHP 自行組出（GD 不會寫 ICO、本機也沒有 Imagick）：ICO 容器允許整包 PNG，所以檔案就是 6 bytes 檔頭 + 16 bytes 目錄項 + PNG 本體，Vista 之後的所有瀏覽器都讀得懂
 - [x] `GET /favicon.ico` 由 `FaviconController` 提供，`public/favicon.ico`（Laravel 預設的 0 bytes 空檔）MUST 刪除，否則 nginx 會先命中它。沒上傳時回 404（瀏覽器自行退回預設圖示）
 - [x] 產生的檔名帶內容 hash，換圖即換網址；舊檔在替換與刪除時 MUST 一併從 disk 移除（比照 002 FR-008 hero banner）
-- [x] OG 卡片的 logo 改用上傳的圖（沒有才退回內建檔），且 logo 檔名 MUST 進快取 key，換 logo 才會重生舊卡片
+- [x] OG 卡片的 logo 只用上傳的圖（未上傳時不畫 logo），且 logo 檔名 MUST 進快取 key，換 logo 才會重生舊卡片
+- [x] **原站長的預設值一律移出程式碼**（給客戶另裝一份用）：客服信箱 fallback → 第一位管理員信箱，再退到 `mail.from.address`（`SiteSetting::defaultSupportEmail()`）；預約 CC fallback → 所有管理員（`HighTicketBookingService::defaultNotifyCc()`）；Portaly 購買連結的商店帳號改為 `site_settings.portaly_store_slug`（API 設定頁 → Portaly），由 `SiteSetting::portalyProductUrl()` 在後端組出 `course.portaly_url`，未設定時不顯示 Portaly 購買按鈕；`public/robots.txt` 拿掉寫死網域的 `Sitemap:` 行（Forge 的 nginx 對 `/robots.txt` 有 exact-match location、不走 Laravel，所以維持靜態檔）
+- [x] 資料遷移 `2026_10_20_000001_install_legacy_owner_defaults`：比照 `install_site_identity_settings`，**只有既有安裝**（有 `hero_title`）才把原本的客服信箱、CC 名單、Portaly 商店帳號寫成設定，並把 `database/legacy/og-logo.png` 複製到 public disk 設為 `site_logo_path`；乾淨 DB 什麼都不寫，既有值不覆寫
+- [x] 測試：`LegacyOwnerDefaultsTest`（新站全空、既有站保留原值與 logo、不覆寫已設定值、Portaly URL 需同時有商店與商品）；`SupportEmailTest` 掃描 `app/`、`resources/`、`public/` 不得出現原站長信箱或 Portaly 商店網址
 - [x] 測試：`SiteIdentityTest`（儲存三值、站名必填、經營者/地址可空、訪客不得改、`site` prop 出現在每一頁、站名 fallback 到 hero_title）
 - [x] 測試：`SiteIconTest`（logo 上傳後出現在 `site.logoUrl`、一張 PNG 派生三個檔且尺寸正確、`.ico` 的檔頭/目錄項/PNG 本體逐欄位驗證、`/favicon.ico` 有無圖各自回 200/404、layout 未上傳時不輸出 icon link、替換與刪除都清掉舊檔、訪客不得上傳、非圖片被擋）
 - [x] 原始碼掃描把關：`app/` 與 `resources/` 底下 MUST NOT 出現舊的品牌字串（站名／公司名／地址），比照 011 FR-057 對客服信箱的作法 —— 只被一半的程式碼尊重的設定，比沒有設定更糟
@@ -503,8 +522,8 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 那對「客戶自己裝一份」這個情境來說不成立（US12 的同一個問題，換一個面向）。
 
 這條故事讓第一位以 OTP 註冊的人自動成為管理員，並把他的 email 寫進客服信箱設定
-——後者同時修掉另一個跨站問題：`SiteSetting::DEFAULT_SUPPORT_EMAIL` 是本站的地址，
-在別人的站上是錯的，只要這裡寫進真實值，那個 fallback 就不會再有機會出場。
+——後者同時修掉另一個跨站問題：客服信箱原本的內建預設是本站的地址，在別人的站上是錯的
+（該常數已於 2026-10-20 移除，fallback 改為第一位管理員信箱，見 US12）。
 
 **只認 `/login` 的 OTP 註冊**。訪客結帳、電子報訂閱、免費領取、Portaly webhook 也會
 建 user，但那些路徑沒有任何人證明過自己收得到那個信箱的信；在新站首頁輸入一個 email
@@ -868,6 +887,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-10-20: 為客戶另裝一份做準備 — 移除程式碼中寫死的原站長身分：客服信箱 / 預約 CC 的預設改為管理員信箱、Portaly 商店帳號改為 API 設定、導覽列與 OG 卡片不再內建 logo、robots.txt 去掉寫死網域；新增 migration 讓既有站自動保留原值（US12）。
 - 2026-10-18: 修正 axios 偶發「CSRF token mismatch」（419）— `bootstrap.js` 拿掉頁面載入時從 meta 凍結的 `X-CSRF-TOKEN` 預設 header（token 重產後如在另一分頁登出，舊值優先於 `X-XSRF-TOKEN` 被比對而 419），改由 axios 從 `XSRF-TOKEN` cookie 自動帶。FR-004 已改。curl 驗證：舊 header＋有效 cookie → 419；只帶 cookie → 通過 CSRF（422 驗證錯誤）。
 - 2026-10-18: 新增共用元件 `Components/Admin/DateTimeInput.vue`（`datetime-local` ＋「清除」按鈕）— Chrome 原生輸入框沒有清除鈕，只刪一格會進入 `badInput` 並被瀏覽器原生驗證擋下送出；按鈕直接重設 DOM 值。`inheritAttrs: false`，`class`/`id` 落在 input 上、`wrapper-class` 給外層，input 加 `min-w-0 flex-1` 避免窄欄把按鈕擠出。目前用於 006 折扣碼到期日、004 課程優惠到期／預購開賣、012 文章發佈時間；必填或不該留空的日期欄位（如電子報排程）不使用。
 - 2026-09-25: 重新設計 墨竹／苔原／玫瑰石英 三組配色（使用者回報「對比太高、導覽列與按鈕都是深色底、重複性高」）— 查證後根因有兩層，都在我這邊：初版的 `navy` 亮度只有 0.018–0.025，而當時 7:1 的門檻其實允許到 0.083（**我選得比自己訂的規則更保守**）；而 7:1 這條門檻本身也選錯了，因為 `navy` 同時是內文色與導覽列／側欄底色，把內文推到 AAA 等於把一大片色塊推到近黑，再配上同樣要承載白字的主要按鈕，整頁就是兩塊黑板。

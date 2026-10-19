@@ -467,6 +467,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: 課程表單 Portaly 商品 ID 說明文字改為 `portaly.cc/{商店帳號}/product/{ID}`（000 US12）。
 - 2026-10-18: `CourseForm` 的「優惠到期時間」「預購開賣時間」改用 000 的 `DateTimeInput`（附「清除」按鈕，避免刪一格後無法送出）；上邊距移到外層（`dateInputClasses` 去掉 `mt-2`）讓按鈕對齊。純前端，瀏覽器已確認。
 - 2026-10-02: 使用者決定略過 T00I10、T00J11 的正式站手動實走，以自動測試（1118 passed）為準；004 status → done。
 - 2026-10-01: 實作 T00J1~T00J10（FR-029~031）— `LessonAddedNotification` 以 `route('member.classroom', [course, lesson_id])` 產生 `$lessonUrl` 供模板 `{{classroom_url}}` 與 fallback 共用、fallback 主旨改「您擁有的課程新增了小節：「標題」」並移除 type 分支、fallback 文案改「立即觀看新小節」、模板變數 label 改「小節連結（直達該小節）」、`LoginController` 改 `redirect()->intended()`、seeder 同步新文案、條件式 data migration `2026_09_28_000001`（主旨僅在仍為舊預設時改、內文只換一句、含 down()）。新增 6 例於 `LessonNotificationTest` + `LoginIntendedRedirectTest` 2 例，先紅後綠，故意把 `{{classroom_url}}` 改回舊值確認會紅；`php artisan test` 1118 passed。剩 T00J11 實點連結與 T00I10，部署後在正式站驗。

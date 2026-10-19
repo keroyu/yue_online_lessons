@@ -20,6 +20,7 @@ main_files:
 - app/Http/Controllers/Admin/ShortLinkController.php
 - app/Http/Controllers/Auth/LoginController.php
 - app/Http/Controllers/CheckoutController.php
+- app/Http/Controllers/CourseController.php
 - app/Http/Controllers/FaviconController.php
 - app/Http/Controllers/Purchase/FreePurchaseController.php
 - app/Http/Controllers/ShortLinkRedirectController.php
@@ -64,6 +65,7 @@ main_files:
 - config/database.php
 - config/services.php
 - config/themes.php
+- database/legacy/og-logo.png
 - database/migrations/2026_03_25_000001_create_site_settings_table.php
 - database/migrations/2026_07_11_000003_add_is_sales_consultant_to_users.php
 - database/migrations/2026_07_12_000001_add_meta_click_ids_to_orders_table.php
@@ -71,7 +73,9 @@ main_files:
 - database/migrations/2026_08_09_000001_create_email_suppressions_table.php
 - database/migrations/2026_08_17_000002_create_ai_prompts_table.php
 - database/migrations/2026_09_25_000001_install_site_identity_settings.php
+- database/migrations/2026_10_20_000001_install_legacy_owner_defaults.php
 - database/seeders/ShortLinkSeeder.php
+- public/robots.txt
 - resources/css/app.css
 - resources/js/Components/Admin/Analytics/ShortLinkTab.vue
 - resources/js/Components/Admin/ColorSchemePicker.vue
@@ -107,6 +111,7 @@ main_files:
 - tests/Feature/Platform/ColorSchemeTest.php
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/FirstAdminTest.php
+- tests/Feature/Platform/LegacyOwnerDefaultsTest.php
 - tests/Feature/Platform/ShortLinkTest.php
 - tests/Feature/Platform/SiteIconTest.php
 - tests/Feature/Storefront/SiteIdentityTest.php
@@ -973,7 +978,6 @@ main_files:
 - database/migrations/2026_07_10_000006_create_newsletter_email_events_table.php
 - database/migrations/2026_07_10_000007_add_newsletter_fields_to_users_table.php
 - resources/fonts/NotoSansTC.ttf
-- resources/images/og-logo.png
 - resources/js/Components/Admin/PostForm.vue
 - resources/js/Components/BlogArticles.vue
 - resources/js/Components/Layout/WidgetColumn.vue

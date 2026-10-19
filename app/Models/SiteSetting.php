@@ -20,11 +20,39 @@ class SiteSetting extends Model
      */
     public const SUPPORT_EMAIL_KEY = 'support_email';
 
-    public const DEFAULT_SUPPORT_EMAIL = 'themustbig+learn@gmail.com';
+    /**
+     * The Portaly storefront handle — the `{slug}` in
+     * `https://portaly.cc/{slug}/product/{id}`. Each install sells from its
+     * own store, so it is a setting rather than part of the URL template.
+     */
+    public const PORTALY_STORE_SLUG_KEY = 'portaly_store_slug';
+
+    /** Purchase page for a Portaly product, or null when the store is unset. */
+    public static function portalyProductUrl(?string $productId): ?string
+    {
+        $slug = trim((string) static::get(self::PORTALY_STORE_SLUG_KEY, ''));
+
+        if ($slug === '' || ! $productId) {
+            return null;
+        }
+
+        return 'https://portaly.cc/' . rawurlencode($slug) . '/product/' . rawurlencode($productId);
+    }
 
     public static function supportEmail(): string
     {
-        return trim((string) static::get(self::SUPPORT_EMAIL_KEY, '')) ?: self::DEFAULT_SUPPORT_EMAIL;
+        return trim((string) static::get(self::SUPPORT_EMAIL_KEY, '')) ?: static::defaultSupportEmail();
+    }
+
+    /**
+     * What an unconfigured install prints: the earliest administrator, else
+     * the sender address. Derived rather than a constant because every install
+     * of this codebase belongs to a different owner.
+     */
+    public static function defaultSupportEmail(): string
+    {
+        return (string) (User::where('role', 'admin')->orderBy('id')->value('email')
+            ?: config('mail.from.address', ''));
     }
 
     /**

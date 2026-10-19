@@ -19,16 +19,28 @@ class SupportEmailTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_falls_back_to_the_built_in_default(): void
+    public function test_it_falls_back_to_the_first_administrator(): void
     {
-        $this->assertSame(SiteSetting::DEFAULT_SUPPORT_EMAIL, SiteSetting::supportEmail());
+        User::create(['email' => 'member@example.com', 'role' => 'member']);
+        User::create(['email' => 'owner@example.com', 'role' => 'admin']);
+        User::create(['email' => 'second-admin@example.com', 'role' => 'admin']);
+
+        $this->assertSame('owner@example.com', SiteSetting::supportEmail());
+    }
+
+    public function test_without_an_administrator_it_falls_back_to_the_sender_address(): void
+    {
+        config(['mail.from.address' => 'hello@client.test']);
+
+        $this->assertSame('hello@client.test', SiteSetting::supportEmail());
     }
 
     public function test_a_blank_setting_still_falls_back(): void
     {
+        User::create(['email' => 'owner@example.com', 'role' => 'admin']);
         SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, '   ');
 
-        $this->assertSame(SiteSetting::DEFAULT_SUPPORT_EMAIL, SiteSetting::supportEmail());
+        $this->assertSame('owner@example.com', SiteSetting::supportEmail());
     }
 
     public function test_a_configured_address_wins(): void
@@ -142,41 +154,46 @@ class SupportEmailTest extends TestCase
 
     public function test_the_shared_value_falls_back_when_unset(): void
     {
+        config(['mail.from.address' => 'hello@client.test']);
+
         $this->get('/')->assertInertia(
-            fn ($page) => $page->where('supportEmail', SiteSetting::DEFAULT_SUPPORT_EMAIL)
+            fn ($page) => $page->where('supportEmail', 'hello@client.test')
         );
     }
 
     /**
-     * Guards the sweep: the address used to be hardcoded in six places, so a
-     * setting that only half the app respects would be worse than none.
+     * Guards the sweep: the address used to be hardcoded in six places, and
+     * the codebase is now installed for other owners — none of the original
+     * owner's personal addresses or store handles may ship in the source.
      */
-    public function test_no_source_file_hardcodes_the_address(): void
+    public function test_no_source_file_hardcodes_the_original_owners_identity(): void
     {
-        $roots = [base_path('app'), base_path('resources')];
+        $needles = ['themustbig', 'portaly.cc/kyontw'];
+        $roots = [base_path('app'), base_path('resources'), base_path('public')];
         $offenders = [];
 
         foreach ($roots as $root) {
             $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
 
             foreach ($files as $file) {
-                if (!$file->isFile() || !in_array($file->getExtension(), ['php', 'vue', 'blade'], true)) {
-                    continue;
-                }
-
                 $path = $file->getPathname();
 
-                // The fallback constant is the one legitimate copy.
-                if (str_ends_with($path, 'app/Models/SiteSetting.php')) {
+                if (!$file->isFile()
+                    || !in_array($file->getExtension(), ['php', 'vue', 'js', 'txt'], true)
+                    || str_contains($path, '/public/build/')
+                    || str_contains($path, '/public/storage/')) {
                     continue;
                 }
 
-                if (str_contains((string) file_get_contents($path), SiteSetting::DEFAULT_SUPPORT_EMAIL)) {
-                    $offenders[] = str_replace(base_path() . '/', '', $path);
+                $contents = (string) file_get_contents($path);
+                foreach ($needles as $needle) {
+                    if (str_contains($contents, $needle)) {
+                        $offenders[] = str_replace(base_path() . '/', '', $path) . " ({$needle})";
+                    }
                 }
             }
         }
 
-        $this->assertSame([], $offenders, '客服信箱應改用 SiteSetting::supportEmail() 或 {{support_email}}');
+        $this->assertSame([], $offenders, '原站長的信箱 / 商店帳號不可寫死在程式碼裡，請改用後台設定');
     }
 }

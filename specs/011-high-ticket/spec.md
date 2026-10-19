@@ -1660,7 +1660,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **FR-017**: 開通通知信以 `lead_converted` 模板寄給 `lead.email`，變數 `{{user_name}}`、`{{course_name}}`、`{{amount}}`、`{{classroom_url}}`、`{{app_url}}`；渲染與版型比照 `CourseGiftedMail`（CommonMark → `emails/high-ticket-booking.blade.php`）。不 CC 任何內部信箱（開通是管理員主動操作，本人已知情，與 FR-014 的 lead 通知情境不同）。缺模板或寄送失敗只記 log，開通結果以 `mail_sent` 布林誠實回報
 
-- **FR-014**: 新 lead 的內部通知收件者存於 `site_settings.high_ticket_lead_notify_cc`（逗號分隔），由後台 Email 模板管理頁編輯；未設定或格式無效時 fallback 至 `HighTicketBookingService::DEFAULT_NOTIFY_CC` 常數。解析一律走 `HighTicketBookingService::parseRecipients()`（逗號 / 分號 / 空白皆可分隔、去空去重），前後端共用同一份規則。**這份清單與付款/法律頁的「客服信箱」是不同角色**，不得混用：客服是對外聯絡管道，此清單是誰該接手這條 lead。會員的 `is_sales_consultant` 旗標**目前不參與寄信**（只管後台權限），要改成依身分自動通知需另立設計 —— CC 會把顧問信箱曝露給預約者，屆時應改用 bcc 或另寄內部通知信。
+- **FR-014**: 新 lead 的內部通知收件者存於 `site_settings.high_ticket_lead_notify_cc`（逗號分隔），由後台 Email 模板管理頁編輯；未設定或格式無效時 fallback 至所有管理員的信箱（`HighTicketBookingService::defaultNotifyCc()`；原本的寫死常數已移除，見 000 US12）。解析一律走 `HighTicketBookingService::parseRecipients()`（逗號 / 分號 / 空白皆可分隔、去空去重），前後端共用同一份規則。**這份清單與付款/法律頁的「客服信箱」是不同角色**，不得混用：客服是對外聯絡管道，此清單是誰該接手這條 lead。會員的 `is_sales_consultant` 旗標**目前不參與寄信**（只管後台權限），要改成依身分自動通知需另立設計 —— CC 會把顧問信箱曝露給預約者，屆時應改用 bcc 或另寄內部通知信。
 
 - **FR-018**: 預約 MUST 以 `(email, course_id)` 為唯一鍵去重（見 D17）；`recordLead()` 命中既有記錄時只更新 name / booked_at 與（僅限 closed → pending 的）status，不新增列、不動 notified_count / last_notified_at
 
@@ -1768,10 +1768,10 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
   `pending` / `converted` / `closed` 值與意思都不變。`cancelled_at` 刻意留 null —— 不知道他們是什麼時候冷掉的，捏造一個時間戳比缺一個更糟；而且所有歷史 lead 都早於 `confirmed_at` 與 `consultation_slots`，沒有任何一筆握著預約，不會出現「說已取消卻還佔著時段」的矛盾。migration 不可逆（轉換後的 `pending` 與原生的 `pending` 無從分辨），但可重複執行。
   **MUST NOT 改動 DB 值**（指的是欄位語彙本身）：`contacted` / `no_response` 的字面意思雖然已與顯示名稱不符，但改名要動 enum migration + 既有資料 UPDATE，而既有的 `no_response` 列原意是「沒回我的訊息」，改寫成 no-show 等於把那段歷史重新貼標。代價是讀 code 時需要這張表；顯示字串收在 `BookingListTab.vue` 的 `statusButtons` 單一設定表，且每個值旁有註解說明。行為完全不變 —— `no_response` 仍可加入序列信、仍在重新預約時回到 `pending`（FR-007 / D17），這些規則對 no-show 同樣成立
 
-- **FR-057**: 對外客服信箱 MUST 收在 `site_settings.support_email`，由「Email 模板管理」頁維護；未設定或留空時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。取值一律走 `SiteSetting::supportEmail()`。
+- **FR-057**: 對外客服信箱 MUST 收在 `site_settings.support_email`，由「Email 模板管理」頁維護；未設定或留空時 fallback 至第一位管理員的信箱，再退到 `mail.from.address`（`SiteSetting::defaultSupportEmail()`）。取值一律走 `SiteSetting::supportEmail()`。
   **`{{support_email}}`、`{{site_name}}` 與 `{{app_url}}` MUST 對所有模板自動可用**：注入點在 `EmailTemplate::renderSubject()` / `substitute()`，不是各呼叫端 —— 呼叫端有六個，漏一個的症狀是收件人信箱裡出現字面的 `{{support_email}}`。呼叫端明確傳入的值 MUST 覆蓋全域值。編輯頁的變數清單以 `GLOBAL_VARIABLES` 附加於每個 event_type 之後。
   **與 `high_ticket_lead_notify_cc` 是不同角色**（沿用 FR-014 的區分）：那是「誰接手這條 lead」，這是「訪客有問題寫給誰」；兩者共用同一頁但文案 MUST 說明差別。
-  **全站唯一真相**：`app/` 與 `resources/` MUST NOT 出現硬寫的客服地址，唯一例外是 `SiteSetting::DEFAULT_SUPPORT_EMAIL` 常數本身；前台以 Inertia shared prop `supportEmail` 取用（法律條款 modal 掛在 footer，沒有單一 controller 可傳），後端一律 `SiteSetting::supportEmail()`。此條 MUST 由測試掃描原始碼把關 —— 一個只有一半應用程式遵守的設定，比沒有設定更糟
+  **全站唯一真相**：`app/`、`resources/`、`public/` MUST NOT 出現原站長的信箱或 Portaly 商店網址（無例外）；前台以 Inertia shared prop `supportEmail` 取用（法律條款 modal 掛在 footer，沒有單一 controller 可傳），後端一律 `SiteSetting::supportEmail()`。此條 MUST 由測試掃描原始碼把關 —— 一個只有一半應用程式遵守的設定，比沒有設定更糟
 
 - **FR-060**: `consultation_slots.consultant_id`（nullable、index、無外鍵，比照 `lead_id` 的既有作法）記錄時段歸屬。staff 建立時段時 MUST 帶入請求中的歸屬對象；**銷售顧問 MUST 只能指派給自己**（後端驗證，前端鎖定只是提示）；管理員可指定任一 staff。
   **明確限制**：`starts_at` 維持**全域 unique**，所以這是**一本共用行事曆**上的歸屬標記，不是每位顧問各一本 —— 同一個 15 分鐘單位全系統只會有一列，兩位顧問無法同時開放同一時刻（見 D57）
@@ -2491,7 +2491,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **D17**: 同 email + 同課程的重複預約改為「更新既有 lead」而非新增一列（2026-08-03，推翻原 D7 的保留完整歷史）— 後台是一份**待辦名單**不是事件流水帳：同一個人送三次表單就變三列待處理，管理員得逐列判斷是不是同一人，複製 Email 也得靠去重補救。狀態處理採「closed 回復 pending、其餘保留」：closed 多半是冷掉後丟進序列信，本人再次主動預約等於重新有意願，該回到待辦；contacted / converted 是管理員基於真實接觸下的判斷，程式不該覆寫。代價是失去重複預約的次數與時間軸 —— 目前沒有任何功能讀這份歷史，等真的要做「預約熱度」再另開事件表，不為假想需求先犧牲日常可用性
 
-- **D18**: CC 清單放 `site_settings` 並掛在 **Email 模板管理頁**，不放付款/API 設定頁 — 那頁是金流與第三方憑證，這是信件收件人，語意不同；Email 模板管理頁本來就是「信件相關設定」的入口，管理員找得到。保留 `DEFAULT_NOTIFY_CC` 常數當 fallback 而非改成必填設定：新環境（含測試 DB）沒有這筆設定時，lead 通知信仍必須寄得出去，絕不能因為沒設定就靜默不通知任何人
+- **D18**: CC 清單放 `site_settings` 並掛在 **Email 模板管理頁**，不放付款/API 設定頁 — 那頁是金流與第三方憑證，這是信件收件人，語意不同；Email 模板管理頁本來就是「信件相關設定」的入口，管理員找得到。以「所有管理員」當 fallback 而非改成必填設定（原為寫死的 `DEFAULT_NOTIFY_CC` 常數，2026-10-20 移除）：新環境（含測試 DB）沒有這筆設定時，lead 通知信仍必須寄得出去，絕不能因為沒設定就靜默不通知任何人
 
 - **D19**: HTML 模式採「每列一個 `body_type` 旗標」而非自動偵測內容格式 —— `str_contains($body, '<')` 之類的猜測會在「Markdown 裡夾一個 `<br>`」時誤判，而誤判的後果是整封信變成裸露的原始碼寄給客戶。連帶四個取捨：（1）**切換模式不轉換既有內容**，只改變解讀方式 —— 自動 md→html 之後切回來就回不去了；（2）**html 不 sanitize**，比照 D2 與 `HtmlContent.vue` 對後台內容的既有立場，sanitizer 會吃掉 inline style 與 `<table>`，那正是 email HTML 唯一能用的排版手段；（3）**欄位仍叫 `body_md`**，改名要動 model / request / seeder / 四個 Mailable / 前端，收益只有命名好看；（4）**預覽改 sandbox iframe**，現行預覽套後台的 `prose` class 但真實信件的 blade 完全沒有 CSS，預覽比實際好看，iframe 讓兩種模式看到的都等於收件匣，順便擋掉貼進來的 `<script>` 在後台執行
 
@@ -2891,9 +2891,9 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - US5（開通補強）無 schema 變更（新增的是 `email_templates` 的一筆資料，不是欄位；覆寫守門與 transaction 皆為既有欄位上的邏輯）
 - US1 亦無 schema 變更（landing page 隱藏與 mail_sent 回報皆為既有欄位與前端呈現）
 - `high_ticket_leads` — 預約產生的潛在客戶；status 銷售漏斗 enum(pending / contacted / no_response / converted / closed / cancelled) 預設 pending；**DB 值與顯示名稱刻意脫鉤，對照表見 FR-055**；notified_count（unsigned tinyint）與 last_notified_at 只由 NotifyHighTicketSlotJob 寄送成功後更新；booked_at 為最近一次提交時間（非 created_at 語意）；email / status / course_id 皆有索引。**DB 無 (email, course_id) unique 約束**，去重由 `recordLead()` 在應用層負責（D17）— 歷史資料可能已有重複列，加 unique 需先清理，現階段不值得
-- `site_settings.support_email` — 對外客服信箱（FR-057）；空值或未設定時 fallback 至 `SiteSetting::DEFAULT_SUPPORT_EMAIL`。與下面的 notify_cc 是不同角色，不可混用
+- `site_settings.support_email` — 對外客服信箱（FR-057）；空值或未設定時 fallback 至第一位管理員信箱。與下面的 notify_cc 是不同角色，不可混用
 - `email_templates` 的 `high_ticket_booking_verify` — 2026-08-05 由 `2026_08_06_000004` **刪除**（FR-058，改為寫死的 `BookingVerifyMail`）；`down()` 為 no-op，沒有東西會再讀這個 event_type
-- `site_settings.high_ticket_lead_notify_cc` — 預約通知 CC 收件者，逗號分隔字串；不存在或為空即 fallback 至 `DEFAULT_NOTIFY_CC`（FR-014）
+- `site_settings.high_ticket_lead_notify_cc` — 預約通知 CC 收件者，逗號分隔字串；不存在或為空即 fallback 至所有管理員（FR-014）
 - `email_templates` — 系統信件模板；event_type 為程式對接鍵（index，非 unique，程式取 first）；subject 與 body_md 均支援 `{{var}}` 佔位符；由 EmailTemplateSeeder 以 event_type updateOrCreate 初始化 4 筆
 - `email_templates.body_md` — **模板原始內容，格式由 `body_type` 決定**（歷史命名，非僅 Markdown，見 D19）
 - `email_templates.body_type` — `markdown`（預設，經 CommonMark 轉 HTML）或 `html`（原樣輸出）；無 DB 層 enum 約束，合法值由 `EmailTemplateRequest` 把關，未知值一律當 markdown 處理
@@ -4162,6 +4162,7 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: 預約 CC 與客服信箱的寫死預設（原站長信箱）移除，fallback 改為管理員信箱；Email 模板管理頁說明文字同步；相關測試改斷言管理員信箱（000 US12）。
 - 2026-10-19: FR-268 完成 T645–T646 — 名單列姓名後加資格審核分級標籤（沿用 `SCREENING_TIERS` 顏色，`title` 顯示 N/滿分），排在未完成確認、摘要數與評語之前；本機瀏覽器確認「333」列顯示「培育名單」。HighTicket 測試 743 passed，`npm run build` 綠。窄螢幕未實測（視窗無法縮放；該欄為 nowrap、表格可橫向捲動，與既有徽章相同）。
 - 2026-10-19: [draft] 規劃 FR-268 名單列在姓名後直接顯示資格審核分級標籤（高購買意願／值得談／培育名單），位於評語連結之前；hover 顯示分數；純前端。
 - 2026-10-19: US46 / FR-265–267 完成 T635–T644 — `ScreeningRubric`（`default()`＝原常數、`current()` 讀 site_settings 並記憶在 container、`save()` 補 key 與把已作答項改停用、`maxScore()`、`answeredKeys()`）；`BookingScreening` 全面改讀 rubric，否決改三態 `none/strict/always`（寬鬆＝只看 `always`）、分流讀 `routing`；migration 七欄→`screen_answers` JSON（MySQL 本機 up/down/up 驗證）；後台「1v1 漏斗設定」頁（題目／選項增刪排序、審核門檻、組合規則、分流規則）；精靈審核欄位改由題目動態產生；名單分數改 `N/滿分`。key 改為頁面新增時產生（同次儲存的規則才能引用新題）；非管理員進入被 `admin` 中介層導回首頁（非 403）。新增 `FunnelSettingsTest` 15 條；**未嚴格先紅**：伺服器端先寫、測試後補（頁面元件不存在時 2 條紅，其餘直接綠）。既有測試改讀 `screen_answers`、刪除已過時的 `remap_screen_learning` migration 測試。全站 1305 passed（5781 assertions），`npm run build` 綠。瀏覽器未實測。
