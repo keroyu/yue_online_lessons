@@ -161,6 +161,10 @@ const allStatuses = [...statusButtons, cancelledStatus, declinedStatus]
 
 const hasLiveBooking = (lead) => Boolean(lead.confirmed_at) && !lead.cancelled_at
 
+// One line per sale behind the amount tag (FR-263).
+const dealTitle = (lead) =>
+  (lead.deal_lines ?? []).map(d => `${d.course}：$${d.amount.toLocaleString()}`).join('\n')
+
 // Chose a slot, never confirmed it, and the hour ran out (011 FR-262).
 const missedConfirmation = (lead) =>
   !lead.confirmed_at && Boolean(lead.confirm_expires_at) && new Date(lead.confirm_expires_at) <= new Date()
@@ -1299,6 +1303,12 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                 >
                   開通
                 </button>
+                <!-- What the sale came to, live from purchases (011 FR-263). -->
+                <span
+                  v-else-if="lead.deal_amount != null"
+                  class="flex-shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-green-700"
+                  :title="dealTitle(lead)"
+                >成交 ${{ lead.deal_amount.toLocaleString() }}</span>
               </div>
             </td>
             <td class="whitespace-nowrap py-4 px-3 text-sm">

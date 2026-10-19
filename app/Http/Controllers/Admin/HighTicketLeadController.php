@@ -150,6 +150,16 @@ class HighTicketLeadController extends Controller
             fn (HighTicketLead $lead) => $lead->setAttribute('testimonial_eligible', $lead->isTestimonialEligible())
         );
 
+        // The amount tag where 開通 used to be (FR-263): one lookup for the page.
+        $deals = $this->leadService->dealsByEmail(
+            $leads->getCollection()->pluck('email')->filter()->unique()->values()
+        );
+        $leads->getCollection()->each(function (HighTicketLead $lead) use ($deals) {
+            $deal = $deals->get($lead->email);
+            $lead->setAttribute('deal_amount', $deal['amount'] ?? null);
+            $lead->setAttribute('deal_lines', $deal['lines'] ?? []);
+        });
+
         // Funnel share behind each status pill (FR-067). Counted over the whole
         // filtered set rather than the current page, and deliberately without
         // the status filter — the shares have to keep adding up to 100% after

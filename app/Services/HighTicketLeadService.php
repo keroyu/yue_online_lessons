@@ -239,6 +239,23 @@ class HighTicketLeadService
         ];
     }
 
+    /**
+     * What each converted lead on a list page paid (011 FR-263).
+     *
+     * Built on the CSV's own lookup so the list tag and the export's 成交金額
+     * can never disagree (FR-158). Read live: a plan upgrade's top-up is added
+     * straight to `purchases.amount`, so the next load already shows it.
+     *
+     * @return \Illuminate\Support\Collection<string, array{amount: int, lines: array<int, array{amount: int, course: string}>}>
+     */
+    public function dealsByEmail($emails)
+    {
+        return $this->conversionsByEmail($emails)->map(fn ($deals) => [
+            'amount' => (int) $deals->sum('amount'),
+            'lines'  => $deals->map(fn ($deal) => ['amount' => $deal['amount'], 'course' => $deal['course']])->values()->all(),
+        ]);
+    }
+
     /** Columns of the booking-list CSV, in order (011 FR-157). */
     public const EXPORT_HEADINGS = [
         '姓名', 'Email', '手機電話', '諮詢時段', '狀態',
