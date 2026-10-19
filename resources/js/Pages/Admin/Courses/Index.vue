@@ -198,6 +198,12 @@ const formatPrice = (price) => {
                           >
                             {{ course.name }}
                           </a>
+                          <span
+                            v-if="course.deleted_at"
+                            class="ml-2 inline-flex rounded-full bg-red-100 px-2 text-xs font-semibold leading-5 text-red-700"
+                          >
+                            已刪除
+                          </span>
                           <div v-if="course.sale_at" class="text-sm text-gray-500">
                             開賣: {{ course.sale_at }}
                           </div>
@@ -287,8 +293,9 @@ const formatPrice = (price) => {
                         >
                           來源
                         </Link>
-                        <!-- 危險操作 -->
+                        <!-- 危險操作 — a trashed course no longer route-binds, so deleting it again would 404 -->
                         <button
+                          v-if="!course.deleted_at"
                           type="button"
                           class="text-red-500 hover:text-red-700"
                           @click="confirmDelete(course)"
