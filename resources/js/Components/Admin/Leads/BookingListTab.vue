@@ -1224,6 +1224,15 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
                   {{ lead.name }}
                 </button>
 
+                <!-- 011 FR-268: the screening verdict at a glance, first after
+                     the name; the score itself only on hover. -->
+                <span
+                  v-if="screeningTier(lead)"
+                  class="inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-normal"
+                  :class="screeningTier(lead).class"
+                  :title="`資格審核 ${lead.screening_score}/${screeningMaxScore}`"
+                >{{ screeningTier(lead).label }}</span>
+
                 <!-- 011 FR-262: picked a slot but never clicked the emailed
                      link in time — kept for follow-up instead of deleted. -->
                 <span
