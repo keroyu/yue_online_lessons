@@ -347,25 +347,35 @@ class CourseController extends Controller
     }
 
     /**
-     * Remove the specified course from storage (soft delete).
+     * Permanently delete the course. The route binds trashed courses too, so
+     * rows soft-deleted before this became a hard delete can be purged.
      */
     public function destroy(Course $course): RedirectResponse
     {
-        // Check if course has any paid purchases (exclude system_assigned and gift)
-        if ($course->purchases()->purchaseType()->paidStatus()->exists()) {
+        // Anyone holding access (paid or gifted) blocks the delete: the FK
+        // cascade would silently take their purchase with it.
+        $hasStudents = $course->purchases()
+            ->where('type', '!=', 'system_assigned')
+            ->paidStatus()
+            ->exists();
+
+        // order_items restricts on delete; checking first turns a 500 into a message.
+        if ($hasStudents || OrderItem::where('course_id', $course->id)->exists()) {
             return redirect()
                 ->route('admin.courses.index')
-                ->with('error', '此課程已有學員購買，無法刪除');
+                ->with('error', '此課程已有學員或訂單紀錄，無法刪除');
         }
 
-        // Delete course and system-assigned purchases in a transaction
-        DB::transaction(function () use ($course) {
-            // Delete system-assigned purchases for this course
-            $course->purchases()->systemAssignedType()->delete();
+        $files = array_filter([
+            $course->thumbnail,
+            ...$course->images()->pluck('path')->all(),
+        ]);
 
-            // Soft delete the course
-            $course->delete();
-        });
+        // Chapters, lessons, images, plans, drip subscriptions, stats etc.
+        // go with it via the FK cascades.
+        DB::transaction(fn () => $course->forceDelete());
+
+        Storage::disk('public')->delete($files);
 
         return redirect()
             ->route('admin.courses.index')

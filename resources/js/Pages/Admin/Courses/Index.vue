@@ -64,7 +64,7 @@ const statusBadge = (status) => {
 }
 
 const confirmDelete = (course) => {
-  if (confirm(`確定要刪除課程「${course.name}」嗎？`)) {
+  if (confirm(`確定要永久刪除課程「${course.name}」嗎？\n章節、小節、相簿、序列信訂閱等資料會一併刪除，無法復原。`)) {
     router.delete(`/admin/courses/${course.id}`)
   }
 }
@@ -293,9 +293,8 @@ const formatPrice = (price) => {
                         >
                           來源
                         </Link>
-                        <!-- 危險操作 — a trashed course no longer route-binds, so deleting it again would 404 -->
+                        <!-- 危險操作 — permanent; also purges legacy soft-deleted rows -->
                         <button
-                          v-if="!course.deleted_at"
                           type="button"
                           class="text-red-500 hover:text-red-700"
                           @click="confirmDelete(course)"

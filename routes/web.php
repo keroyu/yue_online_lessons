@@ -321,7 +321,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/analytics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.index');
 
     // Courses
-    Route::resource('courses', AdminCourseController::class);
+    // destroy binds trashed rows so legacy soft-deleted courses can be purged (004 D18)
+    Route::resource('courses', AdminCourseController::class)->withTrashed(['destroy']);
     Route::post('/courses/{course}/publish', [AdminCourseController::class, 'publish'])->name('courses.publish');
     Route::post('/courses/{course}/unpublish', [AdminCourseController::class, 'unpublish'])->name('courses.unpublish');
 

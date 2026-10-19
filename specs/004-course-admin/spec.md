@@ -140,7 +140,7 @@ touchpoints:
 
 ### User Story 1 - 課程 CRUD 與上下架管理 (Priority: P1)
 
-管理員在 `/admin/courses` 管理所有課程：新增、編輯、軟刪除、發佈與下架。
+管理員在 `/admin/courses` 管理所有課程：新增、編輯、永久刪除、發佈與下架。
 狀態機為 draft → preorder / selling，發佈時由 `sale_at` 自動判斷。
 
 **驗收**：
@@ -148,11 +148,11 @@ touchpoints:
 - [x] 新增課程預設 `status=draft`、`is_published=false`、`sort_order=max+1`；縮圖上傳至 `storage/app/public/thumbnails`
 - [x] 建立成功時在同一 transaction 內為建立者建立 `type=system_assigned`、$0 的購買紀錄（供前台以會員視角預覽）
 - [x] 發佈：`sale_at` 為未來 → preorder；否則 → selling 並清空過期 `sale_at`；下架則回 draft、`is_published=false`
-- [x] 有付費/贈送購買紀錄（status=paid 且 type≠system_assigned）的課程不可刪除，顯示「此課程已有學員購買，無法刪除」
-- [x] 可刪除時，同 transaction 先刪 system_assigned 購買紀錄、再軟刪除課程
+- [x] 有學員（purchases status=paid 且 type≠system_assigned，含贈送）或任何 `order_items` 的課程不可刪除，顯示「此課程已有學員或訂單紀錄，無法刪除」（order_items 為 restrictOnDelete，先擋避免 500）
+- [x] 可刪除時 `forceDelete()` 永久刪除課程，章節／小節／相簿／方案／序列信訂閱／統計等由 FK cascade 一併刪除；縮圖與相簿檔案從 public disk 移除。確認框註明「無法復原」
 - [x] 列表每列提供章節、相簿、來源（僅非 Portaly 課程）、預覽等入口，按鈕語意配色統一
 - [x] 列表第一欄的課程名稱本身即銷售頁連結（新分頁開啟），滑鼠移入有 hover 變色
-- [x] 已軟刪除的課程列名稱旁顯示紅色「已刪除」標籤，且不顯示「刪除」按鈕（已刪除課程不再通過 route binding，再刪一次會 404）
+- [x] 改為永久刪除前留下的舊軟刪除課程仍列出並標紅色「已刪除」，可再按「刪除」永久清除（destroy 路由 `withTrashed(['destroy'])`）
 - [x] 操作欄原本的「銷售頁」連結改名為「教室預覽」，指向 `/member/classroom/{id}`（新分頁開啟）
 
 ### User Story 2 - 課程表單欄位與定價設定 (Priority: P1)
@@ -323,7 +323,7 @@ SEO、點數兌換、金流與顯示設定。
 
 - **D16**: 「教室預覽」指向 `/member/classroom/{id}`（會員教室本體，注意路由掛在 `prefix('member')` 群組下）而非 `/course/{id}/preview`（免費試閱頁）— 管理員要檢查的是學員買完後看到的完整教室（章節樹、影片、進度、作業），試閱頁只露出 `is_preview` 的小節，看不出交付內容是否正確。admin 的存取由 `hasAccessForUser()` 既有 bypass 提供（否決：新開一條 admin-only 預覽路由 — 教室頁已對 admin 全開，多一條路由只會多一份會漂移的渲染邏輯）
 - **D17**: 網址沿用 payload 既有的 `course.id` 硬串，不為了 slug 改 index payload — `resolveRouteBinding` 同時吃 slug 與 id，後台連結不吃 SEO，加 slug 只是多一個要同步的欄位（D15 修的是**對外**產生的網址，後台內部入口不在其列）
-- **D18**: 軟刪除課程的導覽連結（教室預覽、編輯、章節等）維持照常渲染，點進去 404 屬既有行為；**唯一例外是「刪除」按鈕**（2026-10-20）— 它是會送出請求的操作且原本看不出該列已刪除，使用者會重按而得到 404，故對已刪除列隱藏並加「已刪除」標籤
+- **D18**: 課程刪除為**永久刪除**（2026-10-20 使用者決策，取代原軟刪除）— 已刪除課程留在列表只會礙眼；有學員或訂單的課程本來就不可刪，可刪的只剩草稿與測試課，不需要可救回。舊的軟刪除列以 `withTrashed(['destroy'])` 讓「刪除」可直接清掉，清完即從列表消失。軟刪除列的其他導覽連結（教室預覽、編輯等）維持照常渲染，點進去 404 屬既有行為
 
 - **D19**: Roadmap 拆成 `course_roadmap_stages` + `course_roadmap_checkpoints` 兩張正規化表，而不是 `courses.roadmap_json` 單一 JSON 欄位 — 學員的完成紀錄必須指向一個**穩定的識別子**。JSON 只能用陣列索引或自行維護的 uuid：前者在管理員插入／刪除／拖曳任一項時全部錯位（學員勾的「發布 30 篇內容」會變成別項），後者等於在 JSON 裡手刻一套 id 機制，還失去 FK cascade。代價是編輯要做 diff 儲存（FR-020），但那是一次性的 Service 邏輯（否決：JSON 欄位 — 編輯簡單、進度不可靠；否決：三張表全展平成單表 — 階段與檢核項目的欄位與排序語意不同）
 - **D20**: 階段與檢核項目的所有權在 **004**（課程內容的一部分，比照 chapters/lessons），學員的完成紀錄 `roadmap_checkpoint_completions` 歸 **003**（學習行為，比照 `lesson_progress` / `assignment_completions`）。這條線與既有的模組分工完全一致：004 定義「課程長什麼樣」，003 記錄「學員做了什麼」
@@ -468,6 +468,7 @@ Phase 3 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: 課程刪除改為永久刪除（使用者決策，D18／驗收已改）— `destroy` 改 `forceDelete()`、子資料走 FK cascade、清縮圖與相簿檔；擋下有學員（含贈送）或有 `order_items` 的課程；路由 `withTrashed(['destroy'])` 讓舊軟刪除列可清除。新增 `CourseDestroyTest` 4 條（拿掉修正時 2 紅），全站 1315 passed、`npm run build` 綠。
 - 2026-10-20: 修正課程管理刪除出現 404 — 列表含 `withTrashed` 的已刪除課程仍顯示「刪除」按鈕，重按即 404（route binding 排除軟刪除）。已刪除列加「已刪除」標籤並隱藏刪除鈕；D18 已改。臨時測試重現（首刪 302、再刪 404），瀏覽器已確認。
 - 2026-10-20: 課程表單 Portaly 商品 ID 說明文字改為 `portaly.cc/{商店帳號}/product/{ID}`（000 US12）。
 - 2026-10-18: `CourseForm` 的「優惠到期時間」「預購開賣時間」改用 000 的 `DateTimeInput`（附「清除」按鈕，避免刪一格後無法送出）；上邊距移到外層（`dateInputClasses` 去掉 `mt-2`）讓按鈕對齊。純前端，瀏覽器已確認。
