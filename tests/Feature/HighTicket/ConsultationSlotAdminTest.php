@@ -209,10 +209,11 @@ class ConsultationSlotAdminTest extends TestCase
     }
 
     /**
-     * The week-grid copy button (US17) reads addresses straight off this payload
-     * — there is no endpoint behind it and no JS test suite in this project, so
-     * this assertion is the only thing standing between a slimmed-down payload
-     * and a button that silently copies empty strings (D67).
+     * The booking panel's "view in leads" link (`leadUrl()`) reads the address
+     * straight off this payload — there is no endpoint behind it and no JS test
+     * suite in this project, so this assertion is the only thing standing
+     * between a slimmed-down payload and a link that searches for nothing
+     * (D67, kept by D180 after US47 dropped the email copy).
      */
     public function test_booked_and_held_blocks_expose_the_applicant_email(): void
     {

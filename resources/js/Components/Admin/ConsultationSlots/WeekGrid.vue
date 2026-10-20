@@ -471,59 +471,109 @@ const blockClass = (booking) =>
 
 const STATE_LABEL = { held: '暫留中', booked: '已預約' }
 
-// ---- email picking (011 US17) ----------------------------------------------
+// ---- slot picking (011 US47, replacing US17's email copy) -------------------
 //
-// Everything here is local state over props the grid already has: the block
-// payload carries `email`, so pulling the addresses out is a front-end job and
-// needs no request (D67). Selection resets on a week change because switching
-// weeks is a full Inertia visit — deliberately, so a copy can never include
-// people who are not on screen (D68).
+// Everything here is local state over props the grid already has, so copying
+// is a front-end job and needs no request (FR-269). Picks are keyed by
+// `date|start`, not lead: an open run has no lead, and after a drag the props
+// reload — a key that still matches something survives, one that doesn't
+// simply stops counting (FR-272). A week change is a full Inertia visit, so
+// picks reset there (D68).
 
-const pickedLeadIds = ref(new Set())
+const pickedKeys = ref(new Set())
 const copiedCount = ref(0)
 const manualCopyText = ref('')
 const manualCopyInput = ref(null)
 let copiedTimer = null
 
-/** Booked and held blocks in reading order — day, then start time. */
-const pickableBookings = computed(() =>
-  visibleDays.value.flatMap(day =>
-    day.bookings.filter(b => b.email && (b.state === 'booked' || b.state === 'held'))
-  )
-)
+const slotKey = (day, start) => `${day.date}|${start}`
 
-const pickedCount = computed(() =>
-  pickableBookings.value.filter(b => pickedLeadIds.value.has(b.lead_id)).length
-)
+/**
+ * Consecutive open rows of one day, merged into runs. Owners are ignored on
+ * purpose — the copied text names no consultant, so two adjacent runs of
+ * different people read as one stretch of free time (FR-270).
+ */
+function freeRuns(day) {
+  if (day.is_past) return []
 
-function isPicked(booking) {
-  return pickedLeadIds.value.has(booking.lead_id)
+  const rows = props.range.rows
+  const free = new Set(day.free)
+  const busy = new Set()
+
+  for (const b of day.bookings) {
+    const from = rows.indexOf(b.start)
+    if (from < 0) continue
+    for (let i = 0; i < b.units; i++) busy.add(from + i)
+  }
+
+  const runs = []
+  let run = null
+
+  rows.forEach((label, i) => {
+    if (free.has(label) && !busy.has(i)) {
+      if (!run) run = { start: label, startIndex: i, endIndex: i }
+      else run.endIndex = i
+      return
+    }
+    if (run) runs.push(run)
+    run = null
+  })
+  if (run) runs.push(run)
+
+  // Same end-of-row convention as commit(): the row after, or the grid's end.
+  return runs.map(r => ({ ...r, end: rows[r.endIndex + 1] ?? props.range.end }))
 }
 
-function togglePick(booking) {
+/** Free runs per visible column, for drawing their checkboxes. */
+const visibleRuns = computed(() => visibleDays.value.map(freeRuns))
+
+/**
+ * Everything pickable this week, in copy order. Built from the whole week, not
+ * `visibleDays`, so picks made on other days in the phone view still copy.
+ */
+const pickableSlots = computed(() =>
+  props.days.flatMap(day => {
+    const line = (start, end) => `${day.label}（${day.weekday}） ${start}-${end}`
+    const bookings = day.bookings
+      .filter(b => b.state === 'booked' || b.state === 'held')
+      .map(b => ({ key: slotKey(day, b.start), start: b.start, line: line(b.start, b.end) }))
+    const runs = freeRuns(day)
+      .map(r => ({ key: slotKey(day, r.start), start: r.start, line: line(r.start, r.end) }))
+
+    return [...bookings, ...runs].sort((a, b) => a.start.localeCompare(b.start))
+  })
+)
+
+const pickedSlots = computed(() =>
+  pickableSlots.value.filter(s => pickedKeys.value.has(s.key))
+)
+
+const pickedCount = computed(() => pickedSlots.value.length)
+
+function isPicked(key) {
+  return pickedKeys.value.has(key)
+}
+
+function togglePick(key) {
   // Reassigning the Set keeps the computed reactive — Set mutation alone does not.
-  const next = new Set(pickedLeadIds.value)
-  next.has(booking.lead_id) ? next.delete(booking.lead_id) : next.add(booking.lead_id)
-  pickedLeadIds.value = next
+  const next = new Set(pickedKeys.value)
+  next.has(key) ? next.delete(key) : next.add(key)
+  pickedKeys.value = next
   manualCopyText.value = ''
 }
 
 function clearPicks() {
-  pickedLeadIds.value = new Set()
+  pickedKeys.value = new Set()
   manualCopyText.value = ''
 }
 
-/** `a@x.com, b@y.com` — the separator a mail client splits recipients on. */
-function pickedEmails() {
-  const seen = new Set()
-  for (const b of pickableBookings.value) {
-    if (pickedLeadIds.value.has(b.lead_id)) seen.add(b.email)
-  }
-  return [...seen].join(', ')
+/** `10/29（四） 14:00-14:45`, one per line, duplicates dropped (FR-271). */
+function pickedText() {
+  return [...new Set(pickedSlots.value.map(s => s.line))].join('\n')
 }
 
-async function copyEmails() {
-  const text = pickedEmails()
+async function copySlots() {
+  const text = pickedText()
   if (!text) return
 
   try {
@@ -533,7 +583,7 @@ async function copyEmails() {
     // button (FR-072).
     await navigator.clipboard.writeText(text)
     manualCopyText.value = ''
-    copiedCount.value = new Set(text.split(', ')).size
+    copiedCount.value = text.split('\n').length
     clearTimeout(copiedTimer)
     copiedTimer = setTimeout(() => { copiedCount.value = 0 }, 2000)
   } catch {
@@ -603,18 +653,17 @@ function isHalf(label) {
       </div>
     </div>
 
-    <!-- Pick applicants off the calendar and take their addresses elsewhere
-         (US17). Deliberately does not send anything — batch mail has its own
-         path through the template system (D69). -->
-    <div v-if="pickableBookings.length" class="mb-2 flex flex-wrap items-center gap-2">
+    <!-- Pick bookings and open runs off the calendar and take their times
+         elsewhere as text (US47). -->
+    <div v-if="pickableSlots.length" class="mb-2 flex flex-wrap items-center gap-2">
       <span class="text-xs text-gray-500 tabular-nums">已選 {{ pickedCount }} 筆</span>
       <button
         type="button"
         :disabled="pickedCount === 0"
         class="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 cursor-pointer hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
-        @click="copyEmails"
+        @click="copySlots"
       >
-        {{ copiedCount ? `已複製 ${copiedCount} 筆` : '複製 Email' }}
+        {{ copiedCount ? `已複製 ${copiedCount} 筆` : '複製時段' }}
       </button>
       <button
         v-if="pickedCount"
@@ -629,14 +678,15 @@ function isHalf(label) {
     <!-- Clipboard refused (not a secure context, or permission denied): hand the
          string over so the copy is still one keystroke away (FR-072). -->
     <div v-if="manualCopyText" class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-      <p class="text-xs text-amber-800">無法自動複製，請按 Ctrl/Cmd+C 複製下方地址：</p>
-      <input
+      <p class="text-xs text-amber-800">無法自動複製，請按 Ctrl/Cmd+C 複製下方時段：</p>
+      <textarea
         ref="manualCopyInput"
         :value="manualCopyText"
         readonly
-        class="mt-1 block w-full rounded border-amber-300 bg-white px-2 py-1 text-xs text-gray-700"
+        :rows="Math.min(manualCopyText.split('\n').length, 8)"
+        class="mt-1 block w-full rounded border-amber-300 bg-white px-2 py-1 text-xs text-gray-700 tabular-nums"
         @focus="$event.target.select()"
-      >
+      />
     </div>
 
     <!-- Floating above the selected block (D66): position: fixed, tracked via
@@ -880,6 +930,26 @@ function isHalf(label) {
             @pointerdown.prevent="startDrag(dIndex, rIndex)"
           />
 
+          <!-- One checkbox per open run, on its first row (D179). The wrapper
+               lets pointer events through so the rest of that cell still
+               starts a drag; only the checkbox itself stops pointerdown,
+               which the cells already use for release/reclaim (D45). -->
+          <div
+            v-for="run in rescheduling ? [] : visibleRuns[dIndex]"
+            :key="`${day.date}-run-${run.start}`"
+            class="pointer-events-none z-10 flex items-center pl-1"
+            :style="{ gridRow: `${run.startIndex + 1} / span 1`, gridColumn: '1' }"
+          >
+            <input
+              type="checkbox"
+              class="pointer-events-auto h-3 w-3 cursor-pointer accent-teal-600 hover:brightness-90"
+              :checked="isPicked(`${day.date}|${run.start}`)"
+              :title="`選取此空檔 ${run.start}-${run.end}`"
+              @pointerdown.stop
+              @click.stop="togglePick(`${day.date}|${run.start}`)"
+            >
+          </div>
+
           <!-- Faded while picking a new time so the selectable cells read as
                the foreground; the selected one stays lit as the reference. -->
           <div
@@ -899,15 +969,14 @@ function isHalf(label) {
             :title="`${booking.start}–${booking.end} ${booking.kind === 'credit' ? `諮詢 · ${booking.course_name} · ` : ''}${booking.name}（${STATE_LABEL[booking.state]} · ${ownerOf(booking.consultant_id).label}）`"
             @click="selectBooking(dIndex, booking, $event)"
           >
-            <!-- Picking a recipient must not open the panel the rest of the
-                 block opens (US17); the click stops here. -->
+            <!-- Picking a slot must not open the panel the rest of the block
+                 opens (US47); the click stops here. -->
             <input
-              v-if="booking.email"
               type="checkbox"
-              class="mr-1 h-3 w-3 shrink-0 cursor-pointer accent-teal-600"
-              :checked="isPicked(booking)"
-              :title="`選取 ${booking.name} 的 Email`"
-              @click.stop="togglePick(booking)"
+              class="mr-1 h-3 w-3 shrink-0 cursor-pointer accent-teal-600 hover:brightness-90"
+              :checked="isPicked(`${day.date}|${booking.start}`)"
+              title="選取此時段"
+              @click.stop="togglePick(`${day.date}|${booking.start}`)"
             >
             <!-- Name only. A 30-minute block is 28px tall, so anything more
                  clips; the time is already implied by where the block sits and

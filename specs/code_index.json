@@ -1745,7 +1745,8 @@
       "011.us-17",
       "011.us-20",
       "011.us-33",
-      "011.us-38"
+      "011.us-38",
+      "011.us-47"
     ],
     "resources/js/Components/Admin/ConsultationSlots/consultantPalette.js": [
       "011.us-33"
@@ -2656,7 +2657,8 @@
       "011.us-13",
       "011.us-17",
       "011.us-20",
-      "011.us-33"
+      "011.us-33",
+      "011.us-47"
     ],
     "tests/Feature/HighTicket/ConsultationSummaryTest.php": [
       "011.us-23",

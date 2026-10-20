@@ -5722,6 +5722,36 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-47",
+      "module": "011-high-ticket",
+      "title": "週曆勾選時段並複製時段文字",
+      "summary": "取代 US17 的複製 Email：諮詢時段週曆可勾選預約區塊與連續可預約空檔段，「複製時段」輸出一行一筆「10/29（四） 14:00-14:45」格式文字；純前端，勾選以 date|start 為 key、整週計算",
+      "heading": "### User Story 47 - 週曆勾選時段並複製時段文字 (Priority: P3)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-47---週曆勾選時段並複製時段文字-priority-p3",
+      "keywords": [
+        "複製時段",
+        "copy slots",
+        "剪貼簿",
+        "clipboard",
+        "勾選",
+        "checkbox",
+        "週曆",
+        "week grid",
+        "諮詢時段",
+        "consultation slots",
+        "空檔",
+        "free slots",
+        "時段文字",
+        "複製 Email 移除"
+      ],
+      "code_files": [
+        "resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue",
+        "tests/Feature/HighTicket/ConsultationSlotAdminTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",

@@ -735,6 +735,8 @@ US13 的頁面註腳「已被預約的時段要先到 Leads 名單處理該筆�
 
 ### User Story 17 - 週曆勾選預約並複製 Email (Priority: P3)
 
+> **2026-10-20 已由 US47 取代**：面談前一日提醒信（US19）上線後不再需要從週曆撈 Email，勾選改為複製時段文字。以下為原始紀錄。
+
 要對「這週要面談的人」一起寄封提醒信，現在得離開週曆、去 Leads 名單、
 用日期把人一個一個找出來、逐筆複製 Email —— 而週曆上明明就看得到是哪幾個人。
 
@@ -1627,6 +1629,36 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [x] 題目的評分與規則仍只在伺服器，前台只拿到題目文字與選項文字（FR-124 不變）
 - [x] 測試：見 T643
 
+### User Story 47 - 週曆勾選時段並複製時段文字 (Priority: P3)
+
+面談前一日提醒信（US19）上線後，US17 的「複製 Email」已用不到 —— 當初撈 Email 就是為了手動提醒隔天的人。
+改為把**時段**拿出來：在週曆上勾選已預約／暫留中的區塊**以及可預約的空檔**，按「複製時段」，
+得到一行一個時段的文字，可直接貼進 LINE／Email 給顧問對行程或給潛在學員挑時間：
+
+```
+10/29（四） 14:00-14:45
+10/30（五） 15:30-16:00
+10/30（五） 16:30-17:15
+```
+
+一樣是純前端：日期標籤、星期、起訖與空檔都已在 `weekView()` 的 payload 裡。
+
+**驗收**：
+- [ ] 「複製 Email」功能移除：按鈕、`pickedEmails()`／`copyEmails()`、checkbox 的「選取 xxx 的 Email」提示全部拿掉（FR-269）
+- [ ] 已預約（顧問色）與暫留中（amber）的區塊維持暱稱左側的 checkbox，語意改為「選取這個時段」；`title` 改為「選取此時段」
+- [ ] 可預約空檔：每一段**連續**的可預約格（同一天、中間沒有被預約或未釋出的格）在第一格左上角顯示一個 checkbox，代表整段（FR-270）；過去的日子（`is_past`）不顯示
+- [ ] 點空檔的 checkbox **只**切換勾選，MUST NOT 觸發拖曳（取消釋出）；點空檔其他位置維持拖曳行為
+- [ ] 點預約區塊的 checkbox 只切換勾選，MUST NOT 開面板（沿用 US17）
+- [ ] 工具列文案：「已選 N 筆」＋「複製時段」按鈕（N = 0 時 disabled）＋「清除」；複製成功按鈕短暫顯示「已複製 N 筆」（2 秒後還原），勾選不清空
+- [ ] 複製格式 `M/D（週） HH:MM-HH:MM`，一行一筆、`\n` 相隔、依日期 → 起始時間排序；完全相同的行去重（FR-271）
+- [ ] 預約區塊與相鄰空檔即使時間首尾相接也**各自一行、不合併**
+- [ ] 剪貼簿 API 失敗時的退路改為唯讀 `<textarea>`（多行），自動全選＋「請按 Ctrl/Cmd+C 複製下方時段」（沿用 FR-072）
+- [ ] 手機單日檢視：切換日期時勾選**保留**，複製內容涵蓋整週已勾選的時段（FR-272）
+- [ ] 拖曳釋出／收回、改期、取消後，已不存在的時段自動從勾選中消失（不會複製出幽靈時段）；仍存在的保留
+- [ ] 切換週次時勾選清空（沿用 D68）
+- [ ] 改期模式（`rescheduling`）中，兩種 checkbox 皆不可點
+- [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -1847,10 +1879,10 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **FR-068**: 逾時未確認的申請 MUST 從 `high_ticket_leads` **刪除**，不只是釋放時段。判定為 `confirmed_at IS NULL AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= now() AND status = 'pending'`，執行點為 `HighTicketBookingService::purgeExpiredApplications()`（由 `booking:release-holds` 每 10 分鐘呼叫）。三道保留條件缺一不可：（1）`confirmed_at` 非空代表曾經成立過預約，含事後取消者，保留完整歷史；（2）`status` 已被管理員改離 `pending` 代表有人正在手動跟進，程式不得覆蓋人的判斷；（3）候補名單（US10）的 `confirm_expires_at` 為 null，本來就沒有東西可逾時，不在範圍內。**MUST 先釋放時段再刪 lead** —— `consultation_slots.lead_id` 無外鍵約束，反過來做會讓時段指向不存在的 row，後台週曆顯示幽靈擁有者**〔2026-10-19 由 FR-262 取代：不再刪除〕**
 
-- **FR-070**: 週曆的 Email 複製 MUST 為**純前端**功能：勾選狀態存在 `WeekGrid.vue` 的本地 state，地址來源為既有 props（`day.bookings[].email`），MUST NOT 新增端點、MUST NOT 新增請求。後端唯一的責任是繼續在 booked／held 區塊吐出 `email`（FR-071）
-- **FR-071**: 可勾選的區塊限 `state ∈ {booked, held}` —— 這兩種才有申請人。暫留中一併納入是刻意的：那是「送了申請但還沒點確認信」的人，正是最需要被催的一批（使用者決策）。空格（未釋出／可預約）沒有 checkbox，不是 disabled 而是根本不渲染
-- **FR-072**: 複製 MUST 走 `navigator.clipboard.writeText()`，且失敗時 MUST 有可見退路（唯讀輸入框 + 自動全選 + 手動複製提示）。理由不是保守：`navigator.clipboard` 只在 secure context 可用，本機 `http://localhost` 算 secure、區網 IP（`http://192.168.x.x`）不算 —— 用手機連內網測試時它會直接丟例外，而沒有退路的失敗長得跟「按了沒反應」一模一樣
-- **FR-073**: 複製格式為 `implode(', ', $emails)`（半形逗號 + 一個空格），MUST 去重且 MUST 依畫面順序（日期 → 起始時間）。分隔符不可改為分號或換行 —— 目的就是貼進 Gmail／Outlook 的收件欄位
+- **FR-070**（2026-10-20 由 FR-269 取代）: 週曆的 Email 複製 MUST 為**純前端**功能：勾選狀態存在 `WeekGrid.vue` 的本地 state，地址來源為既有 props（`day.bookings[].email`），MUST NOT 新增端點、MUST NOT 新增請求。後端唯一的責任是繼續在 booked／held 區塊吐出 `email`（FR-071）
+- **FR-071**（2026-10-20 由 FR-269 取代）: 可勾選的區塊限 `state ∈ {booked, held}` —— 這兩種才有申請人。暫留中一併納入是刻意的：那是「送了申請但還沒點確認信」的人，正是最需要被催的一批（使用者決策）。空格（未釋出／可預約）沒有 checkbox，不是 disabled 而是根本不渲染
+- **FR-072**（2026-10-20 由 FR-269 取代）: 複製 MUST 走 `navigator.clipboard.writeText()`，且失敗時 MUST 有可見退路（唯讀輸入框 + 自動全選 + 手動複製提示）。理由不是保守：`navigator.clipboard` 只在 secure context 可用，本機 `http://localhost` 算 secure、區網 IP（`http://192.168.x.x`）不算 —— 用手機連內網測試時它會直接丟例外，而沒有退路的失敗長得跟「按了沒反應」一模一樣
+- **FR-073**（2026-10-20 由 FR-269 取代）: 複製格式為 `implode(', ', $emails)`（半形逗號 + 一個空格），MUST 去重且 MUST 依畫面順序（日期 → 起始時間）。分隔符不可改為分號或換行 —— 目的就是貼進 Gmail／Outlook 的收件欄位
 
 - **FR-069**: `ConsultationSlotService::availableStarts(int $minutes)` **不分諮詢長度**，一律 MUST 只保留台北時間分鐘數為 `0` 或 `30` 的起始時刻（2026-08-08 擴大範圍，取代原本僅 `$minutes >= 45` 才過濾的版本——業主原意就是所有場次都要對齊整點／半點的顧問行事曆習慣，8/7 的實作把範圍縮小到只有 45 分鐘場是誤判）。過濾發生在既有的「N 個連續單位皆可用」判定**之後**——先照 FR-028 找出所有合法起始，再依分鐘數篩選，兩條規則不互相依賴。
 
@@ -2251,6 +2283,12 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-266**（US46）: 答案改存 JSON。`high_ticket_leads.screen_answers`（json nullable）取代七個 `screen_*` 欄位：migration 先加欄、以 `{key: value}` 回填（只填非 null 值），再刪七欄；`down()` 重建七欄並由 JSON 回填。`HighTicketLead` 改 `$casts['screen_answers' => 'array']`、fillable 移除七欄；既有 accessor `screening_answers`（後台顯示用 `[{title, answer}]`）改為依 rubric（**含停用題目**）逐題讀 `screen_answers[key]`，找不到選項 → `—`，題目在作答後才新增者不列。所有 `$lead->only(BookingScreening::fields())` 呼叫點改讀 `$lead->screen_answers ?? []`；`recordLead()`／`screen()` 寫入 `screen_answers => BookingScreening::only($data)`。請求格式維持扁平（`screen_xxx` 為頂層欄位），精靈與既有測試 payload 不變
 - **FR-267**（US46）: 後台頁面 `GET /admin/funnel-settings`（`Admin\FunnelSettingsController@edit`，Inertia `Admin/FunnelSettings/Edit`）與 `PUT /admin/funnel-settings`（`@update`，`UpdateFunnelSettingsRequest`），放 `admin` middleware 群組；側欄項目「1v1 漏斗設定」只對管理員顯示。props：`rubric`（含停用項、每項附 `answered: bool` 供前端標示「已有作答，刪除會改為停用」）、`maxScore`、`consultantCount`。驗證（Form Request + `after()`）：題目 1–20、選項 2–12（未停用者計）、`title` 1–200、`hint` ≤ 500、`label` 1–100、`score` 0–10、`cap` null 或 0–`maxScore`、`pass_score` 0–`maxScore`、`tiers.hot > tiers.warm >= 0`、combos ≤ 20 條且每條 `match` 至少 1 題、引用的 key 必須存在於本次送出的 rubric 且未停用、`routing.*.options` 至少 1 個；新增項目以 `key: null` 送上，伺服器指派 key
 - **FR-268**（修訂 FR-131，2026-10-19）: 預約名單（`BookingListTab`）每列的姓名按鈕之後 MUST 直接顯示資格審核分級標籤（`screeningTier(lead)`：高購買意願／值得談／培育名單，沿用 `SCREENING_TIERS` 同一組顏色），位置在「未完成 Email 確認」、面談摘要數、評語徽章／「評語連結」**之前**。滑鼠移上 `title` 顯示「資格審核 N/滿分」（`screeningMaxScore`）。`screening_tier = unknown`（未審核的舊 lead）不顯示。純前端：`screening_tier` 已隨每筆 lead 下發（`$appends`），不新增 API、不改 schema。展開列的「資格審核」區維持不變（分數＋標籤＋答案）。分數仍只在後台出現（FR-124 不變）
+
+- **FR-269**（取代 FR-070–073，2026-10-20）: 週曆的勾選複製 MUST 改為複製**時段文字**，「複製 Email」完全移除。仍為**純前端**：MUST NOT 新增端點或請求、MUST NOT 改 `weekView()` payload。勾選 state 改以**時段 key** `${date}|${start}`（例 `2026-10-29|14:00`）識別，不再用 `lead_id`（同一 lead 同週可有兩筆、空檔沒有 lead）
+- **FR-270**: 可勾選項 = 預約區塊（`state ∈ {booked, held}`，不再要求有 `email` —— 諮詢點數預約也可選）＋ **可預約空檔段**。空檔段定義：同一天內 `cellState() === 'free'` 的**連續 row** 合併成一段，起 = 第一格 label、迄 = 最後一格 label + 15 分鐘；不同顧問的空檔若相連仍合併為一段（文字不帶顧問）；`is_past` 的日子不產生空檔段
+- **FR-271**: 每一行格式 `` `${day.label}（${day.weekday}） ${start}-${end}` `` —— `day.label` 為既有 `n/j`（例 `10/29`，月日不補零）、全形括號、括號後一個半形空格、起訖以半形 `-` 相連；行與行以 `\n` 相隔；排序依 `date` → `start`；完全相同的行去重
+- **FR-272**: 勾選範圍 MUST 以**整週** `props.days` 計算，不受手機單日檢視的 `visibleDays` 限制；每次複製／計數時以當下 payload 重算可勾選項，勾選 key 若已對不到任何現存項目則不計入、不輸出
+
 
 ## 設計決策
 - **D133**: 追銷信**搬出摘要**（使用者決策）。US29 當初做成第 8 節的理由是「不另跑第二次 AI 呼叫、不另開欄位」（D116），那個理由在只想要一封草稿時成立；一旦這封信要有自己的分析深度，代價就浮出來 —— 共用一次呼叫等於共用一組 instructions、一個模型、一份 `max_output_tokens` 與一個編輯鎖，而摘要要的是精簡條列、信要的是展開與溫度，兩邊調整的方向相反。拆開之後各自有 prompt、各自可選模型（信可以跑貴的、摘要跑便宜的）、各自有編輯鎖。代價是一場面談多一次呼叫 —— 而那次呼叫只在按鈕被按下時才發生（D134），所以實際上多付的是「真的要寄信的那些場次」。
@@ -2682,6 +2720,9 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **D178**: 1v1 漏斗設定（FR-265–267）的五個決定。**存 `site_settings` JSON，不開新表**：全站一份（使用者決策）、整份讀整份寫、不需要查詢單題，一列 JSON 就是最直接的形狀；與 AI 設定、積分設定同一套儲存。**預設值留在程式碼**：未儲存 = 現行規則，上線當天不需要資料 migration，測試環境也不用 seed；`default()` 就是今天的 `QUESTIONS`，回歸測試能直接證明「沒改設定時行為不變」。**否決改三態 `none/strict/always`**：寬鬆審核（FR-261）原本寫死「預算 = none」，題目可自訂後這條規則沒有地方掛；把它變成選項上的屬性，嚴格／寬鬆就只是「看不看 `strict`」，`passes()` 不再認得任何題目名稱。**分流條件綁「某一題」而非寫死預算**：題目可刪改，寫死 `screen_budget` 等於讓分流在有人刪掉預算題那天靜默失效；引用的題目停用時該組視為不成立（全部人看全部時段），比報錯擋住整個預約流程安全。**答案改 JSON**（使用者決策：可新增題目）：固定七欄無法承載新題；請求維持扁平鍵、key 前綴 `screen_` 不撞其他表單欄位，精靈與 FR-129 重審完全不用改形狀。**已有作答的不真刪、改停用**：沿用 FR-252，否則後台舊名單會出現一排「—」，看不出當初被問了什麼；**舊分數不回算**：分數是當下規則的判決，回算會讓「當時為什麼通過」無從解釋
 
+- **D179**: US47 的四個決定。**取代而非並存**（使用者決策）：Email 撈取的唯一用途是手動提醒，US19 已自動化；兩顆複製鍵並存只會讓 checkbox 的語意變模糊（勾了到底是選人還是選時間）。**空檔以「連續段」為單位勾選，不是每 15 分鐘一格**：一段 2 小時的空檔要勾 8 次是不能用的介面，而給學員挑時間時本來就是報「14:00-16:00 有空」；代價是無法只勾半段，需要時先拖曳收回再勾。**空檔 checkbox 放在第一格、`@pointerdown.stop`**：格線的 `pointerdown` 已被拖曳釋出／收回佔用（D45），只讓那顆 checkbox 吃掉事件、格子其餘部分完全不變，是不動既有手勢的唯一作法；不做覆蓋整段的透明層，因為它會擋住整段的拖曳。**key 用 `date|start` 而非 lead_id**：空檔沒有 lead；且 Inertia 在拖曳後重新載入 props，用時段 key 能讓「還在的保留、消失的自動脫落」自然成立，不需要額外同步邏輯
+- **D180**: D67 的 payload 契約測試（booked／held 帶非空 `email`）**保留**：`email` 仍被面板的「查看名單」連結（`leadUrl()`）使用，只是不再是複製功能的依賴；測試註解同步改寫理由
+
 ## Schema
 
 - **US24 schema 變更（兩支 migration，皆動 `high_ticket_leads`）**：
@@ -2814,6 +2855,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **US18 無 migration、無 schema 變更** —— 完全建立在 US15 已存在的 `high_ticket_leads.consultant_id`（已有 index）之上，只多一個 `where` 與一個下拉選單
 
 - **US17 無 migration、無 schema 變更、無後端邏輯變更** —— 全部在 `WeekGrid.vue` 內；唯一動到 PHP 的是新增一個守住 payload 契約的測試（D67）
+- **US47 無 migration、無 schema 變更、無後端變更** —— 全部在 `WeekGrid.vue` 內（D179）
 
 - **US15 schema 變更（兩支 migration）**：
 
@@ -4160,8 +4202,18 @@ Phase 4 — 驗證
 - [x] T645 姓名按鈕後加分級標籤（`v-if="screeningTier(lead)"`、`title` 帶分數），排在「未完成 Email 確認」與評語之前 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
 - [x] T646 `npm run build`、瀏覽器檢查名單列（窄螢幕換行不擠壓姓名）
 
+### 週曆勾選時段並複製時段文字（US47 / FR-269–272）
+
+- [x] T647 移除 Email 複製：刪 `pickedEmails()`／`copyEmails()`／`pickableBookings` 的 email 篩選；勾選 state 改 `pickedKeys`（`Set` of `${date}|${start}`），`togglePick(key)`／`isPicked(key)`／`clearPicks()` 改吃 key in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T648 新增 `freeRuns(day)`（依 `props.range.rows` 掃描 free 且非 busy 的連續 row → `{ start, end, startIndex }`，`is_past` 回空陣列）與 `pickableSlots` computed（整週 `props.days`：bookings ∪ freeRuns，各帶 `key`／`line`，依 date → start 排序）；`pickedCount` 改由 `pickableSlots` 過濾（FR-270／FR-272）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T649 `copySlots()`：`pickableSlots` 中被勾選者 → `line` 去重 → `join('\n')` → `navigator.clipboard.writeText()`；按鈕「複製時段」／「已複製 N 筆」；失敗退路改 `<textarea readonly rows>` 自動 `select()`（FR-271／FR-072）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T650 模板：預約區塊 checkbox 改用時段 key、移除 `v-if="booking.email"`、`title="選取此時段"`；每個空檔段第一格疊一顆絕對定位 checkbox（`z-10`、`@pointerdown.stop` + `@click.stop`、`cursor-pointer`、`rescheduling` 時隱藏），不加任何覆蓋層（D179）in `resources/js/Components/Admin/ConsultationSlots/WeekGrid.vue`
+- [x] T651 D67 契約測試的註解改寫為「`email` 供面板查看名單連結使用」（斷言不變）in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
+- [ ] T652 `npm run build`；瀏覽器實測：勾預約＋勾空檔 → 貼上格式正確；點空檔 checkbox 不觸發拖曳；拖曳收回已勾空檔後該行消失；手機單日檢視跨日勾選；`php artisan test` 全綠
+
 ## 進度日誌
 
+- 2026-10-20: US47 週曆「複製 Email」改為「複製時段」：可勾選預約區塊與連續空檔段，輸出「10/29（四） 14:00-14:45」逐行文字（T647–T651）；`npm run build` 通過、`php artisan test` 1315 passed；T652 瀏覽器實測待使用者確認。
 - 2026-10-20: 預約 CC 與客服信箱的寫死預設（原站長信箱）移除，fallback 改為管理員信箱；Email 模板管理頁說明文字同步；相關測試改斷言管理員信箱（000 US12）。
 - 2026-10-19: FR-268 完成 T645–T646 — 名單列姓名後加資格審核分級標籤（沿用 `SCREENING_TIERS` 顏色，`title` 顯示 N/滿分），排在未完成確認、摘要數與評語之前；本機瀏覽器確認「333」列顯示「培育名單」。HighTicket 測試 743 passed，`npm run build` 綠。窄螢幕未實測（視窗無法縮放；該欄為 nowrap、表格可橫向捲動，與既有徽章相同）。
 - 2026-10-19: [draft] 規劃 FR-268 名單列在姓名後直接顯示資格審核分級標籤（高購買意願／值得談／培育名單），位於評語連結之前；hover 顯示分數；純前端。
