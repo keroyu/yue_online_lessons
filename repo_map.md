@@ -63,6 +63,7 @@ main_files:
 - config/app.php
 - config/auth.php
 - config/database.php
+- config/lessonkit.php
 - config/services.php
 - config/themes.php
 - database/legacy/og-logo.png
@@ -112,6 +113,7 @@ main_files:
 - tests/Feature/Platform/EmailSuppressionTest.php
 - tests/Feature/Platform/FirstAdminTest.php
 - tests/Feature/Platform/LegacyOwnerDefaultsTest.php
+- tests/Feature/Platform/LessonKitCreditTest.php
 - tests/Feature/Platform/ShortLinkTest.php
 - tests/Feature/Platform/SiteIconTest.php
 - tests/Feature/Storefront/SiteIdentityTest.php

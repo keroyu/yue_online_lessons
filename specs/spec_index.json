@@ -151,7 +151,9 @@
         "app/Http/Controllers/CourseController.php",
         "resources/js/Pages/Course/Show.vue",
         "resources/js/Pages/Admin/Settings/Payment.vue",
-        "app/Http/Controllers/Admin/SettingsController.php"
+        "app/Http/Controllers/Admin/SettingsController.php",
+        "config/lessonkit.php",
+        "tests/Feature/Platform/LessonKitCreditTest.php"
       ],
       "status": "implemented"
     },

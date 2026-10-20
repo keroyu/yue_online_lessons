@@ -52,6 +52,11 @@ class HandleInertiaRequests extends Middleware
                 ...SiteSetting::identity(),
                 'logoUrl' => app(SiteIconService::class)->urls()['logo'],
             ],
+            // Product credit in the footer; static, so not a closure.
+            'lessonkit' => [
+                'name'    => config('lessonkit.name'),
+                'version' => config('lessonkit.version'),
+            ],
             // The active palette, for the handful of places that need the
             // literal values rather than the CSS variables — currently only
             // the lesson CTA generator, whose output is inline-styled HTML

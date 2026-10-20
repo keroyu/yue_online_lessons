@@ -1294,6 +1294,9 @@
     "config/drip.php": [
       "010.us-10"
     ],
+    "config/lessonkit.php": [
+      "000.us-12"
+    ],
     "config/services.php": [
       "000.us-4",
       "003.us-9"
@@ -2776,6 +2779,9 @@
       "000.us-13"
     ],
     "tests/Feature/Platform/LegacyOwnerDefaultsTest.php": [
+      "000.us-12"
+    ],
+    "tests/Feature/Platform/LessonKitCreditTest.php": [
       "000.us-12"
     ],
     "tests/Feature/Platform/ShortLinkTest.php": [

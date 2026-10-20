@@ -2,6 +2,8 @@
 id: 000-platform-core
 status: building
 owner_files:
+  - config/lessonkit.php
+  - tests/Feature/Platform/LessonKitCreditTest.php
   - database/migrations/2026_10_20_000001_install_legacy_owner_defaults.php
   - database/legacy/og-logo.png
   - tests/Feature/Platform/LegacyOwnerDefaultsTest.php
@@ -509,6 +511,7 @@ DB 一律存 UTC，讀者永遠在台北。轉換只發生在兩個邊界：表�
 - [x] OG 卡片的 logo 只用上傳的圖（未上傳時不畫 logo），且 logo 檔名 MUST 進快取 key，換 logo 才會重生舊卡片
 - [x] **原站長的預設值一律移出程式碼**（給客戶另裝一份用）：客服信箱 fallback → 第一位管理員信箱，再退到 `mail.from.address`（`SiteSetting::defaultSupportEmail()`）；預約 CC fallback → 所有管理員（`HighTicketBookingService::defaultNotifyCc()`）；Portaly 購買連結的商店帳號改為 `site_settings.portaly_store_slug`（API 設定頁 → Portaly），由 `SiteSetting::portalyProductUrl()` 在後端組出 `course.portaly_url`，未設定時不顯示 Portaly 購買按鈕；`public/robots.txt` 拿掉寫死網域的 `Sitemap:` 行（Forge 的 nginx 對 `/robots.txt` 有 exact-match location、不走 Laravel，所以維持靜態檔）
 - [x] 資料遷移 `2026_10_20_000001_install_legacy_owner_defaults`：比照 `install_site_identity_settings`，**只有既有安裝**（有 `hero_title`）才把原本的客服信箱、CC 名單、Portaly 商店帳號寫成設定，並把 `database/legacy/og-logo.png` 複製到 public disk 設為 `site_logo_path`；乾淨 DB 什麼都不寫，既有值不覆寫
+- [x] 頁尾版權列下方顯示產品署名「Powered by LessonKit vX.Y.Z」：名稱與版本收在 `config/lessonkit.php`，經 Inertia shared prop `lessonkit` 傳給 Footer。版本採 semver（MAJOR＝升級需人工步驟、MINOR＝新功能、PATCH＝修正），在 `main` 推到 `release` 時手動遞增並打 `vX.Y.Z` tag；測試 `LessonKitCreditTest`
 - [x] 測試：`LegacyOwnerDefaultsTest`（新站全空、既有站保留原值與 logo、不覆寫已設定值、Portaly URL 需同時有商店與商品）；`SupportEmailTest` 掃描 `app/`、`resources/`、`public/` 不得出現原站長信箱或 Portaly 商店網址
 - [x] 測試：`SiteIdentityTest`（儲存三值、站名必填、經營者/地址可空、訪客不得改、`site` prop 出現在每一頁、站名 fallback 到 hero_title）
 - [x] 測試：`SiteIconTest`（logo 上傳後出現在 `site.logoUrl`、一張 PNG 派生三個檔且尺寸正確、`.ico` 的檔頭/目錄項/PNG 本體逐欄位驗證、`/favicon.ico` 有無圖各自回 200/404、layout 未上傳時不輸出 icon link、替換與刪除都清掉舊檔、訪客不得上傳、非圖片被擋）
@@ -887,6 +890,7 @@ Phase 5 — 驗證：
 
 ## 進度日誌
 
+- 2026-10-20: 頁尾加入「Powered by LessonKit v1.0.0」署名，版本收在 `config/lessonkit.php`（semver，推 release 時遞增＋打 tag）（US12）。
 - 2026-10-20: 為客戶另裝一份做準備 — 移除程式碼中寫死的原站長身分：客服信箱 / 預約 CC 的預設改為管理員信箱、Portaly 商店帳號改為 API 設定、導覽列與 OG 卡片不再內建 logo、robots.txt 去掉寫死網域；新增 migration 讓既有站自動保留原值（US12）。
 - 2026-10-18: 修正 axios 偶發「CSRF token mismatch」（419）— `bootstrap.js` 拿掉頁面載入時從 meta 凍結的 `X-CSRF-TOKEN` 預設 header（token 重產後如在另一分頁登出，舊值優先於 `X-XSRF-TOKEN` 被比對而 419），改由 axios 從 `XSRF-TOKEN` cookie 自動帶。FR-004 已改。curl 驗證：舊 header＋有效 cookie → 419；只帶 cookie → 通過 CSRF（422 驗證錯誤）。
 - 2026-10-18: 新增共用元件 `Components/Admin/DateTimeInput.vue`（`datetime-local` ＋「清除」按鈕）— Chrome 原生輸入框沒有清除鈕，只刪一格會進入 `badInput` 並被瀏覽器原生驗證擋下送出；按鈕直接重設 DOM 值。`inheritAttrs: false`，`class`/`id` 落在 input 上、`wrapper-class` 給外層，input 加 `min-w-0 flex-1` 避免窄欄把按鈕擠出。目前用於 006 折扣碼到期日、004 課程優惠到期／預購開賣、012 文章發佈時間；必填或不該留空的日期欄位（如電子報排程）不使用。

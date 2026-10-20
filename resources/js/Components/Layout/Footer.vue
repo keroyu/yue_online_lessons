@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/vue3'
 import LegalPolicyModal from '../Legal/LegalPolicyModal.vue'
 
 const siteName = computed(() => usePage().props.site?.name ?? '')
+const lessonkit = computed(() => usePage().props.lessonkit ?? null)
 
 const showModal = ref(false)
 const modalType = ref('terms')
@@ -25,6 +26,9 @@ const closeModal = () => {
         <div class="text-center md:text-left mb-4 md:mb-0">
           <p class="text-brand-cream/80 text-sm">
             &copy; {{ new Date().getFullYear() }} {{ siteName }}. All rights reserved.
+          </p>
+          <p v-if="lessonkit" class="mt-1 text-brand-cream/50 text-xs">
+            Powered by {{ lessonkit.name }} v{{ lessonkit.version }}
           </p>
         </div>
         <div class="flex justify-center md:justify-end space-x-6">
