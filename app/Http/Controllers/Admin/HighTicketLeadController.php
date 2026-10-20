@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\DripService;
 use App\Services\HighTicketBookingService;
 use App\Services\HighTicketLeadService;
+use App\Support\BookingScreening;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -312,7 +313,7 @@ class HighTicketLeadController extends Controller
             $query = HighTicketLead::applications()->whereIn('id', array_map('intval', (array) $ids));
         }
 
-        $query->with(['course:id,name', 'slots:id,lead_id,starts_at'])
+        $query->with(['course:id,name', 'slots:id,lead_id,starts_at', 'consultant:id,nickname,email'])
             // `id` is the tiebreaker, not decoration: chunk() pages by offset,
             // and rows sharing a booked_at under a non-deterministic order can
             // be repeated in one chunk and missed in the next.
@@ -321,15 +322,19 @@ class HighTicketLeadController extends Controller
 
         $filename = 'high-ticket-leads-' . now()->format('Ymd') . '.csv';
 
-        return response()->streamDownload(function () use ($query) {
+        // Read once and shared by the header and every chunk, so a settings
+        // save mid-export cannot change the column count part-way (FR-273).
+        $questions = BookingScreening::questions();
+
+        return response()->streamDownload(function () use ($query, $questions) {
             $handle = fopen('php://output', 'w');
 
             // UTF-8 BOM so Excel reads the Chinese columns as Chinese.
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, HighTicketLeadService::EXPORT_HEADINGS);
+            fputcsv($handle, $this->leadService->exportHeadings($questions));
 
-            $query->chunk(200, function ($leads) use ($handle) {
-                foreach ($this->leadService->exportRows($leads) as $row) {
+            $query->chunk(200, function ($leads) use ($handle, $questions) {
+                foreach ($this->leadService->exportRows($leads, $questions) as $row) {
                     fputcsv($handle, $row);
                 }
             });

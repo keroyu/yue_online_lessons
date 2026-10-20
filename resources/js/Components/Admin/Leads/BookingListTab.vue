@@ -1083,7 +1083,7 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
         :class="exportCount > 0
           ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer'
           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
-        title="匯出所選 Leads 為 CSV：姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間與已經過天數"
+        title="匯出所選 Leads 為 CSV：姓名、Email、手機電話、諮詢時段、狀態、顧問、成交金額、課程、序列信起始時間、已經過天數、資格審核分數與分級，以及每一題的資格審核答案"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

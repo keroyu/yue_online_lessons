@@ -1213,6 +1213,10 @@ lead 由 `converted` 改回 `closed`（使用者決策）。
 - [ ] 按鈕 `cursor-pointer` + hover 回饋；disabled 時 `cursor-not-allowed`；手機寬度下與同列按鈕一起換行不溢出
 - [ ] 測試：欄位順序與表頭、`ids[]` 只匯出勾選的、`select_all` 與畫面名單同一批（含 `met` / `consultant` / `status` 疊加）、無選取回 422、成交金額只計 paid 的 lead_conversion（退款不計）、多筆訂閱兩欄對齊、無時段／無成交／無訂閱皆輸出空字串、台北時區邊界、非 staff 被擋
 
+- [ ] **FR-273 追加（2026-10-20）**：「狀態」右邊加「顧問」欄（`consultant.nickname ?? consultant.email`，未指派空字串）
+- [ ] **FR-273 追加**：「已經過天數」之後依序加「資格審核分數」（純整數，可 SUM；未審核空字串）、「資格審核分級」（高購買意願／值得談／培育名單；未審核空字串），再接**每題一欄**的資格審核答案（表頭 = 題目文字、值 = 所選選項文字）
+- [ ] **FR-273 追加**：題目欄依目前 1v1 漏斗設定的題目順序，含**已停用但曾被作答**的題目與選項（顯示原文字）；該 lead 沒答到的題目輸出空字串，MUST NOT 輸出 `—`
+- [ ] **FR-273 追加**：新增欄位不得造成 N+1 —— `consultant` 隨 chunk eager load，題目表每次匯出只讀一次
 
 ### User Story 32 - 未完成申請 7 天後自動歸為已取消 (Priority: P3)
 
@@ -2127,7 +2131,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **FR-156**: 預約名單 MUST 提供 `GET /admin/high-ticket-leads/export`（`auth` + `staff`，與名單頁同一群組），兩種範圍模式二選一：`ids[]`（勾選）或 `select_all=1` + 列表篩選參數。兩者皆缺 MUST 回 422。
   `select_all` 模式 MUST 以 `bookingLeadsQuery($search, $courseId, $consultant, $met)` 加上 `->when($status, byStatus(...))` 重建，排序 `booked_at desc` —— 與 `index()` 的列表**逐字相同的組裝**。這條是正確性不是潔癖：匯出若自己寫一份 `where`，它與畫面上的名單就是兩份會各自演化的定義，而不一致在一份下載下來的 CSV 裡沒有任何跡象可循（沿用 FR-074 / FR-097 / FR-146 的單一 builder 原則）。
-- **FR-157**: 匯出的欄位順序 MUST 為姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數（9 欄），檔名 `high-ticket-leads-YYYYMMDD.csv`，UTF-8 BOM，`streamDownload` + `chunk(200)`。
+- **FR-157**（欄位由 FR-273 擴充）: 匯出的欄位順序 MUST 為姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數（9 欄），檔名 `high-ticket-leads-YYYYMMDD.csv`，UTF-8 BOM，`streamDownload` + `chunk(200)`。
   空值一律輸出**空字串**：`—` 是給人看的畫面符號，進到試算表就變成一個會擋掉 `SUM` 與排序的文字值。
   手機電話原樣輸出、MUST NOT 加 `="..."` 之類的 Excel 保號包裝（代價：Excel 會吃掉開頭的 0；與 009 的既有匯出保持同一種行為，要換就兩邊一起換）。
 - **FR-158**: 「成交金額」MUST 是該 Email 名下所有 `type=lead_conversion` 且 `status=paid` 的 `purchases.amount` **總和**，且 MUST 是不含符號與千分位的純數字；沒有成交輸出空字串（MUST NOT 輸出 0 —— 0 元成交與沒有成交在試算表裡必須分得開）。
@@ -2288,6 +2292,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-270**: 可勾選項 = 預約區塊（`state ∈ {booked, held}`，不再要求有 `email` —— 諮詢點數預約也可選）＋ **可預約空檔段**。空檔段定義：同一天內 `cellState() === 'free'` 的**連續 row** 合併成一段，起 = 第一格 label、迄 = 最後一格 label + 15 分鐘；不同顧問的空檔若相連仍合併為一段（文字不帶顧問）；`is_past` 的日子不產生空檔段
 - **FR-271**: 每一行格式 `` `${day.label}（${day.weekday}） ${start}-${end}` `` —— `day.label` 為既有 `n/j`（例 `10/29`，月日不補零）、全形括號、括號後一個半形空格、起訖以半形 `-` 相連；行與行以 `\n` 相隔；排序依 `date` → `start`；完全相同的行去重
 - **FR-272**: 勾選範圍 MUST 以**整週** `props.days` 計算，不受手機單日檢視的 `visibleDays` 限制；每次複製／計數時以當下 payload 重算可勾選項，勾選 key 若已對不到任何現存項目則不計入、不輸出
+- **FR-273**（擴充 FR-157，2026-10-20）: 預約名單 CSV 欄位 MUST 為：姓名、Email、手機電話、諮詢時段、狀態、**顧問**、成交金額、課程、序列信起始時間、已經過天數、**資格審核分數**、**資格審核分級**、**〔每題一欄：題目文字〕…**。表頭改由 `HighTicketLeadService::exportHeadings(): array` 動態產生（固定 12 欄 + `BookingScreening::questions()` 的 `title`），`EXPORT_HEADINGS` 常數移除。「資格審核分數」為 `screening_score` 純整數、`null` 時空字串（不加 `/滿分`，維持整欄可 SUM）；「資格審核分級」取 `screening_tier` 對應中文（`hot` 高購買意願／`warm` 值得談／`cold` 培育名單），`unknown` 空字串；答案欄以 `screen_answers[question.key]` 經 `BookingScreening::option()` 取選項 `label`，查無或未作答一律空字串（FR-157 的無值規則，不沿用 `screening_answers` accessor 的 `—`）。題目清單在一次匯出中 MUST 只讀一次並同時用於表頭與每一列，確保欄數一致
+
 
 
 ## 設計決策
@@ -2722,6 +2728,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 - **D179**: US47 的四個決定。**取代而非並存**（使用者決策）：Email 撈取的唯一用途是手動提醒，US19 已自動化；兩顆複製鍵並存只會讓 checkbox 的語意變模糊（勾了到底是選人還是選時間）。**空檔以「連續段」為單位勾選，不是每 15 分鐘一格**：一段 2 小時的空檔要勾 8 次是不能用的介面，而給學員挑時間時本來就是報「14:00-16:00 有空」；代價是無法只勾半段，需要時先拖曳收回再勾。**空檔 checkbox 放在第一格、`@pointerdown.stop`**：格線的 `pointerdown` 已被拖曳釋出／收回佔用（D45），只讓那顆 checkbox 吃掉事件、格子其餘部分完全不變，是不動既有手勢的唯一作法；不做覆蓋整段的透明層，因為它會擋住整段的拖曳。**key 用 `date|start` 而非 lead_id**：空檔沒有 lead；且 Inertia 在拖曳後重新載入 props，用時段 key 能讓「還在的保留、消失的自動脫落」自然成立，不需要額外同步邏輯
 - **D180**: D67 的 payload 契約測試（booked／held 帶非空 `email`）**保留**：`email` 仍被面板的「查看名單」連結（`leadUrl()`）使用，只是不再是複製功能的依賴；測試註解同步改寫理由
+- **D181**: 匯出擴充（FR-273）的三個決定。**題目一題一欄、表頭用題目文字**：題目可在 1v1 漏斗設定自訂（US46），固定欄名會在改題目那天失準；一題一欄才能在試算表直接篩「從哪裡發現」= Facebook。**新欄加在後面、只有「顧問」插在「狀態」旁**：題目欄數會變，放尾端讓前 12 欄位置固定，既有試算表公式只需處理「顧問」一欄的位移；顧問與狀態同屬「這筆在誰手上、走到哪」，放一起最好讀。**分級中文對照放後端**：`SCREENING_TIERS` 目前只在 `BookingListTab.vue`，CSV 需要同一組文字，於 `HighTicketLead` 加 `SCREENING_TIER_LABELS` 常數（比照 `STATUS_LABELS`，D122）；前端維持自己的樣式表不動，兩邊文字由測試對照
 
 ## Schema
 
@@ -3790,6 +3797,14 @@ Phase 4 — 驗證
 - [ ] T376 使用者實測：勾三筆匯出、Excel 開啟中文與金額欄正常（金額欄可直接 SUM）、跨頁全選匯出筆數等於畫面上的總筆數
 
 
+### 匯出 CSV 加入顧問與資格審核（US31 追加 / FR-273）
+
+- [x] T653 測試（先行）`LeadExportTest`：表頭 = 固定 12 欄 + 目前 rubric 題目文字；顧問欄（暱稱、無暱稱退回 email、未指派空字串）；分數純數字／未審核空字串；分級中文／`unknown` 空字串；答案欄為選項文字、未作答空字串；停用的題目與選項仍輸出原文字；改既有「九欄」表頭測試 in `tests/Feature/HighTicket/LeadExportTest.php`
+- [x] T654 `HighTicketLead::SCREENING_TIER_LABELS`（hot/warm/cold → 中文）in `app/Models/HighTicketLead.php`
+- [x] T655 `exportHeadings(array $questions): array` 取代 `EXPORT_HEADINGS`；`exportRows($leads, array $questions)` 加顧問、分數、分級、每題答案欄（FR-273）in `app/Services/HighTicketLeadService.php`
+- [x] T656 `export()`：讀一次 `BookingScreening::questions()` 傳給表頭與每個 chunk；eager load 加 `consultant:id,nickname,email`；匯出按鈕 `title` 欄位說明同步 in `app/Http/Controllers/Admin/HighTicketLeadController.php`, `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [ ] T657 `php artisan test` 全綠；正式站匯出一次確認「從哪裡發現」欄已帶出先前補上的 32 筆
+
 ### 資格審核加服務範圍告知勾選（US24 追加 / FR-162–165）
 
 - [x] T377 `screen_ack` 加入 `rules()`（`['accepted']`）與 `messages()`（`screen_ack.accepted` → 「請先勾選上方的服務範圍告知」）；**不動 `BookingScreening::rules()`**（FR-163/164）in `app/Http/Requests/BookingScreeningRequest.php`
@@ -4213,6 +4228,7 @@ Phase 4 — 驗證
 
 ## 進度日誌
 
+- 2026-10-20: FR-273 預約名單 CSV 加入顧問、資格審核分數／分級與每題一欄的答案（T653–T656）；`php artisan test` 1320 passed；T657 正式站匯出確認待部署後執行。
 - 2026-10-20: US47 週曆「複製 Email」改為「複製時段」：可勾選預約區塊與連續空檔段，輸出「10/29（四） 14:00-14:45」逐行文字（T647–T651）；`npm run build` 通過、`php artisan test` 1315 passed；T652 瀏覽器實測待使用者確認。
 - 2026-10-20: 預約 CC 與客服信箱的寫死預設（原站長信箱）移除，fallback 改為管理員信箱；Email 模板管理頁說明文字同步；相關測試改斷言管理員信箱（000 US12）。
 - 2026-10-19: FR-268 完成 T645–T646 — 名單列姓名後加資格審核分級標籤（沿用 `SCREENING_TIERS` 顏色，`title` 顯示 N/滿分），排在未完成確認、摘要數與評語之前；本機瀏覽器確認「333」列顯示「培育名單」。HighTicket 測試 743 passed，`npm run build` 綠。窄螢幕未實測（視窗無法縮放；該欄為 nowrap、表格可橫向捲動，與既有徽章相同）。

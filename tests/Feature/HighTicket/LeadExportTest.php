@@ -8,7 +8,9 @@ use App\Models\CoursePlan;
 use App\Models\DripSubscription;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
+use App\Models\SiteSetting;
 use App\Models\User;
+use App\Support\ScreeningRubric;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -123,14 +125,15 @@ class LeadExportTest extends TestCase
 
     // ── FR-157: shape of the file ───────────────────────────────────────────
 
-    public function test_header_lists_the_nine_columns_in_order(): void
+    public function test_header_lists_the_fixed_columns_then_one_per_question(): void
     {
         $lead = $this->lead();
 
-        $this->assertSame([
-            '姓名', 'Email', '手機電話', '諮詢時段', '狀態',
+        $this->assertSame(array_merge([
+            '姓名', 'Email', '手機電話', '諮詢時段', '狀態', '顧問',
             '成交金額', '課程', '序列信起始時間', '已經過天數',
-        ], $this->csv(['ids' => [$lead->id]])[0]);
+            '資格審核分數', '資格審核分級',
+        ], array_column(ScreeningRubric::current()['questions'], 'title')), $this->csv(['ids' => [$lead->id]])[0]);
     }
 
     public function test_only_the_ticked_leads_are_exported(): void
@@ -153,9 +156,9 @@ class LeadExportTest extends TestCase
 
         $this->assertSame('', $row[2], '手機電話');
         $this->assertSame('', $row[3], '諮詢時段');
-        $this->assertSame('', $row[5], '成交金額');
-        $this->assertSame('', $row[7], '序列信起始時間');
-        $this->assertSame('', $row[8], '已經過天數');
+        $this->assertSame('', $row[6], '成交金額');
+        $this->assertSame('', $row[8], '序列信起始時間');
+        $this->assertSame('', $row[9], '已經過天數');
     }
 
     // ── FR-156: scope modes ─────────────────────────────────────────────────
@@ -229,14 +232,14 @@ class LeadExportTest extends TestCase
 
         $row = $this->csv(['ids' => [$lead->id]])[1];
 
-        $this->assertSame('80000', $row[5], '只計 paid 的 lead_conversion，且為總和');
+        $this->assertSame('80000', $row[6], '只計 paid 的 lead_conversion，且為總和');
     }
 
     public function test_deal_amount_is_blank_rather_than_zero_when_nothing_closed(): void
     {
         $lead = $this->lead(['email' => 'nodeal@example.com']);
 
-        $this->assertSame('', $this->csv(['ids' => [$lead->id]])[1][5]);
+        $this->assertSame('', $this->csv(['ids' => [$lead->id]])[1][6]);
     }
 
     public function test_conversion_is_found_through_buyer_email_after_a_member_changes_address(): void
@@ -247,7 +250,7 @@ class LeadExportTest extends TestCase
         // snapshot of the lead's address at conversion time (FR-158).
         $this->conversion('old-address@example.com', 45000, memberEmail: 'new-address@example.com');
 
-        $this->assertSame('45000', $this->csv(['ids' => [$lead->id]])[1][5]);
+        $this->assertSame('45000', $this->csv(['ids' => [$lead->id]])[1][6]);
     }
 
     // ── FR-159: the course column ───────────────────────────────────────────
@@ -259,14 +262,14 @@ class LeadExportTest extends TestCase
 
         $this->conversion('buyer@example.com', 68000, plan: $plan);
 
-        $this->assertSame('主課程（方案B）', $this->csv(['ids' => [$lead->id]])[1][6]);
+        $this->assertSame('主課程（方案B）', $this->csv(['ids' => [$lead->id]])[1][7]);
     }
 
     public function test_course_column_falls_back_to_the_applied_course_when_nothing_closed(): void
     {
         $lead = $this->lead(['email' => 'nodeal@example.com']);
 
-        $this->assertSame('主課程', $this->csv(['ids' => [$lead->id]])[1][6]);
+        $this->assertSame('主課程', $this->csv(['ids' => [$lead->id]])[1][7]);
     }
 
     public function test_multiple_conversions_are_listed_while_the_amount_stays_a_single_number(): void
@@ -279,8 +282,8 @@ class LeadExportTest extends TestCase
 
         $row = $this->csv(['ids' => [$lead->id]])[1];
 
-        $this->assertSame('主課程／第二課程', $row[6], '課程依購買時間由舊到新');
-        $this->assertSame('80000', $row[5], '金額欄必須維持可 SUM 的純數字');
+        $this->assertSame('主課程／第二課程', $row[7], '課程依購買時間由舊到新');
+        $this->assertSame('80000', $row[6], '金額欄必須維持可 SUM 的純數字');
     }
 
     // ── FR-160: the drip columns ────────────────────────────────────────────
@@ -304,8 +307,8 @@ class LeadExportTest extends TestCase
 
         $row = $this->csv(['ids' => [$lead->id]])[1];
 
-        $this->assertSame('2026/8/1 09:30／2026/8/20 09:30', $row[7], '依 subscribed_at 由舊到新');
-        $this->assertSame('30／11', $row[8], '天數項數與順序必須對齊上一欄');
+        $this->assertSame('2026/8/1 09:30／2026/8/20 09:30', $row[8], '依 subscribed_at 由舊到新');
+        $this->assertSame('30／11', $row[9], '天數項數與順序必須對齊上一欄');
     }
 
     public function test_days_count_up_to_today_while_the_booking_is_unconfirmed(): void
@@ -318,7 +321,7 @@ class LeadExportTest extends TestCase
             'subscribed_at' => now()->subDays(5),
         ]);
 
-        $this->assertSame('5', $this->csv(['ids' => [$lead->id]])[1][8]);
+        $this->assertSame('5', $this->csv(['ids' => [$lead->id]])[1][9]);
     }
 
     // ── FR-157 / D122: Taipei time and Chinese status labels ────────────────
@@ -372,4 +375,82 @@ class LeadExportTest extends TestCase
             ->get('/admin/high-ticket-leads/export?' . http_build_query(['ids' => [$lead->id]]))
             ->assertRedirect('/');
     }
+
+    // ── FR-273: consultant and screening columns ────────────────────────────
+
+    /** Fixed columns before the per-question ones. */
+    private const FIXED = 12;
+
+    public function test_consultant_column_prefers_nickname_then_email_then_blank(): void
+    {
+        $named = User::create(['email' => 'amy@example.com', 'nickname' => 'Amy', 'role' => 'admin']);
+        $bare = User::create(['email' => 'bob@example.com', 'role' => 'member', 'is_sales_consultant' => true]);
+
+        $a = $this->lead(['email' => 'a@example.com', 'consultant_id' => $named->id]);
+        $b = $this->lead(['email' => 'b@example.com', 'consultant_id' => $bare->id]);
+        $c = $this->lead(['email' => 'c@example.com']);
+
+        $rows = $this->rowsByEmail(['ids' => [$a->id, $b->id, $c->id]]);
+
+        $this->assertSame('Amy', $rows['a@example.com'][5]);
+        $this->assertSame('bob@example.com', $rows['b@example.com'][5]);
+        $this->assertSame('', $rows['c@example.com'][5]);
+    }
+
+    public function test_score_is_a_plain_number_and_tier_is_in_chinese(): void
+    {
+        $hot = $this->lead(['email' => 'hot@example.com', 'screening_score' => 9, 'screened_at' => now()]);
+        $cold = $this->lead(['email' => 'cold@example.com', 'screening_score' => 2, 'screened_at' => now()]);
+        $none = $this->lead(['email' => 'none@example.com']);
+
+        $rows = $this->rowsByEmail(['ids' => [$hot->id, $cold->id, $none->id]]);
+
+        $this->assertSame(['9', '高購買意願'], array_slice($rows['hot@example.com'], 10, 2));
+        $this->assertSame(['2', '培育名單'], array_slice($rows['cold@example.com'], 10, 2));
+        $this->assertSame(['', ''], array_slice($rows['none@example.com'], 10, 2), '未審核：空字串而非 0 或「—」');
+    }
+
+    public function test_tier_labels_cover_every_tier(): void
+    {
+        $this->assertSame(['hot', 'warm', 'cold'], array_keys(HighTicketLead::SCREENING_TIER_LABELS));
+    }
+
+    public function test_answers_are_option_labels_and_unanswered_questions_are_blank(): void
+    {
+        $questions = ScreeningRubric::current()['questions'];
+        $first = $questions[0];
+
+        $lead = $this->lead([
+            'screening_score' => 5,
+            'screened_at'     => now(),
+            'screen_answers'  => [$first['key'] => $first['options'][1]['key']],
+        ]);
+
+        $row = $this->csv(['ids' => [$lead->id]])[1];
+
+        $this->assertCount(self::FIXED + count($questions), $row, '每一列欄數與表頭一致');
+        $this->assertSame($first['options'][1]['label'], $row[self::FIXED]);
+        $this->assertSame('', $row[self::FIXED + 1], '沒答到的題目輸出空字串，不是「—」');
+    }
+
+    public function test_retired_questions_and_options_keep_their_wording(): void
+    {
+        $rubric = ScreeningRubric::default();
+        $rubric['questions'][0]['retired'] = true;
+        $rubric['questions'][0]['options'][0]['retired'] = true;
+        SiteSetting::set(ScreeningRubric::SETTING_KEY, json_encode($rubric, JSON_UNESCAPED_UNICODE));
+        ScreeningRubric::forget();
+
+        $first = $rubric['questions'][0];
+        $lead = $this->lead([
+            'screened_at'    => now(),
+            'screen_answers' => [$first['key'] => $first['options'][0]['key']],
+        ]);
+
+        $rows = $this->csv(['ids' => [$lead->id]]);
+
+        $this->assertSame($first['title'], $rows[0][self::FIXED]);
+        $this->assertSame($first['options'][0]['label'], $rows[1][self::FIXED]);
+    }
+
 }

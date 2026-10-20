@@ -31,6 +31,16 @@ class HighTicketLead extends Model
         'declined'    => '已婉拒',
     ];
 
+    /**
+     * Chinese wording of `screening_tier` for the CSV (011 FR-273). `unknown`
+     * is deliberately absent: an unscreened lead exports a blank cell.
+     */
+    public const SCREENING_TIER_LABELS = [
+        'hot'  => '高購買意願',
+        'warm' => '值得談',
+        'cold' => '培育名單',
+    ];
+
     protected $fillable = [
         'name',
         'email',

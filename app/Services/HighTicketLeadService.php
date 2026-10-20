@@ -13,6 +13,7 @@ use App\Models\EmailTemplate;
 use App\Models\HighTicketLead;
 use App\Models\Purchase;
 use App\Models\User;
+use App\Support\BookingScreening;
 use App\Support\RecentDayWindows;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -256,11 +257,26 @@ class HighTicketLeadService
         ]);
     }
 
-    /** Columns of the booking-list CSV, in order (011 FR-157). */
-    public const EXPORT_HEADINGS = [
-        '姓名', 'Email', '手機電話', '諮詢時段', '狀態',
+    /** Fixed columns of the booking-list CSV, in order (011 FR-157 / FR-273). */
+    private const EXPORT_FIXED_HEADINGS = [
+        '姓名', 'Email', '手機電話', '諮詢時段', '狀態', '顧問',
         '成交金額', '課程', '序列信起始時間', '已經過天數',
+        '資格審核分數', '資格審核分級',
     ];
+
+    /**
+     * The CSV header: the fixed columns, then one per screening question
+     * (011 FR-273). Takes the question list rather than reading it, so the
+     * caller can hand the very same list to every chunk of rows and the
+     * column count cannot drift mid-file.
+     *
+     * @param  array<int, array{title: string}>  $questions
+     * @return array<int, string>
+     */
+    public function exportHeadings(array $questions): array
+    {
+        return array_merge(self::EXPORT_FIXED_HEADINGS, array_column($questions, 'title'));
+    }
 
     /** Separator between the several values a single cell may carry. */
     private const EXPORT_GLUE = '／';
@@ -278,17 +294,18 @@ class HighTicketLeadService
      * SUM and sorting (FR-157).
      *
      * @param  \Illuminate\Support\Collection<int, HighTicketLead>  $leads
-     *   with `course` and `slots` already loaded
+     *   with `course`, `slots` and `consultant` already loaded
+     * @param  array<int, array>  $questions  the same list given to exportHeadings()
      * @return array<int, array<int, string>>
      */
-    public function exportRows($leads): array
+    public function exportRows($leads, array $questions): array
     {
         $emails = $leads->pluck('email')->filter()->unique()->values();
 
         $conversions = $this->conversionsByEmail($emails);
         $dripsByEmail = $this->dripStartsByEmail($emails);
 
-        return $leads->map(function (HighTicketLead $lead) use ($conversions, $dripsByEmail) {
+        return $leads->map(function (HighTicketLead $lead) use ($conversions, $dripsByEmail, $questions) {
             $deals = $conversions->get($lead->email, collect());
             $drips = $dripsByEmail->get($lead->email, collect());
 
@@ -297,13 +314,15 @@ class HighTicketLeadService
             // conversion, not a number that should climb every time the list is
             // reopened (FR-160, mirroring the row detail's formatDripStart).
             $reference = $lead->confirmed_at ?? now();
+            $answers = (array) ($lead->screen_answers ?? []);
 
-            return [
+            $row = [
                 (string) $lead->name,
                 (string) $lead->email,
                 (string) ($lead->phone ?? ''),
                 $this->exportSlotRange($lead),
                 HighTicketLead::STATUS_LABELS[$lead->status] ?? (string) $lead->status,
+                (string) ($lead->consultant?->nickname ?: ($lead->consultant?->email ?? '')),
                 // Total rather than a per-deal list, so the whole column stays
                 // summable in a spreadsheet (D120). Blank, not 0, when nothing
                 // closed — a zero-priced deal and no deal must stay apart.
@@ -313,7 +332,19 @@ class HighTicketLeadService
                     : $deals->map(fn ($deal) => $deal['course'])->implode(self::EXPORT_GLUE),
                 $drips->map(fn ($at) => $this->taipei($at)->format('Y/n/j H:i'))->implode(self::EXPORT_GLUE),
                 $drips->map(fn ($at) => (string) $this->taipeiDaysBetween($at, $reference))->implode(self::EXPORT_GLUE),
+                // Bare integer so the column stays summable; no "/max" suffix.
+                $lead->screening_score === null ? '' : (string) $lead->screening_score,
+                HighTicketLead::SCREENING_TIER_LABELS[$lead->screening_tier] ?? '',
             ];
+
+            // One cell per question, in header order. Blank — not the
+            // accessor's 「—」 — when unanswered, so a spreadsheet filter on
+            // the column treats it as empty (FR-157).
+            foreach ($questions as $question) {
+                $row[] = (string) (BookingScreening::option($question, $answers[$question['key']] ?? null)['label'] ?? '');
+            }
+
+            return $row;
         })->all();
     }
 

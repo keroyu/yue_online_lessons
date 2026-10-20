@@ -5003,7 +5003,7 @@
       "id": "011.us-31",
       "module": "011-high-ticket",
       "title": "預約名單勾選匯出 CSV",
-      "summary": "預約名單勾選（或跨頁全選符合篩選）後匯出九欄 CSV：姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數；按鈕位於「複製 Email」右邊",
+      "summary": "預約名單勾選（或跨頁全選符合篩選）後匯出九欄 CSV：姓名、Email、手機電話、諮詢時段、狀態、成交金額、課程、序列信起始時間、已經過天數；按鈕位於「複製 Email」右邊；FR-273 追加顧問、資格審核分數／分級與每題一欄的答案",
       "heading": "### User Story 31 - 預約名單勾選匯出 CSV (Priority: P3)",
       "file": "specs/011-high-ticket/spec.md",
       "anchor": "user-story-31---預約名單勾選匯出-csv-priority-p3",
@@ -5023,7 +5023,15 @@
         "諮詢時段",
         "streamDownload",
         "BOM",
-        "台北時間"
+        "台北時間",
+        "顧問",
+        "consultant",
+        "資格審核",
+        "screening",
+        "分數",
+        "分級",
+        "tier",
+        "答案"
       ],
       "code_files": [
         "app/Http/Controllers/Admin/HighTicketLeadController.php",
@@ -5031,9 +5039,10 @@
         "app/Models/HighTicketLead.php",
         "resources/js/Components/Admin/Leads/BookingListTab.vue",
         "routes/web.php",
-        "tests/Feature/HighTicket/LeadExportTest.php"
+        "tests/Feature/HighTicket/LeadExportTest.php",
+        "app/Support/BookingScreening.php"
       ],
-      "status": "partial"
+      "status": "implemented"
     },
     {
       "id": "011.us-32",
