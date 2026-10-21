@@ -757,6 +757,7 @@ main_files:
 - app/Models/ConsultationSlot.php
 - app/Models/Course.php
 - app/Models/CoursePlan.php
+- app/Models/DripSubscription.php
 - app/Models/EmailTemplate.php
 - app/Models/HighTicketLead.php
 - app/Models/Lesson.php
@@ -835,6 +836,8 @@ main_files:
 - database/migrations/2026_10_18_000006_add_screening_decline_mailed_at_to_high_ticket_leads_table.php
 - database/migrations/2026_10_18_000007_install_screening_declined_template.php
 - database/migrations/2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php
+- database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php
+- database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php
 - database/seeders/EmailTemplateSeeder.php
 - phpunit.xml
 - resources/js/Components/Admin/ChapterList.vue
@@ -911,6 +914,7 @@ main_files:
 - tests/Feature/HighTicket/ConversionStatsTest.php
 - tests/Feature/HighTicket/CoursePlanTest.php
 - tests/Feature/HighTicket/CourseRosterTest.php
+- tests/Feature/HighTicket/DripResumeTest.php
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/FunnelSettingsTest.php

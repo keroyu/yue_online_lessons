@@ -70,7 +70,8 @@ class HighTicketBookingService
      * "which kind of person is this", and the people who walk away halfway are
      * exactly the ones worth having on file. Nothing is emailed, no slot is
      * touched. A refusal stops the drip sequence that led here (FR-257,
-     * revising FR-126); a pass leaves it running until the booking is confirmed.
+     * revising FR-126); a pass leaves it running until the booking is confirmed,
+     * and brings back one an earlier refusal stopped (US48 / FR-274).
      *
      * @return array{success: bool, message?: string, passed?: bool, decline_html?: string}
      */
@@ -105,7 +106,7 @@ class HighTicketBookingService
                 'booked_at'   => now(),
             ]));
 
-            $this->stopDripIfDeclined($passed, $data['email'], $course);
+            $this->syncDripWithScreening($passed, $lead, $course);
             $this->scheduleDeclineMail($passed, $lead);
 
             return $this->screenResult($course, $passed);
@@ -136,7 +137,7 @@ class HighTicketBookingService
 
         $lead->update($attributes);
 
-        $this->stopDripIfDeclined($passed, $data['email'], $course);
+        $this->syncDripWithScreening($passed, $lead, $course);
         $this->scheduleDeclineMail($passed, $lead);
 
         return $this->screenResult($course, $passed);
@@ -175,25 +176,45 @@ class HighTicketBookingService
     }
 
     /**
-     * A refusal stops the sequence that led here (011 FR-257). Best-effort like
-     * the booking's drip stop: the verdict has been recorded, and a drip hiccup
-     * must not turn it into an error page.
+     * Keep the drip in step with the verdict. A refusal stops the sequence that
+     * led here (011 FR-257); a pass on a still-open application resumes one an
+     * earlier refusal stopped (US48 / FR-274). A confirmed booking, or a status
+     * an admin moved by hand, is left alone — re-answering never undoes either.
+     *
+     * Best-effort like the booking's drip stop: the verdict has been recorded,
+     * and a drip hiccup must not turn it into an error page.
      */
-    private function stopDripIfDeclined(bool $passed, string $email, Course $course): void
+    private function syncDripWithScreening(bool $passed, HighTicketLead $lead, Course $course): void
     {
-        if ($passed) {
-            return;
-        }
-
         try {
-            app(DripService::class)->checkAndDecline($email, $course);
+            if (!$passed) {
+                app(DripService::class)->checkAndDecline($lead->email, $course);
+            } elseif ($lead->status === 'pending' && $lead->confirmed_at === null && !$this->hasOtherActiveBooking($lead)) {
+                app(DripService::class)->resumeSequence($lead->email, $course, ['declined']);
+            }
         } catch (\Exception $e) {
-            Log::error('High ticket screening: drip stop failed', [
-                'email'     => $email,
+            Log::error('High ticket screening: drip sync failed', [
+                'email'     => $lead->email,
                 'course_id' => $course->id,
                 'error'     => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Whether the same person still holds a live booking for this course under
+     * another lead — same definition as isActiveBooking(). While one does, the
+     * sequence stays stopped whatever happens to this lead (FR-275).
+     */
+    private function hasOtherActiveBooking(HighTicketLead $lead): bool
+    {
+        return HighTicketLead::applications()
+            ->where('email', $lead->email)
+            ->where('course_id', $lead->course_id)
+            ->whereKeyNot($lead->id)
+            ->whereNotNull('confirmed_at')
+            ->whereNull('cancelled_at')
+            ->exists();
     }
 
     /**
@@ -818,7 +839,7 @@ class HighTicketBookingService
      * The drip subscription is left exactly as it is (D107): confirming the
      * booking already marked it `booked` and stopped the sequence, and mailing
      * somebody marketing right after refusing them is the one thing this path
-     * must not do.
+     * must not do. A plain cancel() resumes it instead (US48 / FR-275).
      *
      * @return array{success: bool, message?: string}
      */
@@ -910,6 +931,19 @@ class HighTicketBookingService
             $lead,
             'delete'
         );
+
+        // A cancelled booking is back in the funnel; a refused one is not (D107).
+        // Credit bookings never stopped the sequence in the first place.
+        if ($status === 'cancelled' && $course && !$lead->isCredit() && !$this->hasOtherActiveBooking($lead)) {
+            try {
+                app(DripService::class)->resumeSequence($lead->email, $course, ['booked']);
+            } catch (\Exception $e) {
+                Log::error('High ticket booking: drip resume failed', [
+                    'lead_id' => $lead->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
 
         return ['success' => true, 'zoom_synced' => $zoomSynced];
     }

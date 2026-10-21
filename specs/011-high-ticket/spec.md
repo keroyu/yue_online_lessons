@@ -2,6 +2,9 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php
+  - database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php
+  - tests/Feature/HighTicket/DripResumeTest.php
   - app/Support/ScreeningRubric.php
   - app/Http/Controllers/Admin/FunnelSettingsController.php
   - app/Http/Requests/Admin/UpdateFunnelSettingsRequest.php
@@ -201,6 +204,15 @@ owner_files:
   - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
   - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 touchpoints:
+  - file: app/Services/DripService.php
+    owner: 010-drip-email
+    why: US48 — `resumeSequence()`、`RESUME_INTERVAL_DAYS`；`getUnlockedLessonCount()` 套恢復後每 3 天 1 封的節奏（FR-276）
+  - file: app/Models/DripSubscription.php
+    owner: 010-drip-email
+    why: US48 — fillable／casts 加 `resumed_at`
+  - file: tests/Feature/Drip/FunnelStopTest.php
+    owner: 010-drip-email
+    why: US48 — 確認停信行為不變，必要時補註解
   - file: app/Models/DripSubscription.php
     owner: 010-drip-email
     why: FR-257 — 新增 `declined` 狀態並列入 `STOPS_SENDING`
@@ -1663,6 +1675,29 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [ ] 改期模式（`rescheduling`）中，兩種 checkbox 皆不可點
 - [ ] 所有新增可點元素 `cursor-pointer` + hover 回饋
 
+### User Story 48 - 預約確認前序列信不停，取消預約後恢復 (Priority: P1)
+
+序列信的目標是「完成預約」，所以停信的時點應該是**預約確認**（US11 的 Email 二次確認），不是填問卷或送出申請。
+現行程式已經只在確認時停信（`afterConfirmation()` → `checkAndBook()`），但有兩個缺口讓「還沒確定的人」收不到後續序列信：
+
+1. **審核先被婉拒、重填後通過**：第一次答題被自動婉拒，序列信記為 `declined`（FR-257）；同一人回來重答並通過後，lead 回到 `pending`，序列信卻仍停在 `declined`。正式站 2026-10-22 查得 2 筆（lead 146、190）。
+2. **預約確認後又被取消**：確認時序列信記為 `booked`；之後預約被取消（非婉拒），lead 已不是有效預約，序列信卻永遠停著。另有 2 筆 8 月舊流程（送出即停信）留下、從未確認卻停在 `booked` 的資料（lead 3、14）。正式站共 5 筆。
+
+恢復時可能已積欠好幾封；不一次補寄，改為恢復後**每 3 天寄 1 封**，直到追上原排程。
+
+**驗收**：
+- [x] 已婉拒者重答審核並**通過**（lead 落在 `pending`、未確認、同課程無其他有效預約）→ 以本課為轉換目標的 `declined` 序列信恢復為 `active`（FR-274）
+- [x] 重答通過但該 lead 已確認預約，或狀態被管理員改過（非 `pending`）→ 序列信不動
+- [x] 已確認的預約被**取消**（`cancel()`）→ `booked` 序列信恢復為 `active`；被**婉拒**（`decline()`）→ 維持停信（D107 不變）（FR-275）
+- [x] 取消時，同一 Email 在同課程仍有其他有效預約 → 不恢復
+- [x] 付費諮詢（`kind = credit`）的取消不碰序列信（確認時本來就沒停）
+- [x] `converted`／`unsubscribed`／`completed` 永遠不會被恢復
+- [x] 恢復後：距離**上一封實際寄出**滿 3 個台北日曆日（或從未寄出）時，每日排程寄 1 封，之後每 3 天 1 封；若原排程本來就更慢（例如 Day 14 → 30），以原排程為準，不會因恢復而變快（FR-276）
+- [x] 恢復後解鎖仍跟著 `emails_sent` 走（US14 不變）（原列「N 天後解鎖倒數」：`daysUntilUnlock()` 目前無任何呼叫點，不改）
+- [x] 同一訂閱可停→恢復→再停→再恢復，節奏一律以上一封實際寄出時間計算
+- [ ] 一次性資料 migration 依 FR-277 恢復正式站既有的 7 筆（`declined` 2 筆、`booked` 5 筆），部署後即生效
+- [x] 停信／恢復失敗只記 log，不影響審核結果與取消流程（比照 FR-016）
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2293,6 +2328,10 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-271**: 每一行格式 `` `${day.label}（${day.weekday}） ${start}-${end}` `` —— `day.label` 為既有 `n/j`（例 `10/29`，月日不補零）、全形括號、括號後一個半形空格、起訖以半形 `-` 相連；行與行以 `\n` 相隔；排序依 `date` → `start`；完全相同的行去重
 - **FR-272**: 勾選範圍 MUST 以**整週** `props.days` 計算，不受手機單日檢視的 `visibleDays` 限制；每次複製／計數時以當下 payload 重算可勾選項，勾選 key 若已對不到任何現存項目則不計入、不輸出
 - **FR-273**（擴充 FR-157，2026-10-20）: 預約名單 CSV 欄位 MUST 為：姓名、Email、手機電話、諮詢時段、狀態、**顧問**、成交金額、課程、序列信起始時間、已經過天數、**資格審核分數**、**資格審核分級**、**〔每題一欄：題目文字〕…**。表頭改由 `HighTicketLeadService::exportHeadings(): array` 動態產生（固定 12 欄 + `BookingScreening::questions()` 的 `title`），`EXPORT_HEADINGS` 常數移除。「資格審核分數」為 `screening_score` 純整數、`null` 時空字串（不加 `/滿分`，維持整欄可 SUM）；「資格審核分級」取 `screening_tier` 對應中文（`hot` 高購買意願／`warm` 值得談／`cold` 培育名單），`unknown` 空字串；答案欄以 `screen_answers[question.key]` 經 `BookingScreening::option()` 取選項 `label`，查無或未作答一律空字串（FR-157 的無值規則，不沿用 `screening_answers` accessor 的 `—`）。題目清單在一次匯出中 MUST 只讀一次並同時用於表頭與每一列，確保欄數一致
+- **FR-274**（US48，修訂 FR-257，使用者決策 2026-10-22）: `HighTicketBookingService::screen()` 在 lead 落庫後，**通過**且 `$lead->status === 'pending'`、`$lead->confirmed_at === null`、且 `hasOtherActiveBooking($lead)` 為 false 時，MUST 呼叫 `DripService::resumeSequence($lead->email, $course, ['declined'])`。未通過維持現行 `checkAndDecline()`（以 `$passed` 判定，行為不變）。兩者收斂為私有方法 `syncDripWithScreening(bool $passed, HighTicketLead $lead, Course $course)`，取代 `stopDripIfDeclined()`；整段 try/catch + `Log::error`
+- **FR-275**（US48，使用者決策 2026-10-22）: `releaseBooking()` 在 transaction 與既有副作用之後，`$status === 'cancelled'` 且 `!$lead->isCredit()` 且課程存在且 `!hasOtherActiveBooking($lead)` 時，MUST 呼叫 `DripService::resumeSequence($lead->email, $course, ['booked'])`；`declined` 不呼叫（D107）。`hasOtherActiveBooking(HighTicketLead $lead): bool` = `HighTicketLead::applications()->where('email', $lead->email)->where('course_id', $lead->course_id)->whereKeyNot($lead->id)->whereNotNull('confirmed_at')->whereNull('cancelled_at')->exists()`（與 `isActiveBooking()` 同一定義）
+- **FR-276**（US48，使用者決策 2026-10-22，/dev 時修訂節奏錨點）: `DripService::resumeSequence(string $email, Course $course, array $fromStatuses): int` —— 與 `checkAndBook()` 同一路徑（Email 找 user、`DripConversionTarget` 找以本課為目標的 drip 課程），`$fromStatuses` 只允許 `declined`／`booked` 的子集（其他值丟 `InvalidArgumentException`，防止誤把 `converted`／`unsubscribed` 救回）。逐筆更新 `status = active`、`status_changed_at = now()`、`resumed_at = now()`，回傳筆數並 `Log::info`。**節奏**：常數 `DripService::RESUME_INTERVAL_DAYS = 3`；`getUnlockedLessonCount()` 在 `resumed_at` 非 null 時回 `min(原排程數, emails_sent + (上一封 sent 事件距今 ≥ 3 個台北日曆日 或 無 sent 事件 ? 1 : 0))`，上一封 = `drip_email_events` 該訂閱 `event_type = sent` 的 `MAX(created_at)`，日數 = 兩端各取 `Asia/Taipei` 的 `startOfDay()` 相減。錨點用**實際寄出時間**而非 `resumed_at`：恢復發生在一天中任意時刻、每日排程固定時刻，以恢復時間起算會讓第二封與第一封只隔 2 天。`processSubscription()`／`isLessonUnlocked()` 不改；`daysUntilUnlock()` 無呼叫點，不改
+- **FR-277**（US48，使用者決策 2026-10-22）: 一次性資料 migration 回補既有資料：對 `status ∈ {declined, booked}` 的每筆 `drip_subscriptions`，取該 user Email 在「此 drip 課程任一轉換目標課程」的 application leads；若其中**沒有**有效預約（`confirmed_at` 非 null 且 `cancelled_at` null），且最新一筆（id 最大）lead 滿足 —— 訂閱為 `declined` 時：`status = pending` 且 `confirmed_at` null；訂閱為 `booked` 時：`status = cancelled` —— 即比照 FR-276 恢復（`status = active`、`status_changed_at`／`resumed_at = now()`）；migration 以 query builder 撰寫、不經 model。`down()` no-op。2026-10-22 正式站試算命中 7 筆：subscription 4055、5078（declined）、61、155、1825、4017、4220（booked）
 
 
 
@@ -2729,6 +2768,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **D179**: US47 的四個決定。**取代而非並存**（使用者決策）：Email 撈取的唯一用途是手動提醒，US19 已自動化；兩顆複製鍵並存只會讓 checkbox 的語意變模糊（勾了到底是選人還是選時間）。**空檔以「連續段」為單位勾選，不是每 15 分鐘一格**：一段 2 小時的空檔要勾 8 次是不能用的介面，而給學員挑時間時本來就是報「14:00-16:00 有空」；代價是無法只勾半段，需要時先拖曳收回再勾。**空檔 checkbox 放在第一格、`@pointerdown.stop`**：格線的 `pointerdown` 已被拖曳釋出／收回佔用（D45），只讓那顆 checkbox 吃掉事件、格子其餘部分完全不變，是不動既有手勢的唯一作法；不做覆蓋整段的透明層，因為它會擋住整段的拖曳。**key 用 `date|start` 而非 lead_id**：空檔沒有 lead；且 Inertia 在拖曳後重新載入 props，用時段 key 能讓「還在的保留、消失的自動脫落」自然成立，不需要額外同步邏輯
 - **D180**: D67 的 payload 契約測試（booked／held 帶非空 `email`）**保留**：`email` 仍被面板的「查看名單」連結（`leadUrl()`）使用，只是不再是複製功能的依賴；測試註解同步改寫理由
 - **D181**: 匯出擴充（FR-273）的三個決定。**題目一題一欄、表頭用題目文字**：題目可在 1v1 漏斗設定自訂（US46），固定欄名會在改題目那天失準；一題一欄才能在試算表直接篩「從哪裡發現」= Facebook。**新欄加在後面、只有「顧問」插在「狀態」旁**：題目欄數會變，放尾端讓前 12 欄位置固定，既有試算表公式只需處理「顧問」一欄的位移；顧問與狀態同屬「這筆在誰手上、走到哪」，放一起最好讀。**分級中文對照放後端**：`SCREENING_TIERS` 目前只在 `BookingListTab.vue`，CSV 需要同一組文字，於 `HighTicketLead` 加 `SCREENING_TIER_LABELS` 常數（比照 `STATUS_LABELS`，D122）；前端維持自己的樣式表不動，兩邊文字由測試對照
+- **D182**: US48 的四個決定。**停信點只有「確認」**（使用者決策）：序列信的工作是把人推到預約確認，還沒確認就還沒完成；確認後又取消等於回到漏斗裡，該繼續加溫。婉拒（admin `decline()`）例外，D107 的理由不變 —— 剛拒絕的人不該收行銷信。**恢復後每 3 天 1 封**（使用者決策）：一次補寄積欠的信會讓人同一天收到好幾封，像系統故障；每 3 天一封是「追上進度但不轟炸」。用 `resumed_at` 標記「已恢復、走節奏」，節奏錨在上一封實際寄出時間（`drip_email_events`），而不是改寫 `subscribed_at` —— 後者是 010 統計（新增訂閱數、序列信起始時間欄）與 CSV 匯出的錨點，改了會讓報表說謊。**取 min 而不是只看節奏**：原排程本來就比 3 天慢的後段（Day 14 → 30）若改成每 3 天，等於恢復讓人收得更快，違反「不轟炸」的初衷。**`resumeSequence()` 白名單來源狀態**：恢復是「撤銷某一次停信」，只有 011 自己造成的兩種停信（`declined`／`booked`）可撤銷；購買轉換與使用者自己退訂一旦被救回就是嚴重錯誤，所以在 service 層擋死而不是靠呼叫端自律
 
 ## Schema
 
@@ -3082,6 +3122,9 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
   - `consulted_at` 寫入時為 UTC instance；顯示一律 `timezone('Asia/Taipei')` 或前端 ISO 解析
 
   **US46 / FR-266**：`2026_10_19_000001_move_screening_answers_to_json_on_high_ticket_leads.php` — 加 `screen_answers` json nullable（`after('social_url')`），回填 `{screen_timeline: …, …}`（只含非 null 值），刪 `screen_timeline`／`screen_budget`／`screen_authority`／`screen_pain`／`screen_next_step`／`screen_experience`／`screen_learning`；`down()` 反向。不變量：`screened_at` 非 null ⇔ `screen_answers` 非 null；`screen_answers` 的 key 必為 rubric 中（含停用）存在過的題目 key。rubric 本身存在 `site_settings`（`key = booking_screening_rubric`），無 schema 變更。
+
+
+- **US48 schema 變更（一支欄位 migration + 一支資料 migration）**：`2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php` — `drip_subscriptions.resumed_at` timestamp nullable（UTC），`after('status_changed_at')`；`2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php` — FR-277 回補，`down()` no-op。不變量：`resumed_at` 只由 `resumeSequence()`（與回補 migration）寫入；停信（`reachGoal()`）不清除 —— 再停之後恢復即覆寫；非 null 即走 FR-276 節奏（原規劃的 `resumed_emails_sent` 因節奏改錨實際寄出時間而不需要）
 
 ## Tasks
 
@@ -4226,8 +4269,19 @@ Phase 4 — 驗證
 - [x] T651 D67 契約測試的註解改寫為「`email` 供面板查看名單連結使用」（斷言不變）in `tests/Feature/HighTicket/ConsultationSlotAdminTest.php`
 - [ ] T652 `npm run build`；瀏覽器實測：勾預約＋勾空檔 → 貼上格式正確；點空檔 checkbox 不觸發拖曳；拖曳收回已勾空檔後該行消失；手機單日檢視跨日勾選；`php artisan test` 全綠
 
+### 預約確認前序列信不停，取消預約後恢復（US48 / FR-274–277）
+
+- [x] T658 migration：`drip_subscriptions` 加 `resumed_at`；`DripSubscription` fillable／casts in `database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php`, `app/Models/DripSubscription.php`
+- [x] T659 測試（先行）`DripResumeTest`：重答通過 → declined 恢復；重答通過但已確認／admin 改過狀態 → 不動；`cancel()` → booked 恢復；`decline()` → 不動；同課程另有有效預約 → 不恢復；credit 取消 → 不動；converted／unsubscribed／completed 絕不恢復（`resumeSequence` 傳入非法狀態 → 例外）；節奏：積欠多封只寄 1 封、上一封後第 2 個台北日曆日 0 封／第 3 日 1 封、原排程較慢時以原排程為準、從未停過的訂閱補發不受影響；恢復失敗不擋取消 in `tests/Feature/HighTicket/DripResumeTest.php`
+- [x] T660 `RESUME_INTERVAL_DAYS`、`resumeSequence()`（白名單 + 逐筆寫入）、`getUnlockedLessonCount()` 套恢復節奏 in `app/Services/DripService.php`
+- [x] T661 `syncDripWithScreening()` 取代 `stopDripIfDeclined()`；`hasOtherActiveBooking()`；`releaseBooking()` 取消時恢復；更新 `screen()`／`decline()` docblock in `app/Services/HighTicketBookingService.php`
+- [x] T662 回補 migration（FR-277），測試覆蓋命中與排除條件（有效預約、最新 lead 非 pending/cancelled）in `database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php`, `tests/Feature/HighTicket/DripResumeTest.php`
+- [x] T663 既有測試對照：`FunnelStopTest`、`BookingScreeningTest`（FR-257 段）仍綠，不需改動 in `tests/Feature/Drip/FunnelStopTest.php`, `tests/Feature/HighTicket/BookingScreeningTest.php`
+- [ ] T664 `php artisan test` 全綠（2026-10-22：1334 passed）；部署後正式站確認 7 筆已為 active、下一次排程各寄出 1 封
+
 ## 進度日誌
 
+- 2026-10-22: US48 預約確認前序列信不停、取消預約後恢復（T658–T663）：`DripService::resumeSequence()`（只收 declined／booked）、重答審核通過與取消預約時恢復、恢復後距上一封實際寄出滿 3 個台北日曆日才寄下一封、一次性 migration 回補；節奏錨點由 `resumed_at` 改為上一封 sent 事件，`resumed_emails_sent` 欄位取消。`php artisan test` 1334 passed；T664 部署後正式站確認待執行。
 - 2026-10-20: FR-273 預約名單 CSV 加入顧問、資格審核分數／分級與每題一欄的答案（T653–T656）；`php artisan test` 1320 passed；T657 正式站匯出確認待部署後執行。
 - 2026-10-20: US47 週曆「複製 Email」改為「複製時段」：可勾選預約區塊與連續空檔段，輸出「10/29（四） 14:00-14:45」逐行文字（T647–T651）；`npm run build` 通過、`php artisan test` 1315 passed；T652 瀏覽器實測待使用者確認。
 - 2026-10-20: 預約 CC 與客服信箱的寫死預設（原站長信箱）移除，fallback 改為管理員信箱；Email 模板管理頁說明文字同步；相關測試改斷言管理員信箱（000 US12）。

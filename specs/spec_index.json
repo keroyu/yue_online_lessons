@@ -5761,6 +5761,41 @@
       "status": "implemented"
     },
     {
+      "id": "011.us-48",
+      "module": "011-high-ticket",
+      "title": "預約確認前序列信不停，取消預約後恢復",
+      "summary": "停信點只在預約確認：審核先婉拒後重答通過的 lead 恢復 declined 序列信、已確認預約被取消（非婉拒）恢復 booked 序列信；恢復後距上一封實際寄出滿 3 天才寄下一封、追上原排程（resumed_at），一次性 migration 回補正式站 7 筆",
+      "heading": "### User Story 48 - 預約確認前序列信不停，取消預約後恢復 (Priority: P1)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-48---預約確認前序列信不停，取消預約後恢復-priority-p1",
+      "keywords": [
+        "序列信",
+        "drip",
+        "恢復",
+        "resume",
+        "停信",
+        "預約確認",
+        "取消預約",
+        "資格審核",
+        "重答",
+        "declined",
+        "booked",
+        "每3天",
+        "pacing",
+        "回補",
+        "backfill"
+      ],
+      "code_files": [
+        "app/Services/DripService.php",
+        "app/Services/HighTicketBookingService.php",
+        "app/Models/DripSubscription.php",
+        "database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php",
+        "database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php",
+        "tests/Feature/HighTicket/DripResumeTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",

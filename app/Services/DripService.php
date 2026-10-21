@@ -27,6 +27,16 @@ class DripService
      */
     public const PREVIEW_GREETING_NAME = '小明';
 
+    /**
+     * A resumed sequence sends at most one email per this many Taipei calendar
+     * days until it has caught up (011 US48 / FR-276) — owing four emails must
+     * not mean four in one morning.
+     */
+    public const RESUME_INTERVAL_DAYS = 3;
+
+    /** The only stops a resume may undo: the two that 011 itself causes (D182). */
+    private const RESUMABLE_STATUSES = ['declined', 'booked'];
+
     public function __construct(
         private EmailSuppressionService $suppressions,
         private EmailLinkTagger $linkTagger,
@@ -286,11 +296,36 @@ class DripService
     {
         $daysSince = (int) $subscription->subscribed_at->diffInDays(now());
 
-        return $subscription->course->lessons()
+        $scheduled = $subscription->course->lessons()
             ->orderBy('sort_order')
             ->get()
             ->filter(fn (Lesson $lesson) => $this->unlockDay($lesson) <= $daysSince)
             ->count();
+
+        if ($subscription->resumed_at === null) {
+            return $scheduled;
+        }
+
+        // Paced from the last email that actually went out, not from the resume:
+        // the daily run and the resume happen at unrelated times of day, and
+        // anchoring on the resume would let the second email follow the first
+        // after only two days (FR-276).
+        $lastSentAt = DripEmailEvent::where('subscription_id', $subscription->id)
+            ->where('event_type', 'sent')
+            ->max('created_at');
+
+        $paced = $lastSentAt === null || $this->taipeiDaysSince(Carbon::parse($lastSentAt)) >= self::RESUME_INTERVAL_DAYS
+            ? $subscription->emails_sent + 1
+            : $subscription->emails_sent;
+
+        return min($scheduled, $paced);
+    }
+
+    /** Whole Taipei calendar days between $at and today. */
+    private function taipeiDaysSince(Carbon $at): int
+    {
+        return (int) $at->copy()->timezone('Asia/Taipei')->startOfDay()
+            ->diffInDays(now('Asia/Taipei')->startOfDay());
     }
 
     /**
@@ -375,6 +410,53 @@ class DripService
         }
 
         $this->reachGoal($user, $course, 'declined', ['active']);
+    }
+
+    /**
+     * Undo a stop that 011 caused, for the drips that convert into $course
+     * (011 US48 / FR-276): a screening refusal the applicant later passed, or a
+     * confirmed booking that was cancelled. Same lookup as checkAndBook().
+     *
+     * Only `declined` and `booked` may be named — a purchase or an unsubscribe
+     * brought back to life would be a serious mistake, so it is refused here
+     * rather than left to every caller's care.
+     *
+     * @param array<int, string> $fromStatuses
+     */
+    public function resumeSequence(string $email, Course $course, array $fromStatuses): int
+    {
+        if (array_diff($fromStatuses, self::RESUMABLE_STATUSES) !== []) {
+            throw new \InvalidArgumentException('Only declined or booked sequences can be resumed');
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return 0;
+        }
+
+        $dripCourseIds = DripConversionTarget::where('target_course_id', $course->id)
+            ->pluck('drip_course_id');
+
+        $subscriptions = DripSubscription::where('user_id', $user->id)
+            ->whereIn('course_id', $dripCourseIds)
+            ->whereIn('status', $fromStatuses)
+            ->get();
+
+        foreach ($subscriptions as $subscription) {
+            $subscription->update([
+                'status'            => 'active',
+                'status_changed_at' => now(),
+                'resumed_at'        => now(),
+            ]);
+
+            Log::info('Drip subscription resumed', [
+                'subscription_id'  => $subscription->id,
+                'target_course_id' => $course->id,
+            ]);
+        }
+
+        return $subscriptions->count();
     }
 
     /**

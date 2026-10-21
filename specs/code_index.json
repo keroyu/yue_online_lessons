@@ -858,7 +858,8 @@
       "002.us-17",
       "010.us-13",
       "010.us-14",
-      "010.us-6"
+      "010.us-6",
+      "011.us-48"
     ],
     "app/Models/EmailSuppression.php": [
       "000.us-9"
@@ -1076,6 +1077,7 @@
       "010.us-5",
       "010.us-7",
       "011.us-39",
+      "011.us-48",
       "011.us-5",
       "011.us-8"
     ],
@@ -1116,6 +1118,7 @@
       "011.us-44",
       "011.us-45",
       "011.us-46",
+      "011.us-48",
       "011.us-6",
       "011.us-7",
       "011.us-9"
@@ -1682,6 +1685,12 @@
     ],
     "database/migrations/2026_10_20_000001_install_legacy_owner_defaults.php": [
       "000.us-12"
+    ],
+    "database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php": [
+      "011.us-48"
+    ],
+    "database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php": [
+      "011.us-48"
     ],
     "database/seeders/EmailTemplateSeeder.php": [
       "004.us-6",
@@ -2676,6 +2685,9 @@
     ],
     "tests/Feature/HighTicket/CourseRosterTest.php": [
       "011.us-37"
+    ],
+    "tests/Feature/HighTicket/DripResumeTest.php": [
+      "011.us-48"
     ],
     "tests/Feature/HighTicket/DuplicateBookingTest.php": [
       "011.us-16"

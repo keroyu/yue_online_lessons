@@ -33,6 +33,7 @@ class DripSubscription extends Model
         'status',
         'unlock_all',
         'status_changed_at',
+        'resumed_at',
         'unsubscribe_token',
         // Where this claim came from (002 US17). Same field names as `orders`
         // and `purchases` — the traffic report applies one list to all three.
@@ -53,6 +54,7 @@ class DripSubscription extends Model
         return [
             'subscribed_at' => 'datetime',
             'status_changed_at' => 'datetime',
+            'resumed_at' => 'datetime',
             'first_touch' => 'array',
             'emails_sent' => 'integer',
             'unlock_all' => 'boolean',
