@@ -408,6 +408,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Transactions
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::get('/transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
+    Route::get('/transactions/export-simpany', [TransactionController::class, 'exportSimpany'])->name('transactions.export-simpany');
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');

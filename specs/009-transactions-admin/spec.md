@@ -11,6 +11,8 @@ owner_files:
   - resources/js/Pages/Admin/Transactions/Index.vue
   - resources/js/Pages/Admin/Transactions/Show.vue
   - resources/js/Pages/Admin/Dashboard.vue
+  - app/Services/SimpanyInvoiceExportService.php
+  - tests/Feature/Admin/SimpanyInvoiceExportTest.php
 touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
@@ -33,6 +35,12 @@ touchpoints:
   - file: app/Http/Controllers/Admin/MemberController.php
     owner: 008-members-admin
     why: 手動新增交易的會員選擇透過 GET /admin/members（X-Inertia: false，JSON 回應）搜尋 Email
+  - file: app/Models/CoursePlan.php
+    owner: 011-high-ticket
+    why: Simpany 發票品名讀取 purchase.plan.name，組成「【課程名】方案名」（US8）
+  - file: routes/web.php
+    owner: 000-platform-core
+    why: 新增 GET /admin/transactions/export-simpany（須註冊在 {transaction} 之前，同 D5）
 ---
 
 # Transactions Admin（後台交易管理與營運儀表板）
@@ -132,6 +140,23 @@ Dashboard 統計卡片快速掌握營運狀況。
 - [x] 「最近新增課程」列表：最新 5 筆，狀態標籤（草稿/預購中/熱賣中）+ preorder/selling 加註「已上架」，並有「查看全部」連結至 /admin/courses
 - [x] 無課程時顯示「目前沒有課程」空狀態
 
+### User Story 8 - 匯出 Simpany B2C 電子發票批次匯入檔 (Priority: P2)
+
+管理員勾選交易後，在「匯出 CSV」旁按「匯出到 Simpany」，下載符合 Simpany「電子發票批次匯入 - B2C」
+格式的 CSV，直接上傳到 Simpany 開立發票。
+
+**驗收**：
+- [x] 選取列（selection bar）「匯出 CSV」旁新增「匯出到 Simpany」按鈕；未選取時不可用；勾選模式與 select_all 模式皆支援（參數同 US5）
+- [x] `GET /admin/transactions/export-simpany` 回傳 `simpany-b2c-YYYYMMDD.csv`（台北日期），26 欄表頭與範本完全一致：`自訂編號,買受人 Email *,買受人名稱,發票備註,特殊需求 *,捐贈碼 *,載具類型 *,載具號碼 *,課稅別 *,零稅率原因 *,含稅發票總金額 *,品名 1 *,數量 1 *,含稅單價 1 *` + 品名/數量/含稅單價 2~5
+- [x] 一張訂單一張發票：有 order_id 的交易依 order 合併成一列，每堂課一個品項（數量 1）；無 order 的交易（Portaly / legacy PayUni 直購）各自一列
+- [x] 金額為實收：購物車訂單以 `order.total_amount` 依各品項原價比例攤提（見 FR-014）；無 order 者為 `amount − discount_amount`；`含稅發票總金額` = 各品項含稅單價 × 數量之和
+- [x] 品名：purchase 有方案 → `【課程名】方案名`；否則 `課程名`
+- [x] 固定值：`特殊需求`=`1 - 無特殊需求`、`課稅別`=`1 - 應稅`；買受人名稱、發票備註、捐贈碼、載具類型、載具號碼、零稅率原因留空（與範本一致）
+- [x] `自訂編號` 填 `order.merchant_order_no` → `portaly_order_id` → `P{purchase.id}`（供日後對帳）
+- [x] 自動排除：status=refunded、實收為 0（含 gift / system_assigned）、order.tax_id 有值（B2B）；全部被排除時回 422「選取的交易都不需開 B2C 發票」
+- [x] 下載完成後 flash 式提示「已匯出 N 張發票，略過 M 筆（退款 a／0 元 b／有統編 c）」；M=0 時只顯示張數
+- [x] 檔案為 UTF-8 無 BOM、CRLF 換行（與 Simpany 範本相同）
+
 ## Requirements
 
 - **FR-001**: `status`（paid/refunded）與 `type`（paid/system_assigned/gift）為兩個獨立維度：「有效交易」= `status=paid`；權限與營收統計依 status，取得方式與 UI 標籤依 type。
@@ -146,6 +171,10 @@ Dashboard 統計卡片快速掌握營運狀況。
 - **FR-010**: 圖表區間切換 MUST 用 Inertia partial reload（only: chartData/chartFilters），保留列表狀態與捲動位置。
 - **FR-011**: 會員帳號刪除後交易紀錄仍保留，顯示原始 buyer_email 備援。
 - **FR-012**: Dashboard 會員數 MUST 使用 members scope 統計（排除 admin 角色）。
+- **FR-013**: Simpany 匯出 MUST 以 order 為發票單位；同一 order 只輸出「被選取且 status=paid」的 purchase 品項，未選或已退款的品項不入列。
+- **FR-014**: 購物車訂單的品項含稅單價 = `order.total_amount` × 該品項 `purchase.amount` ÷ 同 order 全部品項 `amount` 之和，四捨五入到整數；捨入差額補在該 order 最後一個品項，使「全選且無退款」時總額恰等於 `total_amount`。不使用 `purchase.discount_amount`（購物車把整單折扣全記在第一筆 purchase，個別值不可靠）。
+- **FR-015**: 一張發票最多 5 個品項；超過時第 5 欄改為 `其他課程（N 堂）`、數量 1、單價為剩餘品項合計。
+- **FR-016**: 排除判斷順序：refunded → 有統編 → 實收 0；每筆被排除的 purchase 只計入一個原因。
 
 ## 設計決策
 
@@ -156,6 +185,10 @@ Dashboard 統計卡片快速掌握營運狀況。
 - **D5**: `/admin/transactions/export` 路由 MUST 註冊在 `/admin/transactions/{transaction}` 之前，否則 "export" 會被當成 route model binding 參數。
 - **D6**: 手動新增的會員搜尋復用 `/admin/members` 端點（帶 `X-Inertia: false` 取 JSON）— 不另建 API；課程進度批次計算在 controller 以兩段查詢 + in-memory map 完成，避免每列 N+1。
 - **D7**: CSV 匯出用瀏覽器導向（`window.location.href` + query string）而非 Inertia 請求 — 讓瀏覽器原生處理檔案下載。
+- **D8**: Simpany 匯出邏輯抽到 `SimpanyInvoiceExportService`：`build(Collection $purchases): array{rows: array<int, array<int, string|int>>, skipped: array{refunded:int, zero:int, b2b:int}}`（純函式，好測）+ `HEADERS` 常數；另有 `toCsv(array $rows): string`：只在欄位含逗號/引號/換行時加引號（`fputcsv` 會把含空白的欄位如 `1 - 應稅` 也加引號，與範本不一致）。controller 只負責重建查詢（與 `export` 共用 private `selectionQuery(Request)`，順便消掉兩處重複的篩選碼）與輸出。
+- **D9**: 「匯出到 Simpany」改用 `fetch` 取 blob 再觸發下載（不用 `window.location.href`）— 才能讀回應 header `X-Simpany-Invoices` / `X-Simpany-Skipped`（JSON）顯示略過筆數；422 時讀 message 顯示錯誤。發票筆數不會大（手動勾選對帳），不用 streamDownload，一次 `response($csv)` 即可。
+- **D10**: 一個購物車 order 的 purchase 可能部分沒被選到 — 攤提分母取「該 order 全部 purchase」而非「被選到的」，確保同一品項不論怎麼選，單價都一樣（FR-014）。Service 以一次 `Purchase::whereIn('order_id', …)` 撈同 order 全部品項的 amount（Order 沒有 purchases 關聯，不為此改 005 的 model）。
+- **D11**: 不記錄「已匯出過」狀態、不防重複匯出 — 本次範圍只產檔；重複開票由管理員自行把關（勾選前可用狀態/日期篩選）。之後若需要再加 `invoiced_at` 欄位。
 
 ## Schema
 
@@ -168,6 +201,7 @@ Dashboard 統計卡片快速掌握營運狀況。
 
 ## 進度日誌
 
+- 2026-10-25: US8 完成 — 交易列表勾選後「匯出到 Simpany」，產出 Simpany B2C 電子發票批次匯入 CSV（一單一票、實收攤提、排除退款/0 元/有統編）；export 與 exportSimpany 共用 selectionQuery
 - 2026-09-25: 營收圖表軸線錯位修正 — SQL 已用 `CONVERT_TZ` 按台北日分桶，但查詢區間與 X 軸（`CarbonPeriod`）建在 UTC 日上，桶與軸線對不起來、頭尾各錯 8 小時；區間改以台北建、再轉 UTC 下查詢條件。交易 CSV 匯出的 `created_at` 一併補 `->timezone('Asia/Taipei')`（000 US11）
 
 - 2026-07-06: 領域重組 — 自 006-transactions-management 重寫（含 Admin Dashboard），依實際 codebase 校正

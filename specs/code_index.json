@@ -259,7 +259,8 @@
       "009.us-3",
       "009.us-4",
       "009.us-5",
-      "009.us-6"
+      "009.us-6",
+      "009.us-8"
     ],
     "app/Http/Controllers/Auth/LoginController.php": [
       "000.us-13",
@@ -1210,6 +1211,9 @@
     ],
     "app/Services/RoadmapProgressService.php": [
       "003.us-11"
+    ],
+    "app/Services/SimpanyInvoiceExportService.php": [
+      "009.us-8"
     ],
     "app/Services/SiteAnalyticsService.php": [
       "002.us-10",
@@ -2297,7 +2301,8 @@
       "009.us-3",
       "009.us-4",
       "009.us-5",
-      "009.us-6"
+      "009.us-6",
+      "009.us-8"
     ],
     "resources/js/Pages/Admin/Transactions/Show.vue": [
       "009.us-2",
@@ -2504,6 +2509,7 @@
       "003.us-12",
       "004.us-7",
       "006.us-1",
+      "009.us-8",
       "010.us-15",
       "010.us-17",
       "011.us-1",
@@ -2556,6 +2562,9 @@
     "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php": [
       "008.us-6",
       "008.us-8"
+    ],
+    "tests/Feature/Admin/SimpanyInvoiceExportTest.php": [
+      "009.us-8"
     ],
     "tests/Feature/Auth/LoginIntendedRedirectTest.php": [
       "004.us-6"

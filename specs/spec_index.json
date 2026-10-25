@@ -3348,6 +3348,34 @@
       "status": "implemented"
     },
     {
+      "id": "009.us-8",
+      "module": "009-transactions-admin",
+      "title": "匯出 Simpany B2C 電子發票批次匯入檔",
+      "summary": "交易列表勾選後匯出 Simpany B2C 電子發票批次匯入 CSV：一張訂單一張發票、實收金額攤提、排除退款/0 元/有統編",
+      "heading": "### User Story 8 - 匯出 Simpany B2C 電子發票批次匯入檔 (Priority: P2)",
+      "file": "specs/009-transactions-admin/spec.md",
+      "anchor": "user-story-8---匯出-simpany-b2c-電子發票批次匯入檔-priority-p2",
+      "keywords": [
+        "Simpany",
+        "電子發票",
+        "發票",
+        "invoice",
+        "B2C",
+        "批次匯入",
+        "匯出",
+        "CSV",
+        "export"
+      ],
+      "code_files": [
+        "app/Services/SimpanyInvoiceExportService.php",
+        "app/Http/Controllers/Admin/TransactionController.php",
+        "routes/web.php",
+        "resources/js/Pages/Admin/Transactions/Index.vue",
+        "tests/Feature/Admin/SimpanyInvoiceExportTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "010.us-1",
       "module": "010-drip-email",
       "title": "訪客免費訂閱連鎖課程",

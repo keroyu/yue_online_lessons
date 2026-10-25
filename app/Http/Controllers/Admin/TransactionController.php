@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\LessonProgress;
 use App\Models\Purchase;
 use App\Models\User;
+use App\Services\SimpanyInvoiceExportService;
 use App\Services\TransactionService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -248,36 +249,8 @@ class TransactionController extends Controller
      */
     public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $ids       = $request->input('ids', []);
-        $selectAll = $request->boolean('select_all');
-
-        // Validate: one of the two modes must be provided
-        if (! $selectAll && empty($ids)) {
-            abort(422, '請選擇要匯出的交易，或勾選「全選符合條件」');
-        }
-
-        $query = Purchase::with(['user:id,real_name,nickname,email,phone', 'course:id,name', 'order'])
-            ->orderBy('created_at', 'desc');
-
-        if ($selectAll) {
-            // Apply same filters as list view
-            $search   = $request->input('search');
-            $status   = $request->input('status');
-            $type     = $request->input('type');
-            $courseId = $request->input('course_id');
-
-            $query
-                ->when($search, fn ($q) => $q->where(fn ($q2) =>
-                    $q2->where('buyer_email', 'like', "%{$search}%")
-                       ->orWhere('portaly_order_id', 'like', "%{$search}%")
-                       ->orWhereHas('order', fn ($q3) => $q3->where('merchant_order_no', 'like', "%{$search}%"))
-                ))
-                ->when($status,   fn ($q) => $q->where('status', $status))
-                ->when($type,     fn ($q) => $q->where('type', $type))
-                ->when($courseId, fn ($q) => $q->where('course_id', $courseId));
-        } else {
-            $query->whereIn('id', $ids);
-        }
+        $query = $this->selectionQuery($request)
+            ->with(['user:id,real_name,nickname,email,phone', 'course:id,name', 'order']);
 
         $filename = 'transactions-' . now()->format('Ymd') . '.csv';
 
@@ -340,5 +313,69 @@ class TransactionController extends Controller
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * Export selected transactions as Simpany's B2C e-invoice batch import CSV (009 US8).
+     */
+    public function exportSimpany(Request $request, SimpanyInvoiceExportService $simpany): Response
+    {
+        $purchases = $this->selectionQuery($request)
+            ->with(['user:id,email', 'course:id,name', 'plan:id,name', 'order'])
+            ->get();
+
+        ['rows' => $rows, 'skipped' => $skipped] = $simpany->build($purchases);
+
+        if (empty($rows)) {
+            abort(422, '選取的交易都不需開 B2C 發票');
+        }
+
+        $csv = $simpany->toCsv($rows);
+
+        $filename = 'simpany-b2c-' . now('Asia/Taipei')->format('Ymd') . '.csv';
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Simpany-Invoices'  => (string) count($rows),
+            'X-Simpany-Skipped'   => json_encode($skipped),
+        ]);
+    }
+
+    /**
+     * Rebuild the purchases the admin selected: explicit ids, or every row
+     * matching the list filters in select_all mode.
+     */
+    private function selectionQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $ids       = $request->input('ids', []);
+        $selectAll = $request->boolean('select_all');
+
+        // Validate: one of the two modes must be provided
+        if (! $selectAll && empty($ids)) {
+            abort(422, '請選擇要匯出的交易，或勾選「全選符合條件」');
+        }
+
+        $query = Purchase::query()->orderBy('created_at', 'desc');
+
+        if (! $selectAll) {
+            return $query->whereIn('id', $ids);
+        }
+
+        // Apply same filters as list view
+        $search   = $request->input('search');
+        $status   = $request->input('status');
+        $type     = $request->input('type');
+        $courseId = $request->input('course_id');
+
+        return $query
+            ->when($search, fn ($q) => $q->where(fn ($q2) =>
+                $q2->where('buyer_email', 'like', "%{$search}%")
+                   ->orWhere('portaly_order_id', 'like', "%{$search}%")
+                   ->orWhereHas('order', fn ($q3) => $q3->where('merchant_order_no', 'like', "%{$search}%"))
+            ))
+            ->when($status,   fn ($q) => $q->where('status', $status))
+            ->when($type,     fn ($q) => $q->where('type', $type))
+            ->when($courseId, fn ($q) => $q->where('course_id', $courseId));
     }
 }

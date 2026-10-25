@@ -138,10 +138,8 @@ const goToPage = (pageNum) => {
   }, { preserveState: true })
 }
 
-// CSV export
-const exportCsv = () => {
-  if (selectedCount.value === 0) return
-
+// Query params identifying the current selection (ids, or list filters in select_all mode)
+const selectionParams = () => {
   const params = new URLSearchParams()
 
   if (selectAllMatching.value) {
@@ -154,7 +152,64 @@ const exportCsv = () => {
     selectedIds.value.forEach(id => params.append('ids[]', id))
   }
 
-  window.location.href = '/admin/transactions/export?' + params.toString()
+  return params
+}
+
+// CSV export
+const exportCsv = () => {
+  if (selectedCount.value === 0) return
+
+  window.location.href = '/admin/transactions/export?' + selectionParams().toString()
+}
+
+// Simpany B2C e-invoice export — fetched as a blob so the skip counts in the
+// response headers can be shown after download (009 US8 / D9)
+const simpanyExporting = ref(false)
+const skipReasonLabels = { refunded: '退款', zero: '0 元', b2b: '有統編' }
+
+const exportSimpany = async () => {
+  if (selectedCount.value === 0 || simpanyExporting.value) return
+  simpanyExporting.value = true
+
+  try {
+    const response = await fetch('/admin/transactions/export-simpany?' + selectionParams().toString(), {
+      // JSON first so a 422 comes back as { message } instead of an HTML error page
+      headers: { Accept: 'application/json, text/csv' },
+    })
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      page.props.flash = { error: data.message || '匯出失敗，請稍後再試' }
+      return
+    }
+
+    const blob = await response.blob()
+    const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'simpany-b2c.csv'
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+
+    const invoices = response.headers.get('X-Simpany-Invoices')
+    const skipped = JSON.parse(response.headers.get('X-Simpany-Skipped') || '{}')
+    const skippedTotal = Object.values(skipped).reduce((sum, n) => sum + n, 0)
+    const reasons = Object.entries(skipped)
+      .filter(([, n]) => n > 0)
+      .map(([key, n]) => `${skipReasonLabels[key]} ${n}`)
+      .join('／')
+
+    page.props.flash = {
+      success: skippedTotal > 0
+        ? `已匯出 ${invoices} 張發票，略過 ${skippedTotal} 筆（${reasons}）`
+        : `已匯出 ${invoices} 張發票`,
+    }
+  } catch {
+    page.props.flash = { error: '匯出失敗，請稍後再試' }
+  } finally {
+    simpanyExporting.value = false
+  }
 }
 
 // Format helpers
@@ -402,19 +457,29 @@ const submitCreate = () => {
     </div>
 
     <!-- Selection bar -->
-    <div v-if="selectedCount > 0" class="mt-4 bg-brand-teal/10 border border-brand-teal/30 rounded-lg p-3 flex items-center justify-between">
+    <div v-if="selectedCount > 0" class="mt-4 bg-brand-teal/10 border border-brand-teal/30 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-4">
         <span class="text-sm text-brand-teal">已選取 <strong>{{ selectedCount }}</strong> 筆交易</span>
         <button type="button" @click="clearAllSelections" class="text-sm text-brand-teal hover:text-brand-teal underline">清除選取</button>
       </div>
-      <button
-        type="button"
-        @click="exportCsv"
-        :disabled="selectedCount === 0"
-        class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        匯出 CSV
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          @click="exportCsv"
+          :disabled="selectedCount === 0"
+          class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          匯出 CSV
+        </button>
+        <button
+          type="button"
+          @click="exportSimpany"
+          :disabled="selectedCount === 0 || simpanyExporting"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ simpanyExporting ? '匯出中…' : '匯出到 Simpany' }}
+        </button>
+      </div>
     </div>
 
     <!-- Select all matching banner -->
