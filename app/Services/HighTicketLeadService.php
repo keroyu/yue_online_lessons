@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\NotifyHighTicketSlotJob;
 use App\Jobs\SubscribeDripLeadJob;
 use App\Mail\TemplatedMail;
+use App\Models\ConsultationNote;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\CoursePlan;
@@ -25,6 +26,37 @@ use Illuminate\Support\Str;
 
 class HighTicketLeadService
 {
+    /**
+     * Hard-delete the checked leads (011 US50 / FR-283).
+     *
+     * A live booking or a closed deal is skipped, not refused (FR-284): those
+     * carry slots, meetings and revenue, and leave the list through cancel or
+     * a status change so their side effects run. The two link columns without
+     * a foreign key are cleared here; testimonials' FK nulls itself (FR-285).
+     *
+     * @param  array<int, int>  $ids
+     * @return array{deleted: int, skipped: int}
+     */
+    public function deleteLeads(array $ids): array
+    {
+        [$skipped, $deletable] = HighTicketLead::applications()
+            ->whereIn('id', $ids)
+            ->get()
+            ->partition(fn (HighTicketLead $lead) => $lead->isActiveBooking() || $lead->status === 'converted');
+
+        DB::transaction(function () use ($deletable) {
+            $slots = app(ConsultationSlotService::class);
+
+            foreach ($deletable as $lead) {
+                $slots->release($lead);
+                ConsultationNote::where('lead_id', $lead->id)->update(['lead_id' => null]);
+                $lead->delete();
+            }
+        });
+
+        return ['deleted' => $deletable->count(), 'skipped' => $skipped->count()];
+    }
+
     /**
      * Dispatch slot-available notification emails to the given leads.
      *

@@ -164,6 +164,7 @@
       "011.us-40",
       "011.us-46",
       "011.us-5",
+      "011.us-50",
       "011.us-8",
       "011.us-9"
     ],
@@ -1124,6 +1125,7 @@
       "011.us-39",
       "011.us-4",
       "011.us-5",
+      "011.us-50",
       "011.us-9"
     ],
     "app/Services/HomepageWidgetService.php": [
@@ -1836,6 +1838,7 @@
       "011.us-35",
       "011.us-40",
       "011.us-46",
+      "011.us-50",
       "011.us-8",
       "011.us-9"
     ],
@@ -2505,6 +2508,7 @@
       "011.us-40",
       "011.us-46",
       "011.us-49",
+      "011.us-50",
       "011.us-6",
       "011.us-8",
       "012.us-1",
@@ -2681,6 +2685,9 @@
     ],
     "tests/Feature/HighTicket/FunnelSettingsTest.php": [
       "011.us-46"
+    ],
+    "tests/Feature/HighTicket/LeadBatchDeleteTest.php": [
+      "011.us-50"
     ],
     "tests/Feature/HighTicket/LeadConvertTest.php": [
       "011.us-5"

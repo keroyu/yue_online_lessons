@@ -485,6 +485,32 @@ class HighTicketLeadController extends Controller
         return "。⚠️ Zoom {$what}同步失敗，請到 Zoom 後台手動處理";
     }
 
+    /**
+     * Delete the checked leads — admins only, explicit ids only (011 US50).
+     */
+    public function batchDestroy(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_ids'   => ['required', 'array', 'min:1', 'max:500'],
+            'lead_ids.*' => ['integer'],
+        ]);
+
+        $result = $this->leadService->deleteLeads($validated['lead_ids']);
+
+        Log::info('High ticket leads deleted', [
+            'admin_id' => $request->user()->id,
+            'ids'      => $validated['lead_ids'],
+            'deleted'  => $result['deleted'],
+        ]);
+
+        $message = "已刪除 {$result['deleted']} 筆";
+        if ($result['skipped'] > 0) {
+            $message .= "；另有 {$result['skipped']} 筆為有效預約或已成交，未刪除";
+        }
+
+        return response()->json($result + ['message' => $message]);
+    }
+
     public function notifySlot(Request $request): JsonResponse
     {
         $validated = $request->validate([

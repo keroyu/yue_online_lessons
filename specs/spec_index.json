@@ -5830,6 +5830,32 @@
       "status": "planned"
     },
     {
+      "id": "011.us-50",
+      "module": "011-high-ticket",
+      "title": "預約名單勾選後批次刪除",
+      "summary": "管理員在預約名單勾選後批次硬刪除 leads；有效預約與已成交跳過並回報筆數，暫留時段釋出，見證與面談紀錄保留",
+      "heading": "### User Story 50 - 預約名單勾選後批次刪除 (Priority: P2)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-50---預約名單勾選後批次刪除-priority-p2",
+      "keywords": [
+        "leads",
+        "預約名單",
+        "刪除",
+        "批次刪除",
+        "delete",
+        "batch delete",
+        "垃圾名單"
+      ],
+      "code_files": [
+        "app/Services/HighTicketLeadService.php",
+        "app/Http/Controllers/Admin/HighTicketLeadController.php",
+        "routes/web.php",
+        "resources/js/Components/Admin/Leads/BookingListTab.vue",
+        "tests/Feature/HighTicket/LeadBatchDeleteTest.php"
+      ],
+      "status": "partial"
+    },
+    {
       "id": "011.us-6",
       "module": "011-high-ticket",
       "title": "Email 模板系統後台管理",

@@ -913,6 +913,7 @@ main_files:
 - tests/Feature/HighTicket/DuplicateBookingTest.php
 - tests/Feature/HighTicket/EmailTemplateHtmlModeTest.php
 - tests/Feature/HighTicket/FunnelSettingsTest.php
+- tests/Feature/HighTicket/LeadBatchDeleteTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 - tests/Feature/HighTicket/LeadExportTest.php
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php

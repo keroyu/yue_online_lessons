@@ -2,6 +2,7 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - tests/Feature/HighTicket/LeadBatchDeleteTest.php
   - app/Support/ScreeningProbeGuard.php
   - tests/Feature/HighTicket/ScreeningProbeGuardTest.php
   - database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php
@@ -1711,6 +1712,21 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [x] 觸發封鎖時寫一行 `Log::warning`（IP、課程、Email），供事後查證
 - [x] 不同 IP 互不影響
 
+### User Story 50 - 預約名單勾選後批次刪除 (Priority: P2)
+
+預約名單（Leads）目前只能改狀態，無法刪除。垃圾資料（例如 US49 起因的那串假名單 `yihuu@gmail.cok`…）只能一直留在名單裡，拉低轉換率統計、干擾篩選。
+管理員在名單勾選後按「刪除」即可移除；有效預約與已成交的不會被刪，避免誤刪真客戶。
+
+**驗收**：
+- [x] 批次動作列最右側有紅色「刪除」按鈕，**只有管理員看得到**；未勾選時 disabled（FR-282）
+- [x] 按下後跳確認視窗，寫明「將刪除 N 筆，無法復原」；確認後送出，完成後顯示「已刪除 N 筆」，若有被跳過的加註「另有 M 筆為有效預約或已成交，未刪除」，並清空勾選、重新載入名單（FR-283）
+- [x] 有效預約（已確認且未取消，`isActiveBooking()`）與狀態「已成交」（`converted`）的 lead **不刪除**，計入跳過筆數（FR-284）
+- [x] 刪除未確認申請時，其暫留的時段一併釋出（回到可預約）
+- [x] 業務顧問呼叫刪除端點被 `admin` middleware 擋下（全站慣例為轉址回首頁，非 403），lead 不受影響（後端擋，不只靠前端藏按鈕）
+- [x] 刪除後：見證（testimonials）的 `lead_id` 變 null、見證本身保留；面談紀錄（consultation_notes，以 Email 為主鍵）保留、`lead_id` 改 null；序列信訂閱不動（FR-285）
+- [x] 只刪勾選的 id；不支援「選取全部 N 筆符合條件」模式（MUST NOT 依篩選條件整批刪）
+- [ ] 按鈕 `cursor-pointer` + hover 回饋；手機寬度不破版（已實作，待瀏覽器實測）
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2349,6 +2365,10 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-279**（US49）: 被 guard 擋下的送出 MUST NOT 呼叫 `screen()`：不建立／更新 `high_ticket_leads`、不排 `SendScreeningDeclineMailJob`、不動序列信。理由：探測者每一筆都是假 Email，寫進名單只會污染後台，寄婉拒信則是對假地址發信、傷寄件信譽
 - **FR-280**（US49，使用者決策 2026-10-26）: `ScreeningProbeGuard` 常數 `MAX_ATTEMPTS = 2`、`WINDOW_SECONDS = BAN_SECONDS = 86400`。`admit($ip)`：(1) `Cache::has("screening-ban:{$ip}")` → false；(2) `RateLimiter::hit("screening-probe:{$ip}", WINDOW_SECONDS)`，回傳次數 ≤ `MAX_ATTEMPTS` → true；(3) 否則 `Cache::put("screening-ban:{$ip}", true, BAN_SECONDS)`、`RateLimiter::clear("screening-probe:{$ip}")`、`Log::warning('Screening probe: IP banned', [ip, course_id, email])` → false。計數**不分 Email、不分通過與否、不分課程**（使用者決策：每次送出都算）。封鎖期間的送出不再計數、不延長封鎖；封鎖到期後從 0 重新計數。存放用預設 cache store（正式站 `database`，跨 PHP-FPM worker 共用；測試 `array`）
 - **FR-281**（US49）: 登入中且 `canAccessSalesPanel()` 為 true 的使用者 MUST 跳過 guard（不計次、不受封鎖）。IP 取 `$request->ip()`：正式站 nginx 直連、無 CDN／反向代理，`REMOTE_ADDR` 即真實來源；**日後若前面加 Cloudflare 等代理，MUST 先設定 `trustProxies`**，否則所有人共用代理 IP、第 3 位訪客起全被靜默婉拒
+- **FR-282**（US50，使用者決策 2026-10-26）: 新增 `DELETE /admin/high-ticket-leads`（route name `admin.high-ticket-leads.batch-destroy`），放在 `admin` middleware 群組（非 `staff`），body `lead_ids: int[]`（required、min:1、max:500）。前端按鈕以 `page.props.auth.user.role === 'admin'` 決定是否渲染
+- **FR-283**（US50）: `HighTicketLeadService::deleteLeads(array $ids): array{deleted: int, skipped: int}`。流程：`HighTicketLead::applications()->whereIn('id', $ids)->get()` → 依 FR-284 分出可刪／跳過 → 於 `DB::transaction` 內對可刪者：`ConsultationSlotService::release($lead)`、`ConsultationNote::where('lead_id', $lead->id)->update(['lead_id' => null])`、`$lead->delete()`。回傳筆數；controller 回 JSON `{deleted, skipped, message}`，`message` = `已刪除 N 筆`（skipped > 0 時加 `；另有 M 筆為有效預約或已成交，未刪除`）。全部被跳過時仍回 200（deleted = 0），由訊息說明。寫一行 `Log::info('High ticket leads deleted', [admin_id, ids])`
+- **FR-284**（US50，使用者決策 2026-10-26）: 跳過條件 = `$lead->isActiveBooking()`（`confirmed_at` 非 null 且 `cancelled_at` null，不論時段是否已過）**或** `$lead->status === 'converted'`。要刪這類 lead 須先在展開列取消預約或改狀態
+- **FR-285**（US50）: 刪除為**硬刪除**（`high_ticket_leads` 無 SoftDeletes）。關聯處理：`testimonials.lead_id` 由既有 FK `nullOnDelete` 處理；`consultation_slots.lead_id` 無 FK，MUST 經 `release()` 清除，否則留下指向不存在 lead 的暫留；`consultation_notes.lead_id` 無 FK，改 null（紀錄本以 Email 為主鍵，保留）。`drip_subscriptions` 以 user 為主，不動。已排入佇列的 `SendScreeningDeclineMailJob` 以 `find()` 取 lead，找不到即結束，不需另外處理
 
 
 
@@ -2787,6 +2807,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **D181**: 匯出擴充（FR-273）的三個決定。**題目一題一欄、表頭用題目文字**：題目可在 1v1 漏斗設定自訂（US46），固定欄名會在改題目那天失準；一題一欄才能在試算表直接篩「從哪裡發現」= Facebook。**新欄加在後面、只有「顧問」插在「狀態」旁**：題目欄數會變，放尾端讓前 12 欄位置固定，既有試算表公式只需處理「顧問」一欄的位移；顧問與狀態同屬「這筆在誰手上、走到哪」，放一起最好讀。**分級中文對照放後端**：`SCREENING_TIERS` 目前只在 `BookingListTab.vue`，CSV 需要同一組文字，於 `HighTicketLead` 加 `SCREENING_TIER_LABELS` 常數（比照 `STATUS_LABELS`，D122）；前端維持自己的樣式表不動，兩邊文字由測試對照
 - **D182**: US48 的四個決定。**停信點只有「確認」**（使用者決策）：序列信的工作是把人推到預約確認，還沒確認就還沒完成；確認後又取消等於回到漏斗裡，該繼續加溫。婉拒（admin `decline()`）例外，D107 的理由不變 —— 剛拒絕的人不該收行銷信。**恢復後每 3 天 1 封**（使用者決策）：一次補寄積欠的信會讓人同一天收到好幾封，像系統故障；每 3 天一封是「追上進度但不轟炸」。用 `resumed_at` 標記「已恢復、走節奏」，節奏錨在上一封實際寄出時間（`drip_email_events`），而不是改寫 `subscribed_at` —— 後者是 010 統計（新增訂閱數、序列信起始時間欄）與 CSV 匯出的錨點，改了會讓報表說謊。**取 min 而不是只看節奏**：原排程本來就比 3 天慢的後段（Day 14 → 30）若改成每 3 天，等於恢復讓人收得更快，違反「不轟炸」的初衷。**`resumeSequence()` 白名單來源狀態**：恢復是「撤銷某一次停信」，只有 011 自己造成的兩種停信（`declined`／`booked`）可撤銷；購買轉換與使用者自己退訂一旦被救回就是嚴重錯誤，所以在 service 層擋死而不是靠呼叫端自律
 - **D183**: US49 的四個決定。**靜默婉拒而非報錯**（使用者決策）：探測者要的是「哪組答案會過」，明確的封鎖訊息等於告訴他換 IP 繼續；回一般婉拒則讓他以為那組答案不合格，得到的是錯誤資訊。**每次送出都算、門檻 2 次**（使用者決策）：比「不同 Email 才算」嚴，代價是真人改兩次答案後第三次會被當成婉拒 —— 前端答案沒改不會重送（`alreadyCleared`），一般人送 1～2 次即止，接受這個邊界。**24 小時、無後台介面**（使用者決策）：手機網路共用 IP（CGNAT）會換人使用，短期冷卻能擋住一次探測工作階段又不會長期誤傷；不做封鎖名單 UI，被誤擋的人隔天自然恢復，log 可查。**放 cache 而不是資料表**：狀態本質是 24 小時內有效的計數器，到期即丟；沿用 `CouponController`／`ReferralController` 的 `RateLimiter` 慣例，不需 migration。**邏輯放 `App\Support\ScreeningProbeGuard` 而非 service**：IP 是 HTTP 層概念，`HighTicketBookingService::screen()` 維持只吃課程與答案；獨立類別讓測試可直接驗常數與到期行為
+- **D184**: US50 的三個決定。**只有管理員**（使用者決策）：硬刪除無法復原，且名單是全體顧問共用的工作區，顧問可刪等於可以讓同事的資料消失；其他批次動作（寄信、加序列信）可補救，刪除不行。**擋有效預約與已成交**（使用者決策）：這兩種是有實際後果的資料 —— 有效預約綁著時段、Zoom 會議與確認信，已成交是業績統計的來源；刪除它們不是清垃圾而是改帳，要刪得先走取消／改狀態的正規路徑，讓副作用（釋出時段、取消信）照常發生。**跳過而非整批拒絕**：清垃圾時常一次勾一整頁，裡面夾一筆真客戶就整批失敗會很難用；跳過並回報筆數，結果仍可預期。**不支援 select_all**：依篩選條件整批硬刪的爆炸半徑太大，刪除只認畫面上明確勾選的 id
 
 ## Schema
 
@@ -3145,6 +3166,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **US48 schema 變更（一支欄位 migration + 一支資料 migration）**：`2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php` — `drip_subscriptions.resumed_at` timestamp nullable（UTC），`after('status_changed_at')`；`2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php` — FR-277 回補，`down()` no-op。不變量：`resumed_at` 只由 `resumeSequence()`（與回補 migration）寫入；停信（`reachGoal()`）不清除 —— 再停之後恢復即覆寫；非 null 即走 FR-276 節奏（原規劃的 `resumed_emails_sent` 因節奏改錨實際寄出時間而不需要）
 
 - **US49 schema 變更：無**。計數與封鎖存在 cache（key `screening-probe:{ip}`、`screening-ban:{ip}`，TTL 86400 秒）。不變量：被封鎖的送出不在 `high_ticket_leads` 留下任何痕跡
+
+- **US50 schema 變更：無**。不變量：刪除後不存在 `consultation_slots.lead_id` 或 `consultation_notes.lead_id` 指向已刪除 lead 的列
 
 ## Tasks
 
@@ -4306,8 +4329,17 @@ Phase 4 — 驗證
 - [x] T667 `screen()` 接上 guard：`canAccessSalesPanel()` 略過；擋下時回與婉拒同形的 JSON（FR-278／FR-281）；更新 route 註解說明兩層節流（`throttle:10,1` 防暴衝、guard 防探測）in `app/Http/Controllers/HighTicketBookingController.php`, `routes/web.php`
 - [x] T668 `php artisan test` 全綠；同一測試內同 IP 送出 ≥3 次的只有 `BookingScreeningToggleTest::test_lenient_ignores_the_other_vetoes_that_strict_applies`（6 次），改為每個 case 換 `REMOTE_ADDR`（只調測試前置，不改斷言）in `tests/Feature/HighTicket/BookingScreeningToggleTest.php`
 
+### 預約名單勾選後批次刪除（US50 / FR-282–285）
+
+- [x] T669 測試（先行）`LeadBatchDeleteTest`：管理員刪除勾選的 lead；有效預約與 converted 被跳過且回報筆數；未確認申請的暫留時段被釋出；testimonial 保留且 `lead_id` 變 null；consultation_note 保留且 `lead_id` 變 null；業務顧問被 admin middleware 擋下；空陣列 422；未勾選的 lead 不受影響 in `tests/Feature/HighTicket/LeadBatchDeleteTest.php`
+- [x] T670 `deleteLeads()`（FR-283／FR-284）in `app/Services/HighTicketLeadService.php`
+- [x] T671 `batchDestroy()` + 路由（`admin` 群組）in `app/Http/Controllers/Admin/HighTicketLeadController.php`, `routes/web.php`
+- [x] T672 批次動作列加紅色「刪除」按鈕（僅管理員）、`confirm()` 確認、`axios.delete` 後顯示結果訊息並 `router.reload({ only: ['leads', ...] })`、清空勾選 in `resources/js/Components/Admin/Leads/BookingListTab.vue`
+- [ ] T673 `php artisan test` 全綠、`npm run build`；瀏覽器實測刪除 US49 那串假名單
+
 ## 進度日誌
 
+- 2026-10-26: US50 預約名單勾選後批次刪除（T669–T672）：`HighTicketLeadService::deleteLeads()`（跳過有效預約與已成交、釋出暫留時段、面談紀錄 lead_id 清空）、`DELETE /admin/high-ticket-leads`（admin 群組）、名單批次列加僅管理員可見的「刪除」；`LeadBatchDeleteTest` 6 個測試，`php artisan test` 1361 passed、`npm run build` 通過；T673 瀏覽器實測待使用者。
 - 2026-10-26: US49 同 IP 反覆送出資格審核即靜默婉拒 24 小時（T665–T668）：`ScreeningProbeGuard`（RateLimiter + cache，第 3 次起封鎖）、`screen()` 擋下時回與真婉拒相同的 JSON 且不寫名單、管理員/顧問豁免；`ScreeningProbeGuardTest` 9 個測試。
 - 2026-10-22: US48 預約確認前序列信不停、取消預約後恢復（T658–T663）：`DripService::resumeSequence()`（只收 declined／booked）、重答審核通過與取消預約時恢復、恢復後距上一封實際寄出滿 3 個台北日曆日才寄下一封、一次性 migration 回補；節奏錨點由 `resumed_at` 改為上一封 sent 事件，`resumed_emails_sent` 欄位取消。`php artisan test` 1334 passed；T664 部署後正式站確認待執行。
 - 2026-10-20: FR-273 預約名單 CSV 加入顧問、資格審核分數／分級與每題一欄的答案（T653–T656）；`php artisan test` 1320 passed；T657 正式站匯出確認待部署後執行。

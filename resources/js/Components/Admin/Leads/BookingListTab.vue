@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
@@ -594,6 +594,29 @@ const notifySlot = async () => {
   }
 }
 
+// Batch delete (011 US50) — admins only; the server checks again and skips
+// live bookings and closed deals rather than refusing the whole batch.
+const isAdmin = computed(() => usePage().props.auth?.user?.role === 'admin')
+
+const deleteSelected = async () => {
+  const count = selectedIds.value.length
+  if (count === 0 || !window.confirm(`將刪除 ${count} 筆 Lead，無法復原。\n有效預約與已成交的會自動略過。確定刪除？`)) return
+
+  actionLoading.value = true
+  actionResult.value = null
+  try {
+    const res = await axios.delete('/admin/high-ticket-leads', { data: { lead_ids: selectedIds.value } })
+    actionResult.value = res.data.message
+    selectedIds.value = []
+    selectAllMatching.value = false
+    router.reload({ preserveScroll: true })
+  } catch (e) {
+    actionResult.value = `刪除失敗：${e.response?.data?.message || e.message}`
+  } finally {
+    actionLoading.value = false
+  }
+}
+
 // Subscribe drip modal
 const showDripModal = ref(false)
 const selectedDripCourseId = ref('')
@@ -1119,6 +1142,18 @@ watch(() => props.leads, () => { selectAllMatching.value = false })
           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
       >
         發送郵件
+      </button>
+      <button
+        v-if="isAdmin"
+        :disabled="selectedIds.length === 0 || actionLoading"
+        @click="deleteSelected"
+        class="px-3 py-1.5 text-sm rounded-md border font-medium"
+        :class="selectedIds.length > 0 && !actionLoading
+          ? 'bg-white text-red-600 border-red-300 hover:bg-red-50 cursor-pointer'
+          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
+        title="刪除所選 Leads（無法復原）；有效預約與已成交的會略過"
+      >
+        刪除
       </button>
       <span class="text-xs text-gray-400 leading-snug">
         新時段釋出時，你可以通知客戶來預約；<br class="hidden sm:inline">若無法聯絡客戶／未成交，考慮加入序列信進行自動轉化。

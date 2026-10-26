@@ -319,6 +319,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::middleware('admin')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Hard delete from the leads list — admins only, unlike the rest of the
+    // list's batch actions in the staff group above (011 US50 / FR-282).
+    Route::delete('/high-ticket-leads', [HighTicketLeadController::class, 'batchDestroy'])->name('high-ticket-leads.batch-destroy');
+
     // Marketing analytics funnel (002 US10)
     Route::get('/analytics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.index');
 
