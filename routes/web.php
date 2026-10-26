@@ -400,16 +400,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/members/batch-email', [MemberController::class, 'sendBatchEmail'])
         ->middleware('throttle:10,1')
         ->name('members.batch-email');
-    Route::post('/members/gift-course', [MemberController::class, 'giftCourse'])
-        ->middleware('throttle:10,1')
-        ->name('members.gift-course');
     Route::patch('/members/{member}/sales-consultant', [MemberController::class, 'updateSalesConsultant'])->name('members.sales-consultant');
 
     // Transactions
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::get('/transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
     Route::get('/transactions/export-simpany', [TransactionController::class, 'exportSimpany'])->name('transactions.export-simpany');
-    Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
     Route::patch('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
 

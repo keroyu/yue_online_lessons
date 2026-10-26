@@ -209,7 +209,6 @@
       "008.us-3",
       "008.us-4",
       "008.us-5",
-      "008.us-6",
       "008.us-7",
       "008.us-8",
       "008.us-9",
@@ -256,7 +255,6 @@
     "app/Http/Controllers/Admin/TransactionController.php": [
       "009.us-1",
       "009.us-2",
-      "009.us-3",
       "009.us-4",
       "009.us-5",
       "009.us-6",
@@ -487,10 +485,6 @@
       "011.us-6",
       "011.us-7"
     ],
-    "app/Http/Requests/Admin/GiftCourseRequest.php": [
-      "008.us-6",
-      "008.us-8"
-    ],
     "app/Http/Requests/Admin/GrantPointsRequest.php": [
       "007.us-6"
     ],
@@ -550,9 +544,6 @@
     ],
     "app/Http/Requests/Admin/StoreSocialLinkRequest.php": [
       "002.us-4"
-    ],
-    "app/Http/Requests/Admin/StoreTransactionRequest.php": [
-      "009.us-3"
     ],
     "app/Http/Requests/Admin/SyncLessonPlansRequest.php": [
       "011.us-21"
@@ -736,10 +727,6 @@
     ],
     "app/Mail/BookingVerifyMail.php": [
       "011.us-11"
-    ],
-    "app/Mail/CourseGiftedMail.php": [
-      "008.us-6",
-      "011.us-7"
     ],
     "app/Mail/DripLessonMail.php": [
       "000.us-9",
@@ -1239,7 +1226,6 @@
     ],
     "app/Services/TransactionService.php": [
       "007.us-2",
-      "009.us-3",
       "009.us-4",
       "011.us-30"
     ],
@@ -1590,9 +1576,6 @@
     "database/migrations/2026_08_22_000001_add_note_priority_to_homework_grading_prompt.php": [
       "003.us-10"
     ],
-    "database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php": [
-      "011.us-30"
-    ],
     "database/migrations/2026_08_31_000001_add_utm_campaign_to_course_daily_stats_table.php": [
       "002.us-18"
     ],
@@ -1862,9 +1845,6 @@
       "011.us-34",
       "011.us-35"
     ],
-    "resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue": [
-      "011.us-23"
-    ],
     "resources/js/Components/Admin/Leads/LessonEmailPreviewModal.vue": [
       "010.us-17"
     ],
@@ -2024,14 +2004,8 @@
       "000.us-14",
       "002.us-6"
     ],
-    "resources/js/Components/GiftCourseModal.vue": [
-      "008.us-6"
-    ],
     "resources/js/Components/Home/CourseCatalog.vue": [
       "002.us-23"
-    ],
-    "resources/js/Components/Home/HeroClaimForm.vue": [
-      "002.us-20"
     ],
     "resources/js/Components/Home/HeroSubscribeForm.vue": [
       "002.us-21"
@@ -2298,7 +2272,6 @@
     ],
     "resources/js/Pages/Admin/Transactions/Index.vue": [
       "009.us-1",
-      "009.us-3",
       "009.us-4",
       "009.us-5",
       "009.us-6",
@@ -2435,9 +2408,6 @@
     "resources/views/emails/booking-verify.blade.php": [
       "011.us-11"
     ],
-    "resources/views/emails/course-gifted.blade.php": [
-      "008.us-6"
-    ],
     "resources/views/emails/drip-lesson-text.blade.php": [
       "010.us-3",
       "010.us-6"
@@ -2560,7 +2530,6 @@
       "004.us-6"
     ],
     "tests/Feature/Admin/MemberCoursePlanAssignmentTest.php": [
-      "008.us-6",
       "008.us-8"
     ],
     "tests/Feature/Admin/SimpanyInvoiceExportTest.php": [
@@ -2712,9 +2681,6 @@
     ],
     "tests/Feature/HighTicket/LeadExportTest.php": [
       "011.us-31"
-    ],
-    "tests/Feature/HighTicket/LeadRefundSyncTest.php": [
-      "011.us-30"
     ],
     "tests/Feature/HighTicket/LeadSubscribeDripTest.php": [
       "011.us-5"

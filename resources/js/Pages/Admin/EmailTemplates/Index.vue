@@ -41,7 +41,6 @@ const saveSupportEmail = () => {
 
 const eventTypeLabels = {
   high_ticket_booking_confirmation: '客製服務預約確認',
-  course_gifted: '課程贈禮通知',
   lesson_added: '課程新增小節通知',
   high_ticket_slot_available: '客製服務新時段通知',
   lead_converted: '顧問成交開通通知',

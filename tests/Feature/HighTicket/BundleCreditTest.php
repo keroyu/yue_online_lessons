@@ -381,16 +381,15 @@ class BundleCreditTest extends TestCase
         $this->assertSame(5, $purchase->fresh()->bundle_balance);
     }
 
-    public function test_gifting_a_course_grants_the_plans_credits(): void
+    public function test_importing_a_member_with_a_plan_grants_the_plans_credits(): void
     {
-        \Illuminate\Support\Facades\Mail::fake();
         $course = $this->bundleCourse();
         $plan = $this->plan($course, '完整方案', 3);
         $member = $this->member();
 
         $this->actingAs($this->admin())
-            ->postJson('/admin/members/gift-course', [
-                'member_ids' => [$member->id],
+            ->postJson('/admin/members/import', [
+                'emails' => $member->email,
                 'course_id' => $course->id,
                 'course_plan_id' => $plan->id,
             ])
@@ -416,7 +415,7 @@ class BundleCreditTest extends TestCase
 
     // ── the updateOrCreate trap (FR-204) ──────────────────────────────────
 
-    public function test_gifting_the_same_course_again_does_not_reset_the_balance(): void
+    public function test_regranting_the_same_course_does_not_reset_the_balance(): void
     {
         $course = $this->bundleCourse();
         $plan = $this->plan($course, '完整方案', 5);

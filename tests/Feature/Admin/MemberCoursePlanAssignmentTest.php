@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
- * 008 FR-010 / FR-011 — the two admin paths that hand out a course for free
- * (gifting and member import) must name the plan they are handing out.
+ * 008 FR-010 / FR-011 — member import, the admin path that hands out a course
+ * for free, must name the plan it is handing out. (Gifting was the other one
+ * until it was removed in favour of import — FR-012.)
  *
  * A null course_plan_id on a paid purchase means "the whole course" to
  * Purchase::accessibleLessonIds(), so letting "the admin picked nothing" fall
@@ -185,89 +186,16 @@ class MemberCoursePlanAssignmentTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'row@example.com']);
     }
 
-    // ── Gifting ────────────────────────────────────────────────────────────
-
-    public function test_gift_writes_the_selected_plan(): void
+    public function test_the_gift_course_endpoint_is_gone(): void
     {
-        Mail::fake();
-        $course = $this->makeCourse();
-        [$planA] = $this->planned($course);
-        $member = User::factory()->create(['role' => 'member']);
+        // FR-012: import is the single grant path; gifting must not linger
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.members.gift-course'));
 
+        // The path now only matches /members/{member}, which takes no POST
         $this->actingAs($this->admin())
-            ->postJson('/admin/members/gift-course', [
-                'member_ids'     => [$member->id],
-                'course_id'      => $course->id,
-                'course_plan_id' => $planA->id,
-            ])
-            ->assertOk();
-
-        $this->assertDatabaseHas('purchases', [
-            'user_id'        => $member->id,
-            'course_id'      => $course->id,
-            'course_plan_id' => $planA->id,
-            'type'           => 'gift',
-        ]);
+            ->postJson('/admin/members/gift-course', ['member_ids' => [1], 'course_id' => 1])
+            ->assertStatus(405);
     }
-
-    public function test_gift_is_refused_when_a_planned_course_has_no_plan_selected(): void
-    {
-        Mail::fake();
-        $course = $this->makeCourse();
-        $this->planned($course);
-        $member = User::factory()->create(['role' => 'member']);
-
-        $this->actingAs($this->admin())
-            ->postJson('/admin/members/gift-course', [
-                'member_ids' => [$member->id],
-                'course_id'  => $course->id,
-            ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('course_plan_id');
-
-        $this->assertDatabaseCount('purchases', 0);
-        Mail::assertNothingSent();
-    }
-
-    public function test_gift_rejects_a_plan_from_another_course(): void
-    {
-        Mail::fake();
-        $course = $this->makeCourse();
-        $other = $this->makeCourse();
-        $foreign = CoursePlan::create(['course_id' => $other->id, 'name' => '別課方案', 'sort_order' => 0]);
-        $this->planned($course);
-        $member = User::factory()->create(['role' => 'member']);
-
-        $this->actingAs($this->admin())
-            ->postJson('/admin/members/gift-course', [
-                'member_ids'     => [$member->id],
-                'course_id'      => $course->id,
-                'course_plan_id' => $foreign->id,
-            ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('course_plan_id');
-
-        $this->assertDatabaseCount('purchases', 0);
-    }
-
-    public function test_gift_on_a_course_without_plans_keeps_a_null_plan(): void
-    {
-        Mail::fake();
-        $course = $this->makeCourse();
-        $member = User::factory()->create(['role' => 'member']);
-
-        $this->actingAs($this->admin())
-            ->postJson('/admin/members/gift-course', [
-                'member_ids' => [$member->id],
-                'course_id'  => $course->id,
-            ])
-            ->assertOk();
-
-        $purchase = Purchase::where('user_id', $member->id)->firstOrFail();
-        $this->assertNull($purchase->course_plan_id);
-    }
-
-    // ── The member list ships the plans the pickers need (D10) ─────────────
 
     public function test_member_index_ships_course_plans(): void
     {

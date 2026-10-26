@@ -363,9 +363,6 @@ touchpoints:
   - file: app/Jobs/SendDripEmailJob.php
     owner: 010-drip-email
     why: 序列信的 `md_content` 渲染同樣改用 `EmailMarkdownService::toHtml()`（FR-021）；僅換 converter 設定，後續的 `stripStylesForEmail()` 與寄送流程不動
-  - file: app/Mail/CourseGiftedMail.php
-    owner: 008-members-admin
-    why: 讀取本模組 email_templates（event_type=course_gifted）；模板存在時改用 emails/high-ticket-booking.blade.php 版型寄送
   - file: app/Mail/LessonAddedNotification.php
     owner: 004-course-admin
     why: 讀取本模組 email_templates（event_type=lesson_added）
@@ -503,12 +500,12 @@ touchpoints:
 不依賴工程師即可修改主旨與內容。
 
 **驗收**：
-- [x] 列表顯示 6 個模板，event_type 以中文標籤呈現：客製服務預約待確認、客製服務預約確認、課程贈禮通知、課程新增小節通知、客製服務新時段通知、顧問成交開通通知（US11 起新增第一項）
+- [x] 列表顯示 6 個模板，event_type 以中文標籤呈現：客製服務預約待確認、客製服務預約確認、~~課程贈禮通知~~（2026-10-26 隨 008 贈課移除）、課程新增小節通知、客製服務新時段通知、顧問成交開通通知（US11 起新增第一項）
 - [x] 編輯頁顯示模板名稱、觸發事件（唯讀）、主旨、body_md 內容編輯區；「插入變數」按鈕列依 event_type 顯示可用變數，點擊插入 textarea 游標位置
 - [x] 編輯 / 預覽模式切換：預覽以 `marked` + `breaks: true` 渲染，單行換行與寄出效果一致（**此條在 FR-021 之前為假** — 預覽會換行、寄出不會，管理員得按兩次 Enter 才有效果）
 - [x] 儲存驗證 name ≤ 100、subject ≤ 255、body_md 必填（中文錯誤訊息），成功後導回列表並 flash「模板已更新」
 - [x] `EmailTemplateSeeder` 以 event_type 為 key `updateOrCreate` seed 6 個預設模板，可重複執行不覆蓋主鍵
-- [x] `course_gifted` / `lesson_added` 事件由對應 Mailable 建構時讀取模板，模板不存在時 fallback 至寫死內容；high_ticket 預約相關兩事件無 fallback（缺模板直接擋下操作）；`lead_converted` 缺模板不擋操作但也不 fallback — 不寄信並回報 `mail_sent: false`（見 D15）
+- [x] `lesson_added` 事件（原含 `course_gifted`，已隨 008 贈課移除）由對應 Mailable 建構時讀取模板，模板不存在時 fallback 至寫死內容；high_ticket 預約相關兩事件無 fallback（缺模板直接擋下操作）；`lead_converted` 缺模板不擋操作但也不 fallback — 不寄信並回報 `mail_sent: false`（見 D15）
 - [x] 列表頁上方有「預約通知收件者（CC）」設定卡：單一文字框（逗號分隔多筆）+ 儲存按鈕，`PUT /admin/email-templates/notify-cc` 寫入 `site_settings`；每筆須為合法 Email 格式否則 inline 顯示「「xxx」不是有效的 Email 格式」；留空即 fallback 至預設值（placeholder 與說明文字均顯示該預設）
 
 ### User Story 7 - HTML 模板模式與純文字備援 (Priority: P2)

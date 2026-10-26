@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\GiftCourseRequest;
 use App\Http\Requests\Admin\GrantPointsRequest;
 use App\Http\Requests\Admin\SendBatchEmailRequest;
 use App\Http\Requests\Admin\ToggleSalesConsultantRequest;
@@ -13,7 +12,6 @@ use App\Services\BundleCreditService;
 use App\Services\DripService;
 use App\Services\PointService;
 use App\Mail\BatchEmailMail;
-use App\Mail\CourseGiftedMail;
 use App\Models\Course;
 use App\Models\CoursePlan;
 use App\Models\Purchase;
@@ -456,135 +454,6 @@ class MemberController extends Controller
     }
 
     /**
-     * Gift a course to selected members.
-     */
-    public function giftCourse(GiftCourseRequest $request): JsonResponse
-    {
-        $memberIds = $request->input('member_ids');
-        $courseId = $request->input('course_id');
-
-        // Before the member lookup: an impossible course/plan pair must 422
-        // without gifting anyone (FR-010).
-        $planId = $this->resolveCoursePlanId((int) $courseId, $request->input('course_plan_id'));
-
-        // Get valid members (members only)
-        $validMembers = User::whereIn('id', $memberIds)
-            ->members()
-            ->get();
-
-        if ($validMembers->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => '沒有有效的會員可以贈送課程',
-                'gifted_count' => 0,
-                'already_owned_count' => 0,
-                'email_queued_count' => 0,
-                'skipped_no_email_count' => 0,
-            ], 422);
-        }
-
-        // Check which members already own the course (excluding refunded purchases)
-        $alreadyOwnedIds = Purchase::whereIn('user_id', $validMembers->pluck('id'))
-            ->where('course_id', $courseId)
-            ->paidStatus()
-            ->pluck('user_id')
-            ->toArray();
-
-        // Filter out members who already own the course
-        $membersToGift = $validMembers->filter(function ($member) use ($alreadyOwnedIds) {
-            return !in_array($member->id, $alreadyOwnedIds);
-        });
-
-        $alreadyOwnedCount = count($alreadyOwnedIds);
-
-        // Edge case: All selected members already own the course
-        if ($membersToGift->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => '所有選取的會員都已擁有此課程',
-                'gifted_count' => 0,
-                'already_owned_count' => $alreadyOwnedCount,
-                'email_queued_count' => 0,
-                'skipped_no_email_count' => 0,
-            ]);
-        }
-
-        // Load the course for email notification
-        $course = Course::find($courseId);
-        $courseDescription = $course->description ?: '（無課程簡介）';
-
-        $giftedCount = 0;
-        $emailSentCount = 0;
-        $skippedNoEmailCount = 0;
-
-        foreach ($membersToGift as $member) {
-            try {
-                // Create or update gift purchase (handles refunded purchases via unique constraint)
-                // The attribute array MUST NOT carry bundle_* — gifting the same
-                // course twice would reset credits already held (011 FR-204).
-                $purchase = Purchase::updateOrCreate(
-                    ['user_id' => $member->id, 'course_id' => $courseId],
-                    [
-                        'course_plan_id' => $planId,
-                        'buyer_email' => $member->email ?? '',
-                        'amount' => 0,
-                        'currency' => 'TWD',
-                        'status' => 'paid',
-                        'type' => 'gift',
-                    ]
-                );
-
-                // A gift with a plan is the same sale as a conversion, so it
-                // carries the same bundle credits (011 D143).
-                app(BundleCreditService::class)->syncPlanGrant($purchase);
-
-                $giftedCount++;
-
-                // A gifted target course ends any drip funnel pointing at it (010 US13)
-                app(DripService::class)->checkAndConvert($member, $course);
-
-                // Send notification email if member has email
-                if ($member->email) {
-                    Mail::to($member->email)->send(new CourseGiftedMail($course->name, $courseDescription));
-                    $emailSentCount++;
-                } else {
-                    $skippedNoEmailCount++;
-                }
-            } catch (\Exception $e) {
-                Log::error('Failed to gift course to member', [
-                    'member_id' => $member->id,
-                    'course_id' => $courseId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Build result message
-        $message = "已成功贈送課程給 {$giftedCount} 位會員";
-        $warnings = [];
-
-        if ($alreadyOwnedCount > 0) {
-            $warnings[] = "{$alreadyOwnedCount} 位已擁有課程";
-        }
-        if ($skippedNoEmailCount > 0) {
-            $warnings[] = "{$skippedNoEmailCount} 位無 Email 未發送通知";
-        }
-
-        if (!empty($warnings)) {
-            $message .= '（' . implode('、', $warnings) . '）';
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'gifted_count' => $giftedCount,
-            'already_owned_count' => $alreadyOwnedCount,
-            'email_queued_count' => $emailSentCount,
-            'skipped_no_email_count' => $skippedNoEmailCount,
-        ]);
-    }
-
-    /**
      * Export members as a CSV download.
      */
     public function exportCsv(Request $request): HttpResponse|\Symfony\Component\HttpFoundation\StreamedResponse
@@ -894,6 +763,21 @@ class MemberController extends Controller
         // Importing a roster against a plan grants that plan's bundle credits
         // too — same sale, third entrance (011 D143).
         app(BundleCreditService::class)->syncPlanGrant($purchase);
+
+        // A granted target course ends any drip funnel pointing at it (010 US13);
+        // import is the only admin grant path since gifting was removed (FR-012).
+        // Best-effort: a drip failure must not undo the grant (010 FR-016).
+        try {
+            if ($course = Course::find($courseId)) {
+                app(DripService::class)->checkAndConvert($user, $course);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to end drip funnel after import grant', [
+                'user_id' => $user->id,
+                'course_id' => $courseId,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return true;
     }

@@ -55,9 +55,9 @@ class SupportEmailTest extends TestCase
     {
         SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, 'help@example.com');
 
-        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'lesson_added'], [
             'name'       => 'T',
-            'event_type' => 'course_gifted',
+            'event_type' => 'lesson_added',
             'subject'    => '有問題寄 {{support_email}}',
             'body_md'    => "課程 {{course_name}}\n\n聯絡：{{support_email}}",
         ]);
@@ -74,9 +74,9 @@ class SupportEmailTest extends TestCase
     {
         SiteSetting::set(SiteSetting::SUPPORT_EMAIL_KEY, 'help@example.com');
 
-        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'lesson_added'], [
             'name'       => 'T',
-            'event_type' => 'course_gifted',
+            'event_type' => 'lesson_added',
             'subject'    => '{{support_email}}',
             'body_md'    => 'x',
         ]);

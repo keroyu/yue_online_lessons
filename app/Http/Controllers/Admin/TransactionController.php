@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\StoreTransactionRequest;
 use App\Models\Course;
 use App\Models\LessonProgress;
 use App\Models\Purchase;
-use App\Models\User;
 use App\Services\SimpanyInvoiceExportService;
 use App\Services\TransactionService;
 use Carbon\Carbon;
@@ -209,25 +207,6 @@ class TransactionController extends Controller
                 'tax_id'            => $transaction->order->tax_id,
             ] : null,
         ]);
-    }
-
-    /**
-     * Manually create a transaction (system_assigned or gift).
-     */
-    public function store(StoreTransactionRequest $request): RedirectResponse
-    {
-        $user   = User::findOrFail($request->validated('user_id'));
-        $course = Course::findOrFail($request->validated('course_id'));
-        $type   = $request->validated('type');
-
-        $result = $this->transactionService->createManual($user, $course, $type);
-
-        if (! $result['success']) {
-            return back()->withErrors(['user_id' => $result['error']])->withInput();
-        }
-
-        return redirect()->route('admin.transactions.index')
-            ->with('success', '交易新增成功');
     }
 
     /**

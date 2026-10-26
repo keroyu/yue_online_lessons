@@ -72,9 +72,9 @@ class EmailTemplateHtmlModeTest extends TestCase
 
     public function test_body_type_defaults_to_markdown(): void
     {
-        $template = EmailTemplate::updateOrCreate(['event_type' => 'course_gifted'], [
+        $template = EmailTemplate::updateOrCreate(['event_type' => 'lesson_added'], [
             'name'       => '舊模板',
-            'event_type' => 'course_gifted',
+            'event_type' => 'lesson_added',
             'subject'    => 's',
             'body_md'    => '**粗體**',
         ]);

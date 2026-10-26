@@ -78,10 +78,6 @@ class EmailTemplateController extends Controller
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
             ['key' => '{{booking_url}}', 'label' => '回站選時段連結（候補者可直接跳到選時段，不必重填問卷）'],
         ],
-        'course_gifted' => [
-            ['key' => '{{course_name}}', 'label' => '課程名稱'],
-            ['key' => '{{course_description}}', 'label' => '課程描述'],
-        ],
         'lesson_added' => [
             ['key' => '{{course_name}}', 'label' => '課程名稱'],
             ['key' => '{{lesson_title}}', 'label' => '小節標題'],

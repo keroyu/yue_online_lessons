@@ -4,7 +4,6 @@ status: done
 owner_files:
   - app/Http/Controllers/Admin/TransactionController.php
   - app/Http/Controllers/Admin/DashboardController.php
-  - app/Http/Requests/Admin/StoreTransactionRequest.php
   - app/Services/TransactionService.php
   - resources/js/Components/Admin/TransactionRefundModal.vue
   - resources/js/Components/Admin/RevenueChart.vue
@@ -13,10 +12,11 @@ owner_files:
   - resources/js/Pages/Admin/Dashboard.vue
   - app/Services/SimpanyInvoiceExportService.php
   - tests/Feature/Admin/SimpanyInvoiceExportTest.php
+  - tests/Feature/Admin/TransactionManualAddRemovedTest.php
 touchpoints:
   - file: app/Models/Purchase.php
     owner: 005-checkout
-    why: 列表/詳情/匯出讀取 Purchase；退款更新 status；手動新增建立紀錄（source=manual, amount=0）
+    why: 列表/詳情/匯出讀取 Purchase；退款更新 status
   - file: app/Models/Order.php
     owner: 005-checkout
     why: 讀取 merchant_order_no / gateway_trade_no / payment_gateway / tax_id / referrer_user_id（badge 判斷、詳情、CSV、退款期限）
@@ -28,13 +28,10 @@ touchpoints:
     why: 退款期限檢查讀取 referral_maturity_days 設定（預設 14）
   - file: app/Models/User.php
     owner: 001-auth-account
-    why: 手動新增交易查詢會員（findOrFail）；Dashboard 以 members() scope 統計會員數
+    why: Dashboard 以 members() scope 統計會員數
   - file: app/Models/Course.php
     owner: 004-course-admin
-    why: 課程篩選下拉與手動新增查詢課程；Dashboard 統計課程總數/已發佈/草稿與最近新增課程
-  - file: app/Http/Controllers/Admin/MemberController.php
-    owner: 008-members-admin
-    why: 手動新增交易的會員選擇透過 GET /admin/members（X-Inertia: false，JSON 回應）搜尋 Email
+    why: 課程篩選下拉；Dashboard 統計課程總數/已發佈/草稿與最近新增課程
   - file: app/Models/CoursePlan.php
     owner: 011-high-ticket
     why: Simpany 發票品名讀取 purchase.plan.name，組成「【課程名】方案名」（US8）
@@ -48,7 +45,7 @@ touchpoints:
 ## 目標
 
 讓管理員在後台掌握全站交易：檢視/搜尋/篩選所有購買紀錄、查看單筆詳情、
-手動補單（指派/贈送）、標記退款、勾選匯出 CSV 對帳，並以營收圖表與
+標記退款、勾選匯出 CSV 對帳，並以營收圖表與
 Dashboard 統計卡片快速掌握營運狀況。
 
 ## User Stories
@@ -79,18 +76,6 @@ Dashboard 統計卡片快速掌握營運狀況。
 - [x] 購買者連結跳轉 `/admin/members?highlight={id}`；課程連結跳轉 `/admin/courses/{id}/edit`
 - [x] 會員已刪除時顯示「（會員已刪除）」並以 buyer_email 備援顯示
 - [x] status=paid 時顯示「標記退款」按鈕，開啟 TransactionRefundModal 確認
-
-### User Story 3 - 手動新增交易 (Priority: P3)
-
-管理員可為指定會員手動指派（system_assigned）或贈送（gift）課程存取權，
-處理補單、贈課等例外情況，無需付款流程。
-
-**驗收**：
-- [x] 列表頁「手動新增」開啟 modal：Email 搜尋會員（呼叫 /admin/members JSON、300ms debounce、需從結果點選）、課程下拉、類型（gift 預設 / system_assigned）
-- [x] 建立成功：amount=0、currency=TWD、status=paid、source=manual、buyer_email=會員 email；flash「交易新增成功」
-- [x] 該會員已有此課程的 paid 紀錄 → 錯誤「該會員已擁有此課程」，不建立重複紀錄
-- [x] 存在 refunded 舊紀錄 → 原地更新該筆為 paid/manual（因 UNIQUE(user_id, course_id) 約束，不另 insert）
-- [x] StoreTransactionRequest 驗證 user_id/course_id 存在、type 限 system_assigned/gift，錯誤訊息為中文
 
 ### User Story 4 - 標記退款 (Priority: P3)
 
@@ -162,7 +147,6 @@ Dashboard 統計卡片快速掌握營運狀況。
 - **FR-001**: `status`（paid/refunded）與 `type`（paid/system_assigned/gift）為兩個獨立維度：「有效交易」= `status=paid`；權限與營收統計依 status，取得方式與 UI 標籤依 type。
 - **FR-002**: 關鍵字搜尋 MUST 同時比對 buyer_email、portaly_order_id、關聯 Order 的 merchant_order_no，任一符合即納入；CSV select_all 模式沿用同一組篩選。
 - **FR-003**: 訂單 badge 判斷 MUST 為 data-driven、不依賴 `purchases.source`（legacy 資料 source 不一致）：依序 `portaly_order_id`（→Portaly）→ `order.payment_gateway === 'payuni'/'newebpay'`（→PayUni/NewebPay，複製 merchant_order_no）→ `payuni_trade_no`（legacy 單堂直購 →PayUni）→ 顯示「—」。
-- **FR-004**: 手動新增 MUST 先擋既有 paid 紀錄；若存在 refunded 舊紀錄則原地更新為 paid（避免 UNIQUE(user_id, course_id) 衝突），否則新建。
 - **FR-005**: 退款為單向 paid → refunded，僅為後台標記；實際金流退款由外部（Portaly / 金流商）處理，系統不呼叫金流退款 API。
 - **FR-006**: 含推薦回饋的訂單（order.referrer_user_id 有值）MUST 僅能於回饋成熟期內退款（`site_settings.referral_maturity_days`，預設 14 天，自 order 的 webhook_received_at ?? created_at 起算），逾期拒絕並提示天數。
 - **FR-007**: 退款 MUST 同步作廢該訂單未成熟的推薦回饋（PointService::voidReferral，訂單層級冪等；推薦人 activation flag 不回復）— 行為細節歸 007。
@@ -179,15 +163,15 @@ Dashboard 統計卡片快速掌握營運狀況。
 ## 設計決策
 
 - **D1**: badge 判斷 data-driven（依編號欄位而非 source）— legacy webhook 紀錄的 source 可能為 null/不一致；以實際存在的訂單編號決定來源最可靠。
-- **D2**: 退款後重新指派 = 原地更新 refunded 紀錄 — `UNIQUE(user_id, course_id)` 使 insert 必然衝突；否決「刪除重建」以保留原始紀錄 id。
 - **D3**: 營收圖表用 chart.js + vue-chartjs（bar + line 雙軸混合圖），資料由 index 同一 action 計算並隨 partial reload 回傳 — 免去獨立 API 端點。
 - **D4**: 列表快捷退款用 `window.confirm`、詳情頁用 TransactionRefundModal — 列表求快，詳情頁有完整上下文值得正式 modal；兩者同打 `PATCH .../refund`（曾因誤用 POST 出現 405，已修正）。
 - **D5**: `/admin/transactions/export` 路由 MUST 註冊在 `/admin/transactions/{transaction}` 之前，否則 "export" 會被當成 route model binding 參數。
-- **D6**: 手動新增的會員搜尋復用 `/admin/members` 端點（帶 `X-Inertia: false` 取 JSON）— 不另建 API；課程進度批次計算在 controller 以兩段查詢 + in-memory map 完成，避免每列 N+1。
+- **D6**: 課程進度批次計算在 controller 以兩段查詢 + in-memory map 完成，避免每列 N+1。
 - **D7**: CSV 匯出用瀏覽器導向（`window.location.href` + query string）而非 Inertia 請求 — 讓瀏覽器原生處理檔案下載。
 - **D8**: Simpany 匯出邏輯抽到 `SimpanyInvoiceExportService`：`build(Collection $purchases): array{rows: array<int, array<int, string|int>>, skipped: array{refunded:int, zero:int, b2b:int}}`（純函式，好測）+ `HEADERS` 常數；另有 `toCsv(array $rows): string`：只在欄位含逗號/引號/換行時加引號（`fputcsv` 會把含空白的欄位如 `1 - 應稅` 也加引號，與範本不一致）。controller 只負責重建查詢（與 `export` 共用 private `selectionQuery(Request)`，順便消掉兩處重複的篩選碼）與輸出。
 - **D9**: 「匯出到 Simpany」改用 `fetch` 取 blob 再觸發下載（不用 `window.location.href`）— 才能讀回應 header `X-Simpany-Invoices` / `X-Simpany-Skipped`（JSON）顯示略過筆數；422 時讀 message 顯示錯誤。發票筆數不會大（手動勾選對帳），不用 streamDownload，一次 `response($csv)` 即可。
 - **D10**: 一個購物車 order 的 purchase 可能部分沒被選到 — 攤提分母取「該 order 全部 purchase」而非「被選到的」，確保同一品項不論怎麼選，單價都一樣（FR-014）。Service 以一次 `Purchase::whereIn('order_id', …)` 撈同 order 全部品項的 amount（Order 沒有 purchases 關聯，不為此改 005 的 model）。
+- **D12**: 移除「手動新增交易」（原 US3、FR-004、D2，2026-10-26）— 與 008 贈課同為後台授權入口且功能更少（不寄信、不停序列信），授權統一走 008 匯入名單（008 FR-012）。
 - **D11**: 不記錄「已匯出過」狀態、不防重複匯出 — 本次範圍只產檔；重複開票由管理員自行把關（勾選前可用狀態/日期篩選）。之後若需要再加 `invoiced_at` 欄位。
 
 ## Schema
@@ -196,11 +180,11 @@ Dashboard 統計卡片快速掌握營運狀況。
 本模組依賴的關鍵語意：
 
 - `purchases.status`（paid/refunded）— 有效性；`purchases.type`（paid/system_assigned/gift）— 取得方式。兩者獨立（FR-001）。
-- `purchases` 有 `UNIQUE(user_id, course_id)` — 手動新增的原地更新策略源於此（D2）。
 - `orders.referrer_user_id` — 有值代表該訂單綁定推薦回饋，退款受成熟期限制（FR-006）。
 
 ## 進度日誌
 
+- 2026-10-26: 移除手動新增交易（原 US3 / D12）— 刪 store()、POST /admin/transactions、StoreTransactionRequest、TransactionService::createManual 與列表 modal；後台授權統一走 008 匯入名單；新增 TransactionManualAddRemovedTest 守門（405 + 不再種 course_gifted 模板）
 - 2026-10-25: US8 完成 — 交易列表勾選後「匯出到 Simpany」，產出 Simpany B2C 電子發票批次匯入 CSV（一單一票、實收攤提、排除退款/0 元/有統編）；export 與 exportSimpany 共用 selectionQuery
 - 2026-09-25: 營收圖表軸線錯位修正 — SQL 已用 `CONVERT_TZ` 按台北日分桶，但查詢區間與 X 軸（`CarbonPeriod`）建在 UTC 日上，桶與軸線對不起來、頭尾各錯 8 小時；區間改以台北建、再轉 UTC 下查詢條件。交易 CSV 匯出的 `created_at` 一併補 `->timezone('Asia/Taipei')`（000 US11）
 

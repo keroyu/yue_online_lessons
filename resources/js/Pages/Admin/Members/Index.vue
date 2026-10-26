@@ -3,7 +3,6 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import MemberDetailModal from '@/Components/MemberDetailModal.vue'
 import BatchEmailModal from '@/Components/BatchEmailModal.vue'
-import GiftCourseModal from '@/Components/GiftCourseModal.vue'
 import ImportMembersModal from '@/Components/ImportMembersModal.vue'
 import SalesConsultantModal from '@/Components/SalesConsultantModal.vue'
 import { ref, watch, computed, nextTick } from 'vue'
@@ -45,10 +44,7 @@ const selectedMemberId = ref(null)
 const showBatchEmailModal = ref(false)
 const batchEmailResult = ref(null)
 
-// Gift course modal state
-const showGiftCourseModal = ref(false)
 const showConsultantModal = ref(false)
-const giftCourseResult = ref(null)
 
 // Inline editing state
 const editingCell = ref(null) // Format: { memberId, field }
@@ -319,29 +315,6 @@ const handleBatchEmailSent = (result) => {
   }, 5000)
 }
 
-// Gift course modal functions
-const openGiftCourseModal = () => {
-  if (selectedCount.value === 0) return
-  giftCourseResult.value = null
-  showGiftCourseModal.value = true
-}
-
-const closeGiftCourseModal = () => {
-  showGiftCourseModal.value = false
-}
-
-const handleCourseGifted = (result) => {
-  giftCourseResult.value = result
-  // Clear selections after successful gift
-  if (result.success) {
-    clearAllSelections()
-  }
-  // Auto-hide message after 5 seconds
-  setTimeout(() => {
-    giftCourseResult.value = null
-  }, 5000)
-}
-
 // Get array of selected member IDs for batch email
 const selectedMemberIdsArray = computed(() => {
   return Array.from(selectedMemberIds.value)
@@ -555,44 +528,6 @@ const doExport = (scope) => {
         </button>
       </div>
 
-      <!-- Result message for gift course (success) -->
-      <div v-if="giftCourseResult?.success" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <svg class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-          <span class="text-sm text-green-800">{{ giftCourseResult.message }}</span>
-        </div>
-        <button
-          type="button"
-          @click="giftCourseResult = null"
-          class="text-green-600 hover:text-green-800"
-        >
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Result message for gift course (all already owned) -->
-      <div v-if="giftCourseResult && !giftCourseResult.success" class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <svg class="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span class="text-sm text-yellow-800">{{ giftCourseResult.message }}</span>
-        </div>
-        <button
-          type="button"
-          @click="giftCourseResult = null"
-          class="text-yellow-600 hover:text-yellow-800"
-        >
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
       <!-- Selection bar -->
       <div v-if="selectedCount > 0" class="mt-4 bg-brand-teal/10 border border-brand-teal/30 rounded-lg p-3 flex items-center justify-between">
         <div class="flex items-center gap-4">
@@ -608,16 +543,6 @@ const doExport = (scope) => {
           </button>
         </div>
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            @click="openGiftCourseModal"
-            class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 cursor-pointer"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-            </svg>
-            贈送課程
-          </button>
           <button
             type="button"
             @click="openBatchEmailModal"
@@ -917,18 +842,6 @@ const doExport = (scope) => {
       :filters="filters"
       @close="closeBatchEmailModal"
       @sent="handleBatchEmailSent"
-    />
-
-    <!-- Gift Course Modal -->
-    <GiftCourseModal
-      :show="showGiftCourseModal"
-      :selected-count="selectedCount"
-      :member-ids="selectedMemberIdsArray"
-      :select-all-matching="selectAllMatching"
-      :filters="filters"
-      :courses="courses"
-      @close="closeGiftCourseModal"
-      @gifted="handleCourseGifted"
     />
 
     <!-- Import Members Modal -->

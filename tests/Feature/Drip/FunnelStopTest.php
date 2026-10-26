@@ -211,23 +211,24 @@ class FunnelStopTest extends TestCase
         $this->assertTrue($service->isLessonUnlocked($sub, $lessons[4]));
     }
 
-    public function test_admin_gift_triggers_conversion(): void
+    public function test_admin_import_grant_triggers_conversion(): void
     {
-        Mail::fake();
-
+        // Importing a roster with a course is the only admin grant path left
+        // since gifting was removed (008 FR-012), so it must end the funnel too.
         $drip   = $this->makeDripCourse();
         $target = $this->makeTargetCourse();
         $this->link($drip, $target);
 
-        $member = $this->userWith('gifted@example.com');
+        $member = $this->userWith('granted@example.com');
         $sub    = $this->subscribe($drip, $member);
 
         $this->actingAs(User::factory()->create(['role' => 'admin']))
-            ->postJson('/admin/members/gift-course', [
-                'member_ids' => [$member->id],
-                'course_id'  => $target->id,
+            ->postJson('/admin/members/import', [
+                'emails'    => 'granted@example.com',
+                'course_id' => $target->id,
             ])
-            ->assertOk();
+            ->assertOk()
+            ->assertJson(['assigned_count' => 1]);
 
         $this->assertSame('converted', $sub->fresh()->status);
     }

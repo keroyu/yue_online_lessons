@@ -36,12 +36,6 @@ class EmailTemplateSeeder extends Seeder
                 'body_md' => "您好 {{user_name}}，\n\n您的「{{course_name}}」1v1 諮詢已完成預約。\n\n預約資訊：\n- 時段：{{slot_time}}\n- 長度：{{consult_minutes}} 分鐘\n- Email：{{user_email}}\n\n會議連結：\n{{zoom_join_url}}\n\n請在諮詢時間前把我們寄給您的資料看完，我們才有時間談真正重要的事。\n\n若需要改期，請直接回覆此信；**無故不出席將永久列入黑名單。**\n\n{{site_name}}",
             ],
             [
-                'name' => '課程贈禮通知',
-                'event_type' => 'course_gifted',
-                'subject' => '您已獲得課程：{{course_name}}',
-                'body_md' => "您好，\n\n您已獲得課程「{{course_name}}」的學習權限。\n\n{{course_description}}\n\n請登入帳號後，至「我的課程」查看：\n{{app_url}}/member/learning\n\n{{site_name}}",
-            ],
-            [
                 'name' => '課程新增小節通知',
                 'event_type' => 'lesson_added',
                 'subject' => '您擁有的課程新增了小節：「{{lesson_title}}」',

@@ -6,17 +6,15 @@ owner_files:
   - app/Http/Requests/Admin/UpdateMemberRequest.php
   - app/Http/Requests/Admin/ToggleSalesConsultantRequest.php
   - resources/js/Components/SalesConsultantModal.vue
-  - app/Http/Requests/Admin/GiftCourseRequest.php
   - app/Http/Requests/Admin/SendBatchEmailRequest.php
   - app/Mail/BatchEmailMail.php
-  - app/Mail/CourseGiftedMail.php
   - resources/views/emails/batch-email.blade.php
-  - resources/views/emails/course-gifted.blade.php
   - resources/js/Components/ImportMembersModal.vue
   - resources/js/Components/MemberDetailModal.vue
   - resources/js/Components/BatchEmailModal.vue
-  - resources/js/Components/GiftCourseModal.vue
   - resources/js/Pages/Admin/Members/Index.vue
+  - database/migrations/2026_10_26_000001_drop_course_gifted_email_template.php
+  - tests/Feature/Admin/MemberCoursePlanAssignmentTest.php
 touchpoints:
   - file: app/Models/User.php
     owner: 001-auth-account
@@ -26,10 +24,10 @@ touchpoints:
     why: 註冊 admin-only 路由 PATCH /admin/members/{member}/sales-consultant（切換銷售顧問身份）
   - file: app/Models/Purchase.php
     owner: 005-checkout
-    why: 贈課（type=gift）與匯入指派授權（type=lead_conversion）以 updateOrCreate 寫入 purchases；持有判斷用 paidStatus scope；授權多方案課程時寫入 course_plan_id
+    why: 匯入指派授權（type=lead_conversion）以 updateOrCreate 寫入 purchases；持有判斷用 paidStatus scope；授權多方案課程時寫入 course_plan_id
   - file: app/Models/CoursePlan.php
     owner: 011-high-ticket
-    why: 贈課與匯入的方案下拉讀取課程方案清單（id/name/sort_order），並驗證所選方案確實屬於該課程（唯讀）
+    why: 匯入的方案下拉讀取課程方案清單（id/name/sort_order），並驗證所選方案確實屬於該課程（唯讀）
   - file: app/Models/LessonProgress.php
     owner: 003-classroom
     why: 會員詳情的課程完成進度以 lesson_progress 記錄計算
@@ -38,7 +36,19 @@ touchpoints:
     why: 會員詳情顯示作業完成記錄（唯讀，含關聯已刪除 null-guard）
   - file: app/Models/Course.php
     owner: 004-course-admin
-    why: 課程篩選下拉、贈課 modal 與贈課通知信讀取課程 name / description
+    why: 課程篩選下拉與匯入 modal 讀取課程 name / description
+  - file: app/Services/DripService.php
+    owner: 010-drip-email
+    why: 匯入授權成功後呼叫 checkAndConvert 結束指向該課的序列信漏斗（FR-012）
+  - file: database/seeders/EmailTemplateSeeder.php
+    owner: 011-high-ticket
+    why: 贈課移除時一併刪除 course_gifted 模板種子（D12）
+  - file: app/Http/Controllers/Admin/EmailTemplateController.php
+    owner: 011-high-ticket
+    why: 移除 course_gifted 的變數說明（D12）
+  - file: resources/js/Pages/Admin/EmailTemplates/Index.vue
+    owner: 011-high-ticket
+    why: 移除 course_gifted 的中文標籤（D12）
   - file: app/Services/PointService.php
     owner: 007-points-referral
     why: 詳情 modal「派發積分」入口呼叫 PointService::award('admin_grant')，帳本邏輯歸 007
@@ -49,7 +59,7 @@ touchpoints:
 ## 目標
 
 讓管理者在後台集中管理會員：查詢與編輯基本資料、檢視課程持有與學習進度、
-批次寄信與贈課、CSV 匯入匯出，並提供派發積分的操作入口（積分邏輯歸 007-points-referral）。
+批次寄信、CSV 匯入匯出（含指派課程授權），並提供派發積分的操作入口（積分邏輯歸 007-points-referral）。
 
 ## User Stories
 
@@ -105,19 +115,6 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 - [x] 無 email 的會員排除，回報 skipped_count；全部無效回 422
 - [x] route `throttle:10,1` 防濫用
 
-### User Story 6 - 贈送課程 (Priority: P3)
-
-選取會員後贈課：建立 type=gift 的 purchase 並寄通知信。
-
-**驗收**：
-- [x] 已持有（paidStatus）者略過並回報 already_owned_count；全部已持有回「所有選取的會員都已擁有此課程」
-- [x] updateOrCreate（user_id + course_id unique）可救回 refunded 舊紀錄；amount=0、currency=TWD、status=paid、type=gift
-- [x] 選到有方案的課程時，方案下拉為**必填**（無「完整課程」選項）；未選則送出鈕停用且後端回 422（FR-010）
-- [x] 贈出的 purchase 寫入所選 `course_plan_id`；無方案的課程維持 null（FR-011）
-- [x] CourseGiftedMail 含課程名稱與簡介；空簡介顯示「（無課程簡介）」
-- [x] 無 email 者仍贈課但跳過寄信，回報 skipped_no_email_count
-- [x] route `throttle:10,1`
-
 ### User Story 7 - 匯出會員 CSV (Priority: P3)
 
 右上常駐「匯出」下拉：匯出全部（尊重目前搜尋 / 課程篩選）或匯出選定。
@@ -162,13 +159,14 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 
 - **FR-001**: 會員管理範圍 = `role in (member, admin)`（User::members() scope）；editor 排除。show / update / grant-points 以 isManageableMember() 守門，違反回 404 / 403。
 - **FR-002**: 課程「持有」一律以 purchases.status 判斷（paidStatus）；「取得方式」標籤一律以 type 判斷。兩者不可混用。
-- **FR-003**: 批次信與贈課通知同步寄送（Mail::send），不依賴 queue；Mailable 保留 Queueable trait 以便未來切 queue() 不改類別。
-- **FR-004**: 批次寄信與贈課 route 皆 `throttle:10,1`。
+- **FR-003**: 批次信同步寄送（Mail::send），不依賴 queue；Mailable 保留 Queueable trait 以便未來切 queue() 不改類別。
+- **FR-004**: 批次寄信 route `throttle:10,1`。
 - **FR-005**: 匯入絕不修改既有會員任何欄位（僅可能為其新增課程授權）。
 - **FR-006**: 列表 index、count、匯出三處的搜尋 + 課程篩選 where 邏輯必須一致，跨頁全選人數才會與匯出結果吻合。
 - **FR-007**: 派發積分僅有「增加」入口，無扣點 UI；帳本寫入與不變量由 PointService 負責（007 模組）。
 - **FR-009**: 批次寄信 modal 的背景關閉 MUST 要求 **mousedown 與 click 都落在背景上**，且在主旨或內文非空時 MUST 先確認再關；ESC MUST 忽略輸入法組字中的按鍵（`isComposing` / keyCode 229）。沿用 011 FR-143 —— 那條是同一個地雷在客戶摘要 modal 上被實際踩到後訂下的：在 textarea 裡拖曳選字、滑出面板才放開時，`click` 會派送到 mousedown 與 mouseup 的共同祖先（modal 根節點），只看 `e.target === e.currentTarget` 會把選字判成點背景，整封寫好的信無聲消失
-- **FR-010**: 凡後台新增課程授權的路徑（贈課、匯入指派），若目標課程 `plans()` 非空，`course_plan_id` MUST 為必填且 MUST 屬於該課程，否則回 422；課程無方案時 MUST 不接受 `course_plan_id`（傳了即 422，不靜默忽略）。前端下拉不提供「完整課程」選項。
+- **FR-010**: 後台新增課程授權（匯入指派），若目標課程 `plans()` 非空，`course_plan_id` MUST 為必填且 MUST 屬於該課程，否則回 422；課程無方案時 MUST 不接受 `course_plan_id`（傳了即 422，不靜默忽略）。前端下拉不提供「完整課程」選項。
+- **FR-012**: 後台授權課程只剩「匯入名單＋指派課程」一個入口（type=lead_conversion）；贈課（US6）移除（2026-10-26）。既有 `type=gift` 歷史資料保留不動，各處仍顯示「贈送」。匯入授權成功時 MUST 呼叫 `DripService::checkAndConvert`，接手原本贈課「結束指向該課的序列信漏斗」的行為（010 US13）。
 - **FR-011**: `purchases.course_plan_id = null` 在多方案課程上的語意是**全課程開放**（`Purchase::accessibleLessonIds()` 回 null）。因此任何新增授權的路徑 MUST NOT 把「管理員沒選方案」寫成 null —— 要全開只能事後在會員詳情的改方案 UI 明示選擇。
 
 - **FR-008**: 指派銷售顧問限 `role=member` 的可管理帳號；切換為冪等的布林寫入，不觸及會員其他欄位。身份實際授予的存取權限由 000-platform-core 的 `staff` middleware 落實。
@@ -177,14 +175,15 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 
 - **D1**: 同步寄信而非 queue — 會員規模小、與登入驗證碼寄送方式一致，省 queue worker 運維（改 queue 只需 send→queue）。
 - **D2**: CSV 解析放前端（預覽零往返），確認後以 rows JSON 與貼上模式共用同一匯入 endpoint（`has('rows')` 分流）。
-- **D3**: 贈課 / 授權用 updateOrCreate 而非 create — purchases 有 (user_id, course_id) unique，可覆蓋 refunded 舊列而不撞鍵。
+- **D3**: 授權用 updateOrCreate 而非 create — purchases 有 (user_id, course_id) unique，可覆蓋 refunded 舊列而不撞鍵。
 - **D4**: 會員詳情用 JSON endpoint + modal 而非獨立頁 — 保持列表選取狀態與操作上下文。
 - **D5**: 匯入帳號免密碼、直接 email_verified_at=now — 平台為 email 驗證碼登入，無密碼欄位。
 - **D6**: 台灣手機格式錯誤仍建帳號、電話留空 — 匯入不因次要欄位整列失敗，錯誤清單交管理員事後修正；非 09 開頭視為國際號碼原樣存。
 - **D7**: Admin 頁面用 `defineOptions({ layout: AdminLayout })` 而非 template 包裹 — 避免 AppLayout + AdminLayout 同時渲染造成重複 flash toast；ImportMembersModal 以 Teleport to body 解 z-index。
-- **D9**: 方案下拉刻意**不給「完整課程」選項** —— 一旦課程分了方案，「全開」就不是任何一個賣得出去的東西，把它擺在贈課／匯入的預設位置，等於讓每一次漏選都免費送出最高方案（本次 bug 的原形）。要全開仍做得到，但必須走會員詳情的改方案 UI 明示指定，那裡的 null 是一個有名字的選擇而不是預設值。
-- **D10**: 方案清單併進 `index()` 既有的 `courses` payload（`plans:id,course_id,name,sort_order`）而非另開 endpoint —— 課程與方案都是十位數量級，一次帶下來讓贈課與匯入兩個 modal 共用同一份資料；也免去選完課程還要 await 一次網路才看得到方案，那段空窗正是管理員會直接按送出的時候。
-- **D11**: 方案守門寫成 controller 的單一 private helper 供贈課與匯入共用，而不是各自在 Form Request 裡寫規則 —— 匯入沒有 Form Request（`importEmails()` 用 inline validate 且分流兩種 payload），規則放兩處遲早只改一處。
+- **D9**: 方案下拉刻意**不給「完整課程」選項** —— 一旦課程分了方案，「全開」就不是任何一個賣得出去的東西，把它擺在匯入的預設位置，等於讓每一次漏選都免費送出最高方案（本次 bug 的原形）。要全開仍做得到，但必須走會員詳情的改方案 UI 明示指定，那裡的 null 是一個有名字的選擇而不是預設值。
+- **D10**: 方案清單併進 `index()` 既有的 `courses` payload（`plans:id,course_id,name,sort_order`）而非另開 endpoint —— 課程與方案都是十位數量級，一次帶下來給匯入 modal 用；也免去選完課程還要 await 一次網路才看得到方案，那段空窗正是管理員會直接按送出的時候。
+- **D12**: 移除贈課而非保留兩個入口（2026-10-26）— 實務上一次只授權幾個人，匯入名單已能做到；差異（標籤顯示「顧問轉換」、不自動寄通知信）經使用者評估可接受，通知改手動寄。`course_gifted` Email 模板一併刪除（migration 刪 row），避免後台留下一個永遠不會寄出的模板。
+- **D11**: 方案守門寫成 controller 的單一 private helper（`resolveCoursePlanId()`），供匯入的兩種 payload 共用 —— 匯入沒有 Form Request（`importEmails()` 用 inline validate 且分流兩種 payload）。（原本也供贈課共用，贈課已移除）
 
 - **D8**: 銷售顧問身份用獨立切換 endpoint（`.../sales-consultant`）而非併入 inline / modal 的 PATCH update — 語意獨立、便於單獨授權與日後記錄，前端亦為獨立按鈕。
 
@@ -193,7 +192,7 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 本模組不擁有任何資料表。讀寫他模組的表：
 
 - `users` — 讀取 + 更新基本欄位；匯入時建立（role 恆 'member'）；讀寫 `is_sales_consultant` 旗標（欄位定義歸 000）
-- `purchases` — 贈課寫 type='gift'、匯入授權寫 type='lead_conversion'；皆 amount=0、status='paid'；多方案課程另寫 `course_plan_id`（欄位定義歸 011）
+- `purchases` — 匯入授權寫 type='lead_conversion'（舊的 type='gift' 歷史列保留，仍顯示「贈送」）；amount=0、status='paid'；多方案課程另寫 `course_plan_id`（欄位定義歸 011）
 - `course_plans` — 唯讀：下發方案下拉選項、驗證方案歸屬（欄位定義歸 011）
 - `lesson_progress` / `assignment_completions` / `point_transactions` — 唯讀展示（進度、作業記錄、積分帳本）
 
@@ -205,7 +204,6 @@ Checkbox 個別選取、當頁全選、跨頁「選取所有符合條件的 N �
 - `PATCH /admin/members/{member}` — 更新基本資料
 - `POST /admin/members/{member}/grant-points` — 派發積分入口（邏輯歸 007）
 - `POST /admin/members/batch-email` — 批次寄信（throttle:10,1）
-- `POST /admin/members/gift-course` — 贈課（throttle:10,1；多方案課程另帶 course_plan_id）
 - `GET /admin/members/export` — CSV 匯出（scope=all|selected）
 - `POST /admin/members/import` — 匯入（emails 字串或 rows 陣列，+ 可選 course_id；course_id 指向多方案課程時 course_plan_id 必填）
 - `PATCH /admin/members/{member}/sales-consultant` — 切換銷售顧問身份（admin-only；route 定義在 000 的 web.php）
@@ -243,8 +241,19 @@ UI 改版（2026-07-12 回饋：詳情 modal 開關小題大作）：
 - [x] T018 Feature 測試：多方案課程未帶方案的贈課／匯入回 422 且**不建立任何 purchase**；帶跨課程方案回 422；帶正確方案時 purchase 的 `course_plan_id` 正確；無方案課程維持 null；無方案課程傳方案回 422 in `tests/Feature/Admin/MemberCoursePlanAssignmentTest.php`
 - [x] T019 使用者實測：匯入一位新會員並指派多方案課程 → 該會員在教室只看得到所選方案的小節
 
+移除贈課（2026-10-26，FR-012 / D12）：
+
+- [x] T020 刪除 `giftCourse()` 與其 import；`grantCourse()` 授權成功後呼叫 `app(DripService::class)->checkAndConvert($user, Course)`（FR-012）in `app/Http/Controllers/Admin/MemberController.php`
+- [x] T021 刪 `POST /admin/members/gift-course` 路由 in `routes/web.php`
+- [x] T022 [P] 刪檔：`app/Http/Requests/Admin/GiftCourseRequest.php`、`app/Mail/CourseGiftedMail.php`、`resources/views/emails/course-gifted.blade.php`、`resources/js/Components/GiftCourseModal.vue`
+- [x] T023 [P] 會員列表移除「贈送課程」按鈕、GiftCourseModal 與兩個結果提示 in `resources/js/Pages/Admin/Members/Index.vue`
+- [x] T024 `course_gifted` 模板退場：新 migration 刪除 `email_templates` 中 event_type=course_gifted 的 row（down 不還原）；seeder、`EmailTemplateController` 變數表、模板列表中文標籤一併移除 in `database/migrations/2026_10_26_000001_drop_course_gifted_email_template.php`, `database/seeders/EmailTemplateSeeder.php`, `app/Http/Controllers/Admin/EmailTemplateController.php`, `resources/js/Pages/Admin/EmailTemplates/Index.vue`
+- [x] T025 測試調整：刪 `MemberCoursePlanAssignmentTest` 四個 gift 測試（匯入已有對應案例）；`BundleCreditTest` 兩個 gift 測試改走匯入；`FunnelStopTest::test_admin_gift_triggers_conversion` 改為匯入觸發；`SupportEmailTest` / `EmailTemplateHtmlModeTest` 借用的 `course_gifted` 改用 `lesson_added`；新增「gift-course 路由已不存在」守門（路徑被 /members/{member} 接住，實際回 405，另斷言 route name 不存在）
+- [x] T026 刪除 US6 段落、更新 FR-003/FR-004/FR-010/D3/D10/D11 與 Schema/API 段的贈課字樣；owner_files 移除已刪檔案 in `specs/008-members-admin/spec.md`
+
 ## 進度日誌
 
+- 2026-10-26: 移除贈課（US6 / FR-012 / D12）— 刪 giftCourse、路由、GiftCourseRequest、CourseGiftedMail 與 view、GiftCourseModal 及會員列表入口；migration 刪 course_gifted 模板；匯入授權改接手 checkAndConvert 結束序列信漏斗；相關測試改走匯入
 - 2026-09-25: `course-gifted.blade.php` 的署名改讀 `SiteSetting::siteName()`，不再寫死品牌字串（000 US12）。
 
 - 2026-09-25: 會員 CSV 匯出的 `created_at` / `last_login_at` 與檔名日期原本輸出 UTC，差 8 小時，補 `->timezone('Asia/Taipei')`（000 US11）

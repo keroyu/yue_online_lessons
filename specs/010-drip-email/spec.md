@@ -109,7 +109,7 @@ touchpoints:
     why: convertLead() 後台開通商品建立 Purchase 後呼叫 checkAndConvert()（US13）
   - file: app/Http/Controllers/Admin/MemberController.php
     owner: 008-members-admin
-    why: 會員後台與 drip 訂閱者共用同一份 users 名單（User::dripSubscriptions 關聯）；giftCourse() 贈課成功後呼叫 checkAndConvert()（US13）
+    why: 會員後台與 drip 訂閱者共用同一份 users 名單（User::dripSubscriptions 關聯）；匯入名單指派課程（grantCourse）成功後呼叫 checkAndConvert()（US13；原為 giftCourse()，贈課已於 2026-10-26 移除，008 FR-012）
   - file: app/Http/Controllers/Member/ClassroomController.php
     owner: 003-classroom
     why: drip 教室的 lessonUnlockMap（呼叫 isLessonUnlocked）、觀看期錨點批次查詢、達標訂閱者豁免觀看期/獎勵 props
@@ -442,7 +442,7 @@ US15 拆掉驗證碼之後，領取變成「填了就送出」，中間再也沒
 - **FR-010**: 課程下架（unpublished）後排程不再對其訂閱者發信（processDailyEmails 僅取 published drip 課程）
 - **FR-011**: 觀看期計時錨點為「實際寄出時間」— `SendDripEmailJob` 於 `Mail::send` 成功後 firstOrCreate 一筆 `(subscription_id, lesson_id, 'sent')` 事件；錨點取該事件 `created_at`。錨點缺席時（既有訂閱／queued 空窗期）fallback 舊理論公式
 - **FR-012**: 觀看期到期／剩餘秒數一律由 DripService 後端計算並吃錨點；教室每次載入以單一查詢批次取回該訂閱所有 sent 事件（lesson_id ⇒ created_at），避免逐 Lesson N+1
-- **FR-013**: 達標管道總表 — 標 `converted`：站內結帳、Portaly webhook、免費領取、積分兌換、後台 Lead 開通商品、後台贈課（六條，皆為實際成交）；標 `booked`：高價課預約表單（一條）。所有管道共用 `drip_conversion_targets` 判定「這門課是哪些 drip 課的目標」
+- **FR-013**: 達標管道總表 — 標 `converted`：站內結帳、Portaly webhook、免費領取、積分兌換、後台 Lead 開通商品、後台匯入名單指派課程（六條；原「後台贈課」於 2026-10-26 由匯入取代，008 FR-012）；標 `booked`：高價課預約表單（一條）。所有管道共用 `drip_conversion_targets` 判定「這門課是哪些 drip 課的目標」
 - **FR-014**: 達標即出漏斗 — 停信且解鎖凍結在 `emails_sent`。全開只剩兩種情況：`completed`（已寄完，本來就等於全部）與 `unlock_all=true` 的改版前既有 converted
 - **FR-015**: 停信狀態集合與豁免集合定義為 `DripSubscription` 常數（`STOPS_SENDING = [booked, converted, unsubscribed]`、`FUNNEL_DONE = [booked, converted]`），Job/Service/Controller 一律引用常數，禁止各處硬編字串陣列
 - **FR-016**: 達標停信為「盡力而為」的副作用 — 預約/贈課/開通的主流程不因 drip 停信失敗而中斷，一律 try/catch + log

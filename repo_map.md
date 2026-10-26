@@ -247,7 +247,6 @@ main_files:
 - resources/js/Components/CourseCard.vue
 - resources/js/Components/FeaturedCourses.vue
 - resources/js/Components/Home/CourseCatalog.vue
-- resources/js/Components/Home/HeroClaimForm.vue
 - resources/js/Components/Home/HeroSubscribeForm.vue
 - resources/js/Components/Home/HeroUnit.vue
 - resources/js/Components/Layout/WidgetColumn.vue
@@ -568,20 +567,16 @@ specs: specs/008-members-admin/
 
 main_files:
 - app/Http/Controllers/Admin/MemberController.php
-- app/Http/Requests/Admin/GiftCourseRequest.php
 - app/Http/Requests/Admin/SendBatchEmailRequest.php
 - app/Http/Requests/Admin/ToggleSalesConsultantRequest.php
 - app/Http/Requests/Admin/UpdateMemberRequest.php
 - app/Mail/BatchEmailMail.php
-- app/Mail/CourseGiftedMail.php
 - resources/js/Components/BatchEmailModal.vue
-- resources/js/Components/GiftCourseModal.vue
 - resources/js/Components/ImportMembersModal.vue
 - resources/js/Components/MemberDetailModal.vue
 - resources/js/Components/SalesConsultantModal.vue
 - resources/js/Pages/Admin/Members/Index.vue
 - resources/views/emails/batch-email.blade.php
-- resources/views/emails/course-gifted.blade.php
 - tests/Feature/Admin/MemberCoursePlanAssignmentTest.php
 
 related_specs:
@@ -596,7 +591,6 @@ specs: specs/009-transactions-admin/
 main_files:
 - app/Http/Controllers/Admin/DashboardController.php
 - app/Http/Controllers/Admin/TransactionController.php
-- app/Http/Requests/Admin/StoreTransactionRequest.php
 - app/Services/SimpanyInvoiceExportService.php
 - app/Services/TransactionService.php
 - resources/js/Components/Admin/RevenueChart.vue
@@ -753,7 +747,6 @@ main_files:
 - app/Jobs/SubscribeDripLeadJob.php
 - app/Mail/BatchEmailMail.php
 - app/Mail/BookingVerifyMail.php
-- app/Mail/CourseGiftedMail.php
 - app/Mail/LessonAddedNotification.php
 - app/Mail/TemplatedMail.php
 - app/Models/ConsultationNote.php
@@ -818,7 +811,6 @@ main_files:
 - database/migrations/2026_08_18_000003_add_resume_reminder_sent_at_to_high_ticket_leads_table.php
 - database/migrations/2026_08_18_000004_install_application_resume_template.php
 - database/migrations/2026_08_20_000001_install_booking_declined_template.php
-- database/migrations/2026_08_26_000001_sync_refunded_lead_statuses.php
 - database/migrations/2026_09_05_000001_lower_unsure_budget_screening_cap.php
 - database/migrations/2026_09_10_000001_add_followup_email_to_consultation_notes_table.php
 - database/migrations/2026_09_10_000002_install_consultation_followup_prompt.php
@@ -858,7 +850,6 @@ main_files:
 - resources/js/Components/Admin/Leads/BookingListTab.vue
 - resources/js/Components/Admin/Leads/ConsultationNoteEditorModal.vue
 - resources/js/Components/Admin/Leads/ConsultationNotesPanel.vue
-- resources/js/Components/Admin/Leads/ConsultationSummaryModal.vue
 - resources/js/Components/Admin/Leads/SubscriberListTab.vue
 - resources/js/Components/Admin/Leads/TestimonialModal.vue
 - resources/js/Components/Admin/ReferrerDetailModal.vue
@@ -923,7 +914,6 @@ main_files:
 - tests/Feature/HighTicket/FunnelSettingsTest.php
 - tests/Feature/HighTicket/LeadConvertTest.php
 - tests/Feature/HighTicket/LeadExportTest.php
-- tests/Feature/HighTicket/LeadRefundSyncTest.php
 - tests/Feature/HighTicket/LeadSubscribeDripTest.php
 - tests/Feature/HighTicket/LeadsTabsTest.php
 - tests/Feature/HighTicket/NewBookingStatsTest.php

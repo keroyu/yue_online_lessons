@@ -49,14 +49,6 @@ const courseFilter = ref(props.filters.course_id || '')
 const selectedIds = ref(new Set())
 const selectAllMatching = ref(false)
 
-// Manual create modal state
-const showCreateModal = ref(false)
-const createForm = ref({ user_email: '', user_id: null, course_id: '', type: 'gift' })
-const createErrors = ref({})
-const createSubmitting = ref(false)
-const userSearchResults = ref([])
-const userSearchLoading = ref(false)
-
 // Computed: whether all records on the current page are selected
 const allOnPageSelected = computed(() => {
   if (!props.transactions.data?.length) return false
@@ -298,76 +290,6 @@ const changeCustomRange = (start, end) => {
     preserveScroll: true,
   })
 }
-
-// Manual create modal
-const openCreateModal = () => {
-  createForm.value = { user_email: '', user_id: null, course_id: '', type: 'gift' }
-  createErrors.value = {}
-  userSearchResults.value = []
-  showCreateModal.value = true
-}
-
-const closeCreateModal = () => {
-  showCreateModal.value = false
-}
-
-let userSearchTimeout = null
-const searchUser = (email) => {
-  createForm.value.user_email = email
-  createForm.value.user_id = null
-  clearTimeout(userSearchTimeout)
-  if (!email || email.length < 2) {
-    userSearchResults.value = []
-    return
-  }
-  userSearchLoading.value = true
-  userSearchTimeout = setTimeout(async () => {
-    try {
-      const res = await window.axios.get('/admin/members', {
-        params: { search: email, per_page: 10 },
-        headers: { 'X-Inertia': false, Accept: 'application/json' },
-      })
-      userSearchResults.value = res.data?.members?.data ?? []
-    } catch {
-      userSearchResults.value = []
-    } finally {
-      userSearchLoading.value = false
-    }
-  }, 300)
-}
-
-const selectUser = (user) => {
-  createForm.value.user_email = user.email
-  createForm.value.user_id = user.id
-  userSearchResults.value = []
-}
-
-const submitCreate = () => {
-  createErrors.value = {}
-  if (!createForm.value.user_id) {
-    createErrors.value.user_id = '請從搜尋結果中選擇會員'
-    return
-  }
-  if (!createForm.value.course_id) {
-    createErrors.value.course_id = '請選擇課程'
-    return
-  }
-  createSubmitting.value = true
-  router.post('/admin/transactions', {
-    user_id:   createForm.value.user_id,
-    course_id: parseInt(createForm.value.course_id),
-    type:      createForm.value.type,
-  }, {
-    onSuccess: () => {
-      closeCreateModal()
-      createSubmitting.value = false
-    },
-    onError: (errors) => {
-      createErrors.value = errors
-      createSubmitting.value = false
-    },
-  })
-}
 </script>
 
 <template>
@@ -376,16 +298,7 @@ const submitCreate = () => {
     <div class="sm:flex sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-gray-900">交易紀錄</h1>
-        <p class="mt-2 text-sm text-gray-700">檢視所有交易，手動新增指派或贈送，標記退款。</p>
-      </div>
-      <div class="mt-4 sm:mt-0">
-        <button
-          type="button"
-          @click="openCreateModal"
-          class="px-4 py-2 text-sm font-medium text-white bg-brand-teal rounded-md hover:bg-brand-teal/90 transition-colors cursor-pointer"
-        >
-          手動新增
-        </button>
+        <p class="mt-2 text-sm text-gray-700">檢視所有交易、匯出對帳與發票檔、標記退款。</p>
       </div>
     </div>
 
@@ -639,118 +552,5 @@ const submitCreate = () => {
         @change="goToPage"
       />
     </div>
-
   </div>
-
-  <!-- Manual Create Modal -->
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="closeCreateModal">
-        <div class="fixed inset-0 bg-black/50" aria-hidden="true" />
-        <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-xl shadow-2xl max-w-7xl w-full" @click.stop>
-            <!-- Header -->
-            <div class="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-              <h2 class="text-xl font-semibold text-gray-900">手動新增交易</h2>
-              <button type="button" @click="closeCreateModal" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <!-- Body -->
-            <div class="px-6 py-6 space-y-5">
-              <!-- User search -->
-              <div class="relative">
-                <label class="block text-sm font-semibold text-gray-900 mb-1">會員 Email <span class="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  :value="createForm.user_email"
-                  @input="searchUser($event.target.value)"
-                  placeholder="輸入 Email 搜尋..."
-                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
-                  :class="{ 'border-red-300': createErrors.user_id }"
-                />
-                <!-- Search results dropdown -->
-                <ul v-if="userSearchResults.length > 0" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
-                  <li
-                    v-for="user in userSearchResults"
-                    :key="user.id"
-                    @click="selectUser(user)"
-                    class="px-4 py-2 text-sm cursor-pointer hover:bg-brand-teal/10"
-                  >
-                    <span class="font-medium">{{ user.email }}</span>
-                    <span v-if="user.real_name" class="text-gray-500 ml-2">{{ user.real_name }}</span>
-                  </li>
-                </ul>
-                <p v-if="createErrors.user_id" class="mt-1 text-sm text-red-600">{{ createErrors.user_id }}</p>
-                <p v-if="createForm.user_id" class="mt-1 text-xs text-green-600">已選擇會員 ID: {{ createForm.user_id }}</p>
-              </div>
-
-              <!-- Course selection -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-900 mb-1">課程 <span class="text-red-500">*</span></label>
-                <select
-                  v-model="createForm.course_id"
-                  class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal sm:text-sm"
-                  :class="{ 'border-red-300': createErrors.course_id }"
-                >
-                  <option value="">請選擇課程</option>
-                  <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.name }}</option>
-                </select>
-                <p v-if="createErrors.course_id" class="mt-1 text-sm text-red-600">{{ createErrors.course_id }}</p>
-              </div>
-
-              <!-- Type selection -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-900 mb-2">交易類型 <span class="text-red-500">*</span></label>
-                <div class="flex gap-4">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" v-model="createForm.type" value="gift" class="text-brand-teal border-gray-300 focus:ring-brand-teal" />
-                    <span class="text-sm">贈送</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" v-model="createForm.type" value="system_assigned" class="text-brand-teal border-gray-300 focus:ring-brand-teal" />
-                    <span class="text-sm">系統指派</span>
-                  </label>
-                </div>
-                <p v-if="createErrors.type" class="mt-1 text-sm text-red-600">{{ createErrors.type }}</p>
-              </div>
-
-              <!-- General error -->
-              <div v-if="createErrors.general" class="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p class="text-sm text-red-600">{{ createErrors.general }}</p>
-              </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-4 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                type="button"
-                @click="closeCreateModal"
-                :disabled="createSubmitting"
-                class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                @click="submitCreate"
-                :disabled="createSubmitting"
-                class="px-6 py-2.5 text-sm font-medium text-white bg-brand-teal border border-transparent rounded-lg shadow-sm hover:bg-brand-teal/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {{ createSubmitting ? '新增中...' : '確認新增' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
 </template>
