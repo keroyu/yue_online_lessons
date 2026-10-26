@@ -67,6 +67,8 @@ Route::get('/payment/success', [SuccessController::class, 'show'])->name('paymen
 Route::get('/course/{course}', [CourseController::class, 'show'])->name('course.show');
 // Step 1 of the wizard — the five-question gate (011 US24). Looser than the
 // submit below because changing an answer and retrying is a legitimate move.
+// The throttle only stops bursts; probing the rubric across a day is caught
+// by ScreeningProbeGuard in the controller (011 US49).
 Route::post('/course/{course}/screen', [HighTicketBookingController::class, 'screen'])
     ->middleware('throttle:10,1')
     ->name('course.screen');

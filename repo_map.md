@@ -782,6 +782,7 @@ main_files:
 - app/Support/BookingScreening.php
 - app/Support/PhoneNumber.php
 - app/Support/RecentDayWindows.php
+- app/Support/ScreeningProbeGuard.php
 - app/Support/ScreeningRubric.php
 - database/migrations/2026_04_09_000002_create_email_templates_table.php
 - database/migrations/2026_04_10_000001_create_high_ticket_leads_table.php
@@ -920,6 +921,7 @@ main_files:
 - tests/Feature/HighTicket/PlanAccessTest.php
 - tests/Feature/HighTicket/PlanSwitchTest.php
 - tests/Feature/HighTicket/ScreeningDeclineMailTest.php
+- tests/Feature/HighTicket/ScreeningProbeGuardTest.php
 - tests/Feature/HighTicket/SlotHoldTest.php
 - tests/Feature/HighTicket/SupportEmailTest.php
 - tests/Feature/HighTicket/TestimonialTest.php

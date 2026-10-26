@@ -189,7 +189,12 @@ class BookingScreeningToggleTest extends TestCase
             ]),
         ];
 
-        foreach ($cases as $label => $answers) {
+        foreach (array_keys($cases) as $i => $label) {
+            $answers = $cases[$label];
+            // Six submissions in one test: give each case its own IP so the
+            // probe guard (US49) does not turn the later ones into refusals.
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.' . ($i + 1)]);
+
             HighTicketLead::query()->delete();
             $this->screen($this->makeHighTicketCourse(), $answers)
                 ->assertOk()->assertJson(['passed' => false], "嚴格：{$label} 應婉拒");

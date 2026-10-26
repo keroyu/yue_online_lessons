@@ -342,6 +342,7 @@
       "011.us-24",
       "011.us-42",
       "011.us-45",
+      "011.us-49",
       "011.us-9"
     ],
     "app/Http/Controllers/HomeController.php": [
@@ -1262,6 +1263,9 @@
     ],
     "app/Support/RecentDayWindows.php": [
       "011.us-39"
+    ],
+    "app/Support/ScreeningProbeGuard.php": [
+      "011.us-49"
     ],
     "app/Support/ScreeningRubric.php": [
       "011.us-46"
@@ -2500,6 +2504,7 @@
       "011.us-38",
       "011.us-40",
       "011.us-46",
+      "011.us-49",
       "011.us-6",
       "011.us-8",
       "012.us-1",
@@ -2609,7 +2614,8 @@
     ],
     "tests/Feature/HighTicket/BookingScreeningToggleTest.php": [
       "011.us-41",
-      "011.us-44"
+      "011.us-44",
+      "011.us-49"
     ],
     "tests/Feature/HighTicket/BookingWizardTest.php": [
       "011.us-10",
@@ -2702,6 +2708,9 @@
     ],
     "tests/Feature/HighTicket/ScreeningDeclineMailTest.php": [
       "011.us-43"
+    ],
+    "tests/Feature/HighTicket/ScreeningProbeGuardTest.php": [
+      "011.us-49"
     ],
     "tests/Feature/HighTicket/SlotHoldTest.php": [
       "011.us-10",

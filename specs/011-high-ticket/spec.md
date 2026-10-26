@@ -2,6 +2,8 @@
 id: 011-high-ticket
 status: building
 owner_files:
+  - app/Support/ScreeningProbeGuard.php
+  - tests/Feature/HighTicket/ScreeningProbeGuardTest.php
   - database/migrations/2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php
   - database/migrations/2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php
   - tests/Feature/HighTicket/DripResumeTest.php
@@ -1695,6 +1697,20 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - [ ] 一次性資料 migration 依 FR-277 恢復正式站既有的 7 筆（`declined` 2 筆、`booked` 5 筆），部署後即生效
 - [x] 停信／恢復失敗只記 log，不影響審核結果與取消流程（比照 FR-016）
 
+### User Story 49 - 同 IP 反覆送出資格審核即靜默婉拒 24 小時 (Priority: P1)
+
+2026-10-26 後台預約名單出現一串相似的假名單（Uuhh／Iiji／Hiji／Uthi／Uikb／U…，Email 如 `yihuu@gmail.cok`、`iuhihi@gmail.con`），分數從「高購買意願」到「培育名單」都有、卻沒有一筆往下選諮詢時段 —— 研判是有人換答案反覆送出，在試出審核規則。
+審核規則一旦被摸清，資格審核就形同虛設。對策：同一 IP 送出審核超過 2 次，之後 24 小時內一律**靜默婉拒** —— 畫面與一般婉拒完全相同，對方無從分辨是答案問題還是被封鎖，也就學不到規則。
+
+**驗收**：
+- [x] 同一 IP 在 24 小時內第 1、2 次送出審核照常判定；第 3 次起回應「未通過」＋該課程婉拒文案，與真正婉拒的 JSON 形狀一致（FR-278）
+- [x] 被擋下的送出**不寫入預約名單**（不建、不改 lead）、不排婉拒信、不動序列信（FR-279）
+- [x] 封鎖自觸發起 24 小時，期間每次送出都靜默婉拒；期滿後計數歸零，可再送 2 次（FR-280）
+- [x] 只計入通過表單驗證的送出；欄位錯誤（422）不計次。答案沒改直接按下一步（前端 `alreadyCleared`）本來就不打 API，不計次
+- [x] 登入中的管理員／業務顧問（`canAccessSalesPanel()`）不計次、不受封鎖，方便自己測試（FR-281）
+- [x] 觸發封鎖時寫一行 `Log::warning`（IP、課程、Email），供事後查證
+- [x] 不同 IP 互不影響
+
 ## Requirements
 
 - **FR-001**: 預約 API 只接受 `is_high_ticket && high_ticket_hide_price` 的課程，否則 422；路由掛 `throttle:5,1` 防濫用
@@ -2329,6 +2345,10 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **FR-275**（US48，使用者決策 2026-10-22）: `releaseBooking()` 在 transaction 與既有副作用之後，`$status === 'cancelled'` 且 `!$lead->isCredit()` 且課程存在且 `!hasOtherActiveBooking($lead)` 時，MUST 呼叫 `DripService::resumeSequence($lead->email, $course, ['booked'])`；`declined` 不呼叫（D107）。`hasOtherActiveBooking(HighTicketLead $lead): bool` = `HighTicketLead::applications()->where('email', $lead->email)->where('course_id', $lead->course_id)->whereKeyNot($lead->id)->whereNotNull('confirmed_at')->whereNull('cancelled_at')->exists()`（與 `isActiveBooking()` 同一定義）
 - **FR-276**（US48，使用者決策 2026-10-22，/dev 時修訂節奏錨點）: `DripService::resumeSequence(string $email, Course $course, array $fromStatuses): int` —— 與 `checkAndBook()` 同一路徑（Email 找 user、`DripConversionTarget` 找以本課為目標的 drip 課程），`$fromStatuses` 只允許 `declined`／`booked` 的子集（其他值丟 `InvalidArgumentException`，防止誤把 `converted`／`unsubscribed` 救回）。逐筆更新 `status = active`、`status_changed_at = now()`、`resumed_at = now()`，回傳筆數並 `Log::info`。**節奏**：常數 `DripService::RESUME_INTERVAL_DAYS = 3`；`getUnlockedLessonCount()` 在 `resumed_at` 非 null 時回 `min(原排程數, emails_sent + (上一封 sent 事件距今 ≥ 3 個台北日曆日 或 無 sent 事件 ? 1 : 0))`，上一封 = `drip_email_events` 該訂閱 `event_type = sent` 的 `MAX(created_at)`，日數 = 兩端各取 `Asia/Taipei` 的 `startOfDay()` 相減。錨點用**實際寄出時間**而非 `resumed_at`：恢復發生在一天中任意時刻、每日排程固定時刻，以恢復時間起算會讓第二封與第一封只隔 2 天。`processSubscription()`／`isLessonUnlocked()` 不改；`daysUntilUnlock()` 無呼叫點，不改
 - **FR-277**（US48，使用者決策 2026-10-22）: 一次性資料 migration 回補既有資料：對 `status ∈ {declined, booked}` 的每筆 `drip_subscriptions`，取該 user Email 在「此 drip 課程任一轉換目標課程」的 application leads；若其中**沒有**有效預約（`confirmed_at` 非 null 且 `cancelled_at` null），且最新一筆（id 最大）lead 滿足 —— 訂閱為 `declined` 時：`status = pending` 且 `confirmed_at` null；訂閱為 `booked` 時：`status = cancelled` —— 即比照 FR-276 恢復（`status = active`、`status_changed_at`／`resumed_at = now()`）；migration 以 query builder 撰寫、不經 model。`down()` no-op。2026-10-22 正式站試算命中 7 筆：subscription 4055、5078（declined）、61、155、1825、4017、4220（booked）
+- **FR-278**（US49，使用者決策 2026-10-26）: `POST /course/{course}/screen` 在表單驗證通過後、呼叫 `HighTicketBookingService::screen()` 之前，MUST 經 `ScreeningProbeGuard::admit(string $ip): bool` 判定。回 false 時 controller 直接回 200 `{passed: false, decline_html: $course->declineHtml()}` —— 與真正婉拒的回應**逐鍵相同**（FR-259 的形狀），MUST NOT 帶任何可辨識封鎖的欄位、狀態碼或訊息。課程不接受預約（非 high_ticket／未隱藏價格）時維持既有 422，不進 guard
+- **FR-279**（US49）: 被 guard 擋下的送出 MUST NOT 呼叫 `screen()`：不建立／更新 `high_ticket_leads`、不排 `SendScreeningDeclineMailJob`、不動序列信。理由：探測者每一筆都是假 Email，寫進名單只會污染後台，寄婉拒信則是對假地址發信、傷寄件信譽
+- **FR-280**（US49，使用者決策 2026-10-26）: `ScreeningProbeGuard` 常數 `MAX_ATTEMPTS = 2`、`WINDOW_SECONDS = BAN_SECONDS = 86400`。`admit($ip)`：(1) `Cache::has("screening-ban:{$ip}")` → false；(2) `RateLimiter::hit("screening-probe:{$ip}", WINDOW_SECONDS)`，回傳次數 ≤ `MAX_ATTEMPTS` → true；(3) 否則 `Cache::put("screening-ban:{$ip}", true, BAN_SECONDS)`、`RateLimiter::clear("screening-probe:{$ip}")`、`Log::warning('Screening probe: IP banned', [ip, course_id, email])` → false。計數**不分 Email、不分通過與否、不分課程**（使用者決策：每次送出都算）。封鎖期間的送出不再計數、不延長封鎖；封鎖到期後從 0 重新計數。存放用預設 cache store（正式站 `database`，跨 PHP-FPM worker 共用；測試 `array`）
+- **FR-281**（US49）: 登入中且 `canAccessSalesPanel()` 為 true 的使用者 MUST 跳過 guard（不計次、不受封鎖）。IP 取 `$request->ip()`：正式站 nginx 直連、無 CDN／反向代理，`REMOTE_ADDR` 即真實來源；**日後若前面加 Cloudflare 等代理，MUST 先設定 `trustProxies`**，否則所有人共用代理 IP、第 3 位訪客起全被靜默婉拒
 
 
 
@@ -2766,6 +2786,7 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 - **D180**: D67 的 payload 契約測試（booked／held 帶非空 `email`）**保留**：`email` 仍被面板的「查看名單」連結（`leadUrl()`）使用，只是不再是複製功能的依賴；測試註解同步改寫理由
 - **D181**: 匯出擴充（FR-273）的三個決定。**題目一題一欄、表頭用題目文字**：題目可在 1v1 漏斗設定自訂（US46），固定欄名會在改題目那天失準；一題一欄才能在試算表直接篩「從哪裡發現」= Facebook。**新欄加在後面、只有「顧問」插在「狀態」旁**：題目欄數會變，放尾端讓前 12 欄位置固定，既有試算表公式只需處理「顧問」一欄的位移；顧問與狀態同屬「這筆在誰手上、走到哪」，放一起最好讀。**分級中文對照放後端**：`SCREENING_TIERS` 目前只在 `BookingListTab.vue`，CSV 需要同一組文字，於 `HighTicketLead` 加 `SCREENING_TIER_LABELS` 常數（比照 `STATUS_LABELS`，D122）；前端維持自己的樣式表不動，兩邊文字由測試對照
 - **D182**: US48 的四個決定。**停信點只有「確認」**（使用者決策）：序列信的工作是把人推到預約確認，還沒確認就還沒完成；確認後又取消等於回到漏斗裡，該繼續加溫。婉拒（admin `decline()`）例外，D107 的理由不變 —— 剛拒絕的人不該收行銷信。**恢復後每 3 天 1 封**（使用者決策）：一次補寄積欠的信會讓人同一天收到好幾封，像系統故障；每 3 天一封是「追上進度但不轟炸」。用 `resumed_at` 標記「已恢復、走節奏」，節奏錨在上一封實際寄出時間（`drip_email_events`），而不是改寫 `subscribed_at` —— 後者是 010 統計（新增訂閱數、序列信起始時間欄）與 CSV 匯出的錨點，改了會讓報表說謊。**取 min 而不是只看節奏**：原排程本來就比 3 天慢的後段（Day 14 → 30）若改成每 3 天，等於恢復讓人收得更快，違反「不轟炸」的初衷。**`resumeSequence()` 白名單來源狀態**：恢復是「撤銷某一次停信」，只有 011 自己造成的兩種停信（`declined`／`booked`）可撤銷；購買轉換與使用者自己退訂一旦被救回就是嚴重錯誤，所以在 service 層擋死而不是靠呼叫端自律
+- **D183**: US49 的四個決定。**靜默婉拒而非報錯**（使用者決策）：探測者要的是「哪組答案會過」，明確的封鎖訊息等於告訴他換 IP 繼續；回一般婉拒則讓他以為那組答案不合格，得到的是錯誤資訊。**每次送出都算、門檻 2 次**（使用者決策）：比「不同 Email 才算」嚴，代價是真人改兩次答案後第三次會被當成婉拒 —— 前端答案沒改不會重送（`alreadyCleared`），一般人送 1～2 次即止，接受這個邊界。**24 小時、無後台介面**（使用者決策）：手機網路共用 IP（CGNAT）會換人使用，短期冷卻能擋住一次探測工作階段又不會長期誤傷；不做封鎖名單 UI，被誤擋的人隔天自然恢復，log 可查。**放 cache 而不是資料表**：狀態本質是 24 小時內有效的計數器，到期即丟；沿用 `CouponController`／`ReferralController` 的 `RateLimiter` 慣例，不需 migration。**邏輯放 `App\Support\ScreeningProbeGuard` 而非 service**：IP 是 HTTP 層概念，`HighTicketBookingService::screen()` 維持只吃課程與答案；獨立類別讓測試可直接驗常數與到期行為
 
 ## Schema
 
@@ -3122,6 +3143,8 @@ US41 的「資格審核」關閉時會整個省掉第一步，等於完全不篩
 
 
 - **US48 schema 變更（一支欄位 migration + 一支資料 migration）**：`2026_10_22_000001_add_resumed_at_to_drip_subscriptions_table.php` — `drip_subscriptions.resumed_at` timestamp nullable（UTC），`after('status_changed_at')`；`2026_10_22_000002_resume_stopped_drips_for_unconfirmed_leads.php` — FR-277 回補，`down()` no-op。不變量：`resumed_at` 只由 `resumeSequence()`（與回補 migration）寫入；停信（`reachGoal()`）不清除 —— 再停之後恢復即覆寫；非 null 即走 FR-276 節奏（原規劃的 `resumed_emails_sent` 因節奏改錨實際寄出時間而不需要）
+
+- **US49 schema 變更：無**。計數與封鎖存在 cache（key `screening-probe:{ip}`、`screening-ban:{ip}`，TTL 86400 秒）。不變量：被封鎖的送出不在 `high_ticket_leads` 留下任何痕跡
 
 ## Tasks
 
@@ -4276,8 +4299,16 @@ Phase 4 — 驗證
 - [x] T663 既有測試對照：`FunnelStopTest`、`BookingScreeningTest`（FR-257 段）仍綠，不需改動 in `tests/Feature/Drip/FunnelStopTest.php`, `tests/Feature/HighTicket/BookingScreeningTest.php`
 - [ ] T664 `php artisan test` 全綠（2026-10-22：1334 passed）；部署後正式站確認 7 筆已為 active、下一次排程各寄出 1 封
 
+### 同 IP 反覆送出資格審核即靜默婉拒（US49 / FR-278–281）
+
+- [x] T665 測試（先行）`ScreeningProbeGuardTest`：同 IP 第 1、2 次照常判定、第 3 次起回 `{passed:false, decline_html}` 且鍵與真婉拒相同；被擋下不建/不改 lead、不排婉拒信（`Queue::fake`）；`travel(24h+1s)` 後恢復、可再送 2 次；欄位錯誤 422 不計次；不同 IP 互不影響（`withServerVariables(['REMOTE_ADDR'=>…])`）；admin／業務顧問登入不計次；觸發時寫 warning log in `tests/Feature/HighTicket/ScreeningProbeGuardTest.php`
+- [x] T666 `ScreeningProbeGuard`：常數 `MAX_ATTEMPTS`／`WINDOW_SECONDS`／`BAN_SECONDS`、`admit(string $ip, array $context = []): bool`（FR-280）in `app/Support/ScreeningProbeGuard.php`
+- [x] T667 `screen()` 接上 guard：`canAccessSalesPanel()` 略過；擋下時回與婉拒同形的 JSON（FR-278／FR-281）；更新 route 註解說明兩層節流（`throttle:10,1` 防暴衝、guard 防探測）in `app/Http/Controllers/HighTicketBookingController.php`, `routes/web.php`
+- [x] T668 `php artisan test` 全綠；同一測試內同 IP 送出 ≥3 次的只有 `BookingScreeningToggleTest::test_lenient_ignores_the_other_vetoes_that_strict_applies`（6 次），改為每個 case 換 `REMOTE_ADDR`（只調測試前置，不改斷言）in `tests/Feature/HighTicket/BookingScreeningToggleTest.php`
+
 ## 進度日誌
 
+- 2026-10-26: US49 同 IP 反覆送出資格審核即靜默婉拒 24 小時（T665–T668）：`ScreeningProbeGuard`（RateLimiter + cache，第 3 次起封鎖）、`screen()` 擋下時回與真婉拒相同的 JSON 且不寫名單、管理員/顧問豁免；`ScreeningProbeGuardTest` 9 個測試。
 - 2026-10-22: US48 預約確認前序列信不停、取消預約後恢復（T658–T663）：`DripService::resumeSequence()`（只收 declined／booked）、重答審核通過與取消預約時恢復、恢復後距上一封實際寄出滿 3 個台北日曆日才寄下一封、一次性 migration 回補；節奏錨點由 `resumed_at` 改為上一封 sent 事件，`resumed_emails_sent` 欄位取消。`php artisan test` 1334 passed；T664 部署後正式站確認待執行。
 - 2026-10-20: FR-273 預約名單 CSV 加入顧問、資格審核分數／分級與每題一欄的答案（T653–T656）；`php artisan test` 1320 passed；T657 正式站匯出確認待部署後執行。
 - 2026-10-20: US47 週曆「複製 Email」改為「複製時段」：可勾選預約區塊與連續空檔段，輸出「10/29（四） 14:00-14:45」逐行文字（T647–T651）；`npm run build` 通過、`php artisan test` 1315 passed；T652 瀏覽器實測待使用者確認。

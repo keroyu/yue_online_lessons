@@ -7,6 +7,7 @@ use App\Http\Requests\BookingScreeningRequest;
 use App\Http\Requests\HighTicketBookingRequest;
 use App\Models\Course;
 use App\Support\BookingScreening;
+use App\Support\ScreeningProbeGuard;
 use App\Services\ConsultationSlotService;
 use App\Services\HighTicketBookingService;
 use Illuminate\Http\JsonResponse;
@@ -52,10 +53,22 @@ class HighTicketBookingController extends Controller
      * Answers `passed` and nothing else: the score belongs to the consultant,
      * not to the applicant, and a number on screen is an invitation to work out
      * which answer to change (FR-124).
+     *
+     * An IP that keeps submitting gets the ordinary refusal without being
+     * screened at all (US49 / FR-278): no lead, no mail, nothing to learn from.
      */
     public function screen(BookingScreeningRequest $request, Course $course): JsonResponse
     {
-        $result = $this->bookingService->screen($course, $request->validated());
+        $data = $request->validated();
+
+        if ($course->is_high_ticket && $course->high_ticket_hide_price
+            && !$request->user()?->canAccessSalesPanel()
+            && !ScreeningProbeGuard::admit($request->ip(), ['course_id' => $course->id, 'email' => $data['email']])
+        ) {
+            return response()->json(['passed' => false, 'decline_html' => $course->declineHtml()]);
+        }
+
+        $result = $this->bookingService->screen($course, $data);
 
         if (!$result['success']) {
             return response()->json(['message' => $result['message']], 422);

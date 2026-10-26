@@ -5763,6 +5763,35 @@
       "status": "partial"
     },
     {
+      "id": "011.us-49",
+      "module": "011-high-ticket",
+      "title": "同 IP 反覆送出資格審核即靜默婉拒 24 小時",
+      "summary": "同一 IP 24 小時內送出資格審核超過 2 次，之後 24 小時一律回與真婉拒相同的結果，不寫名單、不寄信，防止有人試出審核規則",
+      "heading": "### User Story 49 - 同 IP 反覆送出資格審核即靜默婉拒 24 小時 (Priority: P1)",
+      "file": "specs/011-high-ticket/spec.md",
+      "anchor": "user-story-49---同-ip-反覆送出資格審核即靜默婉拒-24-小時-priority-p1",
+      "keywords": [
+        "資格審核",
+        "screening",
+        "IP",
+        "封鎖",
+        "ban",
+        "探測",
+        "probe",
+        "靜默婉拒",
+        "rate limit",
+        "RateLimiter"
+      ],
+      "code_files": [
+        "app/Support/ScreeningProbeGuard.php",
+        "app/Http/Controllers/HighTicketBookingController.php",
+        "routes/web.php",
+        "tests/Feature/HighTicket/ScreeningProbeGuardTest.php",
+        "tests/Feature/HighTicket/BookingScreeningToggleTest.php"
+      ],
+      "status": "implemented"
+    },
+    {
       "id": "011.us-5",
       "module": "011-high-ticket",
       "title": "Lead 轉序列信與開通商品",
